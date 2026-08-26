@@ -18,6 +18,7 @@ import { DataTableComponent, RowAction } from '../../../../shared/components/dat
 import { FilterBarComponent } from '../../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent, ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnToggleComponent } from '../../../../shared/components/data/column-toggle/column-toggle.component';
+import { TagViewFilterComponent } from '../../../../shared/components/data/tag-view-filter/tag-view-filter.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { SortChange, SortOrder } from '../../../../shared/models/sort.model';
@@ -93,6 +94,7 @@ type AreaFilter = 'TRONC' | 'PINYA' | null;
     ActiveFiltersComponent,
     ColumnToggleComponent,
     PaginationComponent,
+    TagViewFilterComponent,
   ],
   templateUrl: './event-participation.component.html',
 })
@@ -103,7 +105,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly DOMAIN_ICONS = DOMAIN_ICONS;
   readonly SearchIcon = Search;
   readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
-  readonly filterableCategories: TagCategory[] = [TagCategory.TRONC, TagCategory.PINYA, TagCategory.ALTRES];
 
   private readonly participationService = inject(ParticipationService);
   private readonly router = inject(Router);
@@ -127,7 +128,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   selectedSegmentId = signal<string | null>(null);
   statusFilter = signal<AttendanceStatus | null>(null);
   positionFilter = signal<AvailablePersonPosition | null>(null);
-  categoryFilter = signal<TagCategory | null>(null);
+  categoryFilters = signal<TagCategory[]>([]);
   onlyConflicts = signal(false);
   /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
   areaFilter = signal<AreaFilter>(null);
@@ -154,14 +155,16 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly filteredRows = computed<ParticipationRow[]>(() => {
     const status = this.statusFilter();
     const position = this.positionFilter();
-    const category = this.categoryFilter();
+    const categories = this.categoryFilters();
     const conflictsOnly = this.onlyConflicts();
     const term = this.normalizeForMatch(this.search());
 
     let rows = this.persons();
     if (status) rows = rows.filter((r) => r.attendanceStatus === status);
     if (position) rows = rows.filter((r) => r.positions.some((p) => p.id === position.id));
-    if (category) rows = rows.filter((r) => r.positions.some((p) => p.category === category));
+    if (categories.length > 0) {
+      rows = rows.filter((r) => r.positions.some((p) => categories.includes(p.category)));
+    }
     if (conflictsOnly) rows = rows.filter((r) => r.conflictSegmentIds.length > 0);
     if (term) rows = this.rankByMatch(rows, term);
     return rows;
@@ -226,8 +229,10 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     const position = this.positionFilter();
     if (position) filters.push({ key: 'position', label: `Etiqueta: ${position.name}` });
 
-    const category = this.categoryFilter();
-    if (category) filters.push({ key: 'category', label: `Categoria: ${TAG_CATEGORY_LABELS[category]}` });
+    const categories = this.categoryFilters();
+    if (categories.length > 0) {
+      filters.push({ key: 'category', label: `Categoria: ${categories.map((c) => TAG_CATEGORY_LABELS[c]).join(', ')}` });
+    }
 
     if (this.onlyConflicts()) filters.push({ key: 'conflicts', label: 'Només conflictes' });
 
@@ -323,6 +328,15 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         type: 'colorBadges',
         colorBadges: (r) => r.positions
           .filter((p) => p.category === TagCategory.ALTRES)
+          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+      },
+      {
+        key: 'tagsXicalla',
+        label: 'Xicalla',
+        defaultVisible: false,
+        type: 'colorBadges',
+        colorBadges: (r) => r.positions
+          .filter((p) => p.category === TagCategory.XICALLA)
           .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
       },
       {
@@ -658,8 +672,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.resetPage();
   }
 
-  onCategoryChange(value: string): void {
-    this.categoryFilter.set(value ? (value as TagCategory) : null);
+  onCategoriesChange(categories: TagCategory[]): void {
+    this.categoryFilters.set(categories);
     this.resetPage();
   }
 
@@ -690,7 +704,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         this.positionFilter.set(null);
         break;
       case 'category':
-        this.categoryFilter.set(null);
+        this.categoryFilters.set([]);
         break;
       case 'conflicts':
         this.onlyConflicts.set(false);
@@ -708,7 +722,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.selectedSegmentId.set(null);
     this.statusFilter.set(null);
     this.positionFilter.set(null);
-    this.categoryFilter.set(null);
+    this.categoryFilters.set([]);
     this.onlyConflicts.set(false);
     this.areaFilter.set(null);
     this.seedVisibleColumns();

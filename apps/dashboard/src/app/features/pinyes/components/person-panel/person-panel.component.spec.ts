@@ -489,43 +489,67 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
-      expect(component.selectedCategory()).toBe(TagCategory.TRONC);
+      expect(component.selectedCategories()).toEqual([TagCategory.TRONC]);
     });
 
     it('pre-selects TRONC category when a BASE-zone node is selected', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'BASE');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
-      expect(component.selectedCategory()).toBe(TagCategory.TRONC);
+      expect(component.selectedCategories()).toEqual([TagCategory.TRONC]);
     });
 
     it('pre-selects PINYA category when a PINYA-zone node is selected', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'PINYA');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
-      expect(component.selectedCategory()).toBe(TagCategory.PINYA);
+      expect(component.selectedCategories()).toEqual([TagCategory.PINYA]);
     });
 
     it('selects no category for a direction-zone node', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'FIGURE_DIRECTION');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
-      expect(component.selectedCategory()).toBeNull();
+      expect(component.selectedCategories()).toEqual([]);
     });
 
     it('selects no category for a decoration-zone node', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'DECORATION');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
-      expect(component.selectedCategory()).toBeNull();
+      expect(component.selectedCategories()).toEqual([]);
     });
 
-    it('includes positionCategory in the query when a category is selected', () => {
+    it('clears a stale category selection when a direction-zone node is selected after a PINYA/TRONC one', () => {
+      fixture.componentRef.setInput('selectedNodeZone', 'PINYA');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      expect(component.selectedCategories()).toEqual([TagCategory.PINYA]);
+
+      fixture.componentRef.setInput('selectedNodeZone', 'FIGURE_DIRECTION');
+      fixture.componentRef.setInput('selectedNodeId', 'node-2');
+      fixture.detectChanges();
+      expect(component.selectedCategories()).toEqual([]);
+    });
+
+    it('includes positionCategory as a list in the query when a category is selected', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
       const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
-      expect(lastQuery).toMatchObject({ positionCategory: TagCategory.TRONC });
+      expect(lastQuery).toMatchObject({ positionCategory: [TagCategory.TRONC] });
+    });
+
+    it('sends positionCategory as a list of multiple groups', () => {
+      component.onCategoryFilterChange([TagCategory.PINYA, TagCategory.ALTRES]);
+      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
+      expect(lastQuery.positionCategory).toEqual([TagCategory.PINYA, TagCategory.ALTRES]);
+    });
+
+    it('omits positionCategory when no group is selected', () => {
+      component.onCategoryFilterChange([]);
+      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
+      expect(lastQuery.positionCategory).toBeUndefined();
     });
 
     it('clears a stale tag filter when auto-selecting an incompatible category on node selection', () => {
@@ -543,46 +567,58 @@ describe('PersonPanelComponent', () => {
       expect(component.selectedPositionId()).toBeNull();
       const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
       expect(lastQuery).not.toHaveProperty('positionId');
-      expect(lastQuery).toMatchObject({ positionCategory: TagCategory.TRONC });
+      expect(lastQuery).toMatchObject({ positionCategory: [TagCategory.TRONC] });
     });
 
     it('does not overwrite a manual category selection when the node is deselected', () => {
-      component.onCategoryFilterChange(TagCategory.PINYA);
+      component.onCategoryFilterChange([TagCategory.PINYA]);
       fixture.componentRef.setInput('selectedNodeZone', null);
       fixture.componentRef.setInput('selectedNodeId', null);
       fixture.detectChanges();
-      expect(component.selectedCategory()).toBe(TagCategory.PINYA);
+      expect(component.selectedCategories()).toEqual([TagCategory.PINYA]);
     });
 
     it('clearing the category filter removes positionCategory from the next query', () => {
-      component.onCategoryFilterChange(TagCategory.TRONC);
+      component.onCategoryFilterChange([TagCategory.TRONC]);
       assignmentService.getAvailablePersons.mockClear();
-      component.onCategoryFilterChange(null);
+      component.onCategoryFilterChange([]);
       const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
       expect(lastQuery).not.toHaveProperty('positionCategory');
     });
 
-    it('filters the tag dropdown options by the active category', () => {
+    it('filters the tag dropdown options by the active categories', () => {
       component.tags.set([
         { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.TRONC, positionTypes: [], personCount: 0 },
         { id: 't2', name: 'Agulla', slug: 'agulla', shortDescription: null, longDescription: null, color: '#00ff00', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
+        { id: 't3', name: 'Capità', slug: 'capita', shortDescription: null, longDescription: null, color: '#0000ff', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
       ]);
-      component.onCategoryFilterChange(TagCategory.TRONC);
+      component.onCategoryFilterChange([TagCategory.TRONC, TagCategory.PINYA]);
       fixture.detectChanges();
 
       const ids = component.filteredTags().map((t) => t.id);
-      expect(ids).toEqual(['t1']);
+      expect(ids).toEqual(['t1', 't2']);
     });
 
-    it('clears a stale tag selection when it falls outside the newly picked category', () => {
+    it('clears a stale tag selection when it falls outside the newly picked categories', () => {
       component.tags.set([
         { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
       ]);
       component.onPositionFilterChange('t1');
-      component.onCategoryFilterChange(TagCategory.TRONC);
+      component.onCategoryFilterChange([TagCategory.TRONC]);
       fixture.detectChanges();
 
       expect(component.selectedPositionId()).toBeNull();
+    });
+
+    it('keeps a tag selection whose category is among several selected groups', () => {
+      component.tags.set([
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
+      ]);
+      component.onPositionFilterChange('t1');
+      component.onCategoryFilterChange([TagCategory.TRONC, TagCategory.PINYA]);
+      fixture.detectChanges();
+
+      expect(component.selectedPositionId()).toBe('t1');
     });
   });
 

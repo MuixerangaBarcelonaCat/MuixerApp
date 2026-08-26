@@ -14,14 +14,14 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent } from '@muixer/ui';
-import { areaForZone, DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
+import { areaForZone, DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
+import { TagViewFilterComponent } from '../../../../shared/components/data/tag-view-filter/tag-view-filter.component';
 
 interface PersonSearchResult {
   person: AvailablePerson;
@@ -33,7 +33,7 @@ interface PersonSearchResult {
   selector: 'app-person-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, ButtonComponent, ButtonGroupComponent],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, TagViewFilterComponent],
   templateUrl: './person-panel.component.html',
 })
 export class PersonPanelComponent {
@@ -75,10 +75,7 @@ export class PersonPanelComponent {
   readonly selectedPositionId = signal<string | null>(null);
   readonly tagFilterOpen = signal(false);
   readonly tagSearch = signal('');
-  readonly selectedCategory = signal<TagCategory | null>(null);
-
-  readonly TagCategory = TagCategory;
-  readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
+  readonly selectedCategories = signal<TagCategory[]>([]);
 
   readonly selectedTag = computed(() =>
     this.tags().find((t) => t.id === this.selectedPositionId()) ?? null,
@@ -86,10 +83,10 @@ export class PersonPanelComponent {
 
   readonly filteredTags = computed(() => {
     const term = this.normalizeForMatch(this.tagSearch());
-    const category = this.selectedCategory();
+    const categories = this.selectedCategories();
     return this.tags().filter(
       (t) =>
-        (!category || t.category === category) &&
+        (categories.length === 0 || categories.includes(t.category)) &&
         (!term || this.normalizeForMatch(t.name).includes(term)),
     );
   });
@@ -341,11 +338,12 @@ export class PersonPanelComponent {
         // Left untouched when a node is deselected (nodeId === null), same as Xicalla below.
         // Set before onXicallaChange so the reload it triggers already carries the new category.
         const category = this.categoryForZone(this.selectedNodeZone());
-        this.selectedCategory.set(category);
+        const categories = category ? [category] : [];
+        this.selectedCategories.set(categories);
         // Same compatibility check as the manual toggle (onCategoryFilterChange): drop a
         // tag filter that no longer matches the auto-selected category.
         const tag = this.selectedTag();
-        if (category && tag && tag.category !== category) {
+        if (categories.length > 0 && tag && !categories.includes(tag.category)) {
           this.selectedPositionId.set(null);
         }
         this.onXicallaChange(this.selectedNodeZone() === FigureZone.TRONC);
@@ -414,7 +412,8 @@ export class PersonPanelComponent {
     }
     if (!this.showXicalla()) query['isXicalla'] = false;
     if (this.selectedPositionId()) query['positionId'] = this.selectedPositionId();
-    if (this.selectedCategory()) query['positionCategory'] = this.selectedCategory();
+    const categories = this.selectedCategories();
+    if (categories.length > 0) query['positionCategory'] = categories;
 
     this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), query)
@@ -463,11 +462,11 @@ export class PersonPanelComponent {
     this.onPositionFilterChange('');
   }
 
-  /** Manual category chip toggle — drops a tag selection that falls outside the new category. */
-  onCategoryFilterChange(category: TagCategory | null): void {
-    this.selectedCategory.set(category);
+  /** Manual group filter change — drops a tag selection that falls outside the new groups. */
+  onCategoryFilterChange(categories: TagCategory[]): void {
+    this.selectedCategories.set(categories);
     const tag = this.selectedTag();
-    if (category && tag && tag.category !== category) {
+    if (categories.length > 0 && tag && !categories.includes(tag.category)) {
       this.selectedPositionId.set(null);
     }
     this.loadPersons();

@@ -129,38 +129,10 @@
         Xicalla
       </label>
 
-      <div class="flex items-center gap-1">
-        <lib-button-group>
-          <lib-button
-            joinItem
-            outlineMode
-            variant="primary"
-            size="sm"
-            [active]="selectedCategory() === TagCategory.TRONC"
-            data-testid="category-filter-tronc"
-            (clicked)="onCategoryFilterChange(selectedCategory() === TagCategory.TRONC ? null : TagCategory.TRONC)"
-          >{{ TAG_CATEGORY_LABELS[TagCategory.TRONC] }}</lib-button>
-          <lib-button
-            joinItem
-            outlineMode
-            variant="primary"
-            size="sm"
-            [active]="selectedCategory() === TagCategory.PINYA"
-            data-testid="category-filter-pinya"
-            (clicked)="onCategoryFilterChange(selectedCategory() === TagCategory.PINYA ? null : TagCategory.PINYA)"
-          >{{ TAG_CATEGORY_LABELS[TagCategory.PINYA] }}</lib-button>
-        </lib-button-group>
-        @if (selectedCategory()) {
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs px-1.5"
-            data-testid="category-filter-clear"
-            (click)="onCategoryFilterChange(null)"
-            aria-label="Neteja el filtre de categoria"
-            title="Neteja el filtre de categoria"
-          >✕</button>
-        }
-      </div>
+      <app-tag-view-filter
+        [selected]="selectedCategories()"
+        (selectedChange)="onCategoryFilterChange($event)"
+      />
 
       <div class="flex items-center gap-1">
         <div class="dropdown" [class.dropdown-open]="tagFilterOpen()">
