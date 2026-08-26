@@ -89,7 +89,7 @@
                     [attr.title]="!first ? getCellTitle(item, col) : null"
                   >
                     @if (first && col.prefix?.(item); as p) {
-                      <span [class]="p.class">{{ p.text }}</span>
+                      <span [class]="p.class" [attr.title]="p.title ?? null">{{ p.text }}</span>
                     }
                     @if (col.type === 'badge' && col.badgeClass) {
                       <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
@@ -211,7 +211,7 @@
               @if (primaryColumn(); as pcol) {
                 <span class="font-semibold text-base break-words">
                   @if (pcol.prefix?.(item); as p) {
-                    <span [class]="p.class">{{ p.text }}</span>
+                    <span [class]="p.class" [attr.title]="p.title ?? null">{{ p.text }}</span>
                   }
                   {{ getCellValue(item, pcol) ?? '—' }}
                 </span>

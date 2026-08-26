@@ -29,6 +29,8 @@ describe('person.util', () => {
     isActive: true,
     positions: [],
     user: null,
+    tagCompliance: { ok: true, missing: [] },
+    attendedCount: 0,
     createdAt: '',
     updatedAt: '',
   };

@@ -43,6 +43,8 @@ const mockPerson = (overrides: Partial<Person> = {}): Person => ({
   isActive: true,
   positions: [],
   user: null,
+  tagCompliance: { ok: true, missing: [] },
+  attendedCount: 0,
   createdAt: '2025-01-01',
   updatedAt: '2025-01-01',
   ...overrides,

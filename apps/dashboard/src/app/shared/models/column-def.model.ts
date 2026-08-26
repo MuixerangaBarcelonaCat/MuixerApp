@@ -39,10 +39,10 @@ export interface ColumnDef<T = any> {
   onCellClick?: (item: T) => void;
   /**
    * A small coloured glyph/marker rendered before this column's own text — for the primary
-   * column only (table mode; card-mode's title stays plain text via `value`, per its own
-   * "no rich rendering in card mode" convention). `null` renders nothing for that row.
+   * column only (both table and card mode). `null` renders nothing for that row. `title` sets
+   * the native tooltip (e.g. explaining why the marker is shown).
    */
-  prefix?: (item: T) => { text: string; class: string } | null;
+  prefix?: (item: T) => { text: string; class: string; title?: string } | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

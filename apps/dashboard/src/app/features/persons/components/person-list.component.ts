@@ -6,7 +6,8 @@ import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldCo
 import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
-import { TagCategory, TAG_CATEGORY_LABELS } from '@muixer/shared';
+import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
+import { TagViewFilterComponent } from '../../../shared/components/data/tag-view-filter/tag-view-filter.component';
 import {
   getFullName,
   getAvailabilityLabel,
@@ -62,11 +63,14 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
   { key: 'positions', label: 'Etiquetes', defaultVisible: true, type: 'colorBadges' },
+  // "(temp. actual)" avoids reading as "never attends": attendedCount is 0 both for a genuine
+  // newcomer and whenever there is no current season — the label scopes it explicitly instead.
+  { key: 'attendedCount', label: 'Assistències (temp. actual)', defaultVisible: false, sortField: 'attendedCount' },
   { key: 'availability', label: 'Pot participar', defaultVisible: false, sortField: 'availability' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
-  { key: 'isXicalla', label: 'Xicalla', defaultVisible: false, sortField: 'isXicalla' },
+  { key: 'isXicalla', label: 'Menor de 16', defaultVisible: false, sortField: 'isXicalla' },
   { key: 'shirtDate', label: 'Data camisa', defaultVisible: false, sortField: 'shirtDate' },
   { key: 'notes', label: 'Notes', defaultVisible: false },
   { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
@@ -93,6 +97,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
     DataTableComponent,
     PersonNewModalComponent,
     TutorialModalComponent,
+    TagViewFilterComponent,
   ],
   templateUrl: './person-list.component.html',
 })
@@ -141,7 +146,8 @@ export class PersonListComponent {
     const pos = this.selectedPositions().length > 0;
     const cat = this.selectedCategories().length > 0;
     const actius = this.activeFilters().isActive === true;
-    return Boolean(s || pos || cat || actius);
+    const tagRule = this.activeFilters().tagRuleOk !== undefined;
+    return Boolean(s || pos || cat || actius || tagRule);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -188,6 +194,17 @@ export class PersonListComponent {
 
   toggleActiusFilter() {
     this.toggleFilter('isActive', true);
+  }
+
+  toggleTagRuleFilter(): void {
+    this.toggleFilter('tagRuleOk', false);
+  }
+
+  /** Renders `TagCompliance.missing` into the Catalan warning text for the badge/tooltip. */
+  missingTagsLabel(compliance: TagCompliance): string {
+    if (compliance.ok) return '';
+    const groups = compliance.missing.map((group) => TAG_CATEGORY_LABELS[group]).join(' i ');
+    return `Falta etiqueta de ${groups}`;
   }
 
   toggleFilter(key: keyof PersonFilterParams, value: string | boolean | number) {
@@ -370,6 +387,7 @@ export class PersonListComponent {
       chips.push({ key: 'categories', label: `Categoria: ${labels}` });
     }
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
+    if (this.activeFilters().tagRuleOk === false) chips.push({ key: 'tagRuleOk', label: 'No compleix la regla' });
     return chips;
   });
 
@@ -383,6 +401,7 @@ export class PersonListComponent {
     else if (key === 'positions') this.clearPositionsChip();
     else if (key === 'categories') this.clearCategoriesChip();
     else if (key === 'isActive') this.clearActiusChip();
+    else if (key === 'tagRuleOk') this.toggleTagRuleFilter();
   }
 
   onSortChangeFromTable(event: { field: string; order: 'ASC' | 'DESC' | undefined }): void {
@@ -412,6 +431,7 @@ export class PersonListComponent {
       case 'fullName': return getFullName(person);
       case 'alias': return person.alias || '—';
       case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
+      case 'attendedCount': return String(person.attendedCount ?? 0);
       case 'availability': return getAvailabilityLabel(person.availability);
       case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
       case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
@@ -434,6 +454,14 @@ export class PersonListComponent {
       ...(col.key === 'positions' && {
         colorBadges: (person: Person) => person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
         onColorBadgeClick: (id: string) => this.togglePosition(id),
+      }),
+      ...(col.key === 'alias' && {
+        // Matches lib-badge's own `variant="warning" size="sm"` output classes — a real
+        // lib-badge can't be projected into the shared, per-cell generic table rendering.
+        prefix: (person: Person) =>
+          person.tagCompliance && !person.tagCompliance.ok
+            ? { text: 'Sense etiquetar', class: 'badge badge-warning badge-sm mr-1 align-middle', title: this.missingTagsLabel(person.tagCompliance) }
+            : null,
       }),
     }))
   );

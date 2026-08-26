@@ -2,6 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { TAG_CATEGORY_LABELS, TAG_VIEWS, TagCategory, TagView } from '@muixer/shared';
 import { ButtonComponent, ButtonGroupComponent } from '@muixer/ui';
 
+// Matches the tag catalog table's own group order (config/tags), not the enum's declaration
+// order — keeps the taxonomy reading the same everywhere in the UI.
+const GROUP_ORDER: readonly TagCategory[] = [TagCategory.PINYA, TagCategory.TRONC, TagCategory.XICALLA, TagCategory.ALTRES];
+
 /**
  * Selector de grups d'etiquetes amb les dues visualitzacions de la tècnica: «Guió»
  * (xicalla + tronc) i «Pinyes» (pinya + altres). Selecció buida = tots els grups.
@@ -47,7 +51,7 @@ export class TagViewFilterComponent {
   readonly selectedChange = output<TagCategory[]>();
 
   readonly views = TAG_VIEWS;
-  readonly groups = Object.values(TagCategory);
+  readonly groups = GROUP_ORDER;
   readonly labels = TAG_CATEGORY_LABELS;
 
   private readonly selectedSet = computed(() => new Set(this.selected()));

@@ -34,6 +34,8 @@ const makePerson = (overrides: Partial<Person> = {}): Person => ({
   isActive: true,
   positions: [],
   user: null,
+  tagCompliance: { ok: true, missing: [] },
+  attendedCount: 0,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   ...overrides,

@@ -51,19 +51,11 @@
       </div>
     }
 
-    <!-- Categoria -->
-    <div class="w-full sm:w-48">
-      <lib-select
-        [multiple]="true"
-        label="Categoria"
-        [ngModel]="selectedCategories()"
-        (ngModelChange)="onCategoriesChange($event)"
-      >
-        @for (category of tagCategories; track category) {
-          <option [value]="category">{{ TAG_CATEGORY_LABELS[category] }}</option>
-        }
-      </lib-select>
-    </div>
+    <!-- Grup d'etiquetes -->
+    <app-tag-view-filter
+      [selected]="selectedCategories()"
+      (selectedChange)="onCategoriesChange($event)"
+    />
 
     <!-- Actius -->
     <div class="w-fit">
@@ -78,6 +70,18 @@
             />
             <span class="text-sm">Sols actius</span>
           </label>
+          <lib-button-group>
+            <lib-button
+              joinItem
+              outlineMode
+              variant="warning"
+              size="sm"
+              [active]="activeFilters().tagRuleOk === false"
+              (clicked)="toggleTagRuleFilter()"
+            >
+              No compleix la regla
+            </lib-button>
+          </lib-button-group>
           <lib-button-group>
             <lib-button
               joinItem

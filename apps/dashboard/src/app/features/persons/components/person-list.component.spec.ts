@@ -33,6 +33,8 @@ describe('PersonListComponent', () => {
     notes: null,
     isActive: true,
     positions: [],
+    tagCompliance: { ok: true, missing: [] },
+    attendedCount: 0,
     createdAt: '2024-01-01',
     updatedAt: '2024-01-02',
   };
@@ -193,6 +195,56 @@ describe('PersonListComponent', () => {
       const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
       expect(search).toBeTruthy();
       expect(search.className).toContain('h-6');
+    });
+  });
+
+  describe('tag rule filter and warning (Task 9)', () => {
+    it('envia tagRuleOk=false quan s\'activa el filtre de la regla', () => {
+      fixture.componentInstance.toggleTagRuleFilter();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
+    });
+
+    it('desactiva el filtre de la regla si es torna a prémer', () => {
+      fixture.componentInstance.toggleTagRuleFilter();
+      fixture.componentInstance.toggleTagRuleFilter();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBeUndefined();
+    });
+
+    it('redacta l\'avís amb els grups que falten', () => {
+      const text = fixture.componentInstance.missingTagsLabel({
+        ok: false,
+        missing: [TagCategory.TRONC],
+      });
+
+      expect(text).toBe('Falta etiqueta de Tronc');
+    });
+
+    it('no redacta cap avís quan compleix la regla', () => {
+      expect(fixture.componentInstance.missingTagsLabel({ ok: true, missing: [] })).toBe('');
+    });
+
+    it('mostra el badge d\'avís a la fila quan la persona no compleix la regla', () => {
+      fixture.componentInstance.persons.set([
+        { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
+      ]);
+      fixture.detectChanges();
+
+      const badges = fixture.nativeElement.querySelectorAll('.badge-warning');
+      const warningBadge = Array.from(badges as NodeListOf<HTMLElement>).find(
+        (b) => b.textContent?.trim() === 'Sense etiquetar',
+      );
+      expect(warningBadge).toBeTruthy();
+      expect(warningBadge?.title).toBe('Falta etiqueta de Pinya');
+    });
+
+    it('no mostra cap badge d\'avís quan la persona compleix la regla', () => {
+      fixture.componentInstance.persons.set([{ ...mockPerson } as never]);
+      fixture.detectChanges();
+
+      const badges = fixture.nativeElement.querySelectorAll('.badge-warning');
+      expect(badges.length).toBe(0);
     });
   });
 
