@@ -3,9 +3,9 @@ import { TagCategory } from '@muixer/shared';
 import { TagViewFilterComponent } from './tag-view-filter.component';
 
 describe('TagViewFilterComponent', () => {
-  const create = () => {
+  const create = (selected: TagCategory[] = []) => {
     const fixture = TestBed.createComponent(TagViewFilterComponent);
-    fixture.componentRef.setInput('selected', []);
+    fixture.componentRef.setInput('selected', selected);
     fixture.detectChanges();
     return fixture;
   };
@@ -16,44 +16,23 @@ describe('TagViewFilterComponent', () => {
     }).compileComponents();
   });
 
-  it('el preset de guió selecciona xicalla i tronc', () => {
+  it('activar un grup no seleccionat lafig', () => {
     const fixture = create();
     const emitted: TagCategory[][] = [];
     fixture.componentInstance.selectedChange.subscribe((v) => emitted.push(v));
 
-    fixture.componentInstance.applyView('guio');
+    fixture.componentInstance.toggleGroup(TagCategory.PINYA);
 
-    expect(emitted).toEqual([[TagCategory.XICALLA, TagCategory.TRONC]]);
-  });
-
-  it('el preset de pinyes selecciona pinya i altres', () => {
-    const fixture = create();
-    const emitted: TagCategory[][] = [];
-    fixture.componentInstance.selectedChange.subscribe((v) => emitted.push(v));
-
-    fixture.componentInstance.applyView('pinyes');
-
-    expect(emitted).toEqual([[TagCategory.PINYA, TagCategory.ALTRES]]);
+    expect(emitted).toEqual([[TagCategory.PINYA]]);
   });
 
   it('activar un grup ja seleccionat el lleva', () => {
-    const fixture = TestBed.createComponent(TagViewFilterComponent);
-    fixture.componentRef.setInput('selected', [TagCategory.PINYA, TagCategory.TRONC]);
-    fixture.detectChanges();
+    const fixture = create([TagCategory.PINYA, TagCategory.TRONC]);
     const emitted: TagCategory[][] = [];
     fixture.componentInstance.selectedChange.subscribe((v) => emitted.push(v));
 
     fixture.componentInstance.toggleGroup(TagCategory.PINYA);
 
     expect(emitted).toEqual([[TagCategory.TRONC]]);
-  });
-
-  it('marca el preset com a actiu quan la selecció hi coincideix exactament', () => {
-    const fixture = TestBed.createComponent(TagViewFilterComponent);
-    fixture.componentRef.setInput('selected', [TagCategory.TRONC, TagCategory.XICALLA]);
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.isViewActive('guio')).toBe(true);
-    expect(fixture.componentInstance.isViewActive('pinyes')).toBe(false);
   });
 });

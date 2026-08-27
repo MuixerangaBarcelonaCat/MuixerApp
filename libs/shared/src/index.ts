@@ -18,7 +18,6 @@ export * from './enums/news-status.enum';
 export * from './enums/notification-target-type.enum';
 export * from './enums/tag-category.enum';
 export * from './constants/node-preset.constants';
-export * from './constants/tag-view.constants';
 export * from './constants/assignment-area.constants';
 export * from './constants/person.constants';
 export * from './constants/domain-icons.constants';

@@ -97,19 +97,11 @@ Dos detalls que expliquen absències:
 - Els tipus de tronc `quarta`, `quinta`, `sisena`, `puntal` i `xiqueta` es queden sense
   etiqueta associada. No tota posició d'una figura necessita etiqueta.
 
-### Visualitzacions
-
-`TAG_VIEWS` (`libs/shared/src/constants/tag-view.constants.ts`) fixa les dues combinacions de
-grups amb què es treballa:
-
-| Visualització | Grups             | Quan                       |
-| ------------- | ----------------- | -------------------------- |
-| Guió          | XICALLA + TRONC   | quan es prepara el guió    |
-| Pinyes        | PINYA + ALTRES    | quan es col·loquen pinyes  |
+### Filtre per grup
 
 `TagViewFilterComponent`
-(`apps/dashboard/src/app/shared/components/data/tag-view-filter/`) les pinta com dos botons de
-preset més els quatre xips de grup, amb selecció múltiple. Selecció buida = tots els grups.
+(`apps/dashboard/src/app/shared/components/data/tag-view-filter/`) pinta els quatre xips de
+grup (PINYA/TRONC/XICALLA/ALTRES), amb selecció múltiple. Selecció buida = tots els grups.
 Es fa servir a `/persons`, a `/config/tags`, al panell de persones del taller d'assignació i a
 la vista de participació de l'esdeveniment.
 
