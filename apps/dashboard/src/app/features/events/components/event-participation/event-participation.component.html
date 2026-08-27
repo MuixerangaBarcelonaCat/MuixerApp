@@ -80,7 +80,7 @@
       </lib-select>
     </div>
 
-    @if (availablePositions().length > 0) {
+    @if (positionOptions().length > 0) {
       <div class="w-40">
         <lib-select
           [ngModel]="positionFilter()?.id ?? ''"
@@ -88,8 +88,10 @@
           ariaLabel="Filtra per etiqueta"
         >
           <option value="">Totes les etiquetes</option>
-          @for (position of availablePositions(); track position.id) {
-            <option [value]="position.id">{{ position.name }}</option>
+          @for (position of positionOptions(); track position.id) {
+            <option [value]="position.id">
+              {{ position.name }}@if (position.wornCount === 0) { (0) }
+            </option>
           }
         </lib-select>
       </div>

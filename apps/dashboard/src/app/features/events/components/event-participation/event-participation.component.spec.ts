@@ -15,6 +15,8 @@ import {
   ParticipationSegment,
 } from '../../models/participation.model';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
+import { TagService } from '../../../config/services/tag.service';
+import { TagWithCount } from '../../../config/models/tag.model';
 import { TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
@@ -242,9 +244,17 @@ describe('EventParticipationComponent', () => {
     ...overrides,
   });
 
+  // The tag filter offers the whole catalog, so the component loads it alongside the
+  // participation data — `failCatalog` covers the degraded path.
+  const catalogTags: TagWithCount[] = [
+    { id: 'tag-worn', name: '1es Vents', slug: 'vent', shortDescription: null, longDescription: null, color: '#222', category: TagCategory.PINYA, positionTypes: [], personCount: 12 },
+    { id: 'tag-unworn', name: 'Taps', slug: 'tap', shortDescription: null, longDescription: null, color: '#444', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
+  ];
+
   const setup = async (
     response: EventParticipation = buildResponse(),
     isPast = false,
+    { failCatalog = false }: { failCatalog?: boolean } = {},
   ): Promise<ComponentFixture<EventParticipationComponent>> => {
     await TestBed.configureTestingModule({
       imports: [EventParticipationComponent],
@@ -252,6 +262,12 @@ describe('EventParticipationComponent', () => {
         provideRouter([]),
         allLucideIconsProvider,
         { provide: ParticipationService, useValue: { getByEvent: () => of(response) } },
+        {
+          provide: TagService,
+          useValue: {
+            getAll: () => (failCatalog ? throwError(() => new Error('boom')) : of(catalogTags)),
+          },
+        },
       ],
     }).compileComponents();
 
@@ -303,31 +319,38 @@ describe('EventParticipationComponent', () => {
     it('hides the full name and tag columns by default to keep the matrix narrow', async () => {
       const fixture = await setup();
       expect(columnByKey(fixture, 'fullName')?.defaultVisible).toBe(false);
-      expect(columnByKey(fixture, 'tagsTronc')?.defaultVisible).toBe(false);
-      expect(columnByKey(fixture, 'tagsPinya')?.defaultVisible).toBe(false);
+      expect(columnByKey(fixture, 'tags')?.defaultVisible).toBe(false);
       expect(fixture.componentInstance.visibleKeys()).not.toContain('fullName');
     });
   });
 
-  describe('tronc/pinya tag columns (Fase 4.3)', () => {
-    const troncTag = { id: 'tag-tronc', name: 'Segona', slug: 'segona', color: '#111', category: TagCategory.TRONC, positionTypes: [] };
-    const pinyaTag = { id: 'tag-pinya', name: 'Vents', slug: 'vents', color: '#222', category: TagCategory.PINYA, positionTypes: [] };
-    const altresTag = { id: 'tag-altres', name: 'Capità', slug: 'capita', color: '#333', category: TagCategory.ALTRES, positionTypes: [] };
+  describe('tags column', () => {
+    const troncTag = { id: 'tag-tronc', name: 'Segones', slug: 'segona', color: '#111', category: TagCategory.TRONC, positionTypes: [] };
+    const pinyaTag = { id: 'tag-pinya', name: '1es Vents', slug: 'vent', color: '#222', category: TagCategory.PINYA, positionTypes: [] };
+    const altresTag = { id: 'tag-altres', name: 'Acompanyants', slug: 'acompanyant', color: '#333', category: TagCategory.ALTRES, positionTypes: [] };
 
-    it('splits positions into tagsTronc / tagsPinya by category, excluding ALTRES from both', async () => {
+    it('shows every tag of a person in one column, whatever its group', async () => {
       const response = buildResponse({
         persons: [makePerson('p1', 'PERSIANA', {}, { positions: [troncTag, pinyaTag, altresTag] })],
       });
       const fixture = await setup(response);
       const row = fixture.componentInstance.persons()[0];
 
-      const troncCol = columnByKey(fixture, 'tagsTronc')!;
-      const pinyaCol = columnByKey(fixture, 'tagsPinya')!;
+      const column = columnByKey(fixture, 'tags')!;
+      expect(column.label).toBe('Etiquetes');
+      expect(column.colorBadges!(row).map((b) => b.text)).toEqual([
+        '1es Vents',
+        'Acompanyants',
+        'Segones',
+      ]);
+    });
 
-      expect(troncCol.colorBadges!(row).map((b) => b.text)).toEqual(['Segona']);
-      expect(pinyaCol.colorBadges!(row).map((b) => b.text)).toEqual(['Vents']);
-      expect(troncCol.colorBadges!(row).map((b) => b.text)).not.toContain('Capità');
-      expect(pinyaCol.colorBadges!(row).map((b) => b.text)).not.toContain('Capità');
+    it('replaces the per-group tag columns', async () => {
+      const fixture = await setup();
+
+      for (const key of ['tagsTronc', 'tagsPinya', 'tagsAltres', 'tagsXicalla']) {
+        expect(columnByKey(fixture, key)).toBeUndefined();
+      }
     });
 
     it('falls back to the #888 color when a tag has none', async () => {
@@ -337,7 +360,46 @@ describe('EventParticipationComponent', () => {
       const fixture = await setup(response);
       const row = fixture.componentInstance.persons()[0];
 
-      expect(columnByKey(fixture, 'tagsTronc')!.colorBadges!(row)).toEqual([{ text: 'Segona', color: '#888' }]);
+      expect(columnByKey(fixture, 'tags')!.colorBadges!(row)).toEqual([{ text: 'Segones', color: '#888' }]);
+    });
+  });
+
+  describe('tag filter options', () => {
+    const wornTag = { id: 'tag-worn', name: '1es Vents', slug: 'vent', color: '#222', category: TagCategory.PINYA, positionTypes: [] };
+
+    it('lists the whole catalog, marking the tags nobody in the event wears', async () => {
+      const response = buildResponse({
+        persons: [makePerson('p1', 'PERSIANA', {}, { positions: [wornTag] })],
+      });
+      const fixture = await setup(response);
+
+      const options = fixture.componentInstance.positionOptions();
+      expect(options.map((o) => o.name)).toEqual(['1es Vents', 'Taps']);
+      expect(options.find((o) => o.name === '1es Vents')!.wornCount).toBe(1);
+      expect(options.find((o) => o.name === 'Taps')!.wornCount).toBe(0);
+    });
+
+    it('falls back to the tags seen in the event when the catalog cannot be loaded', async () => {
+      const response = buildResponse({
+        persons: [makePerson('p1', 'PERSIANA', {}, { positions: [wornTag] })],
+      });
+      const fixture = await setup(response, false, { failCatalog: true });
+
+      expect(fixture.componentInstance.positionOptions().map((o) => o.name)).toEqual(['1es Vents']);
+    });
+
+    it('filters rows by a tag picked from the catalog', async () => {
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'PERSIANA', {}, { positions: [wornTag] }),
+          makePerson('p2', 'CARBASSA', {}, { positions: [] }),
+        ],
+      });
+      const fixture = await setup(response);
+
+      fixture.componentInstance.onPositionChange('tag-worn');
+
+      expect(fixture.componentInstance.filteredRows().map((r) => r.alias)).toEqual(['PERSIANA']);
     });
   });
 
@@ -536,8 +598,8 @@ describe('EventParticipationComponent', () => {
       expect(fixture.componentInstance.filteredRows().map((r) => r.alias)).toEqual(['GRILLAT']);
     });
 
-    it('derives the tag options from the population, with no extra request', async () => {
-      const tag = { id: 't1', name: 'Baix', slug: 'baix', color: '#111', category: TagCategory.TRONC, positionTypes: [] };
+    it('derives the tags actually worn from the population', async () => {
+      const tag = { id: 't1', name: 'Baixes', slug: 'baix', color: '#111', category: TagCategory.TRONC, positionTypes: [] };
       const response = buildResponse({
         persons: [
           makePerson('p1', 'PERSIANA', {}, { positions: [tag] }),
@@ -547,9 +609,6 @@ describe('EventParticipationComponent', () => {
       const fixture = await setup(response);
 
       expect(fixture.componentInstance.availablePositions()).toEqual([tag]);
-
-      fixture.componentInstance.onPositionChange('t1');
-      expect(fixture.componentInstance.filteredRows().map((r) => r.alias)).toEqual(['PERSIANA']);
     });
 
     it('narrows by tag category (Fase 4.3)', async () => {

@@ -24,8 +24,18 @@
     // DaisyUI's own arrow same as before.
     background-image: none;
 
+    // The closed control renders the selected <option> as ordinary flow content in base-select
+    // mode, so a label longer than the field wraps onto a second line and the control grows —
+    // the native appearance clipped it instead, and still does in unsupported browsers. Restore
+    // that: one line, ellipsised. The picker panel below opts back into wrapping, since there
+    // the full text of every option has to stay readable.
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
     &::picker(select) {
       appearance: base-select;
+      white-space: normal;
       margin-top: 0.25rem;
       padding: 0.375rem;
       border: 1px solid oklch(var(--bc) / 0.15);

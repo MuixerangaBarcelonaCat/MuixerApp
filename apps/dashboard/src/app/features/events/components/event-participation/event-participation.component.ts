@@ -25,6 +25,8 @@ import { SortChange, SortOrder } from '../../../../shared/models/sort.model';
 import { ICON_FIGURA, ICON_XICALLA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 import { ParticipationService } from '../../services/participation.service';
+import { TagService } from '../../../config/services/tag.service';
+import { TagWithCount } from '../../../config/models/tag.model';
 import {
   ParticipationMeta,
   ParticipationPerson,
@@ -35,6 +37,13 @@ import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 /** A row of the matrix. Same shape as the API person — placements are already keyed by segment. */
 export type ParticipationRow = ParticipationPerson;
+
+/** One entry of the tag filter: a catalog tag plus how many people of this event carry it. */
+export interface TagFilterOption {
+  id: string;
+  name: string;
+  wornCount: number;
+}
 
 type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmentPercent' | 'shoulderHeight';
 
@@ -106,6 +115,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly SearchIcon = Search;
 
   private readonly participationService = inject(ParticipationService);
+  private readonly tagService = inject(TagService);
   private readonly router = inject(Router);
 
   eventId = input.required<string>();
@@ -126,7 +136,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
   selectedSegmentId = signal<string | null>(null);
   statusFilter = signal<AttendanceStatus | null>(null);
-  positionFilter = signal<AvailablePersonPosition | null>(null);
+  positionFilter = signal<TagFilterOption | null>(null);
+  private readonly catalogTags = signal<TagWithCount[]>([]);
   categoryFilters = signal<TagCategory[]>([]);
   onlyConflicts = signal(false);
   /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
@@ -149,6 +160,28 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       }
     }
     return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'ca'));
+  });
+
+  /**
+   * Every tag in the catalog, each with how many people of this event carry it — a `wornCount`
+   * of 0 is shown rather than hidden, so «no one here is a tap» reads as an answer instead of a
+   * missing option. Falls back to the tags seen in the event if the catalog could not be loaded.
+   */
+  readonly positionOptions = computed<TagFilterOption[]>(() => {
+    const worn = new Map<string, number>();
+    for (const person of this.persons()) {
+      for (const position of person.positions) {
+        worn.set(position.id, (worn.get(position.id) ?? 0) + 1);
+      }
+    }
+
+    const catalog = this.catalogTags();
+    const source: { id: string; name: string }[] =
+      catalog.length > 0 ? catalog : this.availablePositions();
+
+    return source
+      .map((tag) => ({ id: tag.id, name: tag.name, wornCount: worn.get(tag.id) ?? 0 }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ca'));
   });
 
   readonly filteredRows = computed<ParticipationRow[]>(() => {
@@ -302,40 +335,16 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         value: (r) => this.statusLabel(r.attendanceStatus),
         badgeClass: (r) => this.statusBadgeClass(r.attendanceStatus),
       },
+      // One column for every tag, whatever its group: a column per group collided with the
+      // placement columns («Tronc» meant both "carries tronc tags" and "is placed in a tronc")
+      // and cost four slots in an already wide matrix. The group is still how you *filter*.
       {
-        key: 'tagsTronc',
-        label: 'Tronc',
+        key: 'tags',
+        label: 'Etiquetes',
         defaultVisible: false,
         type: 'colorBadges',
-        colorBadges: (r) => r.positions
-          .filter((p) => p.category === TagCategory.TRONC)
-          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
-      },
-      {
-        key: 'tagsPinya',
-        label: 'Pinya',
-        defaultVisible: false,
-        type: 'colorBadges',
-        colorBadges: (r) => r.positions
-          .filter((p) => p.category === TagCategory.PINYA)
-          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
-      },
-      {
-        key: 'tagsAltres',
-        label: 'Altres',
-        defaultVisible: false,
-        type: 'colorBadges',
-        colorBadges: (r) => r.positions
-          .filter((p) => p.category === TagCategory.ALTRES)
-          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
-      },
-      {
-        key: 'tagsXicalla',
-        label: 'Xicalla',
-        defaultVisible: false,
-        type: 'colorBadges',
-        colorBadges: (r) => r.positions
-          .filter((p) => p.category === TagCategory.XICALLA)
+        colorBadges: (r) => [...r.positions]
+          .sort((a, b) => a.name.localeCompare(b.name, 'ca'))
           .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
       },
       {
@@ -470,6 +479,19 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
+    this.loadTagCatalog();
+  }
+
+  /**
+   * The tag filter offers the whole catalog, not only what this event's people happen to wear,
+   * so a tag nobody carries is visibly empty rather than invisibly missing. A failed request
+   * just leaves the catalog empty and the filter falls back to the tags seen in the event.
+   */
+  private loadTagCatalog(): void {
+    this.tagService.getAll().subscribe({
+      next: (tags) => this.catalogTags.set(tags),
+      error: () => this.catalogTags.set([]),
+    });
   }
 
   ngOnDestroy(): void {
@@ -667,7 +689,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   onPositionChange(value: string): void {
-    this.positionFilter.set(this.availablePositions().find((p) => p.id === value) ?? null);
+    this.positionFilter.set(this.positionOptions().find((p) => p.id === value) ?? null);
     this.resetPage();
   }
 
