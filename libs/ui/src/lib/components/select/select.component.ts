@@ -149,13 +149,20 @@ export class SelectComponent implements ControlValueAccessor {
   private onTouched: () => void = () => undefined;
 
   constructor() {
-    // Same timing rationale as before: a template [value] binding races the content-projected
-    // <option>s (the <select>'s own property bindings apply before projected children are
-    // inserted), so an effect() — which runs after the view has settled — is used instead.
+    // A template [value] binding races the content-projected <option>s (the <select>'s own
+    // property bindings apply before projected children are inserted), so an effect() — which
+    // runs after the view has settled — is used instead.
+    //
+    // Reading `options()` is what makes this correct rather than merely well-timed: assigning a
+    // value the <select> has no matching <option> for silently resets it to '', and the options
+    // can arrive later than any single run of this effect — on first render with a reactive
+    // control (which writes its value synchronously, before the caller's view has projected
+    // anything) or whenever the caller's own @for produces a different list. `options` is fed by
+    // the MutationObserver below, so every such change re-applies the value.
     effect(() => {
-      if (!this.multiple()) {
-        this.selectRef().nativeElement.value = this.singleValue();
-      }
+      if (this.multiple()) return;
+      this.options();
+      this.selectRef().nativeElement.value = this.singleValue();
     });
 
     afterNextRender(() => {

@@ -82,6 +82,22 @@ describe('TagFormModalComponent', () => {
     });
   });
 
+  describe('edit mode', () => {
+    // The list renders the modal with `[position]` already bound, so the input is set before the
+    // very first change detection — not patched into an already-rendered view like the shared
+    // fixture above does.
+    it('shows the tag\'s category in the select when opened straight into edit mode', () => {
+      const editFixture = TestBed.createComponent(TagFormModalComponent);
+      editFixture.componentRef.setInput('position', mockTag);
+      editFixture.detectChanges();
+
+      expect(editFixture.componentInstance.form.get('category')!.value).toBe(TagCategory.TRONC);
+
+      const select: HTMLSelectElement = editFixture.nativeElement.querySelector('select');
+      expect(select.value).toBe(TagCategory.TRONC);
+    });
+  });
+
   describe('onSave', () => {
     it('sends category in the create payload', () => {
       component.form.patchValue({

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SelectComponent } from './select.component';
 
 describe('SelectComponent', () => {
@@ -185,6 +185,58 @@ describe('SelectComponent', () => {
       await hostFixture.whenStable();
 
       expect(hostFixture.componentInstance.value).toBe('AVAILABLE');
+    });
+  });
+
+  describe('reactive form with a pre-set value', () => {
+    @Component({
+      imports: [SelectComponent, ReactiveFormsModule],
+      template: `
+        <lib-select [formControl]="control" label="Grup">
+          @for (group of groups; track group) {
+            <option [value]="group">{{ group }}</option>
+          }
+        </lib-select>
+      `,
+    })
+    class ReactiveHostComponent {
+      readonly groups = ['PINYA', 'TRONC', 'ALTRES'];
+      readonly control = new FormControl('TRONC');
+    }
+
+    // A reactive control writes its value synchronously, while the projected <option>s are only
+    // inserted once the caller's view renders. Assigning a value the <select> has no option for
+    // silently leaves it blank, so the value has to be re-applied once the options exist.
+    it('shows the value even though the control was set before the options rendered', async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({ imports: [ReactiveHostComponent] }).compileComponents();
+      const hostFixture = TestBed.createComponent(ReactiveHostComponent);
+      hostFixture.detectChanges();
+      await hostFixture.whenStable();
+      hostFixture.detectChanges();
+
+      const select = hostFixture.debugElement.query(By.css('[data-testid="lib-select-native"]'))
+        .nativeElement as HTMLSelectElement;
+      expect(select.value).toBe('TRONC');
+    });
+
+    it('keeps the value the user picked when the option list changes afterwards', async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({ imports: [ReactiveHostComponent] }).compileComponents();
+      const hostFixture = TestBed.createComponent(ReactiveHostComponent);
+      hostFixture.detectChanges();
+      await hostFixture.whenStable();
+
+      const select = hostFixture.debugElement.query(By.css('[data-testid="lib-select-native"]'))
+        .nativeElement as HTMLSelectElement;
+      select.value = 'PINYA';
+      select.dispatchEvent(new Event('change'));
+      hostFixture.detectChanges();
+      await hostFixture.whenStable();
+      hostFixture.detectChanges();
+
+      expect(select.value).toBe('PINYA');
+      expect(hostFixture.componentInstance.control.value).toBe('PINYA');
     });
   });
 
