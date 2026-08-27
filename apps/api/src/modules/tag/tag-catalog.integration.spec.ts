@@ -1,5 +1,6 @@
 import { Tag } from './tag.entity';
 import { IntegrationDb, setupIntegrationDb, teardownIntegrationDb } from '../../test-integration/integration-db';
+import { undoMigrationsThrough } from '../../test-integration/undo-migrations';
 
 /**
  * La migració del catàleg definitiu ha de: crear les etiquetes acordades amb la tècnica,
@@ -14,7 +15,7 @@ describe('Tag catalog migration (integration)', () => {
     db = await setupIntegrationDb();
 
     // Torna a l'estat previ a la migració del catàleg i sembra dades com les de l'import legacy.
-    await db.dataSource.undoLastMigration();
+    await undoMigrationsThrough(db, 'TagCatalog1784700000000');
 
     await db.dataSource.query(
       `INSERT INTO "positions" (id, name, slug, "positionTypes", category) VALUES
@@ -90,6 +91,7 @@ describe('Tag catalog migration (integration)', () => {
     const repo = db.dataSource.getRepository(Tag);
 
     expect((await repo.findOneByOrFail({ slug: 'tap-manual' })).name).toBe('Tap (antiga)');
-    expect((await repo.findOneByOrFail({ slug: 'tap' })).name).toBe('Tap');
+    // La migració següent renombra el catàleg amb els noms de l'equip tècnic, en plural.
+    expect((await repo.findOneByOrFail({ slug: 'tap' })).name).toBe('Taps');
   });
 });

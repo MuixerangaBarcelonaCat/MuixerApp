@@ -43,6 +43,7 @@ import { CreatePushSubscriptions1784400000000 } from './1784400000000-CreatePush
 import { AddPushFieldsToNews1784500000000 } from './1784500000000-AddPushFieldsToNews';
 import { TagCategory1784600000000 } from './1784600000000-TagCategory';
 import { TagCatalog1784700000000 } from './1784700000000-TagCatalog';
+import { TagCatalogLegacyPlurals1784800000000 } from './1784800000000-TagCatalogLegacyPlurals';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -89,4 +90,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddPushFieldsToNews1784500000000,
   TagCategory1784600000000,
   TagCatalog1784700000000,
+  TagCatalogLegacyPlurals1784800000000,
 ];

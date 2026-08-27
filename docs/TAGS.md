@@ -22,7 +22,7 @@ deia «posició»; el nom del codi és `Tag` i la ruta d'API és `/tags`.
 | Camp               | Tipus       | Notes                                                    |
 | ------------------ | ----------- | -------------------------------------------------------- |
 | `id`               | uuid        |                                                          |
-| `name`             | varchar     | únic; en singular (descriu una persona)                  |
+| `name`             | varchar     | únic; és el que es veu a la UI                           |
 | `slug`             | varchar     | únic; és la clau estable entre migracions                |
 | `shortDescription` | varchar     | opcional                                                 |
 | `longDescription`  | text        | opcional                                                 |
@@ -60,32 +60,37 @@ TagCategory = PINYA | TRONC | XICALLA | ALTRES
 - **ALTRES** — qui participa sense fer ni pinya ni tronc.
 
 El catàleg definitiu el crea la migració
-`apps/api/src/migrations/1784700000000-TagCatalog.ts`, que n'és la font de veritat. Estat
-inicial:
+`apps/api/src/migrations/1784700000000-TagCatalog.ts` i el renombra
+`1784800000000-TagCatalogLegacyPlurals.ts`, que és qui fixa els noms actuals. Estat inicial:
 
-| Grup    | Etiqueta             | Slug              | `positionTypes` | Nota                                          |
-| ------- | -------------------- | ----------------- | --------------- | --------------------------------------------- |
-| PINYA   | Mans                 | `mans`            | `mans`          | 1es mans                                      |
-| PINYA   | Vent                 | `vent`            | `vents`         | 1es vents                                     |
-| PINYA   | Segon Cordó          | `segon-cordo`     | `mans`, `vents` | 2es mans i 2es vents                          |
-| PINYA   | Lateral              | `lateral`         | `laterals`      | laterals i diagonals                          |
-| PINYA   | Agulla               | `agulla`          | `agulla`        |                                               |
-| PINYA   | Contrafort           | `contrafort`      | `contrafort`    |                                               |
-| PINYA   | Crossa               | `crossa`          | `crossa`        |                                               |
-| PINYA   | Tap                  | `tap`             | `tap`           |                                               |
-| PINYA   | Cordó Obert          | `cordo-obert`     | `cordo-obert`   |                                               |
-| PINYA   | Persona Nova         | `persona-nova`    | —               | valor per defecte a l'alta (§6)               |
-| TRONC   | Baix                 | `baix`            | `base`          |                                               |
-| TRONC   | Segona               | `segona`          | `segona`        |                                               |
-| TRONC   | Terça                | `terca`           | `terça`         |                                               |
-| TRONC   | Alçadora             | `alcadora`        | `alçadora`      |                                               |
-| TRONC   | Figures Netes (SP)   | `figures-netes`   | —               | capacitat, no posició: única excepció al singular |
-| TRONC   | Sense Tronc          | `sense-tronc`     | —               | decisió explícita de no fer tronc             |
-| XICALLA | Xicalla              | `xicalla`         | —               | xicalla que participa a les figures           |
-| XICALLA | Xiquet/a de la Colla | `xiquets-colla`   | —               | ja és de la colla, encara no participa        |
-| ALTRES  | Acompanyant          | `acompanyant`     | —               |                                               |
-| ALTRES  | Fem Pinya            | `fem-pinya`       | —               | ve puntualment només a fer pinya              |
-| ALTRES  | Imatge i Paradeta    | `imatge-paradeta` | —               | conservada del catàleg legacy                 |
+| Grup    | Etiqueta                   | Slug              | `positionTypes` | Nota                                    |
+| ------- | -------------------------- | ----------------- | --------------- | --------------------------------------- |
+| PINYA   | 1es Mans                   | `mans`            | `mans`          |                                         |
+| PINYA   | 1es Vents                  | `vent`            | `vents`         |                                         |
+| PINYA   | Segon Cordó                | `segon-cordo`     | `mans`, `vents` | 2es mans i 2es vents                    |
+| PINYA   | Laterals / Diagonals       | `lateral`         | `laterals`      |                                         |
+| PINYA   | Agulles                    | `agulla`          | `agulla`        |                                         |
+| PINYA   | Contraforts                | `contrafort`      | `contrafort`    |                                         |
+| PINYA   | Crosses                    | `crossa`          | `crossa`        |                                         |
+| PINYA   | Taps                       | `tap`             | `tap`           |                                         |
+| PINYA   | Cordó Obert                | `cordo-obert`     | `cordo-obert`   |                                         |
+| PINYA   | Persones Noves             | `persona-nova`    | —               | valor per defecte a l'alta (§6)         |
+| TRONC   | Baixes                     | `baix`            | `base`          |                                         |
+| TRONC   | Segones                    | `segona`          | `segona`        |                                         |
+| TRONC   | Terces                     | `terca`           | `terça`         |                                         |
+| TRONC   | Alçadores                  | `alcadora`        | `alçadora`      |                                         |
+| TRONC   | Figures SP / Figures Netes | `figures-netes`   | —               | capacitat, no posició                   |
+| TRONC   | No troncs                  | `sense-tronc`     | —               | decisió explícita de no fer tronc       |
+| XICALLA | Xicalla                    | `xicalla`         | —               | xicalla que participa a les figures     |
+| XICALLA | Xiquets/es de la colla     | `xiquets-colla`   | —               | ja és de la colla, encara no participa  |
+| ALTRES  | Acompanyants               | `acompanyant`     | —               |                                         |
+| ALTRES  | Fem Pinya                  | `fem-pinya`       | —               | ve puntualment només a fer pinya        |
+| ALTRES  | Imatge i Paradeta          | `imatge-paradeta` | —               | conservada del catàleg legacy           |
+
+Els noms són els que fa servir l'equip tècnic, en plural: descriuen un rol de la colla, no
+una persona concreta. Els **slugs no els segueixen** i no s'han de canviar: són
+identificadors interns que no es veuen enlloc de la interfície, i `persona-nova` és a més el
+punt d'ancoratge de l'etiqueta per defecte a l'alta (§6).
 
 Este catàleg **no és tancat**: `/config/tags` permet crear-ne, editar-ne i esborrar-ne. La
 migració només fixa el punt de partida.
@@ -149,7 +154,7 @@ mostrar i comptar per a la regla mínima—, només perd l'ajuda d'ordenació i 
 coincidència quan hi ha un node seleccionat. I mai no cal quadrar-la amb res: **cap assignació
 no es bloqueja mai per les etiquetes**; qualsevol persona es pot assignar a qualsevol node.
 
-Esta feblesa és deliberada. És exactament el que permet que «Mans», «Vent» i «Segon Cordó»
+Esta feblesa és deliberada. És exactament el que permet que «1es Mans», «1es Vents» i «Segon Cordó»
 apunten als mateixos `positionTypes` sense que les plantilles hagen de distingir primeres de
 segones. Si algun dia cal eixa distinció als nodes, seran `positionType` nous als presets i
 una migració de plantilles, no cap canvi al model d'etiquetes.
@@ -204,7 +209,7 @@ Són dos conceptes diferents que conviuen a posta.
 
 | | `Person.isXicalla` | Grup XICALLA |
 | --- | --- | --- |
-| Què és | booleà d'edat: menor de 16 anys | etiquetes «Xicalla» i «Xiquet/a de la Colla» |
+| Què és | booleà d'edat: menor de 16 anys | etiquetes «Xicalla» i «Xiquets/es de la colla» |
 | On viu | columna de `persons` | files de `person_positions` |
 | D'on ve | derivat del camp `posicio` del legacy en crear la persona; després, editable a mà | assignat a mà des del Dashboard |
 | Què governa | delegats obligatoris per a menors, recomptes d'assistència i quin `Person` es lliga al compte d'usuari | la regla mínima (§4) i els filtres de grup |
@@ -219,7 +224,7 @@ l'edat mentre que l'etiqueta descriu la participació.
 
 ## 6. Valor per defecte a l'alta
 
-`PersonService.create` assigna automàticament l'etiqueta **«Persona Nova»** (`persona-nova`,
+`PersonService.create` assigna automàticament l'etiqueta **«Persones Noves»** (`persona-nova`,
 grup PINYA) quan la petició no porta cap etiqueta de XICALLA ni d'ALTRES. Si no troba
 l'etiqueta al catàleg —algú l'ha esborrada— no fa res ni falla: l'alta continua.
 
@@ -228,7 +233,7 @@ persones creades pel sync legacy no hi passen (el sync alça la persona directam
 repositori), així que arriben sense cap etiqueta.
 
 El seguiment d'estes altes és el filtre «No compleix la regla» de §4: una persona que només
-porta «Persona Nova» té una etiqueta de PINYA i cap de TRONC, i per tant hi apareix fins que
+porta «Persones Noves» té una etiqueta de PINYA i cap de TRONC, i per tant hi apareix fins que
 algú li'n pose una de tronc. No hi ha cap altre informe ni cap altre artefacte: eixe filtre
 *és* la llista del que queda per revisar.
 
@@ -246,18 +251,31 @@ camp legacy `posicio` és el booleà `Person.isXicalla` (`deriveIsXicalla`, clau
 Conseqüència pràctica: un sync no pot ressuscitar ni sobreescriure una etiqueta. El que
 s'edita a `/config/tags` es queda com està.
 
-El pas del catàleg legacy al definitiu el va fer la migració `1784700000000-TagCatalog`, que
-va crear o actualitzar per `slug` les etiquetes del catàleg, remapar `person_positions` de les
-legacy a les definitives (`segon-lateral` → Lateral, `novatos` → Persona Nova, `acompanyants` →
-Acompanyant, `nens-colla` → Xiquet/a de la Colla) amb `ON CONFLICT DO NOTHING`, descartar
-`altres` i esborrar les legacy que quedaven. Les etiquetes que ja compartien slug amb el
-catàleg definitiu (`mans`, `vent`, `lateral`, `contrafort`, `crossa`, `xicalla`,
-`imatge-paradeta`) s'actualitzen en el lloc: no cal remapar-les ni es mou cap fila de
-`person_positions`.
+El pas del catàleg legacy al definitiu el van fer dues migracions.
 
-El `down` és irreversible per disseny: no reconstrueix el catàleg legacy, només lleva les
-etiquetes noves que no tinguen cap persona assignada. Cal còpia de seguretat abans
-d'executar-la en producció.
+`1784700000000-TagCatalog` va crear o actualitzar per `slug` les etiquetes del catàleg,
+remapar `person_positions` de les legacy a les definitives (`segon-lateral` → laterals,
+`novatos` → persones noves, `acompanyants` → acompanyants, `nens-colla` → xiquets/es de la
+colla) amb `ON CONFLICT DO NOTHING`, descartar `altres` i esborrar les legacy que quedaven.
+Les que ja compartien slug amb el catàleg (`mans`, `vent`, `lateral`, `contrafort`, `crossa`,
+`xicalla`, `imatge-paradeta`) s'actualitzen en el lloc: no cal remapar-les ni es mou cap fila
+de `person_positions`.
+
+`1784800000000-TagCatalogLegacyPlurals` va rematar la feina. El remapatge anterior es va
+construir amb els slugs **singulars** del `POSITION_MAPPING` del sync, però les bases de dades
+importades de l'app legacy tenien sis etiquetes amb el slug en **plural** (`primeres`, `vents`,
+`laterals`, `segons-laterals`, `contraforts`, `crosses`), que per això van sobreviure amb la
+seua gent i al grup ALTRES —on complien la regla mínima sense fer-ho de veres. Esta migració
+les absorbeix (`primeres` → 1es mans, `vents` → 1es vents, les dues laterals → laterals i
+diagonals, `contraforts` → contraforts, `crosses` → crosses) i, **tot seguit**, renombra el
+catàleg amb els noms de l'equip tècnic. L'ordre no és negociable: «Contraforts» i «Crosses»
+són alhora el nom nou d'una etiqueta del catàleg i el nom que tenien dues de les legacy, i
+`positions.name` és únic.
+
+Els `down`: el de `TagCatalog` és irreversible per disseny —no reconstrueix el catàleg legacy,
+només lleva les etiquetes noves sense ningú assignat—, i el de `TagCatalogLegacyPlurals`
+restaura els noms anteriors però tampoc no ressuscita les sis etiquetes absorbides. Cal còpia
+de seguretat abans d'executar-les en producció.
 
 ---
 
