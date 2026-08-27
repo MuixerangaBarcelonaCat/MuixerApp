@@ -131,6 +131,7 @@
 
       <app-tag-view-filter
         [selected]="selectedCategories()"
+        [groups]="assignableGroups"
         (selectedChange)="onCategoryFilterChange($event)"
       />
 

@@ -8,6 +8,10 @@ const GROUP_ORDER: readonly TagCategory[] = [TagCategory.PINYA, TagCategory.TRON
 
 /**
  * Selector de grups d'etiquetes. Selecció buida = tots els grups.
+ *
+ * `groups` restringeix quins s'ofereixen: el panell d'assignació només deixa filtrar per Pinya
+ * i Tronc, perquè la xicalla ja té la seua pròpia casella al costat i la gent d'«Altres» no se
+ * sol col·locar a les figures.
  */
 @Component({
   selector: 'app-tag-view-filter',
@@ -17,7 +21,7 @@ const GROUP_ORDER: readonly TagCategory[] = [TagCategory.PINYA, TagCategory.TRON
   template: `
     <div class="flex flex-wrap items-center gap-2">
       <lib-button-group>
-        @for (group of groups; track group) {
+        @for (group of groups(); track group) {
           <lib-button
             joinItem
             outlineMode
@@ -35,7 +39,8 @@ export class TagViewFilterComponent {
   readonly selected = input.required<TagCategory[]>();
   readonly selectedChange = output<TagCategory[]>();
 
-  readonly groups = GROUP_ORDER;
+  readonly groups = input<readonly TagCategory[]>(GROUP_ORDER);
+
   readonly labels = TAG_CATEGORY_LABELS;
 
   toggleGroup(group: TagCategory): void {

@@ -77,6 +77,12 @@ export class PersonPanelComponent {
   readonly tagSearch = signal('');
   readonly selectedCategories = signal<TagCategory[]>([]);
 
+  /**
+   * Els únics grups que té sentit filtrar ací: la xicalla ja té la seua casella pròpia al costat
+   * i la gent d'«Altres» no se sol col·locar a les figures.
+   */
+  readonly assignableGroups: readonly TagCategory[] = [TagCategory.PINYA, TagCategory.TRONC];
+
   readonly selectedTag = computed(() =>
     this.tags().find((t) => t.id === this.selectedPositionId()) ?? null,
   );
