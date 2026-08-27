@@ -98,6 +98,12 @@ quin és quin («Menor de 16» vs. grup «Xicalla»).
 
 ### 3. Catàleg definitiu, en singular
 
+> **Revisat el 2026-08-27: els noms van finalment en plural.** La regla del singular deformava
+> precisament els noms que els tècnics havien escrit amb més cura («1es Mans» quedava com a
+> «Mans»), així que el catàleg va passar als seus noms literals amb la migració
+> `1784800000000-TagCatalogLegacyPlurals`. Els slugs no van canviar. La taula d'aquesta secció
+> és la del disseny original; el catàleg vigent és el de [docs/TAGS.md](../../TAGS.md).
+
 Les etiquetes s'apliquen a **una** persona, així que el nom va en singular encara que la
 llista dels tècnics estiga en plural. El catàleg és editable des del Dashboard
 (`/config/tags`), de manera que aquesta primera versió no ha de ser perfecta.

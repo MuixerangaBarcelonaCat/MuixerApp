@@ -87,10 +87,15 @@ El catàleg definitiu el crea la migració
 | ALTRES  | Fem Pinya                  | `fem-pinya`       | —               | ve puntualment només a fer pinya        |
 | ALTRES  | Imatge i Paradeta          | `imatge-paradeta` | —               | conservada del catàleg legacy           |
 
-Els noms són els que fa servir l'equip tècnic, en plural: descriuen un rol de la colla, no
-una persona concreta. Els **slugs no els segueixen** i no s'han de canviar: són
-identificadors interns que no es veuen enlloc de la interfície, i `persona-nova` és a més el
-punt d'ancoratge de l'etiqueta per defecte a l'alta (§6).
+**Els noms van en plural**, tal com els escriu l'equip tècnic: descriuen un rol de la colla,
+no una persona concreta. Una etiqueta nova hauria de seguir el mateix criteri. El disseny
+original els havia posat en singular, cosa que deformava els noms que els tècnics havien
+escrit amb més cura —«1es Mans» quedava com a «Mans»—, i es va corregir amb la migració
+`1784800000000-TagCatalogLegacyPlurals` (§7).
+
+Els **slugs no segueixen els noms** i no s'han de canviar: són identificadors interns que no
+es veuen enlloc de la interfície, i `persona-nova` és a més el punt d'ancoratge de l'etiqueta
+per defecte a l'alta (§6).
 
 Este catàleg **no és tancat**: `/config/tags` permet crear-ne, editar-ne i esborrar-ne. La
 migració només fixa el punt de partida.
