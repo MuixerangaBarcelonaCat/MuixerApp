@@ -2,7 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ajustar les etiquetes de persona a l'especificació dels tècnics: quatre grups, catàleg definitiu, regla mínima com a avís tou, dues visualitzacions, i desconnexió de l'import d'etiquetes que ve de l'App legacy.
+> **Executat i tancat el 2026-08-27.** Dues coses d'aquest pla no van arribar a la versió final i
+> no s'han de reintroduir: la constant `TAG_VIEWS` amb els presets «Guió» i «Pinyes» (tasques 1 i
+> 8) —els xips de grup ja deixen fer qualsevol combinació— i els noms del catàleg en singular
+> (tasca 2), que van passar al plural que fa servir l'equip tècnic. La referència viva és
+> [docs/TAGS.md](../../TAGS.md).
+
+**Goal:** Ajustar les etiquetes de persona a l'especificació dels tècnics: quatre grups, catàleg definitiu, regla mínima com a avís tou, filtre per grups, i desconnexió de l'import d'etiquetes que ve de l'App legacy.
 
 **Architecture:** El «grup d'etiquetes» és el valor de `Tag.category`, que passa de tres a quatre valors (s'hi afegeix `XICALLA`). Cap taula nova. Una migració crea el catàleg definitiu i remapa les etiquetes importades del legacy. La regla mínima és una funció pura a `@muixer/shared` que el backend calcula i exposa al DTO de persona, i que només alimenta un badge d'avís i un filtre — mai bloqueja res.
 

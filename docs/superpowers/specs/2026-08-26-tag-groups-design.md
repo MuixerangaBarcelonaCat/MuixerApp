@@ -10,8 +10,8 @@ Data: 2026-08-26
 
 L'equip tècnic —usuari principal del Dashboard— ha definit com vol treballar amb les
 etiquetes de persona: quatre **grups** d'etiquetes, un catàleg concret d'etiquetes dins de
-cada grup, una **regla mínima** de completesa per persona i dues **visualitzacions** segons
-si es prepara el guió o es preparen les pinyes.
+cada grup, una **regla mínima** de completesa per persona i poder filtrar per grup segons si
+es prepara el guió o es preparen les pinyes.
 
 Aquest document ajusta el sistema actual a eixa especificació sense canviar el model de
 dades més enllà d'un valor nou d'enum, desconnecta la importació d'etiquetes que ve de
@@ -141,9 +141,11 @@ etiquetes és la identitat i no mou cap fila de `person_positions`.
 - **«Persona encara no etiquetada als Troncs» no és una etiqueta.** És l'estat calculat
 *cap etiqueta del grup TRONC*, i per tant no es pot podrir (mai hi haurà una persona amb
 «Segona» i «no etiquetada» a la vegada).
-- **«Fem Pinya» va a ALTRES, no a PINYA.** La visualització de Pinyes ja és PINYA + ALTRES
-(§6), així que hi apareixen igual quan es col·loquen les pinyes; i com a etiqueta d'ALTRES
-compleixen la regla tots sols, sense obligar-los a portar «Sense Tronc» només per complir.
+- **«Fem Pinya» va a ALTRES, no a PINYA.** Com a etiqueta d'ALTRES compleixen la regla tots
+sols, sense obligar-los a portar «Sense Tronc» només per complir.
+> **Revisat el 2026-08-27:** el panell d'assignació ja només deixa filtrar per Pinya i Tronc,
+> així que qui només porta «Fem Pinya» no ix quan es filtra per Pinya. Si molesta, la solució
+> és moure l'etiqueta al grup PINYA des de `/config/tags`, sense tocar codi.
 - Els presets de tronc `quarta`, `quinta`, `sisena`, `puntal` i `xiqueta` es queden sense
 etiqueta associada. No passa res: no tota posició necessita etiqueta.
 
@@ -225,34 +227,31 @@ MuixerApp. Un sync ja no pot ressuscitar ni sobreescriure una etiqueta.
 
 Cal actualitzar la fila `posicio` de la taula de mapatge a `docs/SYNC_ARCHITECTURE.md:45`.
 
-### 7. Visualitzacions
+### 7. Filtre per grups d'etiquetes
 
-Constant compartida a `@muixer/shared`:
-
-```ts
-export const TAG_VIEWS = [
-  { id: 'guio',   label: 'Guió',   groups: [TagCategory.XICALLA, TagCategory.TRONC] },
-  { id: 'pinyes', label: 'Pinyes', groups: [TagCategory.PINYA, TagCategory.ALTRES] },
-] as const;
-```
-
-A la UI: quatre xips de grup amb selecció múltiple, més dos botons de preset que fixen la
-combinació d'un clic. Sense selecció = tots els grups.
+Un component compartit, `TagViewFilterComponent`, amb un xip per grup i selecció múltiple.
+Sense selecció = tots els grups. Quins grups ofereix és configurable, perquè no a tot arreu
+tenen sentit tots quatre.
 
 S'aplica a quatre llocs:
 
 - `/persons` — el filtre de categoria ja és multivalor al backend
-(`person-filter.dto.ts:28`); només cal la UI dels presets.
+(`person-filter.dto.ts:28`); només cal la UI.
 - **Panell de persones del workspace d'assignació** — avui és un xip de categoria única
 (`person-panel.component.html:139-151`). Passa a multi-grup; `available-persons` ha de
 canviar `positionCategory` de valor únic a llista (`available-persons-query.dto.ts`,
 `available-persons.service.ts:131`), que `applyPositionCategoryFilter` ja accepta. Es manté
 la selecció automàtica de grup segons la zona del node (`categoryForZone:367`) com a punt de
 partida, que l'usuari pot substituir.
-- **Vista de participació de l'esdeveniment** — els xips d'etiqueta de cada persona es
-mostren filtrats pels grups de la visualització activa.
-- `/config/tags` — el catàleg s'agrupa pels quatre grups i els presets fan de filtre
-ràpid.
+- **Vista de participació de l'esdeveniment** — filtra quines persones es llisten.
+- `/config/tags` — el catàleg s'agrupa pels quatre grups i el filtre els acota.
+
+> **Revisat el 2026-08-27.** El disseny original definia ací una constant `TAG_VIEWS` amb dues
+> «visualitzacions» d'un clic —«Guió» (Xicalla + Tronc) i «Pinyes» (Pinya + Altres)— damunt dels
+> xips de grup. No van arribar a la versió final: els xips ja deixen fer qualsevol combinació i
+> els dos botons extra només afegien soroll, així que la constant i els presets es van llevar.
+> El panell d'assignació, a més, només ofereix Pinya i Tronc (la xicalla ja té casella pròpia i
+> la gent d'«Altres» no se sol col·locar).
 
 
 
@@ -332,7 +331,7 @@ hi apareix. La migració de §8 es prova en un test d'integració propi: catàle
 de `lateral` + `segon-lateral` a una sola «Lateral», `altres` descartada, etiquetes legacy
 òrfenes esborrades.
 
-**Frontals (Vitest)** — `person-list.component.spec.ts`: presets de visualització i filtre de
+**Frontals (Vitest)** — `person-list.component.spec.ts`: filtre per grups i filtre de
 la regla; `person-panel.component.spec.ts`: multi-grup i el pas de `positionCategory` com a
 llista; `tag-form-modal.component.spec.ts`: XICALLA no ofereix cap grup de `positionTypes`;
 `tags-list.component.spec.ts`: ordre i agrupació amb quatre grups.
@@ -356,7 +355,7 @@ mantenir; la util compartida i el servei de persona són els que aporten el grui
 Al final de la implementació:
 
 - `docs/TAGS.md` **nou** — model d'etiquetes, els quatre grups, el catàleg, la regla mínima,
-les visualitzacions i —punt central— **la relació real amb els** `positionTypes` **dels nodes
+el filtre per grups i —punt central— **la relació real amb els** `positionTypes` **dels nodes
 de plantilla**: que és una pista suau per a ordenar i pintar, no una integritat referencial,
 i què implica això per a qui afegisca etiquetes noves. Amb frontmatter `tags: [domini]` i
 peu de *Veïns*.
