@@ -38,8 +38,10 @@ export class EventService {
     return this.http.get<MeEventDetail>(`${this.baseUrl}/${id}`);
   }
 
-  findSegments(eventId: string): Observable<MeSegment[]> {
-    return this.http.get<MeSegment[]>(`${this.baseUrl}/${eventId}/segments`);
+  findSegments(eventId: string, personId?: string): Observable<MeSegment[]> {
+    let params = new HttpParams();
+    if (personId) params = params.set('personId', personId);
+    return this.http.get<MeSegment[]>(`${this.baseUrl}/${eventId}/segments`, { params });
   }
 
   updateAttendance(
