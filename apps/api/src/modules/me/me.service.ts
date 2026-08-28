@@ -20,6 +20,7 @@ import {
   PendingDependent,
   PersonProfileSummary,
   MeNewsItem,
+  UserRole,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -166,12 +167,15 @@ export class MeService {
     };
   }
 
-  async findEventSegments(jwtUser: JwtPayload, eventId: string): Promise<MeSegment[]> {
+  async findEventSegments(
+    jwtUser: JwtPayload,
+    eventId: string,
+    requestedPersonId?: string,
+  ): Promise<MeSegment[]> {
     const segments = await this.eventSegmentService.findAllByEvent(eventId);
     const published = segments.filter((segment) => segment.isPublished);
 
-    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
-    const personId = managedPersons.find((p) => p.isSelf)?.personId ?? null;
+    const personId = await this.resolveTargetPersonId(jwtUser, requestedPersonId);
     const placementsBySegment = await this.fetchOwnPlacementsBySegment(personId, published);
 
     return published.map((segment) => ({
@@ -187,6 +191,32 @@ export class MeService {
       })),
       myPlacements: placementsBySegment.get(segment.id) ?? [],
     }));
+  }
+
+  /**
+   * Resolves which person's placements to show: the caller's own person when no `requestedPersonId`
+   * is given; any person for TECHNICAL/ADMIN; only the caller's own managed persons (self + delegates)
+   * for MEMBER — otherwise 403, so a member can't view an arbitrary person by editing the URL.
+   */
+  private async resolveTargetPersonId(
+    jwtUser: JwtPayload,
+    requestedPersonId?: string,
+  ): Promise<string | null> {
+    if (!requestedPersonId) {
+      const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+      return managedPersons.find((p) => p.isSelf)?.personId ?? null;
+    }
+
+    if (jwtUser.role === UserRole.TECHNICAL || jwtUser.role === UserRole.ADMIN) {
+      return requestedPersonId;
+    }
+
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const isManaged = managedPersons.some((p) => p.personId === requestedPersonId);
+    if (!isManaged) {
+      throw new ForbiddenException('No autoritzat per consultar esta persona');
+    }
+    return requestedPersonId;
   }
 
   /**
