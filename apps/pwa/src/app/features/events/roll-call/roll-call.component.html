@@ -1,0 +1,41 @@
+<app-mobile-header title="Passar llista" [showBack]="true" [fallbackRoute]="'/events/' + id()" />
+
+<div class="p-4 space-y-3">
+  <label class="input input-bordered flex items-center gap-2">
+    <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
+    <input
+      type="text"
+      class="grow"
+      placeholder="Cerca persona..."
+      [(ngModel)]="searchTerm"
+    />
+  </label>
+
+  @if (isLoading()) {
+    <app-skeleton-card [count]="4" />
+  } @else if (hasError()) {
+    <app-empty-state message="No s'ha pogut carregar l'assistència" />
+  } @else if (filteredItems().length === 0) {
+    <app-empty-state message="Cap persona trobada" />
+  } @else {
+    <ul class="space-y-2">
+      @for (item of filteredItems(); track item.person.id) {
+        <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
+          <span class="font-medium">{{ item.person.alias }}</span>
+          <div class="flex gap-1">
+            @for (status of statuses; track status) {
+              <lib-badge
+                clickable
+                size="sm"
+                [variant]="item.status === status ? statusVariant(status) : 'neutral'"
+                [selected]="item.status === status"
+                [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
+                (clicked)="setStatus(item, status)"
+              >{{ statusLabel(status) }}</lib-badge>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>
