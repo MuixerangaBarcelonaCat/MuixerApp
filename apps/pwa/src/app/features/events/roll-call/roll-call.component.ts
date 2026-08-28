@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, input, signal, computed, ef
 import { FormsModule } from '@angular/forms';
 import { AttendanceStatus } from '@muixer/shared';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { BadgeComponent } from '@muixer/ui';
+import { BadgeComponent, ToastService } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -33,7 +33,6 @@ export class RollCallComponent {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
-  protected readonly statusLabels = STATUS_LABELS;
   protected readonly statuses = [
     AttendanceStatus.ANIRE,
     AttendanceStatus.NO_VAIG,
@@ -41,6 +40,7 @@ export class RollCallComponent {
   ];
 
   private readonly rollCallService = inject(RollCallService);
+  private readonly toast = inject(ToastService);
 
   protected readonly searchTerm = signal('');
   protected readonly items = signal<AttendanceItem[]>([]);
@@ -96,19 +96,17 @@ export class RollCallComponent {
   }
 
   protected setStatus(item: AttendanceItem, status: AttendanceStatus): void {
-    const isNewRecord = item.status === AttendanceStatus.PENDENT && item.id.startsWith('pending-');
-    const request = isNewRecord
-      ? this.rollCallService.createAttendance(this.id(), { personId: item.person.id, status })
-      : this.rollCallService.updateAttendance(this.id(), item.id, { status });
-
-    request.subscribe({
+    this.rollCallService.updateAttendance(this.id(), item.id, { status }).subscribe({
       next: (response) => {
         this.items.update((current) =>
           current.map((row) =>
-            row.person.id === item.person.id ? { ...row, id: response.id, status: response.status } : row,
+            row.person.id === item.person.id
+              ? { ...row, id: response.attendance.id, status: response.attendance.status }
+              : row,
           ),
         );
       },
+      error: () => this.toast.error("No s'ha pogut actualitzar l'assistència"),
     });
   }
 }

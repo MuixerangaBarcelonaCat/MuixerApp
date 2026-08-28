@@ -221,7 +221,44 @@ describe('SegmentProjectionComponent', () => {
       const nextBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment següent"]');
       expect(nextBtn).toBeTruthy();
       nextBtn.click();
-      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-2']);
+      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-2'], {
+        queryParamsHandling: 'preserve',
+      });
+    });
+
+    it('preserves impersonation query params when navigating to the next segment', async () => {
+      projectionService = { getProjection: vi.fn().mockReturnValue(of(makeData({ segment: { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-2' } }))) };
+      router = { navigate: vi.fn() };
+      layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
+
+      await TestBed.configureTestingModule({
+        imports: [TestHostComponent],
+        providers: [
+          { provide: ProjectionService, useValue: projectionService },
+          { provide: Router, useValue: router },
+          { provide: LayoutService, useValue: layoutService },
+          { provide: AuthService, useValue: makeAuthService('p1') },
+        ],
+      })
+        .overrideComponent(SegmentProjectionComponent, {
+          remove: { imports: [PinyaProjectionComponent] },
+          add: { imports: [PinyaProjectionStub] },
+        })
+        .compileComponents();
+
+      const f = TestBed.createComponent(TestHostComponent);
+      f.componentRef.setInput('asPersonId', 'person-99');
+      f.componentRef.setInput('asPersonName', 'Jordi Ferrer');
+      f.detectChanges();
+      await TestBed.inject(ApplicationRef).whenStable();
+      f.detectChanges();
+      fixture = f;
+
+      const nextBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment següent"]');
+      nextBtn.click();
+      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-2'], {
+        queryParamsHandling: 'preserve',
+      });
     });
 
     it('shows and navigates the prev control when prevSegmentId is set', async () => {
@@ -230,7 +267,9 @@ describe('SegmentProjectionComponent', () => {
       const prevBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment anterior"]');
       expect(prevBtn).toBeTruthy();
       prevBtn.click();
-      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-0']);
+      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-0'], {
+        queryParamsHandling: 'preserve',
+      });
     });
   });
 });

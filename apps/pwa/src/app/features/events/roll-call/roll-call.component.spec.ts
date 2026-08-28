@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { AttendanceStatus } from '@muixer/shared';
+import { ToastService } from '@muixer/ui';
 import { RollCallComponent } from './roll-call.component';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
 
@@ -8,13 +9,13 @@ describe('RollCallComponent', () => {
   let fixture: ComponentFixture<RollCallComponent>;
   let rollCallService: {
     getAttendance: ReturnType<typeof vi.fn>;
-    createAttendance: ReturnType<typeof vi.fn>;
     updateAttendance: ReturnType<typeof vi.fn>;
   };
+  let toastService: { error: ReturnType<typeof vi.fn> };
 
   const attendanceItems: AttendanceItem[] = [
     {
-      id: 'pending-person-1',
+      id: 'att-1',
       status: AttendanceStatus.PENDENT,
       person: { id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig' },
     },
@@ -30,13 +31,16 @@ describe('RollCallComponent', () => {
       getAttendance: vi.fn().mockReturnValue(
         of({ data: attendanceItems, meta: { total: 2, page: 1, limit: 100 } }),
       ),
-      createAttendance: vi.fn(),
       updateAttendance: vi.fn(),
     };
+    toastService = { error: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [RollCallComponent],
-      providers: [{ provide: RollCallService, useValue: rollCallService }],
+      providers: [
+        { provide: RollCallService, useValue: rollCallService },
+        { provide: ToastService, useValue: toastService },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(RollCallComponent);
@@ -50,25 +54,19 @@ describe('RollCallComponent', () => {
     expect(rows.length).toBe(2);
   });
 
-  it('creates a new attendance record when the person has none yet', () => {
-    rollCallService.createAttendance.mockReturnValue(
-      of({ id: 'att-1', status: AttendanceStatus.ASSISTIT }),
+  it('updates an existing attendance record', () => {
+    rollCallService.updateAttendance.mockReturnValue(
+      of({ attendance: { id: 'att-1', status: AttendanceStatus.ASSISTIT }, summary: {} }),
     );
     fixture.componentInstance['setStatus'](attendanceItems[0], AttendanceStatus.ASSISTIT);
-    expect(rollCallService.createAttendance).toHaveBeenCalledWith('event-1', {
-      personId: 'person-1',
+    expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-1', {
       status: AttendanceStatus.ASSISTIT,
     });
   });
 
-  it('updates an existing attendance record', () => {
-    rollCallService.updateAttendance.mockReturnValue(
-      of({ id: 'att-2', status: AttendanceStatus.ASSISTIT }),
-    );
-    // att-2 already has a non-PENDENT status, so it's treated as an existing record to update.
+  it('shows a toast and leaves the row unchanged when the update fails', () => {
+    rollCallService.updateAttendance.mockReturnValue(throwError(() => new Error('fail')));
     fixture.componentInstance['setStatus'](attendanceItems[1], AttendanceStatus.ASSISTIT);
-    expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-2', {
-      status: AttendanceStatus.ASSISTIT,
-    });
+    expect(toastService.error).toHaveBeenCalledWith("No s'ha pogut actualitzar l'assistència");
   });
 });

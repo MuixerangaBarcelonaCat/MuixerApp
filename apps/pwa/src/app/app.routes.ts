@@ -37,7 +37,7 @@ export const appRoutes: Routes = [
       ),
     canActivate: [
       authGuard,
-      rolesGuard(UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN),
+      rolesGuard([UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN]),
     ],
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
@@ -60,7 +60,7 @@ export const appRoutes: Routes = [
       {
         path: 'events/:id/roll-call',
         title: 'Passar llista',
-        canActivate: [rolesGuard(UserRole.TECHNICAL, UserRole.ADMIN)],
+        canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
         loadComponent: () =>
           import('./features/events/roll-call/roll-call.component').then(
             (m) => m.RollCallComponent,
@@ -69,7 +69,7 @@ export const appRoutes: Routes = [
       {
         path: 'events/:id/watch-as',
         title: 'Veure com...',
-        canActivate: [rolesGuard(UserRole.TECHNICAL, UserRole.ADMIN)],
+        canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
         loadComponent: () =>
           import('./features/events/watch-as/watch-as.component').then(
             (m) => m.WatchAsComponent,

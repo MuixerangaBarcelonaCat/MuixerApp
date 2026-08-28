@@ -16,8 +16,8 @@ export interface AttendanceItem {
 }
 
 export interface AttendanceCrudResponse {
-  id: string;
-  status: AttendanceStatus;
+  attendance: { id: string; status: AttendanceStatus };
+  summary: unknown;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -32,13 +32,6 @@ export class RollCallService {
       `${this.baseUrl}/${eventId}/attendance`,
       { params },
     );
-  }
-
-  createAttendance(
-    eventId: string,
-    payload: { personId: string; status: AttendanceStatus },
-  ): Observable<AttendanceCrudResponse> {
-    return this.http.post<AttendanceCrudResponse>(`${this.baseUrl}/${eventId}/attendance`, payload);
   }
 
   updateAttendance(

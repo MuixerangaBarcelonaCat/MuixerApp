@@ -74,6 +74,8 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     if (!data) return;
     const targetId = direction === 'prev' ? data.segment.prevSegmentId : data.segment.nextSegmentId;
     if (!targetId) return;
-    this.router.navigate(['/events', this.eventId(), 'segments', targetId]);
+    this.router.navigate(['/events', this.eventId(), 'segments', targetId], {
+      queryParamsHandling: 'preserve',
+    });
   }
 }

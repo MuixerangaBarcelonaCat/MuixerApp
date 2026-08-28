@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, input, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnDestroy, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule, Search } from 'lucide-angular';
 import { computeSegmentDisplayName, formatOwnPositionSummary, MeSegment } from '@muixer/shared';
@@ -14,7 +14,7 @@ import { EventService } from '../services/event.service';
   imports: [RouterLink, LucideAngularModule, MobileHeaderComponent, EmptyStateComponent],
   templateUrl: './watch-as.component.html',
 })
-export class WatchAsComponent {
+export class WatchAsComponent implements OnDestroy {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
@@ -28,6 +28,10 @@ export class WatchAsComponent {
   protected readonly selectedPerson = signal<PersonSummaryResult | null>(null);
   protected readonly segments = signal<MeSegment[]>([]);
   protected readonly isLoadingSegments = signal(false);
+
+  ngOnDestroy(): void {
+    clearTimeout(this.debounceTimer);
+  }
 
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);

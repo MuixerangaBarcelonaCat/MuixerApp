@@ -28,21 +28,11 @@ describe('RollCallService', () => {
     req.flush({ data: [], meta: { total: 0, page: 1, limit: 100 } });
   });
 
-  it('POSTs a new attendance record', () => {
-    service
-      .createAttendance('event-1', { personId: 'person-1', status: AttendanceStatus.ASSISTIT })
-      .subscribe();
-    const req = httpMock.expectOne(`${environment.apiUrl}/events/event-1/attendance`);
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ personId: 'person-1', status: AttendanceStatus.ASSISTIT });
-    req.flush({ id: 'att-1', status: AttendanceStatus.ASSISTIT });
-  });
-
   it('PUTs an attendance status update', () => {
     service.updateAttendance('event-1', 'att-1', { status: AttendanceStatus.NO_VAIG }).subscribe();
     const req = httpMock.expectOne(`${environment.apiUrl}/events/event-1/attendance/att-1`);
     expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual({ status: AttendanceStatus.NO_VAIG });
-    req.flush({ id: 'att-1', status: AttendanceStatus.NO_VAIG });
+    req.flush({ attendance: { id: 'att-1', status: AttendanceStatus.NO_VAIG }, summary: {} });
   });
 });
