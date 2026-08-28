@@ -2,10 +2,11 @@ import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ApplicationRef } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
-import { AttendanceStatus, DelegateType, EventType, MeEventDetail, MeSegment } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, MeEventDetail, MeSegment, UserRole } from '@muixer/shared';
 import { EventDetailComponent } from './event-detail.component';
 import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
 import { EventService } from '../services/event.service';
+import { AuthService } from '../../../core/auth/services/auth.service';
 import { ToastService } from '@muixer/ui';
 import { provideRouter } from '@angular/router';
 import { Component } from '@angular/core';
@@ -41,12 +42,22 @@ describe('EventDetailComponent', () => {
     updateAttendance: ReturnType<typeof vi.fn>;
     findSegments: ReturnType<typeof vi.fn>;
   };
+  let authService: {
+    userRole: ReturnType<typeof vi.fn>;
+  };
 
-  async function setup(findOneReturn = of(MOCK_DETAIL), findSegmentsReturn = of<MeSegment[]>([])) {
+  async function setup(
+    findOneReturn = of(MOCK_DETAIL),
+    findSegmentsReturn = of<MeSegment[]>([]),
+    userRole = UserRole.MEMBER,
+  ) {
     eventService = {
       findOne: vi.fn().mockReturnValue(findOneReturn),
       updateAttendance: vi.fn(),
       findSegments: vi.fn().mockReturnValue(findSegmentsReturn),
+    };
+    authService = {
+      userRole: vi.fn().mockReturnValue(userRole),
     };
 
     await TestBed.configureTestingModule({
@@ -54,6 +65,7 @@ describe('EventDetailComponent', () => {
       providers: [
         provideRouter([]),
         { provide: EventService, useValue: eventService },
+        { provide: AuthService, useValue: authService },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
       ],
     }).compileComponents();
@@ -237,6 +249,20 @@ describe('EventDetailComponent', () => {
       const attendanceEl = fixture.nativeElement.querySelector('.attendance-section') as HTMLElement;
       expect(attendanceEl.style.order).toBe('1');
       expect(segmentsEl.style.order).toBe('2');
+    });
+  });
+
+  describe('staff tools', () => {
+    it('shows the staff tools card for TECHNICAL', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.TECHNICAL);
+      const card = fixture.nativeElement.querySelector('a[href*="roll-call"]');
+      expect(card).toBeTruthy();
+    });
+
+    it('hides the staff tools card for MEMBER', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.MEMBER);
+      const card = fixture.nativeElement.querySelector('a[href*="roll-call"]');
+      expect(card).toBeFalsy();
     });
   });
 
