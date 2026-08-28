@@ -17,7 +17,7 @@
       <ul class="menu bg-base-100 rounded-box shadow-sm">
         @for (person of results(); track person.id) {
           <li>
-            <a (click)="selectPerson(person)">{{ person.alias }} — {{ person.name }} {{ person.firstSurname }}</a>
+            <button type="button" (click)="selectPerson(person)">{{ person.alias }} — {{ person.name }} {{ person.firstSurname }}</button>
           </li>
         }
       </ul>

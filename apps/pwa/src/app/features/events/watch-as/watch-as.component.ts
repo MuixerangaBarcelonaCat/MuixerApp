@@ -21,6 +21,7 @@ export class WatchAsComponent {
 
   private readonly personLookupService = inject(PersonLookupService);
   private readonly eventService = inject(EventService);
+  private debounceTimer?: ReturnType<typeof setTimeout>;
 
   protected readonly searchTerm = signal('');
   protected readonly results = signal<PersonSummaryResult[]>([]);
@@ -30,11 +31,14 @@ export class WatchAsComponent {
 
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
+    clearTimeout(this.debounceTimer);
     if (!value.trim()) {
       this.results.set([]);
       return;
     }
-    this.personLookupService.search(value.trim()).subscribe((results) => this.results.set(results));
+    this.debounceTimer = setTimeout(() => {
+      this.personLookupService.search(value.trim()).subscribe((results) => this.results.set(results));
+    }, 300);
   }
 
   protected selectPerson(person: PersonSummaryResult): void {

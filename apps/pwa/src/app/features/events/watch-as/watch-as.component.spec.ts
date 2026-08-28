@@ -28,11 +28,17 @@ describe('WatchAsComponent', () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('searches persons as the user types', () => {
+    vi.useFakeTimers();
     personLookupService.search.mockReturnValue(
       of([{ id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig' }]),
     );
     fixture.componentInstance['onSearchInput']('ann');
+    vi.advanceTimersByTime(300);
     expect(personLookupService.search).toHaveBeenCalledWith('ann');
   });
 
