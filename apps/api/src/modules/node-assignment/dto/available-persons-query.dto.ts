@@ -1,7 +1,5 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { TagCategory } from '@muixer/shared';
 
 export class AvailablePersonsQueryDto {
   @IsOptional()
@@ -33,15 +31,4 @@ export class AvailablePersonsQueryDto {
   @IsOptional()
   @IsString()
   positionId?: string;
-
-  @ApiPropertyOptional({
-    description: "Filtrar per grups d'etiquetes (multi-valor)",
-    enum: TagCategory,
-    isArray: true,
-  })
-  @IsOptional()
-  @Type(() => String)
-  @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : []))
-  @IsEnum(TagCategory, { each: true })
-  positionCategory?: TagCategory[];
 }

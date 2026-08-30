@@ -206,6 +206,28 @@ describe('DataTableComponent row actions', () => {
     openMenuForRow(1);
     expect(menuLabels()).not.toContain('Sempre visible');
   });
+
+  it('renders each action inline with a tooltip and no «⋯» menu when inlineActions is set', () => {
+    fixture.componentRef.setInput('inlineActions', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Accions"]')).toBeNull();
+
+    const titles = Array.from(
+      fixture.nativeElement.querySelectorAll('td [title]'),
+    ).map((el) => (el as HTMLElement).getAttribute('title'));
+    // Row 0 is active: both actions visible. Row 1: the `hidden` one is dropped.
+    expect(titles).toEqual(['Desactivar', 'Sempre visible', 'Activar']);
+  });
+
+  it('runs the action when its inline button is clicked', () => {
+    const spy = vi.spyOn(rowActions[0], 'action');
+    fixture.componentRef.setInput('inlineActions', true);
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('td [title="Desactivar"]').click();
+    expect(spy).toHaveBeenCalledWith(items[0]);
+  });
 });
 
 describe('DataTableComponent card mode (< lg)', () => {

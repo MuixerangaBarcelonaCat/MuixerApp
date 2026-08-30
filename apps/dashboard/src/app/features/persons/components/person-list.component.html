@@ -33,8 +33,8 @@
         <lib-select
           [multiple]="true"
           label="Etiquetes"
-          [ngModel]="selectedPositions()"
-          (ngModelChange)="onPositionsChange($event)"
+          [ngModel]="selectedEtiquetesOptions()"
+          (ngModelChange)="onEtiquetesSelectionChange($event)"
         >
           @for (category of tagCategories; track category) {
             @if (positions().some(p => p.category === category)) {
@@ -47,15 +47,13 @@
               </optgroup>
             }
           }
+          <option [value]="NO_TAG_RULE_OPTION">
+            <lucide-icon name="AlertTriangle" [size]="12" class="text-warning" aria-hidden="true" />
+            <span class="text-warning">Falten etiquetes</span>
+          </option>
         </lib-select>
       </div>
     }
-
-    <!-- Grup d'etiquetes -->
-    <app-tag-view-filter
-      [selected]="selectedCategories()"
-      (selectedChange)="onCategoriesChange($event)"
-    />
 
     <!-- Actius -->
     <div class="w-fit">
@@ -70,18 +68,6 @@
             />
             <span class="text-sm">Sols actius</span>
           </label>
-          <lib-button-group>
-            <lib-button
-              joinItem
-              outlineMode
-              variant="warning"
-              size="sm"
-              [active]="activeFilters().tagRuleOk === false"
-              (clicked)="toggleTagRuleFilter()"
-            >
-              No compleix la regla
-            </lib-button>
-          </lib-button-group>
           <lib-button-group>
             <lib-button
               joinItem

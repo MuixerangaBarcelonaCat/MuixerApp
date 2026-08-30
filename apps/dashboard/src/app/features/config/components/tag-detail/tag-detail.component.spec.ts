@@ -153,6 +153,30 @@ describe('TagDetailComponent', () => {
     expect(html).toContain('Etiqueta no trobada');
   });
 
+  it('shows only the alias in the primary column, never the person name', () => {
+    const personColumn = component.columns.find((c) => c.key === 'person')!;
+    expect(personColumn.value!(mockPerson({ alias: 'Joanet', name: 'Joan', firstSurname: 'Puig' }))).toBe('Joanet');
+  });
+
+  it('lists each person tag as a colour badge, sorted by name', () => {
+    const tagsColumn = component.columns.find((c) => c.key === 'tags')!;
+    const badges = tagsColumn.colorBadges!(
+      mockPerson({
+        positions: [
+          { id: 'b', name: 'Vents', slug: 'vent', zone: null, color: '#0f0', category: TagCategory.PINYA },
+          { id: 'a', name: 'Baixes', slug: 'baix', zone: null, color: '#00f', category: TagCategory.TRONC },
+        ],
+      }),
+    );
+    expect(badges.map((b) => b.text)).toEqual(['Baixes', 'Vents']);
+  });
+
+  it('exposes a single «Lleva» row action styled as an error', () => {
+    expect(component.rowActions).toHaveLength(1);
+    expect(component.rowActions[0].label).toBe('Lleva');
+    expect(component.rowActions[0].class).toContain('error');
+  });
+
   it('opens the edit modal and updates the header on saved without navigating away', () => {
     component.openEditModal();
     expect(component.modalOpen()).toBe(true);

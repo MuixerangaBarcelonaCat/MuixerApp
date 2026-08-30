@@ -188,7 +188,6 @@ export interface AvailablePersonsQuery {
   isXicalla?: boolean;
   excludeAssigned?: boolean;
   positionId?: string;
-  positionCategory?: TagCategory[];
 }
 
 /** Tracks an optimistic UI operation that has been applied locally but not yet confirmed by the server */

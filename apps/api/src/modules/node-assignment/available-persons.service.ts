@@ -15,7 +15,6 @@ import {
   ConflictPlacement,
   TagCategory,
 } from '@muixer/shared';
-import { applyPositionCategoryFilter } from '../person/utils/position-category-filter.util';
 
 interface AvailablePersonPositionDto {
   id: string;
@@ -50,7 +49,6 @@ export interface AvailablePersonsQuery {
   isXicalla?: boolean;
   excludeAssigned?: boolean;
   positionId?: string;
-  positionCategory?: TagCategory[];
 }
 
 @Injectable()
@@ -87,7 +85,7 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height, positionId, positionCategory, isXicalla: isXicallaBool } = query;
+    const { search, height, positionId, isXicalla: isXicallaBool } = query;
     const excludeAssignedBool = query.excludeAssigned ?? true;
 
     // Build base person query
@@ -126,10 +124,6 @@ export class AvailablePersonsService {
         return 'person.id IN ' + subQuery;
       });
       qb.setParameter('positionId', positionId);
-    }
-
-    if (positionCategory && positionCategory.length > 0) {
-      applyPositionCategoryFilter(qb, 'person', positionCategory);
     }
 
     if (excludeAssignedBool) {

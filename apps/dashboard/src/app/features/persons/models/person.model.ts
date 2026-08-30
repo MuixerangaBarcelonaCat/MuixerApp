@@ -50,7 +50,6 @@ export type PersonSortOrder = 'ASC' | 'DESC';
 export interface PersonFilterParams {
   search?: string;
   positionIds?: string[];
-  positionCategory?: string[];
   availability?: AvailabilityStatus;
   isActive?: boolean;
   isXicalla?: boolean;

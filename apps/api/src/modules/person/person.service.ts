@@ -14,7 +14,6 @@ import {
   type PersonSortByField,
   type PersonSortOrder,
 } from './constants/person-sort.constants';
-import { applyPositionCategoryFilter } from './utils/position-category-filter.util';
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
 import { TagCategory } from '@muixer/shared';
 
@@ -66,7 +65,6 @@ export class PersonService {
     const {
       search,
       positionIds,
-      positionCategory,
       tagRuleOk,
       availability,
       isActive,
@@ -108,10 +106,6 @@ export class PersonService {
         return 'person.id IN ' + subQuery;
       });
       queryBuilder.setParameter('positionIds', positionIds);
-    }
-
-    if (positionCategory && positionCategory.length > 0) {
-      applyPositionCategoryFilter(queryBuilder, 'person', positionCategory);
     }
 
     if (tagRuleOk !== undefined) {

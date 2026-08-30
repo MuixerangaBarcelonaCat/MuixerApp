@@ -79,14 +79,4 @@ describe('TagsListComponent', () => {
     ]);
   });
 
-  it('filtra el catàleg pels grups seleccionats', () => {
-    component.tags.set([
-      mockTag({ category: TagCategory.PINYA, name: 'Mans' }),
-      mockTag({ category: TagCategory.TRONC, name: 'Segona' }),
-    ]);
-
-    component.selectedGroups.set([TagCategory.TRONC]);
-
-    expect(component.visibleTags().map((tag) => tag.name)).toEqual(['Segona']);
-  });
 });

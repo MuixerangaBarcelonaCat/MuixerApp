@@ -14,14 +14,13 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
-import { areaForZone, DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
-import { TagViewFilterComponent } from '../../../../shared/components/data/tag-view-filter/tag-view-filter.component';
 
 interface PersonSearchResult {
   person: AvailablePerson;
@@ -33,7 +32,7 @@ interface PersonSearchResult {
   selector: 'app-person-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, TagViewFilterComponent],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent],
   templateUrl: './person-panel.component.html',
 })
 export class PersonPanelComponent {
@@ -75,26 +74,13 @@ export class PersonPanelComponent {
   readonly selectedPositionId = signal<string | null>(null);
   readonly tagFilterOpen = signal(false);
   readonly tagSearch = signal('');
-  readonly selectedCategories = signal<TagCategory[]>([]);
-
-  /**
-   * Els únics grups que té sentit filtrar ací: la xicalla ja té la seua casella pròpia al costat
-   * i la gent d'«Altres» no se sol col·locar a les figures.
-   */
-  readonly assignableGroups: readonly TagCategory[] = [TagCategory.PINYA, TagCategory.TRONC];
-
   readonly selectedTag = computed(() =>
     this.tags().find((t) => t.id === this.selectedPositionId()) ?? null,
   );
 
   readonly filteredTags = computed(() => {
     const term = this.normalizeForMatch(this.tagSearch());
-    const categories = this.selectedCategories();
-    return this.tags().filter(
-      (t) =>
-        (categories.length === 0 || categories.includes(t.category)) &&
-        (!term || this.normalizeForMatch(t.name).includes(term)),
-    );
+    return this.tags().filter((t) => !term || this.normalizeForMatch(t.name).includes(term));
   });
   readonly altresExpanded = signal(false);
   readonly pinyaAssignedExpanded = signal(true);
@@ -340,18 +326,6 @@ export class PersonPanelComponent {
         // Left untouched when a node is deselected (nodeId === null).
         // Goes through onXicallaChange (not a direct signal set) so the person
         // list is actually re-fetched with the new filter, same as a manual toggle.
-        // Auto-select the category chip to match the selected node's zone.
-        // Left untouched when a node is deselected (nodeId === null), same as Xicalla below.
-        // Set before onXicallaChange so the reload it triggers already carries the new category.
-        const category = this.categoryForZone(this.selectedNodeZone());
-        const categories = category ? [category] : [];
-        this.selectedCategories.set(categories);
-        // Same compatibility check as the manual toggle (onCategoryFilterChange): drop a
-        // tag filter that no longer matches the auto-selected category.
-        const tag = this.selectedTag();
-        if (categories.length > 0 && tag && !categories.includes(tag.category)) {
-          this.selectedPositionId.set(null);
-        }
         this.onXicallaChange(this.selectedNodeZone() === FigureZone.TRONC);
       }
     });
@@ -365,14 +339,6 @@ export class PersonPanelComponent {
         }
       });
     });
-  }
-
-  /** TRONC/BASE → TRONC category; PINYA → PINYA category; direction/decoration zones → none. */
-  private categoryForZone(zone: string | null): TagCategory | null {
-    const area = zone ? areaForZone(zone as FigureZone) : null;
-    if (area === 'TRONC') return TagCategory.TRONC;
-    if (area === 'PINYA') return TagCategory.PINYA;
-    return null;
   }
 
   focusSearch(): void {
@@ -419,9 +385,6 @@ export class PersonPanelComponent {
     if (!this.showXicalla()) query.isXicalla = false;
     const positionId = this.selectedPositionId();
     if (positionId) query.positionId = positionId;
-    const categories = this.selectedCategories();
-    if (categories.length > 0) query.positionCategory = categories;
-
     this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), query)
       .subscribe({
@@ -469,15 +432,6 @@ export class PersonPanelComponent {
     this.onPositionFilterChange('');
   }
 
-  /** Manual group filter change — drops a tag selection that falls outside the new groups. */
-  onCategoryFilterChange(categories: TagCategory[]): void {
-    this.selectedCategories.set(categories);
-    const tag = this.selectedTag();
-    if (categories.length > 0 && tag && !categories.includes(tag.category)) {
-      this.selectedPositionId.set(null);
-    }
-    this.loadPersons();
-  }
 
   toggleTagFilter(): void {
     this.tagFilterOpen.update((v) => !v);

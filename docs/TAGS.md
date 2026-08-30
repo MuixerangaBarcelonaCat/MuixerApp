@@ -81,6 +81,7 @@ El catàleg definitiu el crea la migració
 | TRONC   | Alçadores                  | `alcadora`        | `alçadora`      |                                         |
 | TRONC   | Figures SP / Figures Netes | `figures-netes`   | —               | capacitat, no posició                   |
 | TRONC   | No troncs                  | `sense-tronc`     | —               | decisió explícita de no fer tronc       |
+| TRONC   | Tècnica                    | `tecnica`         | `direccio-figura`, `direccio-xicalla` | afegida per `1784900000000-AddTecnicaTag` |
 | XICALLA | Xicalla                    | `xicalla`         | —               | xicalla que participa a les figures     |
 | XICALLA | Xiquets/es de la colla     | `xiquets-colla`   | —               | ja és de la colla, encara no participa  |
 | ALTRES  | Acompanyants               | `acompanyant`     | —               |                                         |
@@ -107,14 +108,6 @@ Dos detalls que expliquen absències:
 - Els tipus de tronc `quarta`, `quinta`, `sisena`, `puntal` i `xiqueta` es queden sense
   etiqueta associada. No tota posició d'una figura necessita etiqueta.
 
-### Filtre per grup
-
-`TagViewFilterComponent`
-(`apps/dashboard/src/app/shared/components/data/tag-view-filter/`) pinta els quatre xips de
-grup (PINYA/TRONC/XICALLA/ALTRES), amb selecció múltiple. Selecció buida = tots els grups.
-Es fa servir a `/persons`, a `/config/tags`, al panell de persones del taller d'assignació i a
-la vista de participació de l'esdeveniment.
-
 ---
 
 ## 3. Relació amb les posicions de les plantilles
@@ -133,10 +126,9 @@ validació**: `CreateTagDto` només comprova que siga un array de strings
 (`@IsArray()` + `@IsString({ each: true })`), i la columna és un `text[]` sense restricció. Un
 valor inventat s'alça sense error i simplement no coincidirà mai amb cap node.
 
-I sobretot: **no filtra res al servidor**. Cap consulta de l'API no mira `positionTypes`. Els
-filtres per etiqueta són sempre per `positionId` (etiqueta concreta) o per `positionCategory`
-(grup): `person.service.ts` i `available-persons.service.ts`, tots dos a través de
-`applyPositionCategoryFilter`. `positionTypes` només viatja al payload.
+I sobretot: **no filtra res al servidor**. Cap consulta de l'API no mira `positionTypes`. El
+filtre per etiqueta és sempre per `positionId` (etiqueta concreta): `person.service.ts` i
+`available-persons.service.ts`. `positionTypes` només viatja al payload.
 
 L'efecte real és tot al Dashboard i és **cosmètic o d'ordenació**:
 
@@ -217,7 +209,7 @@ Són dos conceptes diferents que conviuen a posta.
 | Què és | booleà d'edat: menor de 16 anys | etiquetes «Xicalla» i «Xiquets/es de la colla» |
 | On viu | columna de `persons` | files de `person_positions` |
 | D'on ve | derivat del camp `posicio` del legacy en crear la persona; després, editable a mà | assignat a mà des del Dashboard |
-| Què governa | delegats obligatoris per a menors, recomptes d'assistència i quin `Person` es lliga al compte d'usuari | la regla mínima (§4) i els filtres de grup |
+| Què governa | delegats obligatoris per a menors, recomptes d'assistència i quin `Person` es lliga al compte d'usuari | la regla mínima (§4) |
 | Etiqueta a la UI | «Menor de 16» | «Xicalla» |
 
 **Quan filtrar per cadascun:** `isXicalla` per a qualsevol cosa d'edat o de tutela legal; el
@@ -256,7 +248,10 @@ camp legacy `posicio` és el booleà `Person.isXicalla` (`deriveIsXicalla`, clau
 Conseqüència pràctica: un sync no pot ressuscitar ni sobreescriure una etiqueta. El que
 s'edita a `/config/tags` es queda com està.
 
-El pas del catàleg legacy al definitiu el van fer dues migracions.
+El pas del catàleg legacy al definitiu el van fer dues migracions. Una tercera,
+`1784900000000-AddTecnicaTag`, hi afegeix «Tècnica» (grup TRONC, apunta als `positionType`s
+`direccio-figura` i `direccio-xicalla`, color del preset «Direcció fig.»); el seu `down` només
+la lleva si no té ningú assignat.
 
 `1784700000000-TagCatalog` va crear o actualitzar per `slug` les etiquetes del catàleg,
 remapar `person_positions` de les legacy a les definitives (`segon-lateral` → laterals,

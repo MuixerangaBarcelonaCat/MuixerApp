@@ -129,12 +129,6 @@
         Xicalla
       </label>
 
-      <app-tag-view-filter
-        [selected]="selectedCategories()"
-        [groups]="assignableGroups"
-        (selectedChange)="onCategoryFilterChange($event)"
-      />
-
       <div class="flex items-center gap-1">
         <div class="dropdown" [class.dropdown-open]="tagFilterOpen()">
           <button

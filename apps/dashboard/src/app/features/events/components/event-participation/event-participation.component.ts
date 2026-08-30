@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { SHOULDER_HEIGHT_BASELINE_CM, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -18,7 +18,6 @@ import { DataTableComponent, RowAction } from '../../../../shared/components/dat
 import { FilterBarComponent } from '../../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent, ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnToggleComponent } from '../../../../shared/components/data/column-toggle/column-toggle.component';
-import { TagViewFilterComponent } from '../../../../shared/components/data/tag-view-filter/tag-view-filter.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { SortChange, SortOrder } from '../../../../shared/models/sort.model';
@@ -103,7 +102,6 @@ type AreaFilter = 'TRONC' | 'PINYA' | null;
     ActiveFiltersComponent,
     ColumnToggleComponent,
     PaginationComponent,
-    TagViewFilterComponent,
   ],
   templateUrl: './event-participation.component.html',
 })
@@ -138,7 +136,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   statusFilter = signal<AttendanceStatus | null>(null);
   positionFilter = signal<TagFilterOption | null>(null);
   private readonly catalogTags = signal<TagWithCount[]>([]);
-  categoryFilters = signal<TagCategory[]>([]);
   onlyConflicts = signal(false);
   /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
   areaFilter = signal<AreaFilter>(null);
@@ -187,16 +184,12 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly filteredRows = computed<ParticipationRow[]>(() => {
     const status = this.statusFilter();
     const position = this.positionFilter();
-    const categories = this.categoryFilters();
     const conflictsOnly = this.onlyConflicts();
     const term = this.normalizeForMatch(this.search());
 
     let rows = this.persons();
     if (status) rows = rows.filter((r) => r.attendanceStatus === status);
     if (position) rows = rows.filter((r) => r.positions.some((p) => p.id === position.id));
-    if (categories.length > 0) {
-      rows = rows.filter((r) => r.positions.some((p) => categories.includes(p.category)));
-    }
     if (conflictsOnly) rows = rows.filter((r) => r.conflictSegmentIds.length > 0);
     if (term) rows = this.rankByMatch(rows, term);
     return rows;
@@ -260,11 +253,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
     const position = this.positionFilter();
     if (position) filters.push({ key: 'position', label: `Etiqueta: ${position.name}` });
-
-    const categories = this.categoryFilters();
-    if (categories.length > 0) {
-      filters.push({ key: 'category', label: `Categoria: ${categories.map((c) => TAG_CATEGORY_LABELS[c]).join(', ')}` });
-    }
 
     if (this.onlyConflicts()) filters.push({ key: 'conflicts', label: 'Només conflictes' });
 
@@ -693,11 +681,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.resetPage();
   }
 
-  onCategoriesChange(categories: TagCategory[]): void {
-    this.categoryFilters.set(categories);
-    this.resetPage();
-  }
-
   toggleOnlyConflicts(): void {
     this.onlyConflicts.update((v) => !v);
     this.resetPage();
@@ -724,9 +707,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       case 'position':
         this.positionFilter.set(null);
         break;
-      case 'category':
-        this.categoryFilters.set([]);
-        break;
       case 'conflicts':
         this.onlyConflicts.set(false);
         break;
@@ -743,7 +723,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.selectedSegmentId.set(null);
     this.statusFilter.set(null);
     this.positionFilter.set(null);
-    this.categoryFilters.set([]);
     this.onlyConflicts.set(false);
     this.areaFilter.set(null);
     this.seedVisibleColumns();

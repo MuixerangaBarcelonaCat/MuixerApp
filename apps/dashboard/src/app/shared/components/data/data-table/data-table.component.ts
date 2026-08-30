@@ -43,6 +43,12 @@ export class DataTableComponent<T extends object> {
   skeletonRows = input(8);
   groupSeparator = input<GroupSeparator<T> | undefined>(undefined);
   rowActions = input<RowAction<T>[]>([]);
+  /**
+   * Renders each row action as its own always-visible icon button in the Accions cell,
+   * instead of collapsing them behind a «⋯» menu. Meant for a single, unambiguous action
+   * (e.g. a red X to remove the row) — the menu still scales better past two or three.
+   */
+  inlineActions = input(false);
 
   rowClick = output<T>();
   sortChange = output<SortChange>();
@@ -188,6 +194,11 @@ export class DataTableComponent<T extends object> {
     if (!item) return this.rowActions();
     return this.rowActions().filter((a) => !a.hidden?.(item));
   });
+
+  /** Row actions not hidden for this specific item — used by the inline (menu-less) layout. */
+  rowActionsFor(item: T): RowAction<T>[] {
+    return this.rowActions().filter((a) => !a.hidden?.(item));
+  }
 
   resolveLabel(action: RowAction<T>, item: T): string {
     return typeof action.label === 'function' ? action.label(item) : action.label;
