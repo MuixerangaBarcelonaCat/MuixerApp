@@ -6,7 +6,9 @@ import {
   output,
   signal,
   effect,
+  computed,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   TRONC_NODE_PRESETS,
@@ -14,10 +16,13 @@ import {
   DIRECTION_NODE_PRESETS,
   TroncNodePreset,
   NodePreset,
+  TagCategory,
+  TAG_CATEGORY_LABELS,
+  BASE_POSITION_TYPE,
 } from '@muixer/shared';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount, CreateTagDto, UpdateTagDto } from '../../models/tag.model';
-import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, ToastService, buildCategoricalHexPresets } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent, ToastService, buildCategoricalHexPresets } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 
 export interface PresetOption {
@@ -28,6 +33,8 @@ export interface PresetOption {
 
 export interface PositionTypeGroup {
   label: string;
+  /** Which tag category this group is relevant for — drives `visiblePositionTypeGroups`. */
+  category: TagCategory;
   presets: PresetOption[];
 }
 
@@ -37,7 +44,7 @@ const DEFAULT_COLOR = '#6366f1';
   selector: 'app-tag-form-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, BadgeComponent, ButtonComponent, ColorPickerComponent, InputComponent, ModalComponent],
+  imports: [ReactiveFormsModule, BadgeComponent, ButtonComponent, ColorPickerComponent, InputComponent, ModalComponent, SelectComponent],
   templateUrl: './tag-form-modal.component.html',
 })
 export class TagFormModalComponent {
@@ -60,6 +67,7 @@ export class TagFormModalComponent {
   readonly positionTypeGroups: PositionTypeGroup[] = [
     {
       label: 'Tronc',
+      category: TagCategory.TRONC,
       presets: TRONC_NODE_PRESETS.map((p: TroncNodePreset) => ({
         positionType: p.positionType,
         label: p.label,
@@ -68,6 +76,7 @@ export class TagFormModalComponent {
     },
     {
       label: 'Pinya',
+      category: TagCategory.PINYA,
       presets: PINYA_NODE_PRESETS.map((p: NodePreset) => ({
         positionType: p.positionType as string,
         label: p.label,
@@ -76,6 +85,7 @@ export class TagFormModalComponent {
     },
     {
       label: 'Direcció',
+      category: TagCategory.TRONC,
       presets: DIRECTION_NODE_PRESETS.map((p: NodePreset) => ({
         positionType: p.positionType as string,
         label: p.label,
@@ -84,9 +94,13 @@ export class TagFormModalComponent {
     },
     {
       label: 'Base',
-      presets: [{ positionType: 'base', label: 'Base', color: '#64748b' }],
+      category: TagCategory.TRONC,
+      presets: [{ positionType: BASE_POSITION_TYPE, label: 'Base', color: '#64748b' }],
     },
   ];
+
+  readonly categoryOptions = Object.values(TagCategory);
+  readonly categoryLabels = TAG_CATEGORY_LABELS;
 
   readonly form = this.fb.group({
     name: ['', Validators.required],
@@ -94,6 +108,17 @@ export class TagFormModalComponent {
     shortDescription: [''],
     longDescription: [''],
     color: [DEFAULT_COLOR],
+    category: [null as TagCategory | null, Validators.required],
+  });
+
+  private readonly categorySignal = toSignal(this.form.get('category')!.valueChanges, {
+    initialValue: this.form.get('category')!.value,
+  });
+
+  readonly visiblePositionTypeGroups = computed(() => {
+    const category = this.categorySignal();
+    if (!category) return [];
+    return this.positionTypeGroups.filter((g) => g.category === category);
   });
 
   constructor() {
@@ -106,13 +131,26 @@ export class TagFormModalComponent {
           shortDescription: pos.shortDescription ?? '',
           longDescription: pos.longDescription ?? '',
           color: pos.color ?? DEFAULT_COLOR,
+          category: pos.category,
         });
         this.form.get('slug')!.disable();
         this.selectedPositionTypes.set(pos.positionTypes ?? []);
       } else {
-        this.form.reset({ color: DEFAULT_COLOR });
+        this.form.reset({ color: DEFAULT_COLOR, category: null });
         this.form.get('slug')!.enable();
         this.selectedPositionTypes.set([]);
+      }
+    });
+
+    // Drop selections that belong to groups hidden by the newly-selected category.
+    effect(() => {
+      const visibleTypes = new Set(
+        this.visiblePositionTypeGroups().flatMap((g) => g.presets.map((p) => p.positionType)),
+      );
+      const current = this.selectedPositionTypes();
+      const filtered = current.filter((pt) => visibleTypes.has(pt));
+      if (filtered.length !== current.length) {
+        this.selectedPositionTypes.set(filtered);
       }
     });
   }
@@ -171,6 +209,7 @@ export class TagFormModalComponent {
         shortDescription: raw.shortDescription || undefined,
         longDescription: raw.longDescription || undefined,
         color: raw.color || undefined,
+        category: raw.category ?? undefined,
         positionTypes,
       };
       this.tagService.update(this.position()!.id, dto).subscribe({
@@ -192,6 +231,7 @@ export class TagFormModalComponent {
         shortDescription: raw.shortDescription || undefined,
         longDescription: raw.longDescription || undefined,
         color: raw.color || undefined,
+        category: raw.category!,
         positionTypes,
       };
       this.tagService.create(dto).subscribe({

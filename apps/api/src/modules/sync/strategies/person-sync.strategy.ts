@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Observable, Subscriber } from 'rxjs';
 import { Person } from '../../person/person.entity';
-import { Tag } from '../../tag/tag.entity';
 import { User } from '../../user/user.entity';
 import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
 import { UserRole, DelegateType } from '@muixer/shared';
@@ -14,24 +13,6 @@ import {
   AvailabilityStatus,
   OnboardingStatus,
 } from '@muixer/shared';
-
-const POSITION_MAPPING: Record<
-  string,
-  { name: string; slug: string; positionTypes: string[]; color: string }
-> = {
-  PRIMERES: { name: 'Mans', slug: 'mans', positionTypes: ['mans'], color: '#FFE082' },
-  VENTS: { name: 'Vent', slug: 'vent', positionTypes: ['vents'], color: '#A5D6A7' },
-  LATERALS: { name: 'Lateral', slug: 'lateral', positionTypes: ['laterals'], color: '#80DEEA' },
-  CONTRAFORTS: { name: 'Contrafort', slug: 'contrafort', positionTypes: ['contrafort'], color: '#EF9A9A' },
-  '2NS LATERALS': { name: 'Segon Lateral', slug: 'segon-lateral', positionTypes: ['laterals'], color: '#8E24AA' },
-  CROSSES: { name: 'Crossa', slug: 'crossa', positionTypes: ['crossa'], color: '#9FA8DA' },
-  CANALLA: { name: 'Xicalla', slug: 'xicalla', positionTypes: [], color: '#FFB300' },
-  'NENS COLLA': { name: 'Nens Colla', slug: 'nens-colla', positionTypes: [], color: '#FFB300' },
-  ACOMPANYANTS: { name: 'Acompanyants', slug: 'acompanyants', positionTypes: [], color: '#78909C' },
-  ALTRES: { name: 'Altres', slug: 'altres', positionTypes: [], color: '#9E9E9E0DEEA' },
-  NOVATOS: { name: 'Novatos', slug: 'novatos', positionTypes: [], color: '#5C6BC0' },
-  'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', positionTypes: [], color: '#EC407A' },
-};
 
 /**
  * Estratègia de sincronització de persones des del legacy APPsistència.
@@ -50,8 +31,6 @@ export class PersonSyncStrategy implements SyncStrategy {
     private readonly legacyApiClient: LegacyApiClient,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-    @InjectRepository(Tag)
-    private readonly positionRepository: Repository<Tag>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(PersonDelegate)
@@ -121,12 +100,6 @@ export class PersonSyncStrategy implements SyncStrategy {
         entity: 'sync',
         message: `${legacyPersons.length} persones trobades`,
       });
-
-      const uniquePositions = this.extractUniquePositions(legacyPersons);
-
-      for (const posKey of uniquePositions) {
-        await this.upsertPosition(posKey, subscriber);
-      }
 
       // ── Step 1: Create users for unique emails not yet in the users table ──
 
@@ -368,47 +341,6 @@ export class PersonSyncStrategy implements SyncStrategy {
   }
 
   // ---------------------------------------------------------------------------
-  // Position helpers (unchanged)
-  // ---------------------------------------------------------------------------
-
-  private extractUniquePositions(persons: LegacyPerson[]): string[] {
-    const posSet = new Set<string>();
-    for (const p of persons) {
-      if (!p.posicio) continue;
-      const parts = p.posicio.split('+').map((s) => s.trim().toUpperCase());
-      parts.forEach((part) => posSet.add(part));
-    }
-    return Array.from(posSet).filter((key) => POSITION_MAPPING[key]);
-  }
-
-  private async upsertPosition(
-    legacyKey: string,
-    subscriber: any,
-  ): Promise<void> {
-    const mapping = POSITION_MAPPING[legacyKey];
-    if (!mapping) return;
-
-    const existing = await this.positionRepository.findOne({
-      where: { slug: mapping.slug },
-    });
-
-    if (!existing) {
-      const position = this.positionRepository.create({
-        name: mapping.name,
-        slug: mapping.slug,
-        positionTypes: mapping.positionTypes,
-        color: mapping.color,
-      });
-      await this.positionRepository.save(position);
-      subscriber.next({ type: 'progress', entity: 'position', message: `Posició creada: ${mapping.name}` });
-    } else {
-      existing.positionTypes = mapping.positionTypes;
-      existing.color = mapping.color;
-      await this.positionRepository.save(existing);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // Person helpers
   // ---------------------------------------------------------------------------
 
@@ -438,7 +370,6 @@ export class PersonSyncStrategy implements SyncStrategy {
     onWarn: () => void,
   ): Promise<{ person: Person; wasNew: boolean }> {
     const alias = await this.deriveUniqueAlias(legacyPerson, undefined, subscriber, onWarn);
-    const positions = await this.resolvePositions(legacyPerson.posicio);
     const isXicalla = this.deriveIsXicalla(legacyPerson.posicio);
 
     const person = this.personRepository.create({
@@ -457,7 +388,6 @@ export class PersonSyncStrategy implements SyncStrategy {
       onboardingStatus: this.mapOnboarding(legacyPerson.estat_acollida),
       shirtDate: this.parseDate(legacyPerson.instant_camisa),
       notes: legacyPerson.observacions || null,
-      positions,
       isActive: true,
       lastSyncedAt: new Date(),
     });
@@ -555,24 +485,6 @@ export class PersonSyncStrategy implements SyncStrategy {
       detail: { legacyId: legacyPerson.id, assignedAlias: fallback },
     });
     return fallback;
-  }
-
-  private async resolvePositions(posicio: string): Promise<Tag[]> {
-    if (!posicio) return [];
-
-    const parts = posicio
-      .split('+')
-      .map((s) => s.trim().toUpperCase())
-      .filter((key) => POSITION_MAPPING[key]);
-
-    const slugs = parts.map((key) => POSITION_MAPPING[key].slug);
-
-    if (slugs.length === 0) return [];
-
-    return this.positionRepository
-      .createQueryBuilder('position')
-      .where('position.slug IN (:...slugs)', { slugs })
-      .getMany();
   }
 
   private deriveIsXicalla(posicio: string): boolean {

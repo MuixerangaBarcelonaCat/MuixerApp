@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { AttendanceStatus, EventType, FigureZone, NodeShape } from '@muixer/shared';
+import { AttendanceStatus, EventType, FigureZone, NodeShape, TagCategory } from '@muixer/shared';
 import { EventParticipationService } from './event-participation.service';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
@@ -10,6 +10,7 @@ import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { Person } from '../person/person.entity';
 import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
+import { Season } from '../season/season.entity';
 import { Tag } from '../tag/tag.entity';
 import {
   IntegrationDb,
@@ -178,8 +179,11 @@ describe('EventParticipationService (integration)', () => {
     await assign(figB.instance, figB.nodes[0], p1, segB);
 
     const tagRepo = db.dataSource.getRepository(Tag);
-    const tag1 = await tagRepo.save({ name: 'Baix', slug: `baix-${shortId()}` } as unknown as Tag);
-    const tag2 = await tagRepo.save({ name: 'Crossa', slug: `crossa-${shortId()}` } as unknown as Tag);
+    // "TestBaix"/"TestCrossa": deliberately not catalog names (see the TagCatalog
+    // migration) — `positions.name` is unique, so a real catalog word here would
+    // collide with the seeded production data.
+    const tag1 = await tagRepo.save({ name: 'TestBaix', slug: `baix-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
+    const tag2 = await tagRepo.save({ name: 'TestCrossa', slug: `crossa-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
     p1.positions = [tag1, tag2];
     await db.dataSource.getRepository(Person).save(p1);
 
@@ -229,7 +233,7 @@ describe('EventParticipationService (integration)', () => {
     expect(p1.placementCount).toBe(2);
     // Two placements x two tags would yield 4 rows if `positions` were joined into Q2.
     expect(p1.positions).toHaveLength(2);
-    expect(p1.positions.map((t) => t.name)).toEqual(['Baix', 'Crossa']);
+    expect(p1.positions.map((t) => t.name)).toEqual(['TestBaix', 'TestCrossa']);
   });
 
   it('keeps a declined person, a never-asked person and a soft-deleted one, all flagged as data', async () => {
@@ -365,5 +369,69 @@ describe('EventParticipationService (integration)', () => {
     expect(result.persons).toEqual([]);
     expect(spy).toHaveBeenCalledTimes(2);
     spy.mockRestore();
+  });
+
+  describe('next performance (Task 4.2)', () => {
+    it('resolves the next same-season actuació and its per-person attendance', async () => {
+      const season = await db.dataSource.getRepository(Season).save({
+        name: `Temporada-${shortId()}`,
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-12-31'),
+      } as unknown as Season);
+
+      const assaig = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ASSAIG,
+        title: 'Assaig previ',
+        date: new Date('2026-05-01'),
+        season,
+      } as unknown as Event);
+
+      const actuacio = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ACTUACIO,
+        title: 'Actuació Firal',
+        date: new Date('2026-06-15'),
+        season,
+      } as unknown as Event);
+
+      const p1 = await makePerson('PERSIANA');
+      await setAttendance(assaig, p1, AttendanceStatus.ANIRE);
+      await setAttendance(actuacio, p1, AttendanceStatus.NO_VAIG);
+
+      const p2 = await makePerson('GRILLAT');
+      await setAttendance(assaig, p2, AttendanceStatus.ANIRE);
+      // p2 never answers for the actuació.
+
+      const result = await service.getEventParticipation(assaig.id);
+      const byAlias = new Map(result.persons.map((p) => [p.alias, p]));
+
+      expect(result.nextPerformance).toEqual({
+        id: actuacio.id,
+        title: 'Actuació Firal',
+        date: '2026-06-15',
+      });
+      expect(byAlias.get('PERSIANA')!.nextPerformanceStatus).toBe(AttendanceStatus.NO_VAIG);
+      expect(byAlias.get('GRILLAT')!.nextPerformanceStatus).toBe(AttendanceStatus.PENDENT);
+    });
+
+    it('returns null and no nextPerformanceStatus for an actuació event', async () => {
+      const season = await db.dataSource.getRepository(Season).save({
+        name: `Temporada-${shortId()}`,
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-12-31'),
+      } as unknown as Season);
+      const actuacio = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ACTUACIO,
+        title: 'Actuació',
+        date: new Date('2026-05-01'),
+        season,
+      } as unknown as Event);
+      const p1 = await makePerson('PERSIANA');
+      await setAttendance(actuacio, p1, AttendanceStatus.ANIRE);
+
+      const result = await service.getEventParticipation(actuacio.id);
+
+      expect(result.nextPerformance).toBeNull();
+      expect(result.persons[0].nextPerformanceStatus).toBeNull();
+    });
   });
 });

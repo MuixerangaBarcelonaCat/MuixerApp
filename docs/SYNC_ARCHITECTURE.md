@@ -42,7 +42,7 @@ accessos HTTP. Les tres estratègies (`PersonSyncStrategy`, `EventSyncStrategy`,
 | `lesionat` (Sí/No) | `availability` | Sempre sync |
 | `estat_acollida` | `onboardingStatus` | Sempre sync |
 | `instant_camisa` | `shirtDate` | Sempre sync |
-| `posicio` | `positions[]` (M2M) | **Només en CREATE** — MuixerApp n'és propietari en UPDATE |
+| `posicio` | *(ja no s'importa)* | Només se'n deriva `isXicalla`. Les etiquetes són propietat exclusiva de MuixerApp — vegeu [[TAGS]] |
 | `observacions` | `notes` | **Només en CREATE** — mai sobreescrit |
 | — | `isXicalla` | **Derivat** de `posicio` — Només en CREATE |
 | — | `isActive` | `true` si present al legacy; `false` si desapareix |

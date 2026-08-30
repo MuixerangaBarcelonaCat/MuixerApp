@@ -89,7 +89,7 @@
                     [attr.title]="!first ? getCellTitle(item, col) : null"
                   >
                     @if (first && col.prefix?.(item); as p) {
-                      <span [class]="p.class">{{ p.text }}</span>
+                      <span [class]="p.class" [attr.title]="p.title ?? null">{{ p.text }}</span>
                     }
                     @if (col.type === 'badge' && col.badgeClass) {
                       <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
@@ -124,14 +124,22 @@
                               class="badge badge-sm ds-lift ds-lift-no-shadow hover:shadow-raised"
                               [style.background-color]="badge.color"
                               [style.color]="getContrastColor(badge.color)"
+                              [attr.title]="badge.title ?? null"
                               (click)="$event.stopPropagation(); col.onColorBadgeClick(badge.id, item)"
-                            >{{ badge.text }}</button>
+                            >
+                              @if (badge.icon) { <lucide-icon [name]="badge.icon" [size]="10" aria-hidden="true" /> }
+                              {{ badge.text }}
+                            </button>
                           } @else {
                             <span
                               class="badge badge-sm"
                               [style.background-color]="badge.color"
                               [style.color]="getContrastColor(badge.color)"
-                            >{{ badge.text }}</span>
+                              [attr.title]="badge.title ?? null"
+                            >
+                              @if (badge.icon) { <lucide-icon [name]="badge.icon" [size]="10" aria-hidden="true" /> }
+                              {{ badge.text }}
+                            </span>
                           }
                         }
                       </div>
@@ -143,15 +151,36 @@
 
                 @if (rowActions().length > 0) {
                   <td class="text-right" (click)="$event.stopPropagation()">
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-xs"
-                      aria-label="Accions"
-                      [attr.aria-expanded]="openActionsIndex() === idx"
-                      (click)="toggleActionsMenu($event, idx)"
-                    >
-                      <lucide-icon name="MoreHorizontal" [size]="16" />
-                    </button>
+                    @if (inlineActions()) {
+                      <div class="flex justify-end gap-1">
+                        @for (action of rowActionsFor(item); track $index) {
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-xs"
+                            [ngClass]="action.class ?? ''"
+                            [attr.title]="resolveLabel(action, item)"
+                            [attr.aria-label]="resolveLabel(action, item)"
+                            (click)="onRowAction(action, item)"
+                          >
+                            @if (resolveIcon(action, item); as icon) {
+                              <lucide-icon [name]="icon" [size]="16" />
+                            } @else {
+                              {{ resolveLabel(action, item) }}
+                            }
+                          </button>
+                        }
+                      </div>
+                    } @else {
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs"
+                        aria-label="Accions"
+                        [attr.aria-expanded]="openActionsIndex() === idx"
+                        (click)="toggleActionsMenu($event, idx)"
+                      >
+                        <lucide-icon name="MoreHorizontal" [size]="16" />
+                      </button>
+                    }
                   </td>
                 }
               </tr>
@@ -211,22 +240,43 @@
               @if (primaryColumn(); as pcol) {
                 <span class="font-semibold text-base break-words">
                   @if (pcol.prefix?.(item); as p) {
-                    <span [class]="p.class">{{ p.text }}</span>
+                    <span [class]="p.class" [attr.title]="p.title ?? null">{{ p.text }}</span>
                   }
                   {{ getCellValue(item, pcol) ?? '—' }}
                 </span>
               }
               @if (rowActions().length > 0) {
                 <div class="shrink-0">
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs"
-                    aria-label="Accions"
-                    [attr.aria-expanded]="openActionsIndex() === idx"
-                    (click)="toggleActionsMenu($event, idx)"
-                  >
-                    <lucide-icon name="MoreHorizontal" [size]="16" />
-                  </button>
+                  @if (inlineActions()) {
+                    <div class="flex gap-1">
+                      @for (action of rowActionsFor(item); track $index) {
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs"
+                          [ngClass]="action.class ?? ''"
+                          [attr.title]="resolveLabel(action, item)"
+                          [attr.aria-label]="resolveLabel(action, item)"
+                          (click)="$event.stopPropagation(); onRowAction(action, item)"
+                        >
+                          @if (resolveIcon(action, item); as icon) {
+                            <lucide-icon [name]="icon" [size]="16" />
+                          } @else {
+                            {{ resolveLabel(action, item) }}
+                          }
+                        </button>
+                      }
+                    </div>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      aria-label="Accions"
+                      [attr.aria-expanded]="openActionsIndex() === idx"
+                      (click)="toggleActionsMenu($event, idx)"
+                    >
+                      <lucide-icon name="MoreHorizontal" [size]="16" />
+                    </button>
+                  }
                 </div>
               }
             </div>
@@ -270,14 +320,22 @@
                                 class="badge badge-sm ds-lift ds-lift-no-shadow hover:shadow-raised"
                                 [style.background-color]="badge.color"
                                 [style.color]="getContrastColor(badge.color)"
+                                [attr.title]="badge.title ?? null"
                                 (click)="$event.stopPropagation(); col.onColorBadgeClick(badge.id, item)"
-                              >{{ badge.text }}</button>
+                              >
+                                @if (badge.icon) { <lucide-icon [name]="badge.icon" [size]="10" aria-hidden="true" /> }
+                                {{ badge.text }}
+                              </button>
                             } @else {
                               <span
                                 class="badge badge-sm"
                                 [style.background-color]="badge.color"
                                 [style.color]="getContrastColor(badge.color)"
-                              >{{ badge.text }}</span>
+                                [attr.title]="badge.title ?? null"
+                              >
+                                @if (badge.icon) { <lucide-icon [name]="badge.icon" [size]="10" aria-hidden="true" /> }
+                                {{ badge.text }}
+                              </span>
                             }
                           }
                         </div>

@@ -1,4 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -23,6 +24,8 @@ import { SortChange, SortOrder } from '../../../../shared/models/sort.model';
 import { ICON_FIGURA, ICON_XICALLA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 import { ParticipationService } from '../../services/participation.service';
+import { TagService } from '../../../config/services/tag.service';
+import { TagWithCount } from '../../../config/models/tag.model';
 import {
   ParticipationMeta,
   ParticipationPerson,
@@ -34,7 +37,14 @@ import { eventReturnUrl } from '../../utils/event-return-url.util';
 /** A row of the matrix. Same shape as the API person — placements are already keyed by segment. */
 export type ParticipationRow = ParticipationPerson;
 
-type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmentPercent';
+/** One entry of the tag filter: a catalog tag plus how many people of this event carry it. */
+export interface TagFilterOption {
+  id: string;
+  name: string;
+  wornCount: number;
+}
+
+type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmentPercent' | 'shoulderHeight';
 
 /** Static class maps — never build Tailwind classes from template literals. */
 const PILL_POSITION = 'text-base-content';
@@ -103,6 +113,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly SearchIcon = Search;
 
   private readonly participationService = inject(ParticipationService);
+  private readonly tagService = inject(TagService);
   private readonly router = inject(Router);
 
   eventId = input.required<string>();
@@ -113,6 +124,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   segments = signal<ParticipationSegment[]>([]);
   persons = signal<ParticipationPerson[]>([]);
   meta = signal<ParticipationMeta>(EMPTY_META);
+  /** Non-null only when this event is an ASSAIG with a resolvable next-season ACTUACIO. */
+  nextPerformance = signal<{ id: string; title: string; date: string } | null>(null);
 
   // Filters — all client-side: the endpoint returns the whole population in one shot
   // and the matrix needs every row to render complete columns.
@@ -121,7 +134,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
   selectedSegmentId = signal<string | null>(null);
   statusFilter = signal<AttendanceStatus | null>(null);
-  positionFilter = signal<AvailablePersonPosition | null>(null);
+  positionFilter = signal<TagFilterOption | null>(null);
+  private readonly catalogTags = signal<TagWithCount[]>([]);
   onlyConflicts = signal(false);
   /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
   areaFilter = signal<AreaFilter>(null);
@@ -143,6 +157,28 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       }
     }
     return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'ca'));
+  });
+
+  /**
+   * Every tag in the catalog, each with how many people of this event carry it — a `wornCount`
+   * of 0 is shown rather than hidden, so «no one here is a tap» reads as an answer instead of a
+   * missing option. Falls back to the tags seen in the event if the catalog could not be loaded.
+   */
+  readonly positionOptions = computed<TagFilterOption[]>(() => {
+    const worn = new Map<string, number>();
+    for (const person of this.persons()) {
+      for (const position of person.positions) {
+        worn.set(position.id, (worn.get(position.id) ?? 0) + 1);
+      }
+    }
+
+    const catalog = this.catalogTags();
+    const source: { id: string; name: string }[] =
+      catalog.length > 0 ? catalog : this.availablePositions();
+
+    return source
+      .map((tag) => ({ id: tag.id, name: tag.name, wornCount: worn.get(tag.id) ?? 0 }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ca'));
   });
 
   readonly filteredRows = computed<ParticipationRow[]>(() => {
@@ -184,6 +220,10 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       }
       if (field === 'segmentPercent') {
         return (this.segmentPercent(a) - this.segmentPercent(b)) * direction
+          || a.alias.localeCompare(b.alias, 'ca');
+      }
+      if (field === 'shoulderHeight') {
+        return ((a.shoulderHeight ?? 0) - (b.shoulderHeight ?? 0)) * direction
           || a.alias.localeCompare(b.alias, 'ca');
       }
       return a.alias.localeCompare(b.alias, 'ca') * direction;
@@ -283,12 +323,25 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         value: (r) => this.statusLabel(r.attendanceStatus),
         badgeClass: (r) => this.statusBadgeClass(r.attendanceStatus),
       },
+      // One column for every tag, whatever its group: a column per group collided with the
+      // placement columns («Tronc» meant both "carries tronc tags" and "is placed in a tronc")
+      // and cost four slots in an already wide matrix. The group is still how you *filter*.
       {
         key: 'tags',
         label: 'Etiquetes',
         defaultVisible: false,
         type: 'colorBadges',
-        colorBadges: (r) => r.positions.map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+        colorBadges: (r) => [...r.positions]
+          .sort((a, b) => a.name.localeCompare(b.name, 'ca'))
+          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+      },
+      {
+        key: 'shoulderHeight',
+        label: 'Alçada',
+        defaultVisible: false,
+        type: 'number',
+        sortField: 'shoulderHeight',
+        value: (r) => this.formatHeight(r.shoulderHeight),
       },
       {
         key: 'placementCount',
@@ -315,6 +368,20 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         value: (r) => `${this.segmentPercent(r)}%`,
       },
     ];
+
+    // Only shown when the API resolved a next-season ACTUACIO for this ASSAIG (Fase 4);
+    // absent otherwise, including on ACTUACIO events themselves.
+    const nextPerformance = this.nextPerformance();
+    if (nextPerformance) {
+      cols.push({
+        key: 'nextPerformanceStatus',
+        label: `Pròxima actuació (${nextPerformance.date})`,
+        defaultVisible: false,
+        type: 'badge',
+        value: (r) => this.statusLabel(r.nextPerformanceStatus ?? 'PENDENT'),
+        badgeClass: (r) => this.statusBadgeClass(r.nextPerformanceStatus ?? 'PENDENT'),
+      });
+    }
 
     // Consolidates every TRONC/BASE placement across the whole event in one cell, so
     // "en quin tronc està esta persona" never requires switching the area filter or
@@ -400,6 +467,19 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
+    this.loadTagCatalog();
+  }
+
+  /**
+   * The tag filter offers the whole catalog, not only what this event's people happen to wear,
+   * so a tag nobody carries is visibly empty rather than invisibly missing. A failed request
+   * just leaves the catalog empty and the filter falls back to the tags seen in the event.
+   */
+  private loadTagCatalog(): void {
+    this.tagService.getAll().subscribe({
+      next: (tags) => this.catalogTags.set(tags),
+      error: () => this.catalogTags.set([]),
+    });
   }
 
   ngOnDestroy(): void {
@@ -414,6 +494,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         this.segments.set(data.segments);
         this.persons.set(data.persons);
         this.meta.set(data.meta);
+        this.nextPerformance.set(data.nextPerformance);
         this.seedVisibleColumns();
         this.loading.set(false);
       },
@@ -564,6 +645,14 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     return classes[status] ?? 'badge-ghost';
   }
 
+  /** Relative to `SHOULDER_HEIGHT_BASELINE_CM`, same format as `person-panel.formatHeight`.
+   *  `null`/`0` means "not set". */
+  formatHeight(shoulderHeight: number | null): string {
+    if (shoulderHeight === null || shoulderHeight === 0) return '-';
+    const diff = shoulderHeight - SHOULDER_HEIGHT_BASELINE_CM;
+    return diff >= 0 ? `+${diff}` : `${diff}`;
+  }
+
   // ── Filters ──────────────────────────────────────────────────────────────────
 
   onSearchChange(value: string): void {
@@ -588,7 +677,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   onPositionChange(value: string): void {
-    this.positionFilter.set(this.availablePositions().find((p) => p.id === value) ?? null);
+    this.positionFilter.set(this.positionOptions().find((p) => p.id === value) ?? null);
     this.resetPage();
   }
 

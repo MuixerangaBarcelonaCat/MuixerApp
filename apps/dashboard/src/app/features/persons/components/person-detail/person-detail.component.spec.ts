@@ -1,4 +1,5 @@
 import { PersonAssignmentEntry } from '@muixer/pinyes-render';
+import { TagCategory } from '@muixer/shared';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -33,6 +34,8 @@ const makePerson = (overrides: Partial<Person> = {}): Person => ({
   isActive: true,
   positions: [],
   user: null,
+  tagCompliance: { ok: true, missing: [] },
+  attendedCount: 0,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   ...overrides,
@@ -178,7 +181,7 @@ describe('PersonDetailComponent', () => {
     it('renders each position tag as size="sm", matching the read-only Etiquetes badge', () => {
       component.editing.set(true);
       component.allPositions.set([
-        { id: 'pos-1', name: 'Novatos', slug: 'novatos', shortDescription: null, longDescription: null, color: '#888', positionTypes: [], personCount: 0 },
+        { id: 'pos-1', name: 'Novatos', slug: 'novatos', shortDescription: null, longDescription: null, color: '#888', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
       ]);
       fixture.detectChanges();
 

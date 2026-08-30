@@ -1,9 +1,10 @@
-import { AttendanceStatus, AttendanceSummary } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary, TagCategory } from '@muixer/shared';
 
 export interface AttendancePosition {
   id: string;
   name: string;
   color: string | null;
+  category: TagCategory;
 }
 
 export interface AttendancePerson {

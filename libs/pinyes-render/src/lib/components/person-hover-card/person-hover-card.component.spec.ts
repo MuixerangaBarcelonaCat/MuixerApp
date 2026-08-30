@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PersonHoverCardComponent } from './person-hover-card.component';
 import { AvailablePersonPosition, PersonHoverInfo } from '../../models/assignment.model';
+import { TagCategory } from '@muixer/shared';
 
 const makeInfo = (overrides: Partial<PersonHoverInfo> = {}): PersonHoverInfo => ({
   alias: 'Pepet',
@@ -13,8 +14,8 @@ const makeInfo = (overrides: Partial<PersonHoverInfo> = {}): PersonHoverInfo => 
   ...overrides,
 });
 
-const posVents: AvailablePersonPosition = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
-const posAgulla: AvailablePersonPosition = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488', positionTypes: ['agulla'] };
+const posVents: AvailablePersonPosition = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', category: TagCategory.ALTRES, positionTypes: ['vents'] };
+const posAgulla: AvailablePersonPosition = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488', category: TagCategory.ALTRES, positionTypes: ['agulla'] };
 
 describe('PersonHoverCardComponent', () => {
   let fixture: ComponentFixture<PersonHoverCardComponent>;

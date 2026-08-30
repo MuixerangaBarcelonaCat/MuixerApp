@@ -41,6 +41,10 @@ import { RenameSegmentIsVisibleToIsPublished1784300000000 } from './178430000000
 import { CreateNews1784300000000 } from './1784300000000-CreateNews';
 import { CreatePushSubscriptions1784400000000 } from './1784400000000-CreatePushSubscriptions';
 import { AddPushFieldsToNews1784500000000 } from './1784500000000-AddPushFieldsToNews';
+import { TagCategory1784600000000 } from './1784600000000-TagCategory';
+import { TagCatalog1784700000000 } from './1784700000000-TagCatalog';
+import { TagCatalogLegacyPlurals1784800000000 } from './1784800000000-TagCatalogLegacyPlurals';
+import { AddTecnicaTag1784900000000 } from './1784900000000-AddTecnicaTag';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -85,4 +89,8 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreateNews1784300000000,
   CreatePushSubscriptions1784400000000,
   AddPushFieldsToNews1784500000000,
+  TagCategory1784600000000,
+  TagCatalog1784700000000,
+  TagCatalogLegacyPlurals1784800000000,
+  AddTecnicaTag1784900000000,
 ];

@@ -6,7 +6,7 @@ import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider
 import { PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
-import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;
@@ -33,6 +33,8 @@ describe('PersonListComponent', () => {
     notes: null,
     isActive: true,
     positions: [],
+    tagCompliance: { ok: true, missing: [] },
+    attendedCount: 0,
     createdAt: '2024-01-01',
     updatedAt: '2024-01-02',
   };
@@ -137,9 +139,37 @@ describe('PersonListComponent', () => {
     expect(provisionalsButton?.className).toContain('btn-outline');
   });
 
+  describe('etiquetes select', () => {
+    it('clearFilters removes the position filter', () => {
+      fixture.componentInstance.onPositionsChange(['pos-1']);
+      fixture.detectChanges();
+
+      fixture.componentInstance.clearFilters();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.selectedPositions()).toEqual([]);
+      const chips = fixture.componentInstance.activeFilterChips();
+      expect(chips.length).toBe(0);
+    });
+
+    it('groups the etiquetes select options by category via optgroup', () => {
+      fixture.componentInstance.positions.set([
+        { id: 'pos-1', name: 'Vent', slug: 'vent', zone: null, color: '#888', category: TagCategory.PINYA },
+        { id: 'pos-2', name: 'Base', slug: 'base', zone: null, color: '#888', category: TagCategory.TRONC },
+      ]);
+      fixture.detectChanges();
+
+      const optgroups = fixture.nativeElement.querySelectorAll('optgroup') as NodeListOf<HTMLOptGroupElement>;
+      expect(optgroups.length).toBeGreaterThanOrEqual(2);
+      const labels = Array.from(optgroups).map((g) => g.label);
+      expect(labels).toContain('Pinya');
+      expect(labels).toContain('Tronc');
+    });
+  });
+
   describe('tap targets >=24px (WI-03, PE-L1)', () => {
     it('gives the position filter checkbox label a >=24px tap target', () => {
-      const position: Position = { id: 'pos-1', name: 'Novatos', slug: 'novatos', zone: null, color: '#888' };
+      const position: Position = { id: 'pos-1', name: 'Novatos', slug: 'novatos', zone: null, color: '#888', category: TagCategory.ALTRES };
       fixture.componentInstance.positions.set([position]);
       fixture.detectChanges();
 
@@ -152,6 +182,80 @@ describe('PersonListComponent', () => {
       const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
       expect(search).toBeTruthy();
       expect(search.className).toContain('h-6');
+    });
+  });
+
+  describe('tag rule filter and warning (Task 9)', () => {
+    it('envia tagRuleOk=false quan s\'activa el filtre de la regla', () => {
+      fixture.componentInstance.toggleTagRuleFilter();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
+    });
+
+    it('desactiva el filtre de la regla si es torna a prémer', () => {
+      fixture.componentInstance.toggleTagRuleFilter();
+      fixture.componentInstance.toggleTagRuleFilter();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBeUndefined();
+    });
+
+    it('redacta l\'avís amb els grups que falten', () => {
+      const text = fixture.componentInstance.missingTagsLabel({
+        ok: false,
+        missing: [TagCategory.TRONC],
+      });
+
+      expect(text).toBe('Falta etiqueta de Tronc');
+    });
+
+    it('no redacta cap avís quan compleix la regla', () => {
+      expect(fixture.componentInstance.missingTagsLabel({ ok: true, missing: [] })).toBe('');
+    });
+
+    it('mostra "Falten etiquetes" com una etiqueta més, amb la icona d\'avís, quan la persona no compleix la regla', () => {
+      fixture.componentInstance.persons.set([
+        { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
+      ]);
+      fixture.detectChanges();
+
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      const warningBadge = badges.find((b) => b.textContent?.trim() === 'Falten etiquetes');
+      expect(warningBadge).toBeTruthy();
+      expect(warningBadge?.title).toBe('Falta etiqueta de Pinya');
+      expect(warningBadge?.querySelector('lucide-icon')).toBeTruthy();
+    });
+
+    it('no mostra cap etiqueta "Falten etiquetes" quan la persona compleix la regla', () => {
+      fixture.componentInstance.persons.set([{ ...mockPerson } as never]);
+      fixture.detectChanges();
+
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      expect(badges.some((b) => b.textContent?.trim() === 'Falten etiquetes')).toBe(false);
+    });
+
+    it('exposa "Falten etiquetes" com una opció del desplegable d\'etiquetes, no com un botó separat', () => {
+      expect(fixture.componentInstance.NO_TAG_RULE_OPTION).toBeTruthy();
+      expect(fixture.componentInstance.selectedEtiquetesOptions()).not.toContain(
+        fixture.componentInstance.NO_TAG_RULE_OPTION,
+      );
+
+      fixture.componentInstance.onEtiquetesSelectionChange([fixture.componentInstance.NO_TAG_RULE_OPTION]);
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
+      expect(fixture.componentInstance.selectedEtiquetesOptions()).toContain(
+        fixture.componentInstance.NO_TAG_RULE_OPTION,
+      );
+      // Never leaks into the real tag-id filter.
+      expect(fixture.componentInstance.selectedPositions()).toEqual([]);
+      expect(fixture.componentInstance.activeFilters().positionIds).toBeUndefined();
+    });
+
+    it('combina la regla amb etiquetes reals seleccionades al mateix desplegable', () => {
+      fixture.componentInstance.onEtiquetesSelectionChange(['pos-1', fixture.componentInstance.NO_TAG_RULE_OPTION]);
+
+      expect(fixture.componentInstance.selectedPositions()).toEqual(['pos-1']);
+      expect(fixture.componentInstance.activeFilters().positionIds).toEqual(['pos-1']);
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
     });
   });
 

@@ -1,3 +1,5 @@
+import { TagCategory } from '@muixer/shared';
+
 export interface TagWithCount {
   id: string;
   name: string;
@@ -5,6 +7,7 @@ export interface TagWithCount {
   shortDescription: string | null;
   longDescription: string | null;
   color: string | null;
+  category: TagCategory;
   positionTypes: string[];
   personCount: number;
 }
@@ -15,6 +18,7 @@ export interface CreateTagDto {
   shortDescription?: string;
   longDescription?: string;
   color?: string;
+  category: TagCategory;
   positionTypes?: string[];
 }
 
@@ -23,5 +27,6 @@ export interface UpdateTagDto {
   shortDescription?: string;
   longDescription?: string;
   color?: string;
+  category?: TagCategory;
   positionTypes?: string[];
 }

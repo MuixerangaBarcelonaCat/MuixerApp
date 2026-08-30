@@ -33,6 +33,7 @@ tags: [domini]
 18. [Ghost Clone — Creació radial de nodes (P5.11 F3)](#18-ghost-clone--creació-radial-de-nodes-p511-f3)
 19. [Selector de cordons a l'assignació (P5.11 F4)](#19-selector-de-cordons-a-lassignació-p511-f4)
 20. [Gestos tàctils i suport de tablet (P5.12)](#20-gestos-tàctils-i-suport-de-tablet-p512)
+21. [Participació d'un event — columnes de categoria i pròxima actuació](#21-participació-dun-event--columnes-de-categoria-i-pròxima-actuació)
 
 ---
 
@@ -1110,6 +1111,35 @@ Implementació:
   d'origen — `dragOverNodeId` és un signal per component, i el `pointermove` d'un arrossegament en
   curs només arriba a l'element que va capturar el punter (`setPointerCapture`). No hi ha
   sincronització entre instàncies per a aquest indicador purament cosmètic.
+
+---
+
+## 21. Participació d'un event — columnes de categoria i pròxima actuació
+
+La pestanya Participació d'`EventDetailComponent` (`event-participation.component.ts`) mostra
+qui fa què a cada segment d'un event. Amb l'arribada de `Tag.category` (TRONC/PINYA/ALTRES,
+vegeu [[DATA_MODEL]]) la taula separa les etiquetes de la persona en dues columnes en lloc d'una
+sola llista de badges:
+
+- **Tronc**: badges de les etiquetes amb `category = TRONC`.
+- **Pinya**: badges de les etiquetes amb `category = PINYA`.
+- Les etiquetes `category = ALTRES` no apareixen en cap de les dues — no formen part de cap
+  disciplina física i no aporten senyal a la taula d'assignació.
+
+La columna **Alçada** mostra la diferència de `shoulderHeight` de la persona respecte al valor de
+referència del tronc (mateix criteri que a l'assignació de troncs, invariant #10 de
+[[DATA_MODEL]]): `+10`/`-10` en cm, o `-` si la persona no té `shoulderHeight` informat. La
+capçalera és clicable i ordena/reordena com les altres columnes numèriques.
+
+La columna **«Pròxima actuació»** només apareix als events de tipus `ASSAIG`: mostra, per a
+cada persona, la seva assistència (`AttendanceStatus`) a la primera `ACTUACIO` futura de la
+mateixa temporada — `ANIRE` si hi ha confirmat que va, `PENDENT` per defecte si encara no ha
+respost. Es calcula un sol cop per a tot l'event (no per fila) i s'omet del tot quan no hi ha
+cap actuació futura a la temporada (p. ex. un assaig posterior a l'última actuació) o quan
+l'event obert és ell mateix una `ACTUACIO`.
+
+El filtre de Categoria de la pestanya (mateix xip que a `/persons`, vegeu la secció de filtres al
+[[DASHBOARD_UI]]) redueix les files de la taula i es pot llevar com qualsevol altre filtre actiu.
 
 ---
 

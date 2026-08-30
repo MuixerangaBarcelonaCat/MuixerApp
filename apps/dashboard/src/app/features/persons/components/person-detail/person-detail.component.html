@@ -1,4 +1,4 @@
-<div class="space-y-4 max-w-5xl mx-auto" [formGroup]="form">
+<div class="space-y-4 max-w-7xl mx-auto" [formGroup]="form">
 
   <!-- Capçalera -->
   <div class="flex items-center gap-3 flex-wrap">
@@ -204,7 +204,7 @@
                     {{ person()!.isActive ? 'Actiu' : 'Inactiu' }}
                   </lib-badge>
                   @if (person()!.isMember) { <lib-badge size="sm" variant="secondary">Membre</lib-badge> }
-                  @if (person()!.isXicalla) { <lib-badge size="sm" variant="info">Xicalla</lib-badge> }
+                  @if (person()!.isXicalla) { <lib-badge size="sm" variant="info">Menor de 16</lib-badge> }
                 </dd>
               </div>
               <div class="flex justify-between items-start">
@@ -273,7 +273,7 @@
                 <lib-form-field label="Membre" size="xs">
                   <input type="checkbox" class="toggle toggle-secondary" formControlName="isMember" />
                 </lib-form-field>
-                <lib-form-field label="Xicalla" size="xs">
+                <lib-form-field label="Menor de 16" size="xs">
                   <input type="checkbox" class="toggle toggle-info" formControlName="isXicalla" />
                 </lib-form-field>
               </div>

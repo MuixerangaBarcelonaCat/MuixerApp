@@ -4,6 +4,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
 import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
@@ -14,7 +15,16 @@ import {
   TRONC_NODE_PRESETS,
   PINYA_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
+  TagCategory,
+  TAG_CATEGORY_LABELS,
 } from '@muixer/shared';
+
+const CATEGORY_ORDER: Record<TagCategory, number> = {
+  [TagCategory.PINYA]: 0,
+  [TagCategory.TRONC]: 1,
+  [TagCategory.XICALLA]: 2,
+  [TagCategory.ALTRES]: 3,
+};
 
 @Component({
   selector: 'app-tags-list',
@@ -33,8 +43,10 @@ import {
 export class TagsListComponent {
   private readonly tagService = inject(TagService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   readonly ICON_TAG = DOMAIN_ICONS.TAG;
+  readonly categoryLabels = TAG_CATEGORY_LABELS;
 
   readonly tags = signal<TagWithCount[]>([]);
   readonly loading = signal(false);
@@ -42,7 +54,6 @@ export class TagsListComponent {
   readonly selectedTag = signal<TagWithCount | null>(null);
   readonly confirmDeleteTarget = signal<TagWithCount | null>(null);
   readonly deleting = signal(false);
-
   readonly positionTypeMeta: Record<string, { label: string; color: string }> = [
     ...TRONC_NODE_PRESETS.map((p) => ({ positionType: p.positionType, label: p.label, color: p.color })),
     ...PINYA_NODE_PRESETS.map((p) => ({ positionType: p.positionType as string, label: p.label, color: p.color ?? '#64748b' })),
@@ -55,6 +66,10 @@ export class TagsListComponent {
 
   constructor() {
     this.loadTags();
+  }
+
+  onRowClick(tag: TagWithCount): void {
+    this.router.navigate(['/config/tags', tag.id]);
   }
 
   openCreateModal(): void {
@@ -107,11 +122,18 @@ export class TagsListComponent {
     });
   }
 
+  sortedTags(tags: TagWithCount[]): TagWithCount[] {
+    return [...tags].sort((a, b) => {
+      const catDiff = CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category];
+      return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name);
+    });
+  }
+
   private loadTags(): void {
     this.loading.set(true);
     this.tagService.getAll().subscribe({
       next: (tags) => {
-        this.tags.set(tags);
+        this.tags.set(this.sortedTags(tags));
         this.loading.set(false);
       },
       error: () => {

@@ -7,7 +7,7 @@ import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AttendanceStatus, EventType, FigureZone } from '@muixer/shared';
+import { AttendanceStatus, EventType, FigureZone, TagCategory } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -29,6 +29,7 @@ const makePosition = (slug = 'agulla', overrides: any = {}): any => ({
   name: slug.charAt(0).toUpperCase() + slug.slice(1),
   slug,
   color: '#0d9488',
+  category: TagCategory.PINYA,
   ...overrides,
 });
 
@@ -198,6 +199,7 @@ describe('AvailablePersonsService', () => {
       expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
       expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionId', 'pos-agulla');
     });
+
 
     it('sorts by height proximity when height param present', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
@@ -466,8 +468,8 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
 
       expect(result[0].positions).toHaveLength(2);
-      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488', positionTypes: [] });
-      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7', positionTypes: [] });
+      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488', positionTypes: [], category: TagCategory.PINYA });
+      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7', positionTypes: [], category: TagCategory.PINYA });
     });
 
     it('returns empty positions[] when person has no positions', async () => {

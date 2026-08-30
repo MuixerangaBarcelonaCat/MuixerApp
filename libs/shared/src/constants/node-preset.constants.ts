@@ -72,6 +72,9 @@ export const PINYA_NODE_PRESETS: NodePreset[] = [
 export const PINYA_POSITION_TYPES = PINYA_NODE_PRESETS.map((p) => p.positionType as string);
 export type PinyaPositionType = string;
 
+/** Tipus de posició de la base del tronc. No és cap preset de node: és un valor solt del vocabulari. */
+export const BASE_POSITION_TYPE = 'base';
+
 export const AD_HOC_ALLOWED_ZONES = [
   FigureZone.PINYA,
   FigureZone.DECORATION,

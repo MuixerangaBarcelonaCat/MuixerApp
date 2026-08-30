@@ -1,4 +1,4 @@
-import { AvailabilityStatus, OnboardingStatus, FigureZone } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, FigureZone, TagCategory, TagCompliance } from '@muixer/shared';
 
 export interface Position {
   id: string;
@@ -6,6 +6,7 @@ export interface Position {
   slug: string;
   zone: FigureZone | null;
   color: string;
+  category: TagCategory;
 }
 
 export interface Person {
@@ -28,6 +29,9 @@ export interface Person {
   isActive: boolean;
   positions: Position[];
   user: { id: string; email: string | null; isActive: boolean } | null;
+  tagCompliance: TagCompliance;
+  /** ASSISTIT attendances in the current season. Only populated on the list endpoint. */
+  attendedCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +55,7 @@ export interface PersonFilterParams {
   isXicalla?: boolean;
   isMember?: boolean;
   isProvisional?: boolean;
+  tagRuleOk?: boolean;
   page?: number;
   limit?: number;
   /** API sort field (see backend PERSON_SORT_BY_FIELDS) */

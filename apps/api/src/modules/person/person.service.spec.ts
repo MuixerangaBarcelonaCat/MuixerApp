@@ -4,8 +4,10 @@ import { Repository, In } from 'typeorm';
 import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
+import { CreatePersonDto } from './dto/create-person.dto';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { TagCategory } from '@muixer/shared';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -15,9 +17,11 @@ describe('PersonService', () => {
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    setParameter: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     getCount: jest.fn(),
     getMany: jest.fn(),
     getManyAndCount: jest.fn(),
@@ -29,11 +33,13 @@ describe('PersonService', () => {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     update: jest.fn(),
+    query: jest.fn().mockResolvedValue([]),
     createQueryBuilder: jest.fn(() => mockQueryBuilder),
   };
 
   const mockPositionRepository = {
     findBy: jest.fn(),
+    findOne: jest.fn(),
   };
 
   const mockPersonDelegateService = {
@@ -84,7 +90,7 @@ describe('PersonService', () => {
 
       const result = await service.findOne('123');
 
-      expect(result).toEqual(mockPerson);
+      expect(result).toMatchObject(mockPerson);
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '123' },
         relations: ['positions', 'mentor', 'user'],
@@ -125,6 +131,31 @@ describe('PersonService', () => {
 
       expect(result.user?.isActive).toBe(true);
     });
+
+    it('exposa tagCompliance calculada a partir de les etiquetes de la persona', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({
+        id: 'p1',
+        positions: [{ category: TagCategory.PINYA }, { category: TagCategory.TRONC }],
+      } as unknown as Person);
+
+      const result = await service.findOne('p1');
+
+      expect(result.tagCompliance).toEqual({ ok: true, missing: [] });
+    });
+
+    it('marca la regla com a incomplida i diu què falta quan només té pinya', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({
+        id: 'p1',
+        positions: [{ category: TagCategory.PINYA }],
+      } as unknown as Person);
+
+      const result = await service.findOne('p1');
+
+      expect(result.tagCompliance).toEqual({
+        ok: false,
+        missing: [TagCategory.TRONC],
+      });
+    });
   });
 
   describe('create', () => {
@@ -141,7 +172,7 @@ describe('PersonService', () => {
 
       const result = await service.create(createDto);
 
-      expect(result).toEqual(mockPerson);
+      expect(result).toMatchObject(mockPerson);
       expect(mockPersonRepository.create).toHaveBeenCalledWith(createDto);
       expect(mockPersonRepository.save).toHaveBeenCalledWith(mockPerson);
     });
@@ -188,6 +219,36 @@ describe('PersonService', () => {
       await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
       expect(mockPersonRepository.save).not.toHaveBeenCalled();
     });
+
+    it('assigna «Persona Nova» quan no ve cap etiqueta de xicalla ni d\'altres', async () => {
+      const personaNova = { id: 'tag-nova', slug: 'persona-nova', category: TagCategory.PINYA } as Tag;
+      mockPositionRepository.findOne.mockResolvedValue(personaNova);
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({ name: 'Nova', firstSurname: 'Persona', alias: 'nova' } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions).toEqual([personaNova]);
+    });
+
+    it('no assigna cap etiqueta per defecte si ja en ve una de xicalla', async () => {
+      const xicalla = { id: 'tag-xicalla', slug: 'xicalla', category: TagCategory.XICALLA } as Tag;
+      mockPositionRepository.findBy.mockResolvedValue([xicalla]);
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({
+        name: 'Menuda',
+        firstSurname: 'Colla',
+        alias: 'menuda',
+        positionIds: ['tag-xicalla'],
+      } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions).toEqual([xicalla]);
+      expect(mockPositionRepository.findOne).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
@@ -201,7 +262,8 @@ describe('PersonService', () => {
 
       const result = await service.findAll({ page: 1, limit: 10 });
 
-      expect(result).toEqual({ data: mockPersons, total: 2 });
+      expect(result.total).toBe(2);
+      expect(result.data).toMatchObject(mockPersons);
       expect(mockPersonRepository.createQueryBuilder).toHaveBeenCalledWith('person');
       expect(mockQueryBuilder.getCount).toHaveBeenCalled();
       expect(mockQueryBuilder.getMany).toHaveBeenCalled();
@@ -239,6 +301,106 @@ describe('PersonService', () => {
         'person.isActive = :isActive',
         { isActive: true },
       );
+    });
+
+    const functionAndWhereCalls = () =>
+      mockQueryBuilder.andWhere.mock.calls.filter(
+        ([arg]) => typeof arg === 'function',
+      );
+
+    it('adds a single subquery andWhere when filtering by positionIds', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ positionIds: ['pos1'] } as any);
+
+      expect(functionAndWhereCalls().length).toBe(1);
+      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith('positionIds', ['pos1']);
+    });
+
+    const tagRuleWhereClause = (): string | undefined =>
+      mockQueryBuilder.andWhere.mock.calls
+        .map(([arg]) => arg)
+        .find((arg) => typeof arg === 'string' && arg.includes('person_positions'));
+
+    it('applies the tagging rule as a negated EXISTS predicate when tagRuleOk is false', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ tagRuleOk: false } as any);
+
+      const clause = tagRuleWhereClause();
+      expect(clause).toBeDefined();
+      expect(clause).toMatch(/^NOT /);
+      expect(clause).toContain("t.category IN ('XICALLA', 'ALTRES')");
+      expect(clause).toContain("t.category IN ('PINYA')");
+      expect(clause).toContain("t.category IN ('TRONC')");
+    });
+
+    it('applies the tagging rule un-negated when tagRuleOk is true', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ tagRuleOk: true } as any);
+
+      expect(tagRuleWhereClause()).not.toMatch(/^NOT /);
+    });
+
+    it('leaves the tagging rule out of the query when tagRuleOk is omitted', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, limit: 10 });
+
+      expect(tagRuleWhereClause()).toBeUndefined();
+    });
+
+    it('resols the season attendance count for the loaded page only and merges it per person', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(2);
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 'a', alias: 'a', positions: [] },
+        { id: 'b', alias: 'b', positions: [] },
+      ]);
+      mockPersonRepository.query.mockResolvedValue([{ personId: 'b', count: 7 }]);
+
+      const result = await service.findAll({ page: 1, limit: 10 });
+
+      expect(mockPersonRepository.query).toHaveBeenCalledWith(
+        expect.stringContaining("a.status = 'ASSISTIT'"),
+        [['a', 'b']],
+      );
+      expect(result.data.map((person) => person.attendedCount)).toEqual([0, 7]);
+    });
+
+    it('skips the attendance query entirely when the page is empty', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, limit: 10 });
+
+      expect(mockPersonRepository.query).not.toHaveBeenCalled();
+    });
+
+    it('orders by the attendance subquery alias when sortBy is attendedCount', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, limit: 10, sortBy: 'attendedCount', sortOrder: 'DESC' });
+
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith(
+        expect.stringContaining("a.status = 'ASSISTIT'"),
+        'attended_count',
+      );
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('attended_count', 'DESC');
+    });
+
+    it('does not add the attendance subquery to the query when sorting by something else', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, limit: 10, sortBy: 'alias' });
+
+      expect(mockQueryBuilder.addSelect).not.toHaveBeenCalled();
     });
   });
 

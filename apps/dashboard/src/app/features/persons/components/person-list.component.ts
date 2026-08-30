@@ -2,10 +2,11 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, UserPlus, Link, Search } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC } from '@muixer/ui';
 import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
+import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
 import {
   getFullName,
   getAvailabilityLabel,
@@ -61,11 +62,14 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
   { key: 'positions', label: 'Etiquetes', defaultVisible: true, type: 'colorBadges' },
+  // "(temp. actual)" avoids reading as "never attends": attendedCount is 0 both for a genuine
+  // newcomer and whenever there is no current season — the label scopes it explicitly instead.
+  { key: 'attendedCount', label: 'Assistències (temp. actual)', defaultVisible: false, sortField: 'attendedCount' },
   { key: 'availability', label: 'Pot participar', defaultVisible: false, sortField: 'availability' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
-  { key: 'isXicalla', label: 'Xicalla', defaultVisible: false, sortField: 'isXicalla' },
+  { key: 'isXicalla', label: 'Menor de 16', defaultVisible: false, sortField: 'isXicalla' },
   { key: 'shirtDate', label: 'Data camisa', defaultVisible: false, sortField: 'shirtDate' },
   { key: 'notes', label: 'Notes', defaultVisible: false },
   { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
@@ -138,7 +142,8 @@ export class PersonListComponent {
     const s = this.search().trim();
     const pos = this.selectedPositions().length > 0;
     const actius = this.activeFilters().isActive === true;
-    return Boolean(s || pos || actius);
+    const tagRule = this.activeFilters().tagRuleOk !== undefined;
+    return Boolean(s || pos || actius || tagRule);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -173,8 +178,54 @@ export class PersonListComponent {
     this.loadPersons();
   }
 
+  /** Pseudo-option value for "Falten etiquetes" inside the Etiquetes dropdown — not a real
+   *  tag id, so it's kept out of `selectedPositions`/`positionIds` and mapped to `tagRuleOk` instead. */
+  readonly NO_TAG_RULE_OPTION = '__no-tag-rule__';
+
+  /** What the Etiquetes dropdown shows as selected: real tag ids plus the pseudo-option when the
+   *  "Falten etiquetes" filter is active. */
+  readonly selectedEtiquetesOptions = computed<string[]>(() => [
+    ...this.selectedPositions(),
+    ...(this.activeFilters().tagRuleOk === false ? [this.NO_TAG_RULE_OPTION] : []),
+  ]);
+
+  /** Single handler for the Etiquetes dropdown: splits the pseudo-option back out from the real
+   *  tag ids and updates both filters in one pass (avoids the double reload of calling
+   *  `onPositionsChange` + `toggleTagRuleFilter` separately). */
+  onEtiquetesSelectionChange(values: string[]): void {
+    const tagRuleOk = values.includes(this.NO_TAG_RULE_OPTION) ? false : undefined;
+    const positionIds = values.filter((v) => v !== this.NO_TAG_RULE_OPTION);
+
+    this.selectedPositions.set(positionIds);
+    this.activeFilters.update((filters) => {
+      const next: Partial<PersonFilterParams> = {
+        ...filters,
+        positionIds: positionIds.length > 0 ? positionIds : undefined,
+      };
+      if (tagRuleOk === false) {
+        next.tagRuleOk = false;
+      } else {
+        delete next.tagRuleOk;
+      }
+      return next;
+    });
+    this.page.set(1);
+    this.loadPersons();
+  }
+
   toggleActiusFilter() {
     this.toggleFilter('isActive', true);
+  }
+
+  toggleTagRuleFilter(): void {
+    this.toggleFilter('tagRuleOk', false);
+  }
+
+  /** Renders `TagCompliance.missing` into the Catalan warning text for the badge/tooltip. */
+  missingTagsLabel(compliance: TagCompliance): string {
+    if (compliance.ok) return '';
+    const groups = compliance.missing.map((group) => TAG_CATEGORY_LABELS[group]).join(' i ');
+    return `Falta etiqueta de ${groups}`;
   }
 
   toggleFilter(key: keyof PersonFilterParams, value: string | boolean | number) {
@@ -345,6 +396,7 @@ export class PersonListComponent {
     if (this.search().trim()) chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
     if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Etiquetes (${this.selectedPositions().length})` });
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
+    if (this.activeFilters().tagRuleOk === false) chips.push({ key: 'tagRuleOk', label: 'Falten etiquetes' });
     return chips;
   });
 
@@ -357,6 +409,7 @@ export class PersonListComponent {
     if (key === 'search') this.clearSearchChip();
     else if (key === 'positions') this.clearPositionsChip();
     else if (key === 'isActive') this.clearActiusChip();
+    else if (key === 'tagRuleOk') this.toggleTagRuleFilter();
   }
 
   onSortChangeFromTable(event: { field: string; order: 'ASC' | 'DESC' | undefined }): void {
@@ -386,6 +439,7 @@ export class PersonListComponent {
       case 'fullName': return getFullName(person);
       case 'alias': return person.alias || '—';
       case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
+      case 'attendedCount': return String(person.attendedCount ?? 0);
       case 'availability': return getAvailabilityLabel(person.availability);
       case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
       case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
@@ -406,10 +460,21 @@ export class PersonListComponent {
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
       ...(col.key === 'positions' && {
-        colorBadges: (person: Person) => person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
+        // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag
+        // (no `id`, so onColorBadgeClick's `badge.id` guard naturally leaves it non-clickable),
+        // flagged with a warning icon/color instead of a real tag color.
+        colorBadges: (person: Person) => [
+          ...person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
+          ...(person.tagCompliance && !person.tagCompliance.ok
+            ? [{ text: 'Falten etiquetes', color: SEMANTIC.warning, icon: 'AlertTriangle', title: this.missingTagsLabel(person.tagCompliance) }]
+            : []),
+        ],
         onColorBadgeClick: (id: string) => this.togglePosition(id),
       }),
     }))
   );
   protected readonly EventType = EventType;
+  protected readonly TagCategory = TagCategory;
+  protected readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
+  readonly tagCategories = Object.values(TagCategory);
 }

@@ -14,9 +14,39 @@ import {
   type PersonSortByField,
   type PersonSortOrder,
 } from './constants/person-sort.constants';
+import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
+import { TagCategory } from '@muixer/shared';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
+const DEFAULT_TAG_SLUG = 'persona-nova';
+
+/** La temporada que conté el dia d'avui; la més recent si n'hi haguera de solapades. */
+const CURRENT_SEASON_SUBQUERY = `(
+  SELECT s.id FROM seasons s
+  WHERE s."startDate" <= CURRENT_DATE AND s."endDate" >= CURRENT_DATE
+  ORDER BY s."startDate" DESC LIMIT 1
+)`;
+
+/**
+ * Assistències confirmades de la temporada en curs: és la senyal que fa visibles les persones
+ * noves que ja venen recurrentment però encara no tenen posició assignada. `$1` és la llista
+ * d'ids de la pàgina carregada.
+ */
+const ATTENDED_COUNT_QUERY = `SELECT a."personId" AS "personId", COUNT(*)::int AS count
+   FROM attendances a
+   JOIN events e ON e.id = a."eventId"
+   WHERE a."personId" = ANY($1::uuid[])
+     AND a.status = 'ASSISTIT'
+     AND e."seasonId" = ${CURRENT_SEASON_SUBQUERY}
+   GROUP BY a."personId"`;
+
+/** La mateixa xifra com a expressió correlada, per poder-hi ordenar dins la consulta paginada. */
+const ATTENDED_COUNT_EXPRESSION = `(SELECT COUNT(*)::int FROM attendances a
+   JOIN events e ON e.id = a."eventId"
+   WHERE a."personId" = person.id
+     AND a.status = 'ASSISTIT'
+     AND e."seasonId" = ${CURRENT_SEASON_SUBQUERY})`;
 
 @Injectable()
 export class PersonService {
@@ -35,6 +65,7 @@ export class PersonService {
     const {
       search,
       positionIds,
+      tagRuleOk,
       availability,
       isActive,
       isXicalla,
@@ -77,6 +108,10 @@ export class PersonService {
       queryBuilder.setParameter('positionIds', positionIds);
     }
 
+    if (tagRuleOk !== undefined) {
+      applyTagRuleFilter(queryBuilder, 'person', tagRuleOk);
+    }
+
     if (availability !== undefined) {
       queryBuilder.andWhere('person.availability = :availability', {
         availability,
@@ -103,17 +138,40 @@ export class PersonService {
 
     const total = await queryBuilder.getCount();
 
+    if (sortBy === 'attendedCount') {
+      // Només quan cal ordenar-hi: TypeORM necessita l'expressió com a columna seleccionada
+      // per poder-la referenciar des de la seua consulta de paginació amb joins.
+      queryBuilder.addSelect(ATTENDED_COUNT_EXPRESSION, 'attended_count');
+    }
+
     const data = await queryBuilder
       .orderBy(orderColumn, orderDirection)
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
 
+    // Assistències de la temporada en curs, resoltes només per a la pàgina carregada: unir-les
+    // a la consulta paginada multiplicaria les files contra `person.positions`.
+    const attendedCounts = await this.loadAttendedCounts(data.map((person) => person.id));
+    for (const person of data) {
+      (person as Person & { attendedCount: number }).attendedCount =
+        attendedCounts.get(person.id) ?? 0;
+    }
+
     const responseData = plainToInstance(PersonResponseDto, data, {
       excludeExtraneousValues: true,
     });
 
     return { data: responseData, total };
+  }
+
+  private async loadAttendedCounts(personIds: string[]): Promise<Map<string, number>> {
+    if (personIds.length === 0) return new Map();
+
+    const rows: { personId: string; count: number }[] =
+      await this.personRepository.query(ATTENDED_COUNT_QUERY, [personIds]);
+
+    return new Map(rows.map((row) => [row.personId, row.count]));
   }
 
   /**
@@ -163,6 +221,21 @@ export class PersonService {
 
     if (positionIds && positionIds.length > 0) {
       person.positions = await this.findPositionsOrThrow(positionIds);
+    }
+
+    // Regla mínima d'etiquetatge: qui no és de xicalla ni d'«altres» entra com a persona nova,
+    // perquè la tècnica puga fer-ne el seguiment fins que se li puga assignar una posició.
+    const categories = (person.positions ?? []).map((tag) => tag.category);
+    const needsDefault =
+      !categories.includes(TagCategory.XICALLA) && !categories.includes(TagCategory.ALTRES);
+
+    if (needsDefault) {
+      const defaultTag = await this.positionRepository.findOne({
+        where: { slug: DEFAULT_TAG_SLUG },
+      });
+      if (defaultTag) {
+        person.positions = [...(person.positions ?? []), defaultTag];
+      }
     }
 
     if (mentorId) {

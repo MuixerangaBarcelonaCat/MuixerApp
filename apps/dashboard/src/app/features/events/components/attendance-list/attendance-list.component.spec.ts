@@ -3,9 +3,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { AttendanceListComponent } from './attendance-list.component';
-import { AttendanceStatus } from '@muixer/shared';
-import { AttendanceItem } from '../../models/attendance.model';
+import { AttendanceStatus, TagCategory } from '@muixer/shared';
+import { AttendanceItem, AttendancePosition } from '../../models/attendance.model';
 import { AttendanceService } from '../../services/attendance.service';
+import { FiguresViewModeService } from '../../../pinyes/services/figures-view-mode.service';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 /**
@@ -311,5 +312,54 @@ describe('AttendanceListComponent — default status filter', () => {
       'event-1',
       expect.objectContaining({ status: AttendanceStatus.ASSISTIT }),
     );
+  });
+});
+
+describe('AttendanceListComponent — Pinyes/Troncs tag view', () => {
+  const tag = (name: string, category: TagCategory): AttendancePosition =>
+    ({ id: name, name, color: null, category });
+
+  const PINYA = tag('Vents', TagCategory.PINYA);
+  const TRONC = tag('Baixos', TagCategory.TRONC);
+  const ALTRES = tag('Acompanyant', TagCategory.ALTRES);
+  const XICALLA = tag('Xicalla', TagCategory.XICALLA);
+
+  const build = async () => {
+    await TestBed.configureTestingModule({
+      imports: [AttendanceListComponent],
+      providers: [
+        provideRouter([]),
+        allLucideIconsProvider,
+        {
+          provide: AttendanceService,
+          useValue: { getByEvent: () => of({ data: [], meta: { total: 0, page: 1, limit: 100 } }) },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AttendanceListComponent);
+    fixture.componentRef.setInput('eventId', 'event-1');
+    fixture.detectChanges();
+    // Start from a known view regardless of any persisted localStorage value.
+    TestBed.inject(FiguresViewModeService).set('pinyes');
+    return fixture.componentInstance;
+  };
+
+  it('shows PINYA and ALTRES tags in the Pinyes view', async () => {
+    const component = await build();
+    component.setViewMode('pinyes');
+    expect(component.visibleTags([PINYA, TRONC, ALTRES, XICALLA])).toEqual([PINYA, ALTRES]);
+  });
+
+  it('shows TRONC and ALTRES tags in the Troncs view', async () => {
+    const component = await build();
+    component.setViewMode('troncs');
+    expect(component.visibleTags([PINYA, TRONC, ALTRES, XICALLA])).toEqual([TRONC, ALTRES]);
+  });
+
+  it('shares its state with the Pinyes i Figures view-mode service', async () => {
+    const component = await build();
+    TestBed.inject(FiguresViewModeService).set('troncs');
+    expect(component.viewMode()).toBe('troncs');
   });
 });

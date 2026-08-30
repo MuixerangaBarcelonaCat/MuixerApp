@@ -1,4 +1,4 @@
-import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
+import { AssignmentArea, AvailablePerson, AvailablePersonsQuery, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -74,15 +74,13 @@ export class PersonPanelComponent {
   readonly selectedPositionId = signal<string | null>(null);
   readonly tagFilterOpen = signal(false);
   readonly tagSearch = signal('');
-
   readonly selectedTag = computed(() =>
     this.tags().find((t) => t.id === this.selectedPositionId()) ?? null,
   );
 
   readonly filteredTags = computed(() => {
     const term = this.normalizeForMatch(this.tagSearch());
-    if (!term) return this.tags();
-    return this.tags().filter((t) => this.normalizeForMatch(t.name).includes(term));
+    return this.tags().filter((t) => !term || this.normalizeForMatch(t.name).includes(term));
   });
   readonly altresExpanded = signal(false);
   readonly pinyaAssignedExpanded = signal(true);
@@ -372,21 +370,21 @@ export class PersonPanelComponent {
 
   loadPersons(): void {
     this.loading.set(true);
-    const query: Record<string, any> = {
+    const query: AvailablePersonsQuery = {
       excludeAssigned: false,
     };
     const sortMode = this.heightSortMode();
     if (sortMode !== null) {
       const heightValue = sortMode === 'max' ? 1000 : -1000;
-      query['height'] = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
+      query.height = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
     } else if (this.height() !== null) {
       const heightValue = this.height()!;
       const absoluteHeight = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
-      query['height'] = absoluteHeight;
+      query.height = absoluteHeight;
     }
-    if (!this.showXicalla()) query['isXicalla'] = false;
-    if (this.selectedPositionId()) query['positionId'] = this.selectedPositionId();
-
+    if (!this.showXicalla()) query.isXicalla = false;
+    const positionId = this.selectedPositionId();
+    if (positionId) query.positionId = positionId;
     this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), query)
       .subscribe({
@@ -433,6 +431,7 @@ export class PersonPanelComponent {
   clearTagFilter(): void {
     this.onPositionFilterChange('');
   }
+
 
   toggleTagFilter(): void {
     this.tagFilterOpen.update((v) => !v);

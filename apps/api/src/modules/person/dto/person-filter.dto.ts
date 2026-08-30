@@ -20,6 +20,11 @@ export class PersonFilterDto {
   @IsUUID('4', { each: true })
   positionIds?: string[];
 
+  @ApiPropertyOptional({ description: 'Filtrar per compliment de la regla mínima d\'etiquetatge' })
+  @IsOptional()
+  @Transform(toBool)
+  tagRuleOk?: boolean;
+
   @ApiPropertyOptional({ description: 'Filtrar per disponibilitat del membre', enum: AvailabilityStatus })
   @IsEnum(AvailabilityStatus)
   @IsOptional()

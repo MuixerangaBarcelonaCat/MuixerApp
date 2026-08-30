@@ -90,6 +90,7 @@ describe('NodeAssignmentService', () => {
     req.flush({ data: [] });
   });
 
+
   it('getHistory sends GET to /figure-templates/:id/history', () => {
     service.getHistory(TEMPLATE_ID).subscribe();
     const req = httpMock.expectOne(`${BASE}/figure-templates/${TEMPLATE_ID}/history`);

@@ -151,9 +151,6 @@ describe('PersonSyncStrategy', () => {
     it('emits start → progress* → complete on successful sync', (done) => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
-      positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Tag);
-      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockReturnValue({} as Person);
       personRepository.save.mockResolvedValue({} as Person);
@@ -203,15 +200,53 @@ describe('PersonSyncStrategy', () => {
     });
   });
 
+  // ─── Tag import disconnection ────────────────────────────────────────────────
+
+  function legacyPersonFixture(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
+    return { ...mockLegacyPerson, ...overrides };
+  }
+
+  async function runSync(persons: LegacyPerson[]): Promise<void> {
+    legacyApiClient.login.mockResolvedValue();
+    legacyApiClient.getCastellers.mockResolvedValue(persons);
+    personRepository.findOne.mockResolvedValue(null);
+    personRepository.create.mockImplementation((d) => d as Person);
+    personRepository.save.mockResolvedValue({} as Person);
+
+    await new Promise<void>((resolve) => {
+      strategy.execute().subscribe({ complete: () => resolve() });
+    });
+  }
+
+  describe('tag import disconnection', () => {
+    it('no crea ni actualitza cap etiqueta durant el sync', async () => {
+      await runSync([legacyPersonFixture({ posicio: 'PRIMERES+CANALLA' })]);
+
+      expect(positionRepository.save).not.toHaveBeenCalled();
+      expect(positionRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('crea la persona sense assignar-li etiquetes', async () => {
+      await runSync([legacyPersonFixture({ posicio: 'PRIMERES' })]);
+
+      const created = personRepository.create.mock.calls[0][0];
+      expect(created.positions).toBeUndefined();
+    });
+
+    it('segueix derivant isXicalla de la posició legacy', async () => {
+      await runSync([legacyPersonFixture({ posicio: 'CANALLA' })]);
+
+      const created = personRepository.create.mock.calls[0][0];
+      expect(created.isXicalla).toBe(true);
+    });
+  });
+
   // ─── CREATE path ─────────────────────────────────────────────────────────────
 
   describe('createPerson()', () => {
     it('maps all legacy fields correctly', (done) => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
-      positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Tag);
-      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockImplementation((d) => d as Person);
       personRepository.save.mockResolvedValue({} as Person);

@@ -13,6 +13,7 @@ import {
   AssignmentArea,
   areaForZone,
   ConflictPlacement,
+  TagCategory,
 } from '@muixer/shared';
 
 interface AvailablePersonPositionDto {
@@ -21,6 +22,7 @@ interface AvailablePersonPositionDto {
   slug: string;
   color: string | null;
   positionTypes: string[];
+  category: TagCategory;
 }
 
 export interface AvailablePersonDto {
@@ -255,6 +257,7 @@ export class AvailablePersonsService {
           slug: p.slug,
           color: p.color,
           positionTypes: p.positionTypes ?? [],
+          category: p.category,
         })),
       };
     });

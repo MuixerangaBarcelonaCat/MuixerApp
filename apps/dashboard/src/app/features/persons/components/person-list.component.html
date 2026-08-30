@@ -33,12 +33,24 @@
         <lib-select
           [multiple]="true"
           label="Etiquetes"
-          [ngModel]="selectedPositions()"
-          (ngModelChange)="onPositionsChange($event)"
+          [ngModel]="selectedEtiquetesOptions()"
+          (ngModelChange)="onEtiquetesSelectionChange($event)"
         >
-          @for (position of positions(); track position.id) {
-            <option [value]="position.id">{{ position.name }}</option>
+          @for (category of tagCategories; track category) {
+            @if (positions().some(p => p.category === category)) {
+              <optgroup [label]="TAG_CATEGORY_LABELS[category]">
+                @for (position of positions(); track position.id) {
+                  @if (position.category === category) {
+                    <option [value]="position.id">{{ position.name }}</option>
+                  }
+                }
+              </optgroup>
+            }
           }
+          <option [value]="NO_TAG_RULE_OPTION">
+            <lucide-icon name="AlertTriangle" [size]="12" class="text-warning" aria-hidden="true" />
+            <span class="text-warning">Falten etiquetes</span>
+          </option>
         </lib-select>
       </div>
     }

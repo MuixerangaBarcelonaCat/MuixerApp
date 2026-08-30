@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { AttendanceStatus, AttendanceSummary } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary, TagCategory } from '@muixer/shared';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
@@ -242,7 +242,7 @@ interface AttendancePersonRef {
   isXicalla: boolean;
   notes: string | null;
   notesEmoji: string | null;
-  positions: { id: string; name: string; color: string | null }[];
+  positions: { id: string; name: string; color: string | null; category: TagCategory }[];
 }
 
 interface AttendanceItem {
@@ -271,6 +271,7 @@ function toAttendanceItem(a: Attendance): AttendanceItem {
         id: p.id,
         name: p.name,
         color: p.color,
+        category: p.category,
       })),
     },
   };

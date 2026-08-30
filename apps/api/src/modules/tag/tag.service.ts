@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Tag } from './tag.entity';
+import { Person } from '../person/person.entity';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
+import { TagFilterDto } from './dto/tag-filter.dto';
 
 export type TagWithCount = Tag & { personCount: number };
 
@@ -12,16 +14,21 @@ export class TagService {
   constructor(
     @InjectRepository(Tag)
     private readonly tagRepository: Repository<Tag>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
   ) {}
 
-  async findAll(): Promise<TagWithCount[]> {
-    const result = await this.tagRepository
+  async findAll(filter?: TagFilterDto): Promise<TagWithCount[]> {
+    const qb = this.tagRepository
       .createQueryBuilder('tag')
       .leftJoin('person_positions', 'pp', 'pp."positionsId" = tag.id')
-      .addSelect('CAST(COUNT(pp."personsId") AS int)', 'personCount')
-      .groupBy('tag.id')
-      .orderBy('tag.name', 'ASC')
-      .getRawAndEntities();
+      .addSelect('CAST(COUNT(pp."personsId") AS int)', 'personCount');
+
+    if (filter?.category?.length) {
+      qb.andWhere('tag.category IN (:...categories)', { categories: filter.category });
+    }
+
+    const result = await qb.groupBy('tag.id').orderBy('tag.name', 'ASC').getRawAndEntities();
 
     return result.entities.map((entity, index) => ({
       ...entity,
@@ -64,6 +71,38 @@ export class TagService {
     }
 
     await this.tagRepository.delete(id);
+  }
+
+  async assignPersons(tagId: string, personIds: string[]): Promise<void> {
+    await this.findOne(tagId);
+
+    const uniqueIds = [...new Set(personIds)];
+    const found = await this.personRepository.findBy({ id: In(uniqueIds) });
+    if (found.length !== uniqueIds.length) {
+      throw new NotFoundException("Alguna de les persones indicades no existeix.");
+    }
+
+    // ponytail: row-per-value INSERT, fine at this batch size (form-driven assignment, not bulk import)
+    await this.tagRepository.manager.transaction((manager) =>
+      Promise.all(
+        uniqueIds.map((personId) =>
+          manager.query(
+            `INSERT INTO person_positions ("personsId", "positionsId") VALUES ($1, $2)
+             ON CONFLICT DO NOTHING`,
+            [personId, tagId],
+          ),
+        ),
+      ),
+    );
+  }
+
+  async unassignPerson(tagId: string, personId: string): Promise<void> {
+    await this.findOne(tagId);
+
+    await this.tagRepository.query(
+      `DELETE FROM person_positions WHERE "personsId" = $1 AND "positionsId" = $2`,
+      [personId, tagId],
+    );
   }
 
   private async saveWithUniqueGuard(entity: Tag): Promise<Tag> {

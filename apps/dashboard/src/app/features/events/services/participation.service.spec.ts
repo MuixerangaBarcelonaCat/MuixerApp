@@ -59,6 +59,7 @@ describe('ParticipationService', () => {
           notes: null,
           notesEmoji: null,
           attendanceStatus: 'ANIRE',
+          nextPerformanceStatus: null,
           positions: [],
           placements: {
             'seg-1': [
@@ -102,6 +103,7 @@ describe('ParticipationService', () => {
         conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 1 },
         troncPlacements: 0,
       },
+      nextPerformance: null,
     };
 
     let received: EventParticipation | undefined;

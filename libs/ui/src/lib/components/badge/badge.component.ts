@@ -36,6 +36,13 @@ const SIZE_CLASSES: Record<BadgeSize, string> = {
   lg: 'badge-lg',
 };
 
+// Single source of truth for "what DaisyUI classes does a badge of this variant/size have" —
+// consumed by BadgeComponent itself below, and by any raw-markup caller (e.g. a generic table's
+// per-cell rendering) that can't project a real <lib-badge> but must stay in sync with it.
+export function badgeClasses(variant: BadgeVariant, size: BadgeSize): string {
+  return ['badge', VARIANT_CLASSES[variant], SIZE_CLASSES[size]].filter(Boolean).join(' ');
+}
+
 const INK_BLACK = hexToOklch(INK.black);
 const PAPER_WHITE = hexToOklch(PAPER.white);
 
@@ -77,9 +84,9 @@ export class BadgeComponent {
 
   protected readonly badgeClass = computed(() =>
     [
-      'badge',
-      this.color() ? '' : VARIANT_CLASSES[this.variant()],
-      SIZE_CLASSES[this.size()],
+      // Color-driven badges skip the variant class (the inline background/border wins instead)
+      // but still share the same 'badge'+size base as badgeClasses() below.
+      this.color() ? ['badge', SIZE_CLASSES[this.size()]].filter(Boolean).join(' ') : badgeClasses(this.variant(), this.size()),
       this.isOutlined() ? 'badge-outline' : '',
       // No forced min-h-6 tap-target floor here: it used to clamp every clickable badge to a
       // taller height regardless of `size`, so a clickable badge never actually matched a static
