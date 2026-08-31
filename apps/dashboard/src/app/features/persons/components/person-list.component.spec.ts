@@ -139,27 +139,14 @@ describe('PersonListComponent', () => {
     expect(provisionalsButton?.className).toContain('btn-outline');
   });
 
-  describe('category filter (Categoria)', () => {
-    it('calls getAll with positionCategory when categories are selected and shows the chip', () => {
-      fixture.componentInstance.onCategoriesChange([TagCategory.TRONC]);
-      fixture.detectChanges();
-
-      expect(personService.getAll).toHaveBeenCalledWith(
-        expect.objectContaining({ positionCategory: [TagCategory.TRONC] }),
-      );
-      const chips = fixture.componentInstance.activeFilterChips();
-      expect(chips.some((c) => c.label === 'Categoria: Tronc')).toBe(true);
-    });
-
-    it('clearFilters removes both the category and position filters', () => {
-      fixture.componentInstance.onCategoriesChange([TagCategory.TRONC]);
+  describe('etiquetes select', () => {
+    it('clearFilters removes the position filter', () => {
       fixture.componentInstance.onPositionsChange(['pos-1']);
       fixture.detectChanges();
 
       fixture.componentInstance.clearFilters();
       fixture.detectChanges();
 
-      expect(fixture.componentInstance.selectedCategories()).toEqual([]);
       expect(fixture.componentInstance.selectedPositions()).toEqual([]);
       const chips = fixture.componentInstance.activeFilterChips();
       expect(chips.length).toBe(0);
@@ -225,26 +212,50 @@ describe('PersonListComponent', () => {
       expect(fixture.componentInstance.missingTagsLabel({ ok: true, missing: [] })).toBe('');
     });
 
-    it('mostra el badge d\'avís a la fila quan la persona no compleix la regla', () => {
+    it('mostra "Falten etiquetes" com una etiqueta més, amb la icona d\'avís, quan la persona no compleix la regla', () => {
       fixture.componentInstance.persons.set([
         { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
       ]);
       fixture.detectChanges();
 
-      const badges = fixture.nativeElement.querySelectorAll('.badge-warning');
-      const warningBadge = Array.from(badges as NodeListOf<HTMLElement>).find(
-        (b) => b.textContent?.trim() === 'Sense etiquetar',
-      );
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      const warningBadge = badges.find((b) => b.textContent?.trim() === 'Falten etiquetes');
       expect(warningBadge).toBeTruthy();
       expect(warningBadge?.title).toBe('Falta etiqueta de Pinya');
+      expect(warningBadge?.querySelector('lucide-icon')).toBeTruthy();
     });
 
-    it('no mostra cap badge d\'avís quan la persona compleix la regla', () => {
+    it('no mostra cap etiqueta "Falten etiquetes" quan la persona compleix la regla', () => {
       fixture.componentInstance.persons.set([{ ...mockPerson } as never]);
       fixture.detectChanges();
 
-      const badges = fixture.nativeElement.querySelectorAll('.badge-warning');
-      expect(badges.length).toBe(0);
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      expect(badges.some((b) => b.textContent?.trim() === 'Falten etiquetes')).toBe(false);
+    });
+
+    it('exposa "Falten etiquetes" com una opció del desplegable d\'etiquetes, no com un botó separat', () => {
+      expect(fixture.componentInstance.NO_TAG_RULE_OPTION).toBeTruthy();
+      expect(fixture.componentInstance.selectedEtiquetesOptions()).not.toContain(
+        fixture.componentInstance.NO_TAG_RULE_OPTION,
+      );
+
+      fixture.componentInstance.onEtiquetesSelectionChange([fixture.componentInstance.NO_TAG_RULE_OPTION]);
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
+      expect(fixture.componentInstance.selectedEtiquetesOptions()).toContain(
+        fixture.componentInstance.NO_TAG_RULE_OPTION,
+      );
+      // Never leaks into the real tag-id filter.
+      expect(fixture.componentInstance.selectedPositions()).toEqual([]);
+      expect(fixture.componentInstance.activeFilters().positionIds).toBeUndefined();
+    });
+
+    it('combina la regla amb etiquetes reals seleccionades al mateix desplegable', () => {
+      fixture.componentInstance.onEtiquetesSelectionChange(['pos-1', fixture.componentInstance.NO_TAG_RULE_OPTION]);
+
+      expect(fixture.componentInstance.selectedPositions()).toEqual(['pos-1']);
+      expect(fixture.componentInstance.activeFilters().positionIds).toEqual(['pos-1']);
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
     });
   });
 

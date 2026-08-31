@@ -5,6 +5,32 @@
         Llista d'assistència
       </h2>
 
+      <!-- Pinyes / Troncs toggle -->
+      <div role="group" aria-label="Mode de visualització">
+        <lib-button-group>
+          <lib-button
+            joinItem
+            variant="primary"
+            size="xs"
+            [active]="viewMode() === 'pinyes'"
+            (clicked)="setViewMode('pinyes')"
+          >
+            <lucide-icon [name]="ICON_PINYA" [size]="13" />
+            Pinyes
+          </lib-button>
+          <lib-button
+            joinItem
+            variant="primary"
+            size="xs"
+            [active]="viewMode() === 'troncs'"
+            (clicked)="setViewMode('troncs')"
+          >
+            <lucide-icon [name]="ICON_TRONC" [size]="14" />
+            Troncs
+          </lib-button>
+        </lib-button-group>
+      </div>
+
       <label class="flex items-center gap-2 cursor-pointer min-h-6 shrink-0">
         <input
           type="checkbox"
@@ -122,7 +148,7 @@
                 <td class="text-xs text-base-content/50 whitespace-nowrap">{{ formatDateTime(att.respondedAt) }}</td>
                 <td>
                   <div class="flex flex-wrap gap-1">
-                    @for (pos of att.person.positions; track pos.id) {
+                    @for (pos of visibleTags(att.person.positions); track pos.id) {
                       <lib-badge
                         clickable
                         selected
@@ -211,9 +237,9 @@
               <span>{{ formatDateTime(att.respondedAt) }}</span>
             </div>
 
-            @if (att.person.positions.length > 0) {
+            @if (visibleTags(att.person.positions).length > 0) {
               <div class="flex flex-wrap gap-1 mt-2">
-                @for (pos of att.person.positions; track pos.id) {
+                @for (pos of visibleTags(att.person.positions); track pos.id) {
                   <lib-badge
                     clickable
                     selected

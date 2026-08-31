@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { AvailablePersonsQueryDto } from './available-persons-query.dto';
-import { TagCategory } from '@muixer/shared';
 
 describe('AvailablePersonsQueryDto', () => {
   it('leaves isXicalla/excludeAssigned undefined when the query param is absent (SM-12)', () => {
@@ -29,33 +28,5 @@ describe('AvailablePersonsQueryDto', () => {
     const dto = plainToInstance(AvailablePersonsQueryDto, {});
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
-  });
-
-  it('wraps a single positionCategory query value into a one-element array', async () => {
-    const dto = plainToInstance(AvailablePersonsQueryDto, { positionCategory: TagCategory.TRONC });
-    const errors = await validate(dto);
-    expect(errors).toHaveLength(0);
-    expect(dto.positionCategory).toEqual([TagCategory.TRONC]);
-  });
-
-  it('keeps several positionCategory query values as an array', async () => {
-    const dto = plainToInstance(AvailablePersonsQueryDto, {
-      positionCategory: [TagCategory.TRONC, TagCategory.PINYA],
-    });
-    const errors = await validate(dto);
-    expect(errors).toHaveLength(0);
-    expect(dto.positionCategory).toEqual([TagCategory.TRONC, TagCategory.PINYA]);
-  });
-
-  it('leaves positionCategory undefined when the query param is absent', () => {
-    const dto = plainToInstance(AvailablePersonsQueryDto, {});
-    expect(dto.positionCategory).toBeUndefined();
-  });
-
-  it('rejects an invalid positionCategory value', async () => {
-    const dto = plainToInstance(AvailablePersonsQueryDto, { positionCategory: 'NOT_A_CATEGORY' });
-    const errors = await validate(dto);
-    expect(errors).toHaveLength(1);
-    expect(errors[0].property).toBe('positionCategory');
   });
 });

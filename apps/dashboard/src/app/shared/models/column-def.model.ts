@@ -10,6 +10,10 @@ export interface ColumnColorBadge {
   color: string;
   /** Identifies the badge to `onColorBadgeClick` — required to make it clickable. */
   id?: string;
+  /** Lucide icon name rendered before the text (e.g. a warning glyph on a non-tag pseudo-badge). */
+  icon?: string;
+  /** Native tooltip for this one badge. */
+  title?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

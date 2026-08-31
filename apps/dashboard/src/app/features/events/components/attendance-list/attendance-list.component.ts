@@ -13,9 +13,10 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search, UserCheck } from 'lucide-angular';
-import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, SelectComponent, ToastService, type BadgeVariant } from '@muixer/ui';
-import { ICON_XICALLA } from '../../../../shared/constants/domain-icons';
+import { ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, InputComponent, SelectComponent, ToastService, type BadgeVariant } from '@muixer/ui';
+import { ICON_XICALLA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
 import { AttendanceService } from '../../services/attendance.service';
+import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import {
   AttendanceItem,
@@ -24,7 +25,7 @@ import {
   AttendanceDeleteResponse,
   AttendancePosition,
 } from '../../models/attendance.model';
-import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS, TagCategory } from '@muixer/shared';
 
 /**
  * Attendance list of a single event: filters, table (desktop) / cards (mobile),
@@ -41,6 +42,7 @@ import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS } from '@muixer/
     FormsModule,
     LucideAngularModule,
     ButtonComponent,
+    ButtonGroupComponent,
     BadgeComponent,
     CardComponent,
     InputComponent,
@@ -51,6 +53,8 @@ import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS } from '@muixer/
 })
 export class AttendanceListComponent implements OnInit, OnDestroy {
   readonly ICON_XICALLA = ICON_XICALLA;
+  readonly ICON_PINYA = ICON_PINYA;
+  readonly ICON_TRONC = ICON_TRONC;
   readonly UserCheck = UserCheck;
   readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
   readonly SearchIcon = Search;
@@ -58,6 +62,15 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly attendanceService = inject(AttendanceService);
   private readonly toast = inject(ToastService);
+  private readonly viewModeService = inject(FiguresViewModeService);
+
+  /**
+   * Pinyes/Troncs view for the «Etiquetes» column — the same control and shared, browser-persisted
+   * state as the Pinyes i Figures panel (`FiguresViewModeService`). `pinyes` paints PINYA + ALTRES
+   * tags; `troncs` paints TRONC + ALTRES tags. It never hides a person: the whole list stays
+   * visible either way.
+   */
+  readonly viewMode = this.viewModeService.mode;
 
   readonly AttendanceStatus = AttendanceStatus;
 
@@ -190,6 +203,16 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
     this.summaryChanged.emit(result.summary);
     this.editingAttendance.set(null);
     this.toast.success('Registre d\'assistència eliminat.');
+  }
+
+  setViewMode(mode: FiguresViewMode): void {
+    this.viewModeService.set(mode);
+  }
+
+  /** The tags shown for a person under the current {@link viewMode}. ALTRES tags always show. */
+  visibleTags(positions: AttendancePosition[]): AttendancePosition[] {
+    const zone = this.viewMode() === 'pinyes' ? TagCategory.PINYA : TagCategory.TRONC;
+    return positions.filter((p) => p.category === zone || p.category === TagCategory.ALTRES);
   }
 
   filterByPosition(pos: AttendancePosition): void {

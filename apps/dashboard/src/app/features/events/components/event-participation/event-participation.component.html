@@ -96,11 +96,6 @@
         </lib-select>
       </div>
     }
-
-    <app-tag-view-filter
-      [selected]="categoryFilters()"
-      (selectedChange)="onCategoriesChange($event)"
-    />
   </app-filter-bar>
 
   <app-active-filters [filters]="activeFilters()" (removeFilter)="removeFilter($event)" />

@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { NodeAssignmentService } from './node-assignment.service';
-import { SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 const BASE = environment.apiUrl;
 const INSTANCE_ID = 'instance-uuid-1';
@@ -90,18 +90,6 @@ describe('NodeAssignmentService', () => {
     req.flush({ data: [] });
   });
 
-  it('getAvailablePersons serialises a multi-group positionCategory filter as repeated params', () => {
-    service
-      .getAvailablePersons(EVENT_ID, SEGMENT_ID, {
-        positionCategory: [TagCategory.PINYA, TagCategory.ALTRES],
-      })
-      .subscribe();
-    const req = httpMock.expectOne((r) =>
-      r.url === `${BASE}/events/${EVENT_ID}/segments/${SEGMENT_ID}/available-persons`,
-    );
-    expect(req.request.params.getAll('positionCategory')).toEqual([TagCategory.PINYA, TagCategory.ALTRES]);
-    req.flush({ data: [] });
-  });
 
   it('getHistory sends GET to /figure-templates/:id/history', () => {
     service.getHistory(TEMPLATE_ID).subscribe();

@@ -40,6 +40,7 @@
       [columns]="columns"
       [loading]="loading()"
       [rowActions]="rowActions"
+      [inlineActions]="true"
     />
 
     @if (!loading() && persons().length === 0) {
@@ -73,17 +74,17 @@
 }
 
 <!-- Modal: Confirmar treure persona -->
-<lib-modal [open]="!!confirmRemoveTarget()" title="Treure persona" size="sm" (closed)="cancelRemove()">
+<lib-modal [open]="!!confirmRemoveTarget()" title="Llevar persona" size="sm" (closed)="cancelRemove()">
   @if (confirmRemoveTarget(); as target) {
     <p class="text-sm">
-      Segur que voleu treure <strong>{{ target.alias }}</strong> d'aquesta etiqueta?
+      Segur que voleu llevar <strong>{{ target.alias }}</strong> d'aquesta etiqueta?
     </p>
   }
 
   <div modalFooter>
     <lib-button variant="ghost" size="sm" (clicked)="cancelRemove()">Cancel·la</lib-button>
     <lib-button variant="error" size="sm" [disabled]="removing()" [loading]="removing()" (clicked)="executeRemove()">
-      Treu
+      Lleva
     </lib-button>
   </div>
 </lib-modal>

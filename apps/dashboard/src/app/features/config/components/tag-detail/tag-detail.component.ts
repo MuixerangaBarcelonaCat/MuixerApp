@@ -81,15 +81,25 @@ export class TagDetailComponent {
   readonly columns: ColumnDef<Person>[] = [
     {
       key: 'person',
-      label: 'Persona',
+      label: 'Àlies',
       defaultVisible: true,
       primary: true,
-      value: (p) => `${p.alias} — ${p.name} ${p.firstSurname}`,
+      value: (p) => p.alias,
+    },
+    {
+      key: 'tags',
+      label: 'Etiquetes',
+      defaultVisible: true,
+      type: 'colorBadges',
+      colorBadges: (p) =>
+        [...p.positions]
+          .sort((a, b) => a.name.localeCompare(b.name, 'ca'))
+          .map((pos) => ({ text: pos.name, color: pos.color })),
     },
   ];
 
   readonly rowActions: RowAction<Person>[] = [
-    { label: 'Treu', icon: 'X', action: (p) => this.confirmRemove(p) },
+    { label: 'Lleva', icon: 'X', class: 'text-error', action: (p) => this.confirmRemove(p) },
   ];
 
   constructor() {

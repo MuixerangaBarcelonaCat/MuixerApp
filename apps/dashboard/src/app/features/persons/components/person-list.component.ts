@@ -2,12 +2,11 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, UserPlus, Link, Search } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, badgeClasses } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC } from '@muixer/ui';
 import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
-import { TagViewFilterComponent } from '../../../shared/components/data/tag-view-filter/tag-view-filter.component';
 import {
   getFullName,
   getAvailabilityLabel,
@@ -97,7 +96,6 @@ export const ALL_COLUMNS: ColumnDef[] = [
     DataTableComponent,
     PersonNewModalComponent,
     TutorialModalComponent,
-    TagViewFilterComponent,
   ],
   templateUrl: './person-list.component.html',
 })
@@ -120,7 +118,6 @@ export class PersonListComponent {
 
   search = signal('');
   selectedPositions = signal<string[]>([]);
-  selectedCategories = signal<TagCategory[]>([]);
   activeFilters = signal<Partial<PersonFilterParams>>({ isProvisional: false });
   provisionalTab = signal<'cens' | 'provisionals'>('cens');
   page = signal(1);
@@ -144,10 +141,9 @@ export class PersonListComponent {
   hasFilterChips = computed(() => {
     const s = this.search().trim();
     const pos = this.selectedPositions().length > 0;
-    const cat = this.selectedCategories().length > 0;
     const actius = this.activeFilters().isActive === true;
     const tagRule = this.activeFilters().tagRuleOk !== undefined;
-    return Boolean(s || pos || cat || actius || tagRule);
+    return Boolean(s || pos || actius || tagRule);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -182,12 +178,37 @@ export class PersonListComponent {
     this.loadPersons();
   }
 
-  onCategoriesChange(categories: string[]) {
-    this.selectedCategories.set(categories as TagCategory[]);
-    this.activeFilters.update((filters) => ({
-      ...filters,
-      positionCategory: categories.length > 0 ? categories : undefined,
-    }));
+  /** Pseudo-option value for "Falten etiquetes" inside the Etiquetes dropdown — not a real
+   *  tag id, so it's kept out of `selectedPositions`/`positionIds` and mapped to `tagRuleOk` instead. */
+  readonly NO_TAG_RULE_OPTION = '__no-tag-rule__';
+
+  /** What the Etiquetes dropdown shows as selected: real tag ids plus the pseudo-option when the
+   *  "Falten etiquetes" filter is active. */
+  readonly selectedEtiquetesOptions = computed<string[]>(() => [
+    ...this.selectedPositions(),
+    ...(this.activeFilters().tagRuleOk === false ? [this.NO_TAG_RULE_OPTION] : []),
+  ]);
+
+  /** Single handler for the Etiquetes dropdown: splits the pseudo-option back out from the real
+   *  tag ids and updates both filters in one pass (avoids the double reload of calling
+   *  `onPositionsChange` + `toggleTagRuleFilter` separately). */
+  onEtiquetesSelectionChange(values: string[]): void {
+    const tagRuleOk = values.includes(this.NO_TAG_RULE_OPTION) ? false : undefined;
+    const positionIds = values.filter((v) => v !== this.NO_TAG_RULE_OPTION);
+
+    this.selectedPositions.set(positionIds);
+    this.activeFilters.update((filters) => {
+      const next: Partial<PersonFilterParams> = {
+        ...filters,
+        positionIds: positionIds.length > 0 ? positionIds : undefined,
+      };
+      if (tagRuleOk === false) {
+        next.tagRuleOk = false;
+      } else {
+        delete next.tagRuleOk;
+      }
+      return next;
+    });
     this.page.set(1);
     this.loadPersons();
   }
@@ -223,7 +244,6 @@ export class PersonListComponent {
   clearFilters() {
     this.searchInput = '';
     this.selectedPositions.set([]);
-    this.selectedCategories.set([]);
     this.search.set('');
     this.provisionalTab.set('cens');
     this.activeFilters.set({ isProvisional: false });
@@ -241,13 +261,6 @@ export class PersonListComponent {
   clearPositionsChip() {
     this.selectedPositions.set([]);
     this.activeFilters.update((f) => ({ ...f, positionIds: undefined }));
-    this.page.set(1);
-    this.loadPersons();
-  }
-
-  clearCategoriesChip() {
-    this.selectedCategories.set([]);
-    this.activeFilters.update((f) => ({ ...f, positionCategory: undefined }));
     this.page.set(1);
     this.loadPersons();
   }
@@ -382,12 +395,8 @@ export class PersonListComponent {
     const chips: ActiveFilter[] = [];
     if (this.search().trim()) chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
     if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Etiquetes (${this.selectedPositions().length})` });
-    if (this.selectedCategories().length > 0) {
-      const labels = this.selectedCategories().map((c) => TAG_CATEGORY_LABELS[c]).join(', ');
-      chips.push({ key: 'categories', label: `Categoria: ${labels}` });
-    }
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
-    if (this.activeFilters().tagRuleOk === false) chips.push({ key: 'tagRuleOk', label: 'No compleix la regla' });
+    if (this.activeFilters().tagRuleOk === false) chips.push({ key: 'tagRuleOk', label: 'Falten etiquetes' });
     return chips;
   });
 
@@ -399,7 +408,6 @@ export class PersonListComponent {
   onRemoveFilterChip(key: string): void {
     if (key === 'search') this.clearSearchChip();
     else if (key === 'positions') this.clearPositionsChip();
-    else if (key === 'categories') this.clearCategoriesChip();
     else if (key === 'isActive') this.clearActiusChip();
     else if (key === 'tagRuleOk') this.toggleTagRuleFilter();
   }
@@ -452,18 +460,16 @@ export class PersonListComponent {
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
       ...(col.key === 'positions' && {
-        colorBadges: (person: Person) => person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
+        // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag
+        // (no `id`, so onColorBadgeClick's `badge.id` guard naturally leaves it non-clickable),
+        // flagged with a warning icon/color instead of a real tag color.
+        colorBadges: (person: Person) => [
+          ...person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
+          ...(person.tagCompliance && !person.tagCompliance.ok
+            ? [{ text: 'Falten etiquetes', color: SEMANTIC.warning, icon: 'AlertTriangle', title: this.missingTagsLabel(person.tagCompliance) }]
+            : []),
+        ],
         onColorBadgeClick: (id: string) => this.togglePosition(id),
-      }),
-      ...(col.key === 'alias' && {
-        // A real lib-badge can't be projected into the shared, per-cell generic table rendering,
-        // so this builds the same classes via badgeClasses() (single source of truth with
-        // BadgeComponent) instead of a hardcoded lib-badge-shaped string. Rides on the `alias`
-        // column: hiding that column via the column toggle also hides this warning.
-        prefix: (person: Person) =>
-          person.tagCompliance && !person.tagCompliance.ok
-            ? { text: 'Sense etiquetar', class: `${badgeClasses('warning', 'sm')} mr-1 align-middle`, title: this.missingTagsLabel(person.tagCompliance) }
-            : null,
       }),
     }))
   );

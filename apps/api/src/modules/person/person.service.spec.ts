@@ -303,69 +303,19 @@ describe('PersonService', () => {
       );
     });
 
-    const makeSubQueryBuilder = () => {
-      const qb: any = {};
-      qb.subQuery = jest.fn().mockReturnValue(qb);
-      qb.select = jest.fn().mockReturnValue(qb);
-      qb.from = jest.fn().mockReturnValue(qb);
-      qb.innerJoin = jest.fn().mockReturnValue(qb);
-      qb.where = jest.fn().mockReturnValue(qb);
-      qb.getQuery = jest.fn().mockReturnValue('SUBQUERY');
-      return qb;
-    };
-
     const functionAndWhereCalls = () =>
       mockQueryBuilder.andWhere.mock.calls.filter(
         ([arg]) => typeof arg === 'function',
       );
 
-    it('adds an independent subquery filtering by sub_position.category when positionCategory is provided', async () => {
-      mockQueryBuilder.getCount.mockResolvedValue(0);
-      mockQueryBuilder.getMany.mockResolvedValue([]);
-
-      await service.findAll({ positionCategory: ['TRONC'] } as any);
-
-      const calls = functionAndWhereCalls();
-      expect(calls.length).toBe(1);
-      const qb = makeSubQueryBuilder();
-      const result = calls[0][0](qb);
-      expect(qb.where).toHaveBeenCalledWith(
-        'sub_position_cat.category IN (:...positionCategories)',
-      );
-      expect(result).toBe('person.id IN SUBQUERY');
-      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith(
-        'positionCategories',
-        ['TRONC'],
-      );
-    });
-
-    it('combines positionIds and positionCategory as two independent andWhere subqueries', async () => {
-      mockQueryBuilder.getCount.mockResolvedValue(0);
-      mockQueryBuilder.getMany.mockResolvedValue([]);
-
-      await service.findAll({
-        positionIds: ['pos1'],
-        positionCategory: ['TRONC'],
-      } as any);
-
-      expect(functionAndWhereCalls().length).toBe(2);
-      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith(
-        'positionIds',
-        ['pos1'],
-      );
-      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith(
-        'positionCategories',
-        ['TRONC'],
-      );
-    });
-
-    it('leaves the query unchanged when positionCategory is omitted', async () => {
+    it('adds a single subquery andWhere when filtering by positionIds', async () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
       await service.findAll({ positionIds: ['pos1'] } as any);
 
       expect(functionAndWhereCalls().length).toBe(1);
+      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith('positionIds', ['pos1']);
     });
 
     const tagRuleWhereClause = (): string | undefined =>
