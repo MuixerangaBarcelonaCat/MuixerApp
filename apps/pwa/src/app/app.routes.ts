@@ -59,7 +59,7 @@ export const appRoutes: Routes = [
       },
       {
         path: 'events/:id/roll-call',
-        title: 'Passar llista',
+        title: 'Marca assistència',
         canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
         loadComponent: () =>
           import('./features/events/roll-call/roll-call.component').then(

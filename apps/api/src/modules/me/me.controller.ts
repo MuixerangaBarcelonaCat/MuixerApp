@@ -25,6 +25,7 @@ import {
   PersonProfileSummary,
   UserRole,
   MeNewsItem,
+  MeSeason,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -45,8 +46,14 @@ import { MeSegmentsQueryDto } from './dto/me-segments-query.dto';
 export class MeController {
   constructor(private readonly meService: MeService) {}
 
+  @Get('seasons')
+  @ApiOperation({ summary: 'List all seasons (for the season selector)' })
+  findSeasons(): Promise<MeSeason[]> {
+    return this.meService.findSeasons();
+  }
+
   @Get('events')
-  @ApiOperation({ summary: 'List events for authenticated member (current season)' })
+  @ApiOperation({ summary: 'List events for authenticated member (current season by default, or ?seasonId)' })
   findEvents(
     @CurrentUser() user: JwtPayload,
     @Query() filters: MeEventFilterDto,

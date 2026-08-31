@@ -8,8 +8,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { AttendanceStatus, MeEvent, PaginatedResponse } from '@muixer/shared';
+import { FormsModule } from '@angular/forms';
+import { AttendanceStatus, MeEvent, MeSeason, PaginatedResponse } from '@muixer/shared';
 import { LucideAngularModule, CalendarDays, List } from 'lucide-angular';
+import { SelectComponent } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -39,6 +41,8 @@ const TABS: FilterTab[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LucideAngularModule,
+    FormsModule,
+    SelectComponent,
     MobileHeaderComponent,
     SkeletonCardComponent,
     EmptyStateComponent,
@@ -59,17 +63,38 @@ export class EventListComponent {
   protected readonly viewMode = signal<ViewMode>('list');
   protected readonly activeFilter = signal<TimeFilter>('upcoming');
   protected readonly selectedDate = signal<string | null>(null);
+  protected readonly selectedSeasonId = signal<string | null>(null);
   private readonly calendarRequested = signal(false);
 
+  protected readonly seasonsResource = rxResource({
+    stream: () => this.eventService.findSeasons(),
+  });
+  protected readonly seasons = computed<MeSeason[]>(() => this.seasonsResource.value() ?? []);
+  protected readonly currentSeasonId = computed(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const list = this.seasons();
+    return (
+      list.find((s) => s.startDate.slice(0, 10) <= today && s.endDate.slice(0, 10) >= today)?.id ??
+      list[0]?.id ??
+      null
+    );
+  });
+  protected readonly effectiveSeasonId = computed(() => this.selectedSeasonId() ?? this.currentSeasonId());
+  protected readonly isCurrentSeason = computed(
+    () => this.selectedSeasonId() === null || this.selectedSeasonId() === this.currentSeasonId(),
+  );
+
   protected readonly listResource = rxResource({
-    params: () => this.activeFilter(),
-    stream: ({ params: timeFilter }) =>
-      this.eventService.findAll({ timeFilter, limit: 50 }),
+    params: () => ({
+      timeFilter: this.isCurrentSeason() ? this.activeFilter() : ('all' as const),
+      seasonId: this.effectiveSeasonId() ?? undefined,
+    }),
+    stream: ({ params }) => this.eventService.findAll({ ...params, limit: 50 }),
   });
 
   protected readonly calendarResource = rxResource({
-    params: () => (this.calendarRequested() ? ({} as const) : undefined),
-    stream: () => this.eventService.findAll({ timeFilter: 'all', limit: 300 }),
+    params: () => (this.calendarRequested() ? { seasonId: this.effectiveSeasonId() ?? undefined } : undefined),
+    stream: ({ params }) => this.eventService.findAll({ ...params, timeFilter: 'all', limit: 300 }),
   });
 
   protected readonly events = computed(() =>
@@ -131,6 +156,10 @@ export class EventListComponent {
     if (next === 'calendar') {
       this.calendarRequested.set(true);
     }
+  }
+
+  onSeasonChange(seasonId: string): void {
+    this.selectedSeasonId.set(seasonId === this.currentSeasonId() ? null : seasonId);
   }
 
   setFilter(filter: TimeFilter): void {

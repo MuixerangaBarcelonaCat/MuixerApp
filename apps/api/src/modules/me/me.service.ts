@@ -20,6 +20,7 @@ import {
   PendingDependent,
   PersonProfileSummary,
   MeNewsItem,
+  MeSeason,
   UserRole,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
@@ -100,6 +101,16 @@ export class MeService {
     return managed;
   }
 
+  async findSeasons(): Promise<MeSeason[]> {
+    const { data } = await this.seasonService.findAll();
+    return data.map((s) => ({
+      id: s.id,
+      name: s.name,
+      startDate: s.startDate as unknown as string,
+      endDate: s.endDate as unknown as string,
+    }));
+  }
+
   async findEvents(
     jwtUser: JwtPayload,
     filters: MeEventFilterDto,
@@ -107,7 +118,9 @@ export class MeService {
     const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
     if (managedPersons.length === 0) return this.emptyPage(filters);
 
-    const season = await this.seasonService.findCurrentEntity();
+    const season = filters.seasonId
+      ? await this.seasonService.findEntityById(filters.seasonId)
+      : await this.seasonService.findCurrentEntity();
     if (!season) return this.emptyPage(filters);
 
     const { type, timeFilter = 'upcoming', page = 1, limit = 20 } = filters;

@@ -6,6 +6,7 @@ import {
   MeEvent,
   MeEventDetail,
   MeSegment,
+  MeSeason,
   AttendanceResponse,
   AttendanceStatus,
   EventType,
@@ -15,6 +16,7 @@ import { environment } from '../../../../environments/environment';
 export interface MeEventFilters {
   type?: EventType;
   timeFilter?: 'upcoming' | 'past' | 'all';
+  seasonId?: string;
   page?: number;
   limit?: number;
 }
@@ -28,10 +30,15 @@ export class EventService {
     let params = new HttpParams();
     if (filters?.type) params = params.set('type', filters.type);
     if (filters?.timeFilter) params = params.set('timeFilter', filters.timeFilter);
+    if (filters?.seasonId) params = params.set('seasonId', filters.seasonId);
     if (filters?.page) params = params.set('page', filters.page.toString());
     if (filters?.limit) params = params.set('limit', filters.limit.toString());
 
     return this.http.get<PaginatedResponse<MeEvent>>(this.baseUrl, { params });
+  }
+
+  findSeasons(): Observable<MeSeason[]> {
+    return this.http.get<MeSeason[]>(`${environment.apiUrl}/me/seasons`);
   }
 
   findOne(id: string): Observable<MeEventDetail> {
