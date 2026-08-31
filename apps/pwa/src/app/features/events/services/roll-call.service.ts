@@ -20,10 +20,18 @@ export interface AttendanceCrudResponse {
   summary: unknown;
 }
 
+export interface ProvisionalPerson {
+  id: string;
+  alias: string;
+  name: string;
+  firstSurname: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RollCallService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/events`;
+  private readonly personsUrl = `${environment.apiUrl}/persons`;
 
   getAttendance(eventId: string, search?: string): Observable<PaginatedResponse<AttendanceItem>> {
     let params = new HttpParams().set('limit', '100');
@@ -50,5 +58,9 @@ export class RollCallService {
     payload: { personId: string; status: AttendanceStatus },
   ): Observable<AttendanceCrudResponse> {
     return this.http.post<AttendanceCrudResponse>(`${this.baseUrl}/${eventId}/attendance`, payload);
+  }
+
+  createProvisionalPerson(alias: string): Observable<ProvisionalPerson> {
+    return this.http.post<ProvisionalPerson>(`${this.personsUrl}/provisional`, { alias });
   }
 }

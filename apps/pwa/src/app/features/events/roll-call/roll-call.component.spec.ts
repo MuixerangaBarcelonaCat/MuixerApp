@@ -5,7 +5,6 @@ import { AttendanceStatus } from '@muixer/shared';
 import { ToastService } from '@muixer/ui';
 import { RollCallComponent } from './roll-call.component';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
-import { PersonLookupService } from '../services/person-lookup.service';
 
 describe('RollCallComponent', () => {
   let fixture: ComponentFixture<RollCallComponent>;
@@ -13,8 +12,8 @@ describe('RollCallComponent', () => {
     getAttendance: ReturnType<typeof vi.fn>;
     updateAttendance: ReturnType<typeof vi.fn>;
     createAttendance: ReturnType<typeof vi.fn>;
+    createProvisionalPerson: ReturnType<typeof vi.fn>;
   };
-  let personLookupService: { search: ReturnType<typeof vi.fn> };
   let toastService: { error: ReturnType<typeof vi.fn> };
 
   const attendanceItems: AttendanceItem[] = [
@@ -37,15 +36,14 @@ describe('RollCallComponent', () => {
       ),
       updateAttendance: vi.fn(),
       createAttendance: vi.fn(),
+      createProvisionalPerson: vi.fn(),
     };
-    personLookupService = { search: vi.fn().mockReturnValue(of([])) };
     toastService = { error: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [RollCallComponent],
       providers: [
         { provide: RollCallService, useValue: rollCallService },
-        { provide: PersonLookupService, useValue: personLookupService },
         { provide: ToastService, useValue: toastService },
       ],
     }).compileComponents();
@@ -73,10 +71,18 @@ describe('RollCallComponent', () => {
     });
   });
 
-  it('shows a toast and leaves the row unchanged when the update fails', () => {
+  it('shows the fallback toast when the update fails with no server message', () => {
     rollCallService.updateAttendance.mockReturnValue(throwError(() => new Error('fail')));
     fixture.componentInstance['setStatus'](attendanceItems[1], AttendanceStatus.ASSISTIT);
     expect(toastService.error).toHaveBeenCalledWith("No s'ha pogut actualitzar l'assistència");
+  });
+
+  it('surfaces the server error message when the update fails with one', () => {
+    rollCallService.updateAttendance.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Ja existeix' } })),
+    );
+    fixture.componentInstance['setStatus'](attendanceItems[1], AttendanceStatus.ASSISTIT);
+    expect(toastService.error).toHaveBeenCalledWith('Ja existeix');
   });
 
   it('opens the override prompt on a 403 (locked event) instead of a toast', () => {
@@ -106,26 +112,41 @@ describe('RollCallComponent', () => {
     expect(fixture.componentInstance['overridePrompt']()).toBeNull();
   });
 
-  it('toggles the add-person search panel', () => {
-    expect(fixture.componentInstance['showAddPerson']()).toBe(false);
-    fixture.componentInstance['toggleAddPerson']();
-    expect(fixture.componentInstance['showAddPerson']()).toBe(true);
-    fixture.componentInstance['toggleAddPerson']();
-    expect(fixture.componentInstance['showAddPerson']()).toBe(false);
+  it('toggles the add-provisional panel', () => {
+    expect(fixture.componentInstance['showAddProvisional']()).toBe(false);
+    fixture.componentInstance['toggleAddProvisional']();
+    expect(fixture.componentInstance['showAddProvisional']()).toBe(true);
+    fixture.componentInstance['toggleAddProvisional']();
+    expect(fixture.componentInstance['showAddProvisional']()).toBe(false);
   });
 
-  it('adds a person found via search as ASSISTIT', () => {
+  it('creates a provisional person and marks them ASSISTIT', () => {
+    const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu', firstSurname: '' };
+    rollCallService.createProvisionalPerson.mockReturnValue(of(newPerson));
     rollCallService.createAttendance.mockReturnValue(
       of({ attendance: { id: 'att-3', status: AttendanceStatus.ASSISTIT }, summary: {} }),
     );
-    const newPerson = { id: 'person-3', alias: 'Marc', name: 'Marc', firstSurname: 'Roig' };
 
-    fixture.componentInstance['addPerson'](newPerson);
+    fixture.componentInstance['provisionalAlias'].set('Pepelu');
+    fixture.componentInstance['createProvisionalPerson']();
 
+    expect(rollCallService.createProvisionalPerson).toHaveBeenCalledWith('Pepelu');
     expect(rollCallService.createAttendance).toHaveBeenCalledWith('event-1', {
       personId: 'person-3',
       status: AttendanceStatus.ASSISTIT,
     });
-    expect(fixture.componentInstance['showAddPerson']()).toBe(false);
+    expect(fixture.componentInstance['showAddProvisional']()).toBe(false);
+  });
+
+  it('surfaces the server error message when the alias is already taken', () => {
+    rollCallService.createProvisionalPerson.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Ja existeix una persona provisional amb l\'àlies "Pepelu"' } })),
+    );
+    fixture.componentInstance['provisionalAlias'].set('Pepelu');
+
+    fixture.componentInstance['createProvisionalPerson']();
+
+    expect(toastService.error).toHaveBeenCalledWith('Ja existeix una persona provisional amb l\'àlies "Pepelu"');
+    expect(rollCallService.createAttendance).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, OnDestroy, inject, input, signal, computed, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
@@ -8,7 +8,6 @@ import { MobileHeaderComponent } from '../../../shared/components/mobile-header/
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
-import { PersonLookupService, PersonSummaryResult } from '../services/person-lookup.service';
 
 const SIGNED_UP_STATUSES = [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT];
 
@@ -18,6 +17,14 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.NO_VAIG]: 'No vindrà',
   [AttendanceStatus.ASSISTIT]: 'Ha assistit',
 };
+
+/** The API always returns a human Catalan message in the body for 4xx errors; fall back only for network/5xx failures. */
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof HttpErrorResponse && typeof err.error?.message === 'string') {
+    return err.error.message;
+  }
+  return fallback;
+}
 
 @Component({
   selector: 'app-roll-call',
@@ -34,7 +41,7 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
   ],
   templateUrl: './roll-call.component.html',
 })
-export class RollCallComponent implements OnDestroy {
+export class RollCallComponent {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
@@ -45,18 +52,16 @@ export class RollCallComponent implements OnDestroy {
   ];
 
   private readonly rollCallService = inject(RollCallService);
-  private readonly personLookupService = inject(PersonLookupService);
   private readonly toast = inject(ToastService);
-  private addPersonDebounce?: ReturnType<typeof setTimeout>;
 
   protected readonly searchTerm = signal('');
   protected readonly items = signal<AttendanceItem[]>([]);
   protected readonly isLoading = signal(true);
   protected readonly hasError = signal(false);
 
-  protected readonly showAddPerson = signal(false);
-  protected readonly addPersonTerm = signal('');
-  protected readonly addPersonResults = signal<PersonSummaryResult[]>([]);
+  protected readonly showAddProvisional = signal(false);
+  protected readonly provisionalAlias = signal('');
+  protected readonly isCreatingProvisional = signal(false);
   protected readonly overridePrompt = signal<{ item: AttendanceItem; status: AttendanceStatus } | null>(null);
 
   private readonly matchesSearch = (item: AttendanceItem): boolean => {
@@ -115,10 +120,6 @@ export class RollCallComponent implements OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    clearTimeout(this.addPersonDebounce);
-  }
-
   protected setStatus(item: AttendanceItem, status: AttendanceStatus, force = false): void {
     this.rollCallService.updateAttendance(this.id(), item.id, force ? { status, force } : { status }).subscribe({
       next: (response) => {
@@ -136,7 +137,7 @@ export class RollCallComponent implements OnDestroy {
           this.overridePrompt.set({ item, status });
           return;
         }
-        this.toast.error("No s'ha pogut actualitzar l'assistència");
+        this.toast.error(errorMessage(err, "No s'ha pogut actualitzar l'assistència"));
       },
     });
   }
@@ -151,41 +152,37 @@ export class RollCallComponent implements OnDestroy {
     this.overridePrompt.set(null);
   }
 
-  protected toggleAddPerson(): void {
-    this.showAddPerson.update((v) => !v);
-    this.addPersonTerm.set('');
-    this.addPersonResults.set([]);
+  protected toggleAddProvisional(): void {
+    this.showAddProvisional.update((v) => !v);
+    this.provisionalAlias.set('');
   }
 
-  protected onAddPersonInput(value: string): void {
-    this.addPersonTerm.set(value);
-    clearTimeout(this.addPersonDebounce);
-    if (!value.trim()) {
-      this.addPersonResults.set([]);
-      return;
-    }
-    this.addPersonDebounce = setTimeout(() => {
-      this.personLookupService.search(value.trim()).subscribe((results) => {
-        const existingIds = new Set(this.items().map((item) => item.person.id));
-        this.addPersonResults.set(results.filter((p) => !existingIds.has(p.id)));
-      });
-    }, 300);
-  }
+  protected createProvisionalPerson(): void {
+    const alias = this.provisionalAlias().trim();
+    if (!alias) return;
 
-  protected addPerson(person: PersonSummaryResult): void {
-    this.addPersonTerm.set('');
-    this.addPersonResults.set([]);
-    this.rollCallService
-      .createAttendance(this.id(), { personId: person.id, status: AttendanceStatus.ASSISTIT })
-      .subscribe({
-        next: (response) => {
-          this.items.update((current) => [
-            ...current,
-            { id: response.attendance.id, status: response.attendance.status, person },
-          ]);
-          this.showAddPerson.set(false);
-        },
-        error: () => this.toast.error("No s'ha pogut afegir la persona"),
-      });
+    this.isCreatingProvisional.set(true);
+    this.rollCallService.createProvisionalPerson(alias).subscribe({
+      next: (person) => {
+        this.rollCallService.createAttendance(this.id(), { personId: person.id, status: AttendanceStatus.ASSISTIT }).subscribe({
+          next: (response) => {
+            this.items.update((current) => [
+              ...current,
+              { id: response.attendance.id, status: response.attendance.status, person },
+            ]);
+            this.isCreatingProvisional.set(false);
+            this.showAddProvisional.set(false);
+          },
+          error: (err: unknown) => {
+            this.isCreatingProvisional.set(false);
+            this.toast.error(errorMessage(err, "No s'ha pogut registrar l'assistència de la persona provisional"));
+          },
+        });
+      },
+      error: (err: unknown) => {
+        this.isCreatingProvisional.set(false);
+        this.toast.error(errorMessage(err, "No s'ha pogut crear la persona provisional"));
+      },
+    });
   }
 }

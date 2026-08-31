@@ -14,36 +14,37 @@
     <button
       type="button"
       class="btn btn-ghost btn-sm"
-      aria-label="Afegeix algú que no és a la llista"
-      (click)="toggleAddPerson()"
+      aria-label="Afegeix una persona provisional (ve per primera vegada)"
+      (click)="toggleAddProvisional()"
     >
       + Afegeix
     </button>
   </div>
 
-  @if (showAddPerson()) {
-    <div class="relative">
-      <label class="input input-bordered input-sm flex items-center gap-2">
-        <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
+  @if (showAddProvisional()) {
+    <div class="card bg-base-200 p-3 space-y-2">
+      <p class="text-xs text-base-content/60">
+        Per a algú que ve per primera vegada i encara no és membre de la colla. Es crea com a
+        persona provisional i queda marcat com a present.
+      </p>
+      <div class="flex items-center gap-2">
         <input
           type="text"
-          class="grow"
-          placeholder="Nom de la persona a afegir..."
-          [ngModel]="addPersonTerm()"
-          (ngModelChange)="onAddPersonInput($event)"
+          class="input input-bordered input-sm grow"
+          placeholder="Nom o àlies..."
+          [ngModel]="provisionalAlias()"
+          (ngModelChange)="provisionalAlias.set($event)"
+          (keyup.enter)="createProvisionalPerson()"
         />
-      </label>
-      @if (addPersonResults().length > 0) {
-        <ul class="absolute z-10 w-full bg-base-100 shadow-lg rounded-box mt-1 max-h-60 overflow-auto">
-          @for (person of addPersonResults(); track person.id) {
-            <li>
-              <button type="button" class="btn btn-ghost btn-sm w-full justify-start" (click)="addPerson(person)">
-                {{ person.alias }}
-              </button>
-            </li>
-          }
-        </ul>
-      }
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="!provisionalAlias().trim() || isCreatingProvisional()"
+          (click)="createProvisionalPerson()"
+        >
+          Crea
+        </button>
+      </div>
     </div>
   }
 
