@@ -11,6 +11,35 @@
     />
   </label>
 
+  <label class="flex items-center gap-2 text-sm cursor-pointer w-fit">
+    <input type="checkbox" class="toggle toggle-sm" [(ngModel)]="showAll" />
+    Mostra tots (també qui no s'ha apuntat)
+  </label>
+
+  <div class="relative">
+    <label class="input input-bordered flex items-center gap-2">
+      <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
+      <input
+        type="text"
+        class="grow"
+        placeholder="Afegeix algú que no és a la llista..."
+        [ngModel]="addPersonTerm()"
+        (ngModelChange)="onAddPersonInput($event)"
+      />
+    </label>
+    @if (addPersonResults().length > 0) {
+      <ul class="absolute z-10 w-full bg-base-100 shadow-lg rounded-box mt-1 max-h-60 overflow-auto">
+        @for (person of addPersonResults(); track person.id) {
+          <li>
+            <button type="button" class="btn btn-ghost btn-sm w-full justify-start" (click)="addPerson(person)">
+              {{ person.alias }}
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
   @if (isLoading()) {
     <app-skeleton-card [count]="4" />
   } @else if (hasError()) {
@@ -39,3 +68,15 @@
     </ul>
   }
 </div>
+
+<lib-modal [open]="!!overridePrompt()" title="Canvi fora de termini" [dismissible]="false" (closed)="cancelOverride()">
+  <p class="text-sm">
+    Este event ja no es pot editar en condicions normals (ha passat el marge permès). Estàs a punt de
+    forçar un canvi d'assistència passada per a <strong>{{ overridePrompt()?.item?.person?.alias }}</strong>.
+    Esta acció queda registrada.
+  </p>
+  <div class="flex justify-end gap-2 mt-4">
+    <button type="button" class="btn btn-ghost btn-sm" (click)="cancelOverride()">Cancel·la</button>
+    <button type="button" class="btn btn-error btn-sm" (click)="confirmOverride()">Força el canvi</button>
+  </div>
+</lib-modal>

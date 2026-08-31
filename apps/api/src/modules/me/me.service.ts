@@ -33,6 +33,7 @@ import { NodeAssignment } from '../node-assignment/entities/node-assignment.enti
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
 import { getLocalToday } from '../../common/utils/date.util';
+import { isPastLockWindow } from '../../common/utils/lock.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
@@ -338,11 +339,7 @@ export class MeService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    const today = getLocalToday();
-    const eventDate = event.date instanceof Date
-      ? event.date.toISOString().slice(0, 10)
-      : String(event.date);
-    if (eventDate < today) {
+    if (isPastLockWindow(event.date)) {
       throw new BadRequestException('No es pot modificar l\'assistència d\'un event passat');
     }
 

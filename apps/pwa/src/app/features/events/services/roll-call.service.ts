@@ -37,11 +37,18 @@ export class RollCallService {
   updateAttendance(
     eventId: string,
     attendanceId: string,
-    payload: { status: AttendanceStatus },
+    payload: { status: AttendanceStatus; force?: boolean },
   ): Observable<AttendanceCrudResponse> {
     return this.http.put<AttendanceCrudResponse>(
       `${this.baseUrl}/${eventId}/attendance/${attendanceId}`,
       payload,
     );
+  }
+
+  createAttendance(
+    eventId: string,
+    payload: { personId: string; status: AttendanceStatus },
+  ): Observable<AttendanceCrudResponse> {
+    return this.http.post<AttendanceCrudResponse>(`${this.baseUrl}/${eventId}/attendance`, payload);
   }
 }

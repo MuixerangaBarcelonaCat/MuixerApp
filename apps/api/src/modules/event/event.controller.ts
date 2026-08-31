@@ -12,8 +12,9 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { UserRole } from '@muixer/shared';
+import { JwtPayload, UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { EventService } from './event.service';
 import { AttendanceService } from './attendance.service';
 import { EventFilterDto } from './dto/event-filter.dto';
@@ -128,12 +129,14 @@ export class EventController {
   @ApiParam({ name: 'attendanceId', description: 'UUID del registre d\'assistència' })
   @ApiResponse({ status: 200, description: 'Assistència actualitzada' })
   @ApiResponse({ status: 404, description: 'Registre no trobat' })
+  @ApiResponse({ status: 403, description: 'Event bloquejat (cal force per sobreescriure)' })
   updateAttendance(
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseUUIDPipe) eventId: string,
     @Param('attendanceId', ParseUUIDPipe) attendanceId: string,
     @Body() dto: UpdateAttendanceDto,
   ) {
-    return this.attendanceService.update(eventId, attendanceId, dto);
+    return this.attendanceService.update(eventId, attendanceId, dto, user.sub);
   }
 
   @Delete(':id/attendance/:attendanceId')

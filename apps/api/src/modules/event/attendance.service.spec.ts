@@ -1,19 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
 import { AttendanceStatus } from '@muixer/shared';
+import { AuditService } from '../audit/audit.service';
 
 const makePerson = (overrides: Partial<Person> = {}): Person =>
   ({ id: 'p1', alias: 'ADRI', name: 'Adrian', firstSurname: 'Abreu', isXicalla: false, positions: [], ...overrides } as Person);
 
-const makeEvent = (): Partial<Event> => ({
+const makeEvent = (overrides: Partial<Event> = {}): Partial<Event> => ({
   id: 'ev-1',
+  date: new Date(),
   attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 0 },
+  ...overrides,
 });
 
 const makeAttendance = (status: AttendanceStatus): Attendance =>
@@ -32,6 +35,12 @@ const makeAttendance = (status: AttendanceStatus): Attendance =>
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
+  const originalLockDays = process.env.ASSIGNMENT_LOCK_DAYS;
+
+  afterEach(() => {
+    process.env.ASSIGNMENT_LOCK_DAYS = originalLockDays;
+    jest.clearAllMocks();
+  });
 
   const makeRepos = (
     attendances: Attendance[] = [],
@@ -91,6 +100,8 @@ describe('AttendanceService', () => {
     };
   };
 
+  const auditService = { record: jest.fn().mockResolvedValue(undefined) };
+
   const buildModule = async (repos: ReturnType<typeof makeRepos>) => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -99,6 +110,7 @@ describe('AttendanceService', () => {
         { provide: getRepositoryToken(Event), useValue: repos.eventRepo },
         { provide: getRepositoryToken(Person), useValue: repos.personRepo },
         { provide: DataSource, useValue: repos.dataSource },
+        { provide: AuditService, useValue: auditService },
       ],
     }).compile();
     return module.get<AttendanceService>(AttendanceService);
@@ -183,6 +195,15 @@ describe('AttendanceService', () => {
       await expect(service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE }))
         .rejects.toThrow(ConflictException);
     });
+
+    it('throws ForbiddenException when the event is past the lock window', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const pastEvent = makeEvent({ date: new Date('2000-01-01') });
+      const repos = makeRepos([], pastEvent);
+      service = await buildModule(repos);
+      await expect(service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE }))
+        .rejects.toThrow(ForbiddenException);
+    });
   });
 
   // --- update ---
@@ -243,6 +264,51 @@ describe('AttendanceService', () => {
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(null);
       service = await buildModule(repos);
       await expect(service.update('ev-1', 'bad-att', {})).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException when locked and force is not set', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const pastEvent = makeEvent({ date: new Date('2000-01-01') });
+      const repos = makeRepos([att], pastEvent);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+      await expect(service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT }))
+        .rejects.toThrow(ForbiddenException);
+      expect(repos.attendanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('applies the change and records an audit entry when locked and force is set', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const pastEvent = makeEvent({ date: new Date('2000-01-01') });
+      const repos = makeRepos([att], pastEvent);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT, force: true }, 'user-1');
+
+      expect(repos.attendanceRepo.save).toHaveBeenCalled();
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: 'user-1',
+          action: 'ATTENDANCE_LOCK_OVERRIDE',
+          targetType: 'Attendance',
+          targetId: 'att-1',
+          metadata: expect.objectContaining({ eventId: 'ev-1', previousStatus: AttendanceStatus.ANIRE, newStatus: AttendanceStatus.ASSISTIT }),
+        }),
+      );
+    });
+
+    it('does not record an audit entry for an unlocked update', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+
+      expect(auditService.record).not.toHaveBeenCalled();
     });
 
     it('recalculates summary after update', async () => {

@@ -1,12 +1,16 @@
-import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnDestroy, inject, input, signal, computed, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { BadgeComponent, ToastService } from '@muixer/ui';
+import { BadgeComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
+import { PersonLookupService, PersonSummaryResult } from '../services/person-lookup.service';
+
+const SIGNED_UP_STATUSES = [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT];
 
 const STATUS_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.PENDENT]: 'Pendent',
@@ -23,13 +27,14 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
     FormsModule,
     LucideAngularModule,
     BadgeComponent,
+    ModalComponent,
     MobileHeaderComponent,
     SkeletonCardComponent,
     EmptyStateComponent,
   ],
   templateUrl: './roll-call.component.html',
 })
-export class RollCallComponent {
+export class RollCallComponent implements OnDestroy {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
@@ -40,17 +45,27 @@ export class RollCallComponent {
   ];
 
   private readonly rollCallService = inject(RollCallService);
+  private readonly personLookupService = inject(PersonLookupService);
   private readonly toast = inject(ToastService);
+  private addPersonDebounce?: ReturnType<typeof setTimeout>;
 
   protected readonly searchTerm = signal('');
+  protected readonly showAll = signal(false);
   protected readonly items = signal<AttendanceItem[]>([]);
   protected readonly isLoading = signal(true);
   protected readonly hasError = signal(false);
 
+  protected readonly addPersonTerm = signal('');
+  protected readonly addPersonResults = signal<PersonSummaryResult[]>([]);
+  protected readonly overridePrompt = signal<{ item: AttendanceItem; status: AttendanceStatus } | null>(null);
+
   protected readonly filteredItems = computed(() => {
     const term = this.searchTerm().trim().toLowerCase();
-    if (!term) return this.items();
-    return this.items().filter((item) =>
+    const base = this.showAll()
+      ? this.items()
+      : this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status));
+    if (!term) return base;
+    return base.filter((item) =>
       `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`
         .toLowerCase()
         .includes(term),
@@ -95,8 +110,12 @@ export class RollCallComponent {
     }
   }
 
-  protected setStatus(item: AttendanceItem, status: AttendanceStatus): void {
-    this.rollCallService.updateAttendance(this.id(), item.id, { status }).subscribe({
+  ngOnDestroy(): void {
+    clearTimeout(this.addPersonDebounce);
+  }
+
+  protected setStatus(item: AttendanceItem, status: AttendanceStatus, force = false): void {
+    this.rollCallService.updateAttendance(this.id(), item.id, force ? { status, force } : { status }).subscribe({
       next: (response) => {
         this.items.update((current) =>
           current.map((row) =>
@@ -105,8 +124,56 @@ export class RollCallComponent {
               : row,
           ),
         );
+        this.overridePrompt.set(null);
       },
-      error: () => this.toast.error("No s'ha pogut actualitzar l'assistència"),
+      error: (err: unknown) => {
+        if (err instanceof HttpErrorResponse && err.status === 403) {
+          this.overridePrompt.set({ item, status });
+          return;
+        }
+        this.toast.error("No s'ha pogut actualitzar l'assistència");
+      },
     });
+  }
+
+  protected confirmOverride(): void {
+    const prompt = this.overridePrompt();
+    if (!prompt) return;
+    this.setStatus(prompt.item, prompt.status, true);
+  }
+
+  protected cancelOverride(): void {
+    this.overridePrompt.set(null);
+  }
+
+  protected onAddPersonInput(value: string): void {
+    this.addPersonTerm.set(value);
+    clearTimeout(this.addPersonDebounce);
+    if (!value.trim()) {
+      this.addPersonResults.set([]);
+      return;
+    }
+    this.addPersonDebounce = setTimeout(() => {
+      this.personLookupService.search(value.trim()).subscribe((results) => {
+        const existingIds = new Set(this.items().map((item) => item.person.id));
+        this.addPersonResults.set(results.filter((p) => !existingIds.has(p.id)));
+      });
+    }, 300);
+  }
+
+  protected addPerson(person: PersonSummaryResult): void {
+    this.addPersonTerm.set('');
+    this.addPersonResults.set([]);
+    this.rollCallService
+      .createAttendance(this.id(), { personId: person.id, status: AttendanceStatus.ASSISTIT })
+      .subscribe({
+        next: (response) => {
+          this.items.update((current) => [
+            ...current,
+            { id: response.attendance.id, status: response.attendance.status, person },
+          ]);
+        },
+        error: () => this.toast.error("No s'ha pogut afegir la persona"),
+      });
   }
 }
