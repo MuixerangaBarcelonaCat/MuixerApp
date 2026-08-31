@@ -34,7 +34,9 @@ export class RollCallService {
   private readonly personsUrl = `${environment.apiUrl}/persons`;
 
   getAttendance(eventId: string, search?: string): Observable<PaginatedResponse<AttendanceItem>> {
-    let params = new HttpParams().set('limit', '100');
+    // 500 covers even a large colla's full attendee list in one page — there's no
+    // load-more UI in the roll-call screen, everyone must come back in a single request.
+    let params = new HttpParams().set('limit', '500');
     if (search) params = params.set('search', search);
     return this.http.get<PaginatedResponse<AttendanceItem>>(
       `${this.baseUrl}/${eventId}/attendance`,
