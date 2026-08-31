@@ -55,17 +55,12 @@ describe('RollCallComponent', () => {
     fixture.detectChanges();
   });
 
-  it('loads attendance and shows only signed-up people by default', () => {
+  it('loads attendance and splits it into signed-up and not-signed-up rows', () => {
     expect(rollCallService.getAttendance).toHaveBeenCalledWith('event-1', undefined);
     const rows = fixture.nativeElement.querySelectorAll('[data-testid="roll-call-row"]');
-    expect(rows.length).toBe(1);
-  });
-
-  it('shows everyone when "Mostra tots" is toggled on', () => {
-    fixture.componentInstance['showAll'].set(true);
-    fixture.detectChanges();
-    const rows = fixture.nativeElement.querySelectorAll('[data-testid="roll-call-row"]');
     expect(rows.length).toBe(2);
+    expect(fixture.componentInstance['signedUpItems']()).toEqual([attendanceItems[1]]);
+    expect(fixture.componentInstance['notSignedUpItems']()).toEqual([attendanceItems[0]]);
   });
 
   it('updates an existing attendance record', () => {
@@ -111,6 +106,14 @@ describe('RollCallComponent', () => {
     expect(fixture.componentInstance['overridePrompt']()).toBeNull();
   });
 
+  it('toggles the add-person search panel', () => {
+    expect(fixture.componentInstance['showAddPerson']()).toBe(false);
+    fixture.componentInstance['toggleAddPerson']();
+    expect(fixture.componentInstance['showAddPerson']()).toBe(true);
+    fixture.componentInstance['toggleAddPerson']();
+    expect(fixture.componentInstance['showAddPerson']()).toBe(false);
+  });
+
   it('adds a person found via search as ASSISTIT', () => {
     rollCallService.createAttendance.mockReturnValue(
       of({ attendance: { id: 'att-3', status: AttendanceStatus.ASSISTIT }, summary: {} }),
@@ -123,5 +126,6 @@ describe('RollCallComponent', () => {
       personId: 'person-3',
       status: AttendanceStatus.ASSISTIT,
     });
+    expect(fixture.componentInstance['showAddPerson']()).toBe(false);
   });
 });

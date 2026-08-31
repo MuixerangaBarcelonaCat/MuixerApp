@@ -1,71 +1,107 @@
 <app-mobile-header title="Marca assistència" [showBack]="true" [fallbackRoute]="'/events/' + id()" />
 
 <div class="p-4 space-y-3">
-  <label class="input input-bordered flex items-center gap-2">
-    <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
-    <input
-      type="text"
-      class="grow"
-      placeholder="Cerca persona..."
-      [(ngModel)]="searchTerm"
-    />
-  </label>
-
-  <label class="flex items-center gap-2 text-sm cursor-pointer w-fit">
-    <input type="checkbox" class="toggle toggle-sm" [(ngModel)]="showAll" />
-    Mostra tots (també qui no s'ha apuntat)
-  </label>
-
-  <div class="relative">
-    <label class="input input-bordered flex items-center gap-2">
+  <div class="flex items-center gap-2">
+    <label class="input input-bordered flex items-center gap-2 flex-1">
       <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
       <input
         type="text"
         class="grow"
-        placeholder="Afegeix algú que no és a la llista..."
-        [ngModel]="addPersonTerm()"
-        (ngModelChange)="onAddPersonInput($event)"
+        placeholder="Cerca persona..."
+        [(ngModel)]="searchTerm"
       />
     </label>
-    @if (addPersonResults().length > 0) {
-      <ul class="absolute z-10 w-full bg-base-100 shadow-lg rounded-box mt-1 max-h-60 overflow-auto">
-        @for (person of addPersonResults(); track person.id) {
-          <li>
-            <button type="button" class="btn btn-ghost btn-sm w-full justify-start" (click)="addPerson(person)">
-              {{ person.alias }}
-            </button>
-          </li>
-        }
-      </ul>
-    }
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm"
+      aria-label="Afegeix algú que no és a la llista"
+      (click)="toggleAddPerson()"
+    >
+      + Afegeix
+    </button>
   </div>
+
+  @if (showAddPerson()) {
+    <div class="relative">
+      <label class="input input-bordered input-sm flex items-center gap-2">
+        <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
+        <input
+          type="text"
+          class="grow"
+          placeholder="Nom de la persona a afegir..."
+          [ngModel]="addPersonTerm()"
+          (ngModelChange)="onAddPersonInput($event)"
+        />
+      </label>
+      @if (addPersonResults().length > 0) {
+        <ul class="absolute z-10 w-full bg-base-100 shadow-lg rounded-box mt-1 max-h-60 overflow-auto">
+          @for (person of addPersonResults(); track person.id) {
+            <li>
+              <button type="button" class="btn btn-ghost btn-sm w-full justify-start" (click)="addPerson(person)">
+                {{ person.alias }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
 
   @if (isLoading()) {
     <app-skeleton-card [count]="4" />
   } @else if (hasError()) {
     <app-empty-state message="No s'ha pogut carregar l'assistència" />
-  } @else if (filteredItems().length === 0) {
+  } @else if (hasNoResults()) {
     <app-empty-state message="Cap persona trobada" />
   } @else {
-    <ul class="space-y-2">
-      @for (item of filteredItems(); track item.person.id) {
-        <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
-          <span class="font-medium">{{ item.person.alias }}</span>
-          <div class="flex gap-1">
-            @for (status of statuses; track status) {
-              <lib-badge
-                clickable
-                size="sm"
-                [variant]="item.status === status ? statusVariant(status) : 'neutral'"
-                [selected]="item.status === status"
-                [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
-                (clicked)="setStatus(item, status)"
-              >{{ statusLabel(status) }}</lib-badge>
-            }
-          </div>
-        </li>
-      }
-    </ul>
+    @if (signedUpItems().length > 0) {
+      <ul class="space-y-2">
+        @for (item of signedUpItems(); track item.person.id) {
+          <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
+            <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
+            <div class="flex gap-1 shrink-0">
+              @for (status of statuses; track status) {
+                <lib-badge
+                  clickable
+                  size="sm"
+                  class="whitespace-nowrap"
+                  [variant]="item.status === status ? statusVariant(status) : 'neutral'"
+                  [selected]="item.status === status"
+                  [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
+                  (clicked)="setStatus(item, status)"
+                >{{ statusLabel(status) }}</lib-badge>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (notSignedUpItems().length > 0) {
+      <div class="pt-3 mt-3 border-t border-base-300">
+        <p class="text-xs text-base-content/50 mb-2">No s'han apuntat</p>
+        <ul class="space-y-2 opacity-60">
+          @for (item of notSignedUpItems(); track item.person.id) {
+            <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
+              <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
+              <div class="flex gap-1 shrink-0">
+                @for (status of statuses; track status) {
+                  <lib-badge
+                    clickable
+                    size="sm"
+                    class="whitespace-nowrap"
+                    [variant]="item.status === status ? statusVariant(status) : 'neutral'"
+                    [selected]="item.status === status"
+                    [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
+                    (clicked)="setStatus(item, status)"
+                  >{{ statusLabel(status) }}</lib-badge>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      </div>
+    }
   }
 </div>
 

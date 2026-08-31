@@ -50,27 +50,32 @@ export class RollCallComponent implements OnDestroy {
   private addPersonDebounce?: ReturnType<typeof setTimeout>;
 
   protected readonly searchTerm = signal('');
-  protected readonly showAll = signal(false);
   protected readonly items = signal<AttendanceItem[]>([]);
   protected readonly isLoading = signal(true);
   protected readonly hasError = signal(false);
 
+  protected readonly showAddPerson = signal(false);
   protected readonly addPersonTerm = signal('');
   protected readonly addPersonResults = signal<PersonSummaryResult[]>([]);
   protected readonly overridePrompt = signal<{ item: AttendanceItem; status: AttendanceStatus } | null>(null);
 
-  protected readonly filteredItems = computed(() => {
+  private readonly matchesSearch = (item: AttendanceItem): boolean => {
     const term = this.searchTerm().trim().toLowerCase();
-    const base = this.showAll()
-      ? this.items()
-      : this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status));
-    if (!term) return base;
-    return base.filter((item) =>
-      `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`
-        .toLowerCase()
-        .includes(term),
-    );
-  });
+    if (!term) return true;
+    return `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`
+      .toLowerCase()
+      .includes(term);
+  };
+
+  protected readonly signedUpItems = computed(() =>
+    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+  );
+  protected readonly notSignedUpItems = computed(() =>
+    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+  );
+  protected readonly hasNoResults = computed(
+    () => this.signedUpItems().length === 0 && this.notSignedUpItems().length === 0,
+  );
 
   constructor() {
     // Required input isn't available synchronously in the constructor (e.g. in TestBed with
@@ -146,6 +151,12 @@ export class RollCallComponent implements OnDestroy {
     this.overridePrompt.set(null);
   }
 
+  protected toggleAddPerson(): void {
+    this.showAddPerson.update((v) => !v);
+    this.addPersonTerm.set('');
+    this.addPersonResults.set([]);
+  }
+
   protected onAddPersonInput(value: string): void {
     this.addPersonTerm.set(value);
     clearTimeout(this.addPersonDebounce);
@@ -172,6 +183,7 @@ export class RollCallComponent implements OnDestroy {
             ...current,
             { id: response.attendance.id, status: response.attendance.status, person },
           ]);
+          this.showAddPerson.set(false);
         },
         error: () => this.toast.error("No s'ha pogut afegir la persona"),
       });
