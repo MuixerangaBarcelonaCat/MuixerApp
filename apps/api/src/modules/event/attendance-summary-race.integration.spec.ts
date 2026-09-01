@@ -56,7 +56,7 @@ describe('AttendanceService summary race (integration)', () => {
     const event = await eventRepo.save({
       eventType: EventType.ASSAIG,
       title: 'Assaig concurrència',
-      date: new Date('2026-01-01'),
+      date: new Date(),
     });
 
     const personCount = 10;
