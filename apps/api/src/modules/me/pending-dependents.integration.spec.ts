@@ -5,6 +5,7 @@ import { DelegateType, UserRole } from '@muixer/shared';
 import { MeService } from './me.service';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
+import { AuditService } from '../audit/audit.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
 import { User } from '../user/user.entity';
@@ -63,6 +64,7 @@ describe('MeService pending dependents (integration)', () => {
           NodeAssignment,
         ]),
         { provide: DataSource, useValue: db.dataSource },
+        { provide: AuditService, useValue: { record: jest.fn() } },
       ],
     }).compile();
 
