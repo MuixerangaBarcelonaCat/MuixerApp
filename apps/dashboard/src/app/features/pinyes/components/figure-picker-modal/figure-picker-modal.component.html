@@ -1,206 +1,169 @@
-<dialog
-  class="modal modal-open"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="picker-modal-title"
-  (click)="onBackdropClick($event)"
-  (keydown.escape)="close()"
->
-  <div class="modal-box max-w-lg">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-4">
-      <h2 id="picker-modal-title" class="text-lg font-bold">Afegir figures al segment</h2>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm btn-circle"
-        (click)="close()"
-        aria-label="Tancar"
-      >
-        <lucide-icon name="X" [size]="18" aria-hidden="true" />
-      </button>
-    </div>
+<lib-modal [open]="open()" title="Afegir figures al segment" size="lg" (closed)="close()">
+  <!-- Tabs -->
+  <lib-tabs
+    class="mb-6 block"
+    [tabs]="tabDefs"
+    [activeId]="activeTab()"
+    (activeIdChange)="setTab($event)"
+    style="bordered"
+    ariaLabel="Tipus d'element a afegir"
+  />
 
-    <!-- Tabs -->
-    <div class="tabs tabs-bordered mb-4" role="tablist">
-      <button
-        type="button"
-        class="tab"
-        [class.tab-active]="activeTab() === 'figures'"
-        role="tab"
-        [attr.aria-selected]="activeTab() === 'figures'"
-        (click)="setTab('figures')"
-      >
-        <lucide-icon [name]="ICON_TEMPLATE" [size]="14" class="mr-1" aria-hidden="true" />
-        Figures
-      </button>
-      <button
-        type="button"
-        class="tab"
-        [class.tab-active]="activeTab() === 'composicions'"
-        role="tab"
-        [attr.aria-selected]="activeTab() === 'composicions'"
-        (click)="setTab('composicions')"
-      >
-        <lucide-icon [name]="ICON_COMPOSITION" [size]="14" class="mr-1" aria-hidden="true" />
-        Composicions
-      </button>
-    </div>
+  <!-- Search input -->
+  <div class="mb-3">
+    <lib-input
+      type="search"
+      [icon]="SearchIcon"
+      [placeholder]="activeTab() === 'figures' ? 'Cerca figura...' : 'Cerca composició...'"
+      ariaLabel="Cerca"
+      autofocus
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+      (keydown.enter)="addFirstResult()"
+    />
+  </div>
 
-    <!-- Search input -->
-    <label class="input input-sm input-bordered flex items-center gap-2 mb-3">
-      <lucide-icon name="Search" [size]="14" class="text-base-content/40" aria-hidden="true" />
-      <input
-        #searchInput
-        type="search"
-        class="grow bg-transparent outline-none text-sm h-6"
-        [placeholder]="activeTab() === 'figures' ? 'Cerca figura...' : 'Cerca composició...'"
-        [ngModel]="search()"
-        (ngModelChange)="search.set($event)"
-        (keydown.enter)="addFirstResult()"
-        aria-label="Cerca"
+  <!-- Figure list -->
+  @if (activeTab() === 'figures') {
+    @if (loadingFigures()) {
+      <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
+        <span class="loading loading-spinner loading-sm"></span> S'estan carregant les figures...
+      </div>
+    } @else if (!hasAnyFigure()) {
+      <lib-empty-state
+        [icon]="DOMAIN_ICONS.TEMPLATE"
+        [message]="search() ? 'Cap figura trobada per «' + search() + '»' : 'Cap figura creada encara'"
       />
-    </label>
-
-    <!-- Figure list -->
-    @if (activeTab() === 'figures') {
-      @if (loadingFigures()) {
-        <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
-          <span class="loading loading-spinner loading-sm"></span> S'estan carregant les figures...
-        </div>
-      } @else if (!hasAnyFigure()) {
-        <p class="text-center text-sm text-base-content/40 py-8">
-          @if (search()) {
-            Cap figura trobada per "{{ search() }}"
-          } @else {
-            Cap figura creada encara
-          }
-        </p>
-      } @else {
-        <ul class="space-y-0.5 max-h-80 overflow-y-auto" role="list" aria-label="Figures disponibles">
-          @for (figure of filteredFigures(); track figure.id) {
-            <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
+    } @else {
+      <!-- API gap (checklist step 5): a full-width click-to-add row isn't a shape lib-button
+           models, so this stays a raw <button> — same reasoning as the composition row below,
+           but a plain action (adding the same figure twice is valid) rather than a single-select
+           toggle, so it carries no aria-pressed. -->
+      <ul class="space-y-0.5 max-h-80 overflow-y-auto" role="list" aria-label="Figures disponibles">
+        @for (figure of filteredFigures(); track figure.id) {
+          <li>
+            <button
+              type="button"
+              class="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors text-left"
+              (click)="addFigure(figure)"
+              [attr.aria-label]="'Afegir ' + figure.name"
+            >
               <div class="flex items-center gap-2 min-w-0">
-                <lucide-icon [name]="ICON_TEMPLATE" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
+                <lucide-icon [img]="DOMAIN_ICONS.TEMPLATE" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
                 <span class="font-medium text-sm truncate">{{ figure.name }}</span>
                 @if (!figure.hasPinya) {
-                  <span class="badge badge-xs badge-info shrink-0">Tronc</span>
+                  <lib-badge variant="info" size="xs" class="shrink-0">Tronc</lib-badge>
                 }
                 <span class="text-xs text-base-content/40 shrink-0">{{ figure.nodeCount }} nodes</span>
               </div>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs gap-1 shrink-0 ml-2"
-                (click)="addFigure(figure)"
-                [attr.aria-label]="'Afegir ' + figure.name"
-              >
-                <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
-                Afegir
-              </button>
-            </li>
-          }
-        </ul>
-      }
+              <lucide-icon name="Plus" [size]="14" class="text-base-content/40 shrink-0 ml-2" aria-hidden="true" />
+            </button>
+          </li>
+        }
+      </ul>
     }
+  }
 
-    <!-- Composition list -->
-    @if (activeTab() === 'composicions') {
-      @if (loadingCompositions()) {
-        <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
-          <span class="loading loading-spinner loading-sm"></span> S'estan carregant les composicions...
-        </div>
-      } @else if (!hasAnyComposition()) {
-        <p class="text-center text-sm text-base-content/40 py-8">
-          @if (search()) {
-            Cap composició trobada per "{{ search() }}"
-          } @else {
-            Cap composició creada encara
-          }
-        </p>
-      } @else {
-        <ul class="space-y-0.5 max-h-80 overflow-y-auto" role="list" aria-label="Composicions disponibles">
-          @for (composition of filteredCompositions(); track composition.id) {
-            <li>
-              <button
-                type="button"
-                class="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors text-left"
-                [class.bg-primary]="selectedComposition()?.id === composition.id"
-                [class.text-primary-content]="selectedComposition()?.id === composition.id"
-                (click)="selectComposition(composition)"
-                [attr.aria-pressed]="selectedComposition()?.id === composition.id"
-                [attr.aria-label]="'Selecciona ' + composition.name"
-              >
+  <!-- Composition list -->
+  @if (activeTab() === 'composicions') {
+    @if (loadingCompositions()) {
+      <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
+        <span class="loading loading-spinner loading-sm"></span> S'estan carregant les composicions...
+      </div>
+    } @else if (!hasAnyComposition()) {
+      <lib-empty-state
+        [icon]="DOMAIN_ICONS.COMPOSITION"
+        [message]="search() ? 'Cap composició trobada per «' + search() + '»' : 'Cap composició creada encara'"
+      />
+    } @else {
+      <!-- API gap (checklist step 5): a full-width selectable list row isn't a shape lib-button
+           models, so this stays a raw <button> with an aria-pressed toggle. -->
+      <ul class="space-y-0.5 max-h-80 overflow-y-auto" role="list" aria-label="Composicions disponibles">
+        @for (composition of filteredCompositions(); track composition.id) {
+          <li>
+            <button
+              type="button"
+              class="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors text-left"
+              [class.bg-primary]="isCompositionSelected(composition)"
+              [class.text-primary-content]="isCompositionSelected(composition)"
+              (click)="selectComposition(composition)"
+              [attr.aria-pressed]="isCompositionSelected(composition)"
+              [attr.aria-label]="'Selecciona ' + composition.name"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <lucide-icon
+                  [img]="DOMAIN_ICONS.COMPOSITION"
+                  [size]="14"
+                  [class]="isCompositionSelected(composition) ? 'text-primary-content shrink-0' : 'text-primary shrink-0'"
+                  aria-hidden="true"
+                />
                 <span class="font-medium text-sm truncate">{{ composition.name }}</span>
-                <span class="text-xs opacity-60 shrink-0">
+                <span [class]="'text-xs shrink-0 ' + (isCompositionSelected(composition) ? 'text-primary-content/70' : 'text-base-content/40')">
                   {{ composition.entryCount }} {{ composition.entryCount === 1 ? 'figura' : 'figures' }}
                 </span>
-              </button>
-            </li>
-          }
-        </ul>
-      }
-    }
-
-    <!-- Selected items section (figures tab) -->
-    @if (activeTab() === 'figures') {
-      @if (selectionCount() > 0) {
-        <div class="divider text-xs text-base-content/50 my-2">
-          Seleccionades ({{ selectionCount() }})
-        </div>
-        <ul class="space-y-0.5 max-h-40 overflow-y-auto" role="list" aria-label="Figures seleccionades">
-          @for (item of selections(); track $index) {
-            <li class="flex items-center justify-between px-2 py-1">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="text-xs text-base-content/50 font-mono shrink-0">{{ $index + 1 }}.</span>
-                <span class="text-sm truncate">{{ item.name }}</span>
-                @if (!item.hasPinya) {
-                  <span class="badge badge-xs badge-info shrink-0">Tronc</span>
-                }
               </div>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs shrink-0 ml-2"
-                (click)="removeSelection($index)"
-                [attr.aria-label]="'Treure ' + item.name + ' de la selecció'"
-              >
-                <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
-              </button>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="text-xs text-base-content/40 mt-3 text-center">
-          Cap figura seleccionada. Fes clic a «Afegir» per seleccionar figures.
-        </p>
-      }
+              <lucide-icon
+                name="Plus"
+                [size]="14"
+                [class]="'shrink-0 ml-2 ' + (isCompositionSelected(composition) ? 'text-primary-content/70' : 'text-base-content/40')"
+                aria-hidden="true"
+              />
+            </button>
+          </li>
+        }
+      </ul>
     }
+  }
 
-    <!-- Footer actions -->
-    <div class="modal-action mt-4">
-      @if (activeTab() === 'figures') {
-        <button type="button" class="btn btn-ghost btn-sm" (click)="close()">Cancel·la</button>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          [disabled]="!canConfirm()"
-          (click)="confirm()"
-        >
-          Confirma ({{ selectionCount() }})
-        </button>
-      } @else {
-        <button type="button" class="btn btn-ghost btn-sm" (click)="close()">Cancel·la</button>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          [disabled]="!canApplyComposition()"
-          (click)="applyComposition()"
-        >
-          @if (selectedComposition(); as c) {
-            Aplica «{{ c.name }}»
-          } @else {
-            Aplica
-          }
-        </button>
-      }
-    </div>
+  <!-- Selected items section (figures tab) -->
+  @if (activeTab() === 'figures') {
+    @if (selectionCount() > 0) {
+      <div class="divider text-xs text-base-content/50 my-2">Seleccionades ({{ selectionCount() }})</div>
+      <ul class="space-y-0.5 max-h-40 overflow-y-auto" role="list" aria-label="Figures seleccionades">
+        @for (item of selections(); track $index) {
+          <li class="flex items-center justify-between px-2 py-1">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-xs text-base-content/50 shrink-0">{{ $index + 1 }}.</span>
+              <span class="text-sm truncate">{{ item.name }}</span>
+              @if (!item.hasPinya) {
+                <lib-badge variant="info" size="xs" class="shrink-0">Tronc</lib-badge>
+              }
+            </div>
+            <lib-button
+              variant="ghost"
+              size="xs"
+              class="shrink-0 ml-2"
+              [ariaLabel]="'Treure ' + item.name + ' de la selecció'"
+              (clicked)="removeSelection($index)"
+            >
+              <lucide-icon name="X" [size]="14" class="text-error" aria-hidden="true" />
+            </lib-button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="text-xs text-base-content/40 mt-3 text-center">
+        Cap figura seleccionada. Feu clic en una figura per afegir-la.
+      </p>
+    }
+  }
+
+  <!-- Footer actions -->
+  <div modalFooter>
+    @if (activeTab() === 'figures') {
+      <lib-button variant="ghost" size="sm" (clicked)="close()">Cancel·la</lib-button>
+      <lib-button variant="primary" size="sm" [disabled]="!canConfirm()" (clicked)="confirm()">
+        Confirma ({{ selectionCount() }})
+      </lib-button>
+    } @else {
+      <lib-button variant="ghost" size="sm" (clicked)="close()">Cancel·la</lib-button>
+      <lib-button variant="primary" size="sm" [disabled]="!canApplyComposition()" (clicked)="applyComposition()">
+        @if (selectedComposition(); as c) {
+          Aplica «{{ c.name }}»
+        } @else {
+          Aplica
+        }
+      </lib-button>
+    }
   </div>
-</dialog>
+</lib-modal>

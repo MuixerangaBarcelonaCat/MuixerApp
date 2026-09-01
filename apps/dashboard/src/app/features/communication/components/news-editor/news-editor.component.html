@@ -90,12 +90,12 @@
             aria-describedby="send-push-hint"
           />
           <div>
-            <span class="label-text font-medium">Enviar push als membres</span>
+            <span class="label-text font-medium">Notifica els membres</span>
             <p id="send-push-hint" class="text-xs text-base-content/50">
               @if (pushSentAt()) {
-                Push enviada el {{ pushSentAt() | date: 'dd/MM/yyyy HH:mm' }}
+                Notificació enviada el {{ pushSentAt() | date: 'dd/MM/yyyy HH:mm' }}
               } @else {
-                La notificació s'enviarà quan es publiqui la notícia.
+                La notificació s'enviarà quan es publique la notícia.
               }
             </p>
           </div>
