@@ -11,7 +11,8 @@ import {
 } from '@angular/core';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Search } from 'lucide-angular';
+import { ButtonComponent, InputComponent } from '@muixer/ui';
 import { CompositionService } from '../../services/composition.service';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
@@ -33,8 +34,17 @@ const ADD_STAGGER_COUNT = 5;
   selector: 'app-composition-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, FigurePropertiesPanelComponent, RouterModule],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    FigureCanvasComponent,
+    FigurePropertiesPanelComponent,
+    RouterModule,
+    ButtonComponent,
+    InputComponent,
+  ],
   templateUrl: './composition-editor.component.html',
+  styleUrls: ['./composition-editor.component.scss'],
 })
 export class CompositionEditorComponent implements OnInit, OnDestroy {
   private readonly compositionService = inject(CompositionService);
@@ -52,6 +62,11 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly search = signal('');
   readonly figureTemplates = signal<FigureTemplateListItem[]>([]);
+  readonly SearchIcon = Search;
+
+  // Inline rename of the composition name (top bar pencil button).
+  readonly renamingName = signal(false);
+  readonly nameDraft = signal('');
 
   readonly compositionSlots = computed<CompositionSlotWithNodes[]>(() =>
     this.entries().map((entry) => this.mapEntryToSlot(entry)),
@@ -190,6 +205,21 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   updateName(value: string): void {
     this.name.set(value);
     this.performSave();
+  }
+
+  startRename(): void {
+    this.nameDraft.set(this.name());
+    this.renamingName.set(true);
+  }
+
+  confirmRename(): void {
+    const value = this.nameDraft().trim();
+    if (value) this.updateName(value);
+    this.renamingName.set(false);
+  }
+
+  cancelRename(): void {
+    this.renamingName.set(false);
   }
 
   updateLabel(id: string, value: string): void {

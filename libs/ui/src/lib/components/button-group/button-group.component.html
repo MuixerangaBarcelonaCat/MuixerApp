@@ -1,3 +1,6 @@
-<div [class]="vertical() ? 'join join-vertical' : 'join'" role="group">
+<div
+  [class]="(vertical() ? 'join join-vertical' : 'join') + (fullWidth() ? ' w-full' : '')"
+  role="group"
+>
   <ng-content />
 </div>

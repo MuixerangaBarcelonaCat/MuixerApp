@@ -38,7 +38,8 @@ describe('FigurePropertiesPanelComponent', () => {
 
   it('shows the template name as a placeholder when label is null', () => {
     const fixture = create(makeEntry({ label: null, figureTemplateName: 'Pilar' }));
-    const input = fixture.debugElement.query(By.css('input[type="text"]')).nativeElement as HTMLInputElement;
+    const input = fixture.debugElement.query(By.css('[data-testid="lib-input-native"]'))
+      .nativeElement as HTMLInputElement;
     expect(input.placeholder).toBe('Pilar');
     expect(input.value).toBe('');
   });
@@ -98,7 +99,9 @@ describe('FigurePropertiesPanelComponent', () => {
     it('marks the current mode as pressed', () => {
       const fixture = create(makeEntry({ figureMode: 'REMAT' }));
       const buttons = fixture.debugElement.queryAll(By.css('[data-mode-option]'));
-      const pressed = buttons.filter((b) => b.attributes['aria-pressed'] === 'true');
+      const pressed = buttons.filter(
+        (b) => b.query(By.css('button'))?.attributes['aria-pressed'] === 'true',
+      );
       expect(pressed.map((b) => b.attributes['data-mode-option'])).toEqual(['REMAT']);
     });
 
@@ -107,10 +110,10 @@ describe('FigurePropertiesPanelComponent', () => {
       let emitted: { id: string; value: string } | undefined;
       fixture.componentInstance.figureModeChanged.subscribe((e) => (emitted = e));
 
-      const petaButton = fixture.debugElement
+      const peuButton = fixture.debugElement
         .queryAll(By.css('[data-mode-option]'))
         .find((b) => b.attributes['data-mode-option'] === 'PEU');
-      petaButton?.nativeElement.click();
+      peuButton?.query(By.css('button'))?.nativeElement.click();
 
       expect(emitted).toEqual({ id: 'entry-1', value: 'PEU' });
     });

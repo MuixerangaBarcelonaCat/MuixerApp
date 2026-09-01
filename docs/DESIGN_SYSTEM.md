@@ -161,6 +161,7 @@ Pure layout, no shared selection state: the caller drives each button's own `act
 | Input | Type | Default |
 |-------|------|---------|
 | `vertical` | `boolean` | `false` — `join-vertical` instead of the default horizontal row |
+| `fullWidth` | `boolean` | `false` — stretches the `.join` row to fill its container (DaisyUI's `.join` is `display: inline-flex`, sized to content by default). Pair with `fullWidth` on each `joinItem` child, each wrapped in its own `flex-1 min-w-0` element — `lib-button`'s `display: contents` host can't be a flex item itself, so without that wrapper `fullWidth` has nothing to size against and every segment still claims the whole row |
 
 ```html
 <!-- fill mode (default): selected = filled, unselected = outline -->
@@ -173,6 +174,17 @@ Pure layout, no shared selection state: the caller drives each button's own `act
 <lib-button-group>
   <lib-button joinItem outlineMode variant="neutral" [active]="tab() === 'cens'" (clicked)="tab.set('cens')">Cens</lib-button>
   <lib-button joinItem outlineMode variant="neutral" [active]="tab() === 'provisionals'" (clicked)="tab.set('provisionals')">Provisionals</lib-button>
+</lib-button-group>
+
+<!-- full-width, evenly-split segments (e.g. a mode switcher in a narrow sidebar) -->
+<lib-button-group fullWidth>
+  @for (option of modeOptions; track option.value) {
+    <div class="flex-1 min-w-0">
+      <lib-button joinItem fullWidth variant="primary" [active]="mode() === option.value" (clicked)="mode.set(option.value)">
+        {{ option.label }}
+      </lib-button>
+    </div>
+  }
 </lib-button-group>
 ```
 

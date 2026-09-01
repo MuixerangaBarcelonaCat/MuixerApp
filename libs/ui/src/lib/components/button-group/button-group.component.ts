@@ -15,4 +15,8 @@ import { ChangeDetectionStrategy, Component, booleanAttribute, input } from '@an
 })
 export class ButtonGroupComponent {
   vertical = input(false, { transform: booleanAttribute });
+  // Stretches the .join row to fill its container — pair with fullWidth on each joinItem child
+  // (wrapped in an equal flex-1 element, since lib-button's own display:contents host can't be a
+  // flex item itself) to get an evenly-split segmented control instead of one sized to content.
+  fullWidth = input(false, { transform: booleanAttribute });
 }

@@ -409,7 +409,63 @@ describe('CompositionEditorComponent', () => {
       const { fixture } = await setup('comp-1');
       const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLElement;
       expect(search).toBeTruthy();
-      expect(search.className).toContain('h-6');
+      expect(search.className).toContain('min-h-6');
+    });
+  });
+
+  describe('inline rename (top bar pencil button)', () => {
+    it('shows the name as text with a rename button by default', async () => {
+      const { fixture } = await setup(COMPOSITION_ID);
+      expect(fixture.nativeElement.textContent).toContain('Composició 1');
+      expect(fixture.debugElement.query(By.css('[data-testid="composition-name-input"]'))).toBeFalsy();
+    });
+
+    it('turns the title into an editable field on rename click', async () => {
+      const { fixture, component } = await setup(COMPOSITION_ID);
+
+      component.startRename();
+      fixture.detectChanges();
+
+      expect(component.renamingName()).toBe(true);
+      expect(fixture.debugElement.query(By.css('[data-testid="composition-name-input"]'))).toBeTruthy();
+    });
+
+    it('confirmRename saves the trimmed draft and exits rename mode', async () => {
+      const { component } = await setup(COMPOSITION_ID);
+      component.startRename();
+      component.nameDraft.set('  Nova composició  ');
+
+      component.confirmRename();
+
+      expect(component.name()).toBe('Nova composició');
+      expect(component.renamingName()).toBe(false);
+      expect(compositionService.update).toHaveBeenCalledWith(
+        COMPOSITION_ID,
+        expect.objectContaining({ name: 'Nova composició' }),
+      );
+    });
+
+    it('confirmRename ignores a blank draft, keeping the previous name', async () => {
+      const { component } = await setup(COMPOSITION_ID);
+      component.startRename();
+      component.nameDraft.set('   ');
+
+      component.confirmRename();
+
+      expect(component.name()).toBe('Composició 1');
+      expect(component.renamingName()).toBe(false);
+    });
+
+    it('cancelRename discards the draft without saving', async () => {
+      const { component } = await setup(COMPOSITION_ID);
+      component.startRename();
+      component.nameDraft.set('Descartat');
+
+      component.cancelRename();
+
+      expect(component.name()).toBe('Composició 1');
+      expect(component.renamingName()).toBe(false);
+      expect(compositionService.update).not.toHaveBeenCalled();
     });
   });
 });
