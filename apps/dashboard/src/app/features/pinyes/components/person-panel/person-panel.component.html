@@ -119,15 +119,12 @@
 
     <!-- Filters -->
     <div class="flex items-center gap-3">
-      <label class="flex items-center gap-1.5 text-xs cursor-pointer">
-        <input
-          type="checkbox"
-          class="checkbox checkbox-xs"
-          [checked]="showXicalla()"
-          (change)="onXicallaChange($any($event.target).checked)"
-        />
-        Xicalla
-      </label>
+      <lib-checkbox
+        size="xs"
+        variant="neutral"
+        [ngModel]="showXicalla()"
+        (ngModelChange)="onXicallaChange($event)"
+      ><span class="text-xs">Xicalla</span></lib-checkbox>
 
       <div class="flex items-center gap-1">
         <div class="dropdown" [class.dropdown-open]="tagFilterOpen()">

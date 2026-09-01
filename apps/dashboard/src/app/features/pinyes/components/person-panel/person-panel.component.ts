@@ -13,6 +13,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CheckboxComponent } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
@@ -32,7 +33,7 @@ interface PersonSearchResult {
   selector: 'app-person-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, CheckboxComponent],
   templateUrl: './person-panel.component.html',
 })
 export class PersonPanelComponent {

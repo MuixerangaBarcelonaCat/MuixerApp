@@ -74,18 +74,12 @@
   </div>
 
   @if (entry().hasCordoObertNodes) {
-    <div class="form-control pb-3">
-      <!-- No shared checkbox component yet (libs/ui has no lib-checkbox) — stays raw, flagged gap. -->
-      <label class="label cursor-pointer justify-start gap-2 py-0">
-        <input
-          type="checkbox"
-          data-cordons-oberts-checkbox
-          class="checkbox checkbox-sm"
-          [checked]="entry().cordonsObertsEnabled"
-          (change)="onCordonsObertsEnabledChange($any($event.target).checked)"
-        />
-        <span class="label-text text-xs font-medium">Cordons oberts</span>
-      </label>
+    <div class="form-control pb-3" data-cordons-oberts-checkbox>
+      <lib-checkbox
+        variant="neutral"
+        [ngModel]="entry().cordonsObertsEnabled"
+        (ngModelChange)="onCordonsObertsEnabledChange($event)"
+      >Cordons oberts</lib-checkbox>
     </div>
   }
 }

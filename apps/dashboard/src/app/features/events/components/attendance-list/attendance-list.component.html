@@ -31,15 +31,10 @@
         </lib-button-group>
       </div>
 
-      <label class="flex items-center gap-2 cursor-pointer min-h-6 shrink-0">
-        <input
-          type="checkbox"
-          class="checkbox checkbox-sm checkbox-primary"
-          [checked]="confirmedFilterActive()"
-          (change)="toggleConfirmedFilter()"
-        />
-        <span class="text-sm">{{ isPast() ? 'Assistits' : 'Confirmats' }}</span>
-      </label>
+      <lib-checkbox
+        [ngModel]="confirmedFilterActive()"
+        (ngModelChange)="toggleConfirmedFilter()"
+      ><span class="text-sm">{{ isPast() ? 'Assistits' : 'Confirmats' }}</span></lib-checkbox>
 
       <div class="w-36">
         <lib-select [ngModel]="attendanceStatusFilter() ?? ''" (ngModelChange)="onAttendanceStatusFilter($event)">

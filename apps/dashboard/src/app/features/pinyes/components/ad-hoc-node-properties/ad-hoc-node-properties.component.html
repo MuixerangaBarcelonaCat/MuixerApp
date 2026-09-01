@@ -67,15 +67,16 @@
         <span class="label-text text-xs font-medium">Etiqueta</span>
       </label>
       @if (isDecoration()) {
-        <textarea
+        <lib-textarea
           [id]="'adhoc-label-' + node().id"
-          class="textarea textarea-bordered textarea-sm resize-none"
-          rows="3"
+          size="sm"
+          [resize]="false"
+          [rows]="3"
           [ngModel]="labelDisplay()"
           (ngModelChange)="onLabelPreview($event)"
-          (blur)="onLabelCommit()"
-          maxlength="500"
-        ></textarea>
+          (blurred)="onLabelCommit()"
+          [maxLength]="500"
+        />
       } @else {
         <input
           type="text"

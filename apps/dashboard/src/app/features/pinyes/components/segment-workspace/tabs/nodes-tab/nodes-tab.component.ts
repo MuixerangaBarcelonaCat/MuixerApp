@@ -11,6 +11,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import {
   DECORATION_NODE_PRESETS,
@@ -21,7 +22,7 @@ import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, TextareaComponent } from '@muixer/ui';
 
 interface AdHocNodeSnapshot {
   zone: string;
@@ -46,7 +47,7 @@ interface AdHocNodeSnapshot {
   selector: 'app-nodes-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, FigureCanvasComponent, AdHocNodePropertiesComponent],
+  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, AdHocNodePropertiesComponent, TextareaComponent],
   templateUrl: './nodes-tab.component.html',
 })
 export class NodesTabComponent implements OnInit {

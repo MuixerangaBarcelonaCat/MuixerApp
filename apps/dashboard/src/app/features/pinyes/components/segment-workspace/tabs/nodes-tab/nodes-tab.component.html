@@ -132,16 +132,16 @@
       <label for="nodes-comodin-input" class="label">
         <span class="label-text">Escriu el nom del node:</span>
       </label>
-      <textarea
+      <lib-textarea
         id="nodes-comodin-input"
-        class="textarea textarea-bordered w-full resize-none"
-        rows="3"
-        [value]="comodinLabel()"
-        (input)="comodinLabel.set($any($event.target).value)"
+        [resize]="false"
+        [rows]="3"
+        [ngModel]="comodinLabel()"
+        (ngModelChange)="comodinLabel.set($event)"
         (keydown.shift.enter)="confirmComodinLabel(); $event.preventDefault()"
-        maxlength="500"
-        autofocus
-      ></textarea>
+        [maxLength]="500"
+        [autofocus]="true"
+      />
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm" (click)="cancelComodinInput()">
           Cancel·la

@@ -191,14 +191,18 @@ describe('PersonDetailComponent', () => {
       expect(tagButton.className).not.toContain('min-h-6');
     });
 
-    it('uses the default (24px) toggle size for Actiu/Membre/Xicalla instead of the smaller toggle-sm', () => {
+    // Was a 24px .toggle switch (WI-03's tap-target floor); after the lib-checkbox conversion the
+    // user asked for xs explicitly, having seen the real UI — a 24px *square* checkbox glyph reads
+    // as disproportionately large next to text-sm labels in a way the same-height, slimmer toggle
+    // pill didn't, so the tap-target floor was knowingly traded for visual balance here.
+    it('renders Actiu/Membre/Xicalla as size="xs" checkboxes', () => {
       component.editing.set(true);
       fixture.detectChanges();
 
-      const toggles = Array.from(fixture.nativeElement.querySelectorAll('input[type="checkbox"].toggle')) as HTMLElement[];
-      expect(toggles.length).toBe(3);
-      for (const toggle of toggles) {
-        expect(toggle.className).not.toContain('toggle-sm');
+      const checkboxes = Array.from(fixture.nativeElement.querySelectorAll('input[type="checkbox"].checkbox')) as HTMLElement[];
+      expect(checkboxes.length).toBe(3);
+      for (const checkbox of checkboxes) {
+        expect(checkbox.className).toContain('checkbox-xs');
       }
     });
   });

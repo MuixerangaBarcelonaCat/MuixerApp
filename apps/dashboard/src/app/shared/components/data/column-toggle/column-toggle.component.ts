@@ -1,4 +1,6 @@
 import { Component, ChangeDetectionStrategy, input, output, computed } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { CheckboxComponent } from '@muixer/ui';
 import { ColumnDef } from '../../../models/column-def.model';
 
 @Component({
@@ -6,8 +8,12 @@ import { ColumnDef } from '../../../models/column-def.model';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
+  imports: [FormsModule, CheckboxComponent],
   template: `
     <div class="collapse collapse-arrow bg-base-200/50 rounded-box border border-base-300">
+      <!-- The bare structural checkbox below drives DaisyUI's own .collapse open/close state via
+           CSS (:checked ~ .collapse-content) — not a real UI checkbox, so it stays raw rather than
+           becoming a lib-checkbox (see docs/DESIGN_SYSTEM.md's lib-checkbox entry). -->
       <input type="checkbox" />
       <div class="collapse-title text-sm font-medium py-2 min-h-0">
         Columnes visibles ({{ visibleCount() }} de {{ columns().length }})
@@ -15,15 +21,11 @@ import { ColumnDef } from '../../../models/column-def.model';
       <div class="collapse-content">
         <div class="flex flex-wrap gap-2 pt-2">
           @for (col of columns(); track col.key) {
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                class="checkbox checkbox-sm checkbox-primary"
-                [checked]="visibleKeys().includes(col.key)"
-                (change)="toggleColumn.emit(col.key)"
-              />
-              <span class="text-sm">{{ col.label }}</span>
-            </label>
+            <lib-checkbox
+              size="sm"
+              [ngModel]="visibleKeys().includes(col.key)"
+              (ngModelChange)="toggleColumn.emit(col.key)"
+            ><span class="text-sm">{{ col.label }}</span></lib-checkbox>
           }
         </div>
       </div>

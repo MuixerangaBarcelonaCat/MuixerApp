@@ -223,16 +223,23 @@ describe('FigurePropertiesPanelComponent', () => {
       expect(fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))).toBeTruthy();
     });
 
-    it('is checked when cordonsObertsEnabled is true', () => {
+    // lib-checkbox's first ngModel write is a *new* standalone NgModel registration — Angular
+    // defers that one's initial writeValue to a microtask (same pattern documented in
+    // template-editor.component.spec.ts's selectNode() helper).
+    it('is checked when cordonsObertsEnabled is true', async () => {
       const fixture = create(makeEntry({ hasCordoObertNodes: true, cordonsObertsEnabled: true }));
-      const checkbox = fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))
+      await Promise.resolve();
+      fixture.detectChanges();
+      const checkbox = fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox] input'))
         .nativeElement as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
     });
 
-    it('is unchecked when cordonsObertsEnabled is false', () => {
+    it('is unchecked when cordonsObertsEnabled is false', async () => {
       const fixture = create(makeEntry({ hasCordoObertNodes: true, cordonsObertsEnabled: false }));
-      const checkbox = fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))
+      await Promise.resolve();
+      fixture.detectChanges();
+      const checkbox = fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox] input'))
         .nativeElement as HTMLInputElement;
       expect(checkbox.checked).toBe(false);
     });

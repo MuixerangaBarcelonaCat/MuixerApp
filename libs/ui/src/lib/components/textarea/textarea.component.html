@@ -1,0 +1,19 @@
+<lib-form-field [label]="label()" [hint]="hint()" [errorText]="errorText()" [required]="required()" [size]="size()" [id]="textareaId()">
+  <textarea
+    #nativeTextareaRef
+    [id]="textareaId()"
+    [class]="textareaClasses()"
+    [placeholder]="placeholder() ?? ''"
+    [rows]="rows()"
+    [value]="value()"
+    [disabled]="isDisabled()"
+    [required]="required()"
+    [attr.maxlength]="maxLength() ?? null"
+    [attr.aria-label]="ariaLabel() ?? null"
+    [attr.aria-invalid]="hasError() ? 'true' : null"
+    [attr.aria-describedby]="hasDescription() ? descriptionId() : null"
+    (input)="onInput($event)"
+    (blur)="onBlur()"
+    data-testid="lib-textarea-native"
+  ></textarea>
+</lib-form-field>

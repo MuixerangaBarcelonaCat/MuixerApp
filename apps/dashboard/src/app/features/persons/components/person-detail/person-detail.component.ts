@@ -16,11 +16,13 @@ import {
   BadgeComponent,
   ButtonComponent,
   CardComponent,
+  CheckboxComponent,
   EmptyStateComponent,
   FormFieldComponent,
   InputComponent,
   ModalComponent,
   SelectComponent,
+  TextareaComponent,
 } from '@muixer/ui';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
@@ -57,11 +59,13 @@ import { DelegateType, LegalDocumentType } from '@muixer/shared';
     BadgeComponent,
     ButtonComponent,
     CardComponent,
+    CheckboxComponent,
     EmptyStateComponent,
     FormFieldComponent,
     InputComponent,
     ModalComponent,
     SelectComponent,
+    TextareaComponent,
     PaginationComponent,
     PersonDelegateModalComponent,
     EmojiPickerComponent,

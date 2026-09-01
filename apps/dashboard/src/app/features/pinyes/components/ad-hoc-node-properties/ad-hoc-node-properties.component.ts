@@ -11,7 +11,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, TextareaComponent } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
@@ -20,7 +20,7 @@ import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-co
   selector: 'app-ad-hoc-node-properties',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, ColorPickerComponent],
+  imports: [FormsModule, LucideAngularModule, ColorPickerComponent, TextareaComponent],
   templateUrl: './ad-hoc-node-properties.component.html',
 })
 export class AdHocNodePropertiesComponent {

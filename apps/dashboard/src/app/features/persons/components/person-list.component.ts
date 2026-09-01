@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, UserPlus, Link, Search } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, CheckboxComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC } from '@muixer/ui';
 import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
@@ -84,6 +84,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
     LucideAngularModule,
     ButtonComponent,
     ButtonGroupComponent,
+    CheckboxComponent,
     FormFieldComponent,
     InputComponent,
     SelectComponent,
