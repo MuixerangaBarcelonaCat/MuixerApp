@@ -133,6 +133,7 @@ export interface FigureHistoryEntry {
   eventTitle: string;
   eventDate: string;
   eventType: EventType;
+  segmentId: string;
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
@@ -141,6 +142,7 @@ export interface FigureHistoryEntry {
   assignments: {
     nodeId: string;
     nodeLabel: string;
+    zone: FigureZone;
     personId: string;
     personAlias: string;
   }[];
@@ -924,6 +926,7 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
+        segmentId: instance.segment.id,
         segmentName: instance.segment.name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
@@ -932,6 +935,7 @@ export class NodeAssignmentService {
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
+          zone: a.instanceNode.zone,
           personId: a.person.id,
           personAlias: a.person.alias,
         })),

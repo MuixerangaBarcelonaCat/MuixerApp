@@ -1352,6 +1352,23 @@ describe('NodeAssignmentService', () => {
       );
       expect(result.data[0].totalNodes).toBe(7);
     });
+
+    it('includes segmentId and each assignment zone in the response', async () => {
+      const tmpl = { id: TEMPLATE_ID };
+      const node = makeInstanceNode({ zone: FigureZone.TRONC });
+      const instance = makeInstance({ snapshotted: true });
+      instance.assignments = [makeAssignment({ instanceNode: node as any, person: makePerson() as any })];
+      instance.segment = { ...makeSegment(), event: { id: 'e1', title: 'Assaig', date: '2026-05-01', eventType: EventType.ASSAIG } };
+
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockHistoryQb.getCount.mockResolvedValue(1);
+      mockHistoryQb.getMany.mockResolvedValue([instance]);
+
+      const result = await service.getHistory(TEMPLATE_ID);
+
+      expect(result.data[0].segmentId).toBe(SEGMENT_ID);
+      expect(result.data[0].assignments[0].zone).toBe(FigureZone.TRONC);
+    });
   });
 
   // ── getPersonHistory ───────────────────────────────────────────────────
