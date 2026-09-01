@@ -1,0 +1,119 @@
+<app-mobile-header title="Marca assistència" [showBack]="true" [fallbackRoute]="'/events/' + id()" />
+
+<div class="p-4 space-y-3">
+  <div class="flex items-center gap-2">
+    <label class="input input-bordered flex items-center gap-2 flex-1">
+      <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
+      <input
+        type="text"
+        class="grow"
+        placeholder="Cerca persona..."
+        [(ngModel)]="searchTerm"
+      />
+    </label>
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm"
+      aria-label="Afegeix una persona provisional (ve per primera vegada)"
+      (click)="toggleAddProvisional()"
+    >
+      + Afegeix
+    </button>
+  </div>
+
+  @if (showAddProvisional()) {
+    <div class="card bg-base-200 p-3 space-y-2">
+      <p class="text-xs text-base-content/60">
+        Per a algú que ve per primera vegada i encara no és membre de la colla. Es crea com a
+        persona provisional i queda marcat com a present.
+      </p>
+      <div class="flex items-center gap-2">
+        <input
+          type="text"
+          class="input input-bordered input-sm grow"
+          placeholder="Nom o àlies..."
+          [ngModel]="provisionalAlias()"
+          (ngModelChange)="provisionalAlias.set($event)"
+          (keyup.enter)="createProvisionalPerson()"
+        />
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="!provisionalAlias().trim() || isCreatingProvisional()"
+          (click)="createProvisionalPerson()"
+        >
+          Crea
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <app-skeleton-card [count]="4" />
+  } @else if (hasError()) {
+    <app-empty-state message="No s'ha pogut carregar l'assistència" />
+  } @else if (hasNoResults()) {
+    <app-empty-state message="Cap persona trobada" />
+  } @else {
+    @if (signedUpItems().length > 0) {
+      <ul class="space-y-2">
+        @for (item of signedUpItems(); track item.person.id) {
+          <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
+            <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
+            <div class="flex gap-1 shrink-0">
+              @for (status of statuses; track status) {
+                <lib-badge
+                  clickable
+                  size="sm"
+                  class="whitespace-nowrap"
+                  [variant]="item.status === status ? statusVariant(status) : 'neutral'"
+                  [selected]="item.status === status"
+                  [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
+                  (clicked)="setStatus(item, status)"
+                >{{ statusLabel(status) }}</lib-badge>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (notSignedUpItems().length > 0) {
+      <div class="pt-3 mt-3 border-t border-base-300">
+        <p class="text-xs text-base-content/50 mb-2">No s'han apuntat</p>
+        <ul class="space-y-2 opacity-60">
+          @for (item of notSignedUpItems(); track item.person.id) {
+            <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
+              <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
+              <div class="flex gap-1 shrink-0">
+                @for (status of statuses; track status) {
+                  <lib-badge
+                    clickable
+                    size="sm"
+                    class="whitespace-nowrap"
+                    [variant]="item.status === status ? statusVariant(status) : 'neutral'"
+                    [selected]="item.status === status"
+                    [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
+                    (clicked)="setStatus(item, status)"
+                  >{{ statusLabel(status) }}</lib-badge>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  }
+</div>
+
+<lib-modal [open]="!!overridePrompt()" title="Canvi fora de termini" [dismissible]="false" (closed)="cancelOverride()">
+  <p class="text-sm">
+    Este event ja no es pot editar en condicions normals (ha passat el marge permès). Estàs a punt de
+    forçar un canvi d'assistència passada per a <strong>{{ overridePrompt()?.item?.person?.alias }}</strong>.
+    Esta acció queda registrada.
+  </p>
+  <div class="flex justify-end gap-2 mt-4">
+    <button type="button" class="btn btn-ghost btn-sm" (click)="cancelOverride()">Cancel·la</button>
+    <button type="button" class="btn btn-error btn-sm" (click)="confirmOverride()">Força el canvi</button>
+  </div>
+</lib-modal>

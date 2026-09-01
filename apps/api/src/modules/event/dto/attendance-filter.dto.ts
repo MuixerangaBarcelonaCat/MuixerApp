@@ -28,11 +28,11 @@ export class AttendanceFilterDto {
   @Type(() => Number)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Nombre de resultats per pàgina (màx. 100)', default: 100 })
+  @ApiPropertyOptional({ description: 'Nombre de resultats per pàgina (màx. 500)', default: 100 })
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(500)
   @Type(() => Number)
   limit?: number = 100;
 }

@@ -66,6 +66,10 @@ export class SeasonService {
     return this.toListItem(season);
   }
 
+  async findEntityById(id: string): Promise<Season | null> {
+    return this.seasonRepository.findOne({ where: { id } });
+  }
+
   async findCurrentEntity(): Promise<Season | null> {
     const today = new Date().toISOString().slice(0, 10);
 

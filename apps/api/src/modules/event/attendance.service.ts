@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { AttendanceStatus, AttendanceSummary, TagCategory } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary, AuditAction, TagCategory } from '@muixer/shared';
+import { isPastLockWindow } from '../../common/utils/lock.util';
+import { AuditService } from '../audit/audit.service';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
@@ -19,6 +21,7 @@ export class AttendanceService {
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
     private readonly dataSource: DataSource,
+    private readonly auditService: AuditService,
   ) {}
 
   /** Retorna una llista paginada d'assistències per a un event concret amb filtres per estat i cerca de persona. */
@@ -84,6 +87,9 @@ export class AttendanceService {
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
+    if (isPastLockWindow(event.date)) {
+      throw new ForbiddenException('Este event està fora del marge per registrar assistència.');
+    }
 
     const person = await this.personRepository.findOne({
       where: { id: dto.personId },
@@ -125,6 +131,7 @@ export class AttendanceService {
     eventId: string,
     attendanceId: string,
     dto: UpdateAttendanceDto,
+    actorUserId?: string,
   ): Promise<{ attendance: AttendanceItem; summary: AttendanceSummary }> {
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) {
@@ -139,6 +146,13 @@ export class AttendanceService {
       throw new NotFoundException(`Attendance with ID ${attendanceId} not found`);
     }
 
+    const locked = isPastLockWindow(event.date);
+    if (locked && !dto.force) {
+      throw new ForbiddenException('Este event està fora del marge per canviar assistència.');
+    }
+
+    const previousStatus = attendance.status;
+
     // respondedAt marks when the person responded to the attendance request — only a
     // status change is a "response"; editing notes alone must not touch it (see SM-15).
     if (dto.status !== undefined && dto.status !== attendance.status) {
@@ -148,6 +162,16 @@ export class AttendanceService {
     if (dto.notes !== undefined) attendance.notes = dto.notes;
 
     const saved = await this.attendanceRepository.save(attendance);
+
+    if (locked && dto.force) {
+      await this.auditService.record({
+        actorUserId,
+        action: AuditAction.ATTENDANCE_LOCK_OVERRIDE,
+        targetType: 'Attendance',
+        targetId: attendanceId,
+        metadata: { eventId, personId: attendance.person.id, previousStatus, newStatus: attendance.status },
+      });
+    }
     const savedWithRelations = await this.attendanceRepository.findOne({
       where: { id: saved.id },
       relations: ['person', 'person.positions'],

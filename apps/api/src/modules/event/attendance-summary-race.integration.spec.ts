@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { EventType, AttendanceStatus } from '@muixer/shared';
 import { AttendanceService } from './attendance.service';
+import { AuditService } from '../audit/audit.service';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
@@ -33,6 +34,7 @@ describe('AttendanceService summary race (integration)', () => {
         AttendanceService,
         ...realRepositoryProviders(db.dataSource, [Attendance, Event, Person]),
         { provide: DataSource, useValue: db.dataSource },
+        { provide: AuditService, useValue: { record: jest.fn() } },
       ],
     }).compile();
 
@@ -54,7 +56,7 @@ describe('AttendanceService summary race (integration)', () => {
     const event = await eventRepo.save({
       eventType: EventType.ASSAIG,
       title: 'Assaig concurrència',
-      date: new Date('2026-01-01'),
+      date: new Date(),
     });
 
     const personCount = 10;

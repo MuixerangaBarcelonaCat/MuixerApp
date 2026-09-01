@@ -103,6 +103,18 @@
       </div>
     }
 
+    @if (isStaff()) {
+      <div class="card bg-base-100 shadow-sm p-4 space-y-2">
+        <h2 class="font-semibold">Eines de tècnic</h2>
+        <a class="btn btn-sm btn-outline w-full" [routerLink]="['/events', ev.id, 'roll-call']">
+          Marca assistència
+        </a>
+        <a class="btn btn-sm btn-outline w-full" [routerLink]="['/events', ev.id, 'watch-as']">
+          Veure com...
+        </a>
+      </div>
+    }
+
     <div class="flex flex-col items-center gap-3 mt-2 attendance-section" [style.order]="isPast() ? 2 : 1">
       @for (row of ev.managedAttendances; track row.personId) {
         <div class="flex flex-col items-center gap-1 w-full max-w-xs">

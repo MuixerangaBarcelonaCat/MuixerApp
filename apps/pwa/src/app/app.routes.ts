@@ -37,7 +37,7 @@ export const appRoutes: Routes = [
       ),
     canActivate: [
       authGuard,
-      rolesGuard(UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN),
+      rolesGuard([UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN]),
     ],
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
@@ -55,6 +55,24 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('./features/events/event-list/event-list.component').then(
             (m) => m.EventListComponent,
+          ),
+      },
+      {
+        path: 'events/:id/roll-call',
+        title: 'Marca assistència',
+        canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
+        loadComponent: () =>
+          import('./features/events/roll-call/roll-call.component').then(
+            (m) => m.RollCallComponent,
+          ),
+      },
+      {
+        path: 'events/:id/watch-as',
+        title: 'Veure com...',
+        canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
+        loadComponent: () =>
+          import('./features/events/watch-as/watch-as.component').then(
+            (m) => m.WatchAsComponent,
           ),
       },
       {

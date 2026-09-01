@@ -14,6 +14,7 @@ import {
   MeEventDetail,
   MeSegment,
   EventType,
+  UserRole,
   computeSegmentDisplayName,
   formatOwnPositionSummary,
   OwnPositionSummary,
@@ -26,6 +27,7 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
 import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
 import { FormatEventDatePipe } from '../../../shared/pipes/format-event-date.pipe';
 import { EventService } from '../services/event.service';
+import { AuthService } from '../../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-event-detail',
@@ -52,6 +54,12 @@ export class EventDetailComponent {
 
   private readonly eventService = inject(EventService);
   private readonly titleService = inject(Title);
+  private readonly authService = inject(AuthService);
+
+  protected readonly isStaff = computed(() => {
+    const role = this.authService.userRole();
+    return role === UserRole.TECHNICAL || role === UserRole.ADMIN;
+  });
 
   protected readonly eventResource = rxResource<MeEventDetail, string>({
     params: () => this.id(),

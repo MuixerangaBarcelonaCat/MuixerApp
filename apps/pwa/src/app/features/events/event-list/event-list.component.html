@@ -1,7 +1,22 @@
 <app-mobile-header title="Agenda" />
 
+@if (seasons().length > 1) {
+  <div class="mb-3">
+    <lib-select
+      size="sm"
+      ariaLabel="Temporada"
+      [ngModel]="effectiveSeasonId()"
+      (ngModelChange)="onSeasonChange($event)"
+    >
+      @for (season of seasons(); track season.id) {
+        <option [value]="season.id">{{ season.name }}</option>
+      }
+    </lib-select>
+  </div>
+}
+
 <div class="flex items-center gap-2 mb-4">
-  @if (viewMode() === 'list') {
+  @if (viewMode() === 'list' && isCurrentSeason()) {
     <nav class="tabs tabs-bordered flex-1" role="tablist" aria-label="Filtre d'assajos i actuacions">
       @for (tab of tabs; track tab.key; let i = $index) {
         <button

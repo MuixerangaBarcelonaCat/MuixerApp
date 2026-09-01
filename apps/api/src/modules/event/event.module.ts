@@ -6,6 +6,7 @@ import { Season } from '../season/season.entity';
 import { Person } from '../person/person.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { SeasonModule } from '../season/season.module';
+import { AuditModule } from '../audit/audit.module';
 import { EventController } from './event.controller';
 import { EventService } from './event.service';
 import { AttendanceService } from './attendance.service';
@@ -14,6 +15,7 @@ import { AttendanceService } from './attendance.service';
   imports: [
     TypeOrmModule.forFeature([Event, Attendance, Season, Person, EventSegment]),
     SeasonModule,
+    AuditModule,
   ],
   controllers: [EventController],
   providers: [EventService, AttendanceService],

@@ -20,6 +20,8 @@ import {
   PendingDependent,
   PersonProfileSummary,
   MeNewsItem,
+  MeSeason,
+  UserRole,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -31,6 +33,7 @@ import { NodeAssignment } from '../node-assignment/entities/node-assignment.enti
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
 import { getLocalToday } from '../../common/utils/date.util';
+import { isPastLockWindow } from '../../common/utils/lock.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
@@ -99,6 +102,16 @@ export class MeService {
     return managed;
   }
 
+  async findSeasons(): Promise<MeSeason[]> {
+    const { data } = await this.seasonService.findAll();
+    return data.map((s) => ({
+      id: s.id,
+      name: s.name,
+      startDate: s.startDate as unknown as string,
+      endDate: s.endDate as unknown as string,
+    }));
+  }
+
   async findEvents(
     jwtUser: JwtPayload,
     filters: MeEventFilterDto,
@@ -106,7 +119,9 @@ export class MeService {
     const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
     if (managedPersons.length === 0) return this.emptyPage(filters);
 
-    const season = await this.seasonService.findCurrentEntity();
+    const season = filters.seasonId
+      ? await this.seasonService.findEntityById(filters.seasonId)
+      : await this.seasonService.findCurrentEntity();
     if (!season) return this.emptyPage(filters);
 
     const { type, timeFilter = 'upcoming', page = 1, limit = 20 } = filters;
@@ -166,12 +181,15 @@ export class MeService {
     };
   }
 
-  async findEventSegments(jwtUser: JwtPayload, eventId: string): Promise<MeSegment[]> {
+  async findEventSegments(
+    jwtUser: JwtPayload,
+    eventId: string,
+    requestedPersonId?: string,
+  ): Promise<MeSegment[]> {
     const segments = await this.eventSegmentService.findAllByEvent(eventId);
     const published = segments.filter((segment) => segment.isPublished);
 
-    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
-    const personId = managedPersons.find((p) => p.isSelf)?.personId ?? null;
+    const personId = await this.resolveTargetPersonId(jwtUser, requestedPersonId);
     const placementsBySegment = await this.fetchOwnPlacementsBySegment(personId, published);
 
     return published.map((segment) => ({
@@ -187,6 +205,32 @@ export class MeService {
       })),
       myPlacements: placementsBySegment.get(segment.id) ?? [],
     }));
+  }
+
+  /**
+   * Resolves which person's placements to show: the caller's own person when no `requestedPersonId`
+   * is given; any person for TECHNICAL/ADMIN; only the caller's own managed persons (self + delegates)
+   * for MEMBER — otherwise 403, so a member can't view an arbitrary person by editing the URL.
+   */
+  private async resolveTargetPersonId(
+    jwtUser: JwtPayload,
+    requestedPersonId?: string,
+  ): Promise<string | null> {
+    if (!requestedPersonId) {
+      const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+      return managedPersons.find((p) => p.isSelf)?.personId ?? null;
+    }
+
+    if (jwtUser.role === UserRole.TECHNICAL || jwtUser.role === UserRole.ADMIN) {
+      return requestedPersonId;
+    }
+
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const isManaged = managedPersons.some((p) => p.personId === requestedPersonId);
+    if (!isManaged) {
+      throw new ForbiddenException('No autoritzat per consultar esta persona');
+    }
+    return requestedPersonId;
   }
 
   /**
@@ -295,11 +339,7 @@ export class MeService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    const today = getLocalToday();
-    const eventDate = event.date instanceof Date
-      ? event.date.toISOString().slice(0, 10)
-      : String(event.date);
-    if (eventDate < today) {
+    if (isPastLockWindow(event.date)) {
       throw new BadRequestException('No es pot modificar l\'assistència d\'un event passat');
     }
 

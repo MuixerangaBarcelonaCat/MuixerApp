@@ -56,7 +56,11 @@ const MOCK_EVENTS_SEASON: MeEvent[] = [
 describe('EventListComponent', () => {
   let fixture: ComponentFixture<EventListComponent>;
   let component: EventListComponent;
-  let eventService: { findAll: ReturnType<typeof vi.fn>; updateAttendance: ReturnType<typeof vi.fn> };
+  let eventService: {
+    findAll: ReturnType<typeof vi.fn>;
+    updateAttendance: ReturnType<typeof vi.fn>;
+    findSeasons: ReturnType<typeof vi.fn>;
+  };
 
   async function stable(): Promise<void> {
     fixture.detectChanges();
@@ -70,6 +74,7 @@ describe('EventListComponent', () => {
         of({ data: [MOCK_EVENT], meta: { total: 1, page: 1, limit: 50 } }),
       ),
       updateAttendance: vi.fn(),
+      findSeasons: vi.fn().mockReturnValue(of([])),
     };
 
     await TestBed.configureTestingModule({

@@ -160,15 +160,17 @@ describe('EventController', () => {
 
   // --- updateAttendance ---
   describe('updateAttendance', () => {
+    const mockUser = { sub: 'user-1', email: 'test@test.com', role: 'TECHNICAL' } as never;
+
     it('delegates to attendanceService.update', async () => {
       const dto = { status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' };
-      await controller.updateAttendance('ev-uuid', 'att-uuid', dto);
-      expect(attendanceService.update).toHaveBeenCalledWith('ev-uuid', 'att-uuid', dto);
+      await controller.updateAttendance(mockUser, 'ev-uuid', 'att-uuid', dto);
+      expect(attendanceService.update).toHaveBeenCalledWith('ev-uuid', 'att-uuid', dto, 'user-1');
     });
 
     it('propagates NotFoundException when attendance not found', async () => {
       attendanceService.update.mockRejectedValueOnce(new NotFoundException());
-      await expect(controller.updateAttendance('ev-uuid', 'bad-uuid', {})).rejects.toThrow(NotFoundException);
+      await expect(controller.updateAttendance(mockUser, 'ev-uuid', 'bad-uuid', {})).rejects.toThrow(NotFoundException);
     });
   });
 

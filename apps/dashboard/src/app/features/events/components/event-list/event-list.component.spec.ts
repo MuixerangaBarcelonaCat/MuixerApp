@@ -13,17 +13,17 @@ import { Season } from '../../models/event.model';
 const makeSeasons = (): Season[] => [
   {
     id: 'season-active',
-    name: 'Temporada 2025-2026',
-    startDate: '2025-09-01',
-    endDate: '2026-08-31',
+    name: 'Temporada 2026-2027',
+    startDate: '2026-09-01',
+    endDate: '2027-08-31',
     description: null,
     eventCount: 10,
   },
   {
     id: 'season-old',
-    name: 'Temporada 2024-2025',
-    startDate: '2024-09-01',
-    endDate: '2025-08-31',
+    name: 'Temporada 2025-2026',
+    startDate: '2025-09-01',
+    endDate: '2026-08-31',
     description: null,
     eventCount: 20,
   },
@@ -88,8 +88,8 @@ describe('EventListComponent', () => {
 
   describe('active season auto-selection', () => {
     it('pre-selects the active season (date within start/end)', () => {
-      // Season 'season-active' spans 2025-09-01 to 2026-08-31.
-      // Today (2026-04-02) falls within that range.
+      // Season 'season-active' spans 2026-09-01 to 2027-08-31.
+      // Today (2026-09-01) falls within that range.
       expect(component.selectedSeasonId()).toBe('season-active');
     });
 
