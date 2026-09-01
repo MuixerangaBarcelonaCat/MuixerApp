@@ -5,7 +5,7 @@ export type {
   FigureAreaCount,
 } from '@muixer/shared';
 
-import { FigureZone, TagCategory } from '@muixer/shared';
+import { FigureZone, ImportScope, TagCategory } from '@muixer/shared';
 
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
@@ -182,6 +182,7 @@ export interface CreateAssignmentPayload {
 
 export interface BulkImportPayload {
   sourceInstanceId: string;
+  scope?: ImportScope;
 }
 
 export interface AvailablePersonsQuery {

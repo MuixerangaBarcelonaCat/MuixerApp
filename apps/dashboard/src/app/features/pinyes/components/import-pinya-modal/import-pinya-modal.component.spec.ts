@@ -1,4 +1,5 @@
 import { FigureHistoryEntry, BulkImportResult } from '@muixer/pinyes-render';
+import { FigureZone } from '@muixer/shared';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of, throwError } from 'rxjs';
@@ -15,13 +16,14 @@ const makeHistoryEntry = (instanceId = SOURCE_INSTANCE_ID): FigureHistoryEntry =
   eventTitle: 'Assaig Setmana Santa',
   eventDate: '2026-03-15',
   eventType: 'REHEARSAL',
+  segmentId: 'segment-uuid-1',
   segmentName: 'Bloc 1',
   instanceId,
   snapshotted: true,
   assignmentCount: 5,
   totalNodes: 8,
   assignments: [
-    { nodeId: 'node-1', nodeLabel: 'pd4-1', personId: 'person-1', personAlias: 'Pepet' },
+    { nodeId: 'node-1', nodeLabel: 'pd4-1', zone: FigureZone.PINYA, personId: 'person-1', personAlias: 'Pepet' },
   ],
 });
 
