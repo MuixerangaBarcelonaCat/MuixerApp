@@ -214,15 +214,19 @@
   <!-- ── Directions section (projection mode) ─────────────────────────── -->
   @if (mode() === 'projection' && hasAssignedDirections()) {
     <div class="directions-section projection" role="region" aria-label="Direccions">
-      @for (dir of directionNodes(); track dir.id) {
-        @if (getAssignment(dir.id); as assignment) {
-          <div class="direction-projection-row">
-            <span class="direction-label compact" [style.border-left-color]="getDirectionColor(dir.zone)">
-              {{ getDirectionLabel(dir.zone) }}
-            </span>
-            <span class="text-sm font-medium">{{ assignment.person.alias }}</span>
-          </div>
-        }
+      @for (group of assignedDirectionGroups(); track group.zone) {
+        <div class="direction-projection-row">
+          <span class="direction-label compact" [style.border-left-color]="group.color">
+            {{ group.label }}
+          </span>
+          <span
+            class="direction-aliases font-medium"
+            appFitText
+            [fitTextValue]="group.aliases"
+            [fitTextMinPx]="8"
+            [fitTextMaxPx]="14"
+          >{{ group.aliases }}</span>
+        </div>
       }
     </div>
   }

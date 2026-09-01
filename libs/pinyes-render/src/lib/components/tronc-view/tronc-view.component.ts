@@ -181,6 +181,32 @@ export class TroncViewComponent {
     this.directionNodes().filter((n) => n.zone === FigureZone.XICALLA_DIRECTION),
   );
 
+  /**
+   * Projection mode: assigned direction people grouped by zone, so all
+   * «Dir. figura» / «Dir. xicalla» people render on one line each — matching
+   * the tronc assignment panel — instead of one row per node.
+   */
+  readonly assignedDirectionGroups = computed(() => {
+    const assigns = this.assignments();
+    const groups: { zone: string; label: string; color: string; aliases: string }[] = [];
+    for (const zone of [FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION]) {
+      const aliases = this.directionNodes()
+        .filter((n) => n.zone === zone)
+        .map((n) => assigns.find((a) => a.node.id === n.id))
+        .filter((a): a is AssignmentDetail => !!a)
+        .map((a) => a.person.alias);
+      if (aliases.length > 0) {
+        groups.push({
+          zone,
+          label: this.getDirectionLabel(zone),
+          color: this.getDirectionColor(zone),
+          aliases: aliases.join(', '),
+        });
+      }
+    }
+    return groups;
+  });
+
   readonly hasAssignedDirections = computed(() => {
     const dirs = this.directionNodes();
     const assigns = this.assignments();

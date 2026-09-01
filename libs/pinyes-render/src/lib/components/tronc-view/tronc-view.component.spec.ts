@@ -1300,6 +1300,22 @@ describe('TroncViewComponent', () => {
       expect(projRow.textContent).toContain('Pepet');
     });
 
+    it('groups multiple same-zone direction assignments on one projection row', () => {
+      const xicDirNode2 = makeNode({ id: 'dir-xic-2', zone: 'XICALLA_DIRECTION', z: 0, x: 0, width: 1 });
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('directionNodes', [xicDirNode, xicDirNode2]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-xic-1', 'Marta'),
+        makeAssignment('dir-xic-2', 'Joan'),
+      ]);
+      fixture.detectChanges();
+
+      const projRows = fixture.nativeElement.querySelectorAll('.direction-projection-row');
+      expect(projRows.length).toBe(1);
+      expect(projRows[0].textContent).toContain('Marta');
+      expect(projRows[0].textContent).toContain('Joan');
+    });
+
     it('does not render projection directions when no assignments', () => {
       fixture.componentRef.setInput('mode', 'projection');
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
