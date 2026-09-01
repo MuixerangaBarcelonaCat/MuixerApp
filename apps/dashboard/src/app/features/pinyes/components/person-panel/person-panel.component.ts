@@ -13,7 +13,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CheckboxComponent } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
@@ -33,12 +33,20 @@ interface PersonSearchResult {
   selector: 'app-person-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, CheckboxComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    PersonHoverCardComponent,
+    BadgeComponent,
+    ButtonComponent,
+    ButtonGroupComponent,
+    CheckboxComponent,
+    InputComponent,
+  ],
   templateUrl: './person-panel.component.html',
 })
 export class PersonPanelComponent {
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
-  @ViewChild('heightInput') heightInputRef?: ElementRef<HTMLInputElement>;
 
   readonly eventId = input.required<string>();
   readonly segmentId = input.required<string>();
@@ -88,6 +96,10 @@ export class PersonPanelComponent {
   readonly troncAssignedExpanded = signal(true);
   readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number } | null>(null);
   readonly highlightedIndex = signal(0);
+  // lib-input's display:contents host hides its inner native <input> from a plain ViewChild
+  // lookup — tracked via (focusin)/(focusout) on a wrapping <span> instead (those bubble past
+  // display:contents, unlike focus/blur).
+  readonly heightFocused = signal(false);
   private hasTypedSinceNodeSelected = false;
 
   /** "N lliures" header count (§5.4), meaning tied to the active tab's area. */
@@ -319,7 +331,7 @@ export class PersonPanelComponent {
       if (nodeId !== null) {
         this.hasTypedSinceNodeSelected = false;
         const focusTimer = setTimeout(() => {
-          if (document.activeElement === this.heightInputRef?.nativeElement) return;
+          if (this.heightFocused()) return;
           this.focusSearch();
         }, 0);
         onCleanup(() => clearTimeout(focusTimer));

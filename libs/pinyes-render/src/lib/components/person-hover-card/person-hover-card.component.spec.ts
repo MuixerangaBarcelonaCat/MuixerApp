@@ -69,12 +69,15 @@ describe('PersonHoverCardComponent', () => {
     });
 
     it('renders the matching tag at full opacity and the rest faded', () => {
-      const badges: HTMLSpanElement[] = Array.from(fixture.nativeElement.querySelectorAll('span.badge'));
+      // lib-badge's own host is display:contents (no box of its own, but still a real DOM node
+      // between the wrapper and the rendered .badge span) — the opacity toggle lives two levels
+      // up, on the wrapping <span>.
+      const badges: HTMLElement[] = Array.from(fixture.nativeElement.querySelectorAll('.badge'));
       const filled = badges.find((b) => b.textContent?.trim() === 'Vents');
       const faded = badges.find((b) => b.textContent?.trim() === 'Agulla');
 
-      expect(filled?.classList.contains('opacity-50')).toBe(false);
-      expect(faded?.classList.contains('opacity-50')).toBe(true);
+      expect(filled?.parentElement?.parentElement?.classList.contains('opacity-50')).toBe(false);
+      expect(faded?.parentElement?.parentElement?.classList.contains('opacity-50')).toBe(true);
     });
   });
 });
