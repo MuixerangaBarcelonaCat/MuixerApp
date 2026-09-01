@@ -39,6 +39,23 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   error: 'btn-error',
 };
 
+// `ghost` modifier: renders `btn-ghost` (no fill, no border) but keeps the chosen `variant`'s
+// role color as the text/icon color — a lighter-weight alternative to `outline` for a coloured
+// action that shouldn't carry a box (e.g. a destructive icon button in a dense card row). Static
+// literals so Tailwind's content scanner keeps them (same rule as VARIANT_CLASSES). `ghost`
+// variant itself contributes nothing extra — it's already colourless.
+const GHOST_TEXT_CLASSES: Record<ButtonVariant, string> = {
+  primary: 'text-primary',
+  secondary: 'text-secondary',
+  accent: 'text-accent',
+  neutral: 'text-neutral',
+  ghost: '',
+  info: 'text-info',
+  success: 'text-success',
+  warning: 'text-warning',
+  error: 'text-error',
+};
+
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   xs: 'btn-xs',
   sm: 'btn-sm',
@@ -80,6 +97,9 @@ export class ButtonComponent {
   disabled = input(false, { transform: booleanAttribute });
   loading = input(false, { transform: booleanAttribute });
   outline = input(false, { transform: booleanAttribute });
+  // See GHOST_TEXT_CLASSES above. Renders `btn-ghost` (no fill/border) while keeping `variant`'s
+  // role colour as the text/icon colour. Takes precedence over `outline` when both are set.
+  ghost = input(false, { transform: booleanAttribute });
   fullWidth = input(false, { transform: booleanAttribute });
   // For lib-button-group: adds DaisyUI's own `.join-item` to this button's real rendered element.
   // lib-button-group can't add that class itself — its own children are opaque `display:contents`
@@ -114,13 +134,17 @@ export class ButtonComponent {
     () => this.joinItem() && this.outlineMode() && !this.active(),
   );
 
+  // `ghost` and `outline` are mutually exclusive — ghost wins (see the input's doc).
+  protected readonly isGhost = computed(() => this.ghost() && !this.joinItem());
+
   protected readonly isOutlined = computed(() => {
+    if (this.isGhost()) return false;
     if (!this.joinItem()) return this.outline();
     return this.outlineMode() ? this.active() : !this.active();
   });
 
   protected readonly resolvedVariantClass = computed(() =>
-    this.isGhostSegment() ? VARIANT_CLASSES.ghost : VARIANT_CLASSES[this.variant()],
+    this.isGhostSegment() || this.isGhost() ? VARIANT_CLASSES.ghost : VARIANT_CLASSES[this.variant()],
   );
 
   protected readonly buttonClass = computed(() =>
@@ -128,6 +152,7 @@ export class ButtonComponent {
       'btn',
       'ds-lift',
       this.resolvedVariantClass(),
+      this.isGhost() ? GHOST_TEXT_CLASSES[this.variant()] : '',
       SIZE_CLASSES[this.size()],
       SHAPE_CLASSES[this.shape()],
       this.isOutlined() ? 'btn-outline' : '',

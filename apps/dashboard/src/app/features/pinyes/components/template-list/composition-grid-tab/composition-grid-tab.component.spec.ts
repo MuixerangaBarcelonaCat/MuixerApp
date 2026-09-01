@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { vi } from 'vitest';
 import { of, Subject } from 'rxjs';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -45,6 +45,10 @@ describe('CompositionGridTabComponent', () => {
       providers: [
         { provide: CompositionService, useValue: compositionService },
         { provide: Router, useValue: routerMock },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: vi.fn().mockReturnValue(null) } } },
+        },
         allLucideIconsProvider,
       ],
     }).compileComponents();
@@ -77,9 +81,15 @@ describe('CompositionGridTabComponent', () => {
     expect(routerMock.navigate).toHaveBeenCalledWith(['/pinyes/compositions/new']);
   });
 
-  it('navigateToEdit navigates to /pinyes/compositions/:id/edit', () => {
-    component.navigateToEdit('comp-uuid-1');
-    expect(routerMock.navigate).toHaveBeenCalledWith(['/pinyes/compositions', 'comp-uuid-1', 'edit']);
+  it('makes the whole card a link to the composition editor, with no separate Edita button', () => {
+    const card = fixture.debugElement.query(By.directive(CardComponent))
+      ?.componentInstance as CardComponent;
+    expect(card.routerLink()).toEqual(['/pinyes/compositions', 'comp-uuid-1', 'edit']);
+    expect(fixture.nativeElement.querySelector('button[aria-label^="Edita"]')).toBeFalsy();
+  });
+
+  it('does not render an "Actualitzat" timestamp on the card', () => {
+    expect(fixture.nativeElement.textContent).not.toContain('Actualitzat');
   });
 
   describe('delete flow', () => {
@@ -201,15 +211,13 @@ describe('CompositionGridTabComponent', () => {
     });
 
     it('gives the preview drawing the same background as the rest of the card', () => {
-      const previewButton: HTMLElement = fixture.nativeElement.querySelector('button[aria-label^="Edita"]');
-      expect(previewButton.className).not.toContain('bg-base-200');
+      const preview: HTMLElement = fixture.nativeElement.querySelector('.h-36');
+      expect(preview.className).not.toContain('bg-base-200');
     });
 
     it('no longer darkens the preview drawing on hover, independent of the rest of the card', () => {
-      const previewButton: HTMLElement | null = fixture.nativeElement.querySelector(
-        'button[aria-label^="Edita"]',
-      );
-      expect(previewButton?.className).not.toContain('brightness');
+      const preview: HTMLElement | null = fixture.nativeElement.querySelector('.h-36');
+      expect(preview?.className).not.toContain('brightness');
     });
 
     it('gives the entry-count badge the primary color', () => {
@@ -229,7 +237,7 @@ describe('CompositionGridTabComponent', () => {
       expect(root.className).not.toContain('mt-4');
     });
 
-    it('keeps Duplica/Elimina icon-only (no visible label) so 3 actions always fit the card', () => {
+    it('keeps Duplica/Elimina icon-only (no visible label) so the actions always fit the card', () => {
       const duplica: HTMLElement = fixture.nativeElement.querySelector(
         'button[aria-label^="Duplica"]',
       );

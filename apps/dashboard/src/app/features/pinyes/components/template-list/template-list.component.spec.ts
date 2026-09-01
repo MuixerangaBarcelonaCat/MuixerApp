@@ -7,7 +7,7 @@ import { of, Subject } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { TemplateListComponent } from './template-list.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { ToastService, ModalComponent, TabsComponent, InputComponent, CardComponent, ButtonComponent, BadgeComponent } from '@muixer/ui';
+import { ToastService, ModalComponent, TabsComponent, InputComponent, CardComponent, ButtonComponent } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { TemplatePreviewDrawingComponent } from '../template-preview-drawing/template-preview-drawing.component';
 
@@ -108,28 +108,25 @@ describe('TemplateListComponent', () => {
     });
   });
 
-  // ── Badge "Figura neta" rendering ──────────────────────────────────────
+  it('does not render a "Figura neta" badge or an "Actualitzat" timestamp', () => {
+    figureService.getAll.mockReturnValue(
+      of({
+        data: [makeTemplate({ id: 'neta-1', name: 'Piló', hasPinya: false })],
+        meta: { total: 1, page: 1, limit: 25 },
+      }),
+    );
+    component.ngOnInit();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.badge-info')).toBeFalsy();
+    expect(fixture.nativeElement.textContent).not.toContain('Figura neta');
+    expect(fixture.nativeElement.textContent).not.toContain('Actualitzat');
+  });
 
-  describe('badge Figura neta', () => {
-    it('renders badge-info "Figura neta" for figures with hasPinya=false', () => {
-      figureService.getAll.mockReturnValue(
-        of({
-          data: [makeTemplate({ id: 'neta-1', name: 'Piló', hasPinya: false })],
-          meta: { total: 1, page: 1, limit: 25 },
-        }),
-      );
-      component.ngOnInit();
-      fixture.detectChanges();
-      const badges = fixture.nativeElement.querySelectorAll('.badge-info');
-      expect(badges.length).toBe(1);
-      expect(badges[0].textContent.trim()).toBe('Figura neta');
-    });
-
-    it('does NOT render badge-info for figures with hasPinya=true', () => {
-      fixture.detectChanges();
-      const badges = fixture.nativeElement.querySelectorAll('.badge-info');
-      expect(badges.length).toBe(0);
-    });
+  it('makes the whole card a link to the figure editor, with no separate Edita button', () => {
+    const card = fixture.debugElement.query(By.directive(CardComponent))
+      ?.componentInstance as CardComponent;
+    expect(card.routerLink()).toEqual(['/pinyes/templates', 'tmpl-1', 'edit']);
+    expect(fixture.nativeElement.querySelector('button[aria-label^="Edita"]')).toBeFalsy();
   });
 
   // ── Preview drawing ────────────────────────────────────────────────────
@@ -234,53 +231,9 @@ describe('TemplateListComponent', () => {
       expect(card.icon()).toBeUndefined();
     });
 
-    it('keeps the node-count and "Figura neta" indicators on one shared row, so a neta card is not taller than a regular one', () => {
-      figureService.getAll.mockReturnValue(
-        of({
-          data: [makeTemplate({ id: 'neta-1', name: 'Piló', hasPinya: false })],
-          meta: { total: 1, page: 1, limit: 25 },
-        }),
-      );
-      component.ngOnInit();
-      fixture.detectChanges();
-
-      // lib-badge's host is display:contents — still a real DOM node, so compare the <lib-badge>
-      // hosts' own parent, not the inner <span>'s (whose parentElement is the host itself).
-      const badges: HTMLElement[] = Array.from(fixture.nativeElement.querySelectorAll('.badge'));
-      const nodesBadgeHost = badges
-        .find((el) => el.textContent?.includes('nodes'))
-        ?.closest('lib-badge') as HTMLElement;
-      const netaBadgeHost: HTMLElement = fixture.nativeElement
-        .querySelector('.badge-info')
-        ?.closest('lib-badge');
-      expect(nodesBadgeHost).toBeTruthy();
-      expect(netaBadgeHost).toBeTruthy();
-      expect(nodesBadgeHost.parentElement).toBe(netaBadgeHost.parentElement);
-    });
-
     it('gives the preview drawing the same background as the rest of the card', () => {
-      const previewButton: HTMLElement = fixture.nativeElement.querySelector('button[aria-label^="Edita"]');
-      expect(previewButton.className).not.toContain('bg-base-200');
-    });
-
-    it('gives "Figura neta" the same badge size as the node-count badge', () => {
-      figureService.getAll.mockReturnValue(
-        of({
-          data: [makeTemplate({ id: 'neta-1', name: 'Piló', hasPinya: false })],
-          meta: { total: 1, page: 1, limit: 25 },
-        }),
-      );
-      component.ngOnInit();
-      fixture.detectChanges();
-
-      const badges = fixture.debugElement.queryAll(By.directive(BadgeComponent));
-      const nodesBadge = badges
-        .map((el) => el.componentInstance as BadgeComponent)
-        .find((b) => b.variant() === 'primary');
-      const netaBadge = badges
-        .map((el) => el.componentInstance as BadgeComponent)
-        .find((b) => b.variant() === 'info');
-      expect(nodesBadge?.size()).toBe(netaBadge?.size());
+      const preview: HTMLElement = fixture.nativeElement.querySelector('.h-36');
+      expect(preview.className).not.toContain('bg-base-200');
     });
 
     it('gives the search field real, visible room instead of shrinking to fit content', () => {
@@ -289,10 +242,8 @@ describe('TemplateListComponent', () => {
     });
 
     it('no longer darkens the preview drawing on hover, independent of the rest of the card', () => {
-      const previewButton: HTMLElement | null = fixture.nativeElement.querySelector(
-        'button[aria-label^="Edita"]',
-      );
-      expect(previewButton?.className).not.toContain('brightness');
+      const preview: HTMLElement | null = fixture.nativeElement.querySelector('.h-36');
+      expect(preview?.className).not.toContain('brightness');
     });
   });
 
@@ -345,7 +296,7 @@ describe('TemplateListComponent', () => {
   });
 
   describe('card action row width', () => {
-    it('keeps Duplica/Elimina icon-only (no visible label) so 3 actions always fit the card', () => {
+    it('keeps Duplica/Elimina icon-only (no visible label) so the actions always fit the card', () => {
       const duplica: HTMLElement = fixture.nativeElement.querySelector(
         'button[aria-label^="Duplica"]',
       );
@@ -354,14 +305,6 @@ describe('TemplateListComponent', () => {
       );
       expect(duplica.textContent?.trim()).toBe('');
       expect(elimina.textContent?.trim()).toBe('');
-    });
-
-    it('keeps Edita\'s visible text label always, even at the narrowest card width', () => {
-      const edits = fixture.nativeElement.querySelectorAll('button[aria-label^="Edita"]');
-      const editAction = Array.from(edits).find((el) =>
-        (el as HTMLElement).textContent?.includes('Edita'),
-      ) as HTMLElement;
-      expect(editAction).toBeTruthy();
     });
   });
 });

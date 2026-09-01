@@ -44,57 +44,49 @@
     >
       @for (composition of compositions(); track composition.id) {
         <li>
-          <lib-card sash="title" [title]="composition.name">
+          <lib-card
+            sash="title"
+            [title]="composition.name"
+            [routerLink]="['/pinyes/compositions', composition.id, 'edit']"
+          >
             <div class="flex flex-col gap-3">
-              <button
-                type="button"
-                class="w-full h-24 rounded-xl relative cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
-                (click)="navigateToEdit(composition.id)"
-                [attr.aria-label]="'Edita ' + composition.name"
-              >
+              <div class="w-full h-36 rounded-xl relative">
                 <app-template-preview-drawing
                   class="absolute inset-0"
                   [profiles]="composition.figureProfiles"
                   [seedKey]="composition.name"
                 />
-              </button>
+              </div>
 
-              <lib-badge variant="primary" size="sm">
-                {{ composition.entryCount }} {{ composition.entryCount === 1 ? 'figura' : 'figures' }}
-              </lib-badge>
+              <div class="flex items-center justify-between gap-1.5">
+                <lib-badge variant="primary" size="sm">
+                  {{ composition.entryCount }} {{ composition.entryCount === 1 ? 'figura' : 'figures' }}
+                </lib-badge>
 
-              <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(composition.updatedAt) }}</p>
-
-              <div class="flex justify-end gap-1">
-                <lib-button
-                  variant="ghost"
-                  shape="square"
-                  size="sm"
-                  [loading]="duplicatingId() === composition.id"
-                  (clicked)="duplicate(composition.id)"
-                  [ariaLabel]="'Duplica ' + composition.name"
-                >
-                  <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
-                </lib-button>
-                <lib-button
-                  variant="error"
-                  outline
-                  shape="square"
-                  size="sm"
-                  (clicked)="requestDelete(composition.id)"
-                  [ariaLabel]="'Elimina ' + composition.name"
-                >
-                  <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
-                </lib-button>
-                <lib-button
-                  variant="primary"
-                  size="sm"
-                  (clicked)="navigateToEdit(composition.id)"
-                  [ariaLabel]="'Edita ' + composition.name"
-                >
-                  <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
-                  Edita
-                </lib-button>
+                <div class="flex gap-1">
+                  <lib-button
+                    variant="ghost"
+                    shape="square"
+                    size="sm"
+                    [loading]="duplicatingId() === composition.id"
+                    (clicked)="duplicate(composition.id)"
+                    (click)="$event.preventDefault(); $event.stopPropagation()"
+                    [ariaLabel]="'Duplica ' + composition.name"
+                  >
+                    <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
+                  </lib-button>
+                  <lib-button
+                    variant="error"
+                    ghost
+                    shape="square"
+                    size="sm"
+                    (clicked)="requestDelete(composition.id)"
+                    (click)="$event.preventDefault(); $event.stopPropagation()"
+                    [ariaLabel]="'Elimina ' + composition.name"
+                  >
+                    <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
+                  </lib-button>
+                </div>
               </div>
             </div>
           </lib-card>

@@ -69,67 +69,52 @@
       >
         @for (template of templates(); track template.id) {
           <li>
-            <lib-card sash="title" [title]="template.name">
+            <lib-card
+              sash="title"
+              [title]="template.name"
+              [routerLink]="['/pinyes/templates', template.id, 'edit']"
+            >
               <div class="flex flex-col gap-3">
-                <button
-                  type="button"
-                  class="w-full h-24 rounded-xl relative cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
-                  (click)="navigateToEdit(template.id)"
-                  [attr.aria-label]="'Edita ' + template.name"
-                >
+                <div class="w-full h-36 rounded-xl relative">
                   <app-template-preview-drawing
                     class="absolute inset-0"
                     [profiles]="[template.troncProfile]"
                     [seedKey]="template.name"
                     [hasPinya]="template.hasPinya"
                   />
-                </button>
-
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <lib-badge variant="primary" size="sm">{{ template.nodeCount }} nodes</lib-badge>
-                  @if (!template.hasPinya) {
-                    <lib-badge variant="info" size="sm">
-                      <lucide-icon [name]="ICON_FIGURA_NETA" [size]="12" aria-hidden="true" />Figura neta
-                    </lib-badge>
-                  }
                 </div>
 
                 @if (template.description) {
                   <p class="text-xs text-base-content/60 line-clamp-2">{{ template.description }}</p>
                 }
 
-                <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(template.updatedAt) }}</p>
+                <div class="flex items-center justify-between gap-1.5">
+                  <lib-badge variant="primary" size="sm">{{ template.nodeCount }} nodes</lib-badge>
 
-                <div class="flex justify-end gap-1">
-                  <lib-button
-                    variant="ghost"
-                    shape="square"
-                    size="sm"
-                    [loading]="duplicatingId() === template.id"
-                    (clicked)="duplicate(template.id)"
-                    [ariaLabel]="'Duplica ' + template.name"
-                  >
-                    <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
-                  </lib-button>
-                  <lib-button
-                    variant="error"
-                    outline
-                    shape="square"
-                    size="sm"
-                    (clicked)="requestDelete(template.id)"
-                    [ariaLabel]="'Elimina ' + template.name"
-                  >
-                    <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
-                  </lib-button>
-                  <lib-button
-                    variant="primary"
-                    size="sm"
-                    (clicked)="navigateToEdit(template.id)"
-                    [ariaLabel]="'Edita ' + template.name"
-                  >
-                    <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
-                    Edita
-                  </lib-button>
+                  <div class="flex gap-1">
+                    <lib-button
+                      variant="ghost"
+                      shape="square"
+                      size="sm"
+                      [loading]="duplicatingId() === template.id"
+                      (clicked)="duplicate(template.id)"
+                      (click)="$event.preventDefault(); $event.stopPropagation()"
+                      [ariaLabel]="'Duplica ' + template.name"
+                    >
+                      <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
+                    </lib-button>
+                    <lib-button
+                      variant="error"
+                      ghost
+                      shape="square"
+                      size="sm"
+                      (clicked)="requestDelete(template.id)"
+                      (click)="$event.preventDefault(); $event.stopPropagation()"
+                      [ariaLabel]="'Elimina ' + template.name"
+                    >
+                      <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
+                    </lib-button>
+                  </div>
                 </div>
               </div>
             </lib-card>

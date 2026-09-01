@@ -10,7 +10,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search, UserCheck } from 'lucide-angular';
-import { ICON_FIGURA_NETA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, ModalComponent, TabsComponent, TabDef, EmptyStateComponent, ToastService } from '@muixer/ui';
@@ -78,7 +78,6 @@ const TAB_DEFS: TabDef[] = [
 })
 export class TemplateListComponent implements OnInit {
   readonly DOMAIN_ICONS = DOMAIN_ICONS;
-  readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
   readonly SearchIcon = Search;
   readonly tabDefs = TAB_DEFS;
   readonly pinyesOnboardingSteps = PINYES_ONBOARDING_STEPS;
@@ -143,10 +142,6 @@ export class TemplateListComponent implements OnInit {
     this.router.navigate(['/pinyes/templates/new']);
   }
 
-  navigateToEdit(id: string) {
-    this.router.navigate(['/pinyes/templates', id, 'edit']);
-  }
-
   requestDelete(id: string) {
     this.confirmDeleteId.set(id);
   }
@@ -185,11 +180,6 @@ export class TemplateListComponent implements OnInit {
       },
       error: () => this.duplicatingId.set(null),
     });
-  }
-
-  formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   private loadTemplates() {

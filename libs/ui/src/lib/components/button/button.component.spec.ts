@@ -74,6 +74,33 @@ describe('ButtonComponent', () => {
     });
   });
 
+  describe('ghost — btn-ghost box with the variant\'s role colour kept as text', () => {
+    it('adds no ghost class by default', () => {
+      const className = buttonEl().nativeElement.className;
+      expect(className).not.toContain('btn-ghost');
+      expect(className).not.toContain('text-error');
+    });
+
+    it('renders btn-ghost plus the variant\'s text colour, and no fill/outline', () => {
+      fixture.componentRef.setInput('variant', 'error');
+      fixture.componentRef.setInput('ghost', true);
+      fixture.detectChanges();
+      const className = buttonEl().nativeElement.className;
+      expect(className).toContain('btn-ghost');
+      expect(className).toContain('text-error');
+      expect(className).not.toContain('btn-error');
+      expect(className).not.toContain('btn-outline');
+    });
+
+    it('wins over outline when both are set', () => {
+      fixture.componentRef.setInput('variant', 'error');
+      fixture.componentRef.setInput('ghost', true);
+      fixture.componentRef.setInput('outline', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).not.toContain('btn-outline');
+    });
+  });
+
   describe('joinItem/active — lib-button-group\'s own markers on the real rendered element', () => {
     it('adds no join-item class by default', () => {
       expect(buttonEl().nativeElement.className).not.toContain('join-item');

@@ -73,10 +73,6 @@ export class CompositionGridTabComponent implements OnInit {
     this.router.navigate(['/pinyes/compositions/new']);
   }
 
-  navigateToEdit(id: string): void {
-    this.router.navigate(['/pinyes/compositions', id, 'edit']);
-  }
-
   requestDelete(id: string): void {
     this.confirmDeleteId.set(id);
   }
@@ -109,11 +105,6 @@ export class CompositionGridTabComponent implements OnInit {
       },
       error: () => this.duplicatingId.set(null),
     });
-  }
-
-  formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   private loadCompositions(): void {
