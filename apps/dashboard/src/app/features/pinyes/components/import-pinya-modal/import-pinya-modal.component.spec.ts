@@ -1,5 +1,5 @@
 import { FigureHistoryEntry, BulkImportResult } from '@muixer/pinyes-render';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, ImportScope } from '@muixer/shared';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of, throwError } from 'rxjs';
@@ -109,10 +109,10 @@ describe('ImportPinyaModalComponent', () => {
       assignmentService.bulkImport.mockReturnValue(of(result));
       const entry = makeHistoryEntry();
       component.selectEntry(entry);
-      component.doImport();
+      component.doImport(ImportScope.ALL);
       expect(assignmentService.bulkImport).toHaveBeenCalledWith(
         INSTANCE_ID,
-        { sourceInstanceId: SOURCE_INSTANCE_ID },
+        { sourceInstanceId: SOURCE_INSTANCE_ID, scope: ImportScope.ALL },
       );
     });
   });
@@ -129,7 +129,7 @@ describe('ImportPinyaModalComponent', () => {
       const result: BulkImportResult = { created: [{}] as any, conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
-      component.doImport();
+      component.doImport(ImportScope.ALL);
       fixture.detectChanges();
       expect(component.lastResult()).toEqual(result);
     });
@@ -143,7 +143,7 @@ describe('ImportPinyaModalComponent', () => {
       };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
-      component.doImport();
+      component.doImport(ImportScope.ALL);
       fixture.detectChanges();
       expect(component.lastResult()?.conflicts).toHaveLength(1);
     });
@@ -152,15 +152,60 @@ describe('ImportPinyaModalComponent', () => {
       const result: BulkImportResult = { created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
-      component.doImport();
+      component.doImport(ImportScope.ALL);
       expect(importCompletedSpy).toHaveBeenCalledWith(result);
     });
 
     it('sets error signal on failure', () => {
       assignmentService.bulkImport.mockReturnValue(throwError(() => new Error('network')));
       component.selectEntry(makeHistoryEntry());
-      component.doImport();
+      component.doImport(ImportScope.ALL);
       expect(component.error()).not.toBeNull();
+    });
+  });
+
+  // ── scoped import ──────────────────────────────────────────────────────────
+
+  describe('scope', () => {
+    const entryWithMixedZones = (): FigureHistoryEntry => ({
+      eventId: 'e1',
+      eventTitle: 'Assaig',
+      eventDate: '2026-05-01',
+      eventType: 'REHEARSAL',
+      segmentId: 'seg-1',
+      segmentName: 'Bloc 1',
+      instanceId: 'inst-1',
+      snapshotted: true,
+      assignmentCount: 3,
+      totalNodes: 5,
+      assignments: [
+        { nodeId: 'n1', nodeLabel: 'Segones', zone: FigureZone.PINYA, personId: 'p1', personAlias: 'Guille' },
+        { nodeId: 'n2', nodeLabel: 'Base 2', zone: FigureZone.BASE, personId: 'p2', personAlias: 'Amparo' },
+        { nodeId: 'n3', nodeLabel: 'Tronc 1', zone: FigureZone.TRONC, personId: 'p3', personAlias: 'Marc' },
+      ],
+    });
+
+    it('counts assignments per scope from the selected entry', () => {
+      component.selectEntry(entryWithMixedZones());
+      fixture.detectChanges();
+
+      expect(component.countForScope(ImportScope.PINYA)).toBe(1);
+      expect(component.countForScope(ImportScope.TRONC)).toBe(2); // BASE + TRONC
+      expect(component.countForScope(ImportScope.ALL)).toBe(3);
+    });
+
+    it('calls bulkImport with the chosen scope', () => {
+      component.selectEntry(entryWithMixedZones());
+      assignmentService.bulkImport.mockReturnValue(
+        of({ created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} }),
+      );
+
+      component.doImport(ImportScope.TRONC);
+
+      expect(assignmentService.bulkImport).toHaveBeenCalledWith(
+        component.currentInstanceId(),
+        { sourceInstanceId: 'inst-1', scope: ImportScope.TRONC },
+      );
     });
   });
 });

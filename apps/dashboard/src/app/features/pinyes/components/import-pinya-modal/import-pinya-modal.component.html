@@ -77,6 +77,36 @@
               }
             </div>
           }
+
+          @if (selectedEntry() && !lastResult()) {
+            <div class="space-y-1 mb-4">
+              @for (row of [
+                { scope: ImportScope.PINYA, label: 'Pinya' },
+                { scope: ImportScope.TRONC, label: 'Tronc' },
+                { scope: ImportScope.ALL, label: 'Figura' }
+              ]; track row.scope) {
+                <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-base-300">
+                  <div class="text-sm">
+                    <span class="font-medium">{{ row.label }}</span>
+                    <span class="text-xs text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-xs gap-1"
+                    [disabled]="countForScope(row.scope) === 0 || importing()"
+                    (click)="doImport(row.scope)"
+                  >
+                    @if (importing()) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    } @else {
+                      <i-lucide [img]="Import" class="size-3" />
+                    }
+                    Importa
+                  </button>
+                </div>
+              }
+            </div>
+          }
         }
 
         @if (lastResult()) {
@@ -106,21 +136,6 @@
         <button type="button" class="btn btn-ghost btn-sm" (click)="close()">
           Tancar
         </button>
-        @if (!lastResult()) {
-          <button
-            type="button"
-            class="btn btn-primary btn-sm gap-1"
-            [disabled]="!selectedEntry() || importing()"
-            (click)="doImport()"
-          >
-            @if (importing()) {
-              <span class="loading loading-spinner loading-xs"></span>
-            } @else {
-              <i-lucide [img]="Import" class="size-3" />
-            }
-            Importa
-          </button>
-        }
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="close()" aria-label="Tancar"></button>

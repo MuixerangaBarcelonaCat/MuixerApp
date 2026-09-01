@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { LucideAngularModule, Import, X } from 'lucide-angular';
+import { ImportScope, zonesForScope } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 
 @Component({
@@ -67,7 +68,18 @@ export class ImportPinyaModalComponent implements OnChanges {
     this.lastResult.set(null);
   }
 
-  doImport(): void {
+  readonly ImportScope = ImportScope;
+
+  countForScope(scope: ImportScope): number {
+    const entry = this.selectedEntry();
+    if (!entry) return 0;
+    const zones = zonesForScope(scope);
+    return zones
+      ? entry.assignments.filter((a) => zones.has(a.zone)).length
+      : entry.assignments.length;
+  }
+
+  doImport(scope: ImportScope): void {
     const entry = this.selectedEntry();
     if (!entry) return;
 
@@ -75,7 +87,7 @@ export class ImportPinyaModalComponent implements OnChanges {
     this.error.set(null);
 
     this.assignmentService
-      .bulkImport(this.currentInstanceId(), { sourceInstanceId: entry.instanceId })
+      .bulkImport(this.currentInstanceId(), { sourceInstanceId: entry.instanceId, scope })
       .subscribe({
         next: (result) => {
           this.importing.set(false);
