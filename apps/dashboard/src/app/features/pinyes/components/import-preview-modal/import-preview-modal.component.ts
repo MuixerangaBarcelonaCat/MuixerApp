@@ -11,6 +11,7 @@ import {
 import { LucideAngularModule, X } from 'lucide-angular';
 import { FigureZone, ImportScope } from '@muixer/shared';
 import {
+  AssignmentDetail,
   PinyaProjectionComponent,
   ProjectionSegmentData,
   TroncNodeItem,
@@ -82,6 +83,12 @@ export class ImportPreviewModalComponent implements OnChanges {
           (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
         ) as TroncNodeItem[])
       : [];
+  }
+
+  /** Assignments of the previewed instance, so `lib-tronc-view` shows who's assigned, not just node positions. */
+  assignmentsFor(): AssignmentDetail[] {
+    const inst = this.projectionData()?.instances.find((i) => i.id === this.instanceId());
+    return inst ? inst.assignments : [];
   }
 
   close(): void {

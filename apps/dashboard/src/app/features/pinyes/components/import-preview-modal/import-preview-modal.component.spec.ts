@@ -23,6 +23,7 @@ class TroncViewStub {
   readonly troncNodes = input<unknown[]>([]);
   readonly baseNodes = input<unknown[]>([]);
   readonly directionNodes = input<unknown[]>([]);
+  readonly assignments = input<unknown[]>([]);
   readonly mode = input<string>('assignment');
 }
 
@@ -115,15 +116,20 @@ describe('ImportPreviewModalComponent', () => {
     const xicallaDirNode = { id: 'n-xicdir', zone: FigureZone.XICALLA_DIRECTION };
     const decorationNode = { id: 'n-deco', zone: FigureZone.DECORATION };
 
+    const assignment = { node: { id: 'n-tronc' }, person: { id: 'p1', alias: 'Marc' } };
+    const otherAssignment = { node: { id: 'n-other-tronc' }, person: { id: 'p2', alias: 'Other' } };
+
     const data = projectionData();
     data.instances[0].nodes = [
       troncNode, baseNode, pinyaNode, figureDirNode, xicallaDirNode, decorationNode,
     ] as never;
-    // A second, non-matched instance whose nodes must never leak through.
+    data.instances[0].assignments = [assignment] as never;
+    // A second, non-matched instance whose nodes/assignments must never leak through.
     data.instances.push({
       ...data.instances[0],
       id: 'inst-2',
       nodes: [{ id: 'n-other-tronc', zone: FigureZone.TRONC }] as never,
+      assignments: [otherAssignment] as never,
     });
     projectionServiceMock.getProjection.mockReturnValue(of(data));
 
@@ -135,6 +141,7 @@ describe('ImportPreviewModalComponent', () => {
     expect(stub.troncNodes()).toEqual([troncNode]);
     expect(stub.baseNodes()).toEqual([baseNode]);
     expect(stub.directionNodes()).toEqual([figureDirNode, xicallaDirNode]);
+    expect(stub.assignments()).toEqual([assignment]);
   });
 
   it('emits closed when close() is called', () => {
