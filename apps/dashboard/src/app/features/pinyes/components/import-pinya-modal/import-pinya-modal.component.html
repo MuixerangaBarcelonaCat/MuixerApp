@@ -90,19 +90,29 @@
                     <span class="font-medium">{{ row.label }}</span>
                     <span class="text-xs text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
                   </div>
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-xs gap-1"
-                    [disabled]="countForScope(row.scope) === 0 || importing()"
-                    (click)="doImport(row.scope)"
-                  >
-                    @if (importing()) {
-                      <span class="loading loading-spinner loading-xs"></span>
-                    } @else {
-                      <i-lucide [img]="Import" class="size-3" />
-                    }
-                    Importa
-                  </button>
+                  <div class="flex items-center gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs gap-1"
+                      [disabled]="countForScope(row.scope) === 0"
+                      (click)="openPreview(row.scope)"
+                    >
+                      Previsualitza
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-xs gap-1"
+                      [disabled]="countForScope(row.scope) === 0 || importing()"
+                      (click)="doImport(row.scope)"
+                    >
+                      @if (importing()) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                      } @else {
+                        <i-lucide [img]="Import" class="size-3" />
+                      }
+                      Importa
+                    </button>
+                  </div>
                 </div>
               }
             </div>
@@ -140,4 +150,16 @@
     </div>
     <button type="button" class="modal-backdrop" (click)="close()" aria-label="Tancar"></button>
   </dialog>
+}
+
+@if (previewScope(); as scope) {
+  <app-import-preview-modal
+    [eventId]="selectedEntry()!.eventId"
+    [segmentId]="selectedEntry()!.segmentId"
+    [instanceId]="selectedEntry()!.instanceId"
+    [scope]="scope"
+    [eventTitle]="selectedEntry()!.eventTitle"
+    [open]="true"
+    (closed)="closePreview()"
+  />
 }

@@ -207,5 +207,22 @@ describe('ImportPinyaModalComponent', () => {
         { sourceInstanceId: 'inst-1', scope: ImportScope.TRONC },
       );
     });
+
+    it('opens the preview modal for the chosen scope', () => {
+      component.selectEntry(entryWithMixedZones());
+
+      component.openPreview(ImportScope.TRONC);
+
+      expect(component.previewScope()).toBe(ImportScope.TRONC);
+    });
+
+    it('closes the preview modal', () => {
+      component.selectEntry(entryWithMixedZones());
+      component.openPreview(ImportScope.PINYA);
+
+      component.closePreview();
+
+      expect(component.previewScope()).toBeNull();
+    });
   });
 });

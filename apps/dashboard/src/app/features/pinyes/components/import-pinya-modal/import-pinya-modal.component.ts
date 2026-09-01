@@ -13,12 +13,13 @@ import { SlicePipe } from '@angular/common';
 import { LucideAngularModule, Import, X } from 'lucide-angular';
 import { ImportScope, zonesForScope } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { ImportPreviewModalComponent } from '../import-preview-modal/import-preview-modal.component';
 
 @Component({
   selector: 'app-import-pinya-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, SlicePipe],
+  imports: [LucideAngularModule, SlicePipe, ImportPreviewModalComponent],
   templateUrl: './import-pinya-modal.component.html',
 })
 export class ImportPinyaModalComponent implements OnChanges {
@@ -40,6 +41,7 @@ export class ImportPinyaModalComponent implements OnChanges {
   readonly selectedEntry = signal<FigureHistoryEntry | null>(null);
   readonly lastResult = signal<BulkImportResult | null>(null);
   readonly error = signal<string | null>(null);
+  readonly previewScope = signal<ImportScope | null>(null);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && this.open()) {
@@ -99,6 +101,15 @@ export class ImportPinyaModalComponent implements OnChanges {
           this.error.set('Error en importar les assignacions. Torna-ho a intentar.');
         },
       });
+  }
+
+  openPreview(scope: ImportScope): void {
+    if (!this.selectedEntry()) return;
+    this.previewScope.set(scope);
+  }
+
+  closePreview(): void {
+    this.previewScope.set(null);
   }
 
   close(): void {
