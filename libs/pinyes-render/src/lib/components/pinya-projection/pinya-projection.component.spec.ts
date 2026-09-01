@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, ImportScope, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projection.component';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import {
@@ -638,6 +638,31 @@ describe('PinyaProjectionComponent', () => {
 
       const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
       expect(marker.componentInstance.stageTransform()).toEqual({ x: 10, y: 20, scaleX: 2, scaleY: 2 });
+    });
+  });
+
+  // ── scope (import preview) ──────────────────────────────────────────────────
+
+  describe('scope', () => {
+    const dataWithTroncPanel = () => {
+      const node = makeNode({ id: 't1', zone: FigureZone.TRONC, z: 1, x: 0, width: 1 });
+      const inst = makeInstance([node], ['t1'], { id: 'i1' });
+      return makeSegmentData([inst]);
+    };
+
+    it('hides tronc panels when scope is PINYA', () => {
+      fixture.componentRef.setInput('data', dataWithTroncPanel());
+      fixture.componentRef.setInput('scope', ImportScope.PINYA);
+      fixture.detectChanges();
+
+      expect(component.distributionTroncPanels()).toEqual([]);
+    });
+
+    it('still shows tronc panels when scope is not set', () => {
+      fixture.componentRef.setInput('data', dataWithTroncPanel());
+      fixture.detectChanges();
+
+      expect(component.distributionTroncPanels().length).toBeGreaterThan(0);
     });
   });
 
