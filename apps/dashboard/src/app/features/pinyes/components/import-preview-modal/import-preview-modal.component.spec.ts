@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { Component, input } from '@angular/core';
-import { ImportScope } from '@muixer/shared';
+import { FigureZone, ImportScope } from '@muixer/shared';
 import { PinyaProjectionComponent, TroncViewComponent } from '@muixer/pinyes-render';
 import { ImportPreviewModalComponent } from './import-preview-modal.component';
 import { ProjectionService } from '../../services/projection.service';
@@ -82,6 +83,58 @@ describe('ImportPreviewModalComponent', () => {
 
     expect(component.error()).toBeTruthy();
     expect(component.loading()).toBe(false);
+  });
+
+  it('renders lib-pinya-projection (not app-tronc-view) for PINYA scope', () => {
+    projectionServiceMock.getProjection.mockReturnValue(of(projectionData()));
+
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.directive(PinyaProjectionStub))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TroncViewStub))).toBeFalsy();
+  });
+
+  it('renders app-tronc-view (not lib-pinya-projection) for TRONC scope', () => {
+    fixture.componentRef.setInput('scope', ImportScope.TRONC);
+    projectionServiceMock.getProjection.mockReturnValue(of(projectionData()));
+
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.directive(TroncViewStub))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(PinyaProjectionStub))).toBeFalsy();
+  });
+
+  it('passes only correctly-zoned nodes of the matched instance to app-tronc-view', () => {
+    fixture.componentRef.setInput('scope', ImportScope.TRONC);
+    const troncNode = { id: 'n-tronc', zone: FigureZone.TRONC };
+    const baseNode = { id: 'n-base', zone: FigureZone.BASE };
+    const pinyaNode = { id: 'n-pinya', zone: FigureZone.PINYA };
+    const figureDirNode = { id: 'n-figdir', zone: FigureZone.FIGURE_DIRECTION };
+    const xicallaDirNode = { id: 'n-xicdir', zone: FigureZone.XICALLA_DIRECTION };
+    const decorationNode = { id: 'n-deco', zone: FigureZone.DECORATION };
+
+    const data = projectionData();
+    data.instances[0].nodes = [
+      troncNode, baseNode, pinyaNode, figureDirNode, xicallaDirNode, decorationNode,
+    ] as never;
+    // A second, non-matched instance whose nodes must never leak through.
+    data.instances.push({
+      ...data.instances[0],
+      id: 'inst-2',
+      nodes: [{ id: 'n-other-tronc', zone: FigureZone.TRONC }] as never,
+    });
+    projectionServiceMock.getProjection.mockReturnValue(of(data));
+
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+
+    const stub = fixture.debugElement.query(By.directive(TroncViewStub))
+      .componentInstance as TroncViewStub;
+    expect(stub.troncNodes()).toEqual([troncNode]);
+    expect(stub.baseNodes()).toEqual([baseNode]);
+    expect(stub.directionNodes()).toEqual([figureDirNode, xicallaDirNode]);
   });
 
   it('emits closed when close() is called', () => {
