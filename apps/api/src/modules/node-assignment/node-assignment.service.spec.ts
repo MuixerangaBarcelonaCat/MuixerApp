@@ -2562,6 +2562,45 @@ describe('NodeAssignmentService', () => {
       // hardcoded generic Catalan string that used to be pushed regardless.
       expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
     });
+
+    it('still clones ad-hoc nodes when scope restricts the regular loop to PINYA (regression: scope must never filter ad-hoc cloning)', async () => {
+      const adHocSourceNode = makeInstanceNode({
+        id: 'src-adhoc-1',
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Extra cordó',
+      });
+      const troncNode = makeInstanceNode({ id: 'target-tronc', zone: FigureZone.TRONC, renglaId: null, renglaPosition: null, sourceNodeId: 'src-tronc-fn' });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode(), troncNode] });
+
+      const sourceTroncNode = makeInstanceNode({ id: 'src-tronc', zone: FigureZone.TRONC, sourceNodeId: 'src-tronc-fn' });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), sourceTroncNode, adHocSourceNode],
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      // Only a TRONC-zone assignment on the source — the PINYA scope should
+      // exclude it from the regular loop, but the ad-hoc node must still clone.
+      mockAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({ instanceNode: sourceTroncNode as any, person: makePerson('p-tronc') as any }),
+      ]);
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const cloned = { ...adHocSourceNode, id: 'cloned-adhoc-1' };
+      mockInstanceNodeRepo.create.mockReturnValue(cloned);
+      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+
+      const result = await service.bulkImport(INSTANCE_ID, {
+        sourceInstanceId: 'source-uuid',
+        scope: ImportScope.PINYA,
+      });
+
+      expect(result.clonedAdHocNodes).toBe(1);
+      expect(result.created).toHaveLength(0);
+    });
   });
 
   describe('getInstanceNodes — isAdHoc in response', () => {
