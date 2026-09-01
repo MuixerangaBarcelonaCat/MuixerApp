@@ -16,13 +16,14 @@ import { LucideAngularModule } from 'lucide-angular';
 import {
   DECORATION_NODE_PRESETS,
   NodePreset,
+  NodeShape,
   PINYA_NODE_PRESETS,
 } from '@muixer/shared';
 import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService, TextareaComponent } from '@muixer/ui';
+import { ToastService, TextareaComponent, ButtonComponent, ButtonGroupComponent, ModalComponent } from '@muixer/ui';
 
 interface AdHocNodeSnapshot {
   zone: string;
@@ -47,7 +48,16 @@ interface AdHocNodeSnapshot {
   selector: 'app-nodes-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, AdHocNodePropertiesComponent, TextareaComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    FigureCanvasComponent,
+    AdHocNodePropertiesComponent,
+    TextareaComponent,
+    ButtonComponent,
+    ButtonGroupComponent,
+    ModalComponent,
+  ],
   templateUrl: './nodes-tab.component.html',
 })
 export class NodesTabComponent implements OnInit {
@@ -63,6 +73,7 @@ export class NodesTabComponent implements OnInit {
 
   readonly adHocPresets = PINYA_NODE_PRESETS;
   readonly decorationPresets = DECORATION_NODE_PRESETS;
+  readonly NodeShape = NodeShape;
 
   // Content equality avoids re-rendering the canvas (and breaking dblclick) on re-selection.
   readonly selectedRef = signal<SegmentNodeRef | null>(null, {

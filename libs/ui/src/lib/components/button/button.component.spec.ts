@@ -263,6 +263,16 @@ describe('ButtonComponent', () => {
     expect(buttonEl().nativeElement.getAttribute('aria-pressed')).toBe('false');
   });
 
+  it('does not set aria-controls by default', () => {
+    expect(buttonEl().nativeElement.hasAttribute('aria-controls')).toBe(false);
+  });
+
+  it('sets aria-controls when provided, for a disclosure toggle pointing at the region it expands', () => {
+    fixture.componentRef.setInput('ariaControls', 'segment-conflict-panel-body');
+    fixture.detectChanges();
+    expect(buttonEl().nativeElement.getAttribute('aria-controls')).toBe('segment-conflict-panel-body');
+  });
+
   it('defaults the native button type to "button", never a form submit', () => {
     expect(buttonEl().nativeElement.type).toBe('button');
   });
@@ -348,6 +358,20 @@ describe('ButtonComponent', () => {
       buttonEl().nativeElement.click();
 
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('autofocus', () => {
+    it('does not steal focus by default', () => {
+      expect(document.activeElement).not.toBe(buttonEl().nativeElement);
+    });
+
+    it('focuses the native button when autofocus is set', () => {
+      const other = TestBed.createComponent(ButtonComponent);
+      other.componentRef.setInput('autofocus', true);
+      other.detectChanges();
+      const otherButton = other.debugElement.query(By.css('button')).nativeElement;
+      expect(document.activeElement).toBe(otherButton);
     });
   });
 

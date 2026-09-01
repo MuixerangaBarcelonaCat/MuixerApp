@@ -7,32 +7,36 @@
   <div class="flex items-center justify-between px-3 py-2 border-b border-base-200">
     <h3 class="text-sm font-semibold">Propietats del node</h3>
     <div class="flex items-center gap-1">
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square"
-        (click)="onDuplicate()"
-        aria-label="Duplica el node manual"
+      <lib-button
+        variant="ghost"
+        size="xs"
+        shape="square"
+        ariaLabel="Duplica el node manual"
         title="Duplica (Ctrl+D)"
+        (clicked)="onDuplicate()"
       >
         <i-lucide [img]="Copy" class="size-3.5" />
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square text-error"
-        (click)="onDelete()"
-        aria-label="Elimina el node manual"
+      </lib-button>
+      <lib-button
+        variant="error"
+        ghost
+        size="xs"
+        shape="square"
+        ariaLabel="Elimina el node manual"
         title="Elimina"
+        (clicked)="onDelete()"
       >
         <i-lucide [img]="Trash2" class="size-3.5" />
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square"
-        (click)="close()"
-        aria-label="Tancar propietats"
+      </lib-button>
+      <lib-button
+        variant="ghost"
+        size="xs"
+        shape="square"
+        ariaLabel="Tancar propietats"
+        (clicked)="close()"
       >
         <i-lucide [img]="X" class="size-3.5" />
-      </button>
+      </lib-button>
     </div>
   </div>
 
@@ -44,31 +48,35 @@
         @if (heightDisplay(); as hd) {
           <span class="text-base-content/50 ml-1">{{ hd }}</span>
         }
-        <span class="badge badge-xs ml-1" [class]="attendanceBadgeClass()">
-          {{ attendanceLabel() }}
+        <span class="ml-1">
+          <lib-badge [variant]="attendanceBadgeVariant()" size="xs">{{ attendanceLabel() }}</lib-badge>
         </span>
       </div>
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square text-error shrink-0"
-        (click)="unassign.emit(a)"
-        aria-label="Desassigna persona"
-        title="Desassigna"
-      >
-        <i-lucide [img]="UserMinus" class="size-3" />
-      </button>
+      <!-- shrink-0 goes on this wrapper, not <lib-button> itself: its display:contents host
+           renders no box of its own, so a layout class placed there is inert. -->
+      <span class="shrink-0">
+        <lib-button
+          variant="error"
+          ghost
+          size="xs"
+          shape="square"
+          ariaLabel="Desassigna persona"
+          title="Desassigna"
+          (clicked)="unassign.emit(a)"
+        >
+          <i-lucide [img]="UserMinus" class="size-3" />
+        </lib-button>
+      </span>
     </div>
   }
 
   <div class="p-3 space-y-3">
     <!-- Label -->
-    <div class="form-control">
-      <label class="label pb-1" [for]="'adhoc-label-' + node().id">
-        <span class="label-text text-xs font-medium">Etiqueta</span>
-      </label>
+    <div>
       @if (isDecoration()) {
         <lib-textarea
           [id]="'adhoc-label-' + node().id"
+          label="Etiqueta"
           size="sm"
           [resize]="false"
           [rows]="3"
@@ -78,26 +86,24 @@
           [maxLength]="500"
         />
       } @else {
-        <input
-          type="text"
+        <lib-input
           [id]="'adhoc-label-' + node().id"
-          class="input input-bordered input-sm"
+          label="Etiqueta"
+          size="sm"
           [ngModel]="labelDisplay()"
           (ngModelChange)="onLabelPreview($event)"
-          (blur)="onLabelCommit()"
-          maxlength="50"
+          (blurred)="onLabelCommit()"
+          [maxLength]="50"
         />
       }
     </div>
 
     <!-- Shape -->
-    <div class="form-control">
-      <label class="label pb-1" [for]="'adhoc-shape-' + node().id">
-        <span class="label-text text-xs font-medium">Forma</span>
-      </label>
-      <select
+    <div>
+      <lib-select
         [id]="'adhoc-shape-' + node().id"
-        class="select select-bordered select-sm"
+        label="Forma"
+        size="sm"
         [ngModel]="node().shape"
         (ngModelChange)="onPropChange('shape', $event)"
       >
@@ -105,43 +111,35 @@
         <option [value]="NodeShape.RECTANGLE">Rectangle</option>
         <option [value]="NodeShape.ARROW">Fletxa</option>
         <option [value]="NodeShape.CIRCLE">Cercle</option>
-      </select>
+      </lib-select>
     </div>
 
     <!-- Dimensions -->
     <div>
       <p class="label-text text-xs font-medium mb-1">Dimensions</p>
       <div class="grid grid-cols-2 gap-2">
-        <div class="form-control">
-          <label class="label pb-0.5" [for]="'adhoc-w-' + node().id">
-            <span class="label-text text-xs">Amplada</span>
-          </label>
-          <input
-            type="number"
-            [id]="'adhoc-w-' + node().id"
-            class="input input-bordered input-sm font-mono"
-            [ngModel]="node().width"
-            (ngModelChange)="onPropChange('width', +$event)"
-            min="20" max="500"
-          />
-        </div>
-        <div class="form-control">
-          <label class="label pb-0.5" [for]="'adhoc-h-' + node().id">
-            <span class="label-text text-xs">Alçada</span>
-          </label>
-          <input
-            type="number"
-            [id]="'adhoc-h-' + node().id"
-            class="input input-bordered input-sm font-mono"
-            [ngModel]="node().height"
-            (ngModelChange)="onPropChange('height', +$event)"
-            min="20" max="500"
-          />
-        </div>
+        <lib-input
+          [id]="'adhoc-w-' + node().id"
+          label="Amplada"
+          type="number"
+          size="sm"
+          [min]="20" [max]="500"
+          [ngModel]="node().width"
+          (ngModelChange)="onPropChange('width', +$event)"
+        />
+        <lib-input
+          [id]="'adhoc-h-' + node().id"
+          label="Alçada"
+          type="number"
+          size="sm"
+          [min]="20" [max]="500"
+          [ngModel]="node().height"
+          (ngModelChange)="onPropChange('height', +$event)"
+        />
       </div>
     </div>
 
-    <!-- Rotation -->
+    <!-- Rotation. lib-input has no range type (deferred, per docs/DESIGN_SYSTEM.md) — stays raw. -->
     <div class="form-control">
       <label class="label pb-1" [for]="'adhoc-rot-' + node().id">
         <span class="label-text text-xs font-medium">Rotació</span>
@@ -164,30 +162,22 @@
     <div>
       <p class="label-text text-xs font-medium mb-1">Posició</p>
       <div class="grid grid-cols-2 gap-2">
-        <div class="form-control">
-          <label class="label pb-0.5" [for]="'adhoc-x-' + node().id">
-            <span class="label-text text-xs">X</span>
-          </label>
-          <input
-            type="number"
-            [id]="'adhoc-x-' + node().id"
-            class="input input-bordered input-sm font-mono"
-            [ngModel]="node().x"
-            (ngModelChange)="onPropChange('x', +$event)"
-          />
-        </div>
-        <div class="form-control">
-          <label class="label pb-0.5" [for]="'adhoc-y-' + node().id">
-            <span class="label-text text-xs">Y</span>
-          </label>
-          <input
-            type="number"
-            [id]="'adhoc-y-' + node().id"
-            class="input input-bordered input-sm font-mono"
-            [ngModel]="node().y"
-            (ngModelChange)="onPropChange('y', +$event)"
-          />
-        </div>
+        <lib-input
+          [id]="'adhoc-x-' + node().id"
+          label="X"
+          type="number"
+          size="sm"
+          [ngModel]="node().x"
+          (ngModelChange)="onPropChange('x', +$event)"
+        />
+        <lib-input
+          [id]="'adhoc-y-' + node().id"
+          label="Y"
+          type="number"
+          size="sm"
+          [ngModel]="node().y"
+          (ngModelChange)="onPropChange('y', +$event)"
+        />
       </div>
     </div>
 
@@ -205,13 +195,9 @@
             {{ colorDisplay() ?? 'Sense fons' }}
           </span>
           @if (isDecoration() && node().color) {
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs"
-              (click)="clearDecorationFill()"
-            >
+            <lib-button variant="ghost" size="xs" (clicked)="clearDecorationFill()">
               Treure fons
-            </button>
+            </lib-button>
           }
         </div>
       </div>

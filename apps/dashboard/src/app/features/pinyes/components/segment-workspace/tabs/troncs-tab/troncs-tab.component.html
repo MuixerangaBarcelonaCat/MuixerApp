@@ -10,27 +10,29 @@
   <!-- Troncs, wrapping into new rows -->
   <div class="relative flex-1 min-w-0 overflow-y-auto">
     <!-- Undo/redo -->
-    <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow border border-base-300 p-1">
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square"
+    <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+      <lib-button
+        variant="ghost"
+        size="xs"
+        shape="square"
         [disabled]="!canUndo() || ws.isLocked()"
-        (click)="performUndo()"
-        [attr.aria-label]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
+        [ariaLabel]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
         [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
+        (clicked)="performUndo()"
       >
         <lucide-icon [img]="Undo2" [size]="14" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square"
+      </lib-button>
+      <lib-button
+        variant="ghost"
+        size="xs"
+        shape="square"
         [disabled]="!canRedo() || ws.isLocked()"
-        (click)="performRedo()"
-        [attr.aria-label]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
+        [ariaLabel]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
         [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+        (clicked)="performRedo()"
       >
         <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
-      </button>
+      </lib-button>
     </div>
 
     @if (figures().length === 0) {
@@ -74,16 +76,22 @@
       </div>
     }
 
-    <!-- Minimap toggle -->
-    <button
-      type="button"
-      class="btn btn-circle btn-sm absolute bottom-3 right-3 shadow"
-      (click)="toggleMinimap()"
-      [attr.aria-expanded]="minimapOpen()"
-      aria-label="Mostra o amaga el mapa de figures"
-    >
-      <lucide-icon [img]="MapIcon" [size]="16" aria-hidden="true" />
-    </button>
+    <!-- Minimap toggle. Positioning goes on this wrapper, not <lib-button> itself: its
+         display:contents host renders no box of its own, so a layout class placed there
+         is inert. -->
+    <span class="absolute bottom-3 right-3 shadow-raised rounded-full">
+      <lib-button
+        variant="neutral"
+        ghost
+        size="sm"
+        shape="circle"
+        [ariaExpanded]="minimapOpen()"
+        ariaLabel="Mostra o amaga el mapa de figures"
+        (clicked)="toggleMinimap()"
+      >
+        <lucide-icon [img]="MapIcon" [size]="16" aria-hidden="true" />
+      </lib-button>
+    </span>
 
     @if (minimapOpen()) {
       <div
@@ -103,9 +111,9 @@
               [attr.y]="box.y"
               [attr.width]="box.width"
               [attr.height]="box.height"
-              [attr.fill]="box.color + '33'"
-              [attr.stroke]="box.color"
-              stroke-width="4"
+              [attr.fill]="box.color + '0d'"
+              [attr.stroke]="box.color + '55'"
+              stroke-width="12"
             />
             <text
               [attr.x]="box.x + box.width / 2"
@@ -113,7 +121,7 @@
               [attr.clip-path]="'url(#minimap-clip-' + box.slotId + ')'"
               text-anchor="middle"
               dominant-baseline="central"
-              font-size="60"
+              font-size="80"
               font-weight="400"
               [attr.fill]="box.color"
             >

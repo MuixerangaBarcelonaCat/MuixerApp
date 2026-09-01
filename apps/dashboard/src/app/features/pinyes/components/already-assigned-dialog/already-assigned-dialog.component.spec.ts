@@ -52,12 +52,12 @@ describe('AlreadyAssignedDialogComponent', () => {
     expect(text.toLowerCase()).toContain('tronc');
   });
 
-  it('renders "Assignar igualment" as a conflict-styled action, always behind the dialog (D8, Fase 5)', () => {
+  it('renders "Assignar igualment" as an error-styled action, always behind the dialog (D8, Fase 5)', () => {
     setup([makePlacement()]);
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Assignar igualment');
     const button: HTMLButtonElement | null = (fixture.nativeElement as HTMLElement).querySelector(
-      'button.btn-conflict',
+      'button.btn-error',
     );
     expect(button).not.toBeNull();
     expect(button!.textContent).toContain('Assignar igualment');
@@ -67,7 +67,7 @@ describe('AlreadyAssignedDialogComponent', () => {
     setup([makePlacement()]);
     const emitted = vi.fn();
     fixture.componentInstance.assignAnywayRequested.subscribe(emitted);
-    const button: HTMLButtonElement = (fixture.nativeElement as HTMLElement).querySelector('button.btn-conflict')!;
+    const button: HTMLButtonElement = (fixture.nativeElement as HTMLElement).querySelector('button.btn-error')!;
     button.click();
     expect(emitted).toHaveBeenCalled();
   });

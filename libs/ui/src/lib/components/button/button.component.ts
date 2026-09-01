@@ -4,9 +4,11 @@ import {
   Component,
   computed,
   effect,
+  ElementRef,
   input,
   isDevMode,
   output,
+  viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
@@ -94,6 +96,9 @@ export class ButtonComponent {
   // visual "which joinItem segment is selected" marker, not a real toggle-button semantic.
   ariaExpanded = input<boolean>();
   ariaPressed = input<boolean>();
+  // For a disclosure toggle (e.g. "Mostra"/"Amaga") pointing at the region it expands — same
+  // convention as ariaExpanded/ariaPressed, just an id reference instead of a boolean.
+  ariaControls = input<string>();
   disabled = input(false, { transform: booleanAttribute });
   loading = input(false, { transform: booleanAttribute });
   outline = input(false, { transform: booleanAttribute });
@@ -123,8 +128,18 @@ export class ButtonComponent {
   // combines with disabled/loading — see the constructor invariant below.
   routerLink = input<string | unknown[]>();
   href = input<string>();
+  // Imperative (an effect + viewChild), not the native `autofocus` attribute — same rationale as
+  // lib-input/lib-textarea's own autofocus: a button using this is almost always the default
+  // action of a dialog that just opened via an `@if`/`lib-modal[open]` toggle, and the native
+  // attribute's "focus on insertion" behavior is inconsistent for that case in a way a direct
+  // `.focus()` call isn't. (A `<dialog>.showModal()` does honor a *native* `autofocus` attribute
+  // on its own — but only when it sits on the actual focusable element, which `display: contents`
+  // hosts can't forward from `<lib-button autofocus>` down to the real inner `<button>`.)
+  autofocus = input(false, { transform: booleanAttribute });
 
   clicked = output<void>();
+
+  private readonly nativeButtonRef = viewChild<ElementRef<HTMLElement>>('nativeButtonRef');
 
   protected readonly isDisabled = computed(() => this.disabled() || this.loading());
 
@@ -193,6 +208,11 @@ export class ButtonComponent {
           'lib-button: variant="ghost" cannot be used with joinItem — ghost has no fill or border, so a segmented control could never show which segment is selected.',
         );
       }
+    });
+
+    effect(() => {
+      if (!this.autofocus()) return;
+      this.nativeButtonRef()?.nativeElement.focus();
     });
   }
 }

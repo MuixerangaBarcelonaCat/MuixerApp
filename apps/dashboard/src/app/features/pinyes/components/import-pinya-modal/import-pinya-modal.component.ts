@@ -10,14 +10,15 @@ import {
   SimpleChanges,
 } from '@angular/core';
 import { SlicePipe } from '@angular/common';
-import { LucideAngularModule, Import, X } from 'lucide-angular';
+import { LucideAngularModule, Import } from 'lucide-angular';
+import { ButtonComponent, ModalComponent, BadgeComponent } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 
 @Component({
   selector: 'app-import-pinya-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, SlicePipe],
+  imports: [LucideAngularModule, SlicePipe, ButtonComponent, ModalComponent, BadgeComponent],
   templateUrl: './import-pinya-modal.component.html',
 })
 export class ImportPinyaModalComponent implements OnChanges {
@@ -31,7 +32,6 @@ export class ImportPinyaModalComponent implements OnChanges {
   private readonly assignmentService = inject(NodeAssignmentService);
 
   readonly Import = Import;
-  readonly X = X;
 
   readonly history = signal<FigureHistoryEntry[]>([]);
   readonly loading = signal(false);
@@ -91,11 +91,5 @@ export class ImportPinyaModalComponent implements OnChanges {
 
   close(): void {
     this.closed.emit();
-  }
-
-  onBackdropClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      this.close();
-    }
   }
 }

@@ -7,30 +7,35 @@
 
 @if (routerLink()) {
   <a
+    #nativeButtonRef
     [class]="buttonClass()"
     libDsLift
     [routerLink]="routerLink()"
     [attr.aria-label]="ariaLabel() ?? null"
     [attr.aria-expanded]="ariaExpanded() ?? null"
     [attr.aria-pressed]="ariaPressed() ?? null"
+    [attr.aria-controls]="ariaControls() ?? null"
     (click)="clicked.emit()"
   >
     <ng-container [ngTemplateOutlet]="inner" />
   </a>
 } @else if (href()) {
   <a
+    #nativeButtonRef
     [class]="buttonClass()"
     libDsLift
     [href]="href()"
     [attr.aria-label]="ariaLabel() ?? null"
     [attr.aria-expanded]="ariaExpanded() ?? null"
     [attr.aria-pressed]="ariaPressed() ?? null"
+    [attr.aria-controls]="ariaControls() ?? null"
     (click)="clicked.emit()"
   >
     <ng-container [ngTemplateOutlet]="inner" />
   </a>
 } @else {
   <button
+    #nativeButtonRef
     [class]="buttonClass()"
     libDsLift
     [type]="type()"
@@ -38,6 +43,7 @@
     [attr.aria-label]="ariaLabel() ?? null"
     [attr.aria-expanded]="ariaExpanded() ?? null"
     [attr.aria-pressed]="ariaPressed() ?? null"
+    [attr.aria-controls]="ariaControls() ?? null"
     (click)="clicked.emit()"
   >
     <ng-container [ngTemplateOutlet]="inner" />

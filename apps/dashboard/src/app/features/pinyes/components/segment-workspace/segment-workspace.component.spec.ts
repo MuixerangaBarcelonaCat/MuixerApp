@@ -1,18 +1,29 @@
-import { Component, input, signal } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { LucideAngularModule } from 'lucide-angular';
+import type { BulkImportResult } from '@muixer/pinyes-render';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentWorkspaceComponent } from './segment-workspace.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
+import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService, TabsComponent } from '@muixer/ui';
+import { ToastService, TabsComponent, ButtonComponent, BadgeComponent, ModalComponent } from '@muixer/ui';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
+
+@Component({ selector: 'app-import-pinya-modal', standalone: true, template: '' })
+class StubImportModal {
+  readonly figureTemplateId = input.required<string>();
+  readonly currentInstanceId = input.required<string>();
+  readonly open = input<boolean>(false);
+  readonly importCompleted = output<BulkImportResult>();
+  readonly closed = output<void>();
+}
 
 @Component({ selector: 'app-pinyes-tab', standalone: true, template: '' })
 class StubPinyesTab {
@@ -90,16 +101,20 @@ const makeWsMock = () => {
   };
 };
 
+type MockFn = ReturnType<typeof vi.fn>;
+
 describe('SegmentWorkspaceComponent', () => {
   let ws: WsMock;
   let layoutService: { requestFullscreen: ReturnType<typeof vi.fn>; exitFullscreen: ReturnType<typeof vi.fn> };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+  let assignmentService: { resetSnapshot: MockFn };
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   const setup = async (opts: { queryParams?: Record<string, string>; instanceIdParam?: string } = {}) => {
     ws = makeWsMock();
     layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    assignmentService = { resetSnapshot: vi.fn() };
 
     const params: Record<string, string> = { eventId: EVENT_ID, segmentId: SEGMENT_ID };
     if (opts.instanceIdParam) params['instanceId'] = opts.instanceIdParam;
@@ -114,6 +129,7 @@ describe('SegmentWorkspaceComponent', () => {
         AssignmentStateService,
         { provide: LayoutService, useValue: layoutService },
         { provide: ToastService, useValue: toast },
+        { provide: NodeAssignmentService, useValue: assignmentService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -135,6 +151,9 @@ describe('SegmentWorkspaceComponent', () => {
           ],
           imports: [
           LucideAngularModule,
+          ButtonComponent,
+          BadgeComponent,
+          ModalComponent,
           TabsComponent,
           StubPinyesTab,
           StubTroncsTab,
@@ -143,6 +162,7 @@ describe('SegmentWorkspaceComponent', () => {
           StubPrevisualitzaTab,
           StubSegmentConflictPanel,
           TemplateEditorHelpModalComponent,
+          StubImportModal,
         ],
         },
       })
@@ -436,6 +456,142 @@ describe('SegmentWorkspaceComponent', () => {
       expect(backSpy).toHaveBeenCalled();
       backSpy.mockRestore();
       fixture.destroy();
+    });
+  });
+
+  it('gives the segment title a fixed width so the prev/next arrows stay in a stable position', async () => {
+    const fixture = await setup();
+    const title = fixture.nativeElement.querySelector('h1') as HTMLElement;
+    expect(title.className).toContain('w-48');
+    expect(title.className).toContain('truncate');
+  });
+
+  // Scoped to the header's own trigger buttons — the always-rendered figure-picker/confirm
+  // lib-modals also carry this text in their (closed) title/body, so a plain textContent
+  // check would false-negative on those instead of the trigger.
+  const headerTriggerText = (fixture: ComponentFixture<SegmentWorkspaceComponent>): string =>
+    (fixture.nativeElement.querySelector('header') as HTMLElement).textContent ?? '';
+
+  describe('import pinya / reset snapshot (moved here from the pinyes tab footer)', () => {
+    it('shows neither button when there is nothing to import/reset', async () => {
+      const fixture = await setup();
+      ws.instances.set([]);
+      fixture.detectChanges();
+      expect(headerTriggerText(fixture)).not.toContain('Reinicialitza');
+      expect(headerTriggerText(fixture)).not.toContain('Importa pinya');
+    });
+
+    it('only shows the buttons on the pinyes tab', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      expect(headerTriggerText(fixture)).not.toContain('Reinicialitza');
+      expect(headerTriggerText(fixture)).not.toContain('Importa pinya');
+    });
+
+    it('shows the import button when there is a figure to import into', async () => {
+      const fixture = await setup();
+      expect(fixture.nativeElement.textContent).toContain('Importa pinya');
+    });
+
+    it('opens the import modal directly when the segment has a single figure', async () => {
+      const fixture = await setup();
+      ws.instances.set([makeWorkspaceInstance('inst-a')]);
+      fixture.detectChanges();
+
+      fixture.componentInstance.openImport();
+
+      expect(fixture.componentInstance.importTarget()).toEqual({
+        instanceId: 'inst-a',
+        figureTemplateId: 'tpl-inst-a',
+      });
+      expect(fixture.componentInstance.importMenuOpen()).toBe(false);
+    });
+
+    it('opens a figure menu first when several figures can be imported into', async () => {
+      const fixture = await setup();
+
+      fixture.componentInstance.openImport();
+      expect(fixture.componentInstance.importMenuOpen()).toBe(true);
+      expect(fixture.componentInstance.importTarget()).toBeNull();
+
+      fixture.componentInstance.chooseImportFigure('inst-b');
+      expect(fixture.componentInstance.importTarget()).toEqual({
+        instanceId: 'inst-b',
+        figureTemplateId: 'tpl-inst-b',
+      });
+      expect(fixture.componentInstance.importMenuOpen()).toBe(false);
+    });
+
+    it('refreshes the target instance and closes the modal when an import completes', async () => {
+      const fixture = await setup();
+      ws.instances.set([makeWorkspaceInstance('inst-a')]);
+      fixture.detectChanges();
+      fixture.componentInstance.openImport();
+
+      fixture.componentInstance.onImportCompleted({
+        created: [],
+        conflicts: [],
+        clonedAdHocNodes: 0,
+        conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+      });
+
+      expect(ws.refreshInstance).toHaveBeenCalledWith('inst-a');
+      expect(toast.success).toHaveBeenCalled();
+      expect(fixture.componentInstance.importTarget()).toBeNull();
+    });
+
+    it('shows no reset button when nothing is snapshotted', async () => {
+      const fixture = await setup();
+      expect(headerTriggerText(fixture)).not.toContain('Reinicialitza');
+    });
+
+    it('opens the reset confirmation directly with a single snapshotted figure', async () => {
+      const fixture = await setup();
+      ws.instances.set([{ ...makeWorkspaceInstance('inst-a'), snapshotted: true }]);
+      fixture.detectChanges();
+
+      fixture.componentInstance.openReset();
+
+      expect(fixture.componentInstance.resetTarget()).toBe('inst-a');
+    });
+
+    it('opens a figure menu first when several figures are snapshotted', async () => {
+      const fixture = await setup();
+      ws.instances.set([
+        { ...makeWorkspaceInstance('inst-a'), snapshotted: true },
+        { ...makeWorkspaceInstance('inst-b'), snapshotted: true },
+      ]);
+      fixture.detectChanges();
+
+      fixture.componentInstance.openReset();
+      expect(fixture.componentInstance.resetMenuOpen()).toBe(true);
+      expect(fixture.componentInstance.resetTarget()).toBeNull();
+
+      fixture.componentInstance.chooseResetFigure('inst-b');
+      expect(fixture.componentInstance.resetTarget()).toBe('inst-b');
+    });
+
+    it('resets the figure and clears its assignments on confirm', async () => {
+      const fixture = await setup();
+      ws.instances.set([{ ...makeWorkspaceInstance('inst-a'), snapshotted: true }]);
+      fixture.detectChanges();
+      const state = TestBed.inject(AssignmentStateService);
+      state.assignments.set([
+        {
+          id: 'as-1',
+          figureInstanceId: 'inst-a',
+          node: { id: 'n1', label: 'n1', zone: 'PINYA', z: 0, positionType: null, sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, sourceNodeId: null },
+          person: { id: 'p-1', alias: 'Alias', name: 'Nom', firstSurname: 'Cognom', shoulderHeight: null, notes: null, notesEmoji: null },
+        },
+      ]);
+      assignmentService.resetSnapshot.mockReturnValue(of({ removedAssignments: 1, deletedAdHocCount: 0 }));
+
+      fixture.componentInstance.openReset();
+      fixture.componentInstance.confirmReset();
+
+      expect(assignmentService.resetSnapshot).toHaveBeenCalledWith('inst-a');
+      expect(state.assignments()).toHaveLength(0);
+      expect(toast.success).toHaveBeenCalled();
+      expect(fixture.componentInstance.resetTarget()).toBeNull();
     });
   });
 });
