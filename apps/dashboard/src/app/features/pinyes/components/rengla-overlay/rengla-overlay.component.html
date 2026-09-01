@@ -160,76 +160,84 @@
           {{ pendingNodeIds().length }} nodes seleccionats
         }
       </span>
-      <div class="flex items-center gap-1 border-l border-base-200 pl-2 ml-1">
+      <div class="flex items-center gap-1 border-l border-base-200 pl-2 ml-1 shrink-0">
         <label for="rengla-start-pos" class="text-xs text-base-content/60 whitespace-nowrap">Primer cordó</label>
-        <input
-          id="rengla-start-pos"
-          type="number"
-          min="1"
-          class="input input-xs input-bordered w-14 text-center"
-          [value]="startPosition()"
-          (change)="onStartPositionChange($event)"
-        />
+        <div class="w-14 shrink-0">
+          <lib-input
+            id="rengla-start-pos"
+            type="number"
+            size="xs"
+            [min]="1"
+            ariaLabel="Primer cordó"
+            [ngModel]="startPosition()"
+            (ngModelChange)="onStartPositionChange($event)"
+          />
+        </div>
       </div>
-      <button
-        type="button"
-        class="btn btn-primary btn-sm"
+      <lib-button
+        variant="primary"
+        size="sm"
         [disabled]="pendingNodeIds().length < 1"
-        (click)="finishCreating()"
-        aria-label="Finalitzar creació de rengla"
+        (clicked)="finishCreating()"
+        ariaLabel="Finalitzar creació de rengla"
       >
         Finalitza
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        (click)="cancelCreate()"
-        aria-label="Cancel·la creació de rengla"
+      </lib-button>
+      <lib-button
+        variant="ghost"
+        size="sm"
+        (clicked)="cancelCreate()"
+        ariaLabel="Cancel·la creació de rengla"
       >
         Cancel·la
-      </button>
+      </lib-button>
     </div>
   } @else if (selectedRengla(); as sel) {
     <div class="flex items-center gap-2 bg-base-100 shadow-lg rounded-box px-4 py-2 border border-base-300">
       <span class="text-sm font-medium">{{ sel.name }}</span>
-      <div class="flex items-center gap-1 border-l border-base-200 pl-2 ml-1">
+      <div class="flex items-center gap-1 border-l border-base-200 pl-2 ml-1 shrink-0">
         <label for="rengla-edit-start-pos" class="text-xs text-base-content/60 whitespace-nowrap">Primer cordó</label>
-        <input
-          id="rengla-edit-start-pos"
-          type="number"
-          min="1"
-          class="input input-xs input-bordered w-14 text-center"
-          [value]="selectedRenglaStartPosition()"
-          (change)="onSelectedStartPositionChange($event)"
-        />
+        <div class="w-14 shrink-0">
+          <lib-input
+            id="rengla-edit-start-pos"
+            type="number"
+            size="xs"
+            [min]="1"
+            ariaLabel="Primer cordó"
+            [ngModel]="selectedRenglaStartPosition()"
+            (ngModelChange)="onSelectedStartPositionChange($event)"
+          />
+        </div>
       </div>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm text-error"
-        (click)="deleteSelectedRengla()"
-        aria-label="Suprimeix rengla"
+      <lib-button
+        variant="error"
+        outline
+        size="sm"
+        (clicked)="deleteSelectedRengla()"
+        ariaLabel="Suprimeix rengla"
       >
         <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
         Suprimeix
-      </button>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        (click)="selectedRenglaId.set(null)"
-        aria-label="Tancar selecció"
+      </lib-button>
+      <lib-button
+        variant="ghost"
+        size="sm"
+        shape="circle"
+        (clicked)="selectedRenglaId.set(null)"
+        ariaLabel="Tancar selecció"
       >
         <lucide-icon name="X" [size]="14" aria-hidden="true" />
-      </button>
+      </lib-button>
     </div>
   } @else {
-    <button
-      type="button"
-      class="btn btn-primary btn-sm shadow-lg pointer-events-auto"
-      (click)="startCreating()"
-      aria-label="Crea rengla nova"
+    <lib-button
+      variant="primary"
+      size="sm"
+      (clicked)="startCreating()"
+      ariaLabel="Crea rengla nova"
     >
       <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
       Rengla nova
-    </button>
+    </lib-button>
   }
 </div>

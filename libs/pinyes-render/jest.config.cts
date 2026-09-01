@@ -7,7 +7,10 @@ module.exports = {
   // FigureCanvasComponent's real Konva wiring (it's always swapped for a stub, see
   // the named exception in the plan), but importing its *type* to pass to
   // TestBed.overrideComponent still requires Jest to be able to parse the module.
-  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$|@angular/common/locales/.*\\.js$|.*konva.*))'],
+  // culori/apca-w3 are @muixer/ui's own ESM-only deps (its color-token utilities) — importing
+  // any @muixer/ui symbol at all pulls in its whole barrel (src/index.ts), so any spec here that
+  // starts using a lib-* component needs these transformed too, same reasoning as konva above.
+  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$|@angular/common/locales/.*\\.js$|.*konva.*|.*culori.*|.*apca-w3.*|.*colorparsley.*))'],
   resolver: '@nx/jest/plugins/resolver',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   coverageDirectory: '../../coverage/libs/pinyes-render',

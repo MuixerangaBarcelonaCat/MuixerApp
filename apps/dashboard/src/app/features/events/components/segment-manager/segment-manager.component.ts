@@ -257,7 +257,7 @@ export class SegmentManagerComponent implements OnInit {
 
   removeSegment(segment: SegmentDetail) {
     const displayedName = this.displayName()(segment);
-    if (!confirm(`Segur que vols eliminar "${displayedName}" i totes les seves figures? Aquesta acció no es pot desfer.`)) {
+    if (!confirm(`Segur que vols eliminar "${displayedName}" i totes les seues figures? Esta acció no es pot desfer.`)) {
       return;
     }
     this.segmentService.remove(this.eventId(), segment.id).subscribe({

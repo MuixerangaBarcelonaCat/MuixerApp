@@ -49,6 +49,7 @@ export class InputComponent implements ControlValueAccessor {
   // rather than modeled (browsers already validate/constrain against them).
   min = input<string | number>();
   max = input<string | number>();
+  maxLength = input<number>();
   // Imperative (via an effect + viewChild), not the native `autofocus` attribute: this field is
   // almost always toggled into existence by an `@if` (an inline rename row appearing), and the
   // native attribute's own "focus on insertion" behavior is inconsistent across browsers for that

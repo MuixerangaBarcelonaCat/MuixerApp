@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { ButtonComponent } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
@@ -970,6 +972,8 @@ describe('TroncViewComponent', () => {
   // ── positionType tags (F1) ───────────────────────────────────────────────
 
   describe('positionType preset tags', () => {
+    // Preset tags are lib-badge instances (clickable + selected + color) — a real <button
+    // class="badge ..."> is what's queryable, "active" is aria-pressed rather than a CSS class.
     it('renders preset tags when a TRONC node is selected in editor mode', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
@@ -977,7 +981,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('selectedNodeId', 'n1');
       fixture.detectChanges();
 
-      const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
+      const tags = fixture.nativeElement.querySelectorAll('button.badge');
       expect(tags.length).toBe(8);
     });
 
@@ -988,11 +992,11 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('selectedNodeId', null);
       fixture.detectChanges();
 
-      const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
+      const tags = fixture.nativeElement.querySelectorAll('button.badge');
       expect(tags.length).toBe(0);
     });
 
-    it('marks the active tag with .active class', () => {
+    it('marks the active tag as aria-pressed', () => {
       fixture.componentRef.setInput('troncNodes', [
         makeNode({ id: 'n1', z: 1, positionType: 'terça' }),
       ]);
@@ -1001,7 +1005,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('selectedNodeId', 'n1');
       fixture.detectChanges();
 
-      const activeTags = fixture.nativeElement.querySelectorAll('.preset-tag.active');
+      const activeTags = fixture.nativeElement.querySelectorAll('button.badge[aria-pressed="true"]');
       expect(activeTags.length).toBe(1);
       expect(activeTags[0].textContent.trim()).toContain('Terça');
     });
@@ -1562,6 +1566,59 @@ describe('TroncViewComponent', () => {
       component.onBackgroundClick({ currentTarget: section, target: child } as unknown as MouseEvent);
 
       expect(component.hoveredPerson()).not.toBeNull();
+    });
+  });
+
+  describe('selected-node properties panel (design system)', () => {
+    // A field's lib-input is freshly created here (behind the @if branch), so its first ngModel
+    // write is a *new* standalone NgModel registration — Angular defers that one's initial
+    // writeValue to a microtask (same pattern as template-editor.component.spec.ts's selectNode()).
+    async function selectTroncNode(overrides: Partial<TroncNodeItem> = {}): Promise<void> {
+      const node = makeNode({ id: 'node-1', label: 'Segon', climbIndicator: 'X', ...overrides });
+      fixture.componentRef.setInput('troncNodes', [node]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    function nativeInput(id: string): HTMLInputElement {
+      const el: HTMLInputElement | null = fixture.nativeElement.querySelector(`input[id="${id}"]`);
+      expect(el).toBeTruthy();
+      return el!;
+    }
+
+    function setValue(input: HTMLInputElement, value: string): void {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    }
+
+    it('the label field is a lib-input bound to the selected node label', async () => {
+      const spy = jest.spyOn(component, 'onLabelChange');
+      await selectTroncNode({ label: 'Segon' });
+      expect(nativeInput('tronc-label-node-1').value).toBe('Segon');
+
+      setValue(nativeInput('tronc-label-node-1'), 'Terç');
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ id: 'node-1' }), 'Terç');
+    });
+
+    it('the indicator field is a lib-input bound to climbIndicator', async () => {
+      await selectTroncNode({ climbIndicator: 'X' });
+      expect(nativeInput('tronc-indicator-node-1').value).toBe('X');
+    });
+
+    it('the delete-node button is a lib-button that removes the node', async () => {
+      const spy = jest.spyOn(component, 'onNodeDelete');
+      await selectTroncNode();
+      const btn = fixture.debugElement
+        .queryAll(By.directive(ButtonComponent))
+        .find((el) => (el.componentInstance as ButtonComponent).ariaLabel() === 'Elimina node');
+      expect(btn).toBeTruthy();
+
+      (btn!.componentInstance as ButtonComponent).clicked.emit();
+      expect(spy).toHaveBeenCalled();
     });
   });
 });

@@ -91,6 +91,13 @@
     color: oklch(var(--p));
   }
 
+  // Wins over the plain :hover rule above (one extra class = higher specificity) — without it,
+  // hovering an active tile silently reverted to the neutral hover tint, losing the primary color.
+  &.active:hover:not(:disabled) {
+    background: oklch(var(--p) / 0.18);
+    color: oklch(var(--p));
+  }
+
   &:disabled {
     opacity: 0.3;
     cursor: not-allowed;
@@ -103,6 +110,23 @@
   height: 20px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+// Content of a left-toolbar lib-button (Base/Pinya node-add tiles, snap-to-grid) — icon/swatch
+// stacked above a label, same shape as the old .toolbar-btn but living inside lib-button's
+// projected content now. lib-button's own box has a fixed CSS height (no auto-grow to fit
+// content), unlike .toolbar-btn's old auto-height — the label is left free to wrap across lines
+// rather than being forced onto one (full text matters more here than a perfectly tight box), and
+// a smaller line-height keeps a wrapped 2-3 word label inside the button's own fixed height.
+.toolbar-btn-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1.1;
+  width: 100%;
 }
 
 .node-rect {
@@ -188,6 +212,7 @@
 .panel-scroll-area {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0.75rem 1rem;
 }
 

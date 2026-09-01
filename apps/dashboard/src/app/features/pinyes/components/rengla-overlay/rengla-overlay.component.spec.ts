@@ -1,6 +1,8 @@
 import { FigureNodeItem, RenglaModel } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
+import { ButtonComponent } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from './rengla-overlay.component';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -306,6 +308,93 @@ describe('RenglaOverlayComponent', () => {
       component.onNodeClick('n1');
       expect(component.isNodePending('n1')).toBe(true);
       expect(component.isNodePending('n2')).toBe(false);
+    });
+  });
+
+  describe('action bar (design system)', () => {
+    function findButtonByAriaLabel(label: string) {
+      const btn = fixture.debugElement
+        .queryAll(By.directive(ButtonComponent))
+        .find((el) => (el.componentInstance as ButtonComponent).ariaLabel() === label);
+      expect(btn).toBeTruthy();
+      return btn!.componentInstance as ButtonComponent;
+    }
+
+    it('idle state: "Rengla nova" is a lib-button that starts creation', () => {
+      setInputs([]);
+      findButtonByAriaLabel('Crea rengla nova').clicked.emit();
+      expect(component.creatingRengla()).toBe(true);
+    });
+
+    describe('creating state', () => {
+      beforeEach(() => {
+        setInputs([makeNode({ id: 'n1' })]);
+        component.startCreating();
+        component.onNodeClick('n1');
+        fixture.detectChanges();
+      });
+
+      it('the start-position field is a lib-input bound to startPosition', async () => {
+        // A freshly-created lib-input's first ngModel write defers to a microtask (Angular's own
+        // fix for ExpressionChangedAfterItHasBeenCheckedError on newly-registered controls) — see
+        // template-editor.component.spec.ts's own selectNode() helper for the same pattern.
+        await Promise.resolve();
+        fixture.detectChanges();
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input[id="rengla-start-pos"]');
+        expect(input.value).toBe('1');
+
+        input.value = '3';
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+
+        expect(component.startPosition()).toBe(3);
+      });
+
+      it('Finalitza and Cancel·la are lib-buttons', () => {
+        findButtonByAriaLabel('Cancel·la creació de rengla').clicked.emit();
+        expect(component.creatingRengla()).toBe(false);
+      });
+
+      it('Finalitza is disabled with fewer than 1 pending node', () => {
+        component.cancelCreate();
+        component.startCreating();
+        fixture.detectChanges();
+        expect(findButtonByAriaLabel('Finalitzar creació de rengla').disabled()).toBe(true);
+      });
+    });
+
+    describe('selected state', () => {
+      let rengla: RenglaModel;
+
+      beforeEach(() => {
+        rengla = makeRengla({ id: 'r1' });
+        setInputs([makeNode({ id: 'n1', renglaId: 'r1', renglaPosition: 1 })], [rengla]);
+        component.selectedRenglaId.set('r1');
+        fixture.detectChanges();
+      });
+
+      it('the edit start-position field is a lib-input bound to selectedRenglaStartPosition', async () => {
+        await Promise.resolve();
+        fixture.detectChanges();
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input[id="rengla-edit-start-pos"]');
+        expect(input.value).toBe('1');
+
+        input.value = '5';
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+
+        expect(deletedSpy).not.toHaveBeenCalled();
+      });
+
+      it('Suprimeix is a lib-button that deletes the selected rengla', () => {
+        findButtonByAriaLabel('Suprimeix rengla').clicked.emit();
+        expect(deletedSpy).toHaveBeenCalledWith({ renglaId: 'r1' });
+      });
+
+      it('the close button is a lib-button that clears the selection', () => {
+        findButtonByAriaLabel('Tancar selecció').clicked.emit();
+        expect(component.selectedRenglaId()).toBeNull();
+      });
     });
   });
 });

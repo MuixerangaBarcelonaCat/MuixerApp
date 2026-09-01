@@ -65,6 +65,18 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('date');
   });
 
+  describe('maxLength', () => {
+    it('sets no maxlength attribute by default', () => {
+      expect(nativeInput().hasAttribute('maxlength')).toBe(false);
+    });
+
+    it('forwards maxLength to the native input', () => {
+      fixture.componentRef.setInput('maxLength', 6);
+      fixture.detectChanges();
+      expect(nativeInput().maxLength).toBe(6);
+    });
+  });
+
   describe('min/max — numeric and date range constraints', () => {
     it('sets no min/max attribute by default', () => {
       expect(nativeInput().hasAttribute('min')).toBe(false);

@@ -100,6 +100,15 @@ export class SelectComponent implements ControlValueAccessor {
   id = input<string>();
   multiple = input(false, { transform: booleanAttribute });
   placeholder = input('Totes');
+  // A leading color dot shown in the closed control (single mode only) — for a "tipus de
+  // posició"-style field where the currently selected option's color needs to stay visible
+  // whether the dropdown is open or not. Rich <option> content (an icon, a swatch) already shows
+  // inside the open dropdown for every consumer, but the *closed* control only mirrors it in
+  // browsers supporting `appearance: base-select` (see select.component.scss) — Firefox/Safari
+  // fall back to plain text there, dropping it. This input renders the swatch as this component's
+  // own decoration instead, so it survives regardless of that browser support.
+  swatchColor = input<string>();
+  swatchShape = input<'circle' | 'square'>('circle');
 
   protected readonly ChevronDownIcon = ChevronDown;
 
@@ -125,6 +134,7 @@ export class SelectComponent implements ControlValueAccessor {
       'bg-base-100',
       SIZE_CLASSES[this.size()],
       this.hasError() ? 'select-error' : '',
+      !this.multiple() && this.swatchColor() ? 'pl-6' : '',
     ]
       .filter(Boolean)
       .join(' '),

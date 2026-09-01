@@ -28,7 +28,7 @@ import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
         <lucide-icon name="AlertTriangle" [size]="18" />
         <div>
           <p class="font-semibold text-sm">Funcionalitat temporal</p>
-          <p class="text-xs opacity-80">Aquesta funcionalitat desapareixerà quan MuixerApp sigui l'aplicació principal. Sincronitza primer les persones, després els events.</p>
+          <p class="text-xs opacity-80">Aquesta funcionalitat desapareixerà quan MuixerApp siga l'aplicació principal. Sincronitza primer les persones, després els events.</p>
         </div>
       </div>
 
