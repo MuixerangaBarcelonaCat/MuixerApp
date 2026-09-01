@@ -45,6 +45,7 @@ import { TagCategory1784600000000 } from './1784600000000-TagCategory';
 import { TagCatalog1784700000000 } from './1784700000000-TagCatalog';
 import { TagCatalogLegacyPlurals1784800000000 } from './1784800000000-TagCatalogLegacyPlurals';
 import { AddTecnicaTag1784900000000 } from './1784900000000-AddTecnicaTag';
+import { AddDecorationNodeShapes1785000000000 } from './1785000000000-AddDecorationNodeShapes';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -93,4 +94,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   TagCatalog1784700000000,
   TagCatalogLegacyPlurals1784800000000,
   AddTecnicaTag1784900000000,
+  AddDecorationNodeShapes1785000000000,
 ];

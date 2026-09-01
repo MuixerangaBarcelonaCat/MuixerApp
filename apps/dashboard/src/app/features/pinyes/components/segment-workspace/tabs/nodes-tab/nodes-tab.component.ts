@@ -153,7 +153,13 @@ export class NodesTabComponent implements OnInit {
   private static readonly DECORATION_LABELS: Record<string, string> = {
     rectangle: 'Rectangle',
     ellipse: 'El·lipse',
-    arrow: 'Fletxa',
+    arrow: 'Fletxa dreta',
+    'arrow-left': 'Fletxa esquerra',
+    'arrow-up': 'Fletxa amunt',
+    'arrow-down': 'Fletxa avall',
+    'double-arrow': 'Fletxa doble',
+    triangle: 'Triangle',
+    star: 'Estrella',
     circle: 'Cercle',
   };
 

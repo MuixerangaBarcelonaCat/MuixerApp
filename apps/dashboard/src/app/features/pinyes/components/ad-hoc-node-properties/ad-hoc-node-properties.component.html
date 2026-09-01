@@ -98,6 +98,28 @@
       }
     </div>
 
+    <!-- Color / fill: only for decoration nodes and the PINYA "comodin" wildcard — every other type's color is fixed by its node type -->
+    @if (isColorEditable()) {
+      <div class="form-control">
+        <span class="label-text text-xs font-medium mb-1 block">Color</span>
+        <div class="flex items-center gap-2">
+          <app-color-picker
+            [color]="colorDisplay() ?? null"
+            [presetColors]="colorPresetColors()"
+            (colorChange)="onColorCommit($event)"
+          />
+          <span class="text-xs font-mono text-base-content/60">
+            {{ colorDisplay() ?? 'Sense fons' }}
+          </span>
+          @if (isDecoration() && node().color) {
+            <lib-button variant="ghost" size="xs" (clicked)="clearDecorationFill()">
+              Treure fons
+            </lib-button>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Shape -->
     <div>
       <lib-select
@@ -109,14 +131,19 @@
       >
         <option [value]="NodeShape.ELLIPSE">El·lipse</option>
         <option [value]="NodeShape.RECTANGLE">Rectangle</option>
-        <option [value]="NodeShape.ARROW">Fletxa</option>
+        <option [value]="NodeShape.TRIANGLE">Triangle</option>
+        <option [value]="NodeShape.STAR">Estrella</option>
         <option [value]="NodeShape.CIRCLE">Cercle</option>
+        <option [value]="NodeShape.ARROW">Fletxa dreta</option>
+        <option [value]="NodeShape.ARROW_LEFT">Fletxa esquerra</option>
+        <option [value]="NodeShape.ARROW_UP">Fletxa amunt</option>
+        <option [value]="NodeShape.ARROW_DOWN">Fletxa avall</option>
+        <option [value]="NodeShape.DOUBLE_ARROW">Fletxa doble</option>
       </lib-select>
     </div>
 
     <!-- Dimensions -->
     <div>
-      <p class="label-text text-xs font-medium mb-1">Dimensions</p>
       <div class="grid grid-cols-2 gap-2">
         <lib-input
           [id]="'adhoc-w-' + node().id"
@@ -158,9 +185,7 @@
       </div>
     </div>
 
-    <!-- Position -->
     <div>
-      <p class="label-text text-xs font-medium mb-1">Posició</p>
       <div class="grid grid-cols-2 gap-2">
         <lib-input
           [id]="'adhoc-x-' + node().id"
@@ -180,27 +205,5 @@
         />
       </div>
     </div>
-
-    <!-- Color / fill: only for decoration nodes and the PINYA "comodin" wildcard — every other type's color is fixed by its node type -->
-    @if (isColorEditable()) {
-      <div class="form-control">
-        <span class="label-text text-xs font-medium mb-1 block">Color</span>
-        <div class="flex items-center gap-2">
-          <app-color-picker
-            [color]="colorDisplay() ?? null"
-            [presetColors]="colorPresetColors()"
-            (colorChange)="onColorCommit($event)"
-          />
-          <span class="text-xs font-mono text-base-content/60">
-            {{ colorDisplay() ?? 'Sense fons' }}
-          </span>
-          @if (isDecoration() && node().color) {
-            <lib-button variant="ghost" size="xs" (clicked)="clearDecorationFill()">
-              Treure fons
-            </lib-button>
-          }
-        </div>
-      </div>
-    }
   </div>
 </div>

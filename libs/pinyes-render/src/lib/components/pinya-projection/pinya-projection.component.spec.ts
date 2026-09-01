@@ -510,6 +510,29 @@ describe('PinyaProjectionComponent', () => {
     });
   });
 
+  // ── distributionNodeOutlines ─────────────────────────────────────────────────
+
+  describe('distributionNodeOutlines', () => {
+    // Was including DECORATION nodes in the per-figure colored glow — a decoration node keeps
+    // its own independent color (including "sense fons"/null → a transparent fill on the real
+    // node layer), so painting the figure's color as a solid, blurred glow behind it made a
+    // colorless decoration look tinted with whichever figure it sat on.
+    it('excludes DECORATION nodes — they keep their own color, not the figure glow', () => {
+      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0 });
+      const deco = makeNode({
+        id: 'd1',
+        zone: FigureZone.DECORATION,
+        positionType: 'star',
+        x: 50, y: 50, width: 111, height: 222,
+      });
+      setData(makeSegmentData([makeInstance([pinya, deco], ['n1'], { projectionX: 0, projectionY: 0 })]));
+
+      const outlines = component.distributionNodeOutlines();
+      expect(outlines.length).toBe(1);
+      expect(outlines.some((o) => o.width === 111 || o.height === 222)).toBe(false);
+    });
+  });
+
   // ── distributionAssignments ──────────────────────────────────────────────────
 
   describe('distributionAssignments', () => {

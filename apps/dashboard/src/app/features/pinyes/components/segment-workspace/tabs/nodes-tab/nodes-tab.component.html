@@ -73,6 +73,7 @@
 
   <!-- Node palette + ad-hoc properties -->
   <aside class="w-72 shrink-0 bg-base-100 border-l border-base-300 flex flex-col overflow-y-auto" aria-label="Nodes i propietats">
+    @if (!selectedAdHocNode()) {
     <div class="p-3 space-y-3 border-b border-base-200">
       <div>
         <p class="text-xs font-semibold text-base-content/60 mb-1.5">Pinya</p>
@@ -95,11 +96,11 @@
 
       <div>
         <p class="text-xs font-semibold text-base-content/60 mb-1.5">Decoració</p>
-        <div class="flex gap-1.5">
+        <div class="flex flex-wrap gap-1.5">
           @for (preset of decorationPresets; track preset.positionType) {
             <lib-button
               variant="ghost"
-              size="md"
+              size="sm"
               shape="square"
               [ariaLabel]="getDecorationLabel(preset)"
               [title]="getDecorationLabel(preset)"
@@ -116,11 +117,35 @@
                   @case (NodeShape.ELLIPSE) {
                     <ellipse cx="12" cy="12" rx="9" ry="6" />
                   }
-                  @case (NodeShape.ARROW) {
-                    <polygon points="2,5 17,5 22,11 17,17 2,17" />
+                  @case (NodeShape.TRIANGLE) {
+                    <polygon points="12,5 21,18 3,18" />
+                  }
+                  @case (NodeShape.STAR) {
+                    <polygon points="12,3 14,9 21,9 16,13 17,19 12,16 7,19 8,13 3,9 10,9" />
                   }
                   @case (NodeShape.CIRCLE) {
                     <circle cx="12" cy="12" r="8" />
+                  }
+                  <!-- Arrows grouped together below, narrower (shorter head) than the shapes
+                       above — except up/down, drawn broad (a wide head) to match their own
+                       wide-and-short default proportions. -->
+                  @case (NodeShape.ARROW) {
+                    <polygon points="2,8 17,8 22,12 17,16 2,16" />
+                  }
+                  @case (NodeShape.ARROW_LEFT) {
+                    <!-- Same polygon as ARROW, mirrored across the viewBox's horizontal center
+                         (x → 24-x), matching how figure-canvas draws it (every x negated). -->
+                    <polygon points="22,8 7,8 2,12 7,16 22,16" />
+                  }
+                  @case (NodeShape.ARROW_UP) {
+                    <polygon points="2,19 2,9 12,5 22,9 22,19" />
+                  }
+                  @case (NodeShape.ARROW_DOWN) {
+                    <!-- Same polygon as ARROW_UP, mirrored vertically (y → 24-y). -->
+                    <polygon points="2,5 2,16 12,19 22,16 22,5" />
+                  }
+                  @case (NodeShape.DOUBLE_ARROW) {
+                    <polygon points="2,12 7,8 17,8 22,12 17,16 7,16" />
                   }
                 }
               </svg>
@@ -129,6 +154,7 @@
         </div>
       </div>
     </div>
+    }
 
     @if (selectedAdHocNode(); as node) {
       <div class="p-3">
@@ -158,7 +184,7 @@
 <!-- Comodí / decoration label dialog -->
 <lib-modal [open]="comodinInputOpen()" [title]="labelDialogTitle()" (closed)="cancelComodinInput()">
   <label for="nodes-comodin-input" class="label">
-    <span class="label-text">Nom del node:</span>
+    <span class="label-text">Etiqueta del node:</span>
   </label>
   <lib-textarea
     id="nodes-comodin-input"
