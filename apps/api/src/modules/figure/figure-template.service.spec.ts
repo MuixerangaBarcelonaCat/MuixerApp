@@ -256,7 +256,7 @@ describe('FigureTemplateService', () => {
       await expect(service.findOne('bad-uuid')).rejects.toThrow(NotFoundException);
     });
 
-    it('computes troncProfile from the loaded nodes, bases counted as 1 regardless of width', async () => {
+    it('computes troncProfile from the loaded nodes, every node counted as one position regardless of width', async () => {
       const tmpl = makeTemplate({
         nodes: [
           makeNode({ zone: FigureZone.BASE, z: 0, width: 80 }),
@@ -268,7 +268,7 @@ describe('FigureTemplateService', () => {
       });
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
       const result = await service.findOne('tmpl-uuid');
-      expect(result.troncProfile).toEqual([2, 4]);
+      expect(result.troncProfile).toEqual([2, 2]);
     });
   });
 
