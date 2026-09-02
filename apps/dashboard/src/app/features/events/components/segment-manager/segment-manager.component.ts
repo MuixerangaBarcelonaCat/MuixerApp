@@ -12,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
+import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA } from '../../../../shared/constants/domain-icons';
 import { ICON_OBSERVACIONS, computeSegmentDisplayName, getSegmentInstanceLabel } from '@muixer/shared';
 import { forkJoin } from 'rxjs';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
@@ -38,6 +38,13 @@ interface PendingModeChange {
   segment: SegmentDetail;
   instance: InstanceDetail;
   mode: FigureMode;
+}
+
+interface PendingCordonsChange {
+  segment: SegmentDetail;
+  instance: InstanceDetail;
+  value: number;
+  affectedCount: number;
 }
 
 @Component({
@@ -69,6 +76,7 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
+  readonly ICON_RENGLA = ICON_RENGLA;
   readonly ICON_CONFLICT = ICON_OBSERVACIONS;
 
   private readonly segmentService = inject(EventSegmentService);
@@ -97,6 +105,9 @@ export class SegmentManagerComponent implements OnInit {
 
   pendingModeChange = signal<PendingModeChange | null>(null);
   savingModeChange = signal(false);
+
+  pendingCordonsChange = signal<PendingCordonsChange | null>(null);
+  savingCordonsChange = signal(false);
 
   viewMode = this.viewModeService.mode;
   troncData = signal<Map<string, TroncFloorData[]>>(new Map());
@@ -554,6 +565,128 @@ export class SegmentManagerComponent implements OnInit {
       list.map((s) =>
         s.id === segmentId
           ? { ...s, instances: s.instances.map((i) => (i.id === instanceId ? { ...i, figureMode: mode } : i)) }
+          : s,
+      ),
+    );
+  }
+
+  /**
+   * Pinya view mode: a cordons stepper replaces the mode selector — figureMode
+   * (Completa/Peu/Remat/Neta) is meaningless while looking at the pinya, but the cordon count
+   * isn't. False when there's nothing to adjust (no pinya, REMAT/NETA — no pinya nodes shown —
+   * or the template has no rengles at all).
+   */
+  hasCordonsControl(instance: InstanceDetail): boolean {
+    return (
+      !!instance.figureTemplate?.hasPinya &&
+      instance.figureMode !== 'REMAT' &&
+      instance.figureMode !== 'NETA' &&
+      !!instance.totalCordons
+    );
+  }
+
+  /** "2/4" or "Tots" (unlimited — numberOfCordons null). */
+  cordonsDisplay(instance: InstanceDetail): string {
+    return instance.numberOfCordons === null ? 'Tots' : `${instance.numberOfCordons}/${instance.totalCordons}`;
+  }
+
+  /** Pinya view mode, no cordons selector to show (REMAT/NETA/no pinya/no rengles): the figure's own mode as a static label. */
+  figureModeLabel(instance: InstanceDetail): string {
+    if (!instance.figureTemplate?.hasPinya) return 'Neta';
+    if (instance.figureMode === 'REMAT') return 'Remat';
+    if (instance.figureMode === 'NETA') return 'Neta';
+    return 'Sense rengles';
+  }
+
+  /** 1 → 2 → … → totalCordons → Tots (null). No-op once at Tots. */
+  onCordonsIncrement(segment: SegmentDetail, instance: InstanceDetail): void {
+    if (instance.numberOfCordons === null || instance.totalCordons === null) return;
+    const next = instance.numberOfCordons >= instance.totalCordons ? null : instance.numberOfCordons + 1;
+    this.updateNumberOfCordons(segment, instance, next);
+  }
+
+  /**
+   * Tots (null) → totalCordons → … → 1. No-op once at 1. Unlike incrementing, this can hide
+   * nodes and unassign whoever is on them — previewed first so the confirmation only appears
+   * when the reduction would actually remove someone, not on every click of the stepper.
+   */
+  onCordonsDecrement(segment: SegmentDetail, instance: InstanceDetail): void {
+    if (instance.numberOfCordons === 1) return;
+    const next = (instance.numberOfCordons ?? instance.totalCordons ?? 1) - 1;
+
+    this.nodeAssignmentService.previewCordonsImpact(instance.id, next).subscribe({
+      next: ({ affectedCount }) => {
+        if (affectedCount > 0) {
+          this.pendingCordonsChange.set({ segment, instance, value: next, affectedCount });
+        } else {
+          this.updateNumberOfCordons(segment, instance, next);
+        }
+      },
+      error: () => this.toast.error("Error en comprovar l'impacte de reduir els cordons."),
+    });
+  }
+
+  confirmCordonsChange(): void {
+    const pending = this.pendingCordonsChange();
+    if (!pending) return;
+    this.savingCordonsChange.set(true);
+    this.updateNumberOfCordons(pending.segment, pending.instance, pending.value, () => {
+      this.savingCordonsChange.set(false);
+      this.pendingCordonsChange.set(null);
+    });
+  }
+
+  cancelCordonsChange(): void {
+    this.pendingCordonsChange.set(null);
+  }
+
+  /** Applies a cordons change — always safe to call directly for increments (never hides anyone). */
+  updateNumberOfCordons(
+    segment: SegmentDetail,
+    instance: InstanceDetail,
+    value: number | null,
+    onDone?: () => void,
+  ): void {
+    const previous = instance.numberOfCordons;
+    this.setInstanceCordons(segment.id, instance.id, value);
+
+    this.nodeAssignmentService.updateCordons(instance.id, { numberOfCordons: value }).subscribe({
+      next: (result) => {
+        this.setInstanceCordons(segment.id, instance.id, result.numberOfCordons);
+        if (result.removedAssignments > 0) {
+          this.toast.warning(
+            result.removedAssignments === 1
+              ? "S'ha desassignat 1 persona que quedava fora dels cordons."
+              : `S'han desassignat ${result.removedAssignments} persones que quedaven fora dels cordons.`,
+          );
+        }
+        // assignedCount/pinyaAssignedCount/totalCordons and the per-figure "needed people"
+        // label all depend on which nodes the new cordon count keeps visible — refresh both
+        // without touching `loading` (a full loadSegments() would flash the whole list away).
+        this.refreshSegmentsSilently();
+        this.loadAssignmentSummary();
+        onDone?.();
+      },
+      error: () => {
+        this.setInstanceCordons(segment.id, instance.id, previous);
+        this.toast.error('Error en actualitzar els cordons.');
+        onDone?.();
+      },
+    });
+  }
+
+  private refreshSegmentsSilently(): void {
+    this.segmentService.getByEvent(this.eventId()).subscribe({
+      next: (resp) => this.segments.set(resp.data),
+      error: () => undefined,
+    });
+  }
+
+  private setInstanceCordons(segmentId: string, instanceId: string, numberOfCordons: number | null): void {
+    this.segments.update((list) =>
+      list.map((s) =>
+        s.id === segmentId
+          ? { ...s, instances: s.instances.map((i) => (i.id === instanceId ? { ...i, numberOfCordons } : i)) }
           : s,
       ),
     );
