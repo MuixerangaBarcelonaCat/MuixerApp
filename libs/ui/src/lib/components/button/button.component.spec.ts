@@ -59,6 +59,44 @@ describe('ButtonComponent', () => {
     expect(buttonEl().nativeElement.className).toContain(expectedClass);
   });
 
+  describe('tooltip — forwarded to the rendered control (host has display:contents)', () => {
+    it('sets no title by default', () => {
+      expect(buttonEl().nativeElement.hasAttribute('title')).toBe(false);
+    });
+
+    it('forwards the tooltip input to the inner button as a title attribute', () => {
+      fixture.componentRef.setInput('tooltip', 'Ajuda');
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.getAttribute('title')).toBe('Ajuda');
+    });
+
+    it('mirrors ariaLabel into the title so it shows as a hover tooltip', () => {
+      fixture.componentRef.setInput('ariaLabel', 'Elimina el segment');
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.getAttribute('title')).toBe('Elimina el segment');
+    });
+
+    it('lets an explicit empty tooltip opt out of the ariaLabel mirror', () => {
+      fixture.componentRef.setInput('ariaLabel', 'Elimina el segment');
+      fixture.componentRef.setInput('tooltip', '');
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.hasAttribute('title')).toBe(false);
+    });
+
+    it('picks up a static title attribute written on the host element', async () => {
+      TestBed.resetTestingModule();
+      @Component({ imports: [ButtonComponent], template: `<lib-button title="Desa">X</lib-button>` })
+      class HostTitleComponent {}
+      await TestBed.configureTestingModule({
+        imports: [HostTitleComponent, RouterModule],
+        providers: [provideRouter([{ path: '**', component: StubRouteComponent }])],
+      }).compileComponents();
+      const hostFixture = TestBed.createComponent(HostTitleComponent);
+      hostFixture.detectChanges();
+      expect(hostFixture.debugElement.query(By.css('button')).nativeElement.getAttribute('title')).toBe('Desa');
+    });
+  });
+
   describe('outline — a modifier combined with variant, not a variant of its own', () => {
     it('adds no outline class by default', () => {
       expect(buttonEl().nativeElement.className).not.toContain('btn-outline');

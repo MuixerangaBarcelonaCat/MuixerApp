@@ -5,6 +5,8 @@ import {
   computed,
   effect,
   ElementRef,
+  HostAttributeToken,
+  inject,
   input,
   isDevMode,
   output,
@@ -136,8 +138,26 @@ export class ButtonComponent {
   // on its own — but only when it sits on the actual focusable element, which `display: contents`
   // hosts can't forward from `<lib-button autofocus>` down to the real inner `<button>`.)
   autofocus = input(false, { transform: booleanAttribute });
+  // Native-tooltip text for the rendered control. Needed because `:host { display: contents }`
+  // gives the `<lib-button>` element no box, so a `title` attribute placed on it by a consumer
+  // never produces a hover tooltip and is never forwarded to the inner `<button>`/`<a>`. Set
+  // `[tooltip]` for a dynamic value; a static `title="…"` attribute on the host is also picked up
+  // (see `hostTitle` below) so existing call sites keep working. When nothing here is set, an
+  // `ariaLabel` (near-always an icon-only button's accessible name) is mirrored into `title` so it
+  // also shows as a hover tooltip — pass `tooltip=""` on a button to opt out.
+  tooltip = input<string>();
 
   clicked = output<void>();
+
+  // Static `title="…"` written directly on the `<lib-button>` host — read once at construction
+  // (dynamic `[title]` bindings won't land here; those callers should use `[tooltip]`).
+  private readonly hostTitle = inject(new HostAttributeToken('title'), { optional: true });
+
+  protected readonly resolvedTitle = computed(() => {
+    const explicit = this.tooltip();
+    if (explicit !== undefined) return explicit || null; // `tooltip=""` opts out of the mirror
+    return this.hostTitle || this.ariaLabel() || null;
+  });
 
   private readonly nativeButtonRef = viewChild<ElementRef<HTMLElement>>('nativeButtonRef');
 
