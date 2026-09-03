@@ -31,6 +31,8 @@ import {
   EventSegmentSummary,
   EventFigureSummary,
   FigureAreaCount,
+  ImportScope,
+  zonesForScope,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -131,6 +133,7 @@ export interface FigureHistoryEntry {
   eventTitle: string;
   eventDate: string;
   eventType: EventType;
+  segmentId: string;
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
@@ -139,6 +142,7 @@ export interface FigureHistoryEntry {
   assignments: {
     nodeId: string;
     nodeLabel: string;
+    zone: FigureZone;
     personId: string;
     personAlias: string;
   }[];
@@ -922,6 +926,7 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
+        segmentId: instance.segment.id,
         segmentName: instance.segment.name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
@@ -930,6 +935,7 @@ export class NodeAssignmentService {
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
+          zone: a.instanceNode.zone,
           personId: a.person.id,
           personAlias: a.person.alias,
         })),
@@ -1238,9 +1244,11 @@ export class NodeAssignmentService {
 
   async bulkImport(
     instanceId: string,
-    dto: { sourceInstanceId: string },
+    dto: { sourceInstanceId: string; scope?: ImportScope },
   ): Promise<BulkImportResult> {
     await this.checkEventLock(instanceId);
+
+    const scopeZones = zonesForScope(dto.scope ?? ImportScope.ALL);
 
     const targetInstance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
@@ -1300,6 +1308,7 @@ export class NodeAssignmentService {
     for (const sourceAssignment of sourceAssignments) {
       const sourceNode = sourceAssignment.instanceNode;
       if (sourceNode.isAdHoc) continue; // ad-hoc assignments handled below
+      if (scopeZones && !scopeZones.has(sourceNode.zone)) continue;
       const personId = sourceAssignment.person.id;
       const personAlias = sourceAssignment.person.alias;
       const nodeLabel = sourceNode.label;

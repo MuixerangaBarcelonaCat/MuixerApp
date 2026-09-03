@@ -1,0 +1,38 @@
+<lib-modal size="2xl" [title]="'Previsualització — ' + eventTitle()" [open]="open()" (closed)="close()">
+  @if (loading()) {
+    <div class="flex flex-1 items-center justify-center h-[60vh]">
+      <span class="loading loading-spinner loading-md text-primary"></span>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="alert alert-error text-sm">{{ error() }}</div>
+  }
+
+  @if (!loading() && !error() && projectionData(); as data) {
+    <div class="h-[60vh]">
+      @if (scope() === ImportScope.TRONC) {
+        <app-tronc-view
+          class="block w-full h-full"
+          mode="projection"
+          [troncNodes]="troncNodesFor()"
+          [baseNodes]="baseNodesFor()"
+          [directionNodes]="directionNodesFor()"
+          [assignments]="assignmentsFor()"
+        />
+      } @else {
+        <lib-pinya-projection
+          class="block w-full h-full"
+          [data]="data"
+          [instanceId]="instanceId()"
+          [scope]="scope()"
+          [showZoomControls]="false"
+        />
+      }
+    </div>
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="close()">Tancar</lib-button>
+  </div>
+</lib-modal>

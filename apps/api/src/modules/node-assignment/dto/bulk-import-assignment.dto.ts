@@ -1,4 +1,5 @@
-import { IsString, IsUUID, IsOptional } from 'class-validator';
+import { IsString, IsUUID, IsOptional, IsEnum } from 'class-validator';
+import { ImportScope } from '@muixer/shared';
 
 export class BulkImportAssignmentDto {
   @IsUUID()
@@ -7,4 +8,8 @@ export class BulkImportAssignmentDto {
   @IsOptional()
   @IsUUID()
   sourceCompositionSlotId?: string;
+
+  @IsOptional()
+  @IsEnum(ImportScope)
+  scope?: ImportScope;
 }

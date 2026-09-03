@@ -24,6 +24,7 @@ import {
   SegmentMoveConflictResolution,
   AssignmentArea,
   SegmentConflictKind,
+  ImportScope,
 } from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -1351,6 +1352,23 @@ describe('NodeAssignmentService', () => {
       );
       expect(result.data[0].totalNodes).toBe(7);
     });
+
+    it('includes segmentId and each assignment zone in the response', async () => {
+      const tmpl = { id: TEMPLATE_ID };
+      const node = makeInstanceNode({ zone: FigureZone.TRONC });
+      const instance = makeInstance({ snapshotted: true });
+      instance.assignments = [makeAssignment({ instanceNode: node as any, person: makePerson() as any })];
+      instance.segment = { ...makeSegment(), event: { id: 'e1', title: 'Assaig', date: '2026-05-01', eventType: EventType.ASSAIG } };
+
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockHistoryQb.getCount.mockResolvedValue(1);
+      mockHistoryQb.getMany.mockResolvedValue([instance]);
+
+      const result = await service.getHistory(TEMPLATE_ID);
+
+      expect(result.data[0].segmentId).toBe(SEGMENT_ID);
+      expect(result.data[0].assignments[0].zone).toBe(FigureZone.TRONC);
+    });
   });
 
   // ── getPersonHistory ───────────────────────────────────────────────────
@@ -1987,6 +2005,91 @@ describe('NodeAssignmentService', () => {
         errorSpy.mockRestore();
       }
     });
+
+    it('imports only PINYA-zone assignments when scope is PINYA', async () => {
+      const pinyaNode = makeInstanceNode({ id: 'target-pinya', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const troncNode = makeInstanceNode({ id: 'target-tronc', zone: FigureZone.TRONC, renglaId: null, renglaPosition: null, sourceNodeId: 'src-tronc-fn' });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [pinyaNode, troncNode] });
+
+      const sourcePinyaNode = makeInstanceNode({ id: 'src-pinya', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const sourceTroncNode = makeInstanceNode({ id: 'src-tronc', zone: FigureZone.TRONC, sourceNodeId: 'src-tronc-fn' });
+      const source = makeInstance({ id: 'source-uuid', snapshotted: true, instanceNodes: [sourcePinyaNode, sourceTroncNode] });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({ instanceNode: sourcePinyaNode as any, person: makePerson('p-pinya') as any }),
+        makeAssignment({ instanceNode: sourceTroncNode as any, person: makePerson('p-tronc') as any }),
+      ]);
+      jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockImplementation((_instanceId: any, { nodeId }: any) =>
+          Promise.resolve({ node: { id: nodeId } } as any),
+        );
+
+      const result = await service.bulkImport(INSTANCE_ID, {
+        sourceInstanceId: 'source-uuid',
+        scope: ImportScope.PINYA,
+      });
+
+      expect(result.created).toHaveLength(1);
+      expect(result.created[0].node.id).toBe('target-pinya');
+    });
+
+    it('imports TRONC and BASE zones when scope is TRONC, not PINYA', async () => {
+      const pinyaNode = makeInstanceNode({ id: 'target-pinya', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const baseNode = makeInstanceNode({ id: 'target-base', zone: FigureZone.BASE, renglaId: null, renglaPosition: null, sourceNodeId: 'src-base-fn' });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [pinyaNode, baseNode] });
+
+      const sourcePinyaNode = makeInstanceNode({ id: 'src-pinya', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const sourceBaseNode = makeInstanceNode({ id: 'src-base', zone: FigureZone.BASE, sourceNodeId: 'src-base-fn' });
+      const source = makeInstance({ id: 'source-uuid', snapshotted: true, instanceNodes: [sourcePinyaNode, sourceBaseNode] });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({ instanceNode: sourcePinyaNode as any, person: makePerson('p-pinya') as any }),
+        makeAssignment({ instanceNode: sourceBaseNode as any, person: makePerson('p-base') as any }),
+      ]);
+      jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockImplementation((_instanceId: any, { nodeId }: any) =>
+          Promise.resolve({ node: { id: nodeId } } as any),
+        );
+
+      const result = await service.bulkImport(INSTANCE_ID, {
+        sourceInstanceId: 'source-uuid',
+        scope: ImportScope.TRONC,
+      });
+
+      expect(result.created).toHaveLength(1);
+      expect(result.created[0].node.id).toBe('target-base');
+    });
+
+    it('imports every zone when scope is omitted (default ALL, backward compatible)', async () => {
+      const pinyaNode = makeInstanceNode({ id: 'target-pinya', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [pinyaNode] });
+      const sourcePinyaNode = makeInstanceNode({ id: 'src-pinya', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const source = makeInstance({ id: 'source-uuid', snapshotted: true, instanceNodes: [sourcePinyaNode] });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({ instanceNode: sourcePinyaNode as any, person: makePerson('p-pinya') as any }),
+      ]);
+      jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockImplementation((_instanceId: any, { nodeId }: any) =>
+          Promise.resolve({ node: { id: nodeId } } as any),
+        );
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.created).toHaveLength(1);
+    });
   });
 
   // ── Assignment lock ──────────────────────────────────────────────────
@@ -2458,6 +2561,45 @@ describe('NodeAssignmentService', () => {
       // Bug fix: must be the reason classified from the caught error, not the
       // hardcoded generic Catalan string that used to be pushed regardless.
       expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+    });
+
+    it('still clones ad-hoc nodes when scope restricts the regular loop to PINYA (regression: scope must never filter ad-hoc cloning)', async () => {
+      const adHocSourceNode = makeInstanceNode({
+        id: 'src-adhoc-1',
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Extra cordó',
+      });
+      const troncNode = makeInstanceNode({ id: 'target-tronc', zone: FigureZone.TRONC, renglaId: null, renglaPosition: null, sourceNodeId: 'src-tronc-fn' });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode(), troncNode] });
+
+      const sourceTroncNode = makeInstanceNode({ id: 'src-tronc', zone: FigureZone.TRONC, sourceNodeId: 'src-tronc-fn' });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), sourceTroncNode, adHocSourceNode],
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      // Only a TRONC-zone assignment on the source — the PINYA scope should
+      // exclude it from the regular loop, but the ad-hoc node must still clone.
+      mockAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({ instanceNode: sourceTroncNode as any, person: makePerson('p-tronc') as any }),
+      ]);
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const cloned = { ...adHocSourceNode, id: 'cloned-adhoc-1' };
+      mockInstanceNodeRepo.create.mockReturnValue(cloned);
+      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+
+      const result = await service.bulkImport(INSTANCE_ID, {
+        sourceInstanceId: 'source-uuid',
+        scope: ImportScope.PINYA,
+      });
+
+      expect(result.clonedAdHocNodes).toBe(1);
+      expect(result.created).toHaveLength(0);
     });
   });
 

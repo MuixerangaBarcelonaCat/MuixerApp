@@ -19,20 +19,24 @@
       <!-- Selectable list rows (border/bg selected-state language) stay raw markup rather than
            lib-button — same judgment call as person-panel's per-person rows: a domain-specific
            selectable-row pattern lib-button doesn't model, not a gap. -->
-      <ul class="space-y-1 max-h-64 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
+      <ul class="space-y-1 max-h-96 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
         @for (entry of history(); track entry.instanceId) {
-          <li>
+          <li class="rounded-lg border transition-colors"
+            [class]="!entry.snapshotted
+              ? 'border-base-300 opacity-50'
+              : selectedEntry()?.instanceId === entry.instanceId
+                ? 'border-primary bg-primary/5'
+                : 'border-base-300 hover:border-base-content/30'"
+          >
             <button
               type="button"
               role="option"
               [attr.aria-selected]="selectedEntry()?.instanceId === entry.instanceId"
               [disabled]="!entry.snapshotted"
-              class="w-full text-left px-3 py-2 rounded-lg border transition-colors text-sm"
-              [class]="!entry.snapshotted
-                ? 'border-base-300 opacity-50 cursor-not-allowed'
-                : selectedEntry()?.instanceId === entry.instanceId
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-base-300 hover:border-base-content/30 hover:bg-base-200'"
+              class="w-full text-left px-3 py-2 text-sm"
+              [class.cursor-not-allowed]="!entry.snapshotted"
+              [class.text-primary]="selectedEntry()?.instanceId === entry.instanceId"
+              [class.hover:bg-base-200]="entry.snapshotted && selectedEntry()?.instanceId !== entry.instanceId"
               [attr.title]="!entry.snapshotted ? 'Aquesta instància no té assignacions per importar' : null"
               (click)="selectEntry(entry)"
             >
@@ -47,21 +51,48 @@
                 <lib-badge variant="ghost" size="xs">{{ entry.assignmentCount }}/{{ entry.totalNodes }} assignades</lib-badge>
               </div>
             </button>
+
+            @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {
+              <div class="border-t border-primary/20 px-2 py-1.5 space-y-1">
+                @for (row of [
+                  { scope: ImportScope.PINYA, label: 'Pinya' },
+                  { scope: ImportScope.TRONC, label: 'Tronc' },
+                  { scope: ImportScope.ALL, label: 'Figura' }
+                ]; track row.scope) {
+                  <div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-md bg-base-100/60">
+                    <div class="text-xs">
+                      <span class="font-medium">{{ row.label }}</span>
+                      <span class="text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <lib-button
+                        variant="ghost"
+                        size="xs"
+                        [disabled]="countForScope(row.scope) === 0"
+                        (clicked)="openPreview(row.scope)"
+                      >
+                        Previsualitza
+                      </lib-button>
+                      <lib-button
+                        variant="primary"
+                        size="xs"
+                        [disabled]="countForScope(row.scope) === 0"
+                        [loading]="importing()"
+                        (clicked)="onImportClick(row.scope)"
+                      >
+                        @if (!importing()) {
+                          <i-lucide [img]="Import" class="size-3" />
+                        }
+                        Importa
+                      </lib-button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           </li>
         }
       </ul>
-
-      @if (selectedEntry()) {
-        <div class="bg-base-200 rounded-lg p-3 mb-4 text-xs space-y-1">
-          <p class="font-semibold">Resum: {{ selectedEntry()!.assignmentCount }} assignacions</p>
-          @for (a of selectedEntry()!.assignments.slice(0, 5); track a.nodeId) {
-            <p class="text-base-content/60">{{ a.nodeLabel }}: {{ a.personAlias }}</p>
-          }
-          @if (selectedEntry()!.assignments.length > 5) {
-            <p class="text-base-content/40">i {{ selectedEntry()!.assignments.length - 5 }} més...</p>
-          }
-        </div>
-      }
     }
 
     @if (lastResult()) {
@@ -89,19 +120,31 @@
 
   <div modalFooter>
     <lib-button variant="ghost" size="sm" (clicked)="close()">Tancar</lib-button>
-    @if (!lastResult()) {
-      <lib-button
-        variant="primary"
-        size="sm"
-        [disabled]="!selectedEntry()"
-        [loading]="importing()"
-        (clicked)="doImport()"
-      >
-        @if (!importing()) {
-          <lucide-icon [img]="Import" [size]="12" aria-hidden="true" />
-        }
-        Importa
-      </lib-button>
-    }
   </div>
 </lib-modal>
+
+@if (confirmScope(); as scope) {
+  <lib-modal size="sm" title="Nodes ja ocupats" [open]="true" (closed)="cancelConfirm()">
+    <p class="text-sm text-base-content/70">
+      {{ occupiedCountForScope(scope) }}
+      {{ occupiedCountForScope(scope) === 1 ? 'node de' : 'nodes de' }}
+      {{ scopeLabel(scope) }} ja tenen algú assignat al destí i no es modificaran. La resta s'importarà normalment.
+    </p>
+    <div modalFooter>
+      <lib-button variant="ghost" size="sm" (clicked)="cancelConfirm()">Cancel·la</lib-button>
+      <lib-button variant="primary" size="sm" (clicked)="confirmImport()">Entesos, importa</lib-button>
+    </div>
+  </lib-modal>
+}
+
+@if (previewScope(); as scope) {
+  <app-import-preview-modal
+    [eventId]="selectedEntry()!.eventId"
+    [segmentId]="selectedEntry()!.segmentId"
+    [instanceId]="selectedEntry()!.instanceId"
+    [scope]="scope"
+    [eventTitle]="selectedEntry()!.eventTitle"
+    [open]="true"
+    (closed)="closePreview()"
+  />
+}

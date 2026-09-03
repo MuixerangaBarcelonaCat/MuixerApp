@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FigureZone, getSegmentInstanceLabel } from '@muixer/shared';
+import { FigureZone, ImportScope, getSegmentInstanceLabel } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
@@ -72,6 +72,9 @@ export class PinyaProjectionComponent {
    * what the Dashboard always passes) leaves the whole layer inert; only the PWA sets this.
    */
   readonly highlightPersonId = input<string | null>(null);
+
+  /** Import preview scope — `PINYA` hides the tronc panel (nothing to preview yet). `null`/`ALL` unchanged. */
+  readonly scope = input<ImportScope | null>(null);
 
   /** Signal query: the element only exists while the host renders (always, once
    *  `data` is set), but kept as a query for parity with the ResizeObserver
@@ -387,6 +390,7 @@ export class PinyaProjectionComponent {
    * (same geometry as distributionTroncPanels, converted from screen to canvas by dividing stageScale)
    */
   readonly distributionFitBounds = computed((): { x: number; y: number; width: number; height: number }[] => {
+    if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
     const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,
@@ -435,6 +439,7 @@ export class PinyaProjectionComponent {
    * so TroncViewComponent gets full space to render and is then visually scaled down.
    */
   readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
+    if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
     const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,

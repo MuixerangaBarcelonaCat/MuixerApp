@@ -1038,8 +1038,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private applyReadonlyFit(): void {
     const nodes = this.nodes();
-    if (nodes.length === 0) return;
     const allBounds = [...nodes, ...this.fitExtraBounds()];
+    if (allBounds.length === 0) return;
     const fit = computeFitTransform(allBounds, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 });
     if (fit) {
       this.stage.scale({ x: fit.scale, y: fit.scale });
@@ -2531,7 +2531,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
 
-    if (this.nodes().length > 0 && !this.userAdjustedView) {
+    if ((this.nodes().length > 0 || this.fitExtraBounds().length > 0) && !this.userAdjustedView) {
       setTimeout(() => {
         this.applyReadonlyFit();
         this.stage.batchDraw();

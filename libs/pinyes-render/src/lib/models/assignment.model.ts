@@ -5,7 +5,7 @@ export type {
   FigureAreaCount,
 } from '@muixer/shared';
 
-import { TagCategory } from '@muixer/shared';
+import { FigureZone, ImportScope, TagCategory } from '@muixer/shared';
 
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
@@ -146,6 +146,7 @@ export interface FigureHistoryEntry {
   eventTitle: string;
   eventDate: string;
   eventType: string;
+  segmentId: string;
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
@@ -154,6 +155,7 @@ export interface FigureHistoryEntry {
   assignments: {
     nodeId: string;
     nodeLabel: string;
+    zone: FigureZone;
     personId: string;
     personAlias: string;
   }[];
@@ -180,6 +182,7 @@ export interface CreateAssignmentPayload {
 
 export interface BulkImportPayload {
   sourceInstanceId: string;
+  scope?: ImportScope;
 }
 
 export interface AvailablePersonsQuery {
