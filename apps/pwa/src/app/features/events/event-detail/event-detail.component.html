@@ -103,15 +103,6 @@
       </div>
     }
 
-    @if (isStaff()) {
-      <div class="card bg-base-100 shadow-sm p-4 space-y-2">
-        <h2 class="font-semibold">Eines de tècnic</h2>
-        <a class="btn btn-sm btn-outline w-full" [routerLink]="['/events', ev.id, 'roll-call']">
-          Marca assistència
-        </a>
-      </div>
-    }
-
     <div class="flex flex-col items-center gap-3 mt-2 attendance-section" [style.order]="isPast() ? 2 : 1">
       @for (row of ev.managedAttendances; track row.personId) {
         <div class="flex flex-col items-center gap-1 w-full max-w-xs">
@@ -128,6 +119,16 @@
             [ariaContext]="ev.title + ' — ' + row.displayName"
           />
         </div>
+      }
+
+      @if (showRollCallLink()) {
+        <a
+          class="flex items-center gap-0.5 text-sm text-base-content/60 hover:text-base-content/80 mt-1"
+          [routerLink]="['/events', ev.id, 'roll-call']"
+        >
+          Passa llista
+          <lucide-icon [img]="ChevronRight" [size]="14" aria-hidden="true" />
+        </a>
       }
     </div>
   </section>
