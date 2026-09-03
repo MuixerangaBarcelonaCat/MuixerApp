@@ -8,7 +8,6 @@ import {
   signal,
   SimpleChanges,
 } from '@angular/core';
-import { LucideAngularModule, X } from 'lucide-angular';
 import { FigureZone, ImportScope } from '@muixer/shared';
 import {
   AssignmentDetail,
@@ -17,13 +16,14 @@ import {
   TroncNodeItem,
   TroncViewComponent,
 } from '@muixer/pinyes-render';
+import { ButtonComponent, ModalComponent } from '@muixer/ui';
 import { ProjectionService } from '../../services/projection.service';
 
 @Component({
   selector: 'app-import-preview-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, PinyaProjectionComponent, TroncViewComponent],
+  imports: [PinyaProjectionComponent, TroncViewComponent, ButtonComponent, ModalComponent],
   templateUrl: './import-preview-modal.component.html',
 })
 export class ImportPreviewModalComponent implements OnChanges {
@@ -38,7 +38,6 @@ export class ImportPreviewModalComponent implements OnChanges {
 
   private readonly projectionService = inject(ProjectionService);
 
-  readonly X = X;
   readonly ImportScope = ImportScope;
 
   readonly loading = signal(true);
@@ -93,11 +92,5 @@ export class ImportPreviewModalComponent implements OnChanges {
 
   close(): void {
     this.closed.emit();
-  }
-
-  onBackdropClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      this.close();
-    }
   }
 }

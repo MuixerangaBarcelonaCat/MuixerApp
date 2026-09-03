@@ -1,59 +1,38 @@
-@if (open()) {
-  <dialog
-    class="modal modal-open"
-    role="dialog"
-    aria-labelledby="import-preview-title"
-    aria-modal="true"
-    (click)="onBackdropClick($event)"
-    (keydown.escape)="close()"
-  >
-    <div class="modal-box max-w-5xl h-[80vh] flex flex-col">
-      <div class="flex items-center justify-between mb-4">
-        <h2 id="import-preview-title" class="text-lg font-bold">
-          Previsualització — {{ eventTitle() }}
-        </h2>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">
-          <i-lucide [img]="X" class="size-4" />
-        </button>
-      </div>
-
-      @if (loading()) {
-        <div class="flex flex-1 items-center justify-center">
-          <span class="loading loading-spinner loading-md text-primary"></span>
-        </div>
-      }
-
-      @if (error()) {
-        <div class="alert alert-error text-sm">{{ error() }}</div>
-      }
-
-      @if (!loading() && !error() && projectionData(); as data) {
-        <div class="flex-1 min-h-0">
-          @if (scope() === ImportScope.TRONC) {
-            <app-tronc-view
-              class="block w-full h-full"
-              mode="projection"
-              [troncNodes]="troncNodesFor()"
-              [baseNodes]="baseNodesFor()"
-              [directionNodes]="directionNodesFor()"
-              [assignments]="assignmentsFor()"
-            />
-          } @else {
-            <lib-pinya-projection
-              class="block w-full h-full"
-              [data]="data"
-              [instanceId]="instanceId()"
-              [scope]="scope()"
-              [showZoomControls]="false"
-            />
-          }
-        </div>
-      }
-
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="close()">Tancar</button>
-      </div>
+<lib-modal size="2xl" [title]="'Previsualització — ' + eventTitle()" [open]="open()" (closed)="close()">
+  @if (loading()) {
+    <div class="flex flex-1 items-center justify-center h-[60vh]">
+      <span class="loading loading-spinner loading-md text-primary"></span>
     </div>
-    <button type="button" class="modal-backdrop" (click)="close()" aria-label="Tancar"></button>
-  </dialog>
-}
+  }
+
+  @if (error()) {
+    <div class="alert alert-error text-sm">{{ error() }}</div>
+  }
+
+  @if (!loading() && !error() && projectionData(); as data) {
+    <div class="h-[60vh]">
+      @if (scope() === ImportScope.TRONC) {
+        <app-tronc-view
+          class="block w-full h-full"
+          mode="projection"
+          [troncNodes]="troncNodesFor()"
+          [baseNodes]="baseNodesFor()"
+          [directionNodes]="directionNodesFor()"
+          [assignments]="assignmentsFor()"
+        />
+      } @else {
+        <lib-pinya-projection
+          class="block w-full h-full"
+          [data]="data"
+          [instanceId]="instanceId()"
+          [scope]="scope()"
+          [showZoomControls]="false"
+        />
+      }
+    </div>
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="close()">Tancar</lib-button>
+  </div>
+</lib-modal>
