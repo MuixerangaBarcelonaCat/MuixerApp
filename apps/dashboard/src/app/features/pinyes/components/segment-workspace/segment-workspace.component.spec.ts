@@ -20,6 +20,7 @@ import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/
 class StubImportModal {
   readonly figureTemplateId = input.required<string>();
   readonly currentInstanceId = input.required<string>();
+  readonly origin = input<'pinya' | 'tronc'>('pinya');
   readonly open = input<boolean>(false);
   readonly importCompleted = output<BulkImportResult>();
   readonly closed = output<void>();
@@ -481,10 +482,32 @@ describe('SegmentWorkspaceComponent', () => {
       expect(headerTriggerText(fixture)).not.toContain('Importa pinya');
     });
 
-    it('only shows the buttons on the pinyes tab', async () => {
-      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+    it('hides both buttons on tabs other than pinyes/troncs', async () => {
+      const fixture = await setup({ queryParams: { tab: 'distribucio' } });
       expect(headerTriggerText(fixture)).not.toContain('Reinicialitza');
-      expect(headerTriggerText(fixture)).not.toContain('Importa pinya');
+      expect(headerTriggerText(fixture)).not.toContain('Importa');
+    });
+
+    it('shows the import button (never reset) on the troncs tab, labelled "Importa tronc"', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      ws.instances.set([{ ...makeWorkspaceInstance('inst-a'), snapshotted: true }]);
+      fixture.detectChanges();
+      expect(headerTriggerText(fixture)).toContain('Importa tronc');
+      expect(headerTriggerText(fixture)).not.toContain('Reinicialitza');
+    });
+
+    it('passes origin "tronc" to the import target when triggered from the troncs tab', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      ws.instances.set([makeWorkspaceInstance('inst-a')]);
+      fixture.detectChanges();
+
+      fixture.componentInstance.openImport();
+
+      expect(fixture.componentInstance.importTarget()).toEqual({
+        instanceId: 'inst-a',
+        figureTemplateId: 'tpl-inst-a',
+        origin: 'tronc',
+      });
     });
 
     it('shows the import button when there is a figure to import into', async () => {
@@ -502,6 +525,7 @@ describe('SegmentWorkspaceComponent', () => {
       expect(fixture.componentInstance.importTarget()).toEqual({
         instanceId: 'inst-a',
         figureTemplateId: 'tpl-inst-a',
+        origin: 'pinya',
       });
       expect(fixture.componentInstance.importMenuOpen()).toBe(false);
     });
@@ -517,6 +541,7 @@ describe('SegmentWorkspaceComponent', () => {
       expect(fixture.componentInstance.importTarget()).toEqual({
         instanceId: 'inst-b',
         figureTemplateId: 'tpl-inst-b',
+        origin: 'pinya',
       });
       expect(fixture.componentInstance.importMenuOpen()).toBe(false);
     });

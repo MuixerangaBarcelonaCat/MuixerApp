@@ -127,6 +127,39 @@ describe('ImportPinyaModalComponent', () => {
     });
   });
 
+  // ── origin scoping ─────────────────────────────────────────────────────────
+
+  describe('origin', () => {
+    it('offers pinya + tot (never tronc alone) by default', () => {
+      expect(component.scopes().map((s) => s.scope)).toEqual([ImportScope.PINYA, ImportScope.ALL]);
+      expect(component.title()).toBe('Importació de pinya anterior');
+    });
+
+    it('offers tronc + tot (never pinya alone) when opened from the troncs panel', () => {
+      fixture.componentRef.setInput('origin', 'tronc');
+      fixture.detectChanges();
+
+      expect(component.scopes().map((s) => s.scope)).toEqual([ImportScope.TRONC, ImportScope.ALL]);
+      expect(component.title()).toBe('Importació de tronc anterior');
+    });
+
+    it('labels the ALL scope "Tot" in the preview switch but "Pinya i tronc" on the import button', () => {
+      const all = component.scopes().find((s) => s.scope === ImportScope.ALL)!;
+      expect(all.label).toBe('Tot');
+      expect(all.actionLabel).toBe('Pinya i tronc');
+    });
+
+    it('defaults the preview to the whole figure for a pinya origin, to tronc for a tronc origin', () => {
+      component.selectEntry({ ...makeHistoryEntry(), snapshotted: true });
+      expect(component.previewScope()).toBe(ImportScope.ALL);
+
+      fixture.componentRef.setInput('origin', 'tronc');
+      fixture.detectChanges();
+      component.selectEntry({ ...makeHistoryEntry('other'), snapshotted: true });
+      expect(component.previewScope()).toBe(ImportScope.TRONC);
+    });
+  });
+
   // ── entry subtitle ─────────────────────────────────────────────────────────
 
   describe('entrySubtitle', () => {
