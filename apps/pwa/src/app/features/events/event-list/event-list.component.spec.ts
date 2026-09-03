@@ -59,7 +59,6 @@ describe('EventListComponent', () => {
   let eventService: {
     findAll: ReturnType<typeof vi.fn>;
     updateAttendance: ReturnType<typeof vi.fn>;
-    findSeasons: ReturnType<typeof vi.fn>;
   };
 
   async function stable(): Promise<void> {
@@ -74,7 +73,6 @@ describe('EventListComponent', () => {
         of({ data: [MOCK_EVENT], meta: { total: 1, page: 1, limit: 50 } }),
       ),
       updateAttendance: vi.fn(),
-      findSeasons: vi.fn().mockReturnValue(of([])),
     };
 
     await TestBed.configureTestingModule({
@@ -264,5 +262,109 @@ describe('EventListComponent', () => {
 
     const button = fixture.nativeElement.querySelector('app-attendance-button button');
     expect(button.classList.contains('btn-success')).toBe(true);
+  });
+
+  // --- Pagination (infinite scroll) ---
+
+  describe('loadMore', () => {
+    beforeEach(async () => {
+      eventService.findAll.mockReturnValue(
+        of({ data: [MOCK_EVENT], meta: { total: 3, page: 1, limit: 50 } }),
+      );
+      component.setFilter('past');
+      await stable();
+    });
+
+    it('appends the next page to the visible events', async () => {
+      eventService.findAll.mockReturnValue(
+        of({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } }),
+      );
+
+      component.loadMore();
+      await stable();
+
+      expect(eventService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ timeFilter: 'past', page: 2, limit: 50 }),
+      );
+      const cards = fixture.nativeElement.querySelectorAll('app-event-card');
+      expect(cards.length).toBe(2);
+    });
+
+    it('does not request another page while one is already loading', async () => {
+      const { Subject } = await import('rxjs');
+      const pending = new Subject<{ data: MeEvent[]; meta: { total: number; page: number; limit: number } }>();
+      eventService.findAll.mockReturnValue(pending);
+
+      component.loadMore();
+      const callCount = eventService.findAll.mock.calls.length;
+      component.loadMore();
+
+      expect(eventService.findAll.mock.calls.length).toBe(callCount);
+      pending.complete();
+    });
+
+    it('stops offering more once every event has loaded', async () => {
+      eventService.findAll.mockReturnValue(
+        of({ data: [MOCK_EVENTS_SEASON[1], MOCK_EVENTS_SEASON[2]], meta: { total: 3, page: 2, limit: 50 } }),
+      );
+
+      component.loadMore();
+      await stable();
+
+      expect(fixture.nativeElement.querySelector('[appinfinitescroll]')).toBeFalsy();
+    });
+
+    it('discards a page that resolves after the filter has already changed', async () => {
+      const { Subject } = await import('rxjs');
+      const pending = new Subject<{ data: MeEvent[]; meta: { total: number; page: number; limit: number } }>();
+      eventService.findAll.mockReturnValue(pending);
+
+      component.loadMore();
+      component.setFilter('upcoming');
+      eventService.findAll.mockReturnValue(
+        of({ data: [MOCK_EVENT], meta: { total: 1, page: 1, limit: 50 } }),
+      );
+      await stable();
+
+      pending.next({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } });
+      pending.complete();
+      fixture.detectChanges();
+
+      const cards = fixture.nativeElement.querySelectorAll('app-event-card');
+      expect(cards.length).toBe(1);
+    });
+
+    it('resets accumulated pages when switching tabs', async () => {
+      eventService.findAll.mockReturnValue(
+        of({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } }),
+      );
+      component.loadMore();
+      await stable();
+      expect(fixture.nativeElement.querySelectorAll('app-event-card').length).toBe(2);
+
+      eventService.findAll.mockReturnValue(
+        of({ data: [MOCK_EVENT], meta: { total: 1, page: 1, limit: 50 } }),
+      );
+      component.setFilter('upcoming');
+      await stable();
+
+      expect(fixture.nativeElement.querySelectorAll('app-event-card').length).toBe(1);
+    });
+
+    it('patches appended events on attendance change too', async () => {
+      eventService.findAll.mockReturnValue(
+        of({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } }),
+      );
+      component.loadMore();
+      await stable();
+
+      component.onAttendanceChanged({ eventId: 'ev-2', personId: 'p-1', status: AttendanceStatus.ANIRE });
+      fixture.detectChanges();
+
+      // Two <app-attendance-button> (one per card, ev-1 then the appended ev-2), each rendering
+      // a Vinc/No-vinc button pair — the second card's first (Vinc) button is index 2.
+      const buttons = fixture.nativeElement.querySelectorAll('app-attendance-button button');
+      expect(buttons[2].classList.contains('btn-success')).toBe(true);
+    });
   });
 });

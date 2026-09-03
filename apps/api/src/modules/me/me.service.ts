@@ -20,7 +20,6 @@ import {
   PendingDependent,
   PersonProfileSummary,
   MeNewsItem,
-  MeSeason,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -33,7 +32,6 @@ import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
-import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
@@ -60,7 +58,6 @@ export class MeService {
     private readonly attendanceRepository: Repository<Attendance>,
     @InjectRepository(NodeAssignment)
     private readonly nodeAssignmentRepository: Repository<NodeAssignment>,
-    private readonly seasonService: SeasonService,
     private readonly attendanceService: AttendanceService,
     private readonly personDelegateService: PersonDelegateService,
     private readonly personService: PersonService,
@@ -101,16 +98,6 @@ export class MeService {
     return managed;
   }
 
-  async findSeasons(): Promise<MeSeason[]> {
-    const { data } = await this.seasonService.findAll();
-    return data.map((s) => ({
-      id: s.id,
-      name: s.name,
-      startDate: s.startDate as unknown as string,
-      endDate: s.endDate as unknown as string,
-    }));
-  }
-
   async findEvents(
     jwtUser: JwtPayload,
     filters: MeEventFilterDto,
@@ -118,16 +105,9 @@ export class MeService {
     const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
     if (managedPersons.length === 0) return this.emptyPage(filters);
 
-    const season = filters.seasonId
-      ? await this.seasonService.findEntityById(filters.seasonId)
-      : await this.seasonService.findCurrentEntity();
-    if (!season) return this.emptyPage(filters);
-
     const { type, timeFilter = 'upcoming', page = 1, limit = 20 } = filters;
 
-    const qb = this.eventRepository
-      .createQueryBuilder('event')
-      .where('event."seasonId" = :seasonId', { seasonId: season.id });
+    const qb = this.eventRepository.createQueryBuilder('event');
 
     if (type) {
       qb.andWhere('event."eventType" = :type', { type });

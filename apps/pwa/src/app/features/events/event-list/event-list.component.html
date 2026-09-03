@@ -1,22 +1,7 @@
 <app-mobile-header title="Agenda" />
 
-@if (seasons().length > 1) {
-  <div class="mb-3">
-    <lib-select
-      size="sm"
-      ariaLabel="Temporada"
-      [ngModel]="effectiveSeasonId()"
-      (ngModelChange)="onSeasonChange($event)"
-    >
-      @for (season of seasons(); track season.id) {
-        <option [value]="season.id">{{ season.name }}</option>
-      }
-    </lib-select>
-  </div>
-}
-
 <div class="flex items-center gap-2 mb-4">
-  @if (viewMode() === 'list' && isCurrentSeason()) {
+  @if (viewMode() === 'list') {
     <nav class="tabs tabs-bordered flex-1" role="tablist" aria-label="Filtre d'assajos i actuacions">
       @for (tab of tabs; track tab.key; let i = $index) {
         <button
@@ -71,16 +56,27 @@
             (attendanceChanged)="onAttendanceChanged($event)"
           />
         }
-        @if (isTruncated()) {
-          <p class="text-center text-sm text-base-content/50 py-2">
-            Hi ha més assajos i actuacions. Canvieu el filtre per veure'ls tots.
-          </p>
+        @if (hasMore()) {
+          <div
+            appInfiniteScroll
+            [appInfiniteScrollDisabled]="isLoadingMore()"
+            (visible)="loadMore()"
+            class="flex justify-center py-3"
+          >
+            @if (isLoadingMore()) {
+              <span
+                class="loading loading-spinner loading-sm text-primary"
+                role="status"
+                aria-label="Carregant més assajos i actuacions..."
+              ></span>
+            }
+          </div>
         }
       }
     </section>
   } @else {
     <section aria-live="polite">
-      @if (isCalendarLoading() && allSeasonEvents().length === 0) {
+      @if (isCalendarLoading() && allEvents().length === 0) {
         <div class="flex flex-col gap-2" aria-busy="true">
           <div class="h-8 bg-base-300 rounded animate-pulse w-1/2 mx-auto mb-2"></div>
           <div class="grid grid-cols-7 gap-1">
@@ -93,18 +89,18 @@
         <app-empty-state
           message="No s'ha pogut carregar el calendari. Torneu-ho a provar."
           actionLabel="Torna-ho a provar"
-          (action)="loadAllSeasonEvents()"
+          (action)="loadCalendarEvents()"
         />
       } @else {
         <app-calendar-view
-          [events]="allSeasonEvents()"
+          [events]="allEvents()"
           [selectedDate]="selectedDate()"
           (selectedDateChange)="onSelectedDateChange($event)"
         />
 
         @if (isCalendarTruncated()) {
           <p class="text-center text-xs text-warning py-1">
-            El calendari no mostra tots els assajos i actuacions de la temporada.
+            El calendari no mostra tots els assajos i actuacions.
           </p>
         }
 

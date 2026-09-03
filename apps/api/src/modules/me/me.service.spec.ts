@@ -12,7 +12,6 @@ import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
-import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
@@ -27,8 +26,6 @@ const mockUser: JwtPayload = {
   email: 'test@test.com',
   role: UserRole.MEMBER,
 };
-
-const mockSeason = { id: 'season-1', name: '2025-2026' };
 
 const mockEvent: Partial<Event> = {
   id: 'event-1',
@@ -51,7 +48,6 @@ describe('MeService', () => {
   let userRepo: jest.Mocked<Repository<User>>;
   let eventRepo: jest.Mocked<Repository<Event>>;
   let attendanceRepo: jest.Mocked<Repository<Attendance>>;
-  let seasonService: jest.Mocked<SeasonService>;
   let attendanceService: jest.Mocked<AttendanceService>;
   let personDelegateService: jest.Mocked<PersonDelegateService>;
   let personService: jest.Mocked<PersonService>;
@@ -93,10 +89,6 @@ describe('MeService', () => {
             upsert: jest.fn(),
             findOneOrFail: jest.fn(),
           },
-        },
-        {
-          provide: SeasonService,
-          useValue: { findCurrentEntity: jest.fn(), findEntityById: jest.fn(), findAll: jest.fn() },
         },
         {
           provide: AttendanceService,
@@ -141,7 +133,6 @@ describe('MeService', () => {
     personRepo = module.get(getRepositoryToken(Person));
     eventRepo = module.get(getRepositoryToken(Event));
     attendanceRepo = module.get(getRepositoryToken(Attendance));
-    seasonService = module.get(SeasonService);
     attendanceService = module.get(AttendanceService);
     personDelegateService = module.get(PersonDelegateService);
     personService = module.get(PersonService);
@@ -388,21 +379,6 @@ describe('MeService', () => {
     return mockQb;
   }
 
-  describe('findSeasons', () => {
-    it('should map season list items to MeSeason', async () => {
-      seasonService.findAll.mockResolvedValue({
-        data: [{ id: 's-1', name: '2025-2026', startDate: new Date('2025-09-01'), endDate: new Date('2026-08-31'), description: null, eventCount: 3 }],
-        total: 1,
-      } as never);
-
-      const result = await service.findSeasons();
-
-      expect(result).toEqual([
-        { id: 's-1', name: '2025-2026', startDate: new Date('2025-09-01'), endDate: new Date('2026-08-31') },
-      ]);
-    });
-  });
-
   describe('findEvents', () => {
     it('should return empty page when user has no person and no delegates', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
@@ -416,7 +392,6 @@ describe('MeService', () => {
       personDelegateService.findByUser.mockResolvedValue([
         { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig', alias: 'JoanP' }, delegateType: DelegateType.PARENT },
       ] as never);
-      seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
       mockListQb([mockEvent as Event], 1);
 
       const result = await service.findEvents(mockUser, {});
@@ -428,17 +403,8 @@ describe('MeService', () => {
       ]);
     });
 
-    it('should return empty page when no current season', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findCurrentEntity.mockResolvedValue(null);
-
-      const result = await service.findEvents(mockUser, {});
-      expect(result).toEqual({ data: [], meta: { total: 0, page: 1, limit: 20 } });
-    });
-
     it('should return paginated events with attendance info', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
       mockListQb([mockEvent as Event], 1);
       attendanceRepo.find.mockResolvedValue([
         {
@@ -463,7 +429,6 @@ describe('MeService', () => {
 
     it('should filter by event type', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
       const mockQb = mockListQb([], 0);
 
       await service.findEvents(mockUser, { type: EventType.ACTUACIO });
@@ -476,7 +441,6 @@ describe('MeService', () => {
 
     it('should handle past timeFilter with DESC ordering', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
       const mockQb = mockListQb([], 0);
 
       await service.findEvents(mockUser, { timeFilter: 'past' });
@@ -486,7 +450,6 @@ describe('MeService', () => {
 
     it('should return events with null attendance when no record exists', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
       mockListQb([mockEvent as Event], 1);
 
       const result = await service.findEvents(mockUser, {});
@@ -494,28 +457,8 @@ describe('MeService', () => {
       expect(result.data[0].managedAttendances[0].attendance).toBeNull();
     });
 
-    it('should use the requested season when seasonId is provided', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findEntityById.mockResolvedValue({ id: 'season-2' } as never);
-      mockListQb([], 0);
-
-      await service.findEvents(mockUser, { seasonId: 'season-2' });
-
-      expect(seasonService.findEntityById).toHaveBeenCalledWith('season-2');
-      expect(seasonService.findCurrentEntity).not.toHaveBeenCalled();
-    });
-
-    it('should return empty page when seasonId does not match any season', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findEntityById.mockResolvedValue(null);
-
-      const result = await service.findEvents(mockUser, { seasonId: 'missing' });
-      expect(result).toEqual({ data: [], meta: { total: 0, page: 1, limit: 20 } });
-    });
-
     it('should respect pagination params', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
-      seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
       const mockQb = mockListQb([], 50);
 
       await service.findEvents(mockUser, { page: 3, limit: 10 });
