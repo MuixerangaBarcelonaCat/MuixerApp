@@ -9,7 +9,7 @@ import {
 } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LegalDocumentType } from '@muixer/shared';
-import { LucideAngularModule, Lock, Mail, Bell, FileText, LogOut, ChevronDown } from 'lucide-angular';
+import { LucideAngularModule, Lock, Bell, FileText, LogOut, ChevronDown } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { PushSettingsComponent } from '../components/push-settings/push-settings.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
@@ -17,18 +17,12 @@ import { ProfileService } from '../services/profile.service';
 import { ToastService } from '@muixer/ui';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
 
-type SettingsSection = 'password' | 'email' | 'about';
+type SettingsSection = 'password' | 'about';
 
 function passwordsMatchValidator(group: AbstractControl): ValidationErrors | null {
   const newPassword = group.get('newPassword')?.value;
   const confirmPassword = group.get('confirmPassword')?.value;
   return newPassword === confirmPassword ? null : { passwordMismatch: true };
-}
-
-function emailsMatchValidator(group: AbstractControl): ValidationErrors | null {
-  const newEmail = group.get('newEmail')?.value;
-  const confirmEmail = group.get('confirmEmail')?.value;
-  return newEmail === confirmEmail ? null : { emailMismatch: true };
 }
 
 @Component({
@@ -48,7 +42,6 @@ export class SettingsComponent {
   private readonly legalDocumentService = inject(LegalDocumentService);
 
   protected readonly Lock = Lock;
-  protected readonly Mail = Mail;
   protected readonly Bell = Bell;
   protected readonly FileText = FileText;
   protected readonly LogOut = LogOut;
@@ -64,17 +57,6 @@ export class SettingsComponent {
   );
   protected readonly passwordSubmitting = signal(false);
   protected readonly passwordError = signal<string | null>(null);
-
-  protected readonly emailForm = this.fb.nonNullable.group(
-    {
-      newEmail: ['', [Validators.required, Validators.email]],
-      confirmEmail: ['', [Validators.required, Validators.email]],
-      currentPassword: ['', Validators.required],
-    },
-    { validators: emailsMatchValidator },
-  );
-  protected readonly emailSubmitting = signal(false);
-  protected readonly emailError = signal<string | null>(null);
 
   protected submitPasswordChange(): void {
     if (this.passwordForm.invalid || this.passwordSubmitting()) return;
@@ -98,32 +80,6 @@ export class SettingsComponent {
             ? 'Contrasenya actual incorrecta.'
             : "No s'ha pogut actualitzar la contrasenya. Torneu-ho a provar.",
         );
-      },
-    });
-  }
-
-  protected submitEmailChange(): void {
-    if (this.emailForm.invalid || this.emailSubmitting()) return;
-
-    this.emailSubmitting.set(true);
-    this.emailError.set(null);
-
-    const { newEmail, currentPassword } = this.emailForm.getRawValue();
-    this.profileService.changeEmail({ newEmail, currentPassword }).subscribe({
-      next: (profile) => {
-        this.emailSubmitting.set(false);
-        this.auth.setCurrentUser(profile);
-        this.toast.success('Correu electrònic actualitzat correctament.');
-      },
-      error: (err: HttpErrorResponse) => {
-        this.emailSubmitting.set(false);
-        if (err.status === 409) {
-          this.emailError.set('Ja existeix un compte amb aquest correu electrònic.');
-        } else if (err.status === 401) {
-          this.emailError.set('Contrasenya actual incorrecta.');
-        } else {
-          this.emailError.set("No s'ha pogut actualitzar el correu electrònic. Torneu-ho a provar.");
-        }
       },
     });
   }

@@ -29,7 +29,6 @@ function setInputValue(el: HTMLInputElement, value: string): void {
 function createTestBed() {
   const profileService = {
     changePassword: vi.fn().mockReturnValue(of(undefined)),
-    changeEmail: vi.fn(),
   };
   const authService = {
     currentUser: () => ({
@@ -86,7 +85,6 @@ describe('SettingsComponent', () => {
     it('renders all setting rows', () => {
       const text = fixture.nativeElement.textContent as string;
       expect(text).toContain('Contrasenya');
-      expect(text).toContain('Correu electrònic');
       expect(text).toContain('Notificacions');
       expect(text).toContain("Sobre l'app");
       expect(text).toContain('Tancar sessió');
@@ -197,117 +195,6 @@ describe('SettingsComponent', () => {
     });
   });
 
-  describe('email change', () => {
-    let profileService: ReturnType<typeof createTestBed>['profileService'];
-    let authService: ReturnType<typeof createTestBed>['authService'];
-    let toastService: ReturnType<typeof createTestBed>['toastService'];
-
-    const UPDATED_PROFILE = {
-      id: 'u-1',
-      email: 'new@a.com',
-      role: UserRole.MEMBER,
-      isActive: true,
-      person: null,
-    };
-
-    beforeEach(async () => {
-      ({ profileService, authService, toastService } = createTestBed());
-      profileService.changeEmail.mockReturnValue(of(UPDATED_PROFILE));
-      await TestBed.compileComponents();
-      fixture = TestBed.createComponent(SettingsComponent);
-      fixture.detectChanges();
-    });
-
-    function openSection(): void {
-      (
-        fixture.nativeElement.querySelector('[data-testid="email-row-toggle"]') as HTMLButtonElement
-      ).click();
-      fixture.detectChanges();
-    }
-
-    function fillForm(
-      newEmail: string,
-      currentPassword: string,
-      confirmEmail: string = newEmail,
-    ): void {
-      openSection();
-      setInputValue(fixture.nativeElement.querySelector('#email-new-email'), newEmail);
-      const confirmInput = fixture.nativeElement.querySelector(
-        '#email-confirm-email',
-      ) as HTMLInputElement;
-      setInputValue(confirmInput, confirmEmail);
-      confirmInput.dispatchEvent(new Event('blur'));
-      setInputValue(fixture.nativeElement.querySelector('#email-current-password'), currentPassword);
-      fixture.detectChanges();
-    }
-
-    function submit(): void {
-      (fixture.nativeElement.querySelector('#email-form') as HTMLFormElement).requestSubmit();
-      fixture.detectChanges();
-    }
-
-    it('does not render the form before the row is opened', () => {
-      expect(fixture.nativeElement.querySelector('#email-form')).toBeFalsy();
-    });
-
-    it('disables submit for an invalid email', () => {
-      fillForm('not-an-email', 'pass');
-
-      const submitButton = fixture.nativeElement.querySelector(
-        '#email-form button[type="submit"]',
-      ) as HTMLButtonElement;
-      expect(submitButton.disabled).toBe(true);
-    });
-
-    it('disables submit and shows an error when the confirmation does not match', () => {
-      fillForm('new@a.com', 'pass', 'different@a.com');
-
-      const submitButton = fixture.nativeElement.querySelector(
-        '#email-form button[type="submit"]',
-      ) as HTMLButtonElement;
-      expect(submitButton.disabled).toBe(true);
-      expect(fixture.nativeElement.textContent).toContain('Els correus electrònics no coincideixen');
-    });
-
-    it('calls changeEmail and patches the cached user on success', () => {
-      fillForm('new@a.com', 'pass');
-      submit();
-
-      expect(profileService.changeEmail).toHaveBeenCalledWith({
-        newEmail: 'new@a.com',
-        currentPassword: 'pass',
-      });
-      expect(authService.setCurrentUser).toHaveBeenCalledWith(UPDATED_PROFILE);
-      expect(toastService.success).toHaveBeenCalledWith('Correu electrònic actualitzat correctament.');
-    });
-
-    it('shows an inline error when the email is already in use (409)', () => {
-      profileService.changeEmail.mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 409 })),
-      );
-
-      fillForm('taken@a.com', 'pass');
-      submit();
-
-      expect(fixture.nativeElement.textContent).toContain(
-        'Ja existeix un compte amb aquest correu electrònic.',
-      );
-      expect(authService.setCurrentUser).not.toHaveBeenCalled();
-    });
-
-    it('shows an inline error on an incorrect current password (401)', () => {
-      profileService.changeEmail.mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 401 })),
-      );
-
-      fillForm('new@a.com', 'wrongpass');
-      submit();
-
-      expect(fixture.nativeElement.textContent).toContain('Contrasenya actual incorrecta.');
-      expect(authService.setCurrentUser).not.toHaveBeenCalled();
-    });
-  });
-
   describe('accordion behavior', () => {
     beforeEach(async () => {
       createTestBed();
@@ -321,21 +208,12 @@ describe('SettingsComponent', () => {
       fixture.detectChanges();
     }
 
-    it('opening the email section closes an already-open password section', () => {
+    it('opening the about section closes an already-open password section', () => {
       click('password-row-toggle');
       expect(fixture.nativeElement.querySelector('#password-form')).toBeTruthy();
 
-      click('email-row-toggle');
-      expect(fixture.nativeElement.querySelector('#password-form')).toBeFalsy();
-      expect(fixture.nativeElement.querySelector('#email-form')).toBeTruthy();
-    });
-
-    it('opening the about section closes an already-open email section', () => {
-      click('email-row-toggle');
-      expect(fixture.nativeElement.querySelector('#email-form')).toBeTruthy();
-
       click('about-row-toggle');
-      expect(fixture.nativeElement.querySelector('#email-form')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('#password-form')).toBeFalsy();
       expect(
         fixture.nativeElement.querySelector('[data-testid="privacy-policy-viewer"]'),
       ).toBeTruthy();

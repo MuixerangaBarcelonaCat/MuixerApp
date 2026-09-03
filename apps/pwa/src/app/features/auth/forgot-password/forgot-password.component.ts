@@ -25,6 +25,7 @@ export class ForgotPasswordComponent {
 
   readonly isLoading = signal(false);
   readonly submitted = signal(false);
+  readonly logoError = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
   onSubmit(): void {
