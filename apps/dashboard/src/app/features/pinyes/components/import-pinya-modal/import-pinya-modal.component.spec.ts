@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ImportPinyaModalComponent } from './import-pinya-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 
 const TEMPLATE_ID = 'template-uuid-1';
 const INSTANCE_ID = 'instance-uuid-1';
@@ -36,6 +37,7 @@ describe('ImportPinyaModalComponent', () => {
   };
   let importCompletedSpy: Mock;
   let closedSpy: Mock;
+  let state: AssignmentStateService;
 
   beforeEach(async () => {
     assignmentService = {
@@ -47,9 +49,12 @@ describe('ImportPinyaModalComponent', () => {
       imports: [ImportPinyaModalComponent],
       providers: [
         { provide: NodeAssignmentService, useValue: assignmentService },
+        AssignmentStateService,
         allLucideIconsProvider,
       ],
     }).compileComponents();
+
+    state = TestBed.inject(AssignmentStateService);
 
     fixture = TestBed.createComponent(ImportPinyaModalComponent);
     component = fixture.componentInstance;
@@ -223,6 +228,96 @@ describe('ImportPinyaModalComponent', () => {
       component.closePreview();
 
       expect(component.previewScope()).toBeNull();
+    });
+  });
+
+  // ── occupied-nodes confirmation ─────────────────────────────────────────────
+
+  describe('occupied-nodes confirmation', () => {
+    const entryWithMixedZones = (): FigureHistoryEntry => ({
+      eventId: 'e1',
+      eventTitle: 'Assaig',
+      eventDate: '2026-05-01',
+      eventType: 'REHEARSAL',
+      segmentId: 'seg-1',
+      segmentName: 'Bloc 1',
+      instanceId: 'inst-1',
+      snapshotted: true,
+      assignmentCount: 3,
+      totalNodes: 5,
+      assignments: [
+        { nodeId: 'n1', nodeLabel: 'Segones', zone: FigureZone.PINYA, personId: 'p1', personAlias: 'Guille' },
+        { nodeId: 'n2', nodeLabel: 'Base 2', zone: FigureZone.BASE, personId: 'p2', personAlias: 'Amparo' },
+        { nodeId: 'n3', nodeLabel: 'Tronc 1', zone: FigureZone.TRONC, personId: 'p3', personAlias: 'Marc' },
+      ],
+    });
+
+    beforeEach(() => {
+      fixture.componentRef.setInput('open', true);
+      fixture.detectChanges();
+      component.selectEntry(entryWithMixedZones());
+    });
+
+    it('counts destination nodes already occupied within the given scope', () => {
+      state.assignments.set([
+        { id: 'a1', figureInstanceId: INSTANCE_ID, node: { zone: FigureZone.PINYA } as any, person: {} as any },
+        { id: 'a2', figureInstanceId: INSTANCE_ID, node: { zone: FigureZone.TRONC } as any, person: {} as any },
+        { id: 'a3', figureInstanceId: 'other-instance', node: { zone: FigureZone.PINYA } as any, person: {} as any },
+      ]);
+
+      expect(component.occupiedCountForScope(ImportScope.PINYA)).toBe(1);
+      expect(component.occupiedCountForScope(ImportScope.TRONC)).toBe(1);
+      expect(component.occupiedCountForScope(ImportScope.ALL)).toBe(2);
+    });
+
+    it('imports directly when no destination node is occupied in scope', () => {
+      state.assignments.set([]);
+
+      component.onImportClick(ImportScope.PINYA);
+
+      expect(assignmentService.bulkImport).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        { sourceInstanceId: 'inst-1', scope: ImportScope.PINYA },
+      );
+      expect(component.confirmScope()).toBeNull();
+    });
+
+    it('opens a confirmation instead of importing when a destination node is occupied in scope', () => {
+      state.assignments.set([
+        { id: 'a1', figureInstanceId: INSTANCE_ID, node: { zone: FigureZone.PINYA } as any, person: {} as any },
+      ]);
+
+      component.onImportClick(ImportScope.PINYA);
+
+      expect(component.confirmScope()).toBe(ImportScope.PINYA);
+      expect(assignmentService.bulkImport).not.toHaveBeenCalled();
+    });
+
+    it('cancelling the confirmation does not import', () => {
+      state.assignments.set([
+        { id: 'a1', figureInstanceId: INSTANCE_ID, node: { zone: FigureZone.PINYA } as any, person: {} as any },
+      ]);
+      component.onImportClick(ImportScope.PINYA);
+
+      component.cancelConfirm();
+
+      expect(component.confirmScope()).toBeNull();
+      expect(assignmentService.bulkImport).not.toHaveBeenCalled();
+    });
+
+    it('confirming proceeds with the import for the pending scope', () => {
+      state.assignments.set([
+        { id: 'a1', figureInstanceId: INSTANCE_ID, node: { zone: FigureZone.PINYA } as any, person: {} as any },
+      ]);
+      component.onImportClick(ImportScope.PINYA);
+
+      component.confirmImport();
+
+      expect(assignmentService.bulkImport).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        { sourceInstanceId: 'inst-1', scope: ImportScope.PINYA },
+      );
+      expect(component.confirmScope()).toBeNull();
     });
   });
 });

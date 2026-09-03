@@ -78,7 +78,7 @@
                         size="xs"
                         [disabled]="countForScope(row.scope) === 0"
                         [loading]="importing()"
-                        (clicked)="doImport(row.scope)"
+                        (clicked)="onImportClick(row.scope)"
                       >
                         @if (!importing()) {
                           <i-lucide [img]="Import" class="size-3" />
@@ -122,6 +122,20 @@
     <lib-button variant="ghost" size="sm" (clicked)="close()">Tancar</lib-button>
   </div>
 </lib-modal>
+
+@if (confirmScope(); as scope) {
+  <lib-modal size="sm" title="Nodes ja ocupats" [open]="true" (closed)="cancelConfirm()">
+    <p class="text-sm text-base-content/70">
+      {{ occupiedCountForScope(scope) }}
+      {{ occupiedCountForScope(scope) === 1 ? 'node de' : 'nodes de' }}
+      {{ scopeLabel(scope) }} ja tenen algú assignat al destí i no es modificaran. La resta s'importarà normalment.
+    </p>
+    <div modalFooter>
+      <lib-button variant="ghost" size="sm" (clicked)="cancelConfirm()">Cancel·la</lib-button>
+      <lib-button variant="primary" size="sm" (clicked)="confirmImport()">Entesos, importa</lib-button>
+    </div>
+  </lib-modal>
+}
 
 @if (previewScope(); as scope) {
   <app-import-preview-modal

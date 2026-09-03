@@ -11,9 +11,10 @@ import {
 } from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { LucideAngularModule, Import } from 'lucide-angular';
-import { ImportScope, zonesForScope } from '@muixer/shared';
+import { FigureZone, ImportScope, zonesForScope } from '@muixer/shared';
 import { ButtonComponent, ModalComponent, BadgeComponent } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 import { ImportPreviewModalComponent } from '../import-preview-modal/import-preview-modal.component';
 
 @Component({
@@ -39,6 +40,7 @@ export class ImportPinyaModalComponent implements OnChanges {
   readonly closed = output<void>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
+  private readonly assignmentState = inject(AssignmentStateService);
 
   readonly Import = Import;
 
@@ -49,6 +51,7 @@ export class ImportPinyaModalComponent implements OnChanges {
   readonly lastResult = signal<BulkImportResult | null>(null);
   readonly error = signal<string | null>(null);
   readonly previewScope = signal<ImportScope | null>(null);
+  readonly confirmScope = signal<ImportScope | null>(null);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && this.open()) {
@@ -79,6 +82,16 @@ export class ImportPinyaModalComponent implements OnChanges {
 
   readonly ImportScope = ImportScope;
 
+  private static readonly SCOPE_LABELS: Record<ImportScope, string> = {
+    [ImportScope.PINYA]: 'pinya',
+    [ImportScope.TRONC]: 'tronc',
+    [ImportScope.ALL]: 'figura',
+  };
+
+  scopeLabel(scope: ImportScope): string {
+    return ImportPinyaModalComponent.SCOPE_LABELS[scope];
+  }
+
   countForScope(scope: ImportScope): number {
     const entry = this.selectedEntry();
     if (!entry) return 0;
@@ -86,6 +99,35 @@ export class ImportPinyaModalComponent implements OnChanges {
     return zones
       ? entry.assignments.filter((a) => zones.has(a.zone)).length
       : entry.assignments.length;
+  }
+
+  /** Destination nodes already occupied within the given scope — these are never touched by import. */
+  occupiedCountForScope(scope: ImportScope): number {
+    const instanceId = this.currentInstanceId();
+    const zones = zonesForScope(scope);
+    return this.assignmentState
+      .assignments()
+      .filter((a) => a.figureInstanceId === instanceId && (!zones || zones.has(a.node.zone as FigureZone)))
+      .length;
+  }
+
+  onImportClick(scope: ImportScope): void {
+    if (this.occupiedCountForScope(scope) > 0) {
+      this.confirmScope.set(scope);
+      return;
+    }
+    this.doImport(scope);
+  }
+
+  confirmImport(): void {
+    const scope = this.confirmScope();
+    if (!scope) return;
+    this.confirmScope.set(null);
+    this.doImport(scope);
+  }
+
+  cancelConfirm(): void {
+    this.confirmScope.set(null);
   }
 
   doImport(scope: ImportScope): void {
