@@ -8,7 +8,9 @@ import {
   signal,
   HostListener,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ButtonComponent, InputComponent } from '@muixer/ui';
 import { FigureZone } from '@muixer/shared';
 
 export interface RenglaCreatedEvent {
@@ -42,7 +44,7 @@ interface ScreenNode {
   selector: 'app-rengla-overlay',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, FormsModule, ButtonComponent, InputComponent],
   templateUrl: './rengla-overlay.component.html',
   host: { class: 'block absolute inset-0 pointer-events-none z-10' },
 })
@@ -206,17 +208,17 @@ export class RenglaOverlayComponent {
     this.startPosition.set(1);
   }
 
-  onStartPositionChange(event: Event): void {
-    const value = parseInt((event.target as HTMLInputElement).value, 10);
+  onStartPositionChange(rawValue: string): void {
+    const value = parseInt(rawValue, 10);
     if (!isNaN(value) && value >= 1) {
       this.startPosition.set(value);
     }
   }
 
-  onSelectedStartPositionChange(event: Event): void {
+  onSelectedStartPositionChange(rawValue: string): void {
     const id = this.selectedRenglaId();
     if (!id) return;
-    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    const value = parseInt(rawValue, 10);
     if (isNaN(value) || value < 1) return;
     this.renglaStartChanged.emit({ renglaId: id, newStart: value });
   }

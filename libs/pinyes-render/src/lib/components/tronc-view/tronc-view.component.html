@@ -214,15 +214,19 @@
   <!-- ── Directions section (projection mode) ─────────────────────────── -->
   @if (mode() === 'projection' && hasAssignedDirections()) {
     <div class="directions-section projection" role="region" aria-label="Direccions">
-      @for (dir of directionNodes(); track dir.id) {
-        @if (getAssignment(dir.id); as assignment) {
-          <div class="direction-projection-row">
-            <span class="direction-label compact" [style.border-left-color]="getDirectionColor(dir.zone)">
-              {{ getDirectionLabel(dir.zone) }}
-            </span>
-            <span class="text-sm font-medium">{{ assignment.person.alias }}</span>
-          </div>
-        }
+      @for (group of assignedDirectionGroups(); track group.zone) {
+        <div class="direction-projection-row">
+          <span class="direction-label compact" [style.border-left-color]="group.color">
+            {{ group.label }}
+          </span>
+          <span
+            class="direction-aliases font-medium"
+            appFitText
+            [fitTextValue]="group.aliases"
+            [fitTextMinPx]="8"
+            [fitTextMaxPx]="14"
+          >{{ group.aliases }}</span>
+        </div>
       }
     </div>
   }
@@ -454,35 +458,29 @@
         <div class="selected-node-controls">
           <p class="controls-label">Node: <strong>{{ node.label }}</strong></p>
 
-          <!-- Node label (free text) -->
-          <div class="form-control">
-            <label class="label py-0" [for]="'tronc-label-' + node.id">
-              <span class="label-text text-xs">Etiqueta</span>
-            </label>
-            <input
-              type="text"
+          <!-- Node label (free text). lib-input has no maxlength input (a real, minor
+               component-API gap) — the 30-char cap moved into onLabelChange. -->
+          <div>
+            <lib-input
               [id]="'tronc-label-' + node.id"
-              class="input input-bordered input-xs"
+              label="Etiqueta"
+              size="xs"
+              ariaLabel="Etiqueta del node"
               [ngModel]="node.label"
               (ngModelChange)="onLabelChange(node, $event)"
-              aria-label="Etiqueta del node"
-              maxlength="30"
             />
           </div>
 
-          <!-- Indicator (short marker shown next to the assigned person, e.g. "X") -->
-          <div class="form-control">
-            <label class="label py-0" [for]="'tronc-indicator-' + node.id">
-              <span class="label-text text-xs">Indicador</span>
-            </label>
-            <input
-              type="text"
+          <!-- Indicator (short marker shown next to the assigned person, e.g. "X"). -->
+          <div class="max-w-20">
+            <lib-input
               [id]="'tronc-indicator-' + node.id"
-              class="input input-bordered input-xs w-16"
+              label="Indicador"
+              size="xs"
+              [maxLength]="6"
+              ariaLabel="Indicador curt mostrat al costat de la persona assignada"
               [ngModel]="node.climbIndicator"
               (ngModelChange)="onIndicatorChange(node, $event)"
-              aria-label="Indicador curt mostrat al costat de la persona assignada"
-              maxlength="4"
             />
           </div>
 
@@ -490,19 +488,18 @@
           <!-- positionType tags -->
           <div class="form-control">
             <span class="label-text text-xs py-0">Tipus</span>
-            <div class="preset-tags" role="radiogroup" aria-label="Tipus de posició">
+            <div class="preset-tags" role="group" aria-label="Tipus de posició">
               @for (preset of presets; track preset.positionType) {
-                <button
-                  type="button"
-                  class="preset-tag"
-                  [class.active]="isPresetActive(node, preset)"
-                  [style.--preset-color]="preset.color"
-                  [attr.aria-pressed]="isPresetActive(node, preset)"
-                  (click)="onPositionTypeChange(node, preset)"
-                  [title]="preset.label"
+                <lib-badge
+                  size="xs"
+                  clickable
+                  [selected]="isPresetActive(node, preset)"
+                  [color]="preset.color"
+                  [ariaLabel]="preset.label"
+                  (clicked)="onPositionTypeChange(node, preset)"
                 >
                   {{ preset.label }}
-                </button>
+                </lib-badge>
               }
             </div>
           </div>
@@ -519,25 +516,27 @@
               (keydown.arrowUp)="onStepX(node, 0.5)"
             >
               <span class="stepper-label">Pos.</span>
-              <button
-                type="button"
-                class="stepper-btn"
+              <lib-button
+                variant="ghost"
+                size="xs"
+                shape="square"
                 [disabled]="xAtMin(node)"
-                (click)="onStepX(node, -0.5)"
-                aria-label="Reduir posició"
+                (clicked)="onStepX(node, -0.5)"
+                ariaLabel="Reduir posició"
               >
                 <lucide-icon name="Minus" [size]="12" aria-hidden="true" />
-              </button>
+              </lib-button>
               <span class="stepper-value">{{ node.x }}u</span>
-              <button
-                type="button"
-                class="stepper-btn"
+              <lib-button
+                variant="ghost"
+                size="xs"
+                shape="square"
                 [disabled]="xAtMax(node)"
-                (click)="onStepX(node, 0.5)"
-                aria-label="Augmentar posició"
+                (clicked)="onStepX(node, 0.5)"
+                ariaLabel="Augmentar posició"
               >
                 <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-              </button>
+              </lib-button>
             </div>
 
             <div
@@ -551,36 +550,42 @@
               (keydown.arrowUp)="onStepWidth(node, 0.5)"
             >
               <span class="stepper-label">Amp.</span>
-              <button
-                type="button"
-                class="stepper-btn"
+              <lib-button
+                variant="ghost"
+                size="xs"
+                shape="square"
                 [disabled]="widthAtMin(node)"
-                (click)="onStepWidth(node, -0.5)"
-                aria-label="Reduir amplada"
+                (clicked)="onStepWidth(node, -0.5)"
+                ariaLabel="Reduir amplada"
               >
                 <lucide-icon name="Minus" [size]="12" aria-hidden="true" />
-              </button>
+              </lib-button>
               <span class="stepper-value">{{ node.width }}u</span>
-              <button
-                type="button"
-                class="stepper-btn"
+              <lib-button
+                variant="ghost"
+                size="xs"
+                shape="square"
                 [disabled]="widthAtMax(node)"
-                (click)="onStepWidth(node, 0.5)"
-                aria-label="Augmentar amplada"
+                (clicked)="onStepWidth(node, 0.5)"
+                ariaLabel="Augmentar amplada"
               >
                 <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-              </button>
+              </lib-button>
             </div>
 
-            <button
-              type="button"
-              class="btn btn-xs btn-error btn-outline btn-square self-end"
-              (click)="onNodeDelete(node)"
-              aria-label="Elimina node"
-              title="Elimina node"
-            >
-              <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
-            </button>
+            <div class="self-end">
+              <lib-button
+                variant="error"
+                outline
+                size="xs"
+                shape="square"
+                (clicked)="onNodeDelete(node)"
+                ariaLabel="Elimina node"
+                title="Elimina node"
+              >
+                <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+              </lib-button>
+            </div>
           </div>
           }
         </div>

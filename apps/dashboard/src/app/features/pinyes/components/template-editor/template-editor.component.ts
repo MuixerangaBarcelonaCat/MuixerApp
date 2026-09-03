@@ -3,7 +3,6 @@ import {
   Component,
   ChangeDetectionStrategy,
   DestroyRef,
-  ElementRef,
   HostListener,
   inject,
   signal,
@@ -30,7 +29,7 @@ import { NodeActionsComponent } from '../../../../shared/components/controls/nod
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService, TabsComponent, TabDef } from '@muixer/ui';
+import { ToastService, TabsComponent, TabDef, ModalComponent, InputComponent, ButtonComponent, SelectComponent, LiftHoverDirective } from '@muixer/ui';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
 import { CanComponentDeactivate } from '../../../../core/guards/unsaved-changes.guard';
 
@@ -62,6 +61,11 @@ const DEFAULT_NODE_HEIGHT = 40;
     ColorPickerComponent,
     NodeDpadComponent,
     NodeActionsComponent,
+    ModalComponent,
+    InputComponent,
+    ButtonComponent,
+    SelectComponent,
+    LiftHoverDirective,
   ],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
@@ -74,10 +78,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
-  readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
-  // Queried by template ref (not by type) so tests can substitute a stub component.
+  // Queried by template ref (not by type) so tests can substitute a stub component — same
+  // reasoning as figureCanvas below.
+  readonly helpModal = viewChild.required<TemplateEditorHelpModalComponent>('helpModalRef');
   readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvasRef');
-  readonly presetDropdownRef = viewChild<ElementRef>('presetDropdownRef');
 
   /**
    * True below the `lg` breakpoint (< 1024px, tablet/phone) — same breakpoint the
@@ -116,6 +120,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
   // Name enforcement
   readonly showNamePrompt = signal(false);
+  // Draft value for the name-prompt's lib-input (two-way bound); confirmNamePrompt reads it.
+  readonly namePromptDraft = signal('');
   private pendingAction: (() => void) | null = null;
   readonly needsName = computed(() => {
     const name = this.templateName().trim();
@@ -193,13 +199,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   readonly NodeShape = NodeShape;
   readonly pinyaPositions = PINYA_NODE_PRESETS;
 
-  presetDropdownOpen = signal(false);
-
-  readonly currentPinyaPreset = computed(() => {
-    const node = this.selectedNode();
-    if (!node || node.zone !== FigureZone.PINYA) return null;
-    return PINYA_NODE_PRESETS.find((p) => p.positionType === node.positionType) ?? null;
-  });
+  /** Backs the "Tipus de posició" select's [swatchColor]/[swatchShape] — see the template comment. */
+  presetForPositionType(positionType: string | null): NodePreset | null {
+    return PINYA_NODE_PRESETS.find((p) => p.positionType === positionType) ?? null;
+  }
 
   readonly pinyaNodes = computed(() =>
     this.nodes().filter((n) => n.zone !== FigureZone.TRONC),
@@ -290,16 +293,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
   onNodeSelected(id: string | null): void {
     this.selectedNodeId.set(id);
-    this.presetDropdownOpen.set(false);
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    if (!this.presetDropdownOpen()) return;
-    const el = this.presetDropdownRef()?.nativeElement;
-    if (el && !el.contains(event.target as Node)) {
-      this.presetDropdownOpen.set(false);
-    }
   }
 
   onNodeMoved(event: { id: string; x: number; y: number }): void {
@@ -459,7 +452,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
       color: preset.color,
       shape: preset.shape,
     });
-    this.presetDropdownOpen.set(false);
     this.scheduleAutosave();
   }
 
@@ -816,6 +808,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   private requireName(action: () => void): boolean {
     if (this.needsName()) {
       this.pendingAction = action;
+      this.namePromptDraft.set('');
       this.showNamePrompt.set(true);
       return false;
     }

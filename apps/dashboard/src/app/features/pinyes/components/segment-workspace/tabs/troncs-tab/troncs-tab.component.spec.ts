@@ -710,6 +710,7 @@ describe('TroncsTabComponent', () => {
       const [a, b] = component.figures();
       expect(a.color).not.toBe(b.color);
     });
+
   });
 
   describe('minimap', () => {

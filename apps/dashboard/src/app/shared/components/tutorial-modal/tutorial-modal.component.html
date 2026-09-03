@@ -32,15 +32,11 @@
 
   <!-- Don't show again -->
   @if (storageKey() && currentStep() === steps().length - 1) {
-    <label class="flex items-center gap-2 mt-4 cursor-pointer justify-center">
-      <input
-        type="checkbox"
-        class="checkbox checkbox-sm checkbox-primary"
-        [checked]="dontShowAgain()"
-        (change)="toggleDontShowAgain()"
-      />
-      <span class="text-xs text-base-content/60">No tornes a mostrar</span>
-    </label>
+    <div class="flex justify-center mt-4">
+      <lib-checkbox [ngModel]="dontShowAgain()" (ngModelChange)="toggleDontShowAgain()">
+        <span class="text-xs text-base-content/60">No tornes a mostrar</span>
+      </lib-checkbox>
+    </div>
   }
 
   <div modalFooter class="w-full flex justify-between">

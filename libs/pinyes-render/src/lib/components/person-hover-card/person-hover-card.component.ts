@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
+import { BadgeComponent, BadgeVariant } from '@muixer/ui';
 import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
-import { getContrastColor, ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 @Component({
   selector: 'app-person-hover-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, BadgeComponent],
   template: `
     <div
       class="px-2.5 py-2 text-xs"
@@ -15,15 +16,15 @@ import { getContrastColor, ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM } from
       [class.bg-base-100]="!bare()"
       [class.border]="!bare()"
       [class.border-base-300]="!bare()"
-      [class.shadow-lg]="!bare()"
+      [class.shadow-overlay]="!bare()"
       [class.min-w-40]="!bare()"
       [class.max-w-64]="!bare()"
     >
       <div class="flex items-start justify-between gap-2 mb-1">
         <div class="flex items-center gap-1.5 min-w-0">
           <p class="font-semibold text-sm truncate">{{ info().alias }}</p>
-          <span class="badge badge-xs shrink-0" [class]="statusBadgeClass()">
-            {{ statusLabel() }}
+          <span class="shrink-0">
+            <lib-badge size="xs" [variant]="statusBadgeVariant()">{{ statusLabel() }}</lib-badge>
           </span>
           @if (info().isXicalla) {
             <span class="shrink-0" aria-label="Xicalla" title="Xicalla">👶</span>
@@ -37,13 +38,8 @@ import { getContrastColor, ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM } from
       @if (sortedPositions().length > 0) {
         <div class="flex flex-wrap gap-1">
           @for (pos of sortedPositions(); track pos.id) {
-            <span
-              class="badge badge-xs"
-              [class.opacity-50]="!isPositionMatch(pos)"
-              [style.background-color]="pos.color ?? '#888'"
-              [style.color]="getContrastColor(pos.color ?? '#888')"
-            >
-              {{ pos.name }}
+            <span class="inline-block" [class.opacity-50]="!isPositionMatch(pos)">
+              <lib-badge size="xs" [color]="pos.color ?? '#888'">{{ pos.name }}</lib-badge>
             </span>
           }
         </div>
@@ -71,7 +67,6 @@ export class PersonHoverCardComponent {
   /** When set, the position tag matching this type is promoted first and shown filled; the rest render outlined. */
   readonly activeNodePositionType = input<string | null>(null);
 
-  readonly getContrastColor = getContrastColor;
   readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
 
   readonly sortedPositions = computed(() => {
@@ -87,11 +82,11 @@ export class PersonHoverCardComponent {
     return (pos.positionTypes ?? []).includes(posType);
   }
 
-  private readonly statusBadgeClasses: Record<AttendanceStatus, string> = {
-    PENDENT: 'badge-ghost',
-    ANIRE: 'badge-success',
-    NO_VAIG: 'badge-error',
-    ASSISTIT: 'badge-success',
+  private readonly statusBadgeVariants: Record<AttendanceStatus, BadgeVariant> = {
+    PENDENT: 'ghost',
+    ANIRE: 'success',
+    NO_VAIG: 'error',
+    ASSISTIT: 'success',
   };
 
   formatHeight(): string {
@@ -104,11 +99,11 @@ export class PersonHoverCardComponent {
     return `${h} cm`;
   }
 
-  statusBadgeClass(): string {
+  statusBadgeVariant(): BadgeVariant {
     const status = this.info().attendanceStatus;
-    if (!status) return 'badge-ghost';
-    if (status === 'ANIRE' && this.isPast()) return 'badge-warning';
-    return this.statusBadgeClasses[status];
+    if (!status) return 'ghost';
+    if (status === 'ANIRE' && this.isPast()) return 'warning';
+    return this.statusBadgeVariants[status];
   }
 
   statusLabel(): string {

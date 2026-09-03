@@ -24,36 +24,15 @@
   min-height: 124px;
 }
 
-.dpad-btn {
+// Positions + sizes the pointer-gesture hit area (see node-dpad.component.html's comment on why
+// pointerdown/up/cancel/leave live here rather than on a lib-button (clicked) output); the actual
+// look (background, hover, active, disabled) is lib-button's own ghost styling now.
+.dpad-slot {
   display: flex;
-  align-items: center;
-  justify-content: center;
   width: 40px;
   height: 40px;
-  min-height: 40px;
-  border-radius: 0.375rem;
-  border: 1px solid oklch(var(--b3));
-  background: oklch(var(--b2));
-  color: oklch(var(--bc) / 0.8);
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s, transform 0.08s;
   touch-action: none;
   user-select: none;
-
-  &:hover:not(:disabled) {
-    background: oklch(var(--p) / 0.12);
-    color: oklch(var(--p));
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.9);
-    background: oklch(var(--p) / 0.2);
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
 }
 
 .dpad-up    { grid-column: 2; grid-row: 1; }

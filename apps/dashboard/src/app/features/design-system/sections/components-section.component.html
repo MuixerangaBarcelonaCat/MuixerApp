@@ -20,6 +20,11 @@
         <lib-button [variant]="v" outline>{{ v }} outline</lib-button>
       }
     </div>
+    <div class="flex flex-wrap gap-2 mb-2">
+      @for (v of variants; track v) {
+        <lib-button [variant]="v" ghost>{{ v }} ghost</lib-button>
+      }
+    </div>
     <div class="flex flex-wrap items-center gap-2">
       <lib-button variant="primary" size="xs">xs</lib-button>
       <lib-button variant="primary" size="sm">sm</lib-button>
@@ -202,6 +207,51 @@
           </option>
         }
       </lib-select>
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-checkbox</h3>
+    <p class="text-xs text-base-content/50 mb-2 max-w-2xl">
+      Label is content-projected, like <code>lib-button</code> — not a string input — since real labels range from a plain
+      word to a two-line title+hint block. <code>variant="neutral"</code> is DaisyUI's own unmodified <code>.checkbox</code>
+      (a plain dark outline, no color) — the other 7 are real colors.
+    </p>
+    <div class="flex flex-wrap items-center gap-4 mb-3">
+      <lib-checkbox [ngModel]="checkboxDemo()" (ngModelChange)="checkboxDemo.set($event)">Sols actius</lib-checkbox>
+      <lib-checkbox>Sense marcar</lib-checkbox>
+      <lib-checkbox [ngModel]="true" disabled>Desactivat</lib-checkbox>
+      <lib-checkbox ariaLabel="Exemple sense etiqueta visible" [ngModel]="true" />
+    </div>
+    <div class="flex flex-wrap items-center gap-4">
+      @for (v of checkboxVariants; track v) {
+        <lib-checkbox [ngModel]="true" [variant]="v">{{ v }}</lib-checkbox>
+      }
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-textarea</h3>
+    <p class="text-xs text-base-content/50 mb-2 max-w-2xl">
+      The multi-line analogue of <code>lib-input</code> — same label/hint/error/<code>ariaLabel</code>/size contract via
+      <code>lib-form-field</code>, plus <code>rows</code> and <code>resize</code> (off for the fixed-size fields inside a modal).
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+      <lib-textarea
+        label="Descripció"
+        hint="Text lliure, camp opcional"
+        [ngModel]="textareaDemo()"
+        (ngModelChange)="textareaDemo.set($event)"
+        placeholder="Escriu una descripció..."
+      />
+      <lib-textarea label="Amb error" errorText="Massa llarg" [rows]="2" [ngModel]="'Text d\'exemple'" />
+      <lib-textarea
+        label="Sense redimensionar"
+        [resize]="false"
+        [ngModel]="textareaResizeDemo()"
+        (ngModelChange)="textareaResizeDemo.set($event)"
+      />
+      <lib-textarea label="Desactivat" [ngModel]="'Camp bloquejat'" disabled />
     </div>
   </div>
 

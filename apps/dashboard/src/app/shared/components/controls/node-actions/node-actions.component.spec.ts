@@ -29,48 +29,48 @@ describe('NodeActionsComponent', () => {
     el = fixture.nativeElement;
   });
 
+  // Each action is a lib-button (display:contents host) — data-testid lands on that inert host,
+  // so queries scope to the real inner <button>, same pattern as modal.component's own spec.
+  const duplicateButton = () => el.querySelector<HTMLButtonElement>('[data-testid="node-action-duplicate"] button')!;
+  const ghostButton = () => el.querySelector<HTMLButtonElement>('[data-testid="node-action-ghost"] button')!;
+  const deleteButton = () => el.querySelector<HTMLButtonElement>('[data-testid="node-action-delete"] button')!;
+
   describe('button visibility and disabled state', () => {
     it('renders all three buttons', async () => {
       await renderWith(false, false);
-      expect(el.querySelector('[data-testid="node-action-duplicate"]')).toBeTruthy();
-      expect(el.querySelector('[data-testid="node-action-ghost"]')).toBeTruthy();
-      expect(el.querySelector('[data-testid="node-action-delete"]')).toBeTruthy();
+      expect(duplicateButton()).toBeTruthy();
+      expect(ghostButton()).toBeTruthy();
+      expect(deleteButton()).toBeTruthy();
     });
 
     it('disables duplicate button when canDuplicate is false', async () => {
       await renderWith(false, false);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-duplicate"]')!;
-      expect(btn.disabled).toBe(true);
+      expect(duplicateButton().disabled).toBe(true);
     });
 
     it('enables duplicate button when canDuplicate is true', async () => {
       await renderWith(true, false);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-duplicate"]')!;
-      expect(btn.disabled).toBe(false);
+      expect(duplicateButton().disabled).toBe(false);
     });
 
     it('disables ghost button when canGhost is false', async () => {
       await renderWith(true, false);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-ghost"]')!;
-      expect(btn.disabled).toBe(true);
+      expect(ghostButton().disabled).toBe(true);
     });
 
     it('enables ghost button when canGhost is true', async () => {
       await renderWith(true, true);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-ghost"]')!;
-      expect(btn.disabled).toBe(false);
+      expect(ghostButton().disabled).toBe(false);
     });
 
     it('disables delete button when canDelete is false', async () => {
       await renderWith(false, false, false);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-delete"]')!;
-      expect(btn.disabled).toBe(true);
+      expect(deleteButton().disabled).toBe(true);
     });
 
     it('enables delete button independently of canDuplicate', async () => {
       await renderWith(false, false, true);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-delete"]')!;
-      expect(btn.disabled).toBe(false);
+      expect(deleteButton().disabled).toBe(false);
     });
   });
 
@@ -83,7 +83,7 @@ describe('NodeActionsComponent', () => {
       let emitted = false;
       component.duplicate.subscribe(() => (emitted = true));
 
-      el.querySelector<HTMLElement>('[data-testid="node-action-duplicate"]')!.click();
+      duplicateButton().click();
       expect(emitted).toBe(true);
     });
 
@@ -91,7 +91,7 @@ describe('NodeActionsComponent', () => {
       let emitted = false;
       component.ghost.subscribe(() => (emitted = true));
 
-      el.querySelector<HTMLElement>('[data-testid="node-action-ghost"]')!.click();
+      ghostButton().click();
       expect(emitted).toBe(true);
     });
 
@@ -99,7 +99,7 @@ describe('NodeActionsComponent', () => {
       let emitted = false;
       component.nodeDeleted.subscribe(() => (emitted = true));
 
-      el.querySelector<HTMLElement>('[data-testid="node-action-delete"]')!.click();
+      deleteButton().click();
       expect(emitted).toBe(true);
     });
   });
@@ -107,14 +107,12 @@ describe('NodeActionsComponent', () => {
   describe('disabled ghost tooltip', () => {
     it('shows restricted tooltip when canGhost is false', async () => {
       await renderWith(true, false);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-ghost"]')!;
-      expect(btn.getAttribute('title')).toContain('PINYA');
+      expect(ghostButton().getAttribute('aria-label')).toContain('PINYA');
     });
 
     it('shows generic tooltip when canGhost is true', async () => {
       await renderWith(true, true);
-      const btn = el.querySelector<HTMLButtonElement>('[data-testid="node-action-ghost"]')!;
-      expect(btn.getAttribute('title')).not.toContain('PINYA');
+      expect(ghostButton().getAttribute('aria-label')).not.toContain('PINYA');
     });
   });
 

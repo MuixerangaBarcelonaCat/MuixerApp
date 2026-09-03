@@ -17,6 +17,7 @@ const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemp
   direction: 0,
   nodeCount: 5,
   renglaCount: 0,
+  troncProfile: [],
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
@@ -27,6 +28,7 @@ const makeComposition = (overrides: Partial<CompositionListItem> = {}): Composit
   name: 'Pilars de plaça',
   description: null,
   entryCount: 3,
+  figureProfiles: [],
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
@@ -98,6 +100,13 @@ describe('FigurePickerModalComponent', () => {
     component.search.set('morera');
     expect(component.filteredFigures()).toHaveLength(1);
     expect(component.filteredFigures()[0].name).toBe('Morera');
+  });
+
+  it('filters figures ignoring accents in both the query and the name', () => {
+    component.figures.set([makeFigure({ id: 'fig-1', name: 'Piló' })]);
+    component.search.set('pilo');
+    expect(component.filteredFigures()).toHaveLength(1);
+    expect(component.filteredFigures()[0].name).toBe('Piló');
   });
 
   it('switches to composicions tab and clears search', () => {
@@ -220,11 +229,22 @@ describe('FigurePickerModalComponent', () => {
       expect(badges[0].textContent.trim()).toBe('Tronc');
     });
 
-    it('shows "Afegir" button per figure row', () => {
+    it('shows a clickable row per figure, labelled to add it', () => {
       fixture.detectChanges();
-      const addButtons = fixture.nativeElement.querySelectorAll('ul[aria-label="Figures disponibles"] button');
-      expect(addButtons.length).toBeGreaterThan(0);
-      expect(addButtons[0].textContent.trim()).toContain('Afegir');
+      const rows = fixture.nativeElement.querySelectorAll('ul[aria-label="Figures disponibles"] button');
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows[0].getAttribute('aria-label')).toContain('Afegir');
+    });
+
+    it('clicking a figure row adds it to the selection', () => {
+      component.figures.set([makeFigure({ id: 'fig-1', name: 'pd4' })]);
+      fixture.detectChanges();
+
+      const row = fixture.nativeElement.querySelector('ul[aria-label="Figures disponibles"] li button');
+      row.click();
+
+      expect(component.selections()).toHaveLength(1);
+      expect(component.selections()[0].name).toBe('pd4');
     });
 
     it('shows selected section with count when items added', () => {
@@ -292,6 +312,13 @@ describe('FigurePickerModalComponent', () => {
       component.search.set('torres');
       expect(component.filteredCompositions()).toHaveLength(1);
       expect(component.filteredCompositions()[0].name).toBe('Torres altes');
+    });
+
+    it('filters compositions ignoring accents in both the query and the name', () => {
+      component.compositions.set([makeComposition({ id: 'c1', name: 'Pilars de plaça' })]);
+      component.search.set('placa');
+      expect(component.filteredCompositions()).toHaveLength(1);
+      expect(component.filteredCompositions()[0].name).toBe('Pilars de plaça');
     });
 
     it('has no composition selected by default', () => {

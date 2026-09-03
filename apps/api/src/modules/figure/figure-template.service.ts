@@ -21,6 +21,7 @@ import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
 import { CreateRenglaDto } from './dto/create-rengla.dto';
 import { SaveFromInstanceDto } from './dto/save-from-instance.dto';
 import { FigureZone } from '@muixer/shared';
+import { computeTroncProfileFromNodes, loadTroncProfiles } from './tronc-profile.util';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
 
@@ -61,6 +62,8 @@ interface FigureTemplateListItem {
   direction: number;
   nodeCount: number;
   renglaCount: number;
+  /** People per tronc/base floor, bottom-to-top (index 0 = bases). Pinya is never included. */
+  troncProfile: number[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -123,7 +126,12 @@ export class FigureTemplateService {
       .take(limit)
       .getMany();
 
-    return { data: templates.map(toListItem), total };
+    const troncProfiles = await loadTroncProfiles(this.nodeRepository, templates.map((t) => t.id));
+
+    return {
+      data: templates.map((t) => toListItem(t, troncProfiles.get(t.id) ?? [])),
+      total,
+    };
   }
 
   async findOne(id: string): Promise<FigureTemplateDetailItem> {
@@ -713,6 +721,7 @@ function renglaToItem(rengla: Rengla): RenglaItem {
 
 function toListItem(
   template: FigureTemplate & { nodeCount?: number; renglaCount?: number; pinyaNodeCount?: number },
+  troncProfile: number[] = [],
 ): FigureTemplateListItem {
   const t = template as unknown as { nodeCount: number; renglaCount: number; pinyaNodeCount: number };
   return {
@@ -724,6 +733,7 @@ function toListItem(
     direction: template.direction,
     nodeCount: t.nodeCount ?? 0,
     renglaCount: t.renglaCount ?? 0,
+    troncProfile,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
   };
@@ -734,7 +744,7 @@ function toDetailItem(
   adHocInstanceCount = 0,
 ): FigureTemplateDetailItem {
   return {
-    ...toListItem(template),
+    ...toListItem(template, computeTroncProfileFromNodes(template.nodes ?? [])),
     hasPinya: (template.nodes ?? []).some((n) => n.zone === FigureZone.PINYA),
     metadata: template.metadata,
     nodes: (template.nodes ?? []).map(nodeToItem),

@@ -3,21 +3,13 @@
   <!-- ── Top Bar ──────────────────────────────────────────────────────────── -->
   <header class="editor-topbar" role="banner">
     <div class="flex items-center gap-3 min-w-0">
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm gap-1"
-        (click)="goBack()"
-        aria-label="Tornar a la llista"
-      >
+      <lib-button variant="ghost" size="sm" shape="square" ariaLabel="Tornar a la llista" (clicked)="goBack()">
         <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
-        Figures
-      </button>
-
-      <span class="text-base-content/30" aria-hidden="true">/</span>
+      </lib-button>
 
       <!-- Template name -->
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="text-sm font-semibold text-base-content truncate max-w-48">{{ templateName() }}</span>
+      <div class="flex items-center gap-4 min-w-0">
+        <span class="text-lg font-semibold font-serif leading-tight text-base-content truncate max-w-64">{{ templateName() }}</span>
         @if (previewMode()) {
           <span class="badge badge-ghost badge-sm">Previsualització</span>
         }
@@ -54,66 +46,67 @@
 
         <!-- Undo / Redo -->
         <div class="flex items-center gap-1">
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm btn-square"
+          <lib-button
+            variant="ghost"
+            size="sm"
+            shape="square"
             [disabled]="!canUndo()"
-            (click)="performUndo()"
-            [attr.aria-label]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
+            (clicked)="performUndo()"
+            [ariaLabel]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
             [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
           >
             <i-lucide [img]="Undo2" class="size-4" />
-          </button>
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm btn-square"
+          </lib-button>
+          <lib-button
+            variant="ghost"
+            size="sm"
+            shape="square"
             [disabled]="!canRedo()"
-            (click)="performRedo()"
-            [attr.aria-label]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
+            (clicked)="performRedo()"
+            [ariaLabel]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
             [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
           >
             <i-lucide [img]="Redo2" class="size-4" />
-          </button>
+          </lib-button>
         </div>
       }
 
       <!-- Preview mode toggle -->
-      <button
-        type="button"
-        class="btn btn-sm gap-1"
-        [class.btn-primary]="previewMode()"
-        [class.btn-ghost]="!previewMode()"
-        (click)="togglePreview()"
-        [attr.aria-pressed]="previewMode()"
+      <lib-button
+        [variant]="previewMode() ? 'primary' : 'ghost'"
+        size="sm"
+        [ariaPressed]="previewMode()"
         [disabled]="renglaEditMode()"
-        aria-label="Previsualitzar figura"
+        ariaLabel="Previsualitzar figura"
         title="Previsualitzar (Ctrl+Shift+P)"
+        (clicked)="togglePreview()"
       >
         <i-lucide [img]="previewMode() ? EyeOff : Eye" class="size-4" aria-hidden="true" />
-        <!-- {{ previewMode() ? 'Sortir' : 'Previsualitzar' }} -->
-      </button>
+      </lib-button>
 
       <!-- Shortcuts help -->
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm btn-square"
-        (click)="toggleShortcutsModal()"
-        aria-label="Veure dreceres de teclat"
+      <lib-button
+        variant="ghost"
+        size="sm"
+        shape="square"
+        ariaLabel="Veure dreceres de teclat"
         title="Dreceres de teclat"
+        (clicked)="toggleShortcutsModal()"
       >
         <lucide-icon name="Keyboard" [size]="16" aria-hidden="true" />
-      </button>
+      </lib-button>
 
       <!-- Editor help -->
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm btn-square"
-        (click)="helpModal().open()"
-        aria-label="Ajuda de l'editor de figures"
+      <lib-button
+        variant="ghost"
+        size="sm"
+        shape="square"
+        ariaLabel="Ajuda de l'editor de figures"
         title="Ajuda"
+        (clicked)="helpModal().open()"
       >
         <lucide-icon name="CircleQuestionMark" [size]="16" aria-hidden="true" />
-      </button>
+      </lib-button>
     </div>
   </header>
 
@@ -142,16 +135,18 @@
       <!-- Base (intersecció pinya-tronc) -->
       <div class="toolbar-section">
         <p class="toolbar-label">Base</p>
-        <button
-          type="button"
-          class="toolbar-btn"
-          (click)="onBaseNodeAdded({ sortOrder: baseNodes().length })"
+        <lib-button
+          variant="ghost"
+          fullWidth
+          (clicked)="onBaseNodeAdded({ sortOrder: baseNodes().length })"
           title="Afegeix base"
-          aria-label="Afegeix node base"
+          ariaLabel="Afegeix node base"
         >
-          <span class="node-rect" style="background-color: #EEEEEE; border: 1px dashed #a1a1a1;" aria-hidden="true"></span>
-          BASE
-        </button>
+          <span class="toolbar-btn-content">
+            <span class="node-rect" style="background-color: #EEEEEE; border: 1px dashed #a1a1a1;" aria-hidden="true"></span>
+            BASE
+          </span>
+        </lib-button>
 
         <!-- Base ordering warning -->
         @if (baseNodes().length >= 2 && !baseOrderingValidation().isValid) {
@@ -174,21 +169,23 @@
       <div class="toolbar-section">
         <p class="toolbar-label">Pinya</p>
         @for (pos of pinyaPositions; track pos.positionType) {
-          <button
-            type="button"
-            class="toolbar-btn"
-            (click)="addPinyaNode(pos)"
+          <lib-button
+            variant="ghost"
+            fullWidth
+            (clicked)="addPinyaNode(pos)"
             [title]="'Afegir ' + pos.label"
-            [attr.aria-label]="'Afegir node ' + pos.label"
+            [ariaLabel]="'Afegir node ' + pos.label"
           >
-            <span
-              class="node-rect"
-              [class.node-ellipse]="pos.shape === NodeShape.ELLIPSE"
-              [style.backgroundColor]="pos.color"
-              aria-hidden="true"
-            ></span>
-            {{ pos.label }}
-          </button>
+            <span class="toolbar-btn-content">
+              <span
+                class="node-rect"
+                [class.node-ellipse]="pos.shape === NodeShape.ELLIPSE"
+                [style.backgroundColor]="pos.color"
+                aria-hidden="true"
+              ></span>
+              {{ pos.label }}
+            </span>
+          </lib-button>
         }
       </div>
 
@@ -226,9 +223,16 @@
 <!--          Quadrícula-->
 <!--        </button>-->
 
+        <!-- Stays raw: lib-button's box has a fixed CSS height that can't grow to fit a wrapped
+             3-word label in this ~48px-wide column — a genuine component-API gap, not a fit to
+             force (see docs/superpowers/specs/2026-08-16-design-system-plan-design.md). Still
+             shares the app's real button motion via the same global .ds-lift class + libDsLift
+             directive lib-button itself uses internally (libs/ui/src/styles/_interactive.scss) —
+             not a bespoke animation. -->
         <button
           type="button"
-          class="toolbar-btn"
+          class="toolbar-btn ds-lift"
+          libDsLift
           [class.active]="snapToGrid()"
           (click)="toggleSnapToGrid()"
           title="Encaixa a la quadrícula"
@@ -320,60 +324,34 @@
           <div class="panel-scroll-area">
           @if (selectedNode(); as node) {
             <h2 class="panel-title">Propietats del node</h2>
-            <!-- Position preset: only for PINYA nodes -->
+            <!-- Position preset: only for PINYA nodes. The swatch is projected as rich <option>
+                 content (shows in the open dropdown everywhere, and in the closed control too in
+                 browsers supporting `appearance: base-select`) AND passed via lib-select's
+                 [swatchColor]/[swatchShape] (its own always-on decoration) so the closed control
+                 keeps showing it in Firefox/Safari, which fall back to plain option text. -->
             @if (node.zone === FigureZone.PINYA) {
-              <div class="form-control mb-2">
-                <span class="label-text text-xs font-medium mb-1 block">Tipus de posició</span>
-                <div class="relative" #presetDropdownRef>
-                  <!-- Trigger -->
-                  <button
-                    type="button"
-                    class="select select-bordered select-sm w-full flex items-center gap-2 text-left pr-8"
-                    (click)="presetDropdownOpen.update(v => !v)"
-                  >
-                    @if (currentPinyaPreset(); as preset) {
+              <div class="mb-2">
+                <lib-select
+                  id="node-position-type"
+                  label="Tipus de posició"
+                  size="xs"
+                  [swatchColor]="presetForPositionType(node.positionType)?.color ?? undefined"
+                  [swatchShape]="presetForPositionType(node.positionType)?.shape === NodeShape.ELLIPSE ? 'circle' : 'square'"
+                  [ngModel]="node.positionType ?? ''"
+                  (ngModelChange)="applyPinyaPreset($event)"
+                >
+                  @for (preset of pinyaPositions; track preset.positionType) {
+                    <option [value]="preset.positionType">
                       <span
-                        class="w-3 h-3 shrink-0 inline-block border border-black/10"
+                        class="w-3 h-3 shrink-0 inline-block border border-black/10 align-middle mr-1"
                         [class.rounded-full]="preset.shape === NodeShape.ELLIPSE"
                         [class.rounded-sm]="preset.shape !== NodeShape.ELLIPSE"
                         [style.backgroundColor]="preset.color ?? '#ccc'"
                       ></span>
-                      <span>{{ preset.label || preset.positionType }}</span>
-                    } @else {
-                      <span class="w-3 h-3 shrink-0 inline-block rounded-sm bg-base-300 border border-black/10"></span>
-                      <span class="text-base-content/50">Altre</span>
-                    }
-                    <lucide-icon name="ChevronDown" [size]="12" class="ml-auto shrink-0 text-base-content/50" aria-hidden="true" />
-                  </button>
-
-                  <!-- Dropdown list -->
-                  @if (presetDropdownOpen()) {
-                    <ul
-                      class="absolute z-50 left-0 right-0 top-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg py-1 overflow-y-auto"
-                      role="listbox"
-                      [attr.aria-label]="'Tipus de posició de pinya'"
-                    >
-                      @for (preset of pinyaPositions; track preset.positionType) {
-                        <li role="option" [attr.aria-selected]="currentPinyaPreset()?.positionType === preset.positionType">
-                          <button
-                            type="button"
-                            class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-base-200 text-left"
-                            [class.bg-base-200]="currentPinyaPreset()?.positionType === preset.positionType"
-                            (click)="applyPinyaPreset(preset.positionType!)"
-                          >
-                            <span
-                              class="w-3 h-3 shrink-0 inline-block border border-black/10"
-                              [class.rounded-full]="preset.shape === NodeShape.ELLIPSE"
-                              [class.rounded-sm]="preset.shape !== NodeShape.ELLIPSE"
-                              [style.backgroundColor]="preset.color ?? '#ccc'"
-                            ></span>
-                            {{ preset.label || preset.positionType }}
-                          </button>
-                        </li>
-                      }
-                    </ul>
+                      {{ preset.label || preset.positionType }}
+                    </option>
                   }
-                </div>
+                </lib-select>
               </div>
             }
 
@@ -384,14 +362,11 @@
               <p class="panel-section-title">Aparença</p>
 
               <!-- Label -->
-              <div class="form-control mb-2">
-                <label class="label pb-1" [for]="'node-label-' + node.id">
-                  <span class="label-text text-xs font-medium">Etiqueta</span>
-                </label>
-                <input
-                  type="text"
-                  [id]="'node-label-' + node.id"
-                  class="input input-bordered input-sm"
+              <div class="mb-2">
+                <lib-input
+                  id="node-label"
+                  label="Etiqueta"
+                  size="xs"
                   [ngModel]="node.label"
                   (ngModelChange)="updateSelectedNodeProp('label', $event)"
                 />
@@ -399,8 +374,10 @@
 
               <!-- Color: editable for every zone except BASE -->
               @if (isNodeColorEditable(node)) {
-                <div class="form-control mb-2">
-                  <span class="label-text text-xs font-medium mb-1 block">Color</span>
+                <div class="mb-2">
+                  <div class="label pb-1">
+                    <span class="label-text text-xs font-medium">Color</span>
+                  </div>
                   <app-color-picker
                     [color]="node.color"
                     [presetColors]="getPresetColorsForZone(node.zone)"
@@ -410,38 +387,33 @@
               }
 
               @if (node.zone === FigureZone.PINYA) {
-                <!-- Indicator (short marker shown next to the assigned person, e.g. "X") -->
-                <div class="form-control mb-2">
-                  <label class="label pb-1" [for]="'node-indicator-' + node.id">
-                    <span class="label-text text-xs font-medium">Indicador</span>
-                  </label>
-                  <input
-                    type="text"
-                    [id]="'node-indicator-' + node.id"
-                    class="input input-bordered input-sm w-16"
-                    maxlength="4"
+                <!-- Indicator (short marker shown next to the assigned person, e.g. "X"). -->
+                <div class="max-w-20 mb-2">
+                  <lib-input
+                    id="node-indicator"
+                    label="Indicador"
+                    size="xs"
+                    [maxLength]="6"
+                    ariaLabel="Indicador curt mostrat al costat de la persona assignada"
                     [ngModel]="node.climbIndicator"
                     (ngModelChange)="updateSelectedNodeProp('climbIndicator', $event || null)"
-                    aria-label="Indicador curt mostrat al costat de la persona assignada"
                   />
                 </div>
               }
 
               @if (node.zone !== FigureZone.TRONC) {
                 <!-- Shape (pinya/direction only) -->
-                <div class="form-control mb-2">
-                  <label class="label pb-1" [for]="'node-shape-' + node.id">
-                    <span class="label-text text-xs font-medium">Forma</span>
-                  </label>
-                  <select
-                    [id]="'node-shape-' + node.id"
-                    class="select select-bordered select-sm"
+                <div class="mb-2">
+                  <lib-select
+                    id="node-shape"
+                    label="Forma"
+                    size="xs"
                     [ngModel]="node.shape"
                     (ngModelChange)="updateSelectedNodeProp('shape', $event)"
                   >
                     <option [value]="NodeShape.ELLIPSE">El·lipse</option>
                     <option [value]="NodeShape.RECTANGLE">Rectangle</option>
-                  </select>
+                  </lib-select>
                 </div>
               }
             </div>
@@ -455,38 +427,29 @@
 
                 @if (node.zone !== FigureZone.TRONC) {
                   <!-- Dimensions (pinya/direction only) -->
-                  <div class="form-control mb-2">
-                    <div class="grid grid-cols-2 gap-2">
-                    <div class="form-control">
-                      <label class="label pb-1" [for]="'node-w-' + node.id">
-                        <span class="label-text text-xs font-medium">Amplada (px)</span>
-                      </label>
-                      <input
-                        type="number"
-                        [id]="'node-w-' + node.id"
-                        class="input input-bordered input-sm font-mono"
-                        [ngModel]="node.width"
-                        (ngModelChange)="updateSelectedNodeProp('width', +$event)"
-                        min="10" max="500"
-                      />
-                    </div>
-                    <div class="form-control">
-                      <label class="label pb-1" [for]="'node-h-' + node.id">
-                        <span class="label-text text-xs font-medium">Alçada (px)</span>
-                      </label>
-                      <input
-                        type="number"
-                        [id]="'node-h-' + node.id"
-                        class="input input-bordered input-sm font-mono"
-                        [ngModel]="node.height"
-                        (ngModelChange)="updateSelectedNodeProp('height', +$event)"
-                        min="10" max="500"
-                      />
-                    </div>
+                  <div class="grid grid-cols-2 gap-2 mb-2">
+                    <lib-input
+                      id="node-width"
+                      label="Amplada (px)"
+                      type="number"
+                      size="xs"
+                      [min]="10" [max]="500"
+                      [ngModel]="node.width"
+                      (ngModelChange)="updateSelectedNodeProp('width', +$event)"
+                    />
+                    <lib-input
+                      id="node-height"
+                      label="Alçada (px)"
+                      type="number"
+                      size="xs"
+                      [min]="10" [max]="500"
+                      [ngModel]="node.height"
+                      (ngModelChange)="updateSelectedNodeProp('height', +$event)"
+                    />
                   </div>
-                </div>
 
-                <!-- Rotation (pinya/direction only) -->
+                <!-- Rotation (pinya/direction only). lib-input has no range type (deferred, per
+                     docs/DESIGN_SYSTEM.md) — stays raw. -->
                 <div class="form-control mb-2">
                   <label class="label pb-1" [for]="'node-rot-' + node.id">
                     <span class="label-text text-xs font-medium">Rotació (°)</span>
@@ -506,87 +469,76 @@
 
                 <!-- Position in canvas (pinya/direction only) -->
                 <div class="grid grid-cols-2 gap-2 mb-2">
-                  <div class="form-control">
-                    <label class="label pb-1" [for]="'node-x-' + node.id">
-                      <span class="label-text text-xs font-medium">X</span>
-                    </label>
-                    <input
-                      type="number"
-                      [id]="'node-x-' + node.id"
-                      class="input input-bordered input-sm font-mono"
-                      [ngModel]="node.x"
-                      (ngModelChange)="updateSelectedNodeProp('x', +$event)"
-                    />
-                  </div>
-                  <div class="form-control">
-                    <label class="label pb-1" [for]="'node-y-' + node.id">
-                      <span class="label-text text-xs font-medium">Y</span>
-                    </label>
-                    <input
-                      type="number"
-                      [id]="'node-y-' + node.id"
-                      class="input input-bordered input-sm font-mono"
-                      [ngModel]="node.y"
-                      (ngModelChange)="updateSelectedNodeProp('y', +$event)"
-                    />
-                  </div>
+                  <lib-input
+                    id="node-x"
+                    label="X"
+                    type="number"
+                    size="xs"
+                    [ngModel]="node.x"
+                    (ngModelChange)="updateSelectedNodeProp('x', +$event)"
+                  />
+                  <lib-input
+                    id="node-y"
+                    label="Y"
+                    type="number"
+                    size="xs"
+                    [ngModel]="node.y"
+                    (ngModelChange)="updateSelectedNodeProp('y', +$event)"
+                  />
                 </div>
               }
 
               <!-- Floor (z) - Only for non-PINYA, non-BASE, non-TRONC zones (TRONC floor is managed via the widget, BASE and PINYA are always z=0) -->
               @if (node.zone !== FigureZone.PINYA && node.zone !== FigureZone.BASE && node.zone !== FigureZone.TRONC) {
-                <div class="form-control mb-2">
-                  <label class="label pb-1" [for]="'node-z-' + node.id">
-                    <span class="label-text text-xs font-medium">Pis (z)</span>
-                  </label>
-                  <input
+                <div class="mb-2">
+                  <lib-input
+                    id="node-z"
+                    label="Pis (z)"
                     type="number"
-                    [id]="'node-z-' + node.id"
-                    class="input input-bordered input-sm"
+                    size="xs"
+                    [min]="0" [max]="20"
                     [ngModel]="node.z"
                     (ngModelChange)="updateSelectedNodeProp('z', +$event)"
-                    min="0" max="20"
                   />
                 </div>
               }
               </div>
             }
 
-            <div class="divider my-2"></div>
+            @if (isCompactViewport()) {
+              <div class="divider my-2"></div>
 
-            <!-- ── Moure ──────────────────────────────────────────────────── -->
-            <div class="panel-section">
-              <p class="panel-section-title">Moure</p>
-              <app-node-dpad
-                [disabled]="!selectedNodeId()"
-                (holdStarted)="onDpadHoldStarted()"
-                (nodeMoved)="onDpadMove($event)"
-                (nodeResized)="onDpadResize($event)"
-                (nodeRotated)="onDpadRotate($event)"
-              />
-            </div>
+              <!-- ── Moure ──────────────────────────────────────────────────── -->
+              <div class="panel-section">
+                <p class="panel-section-title">Moure</p>
+                <app-node-dpad
+                  [disabled]="!selectedNodeId()"
+                  (holdStarted)="onDpadHoldStarted()"
+                  (nodeMoved)="onDpadMove($event)"
+                  (nodeResized)="onDpadResize($event)"
+                  (nodeRotated)="onDpadRotate($event)"
+                />
+              </div>
+            }
           } @else {
             <div>
               <h2 class="panel-title">Figura</h2>
-              <div class="form-control mb-2">
-                <label class="label pb-1" for="template-name-input">
-                  <span class="label-text text-xs font-medium">Nom</span>
-                </label>
-                <input
+              <div class="mb-2">
+                <lib-input
                   id="template-name-input"
-                  type="text"
-                  class="input input-bordered input-sm"
+                  label="Nom"
+                  ariaLabel="Nom de la figura"
+                  size="xs"
                   placeholder="Nom de la figura"
                   [ngModel]="templateName()"
                   (ngModelChange)="onNameChange($event)"
-                  aria-label="Nom de la figura"
                 />
               </div>
               <div class="divider my-3"></div>
               <div class="flex flex-col items-center gap-3 text-center px-2 py-4">
                 <lucide-icon name="MousePointer2" [size]="28" class="text-base-content/20" aria-hidden="true" />
                 <p class="text-sm text-base-content/50">
-                  Feu clic a un node de l'editor per veure i editar les seves propietats
+                  Feu clic a un node de l'editor per veure i editar-ne les propietats
                 </p>
               </div>
             </div>
@@ -670,29 +622,12 @@
 }
 
 <!-- ── Shortcuts Modal ──────────────────────────────────────────────────── -->
-@if (shortcutsModalOpen()) {
-  <dialog
-    class="modal modal-open"
-    aria-modal="true"
-    aria-labelledby="shortcuts-title"
-    tabindex="-1"
-    (keydown.escape)="toggleShortcutsModal()"
-  >
-    <div class="modal-box max-w-lg">
-      <button
-        type="button"
-        class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
-        (click)="toggleShortcutsModal()"
-        aria-label="Tancar"
-      >
-        <lucide-icon name="X" [size]="16" aria-hidden="true" />
-      </button>
-
-      <h2 id="shortcuts-title" class="text-lg font-bold mb-4 flex items-center gap-2">
-        <lucide-icon name="Keyboard" [size]="20" aria-hidden="true" />
-        Dreceres de teclat
-      </h2>
-
+<lib-modal
+  [open]="shortcutsModalOpen()"
+  title="Dreceres de teclat"
+  size="lg"
+  (closed)="shortcutsModalOpen.set(false)"
+>
       <!-- Selecció i edició -->
       <section aria-labelledby="shortcuts-nodes">
         <h3 id="shortcuts-nodes" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Nodes</h3>
@@ -823,36 +758,33 @@
           </li>
         </ul>
       </section>
-    </div>
-    <div class="modal-backdrop" (click)="toggleShortcutsModal()" aria-hidden="true"></div>
-  </dialog>
-}
+</lib-modal>
 
 <!-- Template editor help modal -->
-<app-template-editor-help-modal />
+<app-template-editor-help-modal #helpModalRef />
 
 <!-- Name prompt modal -->
-@if (showNamePrompt()) {
-  <dialog class="modal modal-open" role="dialog" aria-labelledby="name-prompt-title" aria-modal="true">
-    <div class="modal-box max-w-sm">
-      <h3 id="name-prompt-title" class="text-lg font-bold mb-2">Nom de la figura</h3>
-      <p class="text-sm text-base-content/70 mb-4">Has d'introduir un nom per la figura abans de continuar.</p>
-      <input
-        #nameInput
-        type="text"
-        class="input input-bordered w-full"
-        placeholder="Ex: Pilar de 4, Torre de 6..."
-        (keydown.enter)="confirmNamePrompt(nameInput.value)"
-        aria-label="Nom de la figura"
-      />
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelNamePrompt()">Cancel·la</button>
-        <button type="button" class="btn btn-primary btn-sm" (click)="confirmNamePrompt(nameInput.value)">Confirma</button>
-      </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="cancelNamePrompt()" aria-label="Tancar"></button>
-  </dialog>
-}
+<lib-modal
+  [open]="showNamePrompt()"
+  title="Nom de la figura"
+  size="sm"
+  (closed)="cancelNamePrompt()"
+>
+  <p class="text-sm text-base-content/70 mb-4">Has d'introduir un nom per la figura abans de continuar.</p>
+  <lib-input
+    type="text"
+    placeholder="Ex: Pilar de 4, Torre de 6..."
+    ariaLabel="Nom de la figura"
+    autofocus
+    [ngModel]="namePromptDraft()"
+    (ngModelChange)="namePromptDraft.set($event)"
+    (keydown.enter)="confirmNamePrompt(namePromptDraft())"
+  />
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" ariaLabel="Cancel·la" (clicked)="cancelNamePrompt()">Cancel·la</lib-button>
+    <lib-button variant="primary" size="sm" ariaLabel="Confirma el nom" (clicked)="confirmNamePrompt(namePromptDraft())">Confirma</lib-button>
+  </div>
+</lib-modal>
 
 <!-- Screen reader announcements -->
 <div class="sr-only" aria-live="polite" aria-atomic="true">

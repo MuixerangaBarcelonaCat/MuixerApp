@@ -59,15 +59,11 @@
     <div class="w-fit">
       <lib-form-field label="Estat">
         <div class="flex items-center gap-2">
-          <label class="flex items-center gap-2 cursor-pointer min-h-6">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-xs checkbox-primary"
-              [checked]="activeFilters().isActive === true"
-              (change)="toggleActiusFilter()"
-            />
-            <span class="text-sm">Sols actius</span>
-          </label>
+          <lib-checkbox
+            size="xs"
+            [ngModel]="activeFilters().isActive === true"
+            (ngModelChange)="toggleActiusFilter()"
+          ><span class="text-sm">Sols actius</span></lib-checkbox>
           <lib-button-group>
             <lib-button
               joinItem

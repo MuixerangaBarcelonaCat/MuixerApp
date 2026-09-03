@@ -1,47 +1,62 @@
 <div class="flex flex-col h-screen bg-base-200 overflow-hidden">
 
   <!-- Top bar -->
-  <header class="flex items-center gap-3 px-4 h-14 bg-base-100 border-b border-base-200 shrink-0 z-10">
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm gap-2"
-      (click)="goBack()"
-      aria-label="Torna enrere"
-    >
-      <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
-      Torna
-    </button>
+  <header class="editor-topbar" role="banner">
+    <div class="flex items-center gap-3 min-w-0">
+      <lib-button variant="ghost" size="sm" shape="square" ariaLabel="Torna enrere" (clicked)="goBack()">
+        <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
+      </lib-button>
 
-    <div class="divider divider-horizontal m-0 h-6"></div>
+      <!-- Composition name, with an inline rename affordance -->
+      <div class="flex items-center gap-2 min-w-0">
+        @if (renamingName()) {
+          <div class="w-56" data-testid="composition-name-input">
+            <lib-input
+              size="sm"
+              ariaLabel="Nom de la composició"
+              [autofocus]="true"
+              [ngModel]="nameDraft()"
+              (ngModelChange)="nameDraft.set($event)"
+              (keydown.enter)="confirmRename()"
+              (keydown.escape)="cancelRename()"
+            />
+          </div>
+          <lib-button variant="ghost" size="sm" shape="square" ariaLabel="Accepta el nom" (clicked)="confirmRename()">
+            <lucide-icon name="Check" [size]="16" aria-hidden="true" />
+          </lib-button>
+          <lib-button variant="ghost" size="sm" shape="square" ariaLabel="Cancel·la el canvi de nom" (clicked)="cancelRename()">
+            <lucide-icon name="X" [size]="16" aria-hidden="true" />
+          </lib-button>
+        } @else {
+          <span class="text-lg font-semibold font-serif leading-tight text-base-content truncate max-w-64">{{ name() }}</span>
+          <lib-button variant="ghost" size="sm" shape="square" ariaLabel="Renombra la composició" (clicked)="startRename()">
+            <lucide-icon name="Pencil" [size]="14" aria-hidden="true" />
+          </lib-button>
+        }
+      </div>
+    </div>
 
-    <input
-      type="text"
-      class="input input-bordered input-sm w-56 font-semibold"
-      placeholder="Nom de la composició"
-      [ngModel]="name()"
-      (ngModelChange)="updateName($event)"
-      aria-label="Nom de la composició"
-    />
+    <div class="flex items-center gap-3">
+      <!-- Save status -->
+      @if (saveStatus() !== 'idle') {
+        <span class="text-xs" [class]="saveStatusClass" aria-live="polite">
+          {{ saveStatusLabel }}
+        </span>
+      }
 
-    <div class="flex-1"></div>
-
-    <!-- Save status -->
-    <span class="text-xs" [class]="saveStatusClass" aria-live="polite">
-      {{ saveStatusLabel }}
-    </span>
-
-    <!-- Snap toggle -->
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm gap-1.5"
-      [class.btn-active]="snapToGrid"
-      (click)="toggleSnap()"
-      aria-pressed="{{ snapToGrid }}"
-      aria-label="Alterna l'ajust a la graella"
-    >
-      <lucide-icon name="Magnet" [size]="15" aria-hidden="true" />
-      Ajusta
-    </button>
+      <!-- Snap toggle -->
+      <lib-button
+        [variant]="snapToGrid ? 'primary' : 'ghost'"
+        [outline]="snapToGrid ? true : false"
+        size="sm"
+        [ariaPressed]="snapToGrid"
+        ariaLabel="Alterna l'ajust a la graella"
+        (clicked)="toggleSnap()"
+      >
+        <lucide-icon name="Magnet" [size]="15" aria-hidden="true" />
+        Ajusta
+      </lib-button>
+    </div>
   </header>
 
   <div class="flex-1 flex flex-col sm:flex-row min-h-0 overflow-hidden">
@@ -49,17 +64,15 @@
     <!-- Left panel: figure template picker -->
     <aside class="w-full max-h-[45vh] sm:max-h-none sm:w-[280px] shrink-0 bg-base-100 border-b sm:border-b-0 sm:border-r border-base-200 flex flex-col overflow-hidden" aria-label="Figures disponibles">
       <div class="p-3 border-b border-base-200">
-        <label class="input input-sm input-bordered flex items-center gap-2">
-          <lucide-icon name="Search" [size]="14" class="text-base-content/40" aria-hidden="true" />
-          <input
-            type="search"
-            class="grow bg-transparent outline-none text-sm h-6"
-            placeholder="Cerca..."
-            [ngModel]="search()"
-            (ngModelChange)="search.set($event)"
-            aria-label="Cerca figures"
-          />
-        </label>
+        <lib-input
+          type="search"
+          size="sm"
+          [icon]="SearchIcon"
+          placeholder="Cerca..."
+          ariaLabel="Cerca figures"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
       </div>
 
       <ul class="flex-1 overflow-y-auto space-y-0.5 p-2" role="list">
@@ -73,7 +86,7 @@
             >
               <span class="font-medium text-sm truncate">{{ t.name }}</span>
               @if (!t.hasPinya) {
-                <span class="badge badge-xs badge-info shrink-0">Tronc</span>
+                <span class="badge badge-xs badge-info shrink-0">Neta</span>
               }
             </button>
           </li>

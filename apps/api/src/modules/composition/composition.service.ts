@@ -5,10 +5,12 @@ import { FigureZone } from '@muixer/shared';
 import { Composition } from './entities/composition.entity';
 import { CompositionEntry } from './entities/composition-entry.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
+import { FigureNode } from '../figure/entities/figure-node.entity';
 import { CreateCompositionDto, CreateCompositionEntryDto } from './dto/create-composition.dto';
 import { UpdateCompositionDto } from './dto/update-composition.dto';
 import { CompositionFilterDto } from './dto/composition-filter.dto';
 import { FigureNodeItem } from '../figure/figure-template.service';
+import { loadTroncProfiles } from '../figure/tronc-profile.util';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
 
@@ -17,6 +19,8 @@ export interface CompositionListItem {
   name: string;
   description: string | null;
   entryCount: number;
+  /** One troncProfile per entry, same order as entries — see FigureTemplateListItem.troncProfile. */
+  figureProfiles: number[][];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,6 +73,8 @@ export class CompositionService {
     private readonly entryRepository: Repository<CompositionEntry>,
     @InjectRepository(FigureTemplate)
     private readonly templateRepository: Repository<FigureTemplate>,
+    @InjectRepository(FigureNode)
+    private readonly nodeRepository: Repository<FigureNode>,
   ) {}
 
   async findAll(filter: CompositionFilterDto): Promise<PaginatedCompositions> {
@@ -78,6 +84,8 @@ export class CompositionService {
     const qb = this.compositionRepository
       .createQueryBuilder('composition')
       .leftJoinAndSelect('composition.entries', 'entries')
+      .leftJoin('entries.figureTemplate', 'entryTemplate')
+      .addSelect(['entryTemplate.id'])
       .orderBy('composition.name', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
@@ -88,8 +96,18 @@ export class CompositionService {
 
     const [compositions, total] = await Promise.all([qb.getMany(), qb.getCount()]);
 
+    const templateIds = Array.from(
+      new Set(
+        compositions
+          .flatMap((c) => c.entries ?? [])
+          .map((e) => e.figureTemplate?.id)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    const troncProfiles = await loadTroncProfiles(this.nodeRepository, templateIds);
+
     return {
-      data: compositions.map((c) => this.toListItem(c)),
+      data: compositions.map((c) => this.toListItem(c, troncProfiles)),
       meta: { total, page, limit },
     };
   }
@@ -208,12 +226,18 @@ export class CompositionService {
     await this.entryRepository.save(entries);
   }
 
-  private toListItem(composition: Composition): CompositionListItem {
+  private toListItem(
+    composition: Composition,
+    troncProfiles: Map<string, number[]> = new Map(),
+  ): CompositionListItem {
     return {
       id: composition.id,
       name: composition.name,
       description: composition.description,
       entryCount: composition.entries?.length ?? 0,
+      figureProfiles: (composition.entries ?? []).map(
+        (e) => troncProfiles.get(e.figureTemplate?.id ?? '') ?? [],
+      ),
       createdAt: composition.createdAt,
       updatedAt: composition.updatedAt,
     };

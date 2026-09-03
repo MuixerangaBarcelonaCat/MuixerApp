@@ -258,6 +258,8 @@ export interface UpdateInstanceCordonsPayload {
 export interface CordonsResponse {
   numberOfCordons: number | null;
   cordonsObertsEnabled: boolean;
+  /** How many assignments were unassigned by this change (nodes that fell outside the new cordon count). */
+  removedAssignments: number;
 }
 
 export interface SwapAssignmentsPayload {

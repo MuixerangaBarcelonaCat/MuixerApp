@@ -1,4 +1,4 @@
-import { SegmentNodeRef } from '@muixer/pinyes-render';
+import { BulkImportResult, SegmentNodeRef } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +6,7 @@ import {
   HostListener,
   OnDestroy,
   OnInit,
+  computed,
   effect,
   inject,
   signal,
@@ -14,12 +15,14 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock, CircleQuestionMark } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock, CircleQuestionMark, Trash2 } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
-import { ToastService, TabsComponent, TabDef } from '@muixer/ui';
-import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
+import { ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, ModalComponent } from '@muixer/ui';
+import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../services/segment-workspace-state.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
+import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
 import { PinyesTabComponent } from './tabs/pinyes-tab/pinyes-tab.component';
@@ -29,6 +32,7 @@ import { NodesTabComponent } from './tabs/nodes-tab/nodes-tab.component';
 import { PrevisualitzaTabComponent } from './tabs/previsualitza-tab/previsualitza-tab.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { SegmentConflictPanelComponent } from '../segment-conflict-panel/segment-conflict-panel.component';
+import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
 
@@ -43,6 +47,9 @@ const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LucideAngularModule,
+    ButtonComponent,
+    BadgeComponent,
+    ModalComponent,
     TabsComponent,
     PinyesTabComponent,
     TroncsTabComponent,
@@ -51,6 +58,7 @@ const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
     PrevisualitzaTabComponent,
     TemplateEditorHelpModalComponent,
     SegmentConflictPanelComponent,
+    ImportPinyaModalComponent,
   ],
   templateUrl: './segment-workspace.component.html',
   providers: [SegmentWorkspaceStateService, UndoRedoService, ConflictResolutionService],
@@ -63,13 +71,17 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   private readonly layout = inject(LayoutService);
   private readonly viewModeService = inject(FiguresViewModeService);
   private readonly toast = inject(ToastService);
+  private readonly assignmentService = inject(NodeAssignmentService);
+  private readonly undoRedo = inject(UndoRedoService);
   readonly ws = inject(SegmentWorkspaceStateService);
+  readonly state = inject(AssignmentStateService);
 
   readonly ArrowLeft = ArrowLeft;
   readonly ChevronLeft = ChevronLeft;
   readonly ChevronRight = ChevronRight;
   readonly Lock = Lock;
   readonly CircleQuestionMark = CircleQuestionMark;
+  readonly Trash2 = Trash2;
 
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
 
@@ -194,5 +206,134 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     } else {
       this.location.back();
     }
+  }
+
+  // ── Import pinya / reset snapshot (top bar, pinyes tab only) ───────────────
+  // Moved here from the pinyes tab's own footer: both act on the whole
+  // instance (all its assignments), not just the pinya canvas, so they belong
+  // in the workspace-wide header rather than one tab's chrome. Still gated to
+  // the pinyes tab in the template, since "Importa pinya" only makes sense there.
+
+  readonly importMenuOpen = signal(false);
+  readonly importTarget = signal<{ instanceId: string; figureTemplateId: string } | null>(null);
+  readonly resetMenuOpen = signal(false);
+  readonly resetTarget = signal<string | null>(null);
+  readonly resetting = signal(false);
+
+  readonly importCandidates = computed(() =>
+    this.ws.instances().filter((i) => i.figureTemplateId !== null),
+  );
+  readonly resetCandidates = computed(() => this.ws.instances().filter((i) => i.snapshotted));
+
+  readonly resetTargetInstance = computed(() => {
+    const id = this.resetTarget();
+    return id ? this.instanceFor(id) : null;
+  });
+
+  readonly resetTargetAssignedCount = computed(() => {
+    const id = this.resetTarget();
+    if (!id) return 0;
+    return this.state.assignments().filter((a) => a.figureInstanceId === id).length;
+  });
+
+  openImport(): void {
+    this.resetMenuOpen.set(false);
+    const candidates = this.importCandidates();
+    if (candidates.length === 1) {
+      this.chooseImportFigure(candidates[0].instanceId);
+    } else if (candidates.length > 1) {
+      this.importMenuOpen.set(true);
+    }
+  }
+
+  chooseImportFigure(instanceId: string): void {
+    this.importMenuOpen.set(false);
+    const instance = this.instanceFor(instanceId);
+    if (!instance?.figureTemplateId) return;
+    this.importTarget.set({ instanceId, figureTemplateId: instance.figureTemplateId });
+  }
+
+  onImportCompleted(result: BulkImportResult): void {
+    let msg =
+      result.conflicts.length > 0
+        ? `S'han importat ${result.created.length} assignacions (${result.conflicts.length} conflictes omesos).`
+        : `S'han importat ${result.created.length} assignacions.`;
+    if (result.clonedAdHocNodes > 0) {
+      msg += ` S'han clonat ${result.clonedAdHocNodes} nodes manuals.`;
+    }
+    const duplicatedPersons = Object.values(result.conflictsByKind).reduce((a, b) => a + b, 0);
+    if (duplicatedPersons > 0) {
+      msg += ` ${duplicatedPersons} ${duplicatedPersons === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte.`;
+    }
+    this.toast.success(msg);
+    const target = this.importTarget();
+    this.importTarget.set(null);
+    if (target) {
+      this.ws.refreshInstance(target.instanceId);
+    }
+  }
+
+  onImportClosed(): void {
+    this.importTarget.set(null);
+  }
+
+  openReset(): void {
+    this.importMenuOpen.set(false);
+    const candidates = this.resetCandidates();
+    if (candidates.length === 1) {
+      this.chooseResetFigure(candidates[0].instanceId);
+    } else if (candidates.length > 1) {
+      this.resetMenuOpen.set(true);
+    }
+  }
+
+  chooseResetFigure(instanceId: string): void {
+    this.resetMenuOpen.set(false);
+    this.resetTarget.set(instanceId);
+  }
+
+  cancelReset(): void {
+    this.resetTarget.set(null);
+  }
+
+  confirmReset(): void {
+    const instanceId = this.resetTarget();
+    if (!instanceId) return;
+
+    this.undoRedo.clear();
+    this.resetting.set(true);
+    this.assignmentService.resetSnapshot(instanceId).subscribe({
+      next: (result) => {
+        this.resetting.set(false);
+        this.resetTarget.set(null);
+        let msg = `S'han eliminat ${result.removedAssignments} assignacions. La figura torna a la plantilla original.`;
+        if (result.deletedAdHocCount > 0) {
+          msg += ` S'han eliminat ${result.deletedAdHocCount} nodes manuals.`;
+        }
+        this.toast.success(msg);
+
+        this.state.setSelectedNodeId(null);
+        this.state.assignments.update((list) =>
+          list.filter((a) => a.figureInstanceId !== instanceId),
+        );
+        this.ws.instances.update((list) =>
+          list.map((i) =>
+            i.instanceId === instanceId ? { ...i, snapshotted: false, assignedCount: 0 } : i,
+          ),
+        );
+        this.ws.refreshInstance(instanceId);
+        this.state.refreshPersonList();
+      },
+      error: (err) => {
+        this.resetting.set(false);
+        this.resetTarget.set(null);
+        const msg = err?.error?.message ?? 'No s\'ha pogut reinicialitzar la figura.';
+        this.toast.error(msg);
+      },
+    });
+  }
+
+  private instanceFor(instanceId: string): WorkspaceInstance | null {
+    return this.ws.instances().find((i) => i.instanceId === instanceId) ?? null;
   }
 }

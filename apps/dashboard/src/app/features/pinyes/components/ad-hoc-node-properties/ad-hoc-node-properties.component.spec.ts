@@ -43,37 +43,37 @@ describe('AdHocNodePropertiesComponent', () => {
     fixture.detectChanges();
   });
 
-  // ── attendanceBadgeClass ────────────────────────────────────────────────
+  // ── attendanceBadgeVariant ───────────────────────────────────────────────
 
-  describe('attendanceBadgeClass (isPast=false)', () => {
+  describe('attendanceBadgeVariant (isPast=false)', () => {
     beforeEach(() => fixture.componentRef.setInput('isPast', false));
 
     it.each([
-      ['ASSISTIT', 'badge-success'],
-      ['ANIRE', 'badge-success'],
-      ['NO_VAIG', 'badge-error'],
-      ['PENDENT', 'badge-warning'],
-      [null, 'badge-ghost'],
+      ['ASSISTIT', 'success'],
+      ['ANIRE', 'success'],
+      ['NO_VAIG', 'error'],
+      ['PENDENT', 'warning'],
+      [null, 'ghost'],
     ])('status=%s → %s', (status, expected) => {
       fixture.componentRef.setInput('attendanceStatus', status);
       fixture.detectChanges();
-      expect(component.attendanceBadgeClass()).toBe(expected);
+      expect(component.attendanceBadgeVariant()).toBe(expected);
     });
   });
 
-  describe('attendanceBadgeClass (isPast=true)', () => {
+  describe('attendanceBadgeVariant (isPast=true)', () => {
     beforeEach(() => fixture.componentRef.setInput('isPast', true));
 
-    it('ANIRE → badge-warning (no presentat)', () => {
+    it('ANIRE → warning (no presentat)', () => {
       fixture.componentRef.setInput('attendanceStatus', 'ANIRE');
       fixture.detectChanges();
-      expect(component.attendanceBadgeClass()).toBe('badge-warning');
+      expect(component.attendanceBadgeVariant()).toBe('warning');
     });
 
-    it('ASSISTIT → badge-success', () => {
+    it('ASSISTIT → success', () => {
       fixture.componentRef.setInput('attendanceStatus', 'ASSISTIT');
       fixture.detectChanges();
-      expect(component.attendanceBadgeClass()).toBe('badge-success');
+      expect(component.attendanceBadgeVariant()).toBe('success');
     });
   });
 

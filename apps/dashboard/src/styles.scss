@@ -25,50 +25,6 @@
   html {
     font-family: 'Quicksand', system-ui, sans-serif;
   }
-
-  :root {
-    --conflict: #e11d48;
-  }
-}
-
-@layer components {
-  .badge-conflict {
-    background-color: #e11d48;
-    color: #ffffff;
-    border-color: #e11d48;
-
-    &.badge-outline {
-      background-color: transparent;
-      color: #e11d48;
-    }
-  }
-
-  .btn-conflict {
-    background-color: #e11d48;
-    color: #ffffff;
-    border-color: #e11d48;
-
-    &:hover {
-      background-color: #c81a41;
-      border-color: #c81a41;
-    }
-
-    &.btn-outline {
-      background-color: transparent;
-      color: #e11d48;
-
-      &:hover {
-        background-color: #e11d48;
-        color: #ffffff;
-      }
-    }
-  }
-
-  .alert-conflict {
-    background-color: rgb(225 29 72 / 0.1);
-    color: #e11d48;
-    border-color: rgb(225 29 72 / 0.3);
-  }
 }
 
 @layer utilities {

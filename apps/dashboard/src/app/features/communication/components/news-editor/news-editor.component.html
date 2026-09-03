@@ -41,12 +41,13 @@
             </span>
           </span>
         </label>
-        <textarea
+        <lib-textarea
           id="news-body"
-          class="textarea textarea-bordered w-full h-64 font-mono text-sm"
+          class="font-mono text-sm"
+          [rows]="12"
           [ngModel]="body()"
           (ngModelChange)="body.set($event)"
-        ></textarea>
+        />
       </div>
 
       <div class="form-control">
@@ -79,27 +80,23 @@
       </div>
 
       <div class="form-control">
-        <label class="label cursor-pointer justify-start gap-3">
-          <input
-            id="send-push"
-            type="checkbox"
-            class="checkbox checkbox-primary checkbox-sm"
-            [checked]="sendPush()"
-            [disabled]="!!pushSentAt()"
-            (change)="sendPush.set(!sendPush())"
-            aria-describedby="send-push-hint"
-          />
+        <lib-checkbox
+          id="send-push"
+          [ngModel]="sendPush()"
+          [disabled]="!!pushSentAt()"
+          (ngModelChange)="sendPush.set($event)"
+        >
           <div>
-            <span class="label-text font-medium">Enviar push als membres</span>
-            <p id="send-push-hint" class="text-xs text-base-content/50">
+            <span class="label-text font-medium">Notifica els membres</span>
+            <p class="text-xs text-base-content/50">
               @if (pushSentAt()) {
-                Push enviada el {{ pushSentAt() | date: 'dd/MM/yyyy HH:mm' }}
+                Notificació enviada el {{ pushSentAt() | date: 'dd/MM/yyyy HH:mm' }}
               } @else {
-                La notificació s'enviarà quan es publiqui la notícia.
+                La notificació s'enviarà quan es publique la notícia.
               }
             </p>
           </div>
-        </label>
+        </lib-checkbox>
       </div>
 
       <div class="flex gap-2">

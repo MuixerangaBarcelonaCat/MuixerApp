@@ -79,24 +79,14 @@
 
     <!-- Descripció -->
     <div class="form-control col-span-full">
-      <label class="label" for="description">
-        <span class="label-text font-medium">Descripció</span>
-      </label>
-      <textarea
-        id="description"
-        class="textarea textarea-bordered"
-        formControlName="description"
-        rows="3"
-        placeholder="Detalls de l'esdeveniment..."
-      ></textarea>
+      <lib-textarea label="Descripció" formControlName="description" [rows]="3" placeholder="Detalls de l'esdeveniment..." />
     </div>
 
     <!-- Compta per estadístiques -->
     <div class="form-control col-span-full">
-      <label class="label cursor-pointer justify-start gap-3">
-        <input type="checkbox" class="checkbox" formControlName="countsForStatistics" />
+      <lib-checkbox variant="neutral" formControlName="countsForStatistics">
         <span class="label-text">Compta per a estadístiques</span>
-      </label>
+      </lib-checkbox>
     </div>
 
   </form>

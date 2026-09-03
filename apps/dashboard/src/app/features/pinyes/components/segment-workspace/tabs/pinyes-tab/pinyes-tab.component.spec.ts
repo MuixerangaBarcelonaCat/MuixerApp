@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
@@ -13,7 +13,6 @@ import { EventSegmentService } from '../../../../services/event-segment.service'
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '@muixer/ui';
-import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 
@@ -53,15 +52,6 @@ class StubPersonPanel {
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
-}
-
-@Component({ selector: 'app-import-pinya-modal', standalone: true, template: '' })
-class StubImportModal {
-  readonly figureTemplateId = input.required<string>();
-  readonly currentInstanceId = input.required<string>();
-  readonly open = input<boolean>(false);
-  readonly importCompleted = output<BulkImportResult>();
-  readonly closed = output<void>();
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -247,8 +237,8 @@ describe('PinyesTabComponent', () => {
       ],
     })
       .overrideComponent(PinyesTabComponent, {
-        remove: { imports: [FigureCanvasComponent, PersonPanelComponent, ImportPinyaModalComponent] },
-        add: { imports: [StubFigureCanvas, StubPersonPanel, StubImportModal] },
+        remove: { imports: [FigureCanvasComponent, PersonPanelComponent] },
+        add: { imports: [StubFigureCanvas, StubPersonPanel] },
       })
       .compileComponents();
 
@@ -325,8 +315,8 @@ describe('PinyesTabComponent', () => {
         ],
       })
         .overrideComponent(PinyesTabComponent, {
-          remove: { imports: [FigureCanvasComponent, PersonPanelComponent, ImportPinyaModalComponent] },
-          add: { imports: [StubFigureCanvas, StubPersonPanel, StubImportModal] },
+          remove: { imports: [FigureCanvasComponent, PersonPanelComponent] },
+          add: { imports: [StubFigureCanvas, StubPersonPanel] },
         })
         .compileComponents();
 
@@ -815,104 +805,6 @@ describe('PinyesTabComponent', () => {
       component.onKeyDown(new KeyboardEvent('keydown', { key: '-', ctrlKey: true }));
 
       expect(canvasStub().zoomOut).toHaveBeenCalled();
-    });
-  });
-
-  describe('import pinya', () => {
-    it('opens the import modal directly when the segment has a single figure', async () => {
-      await setup();
-
-      component.openImport();
-
-      expect(component.importTarget()).toEqual({
-        instanceId: INST_A,
-        figureTemplateId: `tpl-${INST_A}`,
-      });
-      expect(component.importMenuOpen()).toBe(false);
-    });
-
-    it('opens a figure menu first when the segment has several figures', async () => {
-      await setup({
-        instances: [makeInstance(INST_A), makeInstance(INST_B)],
-        nodesByInstance: {
-          [INST_A]: [makeNode('n1', 'PINYA')],
-          [INST_B]: [makeNode('m1', 'PINYA')],
-        },
-      });
-
-      component.openImport();
-      expect(component.importMenuOpen()).toBe(true);
-      expect(component.importTarget()).toBeNull();
-
-      component.chooseImportFigure(INST_B);
-      expect(component.importTarget()).toEqual({
-        instanceId: INST_B,
-        figureTemplateId: `tpl-${INST_B}`,
-      });
-      expect(component.importMenuOpen()).toBe(false);
-    });
-
-    it('refreshes the target instance and closes the modal when an import completes', async () => {
-      await setup();
-      component.openImport();
-      assignmentService.getInstanceNodes.mockClear();
-
-      component.onImportCompleted({ created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any });
-
-      expect(assignmentService.getInstanceNodes).toHaveBeenCalledWith(INST_A);
-      expect(toast.success).toHaveBeenCalled();
-      expect(component.importTarget()).toBeNull();
-    });
-  });
-
-  describe('reset snapshot', () => {
-    it('opens the reset confirmation directly with a single snapshotted figure', async () => {
-      await setup({ instances: [makeInstance(INST_A, { snapshotted: true })] });
-
-      component.openReset();
-
-      expect(component.resetTarget()).toBe(INST_A);
-    });
-
-    it('opens a figure menu first when several figures are snapshotted', async () => {
-      await setup({
-        instances: [
-          makeInstance(INST_A, { snapshotted: true }),
-          makeInstance(INST_B, { snapshotted: true }),
-        ],
-        nodesByInstance: {
-          [INST_A]: [makeNode('n1', 'PINYA')],
-          [INST_B]: [makeNode('m1', 'PINYA')],
-        },
-      });
-
-      component.openReset();
-      expect(component.resetMenuOpen()).toBe(true);
-      expect(component.resetTarget()).toBeNull();
-
-      component.chooseResetFigure(INST_B);
-      expect(component.resetTarget()).toBe(INST_B);
-    });
-
-    it('resets the figure and clears its assignments on confirm', async () => {
-      const a1 = makeAssignment(INST_A, 'n1', 'p-1');
-      await setup({
-        instances: [makeInstance(INST_A, { snapshotted: true })],
-        assignmentsByInstance: { [INST_A]: [a1] },
-      });
-      assignmentService.resetSnapshot.mockReturnValue(
-        of({ removedAssignments: 1, deletedAdHocCount: 0 }),
-      );
-      // After the reset, the server no longer returns any assignment for the instance.
-      assignmentService.getByInstance.mockReturnValue(of({ data: [] }));
-
-      component.openReset();
-      component.confirmReset();
-
-      expect(assignmentService.resetSnapshot).toHaveBeenCalledWith(INST_A);
-      expect(state.assignments()).toHaveLength(0);
-      expect(toast.success).toHaveBeenCalled();
-      expect(component.resetTarget()).toBeNull();
     });
   });
 

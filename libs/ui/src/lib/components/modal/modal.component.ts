@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, booleanAttribute, computed, effect, input, output, viewChild } from '@angular/core';
 import { LucideAngularModule, X } from 'lucide-angular';
+import { ButtonComponent } from '../button/button.component';
 
 export type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | '2xl';
 
@@ -16,7 +17,7 @@ let nextId = 0;
 @Component({
   selector: 'lib-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent],
   templateUrl: './modal.component.html',
   styleUrls: ['./modal.component.scss'],
 })

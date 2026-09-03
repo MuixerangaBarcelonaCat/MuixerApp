@@ -2,6 +2,7 @@ import { FigureMode } from '@muixer/pinyes-render';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ButtonComponent, ButtonGroupComponent, InputComponent, CheckboxComponent } from '@muixer/ui';
 
 export interface FigurePropertiesEntry {
   id: string;
@@ -39,7 +40,7 @@ const MODE_OPTIONS: { value: FigureMode; label: string }[] = [
   selector: 'app-figure-properties-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, ButtonComponent, ButtonGroupComponent, InputComponent, CheckboxComponent],
   templateUrl: './figure-properties-panel.component.html',
 })
 export class FigurePropertiesPanelComponent {

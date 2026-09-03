@@ -94,6 +94,42 @@ describe('SegmentConflictPanelComponent', () => {
     expect(fixture.componentInstance.conflicts().map((c) => c.personId)).toEqual(['p-tt', 'p-tp', 'p-pp']);
   });
 
+  describe('scroll arrows — hidden (not just disabled) when the cards fit without overflow', () => {
+    const flushScrollStateUpdate = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it('hides both arrows when the cards fit within the container (no overflow)', async () => {
+      await setup();
+      ws.conflictCounters.set(makeCounters(1));
+      ws.conflicts.set([makeConflict()]);
+      fixture.detectChanges();
+      fixture.componentInstance.togglePanel();
+      fixture.detectChanges();
+      await flushScrollStateUpdate();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[aria-label="Conflicte anterior"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[aria-label="Conflicte següent"]')).toBeNull();
+    });
+
+    it('shows the arrows when the cards overflow the container', async () => {
+      await setup();
+      ws.conflictCounters.set(makeCounters(1));
+      ws.conflicts.set([makeConflict()]);
+      fixture.detectChanges();
+      fixture.componentInstance.togglePanel();
+      fixture.detectChanges();
+      await flushScrollStateUpdate();
+      const container: HTMLElement = fixture.nativeElement.querySelector('[role="list"]');
+      Object.defineProperty(container, 'clientWidth', { value: 300, configurable: true });
+      Object.defineProperty(container, 'scrollWidth', { value: 900, configurable: true });
+      container.dispatchEvent(new Event('scroll'));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[aria-label="Conflicte anterior"]')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[aria-label="Conflicte següent"]')).not.toBeNull();
+    });
+  });
+
   it('uses no distinct visual style per kind — same badge classes regardless of kind', async () => {
     await setup();
     ws.conflictCounters.set(makeCounters(1));
@@ -138,38 +174,5 @@ describe('SegmentConflictPanelComponent', () => {
     expect(resolution.removePlacement).toHaveBeenCalledWith('person-1', conflict.placements[0]);
     expect(resolution.releaseSuggested).toHaveBeenCalledWith(conflict);
     expect(resolution.removeTroncSide).toHaveBeenCalledWith(conflict);
-  });
-
-  it('shows the review fragment and count when there are freed pinya nodes', async () => {
-    await setup();
-    ws.conflictCounters.set(makeCounters(1));
-    ws.instances.set([
-      {
-        instanceId: 'inst-1',
-        label: 'Figura 1',
-        figureTemplateId: null,
-        figureTemplateName: 'Figura 1',
-        hasPinya: true,
-        figureMode: 'COMPLETA',
-        snapshotted: true,
-        numberOfCordons: null,
-        cordonsObertsEnabled: true,
-        nodes: [{ id: 'n1', label: 'Mans', zone: 'PINYA', positionType: null, x: 0, y: 0, z: 0, width: 1, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: null, isSnapshotted: true, isAdHoc: false, createdById: null }],
-        assignedCount: 0,
-        totalCount: 1,
-      },
-    ]);
-    ws.reviewItems.set({ freedPinyaNodeIds: ['n1'] });
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('pinya a revisar');
-
-    fixture.componentInstance.togglePanel();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Figura 1 — Mans');
-
-    fixture.componentInstance.dismissReview();
-    fixture.detectChanges();
-    expect(ws.reviewItems().freedPinyaNodeIds).toEqual([]);
   });
 });
