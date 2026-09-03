@@ -123,7 +123,9 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     if (!data) return;
     const targetId = direction === 'prev' ? data.segment.prevSegmentId : data.segment.nextSegmentId;
     if (!targetId) return;
-    this.router.navigate(['/events', this.eventId(), 'segments', targetId]);
+    // replaceUrl so prev/next never grows the history stack — the browser back button always
+    // returns straight to the event screen, no matter how many segments were browsed in between.
+    this.router.navigate(['/events', this.eventId(), 'segments', targetId], { replaceUrl: true });
   }
 
   openPicker(): void {

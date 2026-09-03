@@ -226,7 +226,10 @@ describe('SegmentProjectionComponent', () => {
       const nextBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment següent"]');
       expect(nextBtn).toBeTruthy();
       nextBtn.click();
-      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-2']);
+      expect(router.navigate).toHaveBeenCalledWith(
+        ['/events', 'ev-1', 'segments', 'seg-2'],
+        expect.anything(),
+      );
     });
 
     it('shows and navigates the prev control when prevSegmentId is set', async () => {
@@ -235,7 +238,22 @@ describe('SegmentProjectionComponent', () => {
       const prevBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment anterior"]');
       expect(prevBtn).toBeTruthy();
       prevBtn.click();
-      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-0']);
+      expect(router.navigate).toHaveBeenCalledWith(
+        ['/events', 'ev-1', 'segments', 'seg-0'],
+        expect.anything(),
+      );
+    });
+
+    it('replaces history on prev/next navigation, so the browser back button skips straight past every segment visited to the event screen', async () => {
+      fixture = await setup(of(makeData({ segment: { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-2' } })));
+
+      const nextBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment següent"]');
+      nextBtn.click();
+
+      expect(router.navigate).toHaveBeenCalledWith(
+        ['/events', 'ev-1', 'segments', 'seg-2'],
+        expect.objectContaining({ replaceUrl: true }),
+      );
     });
   });
 
