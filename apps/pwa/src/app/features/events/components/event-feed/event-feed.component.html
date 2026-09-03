@@ -1,0 +1,38 @@
+<app-pull-to-refresh #pullRef (refresh)="onRefresh()">
+  <section class="flex flex-col gap-3 pb-4" aria-live="polite">
+    @if (isLoading()) {
+      <app-skeleton-card [count]="4" />
+    } @else if (hasError()) {
+      <app-empty-state
+        message="S'ha produït un error en carregar els assajos i les actuacions. Torneu-ho a provar."
+        actionLabel="Torna-ho a provar"
+        (action)="onRefresh()"
+      />
+    } @else if (events().length === 0) {
+      <app-empty-state [message]="emptyMessage()" />
+    } @else {
+      @for (event of events(); track event.id) {
+        <app-event-card
+          [event]="event"
+          (attendanceChanged)="onAttendanceChanged($event)"
+        />
+      }
+      @if (hasMore()) {
+        <div
+          appInfiniteScroll
+          [appInfiniteScrollDisabled]="isLoadingMore()"
+          (visible)="loadMore()"
+          class="flex justify-center py-3"
+        >
+          @if (isLoadingMore()) {
+            <span
+              class="loading loading-spinner loading-sm text-primary"
+              role="status"
+              aria-label="Carregant més assajos i actuacions..."
+            ></span>
+          }
+        </div>
+      }
+    }
+  </section>
+</app-pull-to-refresh>

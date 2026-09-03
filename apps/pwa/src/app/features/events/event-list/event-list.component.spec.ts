@@ -1,10 +1,12 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { ApplicationRef } from '@angular/core';
+import { ApplicationRef, Component, input, output } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { AttendanceStatus, EventType, MeEvent } from '@muixer/shared';
 import { EventListComponent } from './event-list.component';
 import { EventService } from '../services/event.service';
-import { ToastService } from '@muixer/ui';
+import { EventFeedComponent } from '../components/event-feed/event-feed.component';
 
 const EMPTY_SUMMARY = {
   confirmed: 0,
@@ -31,7 +33,7 @@ const MOCK_EVENT: MeEvent = {
   ],
 };
 
-const MOCK_EVENTS_SEASON: MeEvent[] = [
+const MOCK_EVENTS: MeEvent[] = [
   {
     ...MOCK_EVENT,
     id: 'ev-1',
@@ -53,13 +55,24 @@ const MOCK_EVENTS_SEASON: MeEvent[] = [
   },
 ];
 
+// Stub out the feed entirely — its own behavior (pagination, loading/error/empty states) is
+// covered by event-feed.component.spec.ts. Here we only care about what EventListComponent wires
+// into it, and about the calendar view it owns directly.
+@Component({
+  selector: 'app-event-feed',
+  standalone: true,
+  template: '',
+})
+class EventFeedStub {
+  readonly timeFilter = input.required<'upcoming' | 'past'>();
+  readonly emptyMessage = input.required<string>();
+  readonly attendanceChanged = output<{ eventId: string; personId: string; status: AttendanceStatus }>();
+}
+
 describe('EventListComponent', () => {
   let fixture: ComponentFixture<EventListComponent>;
   let component: EventListComponent;
-  let eventService: {
-    findAll: ReturnType<typeof vi.fn>;
-    updateAttendance: ReturnType<typeof vi.fn>;
-  };
+  let eventService: { findAll: ReturnType<typeof vi.fn> };
 
   async function stable(): Promise<void> {
     fixture.detectChanges();
@@ -70,100 +83,57 @@ describe('EventListComponent', () => {
   beforeEach(async () => {
     eventService = {
       findAll: vi.fn().mockReturnValue(
-        of({ data: [MOCK_EVENT], meta: { total: 1, page: 1, limit: 50 } }),
+        of({ data: MOCK_EVENTS, meta: { total: 3, page: 1, limit: 300 } }),
       ),
-      updateAttendance: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
       imports: [EventListComponent],
       providers: [
         { provide: EventService, useValue: eventService },
-        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
+        provideRouter([]),
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(EventListComponent, {
+        remove: { imports: [EventFeedComponent] },
+        add: { imports: [EventFeedStub] },
+      })
+      .compileComponents();
 
     fixture = TestBed.createComponent(EventListComponent);
     component = fixture.componentInstance;
     await stable();
   });
 
-  // --- List view tests ---
-
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should load events on init', () => {
-    expect(eventService.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ timeFilter: 'upcoming' }),
-    );
+  it('should default to list view, showing the upcoming feed', () => {
+    const feed = fixture.debugElement.query(By.directive(EventFeedStub));
+    expect(feed).toBeTruthy();
+    expect(feed.componentInstance.timeFilter()).toBe('upcoming');
   });
 
-  it('should display event cards when data loaded', () => {
-    const cards = fixture.nativeElement.querySelectorAll('app-event-card');
-    expect(cards.length).toBe(1);
+  it('should link to the past-events screen', () => {
+    const link: HTMLAnchorElement = fixture.nativeElement.querySelector('a');
+    expect(link.getAttribute('href')).toBe('/events/past');
+    expect(link.textContent).toContain('Passats');
   });
 
-  it('should show empty state when no events', async () => {
-    eventService.findAll.mockReturnValue(
-      of({ data: [], meta: { total: 0, page: 1, limit: 50 } }),
-    );
-    component.setFilter('past');
-    await stable();
-    const emptyState = fixture.nativeElement.querySelector('app-empty-state');
-    expect(emptyState).toBeTruthy();
+  it('should not offer Propers/Passats tabs any more', () => {
+    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(0);
   });
 
-  it('should show error state on error', async () => {
-    eventService.findAll.mockReturnValue(throwError(() => new Error('fail')));
-    component.setFilter('all');
-    await stable();
-    const emptyState = fixture.nativeElement.querySelector('app-empty-state');
-    expect(emptyState).toBeTruthy();
-  });
-
-  it('should switch filter tabs', async () => {
-    component.setFilter('past');
-    await stable();
-    expect(eventService.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ timeFilter: 'past' }),
-    );
-  });
-
-  it('should render filter tabs in list mode', () => {
-    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
-    expect(tabs.length).toBe(2);
-  });
-
-  it('should only offer Propers and Passats, not Tots', () => {
-    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
-    expect(Array.from(tabs).map((t) => (t as HTMLElement).textContent?.trim())).toEqual([
-      'Propers',
-      'Passats',
-    ]);
-  });
-
-  // --- Calendar view tests ---
-
-  it('should default to list view', () => {
-    const calendarView = fixture.nativeElement.querySelector('app-calendar-view');
-    expect(calendarView).toBeFalsy();
-    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
-    expect(tabs.length).toBe(2);
-  });
+  // --- Calendar view ---
 
   it('should toggle to calendar view', async () => {
-    eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
-    );
     component.toggleView();
     await stable();
 
     const calendarView = fixture.nativeElement.querySelector('app-calendar-view');
     expect(calendarView).toBeTruthy();
-    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
-    expect(tabs.length).toBe(0);
+    expect(fixture.debugElement.query(By.directive(EventFeedStub))).toBeFalsy();
   });
 
   it('should toggle back to list view', async () => {
@@ -172,15 +142,11 @@ describe('EventListComponent', () => {
     component.toggleView();
     await stable();
 
-    const calendarView = fixture.nativeElement.querySelector('app-calendar-view');
-    expect(calendarView).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('app-calendar-view')).toBeFalsy();
+    expect(fixture.debugElement.query(By.directive(EventFeedStub))).toBeTruthy();
   });
 
-  it('should load all season events with limit 300 when switching to calendar', async () => {
-    eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
-    );
-
+  it('should load all events with limit 300 when switching to calendar', async () => {
     component.toggleView();
     await stable();
 
@@ -190,10 +156,6 @@ describe('EventListComponent', () => {
   });
 
   it('should show event cards when a day is selected', async () => {
-    eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
-    );
-
     component.toggleView();
     await stable();
 
@@ -205,10 +167,6 @@ describe('EventListComponent', () => {
   });
 
   it('should hide expanded cards when day is deselected', async () => {
-    eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
-    );
-
     component.toggleView();
     await stable();
 
@@ -221,26 +179,26 @@ describe('EventListComponent', () => {
     expect(heading).toBeFalsy();
   });
 
-  it('should refresh calendar data on pull-to-refresh in calendar mode', async () => {
-    eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
-    );
+  it('should show error state when the calendar fails to load', async () => {
+    eventService.findAll.mockReturnValue(throwError(() => new Error('fail')));
+    component.toggleView();
+    await stable();
 
+    expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+  });
+
+  it('should refresh calendar data on pull-to-refresh', async () => {
     component.toggleView();
     await stable();
     const callCountBefore = eventService.findAll.mock.calls.length;
 
-    component.onRefresh();
+    component.onCalendarRefresh();
     await stable();
 
     expect(eventService.findAll.mock.calls.length).toBeGreaterThan(callCountBefore);
   });
 
-  it('should update calendar when attendance changes', async () => {
-    eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
-    );
-
+  it('should patch the calendar when the upcoming feed reports an attendance change', async () => {
     component.toggleView();
     await stable();
 
@@ -250,121 +208,7 @@ describe('EventListComponent', () => {
     component.onSelectedDateChange('2026-07-07');
     fixture.detectChanges();
 
-    const cards = fixture.nativeElement.querySelectorAll('app-event-card');
-    expect(cards.length).toBe(2);
-  });
-
-  it('should patch the matching managed person and myAttendance on attendance change', async () => {
-    await stable();
-
-    component.onAttendanceChanged({ eventId: 'ev-1', personId: 'p-1', status: AttendanceStatus.ANIRE });
-    fixture.detectChanges();
-
     const button = fixture.nativeElement.querySelector('app-attendance-button button');
     expect(button.classList.contains('btn-success')).toBe(true);
-  });
-
-  // --- Pagination (infinite scroll) ---
-
-  describe('loadMore', () => {
-    beforeEach(async () => {
-      eventService.findAll.mockReturnValue(
-        of({ data: [MOCK_EVENT], meta: { total: 3, page: 1, limit: 50 } }),
-      );
-      component.setFilter('past');
-      await stable();
-    });
-
-    it('appends the next page to the visible events', async () => {
-      eventService.findAll.mockReturnValue(
-        of({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } }),
-      );
-
-      component.loadMore();
-      await stable();
-
-      expect(eventService.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ timeFilter: 'past', page: 2, limit: 50 }),
-      );
-      const cards = fixture.nativeElement.querySelectorAll('app-event-card');
-      expect(cards.length).toBe(2);
-    });
-
-    it('does not request another page while one is already loading', async () => {
-      const { Subject } = await import('rxjs');
-      const pending = new Subject<{ data: MeEvent[]; meta: { total: number; page: number; limit: number } }>();
-      eventService.findAll.mockReturnValue(pending);
-
-      component.loadMore();
-      const callCount = eventService.findAll.mock.calls.length;
-      component.loadMore();
-
-      expect(eventService.findAll.mock.calls.length).toBe(callCount);
-      pending.complete();
-    });
-
-    it('stops offering more once every event has loaded', async () => {
-      eventService.findAll.mockReturnValue(
-        of({ data: [MOCK_EVENTS_SEASON[1], MOCK_EVENTS_SEASON[2]], meta: { total: 3, page: 2, limit: 50 } }),
-      );
-
-      component.loadMore();
-      await stable();
-
-      expect(fixture.nativeElement.querySelector('[appinfinitescroll]')).toBeFalsy();
-    });
-
-    it('discards a page that resolves after the filter has already changed', async () => {
-      const { Subject } = await import('rxjs');
-      const pending = new Subject<{ data: MeEvent[]; meta: { total: number; page: number; limit: number } }>();
-      eventService.findAll.mockReturnValue(pending);
-
-      component.loadMore();
-      component.setFilter('upcoming');
-      eventService.findAll.mockReturnValue(
-        of({ data: [MOCK_EVENT], meta: { total: 1, page: 1, limit: 50 } }),
-      );
-      await stable();
-
-      pending.next({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } });
-      pending.complete();
-      fixture.detectChanges();
-
-      const cards = fixture.nativeElement.querySelectorAll('app-event-card');
-      expect(cards.length).toBe(1);
-    });
-
-    it('resets accumulated pages when switching tabs', async () => {
-      eventService.findAll.mockReturnValue(
-        of({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } }),
-      );
-      component.loadMore();
-      await stable();
-      expect(fixture.nativeElement.querySelectorAll('app-event-card').length).toBe(2);
-
-      eventService.findAll.mockReturnValue(
-        of({ data: [MOCK_EVENT], meta: { total: 1, page: 1, limit: 50 } }),
-      );
-      component.setFilter('upcoming');
-      await stable();
-
-      expect(fixture.nativeElement.querySelectorAll('app-event-card').length).toBe(1);
-    });
-
-    it('patches appended events on attendance change too', async () => {
-      eventService.findAll.mockReturnValue(
-        of({ data: [MOCK_EVENTS_SEASON[1]], meta: { total: 3, page: 2, limit: 50 } }),
-      );
-      component.loadMore();
-      await stable();
-
-      component.onAttendanceChanged({ eventId: 'ev-2', personId: 'p-1', status: AttendanceStatus.ANIRE });
-      fixture.detectChanges();
-
-      // Two <app-attendance-button> (one per card, ev-1 then the appended ev-2), each rendering
-      // a Vinc/No-vinc button pair — the second card's first (Vinc) button is index 2.
-      const buttons = fixture.nativeElement.querySelectorAll('app-attendance-button button');
-      expect(buttons[2].classList.contains('btn-success')).toBe(true);
-    });
   });
 });

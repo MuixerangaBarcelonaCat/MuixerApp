@@ -1,26 +1,13 @@
 <app-mobile-header title="Agenda" />
 
-<div class="flex items-center gap-2 mb-4">
-  @if (viewMode() === 'list') {
-    <nav class="tabs tabs-bordered flex-1" role="tablist" aria-label="Filtre d'assajos i actuacions">
-      @for (tab of tabs; track tab.key; let i = $index) {
-        <button
-          type="button"
-          role="tab"
-          class="tab flex-1"
-          [class.tab-active]="activeFilter() === tab.key"
-          [attr.aria-selected]="activeFilter() === tab.key"
-          [tabindex]="activeFilter() === tab.key ? 0 : -1"
-          (click)="setFilter(tab.key)"
-          (keydown)="onFilterKeydown($event, i)"
-        >
-          {{ tab.label }}
-        </button>
-      }
-    </nav>
-  } @else {
-    <span class="flex-1"></span>
-  }
+<div class="flex items-center justify-end gap-4 mb-4">
+  <a
+    routerLink="/events/past"
+    class="flex items-center gap-0.5 text-sm text-base-content/60 hover:text-base-content/80"
+  >
+    Passats
+    <lucide-icon [img]="ChevronRightIcon" [size]="16" aria-hidden="true" />
+  </a>
 
   <button
     type="button"
@@ -36,45 +23,14 @@
   </button>
 </div>
 
-<app-pull-to-refresh #pullRef (refresh)="onRefresh()">
-  @if (viewMode() === 'list') {
-    <section class="flex flex-col gap-3 pb-4" aria-live="polite">
-      @if (isLoading()) {
-        <app-skeleton-card [count]="4" />
-      } @else if (hasError()) {
-        <app-empty-state
-          message="S'ha produït un error en carregar els assajos i les actuacions. Torneu-ho a provar."
-          actionLabel="Torna-ho a provar"
-          (action)="onRefresh()"
-        />
-      } @else if (events().length === 0) {
-        <app-empty-state [message]="emptyMessage()" />
-      } @else {
-        @for (event of events(); track event.id) {
-          <app-event-card
-            [event]="event"
-            (attendanceChanged)="onAttendanceChanged($event)"
-          />
-        }
-        @if (hasMore()) {
-          <div
-            appInfiniteScroll
-            [appInfiniteScrollDisabled]="isLoadingMore()"
-            (visible)="loadMore()"
-            class="flex justify-center py-3"
-          >
-            @if (isLoadingMore()) {
-              <span
-                class="loading loading-spinner loading-sm text-primary"
-                role="status"
-                aria-label="Carregant més assajos i actuacions..."
-              ></span>
-            }
-          </div>
-        }
-      }
-    </section>
-  } @else {
+@if (viewMode() === 'list') {
+  <app-event-feed
+    timeFilter="upcoming"
+    emptyMessage="No hi ha assajos ni actuacions propers programats."
+    (attendanceChanged)="onAttendanceChanged($event)"
+  />
+} @else {
+  <app-pull-to-refresh #calendarPullRef (refresh)="onCalendarRefresh()">
     <section aria-live="polite">
       @if (isCalendarLoading() && allEvents().length === 0) {
         <div class="flex flex-col gap-2" aria-busy="true">
@@ -119,5 +75,5 @@
         }
       }
     </section>
-  }
-</app-pull-to-refresh>
+  </app-pull-to-refresh>
+}

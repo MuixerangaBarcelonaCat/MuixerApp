@@ -67,6 +67,14 @@ export const appRoutes: Routes = [
           ),
       },
       {
+        path: 'events/past',
+        title: 'Esdeveniments passats',
+        loadComponent: () =>
+          import('./features/events/past-events/past-events.component').then(
+            (m) => m.PastEventsComponent,
+          ),
+      },
+      {
         path: 'events/:id',
         title: 'Detall',
         loadComponent: () =>
