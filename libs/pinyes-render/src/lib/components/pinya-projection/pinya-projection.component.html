@@ -48,7 +48,7 @@
 
   @if (ownPositionState(); as state) {
     <lib-own-position-banner
-      class="absolute left-1/2 top-3 z-40 max-w-[92%] -translate-x-1/2"
+      class="absolute left-1/2 z-40 max-w-[92%] -translate-x-1/2 [top:calc(env(safe-area-inset-top,0px)+0.75rem)]"
       [state]="state"
       (troba)="onTroba()"
     />
