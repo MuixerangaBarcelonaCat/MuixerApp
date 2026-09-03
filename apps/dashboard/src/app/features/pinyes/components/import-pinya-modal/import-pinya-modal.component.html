@@ -9,7 +9,7 @@
   >
     <div class="modal-box max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h2 id="import-modal-title" class="text-lg font-bold">Importació de pinya anterior</h2>
+        <h2 id="import-modal-title" class="text-lg font-bold">Importació de figura anterior</h2>
         <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">
           <i-lucide [img]="X" class="size-4" />
         </button>
@@ -32,20 +32,24 @@
           <p class="text-sm text-base-content/60 mb-3">
             Seleccioneu un event per importar les seves assignacions:
           </p>
-          <ul class="space-y-1 max-h-64 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
+          <ul class="space-y-1 max-h-96 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
             @for (entry of history(); track entry.instanceId) {
-              <li>
+              <li class="rounded-lg border transition-colors"
+                [class]="!entry.snapshotted
+                  ? 'border-base-300 opacity-50'
+                  : selectedEntry()?.instanceId === entry.instanceId
+                    ? 'border-primary bg-primary/5'
+                    : 'border-base-300 hover:border-base-content/30'"
+              >
                 <button
                   type="button"
                   role="option"
                   [attr.aria-selected]="selectedEntry()?.instanceId === entry.instanceId"
                   [disabled]="!entry.snapshotted"
-                  class="w-full text-left px-3 py-2 rounded-lg border transition-colors text-sm"
-                  [class]="!entry.snapshotted
-                    ? 'border-base-300 opacity-50 cursor-not-allowed'
-                    : selectedEntry()?.instanceId === entry.instanceId
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-base-300 hover:border-base-content/30 hover:bg-base-200'"
+                  class="w-full text-left px-3 py-2 text-sm"
+                  [class.cursor-not-allowed]="!entry.snapshotted"
+                  [class.text-primary]="selectedEntry()?.instanceId === entry.instanceId"
+                  [class.hover:bg-base-200]="entry.snapshotted && selectedEntry()?.instanceId !== entry.instanceId"
                   [attr.title]="!entry.snapshotted ? 'Aquesta instància no té assignacions per importar' : null"
                   (click)="selectEntry(entry)"
                 >
@@ -62,61 +66,49 @@
                     </span>
                   </div>
                 </button>
+
+                @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {
+                  <div class="border-t border-primary/20 px-2 py-1.5 space-y-1">
+                    @for (row of [
+                      { scope: ImportScope.PINYA, label: 'Pinya' },
+                      { scope: ImportScope.TRONC, label: 'Tronc' },
+                      { scope: ImportScope.ALL, label: 'Figura' }
+                    ]; track row.scope) {
+                      <div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-md bg-base-100/60">
+                        <div class="text-xs">
+                          <span class="font-medium">{{ row.label }}</span>
+                          <span class="text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-xs gap-1"
+                            [disabled]="countForScope(row.scope) === 0"
+                            (click)="openPreview(row.scope)"
+                          >
+                            Previsualitza
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-xs gap-1"
+                            [disabled]="countForScope(row.scope) === 0 || importing()"
+                            (click)="doImport(row.scope)"
+                          >
+                            @if (importing()) {
+                              <span class="loading loading-spinner loading-xs"></span>
+                            } @else {
+                              <i-lucide [img]="Import" class="size-3" />
+                            }
+                            Importa
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
               </li>
             }
           </ul>
-
-          @if (selectedEntry()) {
-            <div class="bg-base-200 rounded-lg p-3 mb-4 text-xs space-y-1">
-              <p class="font-semibold">Resum: {{ selectedEntry()!.assignmentCount }} assignacions</p>
-              @for (a of selectedEntry()!.assignments.slice(0, 5); track a.nodeId) {
-                <p class="text-base-content/60">{{ a.nodeLabel }}: {{ a.personAlias }}</p>
-              }
-              @if (selectedEntry()!.assignments.length > 5) {
-                <p class="text-base-content/40">i {{ selectedEntry()!.assignments.length - 5 }} més...</p>
-              }
-            </div>
-          }
-
-          @if (selectedEntry() && !lastResult()) {
-            <div class="space-y-1 mb-4">
-              @for (row of [
-                { scope: ImportScope.PINYA, label: 'Pinya' },
-                { scope: ImportScope.TRONC, label: 'Tronc' },
-                { scope: ImportScope.ALL, label: 'Figura' }
-              ]; track row.scope) {
-                <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-base-300">
-                  <div class="text-sm">
-                    <span class="font-medium">{{ row.label }}</span>
-                    <span class="text-xs text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-xs gap-1"
-                      [disabled]="countForScope(row.scope) === 0"
-                      (click)="openPreview(row.scope)"
-                    >
-                      Previsualitza
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-xs gap-1"
-                      [disabled]="countForScope(row.scope) === 0 || importing()"
-                      (click)="doImport(row.scope)"
-                    >
-                      @if (importing()) {
-                        <span class="loading loading-spinner loading-xs"></span>
-                      } @else {
-                        <i-lucide [img]="Import" class="size-3" />
-                      }
-                      Importa
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-          }
         }
 
         @if (lastResult()) {
