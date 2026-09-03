@@ -19,8 +19,6 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 export class SegmentProjectionComponent implements OnInit, OnDestroy {
   readonly eventId = input.required<string>();
   readonly segmentId = input.required<string>();
-  readonly asPersonId = input<string>();
-  readonly asPersonName = input<string>();
 
   protected readonly ArrowLeft = ArrowLeft;
   protected readonly ChevronLeft = ChevronLeft;
@@ -31,11 +29,8 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService);
   private readonly authService = inject(AuthService);
 
-  /** The impersonated person (if TECHNICAL/ADMIN is watching as someone), else the viewer's own linked Person. */
-  protected readonly highlightPersonId = computed(
-    () => this.asPersonId() ?? this.authService.currentUser()?.person?.id ?? null,
-  );
-  protected readonly isImpersonating = computed(() => !!this.asPersonId());
+  /** The viewer's own linked Person, if any — enables the "you are here" banner. */
+  protected readonly highlightPersonId = computed(() => this.authService.currentUser()?.person?.id ?? null);
 
   ngOnInit(): void {
     this.layoutService.requestFullscreen();
@@ -74,8 +69,6 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     if (!data) return;
     const targetId = direction === 'prev' ? data.segment.prevSegmentId : data.segment.nextSegmentId;
     if (!targetId) return;
-    this.router.navigate(['/events', this.eventId(), 'segments', targetId], {
-      queryParamsHandling: 'preserve',
-    });
+    this.router.navigate(['/events', this.eventId(), 'segments', targetId]);
   }
 }

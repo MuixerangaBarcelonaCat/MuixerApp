@@ -25,17 +25,9 @@ const makeAuthService = (personId: string | null) => ({
 @Component({
   standalone: true,
   imports: [SegmentProjectionComponent],
-  template: `<app-segment-projection
-    [eventId]="'ev-1'"
-    [segmentId]="'seg-1'"
-    [asPersonId]="asPersonId()"
-    [asPersonName]="asPersonName()"
-  />`,
+  template: `<app-segment-projection [eventId]="'ev-1'" [segmentId]="'seg-1'" />`,
 })
-class TestHostComponent {
-  readonly asPersonId = input<string>();
-  readonly asPersonName = input<string>();
-}
+class TestHostComponent {}
 
 const makeData = (overrides: Partial<ProjectionSegmentData> = {}): ProjectionSegmentData => ({
   segment: { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
@@ -140,51 +132,6 @@ describe('SegmentProjectionComponent', () => {
     expect(fixture.nativeElement.textContent).toContain("No s'ha pogut carregar");
   });
 
-  describe('impersonated viewing (Watch as)', () => {
-    it('shows the impersonated banner and highlights the impersonated person when asPersonId is set', async () => {
-      projectionService = { getProjection: vi.fn().mockReturnValue(of(makeData())) };
-      router = { navigate: vi.fn() };
-      layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
-
-      await TestBed.configureTestingModule({
-        imports: [TestHostComponent],
-        providers: [
-          { provide: ProjectionService, useValue: projectionService },
-          { provide: Router, useValue: router },
-          { provide: LayoutService, useValue: layoutService },
-          { provide: AuthService, useValue: makeAuthService('p1') },
-        ],
-      })
-        .overrideComponent(SegmentProjectionComponent, {
-          remove: { imports: [PinyaProjectionComponent] },
-          add: { imports: [PinyaProjectionStub] },
-        })
-        .compileComponents();
-
-      const f = TestBed.createComponent(TestHostComponent);
-      f.componentRef.setInput('asPersonId', 'person-99');
-      f.componentRef.setInput('asPersonName', 'Jordi Ferrer');
-      f.detectChanges();
-      await TestBed.inject(ApplicationRef).whenStable();
-      f.detectChanges();
-      fixture = f;
-
-      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
-      expect(stub.componentInstance.highlightPersonId()).toBe('person-99');
-      const banner: HTMLElement = fixture.nativeElement.querySelector('[data-testid="watch-as-banner"]');
-      expect(banner?.textContent).toContain('Jordi Ferrer');
-    });
-
-    it('falls back to the caller’s own person and hides the banner when asPersonId is absent', async () => {
-      fixture = await setup(of(makeData()), 'p1');
-
-      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
-      expect(stub.componentInstance.highlightPersonId()).toBe('p1');
-      const banner = fixture.nativeElement.querySelector('[data-testid="watch-as-banner"]');
-      expect(banner).toBeNull();
-    });
-  });
-
   it('routes back to the event when the back button is pressed', async () => {
     fixture = await setup();
     const backBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
@@ -221,44 +168,7 @@ describe('SegmentProjectionComponent', () => {
       const nextBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment següent"]');
       expect(nextBtn).toBeTruthy();
       nextBtn.click();
-      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-2'], {
-        queryParamsHandling: 'preserve',
-      });
-    });
-
-    it('preserves impersonation query params when navigating to the next segment', async () => {
-      projectionService = { getProjection: vi.fn().mockReturnValue(of(makeData({ segment: { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-2' } }))) };
-      router = { navigate: vi.fn() };
-      layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
-
-      await TestBed.configureTestingModule({
-        imports: [TestHostComponent],
-        providers: [
-          { provide: ProjectionService, useValue: projectionService },
-          { provide: Router, useValue: router },
-          { provide: LayoutService, useValue: layoutService },
-          { provide: AuthService, useValue: makeAuthService('p1') },
-        ],
-      })
-        .overrideComponent(SegmentProjectionComponent, {
-          remove: { imports: [PinyaProjectionComponent] },
-          add: { imports: [PinyaProjectionStub] },
-        })
-        .compileComponents();
-
-      const f = TestBed.createComponent(TestHostComponent);
-      f.componentRef.setInput('asPersonId', 'person-99');
-      f.componentRef.setInput('asPersonName', 'Jordi Ferrer');
-      f.detectChanges();
-      await TestBed.inject(ApplicationRef).whenStable();
-      f.detectChanges();
-      fixture = f;
-
-      const nextBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment següent"]');
-      nextBtn.click();
-      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-2'], {
-        queryParamsHandling: 'preserve',
-      });
+      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-2']);
     });
 
     it('shows and navigates the prev control when prevSegmentId is set', async () => {
@@ -267,9 +177,7 @@ describe('SegmentProjectionComponent', () => {
       const prevBtn: HTMLButtonElement = fixture.nativeElement.querySelector('[aria-label="Segment anterior"]');
       expect(prevBtn).toBeTruthy();
       prevBtn.click();
-      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-0'], {
-        queryParamsHandling: 'preserve',
-      });
+      expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-0']);
     });
   });
 });

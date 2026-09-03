@@ -804,49 +804,6 @@ describe('MeService', () => {
     });
   });
 
-  describe('findEventSegments — personId targeting', () => {
-    const technicalUser: JwtPayload = { sub: 'tech-user-id', role: UserRole.TECHNICAL } as JwtPayload;
-    const memberUser: JwtPayload = { sub: 'member-user-id', role: UserRole.MEMBER } as JwtPayload;
-    const eventId = 'event-1';
-    const otherPersonId = 'person-not-managed-by-member';
-
-    beforeEach(() => {
-      jest.spyOn(service, 'resolveManagedPersons').mockResolvedValue([
-        { personId: 'member-own-person-id', displayName: 'Membre', isSelf: true, delegateType: null },
-      ]);
-      (eventSegmentService.findAllByEvent as jest.Mock).mockResolvedValue([]);
-    });
-
-    it('lets TECHNICAL pass an arbitrary personId', async () => {
-      await expect(
-        service.findEventSegments(technicalUser, eventId, otherPersonId),
-      ).resolves.toEqual([]);
-    });
-
-    it('lets ADMIN pass an arbitrary personId', async () => {
-      const adminUser: JwtPayload = { sub: 'admin-id', role: UserRole.ADMIN } as JwtPayload;
-      await expect(
-        service.findEventSegments(adminUser, eventId, otherPersonId),
-      ).resolves.toEqual([]);
-    });
-
-    it('rejects MEMBER passing a personId outside their managed persons', async () => {
-      await expect(
-        service.findEventSegments(memberUser, eventId, otherPersonId),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('lets MEMBER pass a personId that is their own managed person', async () => {
-      await expect(
-        service.findEventSegments(memberUser, eventId, 'member-own-person-id'),
-      ).resolves.toEqual([]);
-    });
-
-    it('keeps self-only behavior when no personId is passed', async () => {
-      await expect(service.findEventSegments(memberUser, eventId)).resolves.toEqual([]);
-    });
-  });
-
   describe('findSegmentProjection', () => {
     it('delegates to ProjectionService.getProjection scoped to onlyPublished', async () => {
       const expected = { segment: {} } as never;

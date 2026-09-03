@@ -17,14 +17,6 @@
   </div>
 } @else {
   <div class="relative flex flex-col h-screen w-screen overflow-hidden bg-white">
-    @if (isImpersonating()) {
-      <div
-        data-testid="watch-as-banner"
-        class="fixed top-0 inset-x-0 z-50 bg-warning text-warning-content text-center text-sm py-1"
-      >
-        Veient com: {{ asPersonName() }}
-      </div>
-    }
     <lib-pinya-projection
       [data]="data()!"
       [instanceId]="null"

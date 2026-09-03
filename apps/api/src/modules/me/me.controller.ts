@@ -37,7 +37,6 @@ import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 import { DependentRegistrationDto } from './dto/dependent-registration.dto';
 import { ListManagedPersonsDto } from './dto/list-managed-persons.dto';
 import { CreateMemberDelegateDto } from './dto/create-member-delegate.dto';
-import { MeSegmentsQueryDto } from './dto/me-segments-query.dto';
 
 @ApiTags('me')
 @ApiBearerAuth()
@@ -85,9 +84,8 @@ export class MeController {
   findEventSegments(
     @CurrentUser() user: JwtPayload,
     @Param('eventId', ParseUUIDPipe) eventId: string,
-    @Query() query: MeSegmentsQueryDto,
   ): Promise<MeSegment[]> {
-    return this.meService.findEventSegments(user, eventId, query.personId);
+    return this.meService.findEventSegments(user, eventId);
   }
 
   @Get('events/:eventId/segments/:segmentId/projection')

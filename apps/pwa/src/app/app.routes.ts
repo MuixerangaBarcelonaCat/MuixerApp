@@ -67,15 +67,6 @@ export const appRoutes: Routes = [
           ),
       },
       {
-        path: 'events/:id/watch-as',
-        title: 'Veure com...',
-        canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
-        loadComponent: () =>
-          import('./features/events/watch-as/watch-as.component').then(
-            (m) => m.WatchAsComponent,
-          ),
-      },
-      {
         path: 'events/:id',
         title: 'Detall',
         loadComponent: () =>
