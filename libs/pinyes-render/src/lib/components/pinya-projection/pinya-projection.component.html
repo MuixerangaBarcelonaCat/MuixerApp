@@ -50,7 +50,9 @@
     <lib-own-position-banner
       class="absolute left-1/2 z-40 max-w-[92%] -translate-x-1/2 [top:calc(env(safe-area-inset-top,0px)+0.75rem)]"
       [state]="state"
+      [subject]="ownPositionSubject()"
       (troba)="onTroba()"
+      (back)="onBack()"
     />
   }
 
@@ -63,6 +65,7 @@
       [stageTransform]="stageTransform()"
       [viewport]="{ width: containerWidth(), height: containerHeight() }"
       [arrivedTick]="arrivedTick()"
+      [subject]="ownPositionSubject()"
       (troba)="onTroba()"
     />
   }

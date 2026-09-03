@@ -18,11 +18,57 @@
 } @else {
   <div class="relative flex flex-col h-screen w-screen overflow-hidden bg-white">
     <lib-pinya-projection
+      #projection
       [data]="data()!"
       [instanceId]="null"
       [showZoomControls]="false"
       [highlightPersonId]="highlightPersonId()"
+      [highlightPersonName]="highlightPersonName()"
+      (backToSelf)="onBackToSelf()"
     />
+
+    @if (participants().length > 0) {
+      <button
+        type="button"
+        class="fixed right-4 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg [top:calc(env(safe-area-inset-top,0px)+0.75rem)]"
+        aria-label="Cerca una persona"
+        (click)="openPicker()"
+      >
+        <lucide-icon [img]="Search" [size]="18" aria-hidden="true" />
+      </button>
+    }
+
+    <lib-modal [open]="pickerOpen()" title="Cerca una persona" (closed)="closePicker()">
+      @if (pickerOpen()) {
+        <input
+          #filterInput
+          type="text"
+          class="input input-bordered w-full"
+          placeholder="Nom o àlies"
+          data-testid="participant-filter"
+          [value]="filterText()"
+          (input)="filterText.set($any($event.target).value)"
+        />
+        <ul class="mt-3 space-y-1">
+          @for (person of filteredParticipants(); track person.id) {
+            <li>
+              <button
+                type="button"
+                class="btn btn-ghost btn-block justify-start"
+                data-testid="participant-row"
+                (click)="selectParticipant(person)"
+              >
+                {{ person.alias }}
+              </button>
+            </li>
+          } @empty {
+            <p class="text-sm text-base-content/60 py-2">
+              No hi ha ningú amb eixe nom en este segment.
+            </p>
+          }
+        </ul>
+      }
+    </lib-modal>
 
     <nav
       class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"

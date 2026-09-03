@@ -1,9 +1,15 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { ApplicationRef, Component, input } from '@angular/core';
+import { ApplicationRef, Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { of, throwError, NEVER } from 'rxjs';
 import { Router } from '@angular/router';
-import { PinyaProjectionComponent, ProjectionSegmentData } from '@muixer/pinyes-render';
+import {
+  AssignmentDetail,
+  AssignmentPersonDetail,
+  PinyaProjectionComponent,
+  ProjectionInstance,
+  ProjectionSegmentData,
+} from '@muixer/pinyes-render';
 import { SegmentProjectionComponent } from './segment-projection.component';
 import { ProjectionService } from '../services/projection.service';
 import { LayoutService } from '../../../core/services/layout.service';
@@ -15,7 +21,59 @@ class PinyaProjectionStub {
   readonly instanceId = input<string | null>(null);
   readonly showZoomControls = input<boolean>(true);
   readonly highlightPersonId = input<string | null>(null);
+  readonly highlightPersonName = input<string | null>(null);
+  readonly backToSelf = output<void>();
+  readonly onTroba = vi.fn();
 }
+
+const makePerson = (overrides: Partial<AssignmentPersonDetail> = {}): AssignmentPersonDetail => ({
+  id: 'p1',
+  alias: 'Marta',
+  name: 'Marta',
+  firstSurname: 'Puig',
+  shoulderHeight: null,
+  notes: null,
+  notesEmoji: null,
+  ...overrides,
+});
+
+const makeAssignment = (person: AssignmentPersonDetail): AssignmentDetail => ({
+  id: `a-${person.id}`,
+  figureInstanceId: 'i1',
+  node: {
+    id: `n-${person.id}`,
+    label: 'Lateral',
+    zone: 'PINYA',
+    z: 0,
+    positionType: null,
+    sortOrder: 0,
+    climbIndicator: null,
+    ringLevel: null,
+    originNodeId: null,
+    sourceNodeId: null,
+  },
+  person,
+});
+
+const makeInstance = (assignments: AssignmentDetail[], overrides: Partial<ProjectionInstance> = {}): ProjectionInstance => ({
+  id: 'i1',
+  label: null,
+  sortOrder: 0,
+  numberOfCordons: null,
+  projectionX: null,
+  projectionY: null,
+  projectionScale: 1,
+  projectionAngle: 0,
+  troncPanelX: null,
+  troncPanelY: null,
+  troncPanelWidth: null,
+  troncPanelHeight: null,
+  figureMode: 'COMPLETA',
+  figureTemplate: null,
+  nodes: [],
+  assignments,
+  ...overrides,
+});
 
 /** Minimal AuthService stub — only `currentUser().person.id` is read by this component. */
 const makeAuthService = (personId: string | null) => ({
@@ -178,6 +236,160 @@ describe('SegmentProjectionComponent', () => {
       expect(prevBtn).toBeTruthy();
       prevBtn.click();
       expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1', 'segments', 'seg-0']);
+    });
+  });
+
+  describe('looking up another person', () => {
+    const marta = makePerson({ id: 'p-marta', alias: 'Marta', name: 'Marta', firstSurname: 'Puig' });
+    const anna = makePerson({ id: 'p-anna', alias: 'Anna', name: 'Anna', firstSurname: 'Ferrer' });
+
+    const searchButton = (f: ComponentFixture<TestHostComponent>): HTMLButtonElement | null =>
+      f.nativeElement.querySelector('[aria-label="Cerca una persona"]');
+    const filterInput = (f: ComponentFixture<TestHostComponent>): HTMLInputElement | null =>
+      f.nativeElement.querySelector('[data-testid="participant-filter"]');
+    const participantRows = (f: ComponentFixture<TestHostComponent>): HTMLElement[] =>
+      Array.from(f.nativeElement.querySelectorAll('[data-testid="participant-row"]'));
+
+    const openPicker = (f: ComponentFixture<TestHostComponent>) => {
+      searchButton(f)!.click();
+      f.detectChanges();
+    };
+
+    it('hides the search button when nobody is placed in this segment', async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([])] })));
+      expect(searchButton(fixture)).toBeNull();
+    });
+
+    it('shows the search button once someone is placed in this segment', async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })));
+      expect(searchButton(fixture)).toBeTruthy();
+    });
+
+    it('lists every distinct participant, deduplicating repeat placements of the same person', async () => {
+      const dup = makeAssignment(marta);
+      fixture = await setup(
+        of(makeData({ instances: [makeInstance([makeAssignment(marta), dup, makeAssignment(anna)])] })),
+      );
+      openPicker(fixture);
+
+      expect(participantRows(fixture).map((el) => el.textContent?.trim())).toEqual(['Marta', 'Anna']);
+    });
+
+    it('filters the list by alias, case- and accent-insensitively', async () => {
+      fixture = await setup(
+        of(makeData({ instances: [makeInstance([makeAssignment(marta), makeAssignment(anna)])] })),
+      );
+      openPicker(fixture);
+
+      filterInput(fixture)!.value = 'ANN';
+      filterInput(fixture)!.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      expect(participantRows(fixture).map((el) => el.textContent?.trim())).toEqual(['Anna']);
+    });
+
+    it('shows a not-found message when the filter matches nobody in this segment', async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })));
+      openPicker(fixture);
+
+      filterInput(fixture)!.value = 'Zzz';
+      filterInput(fixture)!.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        "No hi ha ningú amb eixe nom en este segment.",
+      );
+    });
+
+    it('forwards the selected participant to lib-pinya-projection and closes the picker', async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })), 'p1');
+      openPicker(fixture);
+
+      participantRows(fixture)[0].click();
+      fixture.detectChanges();
+
+      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+      expect(stub.componentInstance.highlightPersonId()).toBe('p-marta');
+      expect(stub.componentInstance.highlightPersonName()).toBe('Marta');
+      expect(filterInput(fixture)).toBeNull();
+    });
+
+    it('treats selecting oneself the same as never having looked anyone up', async () => {
+      const self = makePerson({ id: 'p1', alias: 'Jo Mateixa', name: 'Jo', firstSurname: 'Mateixa' });
+      fixture = await setup(
+        of(makeData({ instances: [makeInstance([makeAssignment(self), makeAssignment(marta)])] })),
+        'p1',
+      );
+      openPicker(fixture);
+
+      participantRows(fixture)
+        .find((el) => el.textContent?.trim() === 'Jo Mateixa')!
+        .click();
+      fixture.detectChanges();
+
+      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+      expect(stub.componentInstance.highlightPersonId()).toBe('p1');
+      expect(stub.componentInstance.highlightPersonName()).toBeNull();
+    });
+
+    it("defaults to the caller's own position with no name, before anyone is looked up", async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })), 'p1');
+
+      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+      expect(stub.componentInstance.highlightPersonId()).toBe('p1');
+      expect(stub.componentInstance.highlightPersonName()).toBeNull();
+    });
+
+    it("restores the caller's own position when lib-pinya-projection emits backToSelf", async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })), 'p1');
+      openPicker(fixture);
+      participantRows(fixture)[0].click();
+      fixture.detectChanges();
+
+      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+      stub.componentInstance.backToSelf.emit();
+      fixture.detectChanges();
+
+      expect(stub.componentInstance.highlightPersonId()).toBe('p1');
+      expect(stub.componentInstance.highlightPersonName()).toBeNull();
+    });
+
+    it('focuses the filter input when the picker opens', async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })));
+      openPicker(fixture);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(filterInput(fixture));
+    });
+
+    it('flies to the new placement when a participant is selected', async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })), 'p1');
+      openPicker(fixture);
+
+      participantRows(fixture)[0].click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+      expect(stub.componentInstance.onTroba).toHaveBeenCalled();
+    });
+
+    it("flies back to the caller's own placement when backToSelf fires", async () => {
+      fixture = await setup(of(makeData({ instances: [makeInstance([makeAssignment(marta)])] })), 'p1');
+      openPicker(fixture);
+      participantRows(fixture)[0].click();
+      fixture.detectChanges();
+
+      const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+      stub.componentInstance.onTroba.mockClear();
+      stub.componentInstance.backToSelf.emit();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(stub.componentInstance.onTroba).toHaveBeenCalled();
     });
   });
 });

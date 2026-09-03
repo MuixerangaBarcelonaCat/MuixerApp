@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { ChevronRight, LucideAngularModule } from 'lucide-angular';
+import { elideDe, OwnPositionSubject } from '@muixer/shared';
 import { StageTransform, stageToScreen } from '../../utils/rengla-coordinates.util';
 
 /** How long the one-shot arrival bounce plays before its class is cleared again. */
@@ -41,6 +42,10 @@ export class OwnPositionMarkerComponent {
   readonly target = input<MarkerTarget | null>(null);
   readonly stageTransform = input<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
   readonly viewport = input.required<MarkerViewport>();
+
+  /** Who the marker points at — the caller by default, or someone looked up via the PWA's person
+   *  search. Only changes the chevron's `aria-label`; the ring/chevron themselves are identical. */
+  readonly subject = input<OwnPositionSubject>({ kind: 'self' });
 
   /**
    * Bumped by the parent on every landed flight — see `pinya-projection.component.ts`'s
@@ -101,6 +106,13 @@ export class OwnPositionMarkerComponent {
 
   protected readonly chevronPosition = computed(() => this.clamped()?.position ?? null);
   protected readonly chevronAngleDeg = computed(() => this.clamped()?.angleDeg ?? null);
+
+  protected readonly chevronLabel = computed(() => {
+    const subject = this.subject();
+    return subject.kind === 'self'
+      ? 'Ves a la teua posició'
+      : `Ves a la posició ${elideDe(subject.alias)}${subject.alias}`;
+  });
 }
 
 /**

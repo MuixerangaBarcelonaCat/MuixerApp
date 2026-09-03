@@ -564,6 +564,48 @@ describe('PinyaProjectionComponent', () => {
       const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
       expect(banner.componentInstance.state()).toEqual({ kind: 'NONE' });
     });
+
+    it("feeds the banner and the marker a 'self' subject when highlightPersonName is unset", () => {
+      const node = makeNode({ id: 'n1' });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(banner.componentInstance.subject()).toEqual({ kind: 'self' });
+      expect(marker.componentInstance.subject()).toEqual({ kind: 'self' });
+    });
+
+    it("feeds the banner and the marker an 'other' subject when highlightPersonName is set", () => {
+      const node = makeNode({ id: 'n1' });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.componentRef.setInput('highlightPersonName', 'Marta');
+      fixture.detectChanges();
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(banner.componentInstance.subject()).toEqual({ kind: 'other', alias: 'Marta' });
+      expect(marker.componentInstance.subject()).toEqual({ kind: 'other', alias: 'Marta' });
+    });
+
+    it('re-emits backToSelf when the banner emits back', () => {
+      const inst = makeInstance([makeNode({ id: 'n1' })], [], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'someone-else');
+      fixture.componentRef.setInput('highlightPersonName', 'Marta');
+      fixture.detectChanges();
+      const spy = jest.fn();
+      component.backToSelf.subscribe(spy);
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      banner.componentInstance.back.emit();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ── ownPositionTarget / the marker ───────────────────────────────────────────

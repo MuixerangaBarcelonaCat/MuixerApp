@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { OWN_POSITION_MULTIPLE_PLACEMENTS, OWN_POSITION_NO_PLACEMENT } from '@muixer/shared';
+import { OWN_POSITION_MULTIPLE_PLACEMENTS, OWN_POSITION_NO_PLACEMENT, OwnPositionSubject } from '@muixer/shared';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from './own-position-banner.component';
 
 describe('OwnPositionBannerComponent', () => {
@@ -9,12 +9,18 @@ describe('OwnPositionBannerComponent', () => {
     fixture.componentRef.setInput('state', state);
     fixture.detectChanges();
   };
+  const setSubject = (subject: OwnPositionSubject) => {
+    fixture.componentRef.setInput('subject', subject);
+    fixture.detectChanges();
+  };
+  const backButton = () =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-label="Torna a la teua posició"]');
 
   /** The sentence itself, excluding the Troba'm button which sits alongside it via flex gap. */
   const sentence = () =>
     (fixture.nativeElement as HTMLElement).querySelector('p > span')!.textContent!.replace(/\s+/g, ' ').trim();
-  /** Plain text of the whole paragraph — used for the MULTIPLE/NONE states, which have no button. */
-  const paragraph = () => (fixture.nativeElement as HTMLElement).querySelector('p')!.textContent!.trim();
+  /** Text of the paragraph's leading span — the sentence, excluding any action/back button. */
+  const paragraph = () => (fixture.nativeElement as HTMLElement).querySelector('p > span')!.textContent!.trim();
   const buttonText = () => (fixture.nativeElement as HTMLElement).querySelector('button')?.textContent?.trim();
   const uppercaseTexts = () =>
     Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.uppercase')).map((el) => el.textContent);
@@ -88,5 +94,55 @@ describe('OwnPositionBannerComponent', () => {
     fixture.nativeElement.querySelector('button').click();
 
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('looking up another person', () => {
+    it('renders the third-person sentence and swaps the action label to «On està»', () => {
+      setState({ kind: 'PINYA', instanceIndex: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
+      setSubject({ kind: 'other', alias: 'Marta' });
+
+      expect(sentence()).toBe('Marta és Lateral.');
+      expect(buttonText()).toBe('On està');
+    });
+
+    it('names the other person in the NONE state', () => {
+      setState({ kind: 'NONE' });
+      setSubject({ kind: 'other', alias: 'Marta' });
+
+      expect(paragraph()).toBe('Marta no ix en este segment.');
+    });
+
+    it('names the other person in the MULTIPLE state', () => {
+      setState({ kind: 'MULTIPLE' });
+      setSubject({ kind: 'other', alias: 'Marta' });
+
+      expect(paragraph()).toBe("Marta està en més d'un lloc alhora. Parleu amb la tècnica.");
+    });
+
+    it('shows a back-to-me button in every state', () => {
+      setState({ kind: 'NONE' });
+      setSubject({ kind: 'other', alias: 'Marta' });
+      expect(backButton()).not.toBeNull();
+
+      setState({ kind: 'PINYA', instanceIndex: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
+      expect(backButton()).not.toBeNull();
+    });
+
+    it('emits back when the back-to-me button is clicked', () => {
+      setState({ kind: 'NONE' });
+      setSubject({ kind: 'other', alias: 'Marta' });
+      const spy = jest.fn();
+      fixture.componentInstance.back.subscribe(spy);
+
+      backButton()!.click();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows no back-to-me button when the subject is the caller themselves', () => {
+    setState({ kind: 'NONE' });
+
+    expect(backButton()).toBeNull();
   });
 });
