@@ -95,6 +95,9 @@ export interface FigureHistoryEntry {
   eventType: EventType;
   segmentId: string;
   segmentName: string | null;
+  /** Figure name shown under the event title: the instance label, or the mode-derived name
+   *  («Peu de …», «Remat de …», «… net») when the mode isn't COMPLETA; null for a plain default. */
+  figureName: string | null;
   instanceId: string;
   snapshotted: boolean;
   assignmentCount: number;

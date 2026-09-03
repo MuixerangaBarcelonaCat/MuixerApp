@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, booleanAttribute, compu
 import { LucideAngularModule, X } from 'lucide-angular';
 import { ButtonComponent } from '../button/button.component';
 
-export type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | '2xl';
+export type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | '2xl' | '4xl';
 
 const SIZE_CLASSES: Record<ModalSize, string> = {
   xs: 'max-w-xs',
@@ -10,6 +10,7 @@ const SIZE_CLASSES: Record<ModalSize, string> = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   '2xl': 'max-w-2xl',
+  '4xl': 'max-w-4xl',
 };
 
 let nextId = 0;
