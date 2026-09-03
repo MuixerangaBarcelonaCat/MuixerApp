@@ -51,6 +51,24 @@ describe('AttendanceButtonComponent', () => {
     const fixture = createButton(AttendanceStatus.ANIRE);
     const buttons: HTMLButtonElement[] = fixture.nativeElement.querySelectorAll('button');
     expect(buttons[0].classList.contains('btn-success')).toBe(true);
+    expect(buttons[0].classList.contains('btn-outline')).toBe(false);
+  });
+
+  it('should render the inactive segment as a neutral outline, not colored', () => {
+    const fixture = createButton(AttendanceStatus.ANIRE);
+    const buttons: HTMLButtonElement[] = fixture.nativeElement.querySelectorAll('button');
+    expect(buttons[1].classList.contains('btn-neutral')).toBe(true);
+    expect(buttons[1].classList.contains('btn-outline')).toBe(true);
+    expect(buttons[1].classList.contains('btn-error')).toBe(false);
+  });
+
+  it('should render the two buttons as a compact joined group, sized to their labels', () => {
+    const fixture = createButton(null);
+    const join: HTMLElement = fixture.nativeElement.querySelector('.join');
+    expect(join).toBeTruthy();
+    expect(join.className).not.toContain('w-full');
+    const buttons: HTMLButtonElement[] = fixture.nativeElement.querySelectorAll('button');
+    expect(buttons[0].classList.contains('btn-xs')).toBe(true);
   });
 
   it('should call updateAttendance with ANIRE when clicking Vinc', () => {

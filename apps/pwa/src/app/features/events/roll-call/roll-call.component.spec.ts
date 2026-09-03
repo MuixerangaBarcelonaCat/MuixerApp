@@ -53,6 +53,43 @@ describe('RollCallComponent', () => {
     fixture.detectChanges();
   });
 
+  it('labels the add-person button "+ Persona nova"', () => {
+    const addBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Afegeix una persona provisional (ve per primera vegada)"]',
+    );
+    expect(addBtn.textContent).toContain('+ Persona nova');
+  });
+
+  it('lets the search box shrink so the add-person button stays on screen on narrow viewports', () => {
+    const searchLabel: HTMLElement = fixture.nativeElement.querySelector('label.input');
+    expect(searchLabel.className).toContain('min-w-0');
+    const addBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '[aria-label="Afegeix una persona provisional (ve per primera vegada)"]',
+    );
+    expect(addBtn.className).toContain('shrink-0');
+  });
+
+  it('renders the status buttons as Ha vingut / Vindrà / No vindrà, in that order', () => {
+    const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
+    const labels = Array.from(row.querySelectorAll('lib-button-group button')).map(
+      (b) => (b as HTMLElement).textContent?.trim(),
+    );
+    expect(labels).toEqual(['Ha vingut', 'Vindrà', 'No vindrà']);
+  });
+
+  it('calls setStatus when a status button is clicked', () => {
+    rollCallService.updateAttendance.mockReturnValue(
+      of({ attendance: { id: 'att-2', status: AttendanceStatus.ASSISTIT }, summary: {} }),
+    );
+    const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
+    const buttons: HTMLButtonElement[] = row.querySelectorAll('lib-button-group button');
+    buttons[0].click(); // "Ha vingut" is first now
+
+    expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-2', {
+      status: AttendanceStatus.ASSISTIT,
+    });
+  });
+
   it('loads attendance and splits it into signed-up and not-signed-up rows', () => {
     expect(rollCallService.getAttendance).toHaveBeenCalledWith('event-1', undefined);
     const rows = fixture.nativeElement.querySelectorAll('[data-testid="roll-call-row"]');

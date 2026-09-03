@@ -2,7 +2,7 @@
 
 <div class="p-4 space-y-3">
   <div class="flex items-center gap-2">
-    <label class="input input-bordered flex items-center gap-2 flex-1">
+    <label class="input input-bordered flex items-center gap-2 flex-1 min-w-0">
       <lucide-angular [img]="Search" class="w-4 h-4 opacity-50" />
       <input
         type="text"
@@ -13,11 +13,11 @@
     </label>
     <button
       type="button"
-      class="btn btn-ghost btn-sm"
+      class="btn btn-ghost btn-sm shrink-0 whitespace-nowrap"
       aria-label="Afegeix una persona provisional (ve per primera vegada)"
       (click)="toggleAddProvisional()"
     >
-      + Afegeix
+      + Persona nova
     </button>
   </div>
 
@@ -60,19 +60,18 @@
         @for (item of signedUpItems(); track item.person.id) {
           <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
             <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
-            <div class="flex gap-1 shrink-0">
+            <lib-button-group>
               @for (status of statuses; track status) {
-                <lib-badge
-                  clickable
-                  size="sm"
-                  class="whitespace-nowrap"
+                <lib-button
+                  joinItem
+                  size="xs"
                   [variant]="item.status === status ? statusVariant(status) : 'neutral'"
-                  [selected]="item.status === status"
+                  [active]="item.status === status"
                   [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
                   (clicked)="setStatus(item, status)"
-                >{{ statusLabel(status) }}</lib-badge>
+                >{{ statusLabel(status) }}</lib-button>
               }
-            </div>
+            </lib-button-group>
           </li>
         }
       </ul>
@@ -85,19 +84,18 @@
           @for (item of notSignedUpItems(); track item.person.id) {
             <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
               <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
-              <div class="flex gap-1 shrink-0">
+              <lib-button-group>
                 @for (status of statuses; track status) {
-                  <lib-badge
-                    clickable
-                    size="sm"
-                    class="whitespace-nowrap"
+                  <lib-button
+                    joinItem
+                    size="xs"
                     [variant]="item.status === status ? statusVariant(status) : 'neutral'"
-                    [selected]="item.status === status"
+                    [active]="item.status === status"
                     [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
                     (clicked)="setStatus(item, status)"
-                  >{{ statusLabel(status) }}</lib-badge>
+                  >{{ statusLabel(status) }}</lib-button>
                 }
-              </div>
+              </lib-button-group>
             </li>
           }
         </ul>
