@@ -11,7 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, TriangleAlert } from 'lucide-angular';
-import { ButtonComponent, BadgeComponent, ModalComponent } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, ModalComponent, TextareaComponent } from '@muixer/ui';
 import { AttendanceService } from '../../services/attendance.service';
 import { AttendanceItem, AttendanceCrudResponse, AttendanceDeleteResponse } from '../../models/attendance.model';
 import { AttendanceStatus } from '@muixer/shared';
@@ -20,7 +20,7 @@ import { AttendanceStatus } from '@muixer/shared';
   selector: 'app-attendance-edit-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, LucideAngularModule, ButtonComponent, BadgeComponent, ModalComponent],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ButtonComponent, BadgeComponent, ModalComponent, TextareaComponent],
   templateUrl: './attendance-edit-modal.component.html',
 })
 export class AttendanceEditModalComponent implements OnChanges {

@@ -414,29 +414,84 @@
                       }
                     </div>
 
-                    <!-- Mode selector or static 'Neta' label -->
-                    @if (figureModeOptions(instance); as options) {
-                      <div class="w-24 shrink-0 self-center">
-                        <lib-select
-                          size="xs"
-                          [ariaLabel]="'Mode de ' + getInstanceLabel(instance)"
-                          [ngModel]="instance.figureMode"
-                          [disabled]="isLocked()"
-                          (ngModelChange)="updateFigureMode(segment, instance, $event)"
+                    <!-- Troncs mode: figure mode selector (Completa/Peu/Remat/Neta), or static 'Neta' label -->
+                    @if (viewMode() === 'troncs') {
+                      @if (figureModeOptions(instance); as options) {
+                        <div class="w-24 shrink-0 self-center">
+                          <lib-select
+                            size="xs"
+                            [ariaLabel]="'Mode de ' + getInstanceLabel(instance)"
+                            [ngModel]="instance.figureMode"
+                            [disabled]="isLocked()"
+                            (ngModelChange)="updateFigureMode(segment, instance, $event)"
+                          >
+                            @for (opt of options; track opt.value) {
+                              <option [value]="opt.value">{{ opt.label }}</option>
+                            }
+                          </lib-select>
+                        </div>
+                      } @else {
+                        <span class="w-16 shrink-0 self-center">
+                          <lib-badge variant="ghost" size="xs">
+                            <span class="inline-flex items-center gap-1">
+                              <lucide-icon [name]="ICON_FIGURA_NETA" [size]="10" aria-hidden="true" />Neta
+                            </span>
+                          </lib-badge>
+                        </span>
+                      }
+                    }
+
+                    <!-- Pinyes mode: cordons stepper — the figure mode is irrelevant while looking
+                         at the pinya, but how many cordons are shown isn't. -->
+                    @if (viewMode() === 'pinyes') {
+                      @if (hasCordonsControl(instance)) {
+                        <div
+                          class="w-24 shrink-0 self-center flex items-center justify-center gap-0.5"
+                          role="group"
+                          [attr.aria-label]="'Cordons de ' + getInstanceLabel(instance)"
+                          title="Nombre de cordons visibles"
                         >
-                          @for (opt of options; track opt.value) {
-                            <option [value]="opt.value">{{ opt.label }}</option>
-                          }
-                        </lib-select>
-                      </div>
-                    } @else {
-                      <span class="w-16 shrink-0 self-center">
-                        <lib-badge variant="ghost" size="xs">
-                          <span class="inline-flex items-center gap-1">
-                            <lucide-icon [name]="ICON_FIGURA_NETA" [size]="10" aria-hidden="true" />Neta
+                          <lib-button
+                            variant="ghost"
+                            size="xs"
+                            shape="square"
+                            [disabled]="isLocked() || instance.numberOfCordons === 1"
+                            ariaLabel="Redueix els cordons"
+                            (clicked)="onCordonsDecrement(segment, instance)"
+                          >
+                            <lucide-icon name="Minus" [size]="12" aria-hidden="true" />
+                          </lib-button>
+                          <span class="inline-flex items-center gap-0.5 text-xs font-medium min-w-[3rem] justify-center select-none" aria-live="polite">
+                            <lucide-icon [name]="ICON_RENGLA" [size]="10" class="text-base-content/40 shrink-0" aria-hidden="true" />
+                            {{ cordonsDisplay(instance) }}
                           </span>
-                        </lib-badge>
-                      </span>
+                          <lib-button
+                            variant="ghost"
+                            size="xs"
+                            shape="square"
+                            [disabled]="isLocked() || instance.numberOfCordons === null"
+                            ariaLabel="Augmenta els cordons"
+                            (clicked)="onCordonsIncrement(segment, instance)"
+                          >
+                            <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+                          </lib-button>
+                        </div>
+                      } @else {
+                        <span
+                          class="w-24 shrink-0 self-center text-center"
+                          [title]="figureModeLabel(instance) === 'Sense rengles' ? 'Configureu les rengles a la plantilla per poder ajustar el nombre de cordons' : null"
+                        >
+                          <lib-badge variant="ghost" size="xs" class="whitespace-nowrap">
+                            @if (figureModeLabel(instance) === 'Neta') {
+                              <span class="inline-flex items-center gap-1">
+                                <lucide-icon [name]="ICON_FIGURA_NETA" [size]="10" aria-hidden="true" />Neta
+                              </span>
+                            } @else {
+                              {{ figureModeLabel(instance) }}
+                            }
+                          </lib-badge>
+                        </span>
+                      }
                     }
 
                     <!-- Copy to segment -->
@@ -589,3 +644,24 @@
     <button type="button" class="modal-backdrop" (click)="cancelModeChange()" aria-label="Tancar"></button>
   </dialog>
 }
+
+<!-- Cordons reduction confirmation modal — mirrors the Distribució tab's own (figure-properties-panel /
+     distribucio-tab.component.html), same wording and lib-modal/lib-button pattern. The affected count is
+     exact (previewed against the backend), so it only appears when the reduction would actually unassign
+     someone. -->
+<lib-modal [open]="!!pendingCordonsChange()" title="Redueix els cordons" (closed)="cancelCordonsChange()">
+  @if (pendingCordonsChange(); as pending) {
+    <p class="text-sm text-base-content/70">
+      Esta acció eliminarà
+      <strong class="text-error">{{ pending.affectedCount }} {{ pending.affectedCount === 1 ? 'assignació' : 'assignacions' }}</strong>
+      dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
+    </p>
+    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+  }
+  <div modalFooter class="flex justify-end gap-2 w-full">
+    <lib-button variant="ghost" size="sm" [disabled]="savingCordonsChange()" (clicked)="cancelCordonsChange()">Cancel·la</lib-button>
+    <lib-button variant="error" size="sm" [disabled]="savingCordonsChange()" [loading]="savingCordonsChange()" (clicked)="confirmCordonsChange()">
+      Elimina-les
+    </lib-button>
+  </div>
+</lib-modal>

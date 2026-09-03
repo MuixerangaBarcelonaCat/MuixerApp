@@ -1,148 +1,127 @@
-@if (open()) {
-  <dialog
-    class="modal modal-open"
-    role="dialog"
-    aria-labelledby="import-modal-title"
-    aria-modal="true"
-    (click)="onBackdropClick($event)"
-    (keydown.escape)="close()"
-  >
-    <div class="modal-box max-w-lg">
-      <div class="flex items-center justify-between mb-4">
-        <h2 id="import-modal-title" class="text-lg font-bold">Importació de figura anterior</h2>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">
-          <i-lucide [img]="X" class="size-4" />
-        </button>
-      </div>
+<lib-modal size="lg" title="Importació de pinya anterior" [open]="open()" (closed)="close()">
+  @if (loading()) {
+    <div class="flex justify-center py-8">
+      <span class="loading loading-spinner loading-md text-primary"></span>
+    </div>
+  }
 
-      @if (loading()) {
-        <div class="flex justify-center py-8">
-          <span class="loading loading-spinner loading-md text-primary"></span>
-        </div>
-      }
+  @if (!loading()) {
+    @if (history().length === 0) {
+      <p class="text-sm text-base-content/60 py-4 text-center">
+        No hi ha pinyes anteriors disponibles per importar.
+      </p>
+    }
 
-      @if (!loading()) {
-        @if (history().length === 0) {
-          <p class="text-sm text-base-content/60 py-4 text-center">
-            No hi ha pinyes anteriors disponibles per importar.
-          </p>
-        }
+    @if (history().length > 0) {
+      <p class="text-sm text-base-content/60 mb-3">
+        Seleccioneu un event per importar-ne les assignacions:
+      </p>
+      <!-- Selectable list rows (border/bg selected-state language) stay raw markup rather than
+           lib-button — same judgment call as person-panel's per-person rows: a domain-specific
+           selectable-row pattern lib-button doesn't model, not a gap. -->
+      <ul class="space-y-1 max-h-96 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
+        @for (entry of history(); track entry.instanceId) {
+          <li class="rounded-lg border transition-colors"
+            [class]="!entry.snapshotted
+              ? 'border-base-300 opacity-50'
+              : selectedEntry()?.instanceId === entry.instanceId
+                ? 'border-primary bg-primary/5'
+                : 'border-base-300 hover:border-base-content/30'"
+          >
+            <button
+              type="button"
+              role="option"
+              [attr.aria-selected]="selectedEntry()?.instanceId === entry.instanceId"
+              [disabled]="!entry.snapshotted"
+              class="w-full text-left px-3 py-2 text-sm"
+              [class.cursor-not-allowed]="!entry.snapshotted"
+              [class.text-primary]="selectedEntry()?.instanceId === entry.instanceId"
+              [class.hover:bg-base-200]="entry.snapshotted && selectedEntry()?.instanceId !== entry.instanceId"
+              [attr.title]="!entry.snapshotted ? 'Aquesta instància no té assignacions per importar' : null"
+              (click)="selectEntry(entry)"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-medium">{{ entry.eventTitle }}</span>
+                <span class="text-xs text-base-content/50">{{ entry.eventDate | slice:0:10 }}</span>
+              </div>
+              <div class="text-xs text-base-content/50 mt-0.5 flex items-center gap-2">
+                @if (entry.segmentName) {
+                  <span>{{ entry.segmentName }}</span>
+                }
+                <lib-badge variant="ghost" size="xs">{{ entry.assignmentCount }}/{{ entry.totalNodes }} assignades</lib-badge>
+              </div>
+            </button>
 
-        @if (history().length > 0) {
-          <p class="text-sm text-base-content/60 mb-3">
-            Seleccioneu un event per importar les seves assignacions:
-          </p>
-          <ul class="space-y-1 max-h-96 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
-            @for (entry of history(); track entry.instanceId) {
-              <li class="rounded-lg border transition-colors"
-                [class]="!entry.snapshotted
-                  ? 'border-base-300 opacity-50'
-                  : selectedEntry()?.instanceId === entry.instanceId
-                    ? 'border-primary bg-primary/5'
-                    : 'border-base-300 hover:border-base-content/30'"
-              >
-                <button
-                  type="button"
-                  role="option"
-                  [attr.aria-selected]="selectedEntry()?.instanceId === entry.instanceId"
-                  [disabled]="!entry.snapshotted"
-                  class="w-full text-left px-3 py-2 text-sm"
-                  [class.cursor-not-allowed]="!entry.snapshotted"
-                  [class.text-primary]="selectedEntry()?.instanceId === entry.instanceId"
-                  [class.hover:bg-base-200]="entry.snapshotted && selectedEntry()?.instanceId !== entry.instanceId"
-                  [attr.title]="!entry.snapshotted ? 'Aquesta instància no té assignacions per importar' : null"
-                  (click)="selectEntry(entry)"
-                >
-                  <div class="flex items-center justify-between">
-                    <span class="font-medium">{{ entry.eventTitle }}</span>
-                    <span class="text-xs text-base-content/50">{{ entry.eventDate | slice:0:10 }}</span>
-                  </div>
-                  <div class="text-xs text-base-content/50 mt-0.5 flex items-center gap-2">
-                    @if (entry.segmentName) {
-                      <span>{{ entry.segmentName }}</span>
-                    }
-                    <span class="badge badge-ghost badge-xs">
-                      {{ entry.assignmentCount }}/{{ entry.totalNodes }} assignades
-                    </span>
-                  </div>
-                </button>
-
-                @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {
-                  <div class="border-t border-primary/20 px-2 py-1.5 space-y-1">
-                    @for (row of [
-                      { scope: ImportScope.PINYA, label: 'Pinya' },
-                      { scope: ImportScope.TRONC, label: 'Tronc' },
-                      { scope: ImportScope.ALL, label: 'Figura' }
-                    ]; track row.scope) {
-                      <div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-md bg-base-100/60">
-                        <div class="text-xs">
-                          <span class="font-medium">{{ row.label }}</span>
-                          <span class="text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                          <button
-                            type="button"
-                            class="btn btn-ghost btn-xs gap-1"
-                            [disabled]="countForScope(row.scope) === 0"
-                            (click)="openPreview(row.scope)"
-                          >
-                            Previsualitza
-                          </button>
-                          <button
-                            type="button"
-                            class="btn btn-primary btn-xs gap-1"
-                            [disabled]="countForScope(row.scope) === 0 || importing()"
-                            (click)="doImport(row.scope)"
-                          >
-                            @if (importing()) {
-                              <span class="loading loading-spinner loading-xs"></span>
-                            } @else {
-                              <i-lucide [img]="Import" class="size-3" />
-                            }
-                            Importa
-                          </button>
-                        </div>
-                      </div>
-                    }
+            @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {
+              <div class="border-t border-primary/20 px-2 py-1.5 space-y-1">
+                @for (row of [
+                  { scope: ImportScope.PINYA, label: 'Pinya' },
+                  { scope: ImportScope.TRONC, label: 'Tronc' },
+                  { scope: ImportScope.ALL, label: 'Figura' }
+                ]; track row.scope) {
+                  <div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-md bg-base-100/60">
+                    <div class="text-xs">
+                      <span class="font-medium">{{ row.label }}</span>
+                      <span class="text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <lib-button
+                        variant="ghost"
+                        size="xs"
+                        [disabled]="countForScope(row.scope) === 0"
+                        (clicked)="openPreview(row.scope)"
+                      >
+                        Previsualitza
+                      </lib-button>
+                      <lib-button
+                        variant="primary"
+                        size="xs"
+                        [disabled]="countForScope(row.scope) === 0"
+                        [loading]="importing()"
+                        (clicked)="doImport(row.scope)"
+                      >
+                        @if (!importing()) {
+                          <i-lucide [img]="Import" class="size-3" />
+                        }
+                        Importa
+                      </lib-button>
+                    </div>
                   </div>
                 }
-              </li>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    @if (lastResult()) {
+      <div class="alert" [class]="lastResult()!.conflicts.length > 0 ? 'alert-error' : 'alert-success'">
+        <p class="text-sm font-medium">
+          {{ lastResult()!.created.length }} assignacions importades
+          @if (lastResult()!.conflicts.length > 0) {
+            , {{ lastResult()!.conflicts.length }} conflictes omesos
+          }
+        </p>
+        @if (lastResult()!.conflicts.length > 0) {
+          <ul class="mt-1 text-xs space-y-0.5">
+            @for (c of lastResult()!.conflicts; track c.nodeId) {
+              <li>{{ c.nodeLabel }} / {{ c.personAlias }}: {{ c.reason }}</li>
             }
           </ul>
         }
-
-        @if (lastResult()) {
-          <div class="alert" [class]="lastResult()!.conflicts.length > 0 ? 'alert-conflict' : 'alert-success'">
-            <p class="text-sm font-medium">
-              {{ lastResult()!.created.length }} assignacions importades
-              @if (lastResult()!.conflicts.length > 0) {
-                , {{ lastResult()!.conflicts.length }} conflictes omesos
-              }
-            </p>
-            @if (lastResult()!.conflicts.length > 0) {
-              <ul class="mt-1 text-xs space-y-0.5">
-                @for (c of lastResult()!.conflicts; track c.nodeId) {
-                  <li>{{ c.nodeLabel }} / {{ c.personAlias }}: {{ c.reason }}</li>
-                }
-              </ul>
-            }
-          </div>
-        }
-
-        @if (error()) {
-          <div class="alert alert-error text-sm">{{ error() }}</div>
-        }
-      }
-
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="close()">
-          Tancar
-        </button>
       </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="close()" aria-label="Tancar"></button>
-  </dialog>
-}
+    }
+
+    @if (error()) {
+      <div class="alert alert-error text-sm">{{ error() }}</div>
+    }
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="close()">Tancar</lib-button>
+  </div>
+</lib-modal>
 
 @if (previewScope(); as scope) {
   <app-import-preview-modal

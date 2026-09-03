@@ -1,26 +1,20 @@
 <div class="flex flex-col h-full min-h-0 bg-base-100">
   <!-- Header -->
   <header class="flex items-center gap-3 px-4 py-2 border-b border-base-300 shrink-0">
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm btn-square"
-      (click)="goBack()"
-      aria-label="Torna arrere"
-    >
+    <lib-button variant="ghost" size="sm" shape="square" ariaLabel="Torna arrere" (clicked)="goBack()">
       <lucide-icon [img]="ArrowLeft" [size]="18" aria-hidden="true" />
-    </button>
+    </lib-button>
 
-    <div class="min-w-0">
-      <h1 class="text-base font-semibold truncate">
-        {{ ws.segmentName() ?? 'Segment' }}
-      </h1>
-    </div>
+    <!-- Fixed width so the prev/next arrows stay in the same spot regardless of title length -->
+    <h1 class="text-lg font-semibold font-serif leading-tight truncate w-48 shrink-0">
+      {{ ws.segmentName() ?? 'Segment' }}
+    </h1>
 
     @if (ws.isLocked()) {
-      <span class="badge badge-warning gap-1" role="status">
+      <lib-badge variant="warning" size="sm">
         <lucide-icon [img]="Lock" [size]="12" aria-hidden="true" />
         Bloquejat
-      </span>
+      </lib-badge>
     }
 
     <!-- Workspace tabs -->
@@ -35,15 +29,16 @@
 
     <!-- Prev/next segment navigation -->
     <div class="flex items-center gap-1 ml-2 shrink-0">
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm btn-square"
+      <lib-button
+        variant="ghost"
+        size="sm"
+        shape="square"
         [disabled]="!ws.previousSegmentId()"
-        (click)="navigateToSegment(ws.previousSegmentId())"
-        aria-label="Segment anterior"
+        ariaLabel="Segment anterior"
+        (clicked)="navigateToSegment(ws.previousSegmentId())"
       >
         <lucide-icon [img]="ChevronLeft" [size]="18" aria-hidden="true" />
-      </button>
+      </lib-button>
 
       @if (ws.segmentPosition(); as position) {
         <span class="text-sm text-base-content/60 tabular-nums px-1">
@@ -51,27 +46,86 @@
         </span>
       }
 
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm btn-square"
+      <lib-button
+        variant="ghost"
+        size="sm"
+        shape="square"
         [disabled]="!ws.nextSegmentId()"
-        (click)="navigateToSegment(ws.nextSegmentId())"
-        aria-label="Segment següent"
+        ariaLabel="Segment següent"
+        (clicked)="navigateToSegment(ws.nextSegmentId())"
       >
         <lucide-icon [img]="ChevronRight" [size]="18" aria-hidden="true" />
-      </button>
+      </lib-button>
 
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm btn-square"
-        (click)="helpModal().open()"
-        aria-label="Ajuda de l'assignació"
+      <lib-button
+        variant="ghost"
+        size="sm"
+        shape="square"
+        ariaLabel="Ajuda de l'assignació"
         title="Ajuda"
+        (clicked)="helpModal().open()"
       >
         <lucide-icon [img]="CircleQuestionMark" [size]="18" aria-hidden="true" />
-      </button>
+      </lib-button>
     </div>
+
+    <!-- Import pinya / reset snapshot — pinyes tab only, pushed to the far right -->
+    @if (activeTab() === 'pinyes') {
+      <div class="flex items-center gap-1 ml-auto shrink-0">
+        @if (resetCandidates().length > 0) {
+          <lib-button
+            variant="error"
+            outline
+            size="xs"
+            [disabled]="ws.isLocked()"
+            ariaLabel="Reinicialitza una figura: elimina totes les assignacions i torna a la plantilla original"
+            (clicked)="openReset()"
+          >
+            <lucide-icon [img]="Trash2" [size]="12" aria-hidden="true" />
+            Reinicialitza
+          </lib-button>
+        }
+
+        @if (importCandidates().length > 0) {
+          <lib-button
+            outline
+            size="xs"
+            [disabled]="ws.isLocked()"
+            ariaLabel="Importa les assignacions d'una pinya anterior"
+            (clicked)="openImport()"
+          >
+            Importa pinya
+          </lib-button>
+        }
+      </div>
+    }
   </header>
+
+  <!-- Reset snapshot: figure picker (only shown when there is more than one candidate) -->
+  <lib-modal size="xs" title="Selecciona una figura" [open]="resetMenuOpen()" (closed)="resetMenuOpen.set(false)">
+    <ul class="flex flex-col gap-1" role="list">
+      @for (candidate of resetCandidates(); track candidate.instanceId) {
+        <li>
+          <lib-button variant="ghost" [fullWidth]="true" (clicked)="chooseResetFigure(candidate.instanceId)">
+            {{ candidate.label }}
+          </lib-button>
+        </li>
+      }
+    </ul>
+  </lib-modal>
+
+  <!-- Import pinya: figure picker (only shown when there is more than one candidate) -->
+  <lib-modal size="xs" title="Selecciona una figura" [open]="importMenuOpen()" (closed)="importMenuOpen.set(false)">
+    <ul class="flex flex-col gap-1" role="list">
+      @for (candidate of importCandidates(); track candidate.instanceId) {
+        <li>
+          <lib-button variant="ghost" [fullWidth]="true" (clicked)="chooseImportFigure(candidate.instanceId)">
+            {{ candidate.label }}
+          </lib-button>
+        </li>
+      }
+    </ul>
+  </lib-modal>
 
   <app-segment-conflict-panel (placementSelected)="onCrossTabSelect($event)" />
 
@@ -104,3 +158,39 @@
 </div>
 
 <app-template-editor-help-modal [autoShow]="false" />
+
+<!-- Import modal -->
+@if (importTarget(); as target) {
+  <app-import-pinya-modal
+    [figureTemplateId]="target.figureTemplateId"
+    [currentInstanceId]="target.instanceId"
+    [open]="true"
+    (importCompleted)="onImportCompleted($event)"
+    (closed)="onImportClosed()"
+  />
+}
+
+<!-- Reset confirmation modal -->
+<lib-modal
+  size="sm"
+  [title]="'Reinicialitza ' + (resetTargetInstance()?.label ?? '')"
+  [open]="!!resetTarget()"
+  [dismissible]="!resetting()"
+  (closed)="cancelReset()"
+>
+  <p class="text-sm text-base-content/70">
+    Esta acció eliminarà
+    <strong class="text-error">{{ resetTargetAssignedCount() }} assignacions</strong>
+    i tornarà la figura a la plantilla original.
+    Les persones assignades quedaran lliures.
+  </p>
+  <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" [disabled]="resetting()" (clicked)="cancelReset()">
+      Cancel·la
+    </lib-button>
+    <lib-button variant="error" size="sm" [loading]="resetting()" (clicked)="confirmReset()">
+      Elimina-ho tot
+    </lib-button>
+  </div>
+</lib-modal>

@@ -22,7 +22,7 @@ import {
 } from '@muixer/shared';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount, CreateTagDto, UpdateTagDto } from '../../models/tag.model';
-import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent, ToastService, buildCategoricalHexPresets } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent, TextareaComponent, ToastService, buildCategoricalHexPresets } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 
 export interface PresetOption {
@@ -44,7 +44,7 @@ const DEFAULT_COLOR = '#6366f1';
   selector: 'app-tag-form-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, BadgeComponent, ButtonComponent, ColorPickerComponent, InputComponent, ModalComponent, SelectComponent],
+  imports: [ReactiveFormsModule, BadgeComponent, ButtonComponent, ColorPickerComponent, InputComponent, ModalComponent, SelectComponent, TextareaComponent],
   templateUrl: './tag-form-modal.component.html',
 })
 export class TagFormModalComponent {

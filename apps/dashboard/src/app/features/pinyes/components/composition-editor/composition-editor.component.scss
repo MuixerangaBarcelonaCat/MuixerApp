@@ -1,0 +1,13 @@
+// Same layout as the figure template editor's own top bar (template-editor.component.scss) —
+// kept in sync intentionally so both editors read as one family.
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid oklch(var(--b2));
+  background: oklch(var(--b1));
+  min-height: 52px;
+  flex-shrink: 0;
+  gap: 1rem;
+}

@@ -274,8 +274,14 @@ export class EventSegmentService {
   private async loadTotalCordons(templateIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>();
     if (templateIds.length === 0) return map;
+    // Highest rengla position actually used by a PINYA node (cordo-obert exempt), matching
+    // computeMaxCordons() on the frontend — not a count of "rengles" rows, which is the
+    // template's rengla *catalog* and can differ from how many of them the figure's nodes reach.
     const rows: { templateId: string; total: string }[] = await this.dataSource.query(
-      `SELECT "templateId", COUNT(*) as total FROM rengles WHERE "templateId" = ANY($1) GROUP BY "templateId"`,
+      `SELECT "templateId", MAX("renglaPosition") as total FROM figure_nodes
+       WHERE "templateId" = ANY($1) AND zone = 'PINYA' AND "positionType" IS DISTINCT FROM 'cordo-obert'
+         AND "renglaPosition" IS NOT NULL
+       GROUP BY "templateId"`,
       [templateIds],
     );
     for (const row of rows) map.set(row.templateId, parseInt(row.total, 10));

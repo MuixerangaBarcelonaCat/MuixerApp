@@ -267,15 +267,9 @@
               </lib-form-field>
 
               <div class="grid grid-cols-3 gap-3">
-                <lib-form-field label="Actiu" size="xs">
-                  <input type="checkbox" class="toggle toggle-success" formControlName="isActive" />
-                </lib-form-field>
-                <lib-form-field label="Membre" size="xs">
-                  <input type="checkbox" class="toggle toggle-secondary" formControlName="isMember" />
-                </lib-form-field>
-                <lib-form-field label="Menor de 16" size="xs">
-                  <input type="checkbox" class="toggle toggle-info" formControlName="isXicalla" />
-                </lib-form-field>
+                <lib-checkbox size="xs" formControlName="isActive"><span class="text-xs">Actiu</span></lib-checkbox>
+                <lib-checkbox size="xs" formControlName="isMember"><span class="text-xs">Membre</span></lib-checkbox>
+                <lib-checkbox size="xs" formControlName="isXicalla"><span class="text-xs">Menor de 16</span></lib-checkbox>
               </div>
 
               <lib-select label="Disponibilitat" size="xs" formControlName="availability">
@@ -300,8 +294,14 @@
                     (valueChange)="onNotesEmojiChange($event)"
                   />
                 </div>
-                <textarea id="notes-textarea" class="textarea textarea-bordered textarea-xs w-full"
-                          formControlName="notes" placeholder="Observacions tècniques..." rows="4"></textarea>
+                <lib-textarea
+                  size="xs"
+                  id="notes-textarea"
+                  ariaLabel="Observacions tècniques"
+                  formControlName="notes"
+                  placeholder="Observacions tècniques..."
+                  [rows]="4"
+                />
               </lib-form-field>
 
             </div>

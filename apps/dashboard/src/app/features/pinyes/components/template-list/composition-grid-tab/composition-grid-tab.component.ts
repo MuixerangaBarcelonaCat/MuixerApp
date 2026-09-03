@@ -1,21 +1,33 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LucideAngularModule } from 'lucide-angular';
-import { ICON_COMPOSITION } from '../../../../../shared/constants/domain-icons';
-import { EmptyStateComponent } from '../../../../../shared/components/data/empty-state/empty-state.component';
+import { LucideAngularModule, Search } from 'lucide-angular';
+import { DOMAIN_ICONS } from '../../../../../shared/constants/domain-icons';
+import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, ModalComponent, EmptyStateComponent } from '@muixer/ui';
 import { CompositionService } from '../../../services/composition.service';
 import { CompositionFilterParams, CompositionListItem } from '../../../models/composition.model';
+import { TemplatePreviewDrawingComponent } from '../../template-preview-drawing/template-preview-drawing.component';
 
 @Component({
   selector: 'app-composition-grid-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, EmptyStateComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    ButtonComponent,
+    BadgeComponent,
+    CardComponent,
+    InputComponent,
+    ModalComponent,
+    EmptyStateComponent,
+    TemplatePreviewDrawingComponent,
+  ],
   templateUrl: './composition-grid-tab.component.html',
 })
 export class CompositionGridTabComponent implements OnInit {
-  readonly ICON_COMPOSITION = ICON_COMPOSITION;
+  readonly DOMAIN_ICONS = DOMAIN_ICONS;
+  readonly SearchIcon = Search;
 
   private readonly compositionService = inject(CompositionService);
   private readonly router = inject(Router);
@@ -34,6 +46,9 @@ export class CompositionGridTabComponent implements OnInit {
   duplicatingId = signal<string | null>(null);
 
   readonly totalPages = computed(() => Math.ceil(this.total() / this.limit()));
+  readonly confirmDeleteComposition = computed(
+    () => this.compositions().find((c) => c.id === this.confirmDeleteId()) ?? null,
+  );
 
   ngOnInit(): void {
     this.loadCompositions();
@@ -58,10 +73,6 @@ export class CompositionGridTabComponent implements OnInit {
     this.router.navigate(['/pinyes/compositions/new']);
   }
 
-  navigateToEdit(id: string): void {
-    this.router.navigate(['/pinyes/compositions', id, 'edit']);
-  }
-
   requestDelete(id: string): void {
     this.confirmDeleteId.set(id);
   }
@@ -71,14 +82,17 @@ export class CompositionGridTabComponent implements OnInit {
   }
 
   confirmDelete(id: string): void {
-    this.confirmDeleteId.set(null);
     this.deletingId.set(id);
     this.compositionService.remove(id).subscribe({
       next: () => {
         this.deletingId.set(null);
+        this.confirmDeleteId.set(null);
         this.loadCompositions();
       },
-      error: () => this.deletingId.set(null),
+      error: () => {
+        this.deletingId.set(null);
+        this.confirmDeleteId.set(null);
+      },
     });
   }
 
@@ -91,11 +105,6 @@ export class CompositionGridTabComponent implements OnInit {
       },
       error: () => this.duplicatingId.set(null),
     });
-  }
-
-  formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   private loadCompositions(): void {

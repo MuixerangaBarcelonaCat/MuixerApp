@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -109,6 +110,15 @@ export class NodeAssignmentController {
     @Body() dto: UpdateInstanceCordonsDto,
   ) {
     return this.assignmentService.updateCordons(instanceId, dto);
+  }
+
+  @ApiOperation({ summary: 'Preview how many assignments a cordons reduction would remove, without applying it' })
+  @Get('figure-instances/:instanceId/cordons/impact')
+  async previewCordonsImpact(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Query('numberOfCordons', ParseIntPipe) numberOfCordons: number,
+  ) {
+    return { affectedCount: await this.assignmentService.previewCordonsReduction(instanceId, numberOfCordons) };
   }
 
   @ApiOperation({ summary: 'Reset snapshot: remove all assignments and instance nodes, revert to live template' })

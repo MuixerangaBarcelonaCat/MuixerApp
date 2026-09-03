@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { LucideAngularModule, type LucideIconData } from 'lucide-angular';
+import { ButtonComponent } from '../button/button.component';
 
 @Component({
   selector: 'lib-empty-state',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent],
   templateUrl: './empty-state.component.html',
   styleUrls: ['./empty-state.component.scss'],
 })

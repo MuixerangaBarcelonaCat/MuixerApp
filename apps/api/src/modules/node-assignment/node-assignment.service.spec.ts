@@ -3123,9 +3123,10 @@ describe('NodeAssignmentService', () => {
       mockAssignmentRepo.find.mockResolvedValue([hiddenAssignment]);
       mockAssignmentRepo.remove.mockResolvedValue({});
 
-      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+      const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
 
       expect(mockAssignmentRepo.remove).toHaveBeenCalledWith([hiddenAssignment]);
+      expect(result.removedAssignments).toBe(1);
     });
 
     it('keeps assignments on cordo-obert PINYA nodes even beyond the new numberOfCordons', async () => {
@@ -3172,10 +3173,11 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.save.mockResolvedValue({});
       mockInstanceNodeRepo.find.mockResolvedValue([]);
 
-      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+      const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
 
       expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
       expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+      expect(result.removedAssignments).toBe(0);
     });
 
     it('saves cordonsObertsEnabled and returns it', async () => {
@@ -3228,6 +3230,46 @@ describe('NodeAssignmentService', () => {
 
       expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
       expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('previewCordonsReduction', () => {
+    it('counts assignments that would be removed, without removing them', async () => {
+      const hiddenNode = makeInstanceNode({ id: 'inode-hidden', renglaId: 'r1', renglaPosition: 2 });
+      const keptNode = makeInstanceNode({ id: 'inode-kept', renglaId: 'r1', renglaPosition: 1 });
+      mockInstanceNodeRepo.find.mockResolvedValue([hiddenNode, keptNode]);
+      mockAssignmentRepo.count.mockResolvedValue(3);
+
+      const result = await service.previewCordonsReduction(INSTANCE_ID, 1);
+
+      expect(mockAssignmentRepo.count).toHaveBeenCalledWith({
+        where: { figureInstance: { id: INSTANCE_ID }, instanceNode: { id: In(['inode-hidden']) } },
+      });
+      expect(result).toBe(3);
+    });
+
+    it('returns 0 without querying assignments when nothing falls outside the new count', async () => {
+      mockInstanceNodeRepo.find.mockResolvedValue([]);
+
+      const result = await service.previewCordonsReduction(INSTANCE_ID, 1);
+
+      expect(mockAssignmentRepo.count).not.toHaveBeenCalled();
+      expect(result).toBe(0);
+    });
+
+    it('keeps cordo-obert PINYA nodes out of the count', async () => {
+      const cordoObertNode = makeInstanceNode({
+        id: 'inode-co',
+        renglaId: 'r1',
+        renglaPosition: 2,
+        positionType: 'cordo-obert',
+      });
+      mockInstanceNodeRepo.find.mockResolvedValue([cordoObertNode]);
+
+      const result = await service.previewCordonsReduction(INSTANCE_ID, 1);
+
+      expect(mockAssignmentRepo.count).not.toHaveBeenCalled();
+      expect(result).toBe(0);
     });
   });
 });

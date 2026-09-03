@@ -1,5 +1,16 @@
 <lib-form-field [label]="label()" [hint]="hint()" [errorText]="errorText()" [required]="required()" [size]="size()" [id]="selectId()">
-  <select
+  <div class="relative">
+    @if (!multiple() && swatchColor()) {
+      <span
+        class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 border border-black/10"
+        [class.rounded-full]="swatchShape() === 'circle'"
+        [class.rounded-sm]="swatchShape() === 'square'"
+        [style.backgroundColor]="swatchColor()"
+        data-testid="lib-select-swatch"
+        aria-hidden="true"
+      ></span>
+    }
+    <select
     #selectRef
     [id]="selectId()"
     class="min-h-6"
@@ -16,6 +27,7 @@
   >
     <ng-content />
   </select>
+  </div>
 
   @if (multiple()) {
     <div class="dropdown w-full" data-testid="lib-select-multi">

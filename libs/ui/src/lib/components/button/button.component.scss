@@ -164,13 +164,23 @@ $daisy-content-var: (
 // one thing every other disabled treatment in this file explicitly avoids (transparent fill,
 // muted text only). Neutralize that for plain disabled (not just the loading case below), reusing
 // neutral's precomputed disabled tone since ghost has no role of its own to draw one from.
+//
+// Deliberately NOT the dashed-outline treatment every other role gets below: that recipe works
+// there by *replacing a fill* with a lighter unfilled outline — a net decrease in visual weight.
+// Ghost starts already at zero weight (no fill, no border), so adding a border, dashed or not,
+// would be a net *increase* — the opposite of "receding." A plain opacity fade on top of the
+// muted color keeps ghost's shape as exactly nothing and just recedes further; scoped to
+// .btn-ghost:disabled only, not the shared --ds-neutral-disabled token itself, so it doesn't
+// wash out that token's other consumers.
 .btn-ghost:disabled {
   background-color: transparent !important;
   color: var(--ds-neutral-disabled);
+  opacity: 0.4;
 }
 
 .btn-ghost.lib-btn-loading:disabled {
   background-color: transparent;
   border-color: transparent;
   color: currentColor;
+  opacity: 1;
 }

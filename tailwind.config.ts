@@ -20,12 +20,6 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        conflict: {
-          DEFAULT: '#e11d48',
-          content: '#ffffff',
-        },
-      },
       fontFamily: {
         sans: [...FONT_FAMILY.sans],
         serif: [...FONT_FAMILY.serif],

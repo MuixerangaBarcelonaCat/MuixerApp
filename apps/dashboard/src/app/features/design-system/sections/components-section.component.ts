@@ -9,6 +9,8 @@ import {
   FormFieldComponent,
   InputComponent,
   SelectComponent,
+  CheckboxComponent,
+  TextareaComponent,
   ModalComponent,
   TabsComponent,
   ToastContainerComponent,
@@ -17,12 +19,14 @@ import {
   type ButtonVariant,
   type BadgeVariant,
   type CardTone,
+  type CheckboxVariant,
   type TabDef,
 } from '@muixer/ui';
 
 const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'accent', 'neutral', 'ghost', 'info', 'success', 'warning', 'error'];
 const BADGE_VARIANTS: BadgeVariant[] = ['primary', 'secondary', 'accent', 'neutral', 'ghost', 'info', 'success', 'warning', 'error'];
 const CARD_TONES: CardTone[] = ['primary', 'secondary', 'accent', 'neutral', 'info', 'success', 'warning', 'error'];
+const CHECKBOX_VARIANTS: CheckboxVariant[] = ['neutral', 'primary', 'secondary', 'accent', 'success', 'warning', 'info', 'error'];
 
 interface DemoTag {
   id: string;
@@ -56,6 +60,8 @@ const DEMO_TABS: TabDef[] = [
     FormFieldComponent,
     InputComponent,
     SelectComponent,
+    CheckboxComponent,
+    TextareaComponent,
     ModalComponent,
     TabsComponent,
     ToastContainerComponent,
@@ -85,6 +91,12 @@ export class ComponentsSectionComponent {
   protected readonly demoTags = DEMO_TAGS;
   protected readonly selectedTagIds = signal<string[]>(['vent']);
   protected readonly selectedTagIdsMulti = signal<string[]>(['vent']);
+
+  protected readonly checkboxVariants = CHECKBOX_VARIANTS;
+  protected readonly checkboxDemo = signal(true);
+
+  protected readonly textareaDemo = signal('');
+  protected readonly textareaResizeDemo = signal('Aquest camp no es pot redimensionar.');
 
   protected toggleDemoTag(id: string): void {
     this.selectedTagIds.update((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]));

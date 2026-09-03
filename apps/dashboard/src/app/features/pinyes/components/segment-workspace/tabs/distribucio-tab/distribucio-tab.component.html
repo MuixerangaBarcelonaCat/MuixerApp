@@ -20,15 +20,20 @@
       (troncMoved)="onTroncMoved($event)"
     />
 
-    <button
-      type="button"
-      class="btn btn-sm btn-outline btn-error gap-1.5 absolute bottom-3 right-3 shadow"
-      (click)="onResetDistribution()"
-      aria-label="Esborra la distribució i torna al disseny automàtic"
-    >
-      <lucide-icon name="RotateCcw" [size]="15" aria-hidden="true" />
-     Optimitza distribució
-    </button>
+    <!-- Positioning goes on this wrapper, not <lib-button> itself: its display:contents host
+         renders no box of its own, so a layout class placed there is inert. -->
+    <span class="absolute bottom-3 right-3 shadow-raised rounded-lg">
+      <lib-button
+        variant="error"
+        outline
+        size="sm"
+        ariaLabel="Esborra la distribució i torna al disseny automàtic"
+        (clicked)="onResetDistribution()"
+      >
+        <lucide-icon name="RotateCcw" [size]="15" aria-hidden="true" />
+        Optimitza distribució
+      </lib-button>
+    </span>
   </div>
 
   <!-- Properties panel -->
@@ -50,53 +55,33 @@
 </div>
 
 <!-- Cordons reduction confirmation modal -->
-@if (pendingCordonsChange(); as pending) {
-  <dialog
-    class="modal modal-open"
-    role="alertdialog"
-    aria-labelledby="cordons-modal-title"
-    aria-describedby="cordons-modal-desc"
-    aria-modal="true"
-  >
-    <div class="modal-box max-w-sm">
-      <h3 id="cordons-modal-title" class="text-lg font-bold mb-3 text-error">Redueix els cordons</h3>
-      <p id="cordons-modal-desc" class="text-sm text-base-content/70">
-        Esta acció eliminarà
-        <strong class="text-error">{{ pending.affectedCount }} assignacions</strong>
-        dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
-      </p>
-      <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelCordonsChange()">Cancel·la</button>
-        <button type="button" class="btn btn-error btn-sm" (click)="confirmCordonsChange()">Elimina-les</button>
-      </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="cancelCordonsChange()" aria-label="Tanca"></button>
-  </dialog>
-}
+<lib-modal [open]="!!pendingCordonsChange()" title="Redueix els cordons" (closed)="cancelCordonsChange()">
+  @if (pendingCordonsChange(); as pending) {
+    <p class="text-sm text-base-content/70">
+      Esta acció eliminarà
+      <strong class="text-error">{{ pending.affectedCount }} assignacions</strong>
+      dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
+    </p>
+    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+  }
+  <div modalFooter class="flex justify-end gap-2 w-full">
+    <lib-button variant="ghost" size="sm" (clicked)="cancelCordonsChange()">Cancel·la</lib-button>
+    <lib-button variant="error" size="sm" (clicked)="confirmCordonsChange()">Elimina-les</lib-button>
+  </div>
+</lib-modal>
 
 <!-- Cordons oberts disable confirmation modal -->
-@if (pendingCordonsObertsChange(); as pendingOberts) {
-  <dialog
-    class="modal modal-open"
-    role="alertdialog"
-    aria-labelledby="cordons-oberts-modal-title"
-    aria-describedby="cordons-oberts-modal-desc"
-    aria-modal="true"
-  >
-    <div class="modal-box max-w-sm">
-      <h3 id="cordons-oberts-modal-title" class="text-lg font-bold mb-3 text-error">Desactiva els cordons oberts</h3>
-      <p id="cordons-oberts-modal-desc" class="text-sm text-base-content/70">
-        Esta acció eliminarà
-        <strong class="text-error">{{ pendingOberts.affectedCount }} assignacions</strong>
-        dels cordons oberts. Les persones assignades quedaran lliures.
-      </p>
-      <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelCordonsObertsChange()">Cancel·la</button>
-        <button type="button" class="btn btn-error btn-sm" (click)="confirmCordonsObertsChange()">Elimina-les</button>
-      </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="cancelCordonsObertsChange()" aria-label="Tanca"></button>
-  </dialog>
-}
+<lib-modal [open]="!!pendingCordonsObertsChange()" title="Desactiva els cordons oberts" (closed)="cancelCordonsObertsChange()">
+  @if (pendingCordonsObertsChange(); as pendingOberts) {
+    <p class="text-sm text-base-content/70">
+      Esta acció eliminarà
+      <strong class="text-error">{{ pendingOberts.affectedCount }} assignacions</strong>
+      dels cordons oberts. Les persones assignades quedaran lliures.
+    </p>
+    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+  }
+  <div modalFooter class="flex justify-end gap-2 w-full">
+    <lib-button variant="ghost" size="sm" (clicked)="cancelCordonsObertsChange()">Cancel·la</lib-button>
+    <lib-button variant="error" size="sm" (clicked)="confirmCordonsObertsChange()">Elimina-les</lib-button>
+  </div>
+</lib-modal>

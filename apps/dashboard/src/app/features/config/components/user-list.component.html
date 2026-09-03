@@ -44,30 +44,22 @@
     <!-- Actius -->
     <div class="w-fit">
       <lib-form-field label="Estat">
-        <label class="flex items-center gap-2 cursor-pointer min-h-6">
-          <input
-            type="checkbox"
-            class="checkbox checkbox-xs checkbox-primary"
-            [checked]="activeFilters().isActive === true"
-            (change)="toggleActiusFilter()"
-          />
-          <span class="text-sm">Sols actius</span>
-        </label>
+        <lib-checkbox
+          size="xs"
+          [ngModel]="activeFilters().isActive === true"
+          (ngModelChange)="toggleActiusFilter()"
+        ><span class="text-sm">Sols actius</span></lib-checkbox>
       </lib-form-field>
     </div>
 
     <!-- Amb accés -->
     <div class="w-fit">
       <lib-form-field label="Accés">
-        <label class="flex items-center gap-2 cursor-pointer min-h-6">
-          <input
-            type="checkbox"
-            class="checkbox checkbox-xs checkbox-primary"
-            [checked]="activeFilters().hasCredentials === true"
-            (change)="toggleHasCredentialsFilter()"
-          />
-          <span class="text-sm">Amb accés</span>
-        </label>
+        <lib-checkbox
+          size="xs"
+          [ngModel]="activeFilters().hasCredentials === true"
+          (ngModelChange)="toggleHasCredentialsFilter()"
+        ><span class="text-sm">Amb accés</span></lib-checkbox>
       </lib-form-field>
     </div>
 

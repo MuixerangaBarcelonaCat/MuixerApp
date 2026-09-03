@@ -20,7 +20,7 @@ export class LegalController {
 
   @Get('documents')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Llistar tots els documents legals i les seves versions' })
+  @ApiOperation({ summary: 'Llistar tots els documents legals i les seues versions' })
   @ApiResponse({ status: 200, description: 'Llista de documents legals.' })
   findAll() {
     return this.legalService.findAll();

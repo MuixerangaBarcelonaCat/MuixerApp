@@ -1,20 +1,17 @@
 import { FigureTemplateListItem } from '@muixer/pinyes-render';
 import {
-  AfterViewInit,
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  ElementRef,
-  inject,
-  input,
-  OnInit,
-  output,
-  signal,
-  ViewChild,
-} from '@angular/core';
+  BadgeComponent,
+  ButtonComponent,
+  EmptyStateComponent,
+  InputComponent,
+  ModalComponent,
+  TabsComponent,
+  type TabDef,
+} from '@muixer/ui';
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
-import { ICON_TEMPLATE, ICON_COMPOSITION } from '../../../../shared/constants/domain-icons';
+import { LucideAngularModule, Search } from 'lucide-angular';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CompositionService } from '../../services/composition.service';
 import { CompositionListItem } from '../../models/composition.model';
@@ -35,16 +32,28 @@ export interface PickerSelectionItem {
   selector: 'app-figure-picker-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    ModalComponent,
+    TabsComponent,
+    InputComponent,
+    ButtonComponent,
+    BadgeComponent,
+    EmptyStateComponent,
+  ],
   templateUrl: './figure-picker-modal.component.html',
 })
-export class FigurePickerModalComponent implements OnInit, AfterViewInit {
-  readonly ICON_TEMPLATE = ICON_TEMPLATE;
-  readonly ICON_COMPOSITION = ICON_COMPOSITION;
+export class FigurePickerModalComponent implements OnInit {
+  readonly SearchIcon = Search;
+  readonly DOMAIN_ICONS = DOMAIN_ICONS;
+  readonly tabDefs: TabDef[] = [
+    { id: 'figures', label: 'Figures', icon: DOMAIN_ICONS.TEMPLATE },
+    { id: 'composicions', label: 'Composicions', icon: DOMAIN_ICONS.COMPOSITION },
+  ];
+
   open = input.required<boolean>();
   segmentId = input.required<string>();
-
-  @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
 
   confirmed = output<InstanceSelection[]>();
   compositionSelected = output<{ compositionId: string; compositionName: string }>();
@@ -69,19 +78,19 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
   readonly canApplyComposition = computed(() => this.selectedComposition() !== null);
 
   readonly filteredFigures = computed<FigureTemplateListItem[]>(() => {
-    const q = this.search().toLowerCase();
+    const q = this.normalizeForMatch(this.search());
     const all = this.figures();
     if (!q) return all;
-    return all.filter((f) => f.name.toLowerCase().includes(q));
+    return all.filter((f) => this.normalizeForMatch(f.name).includes(q));
   });
 
   readonly hasAnyFigure = computed(() => this.filteredFigures().length > 0);
 
   readonly filteredCompositions = computed<CompositionListItem[]>(() => {
-    const q = this.search().toLowerCase();
+    const q = this.normalizeForMatch(this.search());
     const all = this.compositions();
     if (!q) return all;
-    return all.filter((c) => c.name.toLowerCase().includes(q));
+    return all.filter((c) => this.normalizeForMatch(c.name).includes(q));
   });
 
   readonly hasAnyComposition = computed(() => this.filteredCompositions().length > 0);
@@ -89,10 +98,6 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
   ngOnInit() {
     this.loadFigures();
     this.loadCompositions();
-  }
-
-  ngAfterViewInit() {
-    this.searchInputRef?.nativeElement.focus();
   }
 
   private loadFigures() {
@@ -119,6 +124,18 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
 
   selectComposition(composition: CompositionListItem): void {
     this.selectedComposition.set(composition);
+  }
+
+  isCompositionSelected(composition: CompositionListItem): boolean {
+    return this.selectedComposition()?.id === composition.id;
+  }
+
+  private normalizeForMatch(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
   }
 
   applyComposition(): void {
@@ -162,16 +179,10 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
     this.selections.set([]);
   }
 
-  setTab(tab: PickerTab) {
-    this.activeTab.set(tab);
+  setTab(tab: string) {
+    this.activeTab.set(tab as PickerTab);
     this.search.set('');
     this.selectedComposition.set(null);
-  }
-
-  onBackdropClick(event: MouseEvent) {
-    if (event.target === event.currentTarget) {
-      this.close();
-    }
   }
 
   close() {

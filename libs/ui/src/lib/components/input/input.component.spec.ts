@@ -65,6 +65,18 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('date');
   });
 
+  describe('maxLength', () => {
+    it('sets no maxlength attribute by default', () => {
+      expect(nativeInput().hasAttribute('maxlength')).toBe(false);
+    });
+
+    it('forwards maxLength to the native input', () => {
+      fixture.componentRef.setInput('maxLength', 6);
+      fixture.detectChanges();
+      expect(nativeInput().maxLength).toBe(6);
+    });
+  });
+
   describe('min/max — numeric and date range constraints', () => {
     it('sets no min/max attribute by default', () => {
       expect(nativeInput().hasAttribute('min')).toBe(false);
@@ -270,6 +282,21 @@ describe('InputComponent', () => {
     it('calls the registered onTouched callback on blur', () => {
       const spy = jest.fn();
       fixture.componentInstance.registerOnTouched(spy);
+
+      nativeInput().dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('blurred', () => {
+    // Live-preview-then-commit-on-blur callers (e.g. the ad-hoc node label) need to know the
+    // blur actually happened; (blur) placed directly on <lib-input> wouldn't fire — native
+    // `blur` doesn't bubble, so it never reaches the host from the inner <input>.
+    it('emits blurred when the native input loses focus', () => {
+      const spy = jest.fn();
+      fixture.componentInstance.blurred.subscribe(spy);
 
       nativeInput().dispatchEvent(new Event('blur'));
       fixture.detectChanges();

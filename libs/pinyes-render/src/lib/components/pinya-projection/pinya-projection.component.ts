@@ -521,21 +521,28 @@ export class PinyaProjectionComponent {
         centerY = (mnY + mxY) / 2;
       }
 
-      return this.getInstanceProjectionNodes(inst).map((node): OutlineBox => {
-        const relX = node.x - centerX;
-        const relY = node.y - centerY;
-        const rotX = cosA * relX - sinA * relY;
-        const rotY = sinA * relX + cosA * relY;
-        return {
-          x: (projX + rotX) * distScale + offsetX,
-          y: (projY + rotY) * distScale + offsetY,
-          width: node.width * distScale,
-          height: node.height * distScale,
-          rotation: (inst.projectionAngle ?? 0) + (node.rotation ?? 0),
-          color,
-          shape: (node as { shape?: string }).shape ?? 'RECTANGLE',
-        };
-      });
+      // Decoration nodes are excluded: this glow is the figure's own per-instance color, applied
+      // uniformly to every occupying node's silhouette — a decoration node keeps its own
+      // independent color (including "sense fons"/null, rendered as a transparent fill), and
+      // painting the figure's color behind it made a colorless decoration look tinted with
+      // whichever figure it happened to sit on.
+      return this.getInstanceProjectionNodes(inst)
+        .filter((node) => node.zone !== FigureZone.DECORATION)
+        .map((node): OutlineBox => {
+          const relX = node.x - centerX;
+          const relY = node.y - centerY;
+          const rotX = cosA * relX - sinA * relY;
+          const rotY = sinA * relX + cosA * relY;
+          return {
+            x: (projX + rotX) * distScale + offsetX,
+            y: (projY + rotY) * distScale + offsetY,
+            width: node.width * distScale,
+            height: node.height * distScale,
+            rotation: (inst.projectionAngle ?? 0) + (node.rotation ?? 0),
+            color,
+            shape: (node as { shape?: string }).shape ?? 'RECTANGLE',
+          };
+        });
     });
   });
 

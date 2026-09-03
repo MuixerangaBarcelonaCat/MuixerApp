@@ -9,7 +9,10 @@ describe('ModalComponent', () => {
 
   const dialogEl = (): HTMLDialogElement => fixture.debugElement.query(By.css('dialog')).nativeElement;
   const boxEl = () => fixture.debugElement.query(By.css('.modal-box')).nativeElement;
-  const closeButton = () => fixture.debugElement.query(By.css('[data-testid="lib-modal-close"]'));
+  // The close button is a lib-button (display:contents host) — querying the wrapper alone would
+  // find a non-interactive node whose .click() doesn't reach the real inner <button>, so this
+  // targets the actual native button that receives clicks.
+  const closeButton = () => fixture.debugElement.query(By.css('[data-testid="lib-modal-close"] button'));
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({

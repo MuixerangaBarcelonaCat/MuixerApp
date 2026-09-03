@@ -42,7 +42,7 @@
   <label class="form-control w-full" for="pdf-gender">
     <div class="label pb-1"><span class="label-text font-medium">Gènere</span></div>
     <select id="pdf-gender" class="select select-bordered text-sm h-11" formControlName="gender">
-      <option value="" disabled>Selecciona una opció</option>
+      <option value="" disabled>Seleccioneu una opció</option>
       @for (gender of genders; track gender) {
         <option [value]="gender">{{ genderLabels[gender] }}</option>
       }

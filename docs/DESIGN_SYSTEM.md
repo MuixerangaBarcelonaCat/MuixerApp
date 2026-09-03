@@ -135,19 +135,23 @@ Seven components shipped so far, all in `libs/ui/src/lib/components/`, none roll
 | `size` | `xs\|sm\|md\|lg` | `md` | |
 | `shape` | `default\|square\|circle` | `default` | Dev-mode warning if non-default with no `ariaLabel` |
 | `outline` | `boolean` | `false` | Combines with `variant`, matching DaisyUI's own `btn-warning btn-outline` pattern |
+| `ghost` | `boolean` | `false` | Renders `btn-ghost` (no fill, no border) while keeping `variant`'s role colour as the text/icon colour — a lighter-weight alternative to `outline` for a coloured action that shouldn't carry a box (e.g. a destructive icon button in a dense card row). Takes precedence over `outline`; ignored on a `joinItem` |
 | `fullWidth` | `boolean` | `false` | Applies `w-full` to the rendered `<button>`/`<a>` itself — a class on the `<lib-button>` tag is inert (host is `display: contents`, see Component conventions). Real pattern: every existing raw-`<button>` form-submit footer in the app (~11 files) sizes itself this way |
 | `disabled`, `loading`, `type`, `ariaLabel` | — | — | `loading` auto-disables (native `disabled`, so a second click/Enter-triggered resubmit can't slip through) and shows a sized spinner — but reads as *busy*, not *disabled*: fill/border/text stay at their resting-state formula (solid or outline alike), no dashed "sketched" look and no grey-out. A real `disabled` (not loading) still gets that treatment |
 | `ariaExpanded`, `ariaPressed` | `boolean` | — | For a real toggle button (a visibility switch, a collapse/expand disclosure) — unset by default, so the attribute is simply absent rather than `"null"`. Distinct from `active`: that one is `lib-button-group`'s purely visual "which joinItem segment is selected" marker, not a toggle-button ARIA state |
+| `ariaControls` | `string` | — | Id of the region a disclosure toggle expands/collapses (e.g. `segment-conflict-panel`'s "Mostra"/"Amaga") — pairs with `ariaExpanded` the same way a raw `<button aria-controls aria-expanded>` would |
 | `routerLink`, `href` | `string \| unknown[]`, `string` | — | Link mode, mirroring `lib-card`: `routerLink` wins over `href`, renders an `<a>` instead of `<button>`. **Throws** if combined with `disabled`/`loading` — a disabled or loading link isn't a supported shape |
 | `joinItem` | `boolean` | `false` | Adds DaisyUI's `.join-item` to the button's own rendered element — for use inside `lib-button-group`, which can't add the class itself (see below) |
 | `active` | `boolean` | `false` | Marks this joinItem segment as the currently-selected one. No effect without `joinItem`. Deliberately NOT DaisyUI's own `.btn-active` (a darkened fill) — nothing else in the app marks "selected" that way. Meaning depends on `outlineMode` below |
 | `outlineMode` | `boolean` | `false` | Only meaningful with `joinItem`. Swaps the segment's selected/unselected mapping: default (**fill mode**) is selected=filled, unselected=outline; `outlineMode` (**outline mode**) is selected=outline, unselected=ghost — a lighter-weight look for busier toolbars. Either mode works with any `variant` **except** `'ghost'` itself, which **throws** when combined with `joinItem` — ghost has no fill and no border, so it could never show which segment is selected |
+| `autofocus` | `boolean` | `false` | Imperative (`effect()` + `viewChild`), not the native HTML attribute — same rationale as `lib-input`/`lib-textarea`'s own `autofocus`, and for the same reason: a `<dialog>.showModal()` does honor a native `autofocus` attribute on its own, but only when it sits on the real focusable element, which a `display: contents` host can't forward down from `<lib-button autofocus>` to its inner `<button>`/`<a>`. Used by `already-assigned-dialog`'s "Moure ací" — the habitual action inside a `lib-modal` that should already have focus the instant it opens |
 
 Output: `clicked`. Content-projected. Hover lifts (`translateY` + `--ds-btn-lift-shadow`, no color change); press flattens with `EASE_SPRING` and shifts to `--ds-{role}-active`; disabled renders as a dashed, unfilled outline in `--ds-{role}-disabled`.
 
 ```html
 <lib-button variant="primary" (clicked)="save()">Desa</lib-button>
 <lib-button variant="error" outline [loading]="saving()">Elimina</lib-button>
+<lib-button variant="error" ghost shape="square" ariaLabel="Elimina"><lucide-icon name="Trash2" /></lib-button>
 <lib-button variant="warning" outline routerLink="/sync">Sincronitza tot</lib-button>
 <lib-button type="submit" variant="primary" fullWidth [disabled]="form.invalid">Inicia sessió</lib-button>
 ```
@@ -161,6 +165,7 @@ Pure layout, no shared selection state: the caller drives each button's own `act
 | Input | Type | Default |
 |-------|------|---------|
 | `vertical` | `boolean` | `false` — `join-vertical` instead of the default horizontal row |
+| `fullWidth` | `boolean` | `false` — stretches the `.join` row to fill its container (DaisyUI's `.join` is `display: inline-flex`, sized to content by default). Pair with `fullWidth` on each `joinItem` child, each wrapped in its own `flex-1 min-w-0` element — `lib-button`'s `display: contents` host can't be a flex item itself, so without that wrapper `fullWidth` has nothing to size against and every segment still claims the whole row |
 
 ```html
 <!-- fill mode (default): selected = filled, unselected = outline -->
@@ -173,6 +178,17 @@ Pure layout, no shared selection state: the caller drives each button's own `act
 <lib-button-group>
   <lib-button joinItem outlineMode variant="neutral" [active]="tab() === 'cens'" (clicked)="tab.set('cens')">Cens</lib-button>
   <lib-button joinItem outlineMode variant="neutral" [active]="tab() === 'provisionals'" (clicked)="tab.set('provisionals')">Provisionals</lib-button>
+</lib-button-group>
+
+<!-- full-width, evenly-split segments (e.g. a mode switcher in a narrow sidebar) -->
+<lib-button-group fullWidth>
+  @for (option of modeOptions; track option.value) {
+    <div class="flex-1 min-w-0">
+      <lib-button joinItem fullWidth variant="primary" [active]="mode() === option.value" (clicked)="mode.set(option.value)">
+        {{ option.label }}
+      </lib-button>
+    </div>
+  }
 </lib-button-group>
 ```
 
@@ -283,7 +299,12 @@ The label/required-marker/hint/error chrome shared by `lib-input` and `lib-selec
 | `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg`. Watch for this specifically when migrating a page whose raw markup used unmodified `.input input-bordered` (no size class, i.e. DaisyUI's implicit `md`, 48px) — swapping in `lib-input` with no `size` set silently shrinks it to `sm` (32px). Pass `size="md"` explicitly to preserve the original height (hit on the auth pages) |
 | `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically. `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types |
 | `min`, `max` | `string \| number` | — | Passed straight through to the native `min`/`max` attributes — meaningful for `type="number"`/`"date"`, browsers already validate/constrain against them |
+| `maxLength` | `number` | — | Passed straight through to the native `maxlength` attribute |
 | `autofocus` | `boolean` | `false` | Imperative (a constructor `effect()` + `viewChild` calling `.focus()`), not the native HTML `autofocus` attribute — this field is almost always toggled into existence by an `@if` (an inline rename row appearing), and the native attribute's own "focus on insertion" behavior is inconsistent across browsers for that case in a way a direct call isn't |
+
+| Output | Payload | Notes |
+|--------|---------|-------|
+| `blurred` | `void` | A real `@Output`, not just internal CVA touched-tracking (`registerOnTouched`) — some callers (the ad-hoc node label, `nodes-tab`) run live-preview-then-commit-on-blur logic that needs to know the blur actually happened. `(blur)` placed directly on `<lib-input>` wouldn't fire: the native `blur` event doesn't bubble, so it never reaches the host from the inner `<input>`. Same shape as `lib-textarea`'s own `blurred`, added at the same time for the same reason |
 
 The native `<input>` itself always carries `min-h-6` — a >=24px tap target independent of the wrapper box's own height (WI-03 parity; ported in from the one-off fix on the dashboard/PWA auth pages, now baked into every consumer).
 
@@ -294,7 +315,7 @@ Border weight and the focus-swap-in-place treatment come from the shared `_field
 <lib-input formControlName="shoulderHeight" label="Alçada espatlles (cm)" type="number" [min]="0" [max]="250" />
 ```
 
-`textarea` is still deferred (different shape, not yet audited) — stays raw markup, optionally wrapped in `lib-form-field` for a matching label.
+`textarea` has its own component — see `lib-textarea` below — sharing the same `ControlValueAccessor`/`lib-form-field` contract rather than being folded into `lib-input` itself (a multi-line control needs `rows`/`resize`, neither meaningful for a single-line input).
 
 ### `lib-select`
 
@@ -308,6 +329,16 @@ The select-flavored analogue of `lib-input` — same `ControlValueAccessor`/size
 ```
 
 The closed control has always been stylable with plain CSS — the *dropdown panel* never was, since it's browser/OS-drawn chrome. `lib-select`'s native `<select>` carries `appearance: base-select` (Chrome/Edge's "customizable select" — [Chrome Developers article](https://developer.chrome.com/blog/a-customizable-select)), styled via `::picker(select)`/`option` rules gated in `@supports (appearance: base-select)`, so the popup picks up the app's theme too. Unsupported browsers (Firefox/Safari as of writing) silently render the ordinary native picker instead — that unstyled fallback *is* the fallback, no separate code path needed. The same relaxed `<option>` content model this API brings also allows child markup (an icon, a color swatch) inside an `<option>`, not just text — used by the "tipus de posició" rich-content example on `/design-system` (not yet wired into the real template-editor picker, which still has its own hand-rolled listbox with an extra "Altre" state worth its own migration pass). The same `@supports` block also drops DaisyUI's own hand-drawn arrow (`background-image`, the pre-base-select convention for when `appearance: none` hid the native one) — base-select mode draws its own indicator, so left in place the two stacked into a double arrow; unsupported browsers still get DaisyUI's arrow same as always, since the whole block is gated.
+
+**`swatchColor`/`swatchShape`** (single mode only) — a decorative leading dot (`'circle'`, the default, or `'square'`) rendered as `lib-select`'s own overlay, independent of the projected `<option>` content above. Rich `<option>` content (an icon, a swatch) already shows inside the *open* dropdown everywhere, and inside the *closed* control too, but only in browsers supporting `appearance: base-select` — Firefox/Safari fall back to plain option text there, silently dropping it. `swatchColor` renders reliably in the closed control regardless of that support, for a field whose currently-selected color needs to stay visible either way (the template editor's "tipus de posició" picker):
+
+```html
+<lib-select label="Tipus de posició" [swatchColor]="preset.color" [swatchShape]="preset.shape === NodeShape.ELLIPSE ? 'circle' : 'square'" ...>
+  @for (preset of presets; track preset.positionType) {
+    <option [value]="preset.positionType">{{ preset.label }}</option>
+  }
+</lib-select>
+```
 
 `multiple` swaps the native `<select>` for a checkbox-list dropdown instead (`value` becomes `string[]`) — native `<select multiple>`'s ctrl/cmd-click scrolling listbox is bad UX on its own merits, unrelated to base-select support, so it's never used. The native `<select>` stays in the DOM (visually hidden) purely as the canonical projected-`<option>` source: a `MutationObserver` re-scans it whenever the caller's own template changes what it projects, and each checkbox row clones that option's child nodes (`cloneNode`, never `innerHTML` — the nodes are already-rendered DOM, so relocating them carries no injection risk) into itself, so rich content renders identically in both modes from the exact same `<option>` markup:
 
@@ -326,6 +357,57 @@ The `multiple` trigger is a plain `<button>` styled with the exact same field cl
 Both `lib-input`/`lib-select`'s label-above-field layout is unconditional — no side-by-side (label left of field on wide screens, stacked below `sm`) mode exists yet. A dense two-column edit form that wants that stays on raw markup.
 
 Both fields' box background is a flat `bg-base-100` always — an earlier ambient-contrast version (base-200, flipping to base-100 under a base-200 ancestor) was tried and reverted in favor of one consistent color everywhere.
+
+### `lib-checkbox`
+
+Same `ControlValueAccessor`/`ariaLabel`/`size` contract as `lib-input`, but the label is **content-projected** (like `lib-button`), not a string input — a real audit of the app's 25 existing checkboxes found labels ranging from a plain trailing word ("Sols actius") to a two-line title+hint block (`news-editor`'s send-push checkbox), which a plain string can't express. Deliberately just the one shape — DaisyUI's separate `.toggle` switch was considered and dropped: one control, one shape, is simpler to reason about than picking between two for every call site, and nothing in the real audit needed the switch affordance specifically:
+
+```html
+<lib-checkbox formControlName="countsForStatistics">Compta per a estadístiques</lib-checkbox>
+
+<!-- label-less — the description lives in a sibling element outside the component -->
+<lib-checkbox ariaLabel="Activar notificacions" [ngModel]="push.isSubscribed()" (ngModelChange)="toggle()" />
+
+<!-- rich label content -->
+<lib-checkbox [ngModel]="sendPush()" (ngModelChange)="sendPush.set($event)" [disabled]="!!pushSentAt()">
+  <span class="label-text font-medium">Notifica els membres</span>
+  <p class="text-xs text-base-content/50">La notificació s'enviarà quan es publique la notícia.</p>
+</lib-checkbox>
+```
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `size` | `'xs'\|'sm'\|'md'\|'lg'` | `'sm'` | Matches `lib-input`'s own default-`sm` real-usage skew |
+| `variant` | `'neutral'\|'primary'\|'secondary'\|'accent'\|'success'\|'warning'\|'info'\|'error'` | `'primary'` | `'neutral'` is DaisyUI's own unmodified `.checkbox` — a plain dark outline, not a fabricated color the way `lib-button`/`lib-badge`'s `neutral` variant is a real filled color; the other 7 are real `checkbox-{variant}` colors |
+| `ariaLabel` | `string` | — | For a label-less checkbox (no projected content) |
+| `disabled`, `required`, `id` | | | Same as `lib-input` |
+
+**Real bug this caught:** the variant→class mapping was first written as a template-literal computed (`` `checkbox-${variant}` ``) rather than a static `Record` lookup — Tailwind's content scanner can't see a dynamically-built string, so any variant whose class name doesn't appear literally elsewhere in the codebase (`secondary`/`accent`/`warning`/`info`/`error` — only `checkbox-primary`/`checkbox-success` happened to already exist as literal strings in real call sites) got silently dropped from the compiled CSS and rendered with no color at all. Fixed with the same static `Record<CheckboxVariant, string>` map every other `lib-*` component already uses (`lib-button`'s `VARIANT_CLASSES`, etc.) — see [CLAUDE.md](../CLAUDE.md)'s "Dynamic Tailwind classes must use static maps" rule, which this violated despite being written after that rule already existed.
+
+**Deliberately excluded from `lib-checkbox`:** DaisyUI's `.collapse` accordion pattern also uses a bare `<input type="checkbox">` as its structural, invisible open/close driver (`person-detail`'s Historial/Metadades sections, `column-toggle`'s own wrapper, `template-editor-help-modal`'s FAQ items) — that's a different job entirely (no visible checkbox glyph, no label, and it depends on being a literal DOM sibling of `.collapse-title`/`.collapse-content` for DaisyUI's `:checked ~` CSS to find it). Wrapping it in `lib-checkbox` would both be visually wrong (it would render a visible box+label nobody wants) and risk breaking that sibling relationship depending on where `lib-form-field`-style wrapper markup lands — left raw on purpose, not a gap.
+
+### `lib-textarea`
+
+The multi-line analogue of `lib-input` — same `ControlValueAccessor`/`label`/`hint`/`errorText`/`ariaLabel`/`size`/`id` contract via `lib-form-field`, wrapping a native `<textarea>`. A real audit of the app's 8 existing textareas found two distinct extra needs a single-line `lib-input` has no use for: a `rows` count, and turning off resizing for a few small fixed-purpose fields inside a modal (the "comodí" node label, the ad-hoc node label) — both promoted to real inputs rather than being left as raw-class escape hatches.
+
+```html
+<lib-textarea formControlName="description" label="Descripció" [rows]="3" [maxLength]="500" />
+
+<!-- fixed-size, non-resizable, inside a modal -->
+<lib-textarea [resize]="false" [rows]="3" [ngModel]="comodinLabel()" (ngModelChange)="comodinLabel.set($event)" ariaLabel="Nom del node" />
+```
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `label`, `hint`, `errorText` | `string` | — | Same slot/priority rules as `lib-input` |
+| `ariaLabel` | `string` | — | For a label-less textarea |
+| `size` | `'xs'\|'sm'\|'md'\|'lg'` | `'sm'` | Same real-usage-skew default as `lib-input` |
+| `rows` | `number` | `3` | Matches the app's own real usage — every existing textarea already used `rows="3"` bar one |
+| `resize` | `boolean` | `true` | `false` adds `resize-none`, for a field whose surrounding layout can't tolerate the user dragging it taller |
+| `maxLength`, `disabled`, `required`, `id` | | | Same as `lib-input` |
+| `autofocus` | `boolean` | `false` | Same imperative `effect()` + `viewChild` pattern as `lib-input`'s own `autofocus` — used by the "comodí" node-label dialog, which needs the field focused the instant it opens |
+
+`(blurred)` — a real `@Output`, not just the internal CVA `registerOnTouched` plumbing: the ad-hoc node label runs live-preview-then-commit-on-blur logic (`onLabelPreview` on every keystroke, `onLabelCommit` on blur) that needs an actual blur signal. `(blur)` bound directly on `<lib-textarea>` would silently never fire — the native `blur` event doesn't bubble, so it never reaches the host element from the inner `<textarea>` — hence the dedicated output.
 
 ### `lib-modal`
 

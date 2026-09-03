@@ -5,156 +5,152 @@
   [class.dpad-disabled]="disabled()"
 >
   <!-- Mode + step toggles row -->
-  <div class="flex items-center justify-between mb-2 gap-2">
+  <div class="flex items-center justify-between mb-2 gap-1">
     <!-- Mode toggle -->
-    <div class="join" role="radiogroup" aria-label="Mode del control">
-      <button
-        type="button"
-        role="radio"
-        class="join-item btn btn-xs"
-        [class.btn-primary]="mode() === 'position'"
-        [class.btn-ghost]="mode() !== 'position'"
-        [attr.aria-checked]="mode() === 'position'"
-        (click)="setMode('position')"
+    <lib-button-group>
+      <lib-button
+        size="xs"
+        variant="primary"
+        joinItem
+        [active]="mode() === 'position'"
+        [ariaPressed]="mode() === 'position'"
+        ariaLabel="Mode posició"
         title="Mode posició"
+        (clicked)="setMode('position')"
         data-testid="dpad-mode-position"
-      >Pos.</button>
-      <button
-        type="button"
-        role="radio"
-        class="join-item btn btn-xs"
-        [class.btn-primary]="mode() === 'size'"
-        [class.btn-ghost]="mode() !== 'size'"
-        [attr.aria-checked]="mode() === 'size'"
-        (click)="setMode('size')"
+      >Pos.</lib-button>
+      <lib-button
+        size="xs"
+        variant="primary"
+        joinItem
+        [active]="mode() === 'size'"
+        [ariaPressed]="mode() === 'size'"
+        ariaLabel="Mode mida"
         title="Mode mida"
+        (clicked)="setMode('size')"
         data-testid="dpad-mode-size"
-      >Mida</button>
-      <button
-        type="button"
-        role="radio"
-        class="join-item btn btn-xs"
-        [class.btn-primary]="mode() === 'rotation'"
-        [class.btn-ghost]="mode() !== 'rotation'"
-        [attr.aria-checked]="mode() === 'rotation'"
-        (click)="setMode('rotation')"
+      >Mida</lib-button>
+      <lib-button
+        size="xs"
+        variant="primary"
+        joinItem
+        [active]="mode() === 'rotation'"
+        [ariaPressed]="mode() === 'rotation'"
+        ariaLabel="Mode rotació"
         title="Mode rotació"
+        (clicked)="setMode('rotation')"
         data-testid="dpad-mode-rotation"
-      >Rot.</button>
-    </div>
+      >Rot.</lib-button>
+    </lib-button-group>
 
     <!-- Step toggle -->
-    <button
-      type="button"
-      class="btn btn-xs btn-outline"
-      (click)="toggleStep()"
-      [attr.aria-label]="'Pas de moviment: ' + stepLabel()"
-      [title]="'Canvia el pas (ara: ' + stepLabel() + ')'"
-      data-testid="dpad-step-toggle"
-    >{{ stepLabel() }}</button>
+    <div class="mr-1">
+      <lib-button
+        size="xs"
+        variant="neutral"
+        outline
+        (clicked)="toggleStep()"
+        [ariaLabel]="'Pas de moviment: ' + stepLabel()"
+        [title]="'Canvia el pas (ara: ' + stepLabel() + ')'"
+        data-testid="dpad-step-toggle"
+      >{{ stepLabel() }}</lib-button>
+    </div>
   </div>
 
+  <!-- The arrow/rotate "buttons" below are a <div> wrapping a lib-button, not a lib-button with
+       (clicked) bound directly: the press-and-hold repeat gesture needs the raw pointerdown/up/
+       cancel/leave sequence (see beginHold/endHold), which lib-button doesn't expose (only a
+       single (clicked) output wired to `click`) — a real component-API gap. Pointer events on the
+       wrapper still fire correctly since they bubble up from the real inner <button>. -->
   @if (mode() === 'rotation') {
     <!-- Rotation controls -->
     <div class="dpad-rotation" role="group" aria-label="Control de rotació">
-      <button
-        type="button"
-        class="dpad-btn"
-        [disabled]="disabled()"
-        [attr.aria-label]="rotateLabel('ccw')"
-        [title]="rotateLabel('ccw')"
+      <div
+        class="dpad-slot"
         (pointerdown)="onRotatePointerDown('ccw', $event)"
         (pointerup)="onRotatePointerUp()"
         (pointercancel)="onRotatePointerUp()"
         (pointerleave)="onRotatePointerUp()"
         data-testid="dpad-rotate-ccw"
       >
-        <lucide-icon name="RotateCcw" [size]="18" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="dpad-btn"
-        [disabled]="disabled()"
-        [attr.aria-label]="rotateLabel('cw')"
-        [title]="rotateLabel('cw')"
+        <lib-button variant="ghost" shape="square" fullWidth [disabled]="disabled()" [ariaLabel]="rotateLabel('ccw')" [title]="rotateLabel('ccw')">
+          <lucide-icon name="RotateCcw" [size]="18" aria-hidden="true" />
+        </lib-button>
+      </div>
+      <div
+        class="dpad-slot"
         (pointerdown)="onRotatePointerDown('cw', $event)"
         (pointerup)="onRotatePointerUp()"
         (pointercancel)="onRotatePointerUp()"
         (pointerleave)="onRotatePointerUp()"
         data-testid="dpad-rotate-cw"
       >
-        <lucide-icon name="RotateCw" [size]="18" aria-hidden="true" />
-      </button>
+        <lib-button variant="ghost" shape="square" fullWidth [disabled]="disabled()" [ariaLabel]="rotateLabel('cw')" [title]="rotateLabel('cw')">
+          <lucide-icon name="RotateCw" [size]="18" aria-hidden="true" />
+        </lib-button>
+      </div>
     </div>
   } @else {
   <!-- D-pad cross -->
   <div class="dpad-cross">
     <!-- Up -->
-    <button
-      type="button"
-      class="dpad-btn dpad-up"
-      [disabled]="disabled()"
-      [attr.aria-label]="arrowLabel('up')"
-      [title]="arrowLabel('up')"
+    <div
+      class="dpad-slot dpad-up"
       (pointerdown)="onArrowPointerDown('up', $event)"
       (pointerup)="onArrowPointerUp()"
       (pointercancel)="onArrowPointerUp()"
       (pointerleave)="onArrowPointerUp()"
       data-testid="dpad-arrow-up"
     >
-      <lucide-icon name="ChevronUp" [size]="16" aria-hidden="true" />
-    </button>
+      <lib-button variant="ghost" shape="square" fullWidth [disabled]="disabled()" [ariaLabel]="arrowLabel('up')" [title]="arrowLabel('up')">
+        <lucide-icon name="ChevronUp" [size]="16" aria-hidden="true" />
+      </lib-button>
+    </div>
 
     <!-- Left -->
-    <button
-      type="button"
-      class="dpad-btn dpad-left"
-      [disabled]="disabled()"
-      [attr.aria-label]="arrowLabel('left')"
-      [title]="arrowLabel('left')"
+    <div
+      class="dpad-slot dpad-left"
       (pointerdown)="onArrowPointerDown('left', $event)"
       (pointerup)="onArrowPointerUp()"
       (pointercancel)="onArrowPointerUp()"
       (pointerleave)="onArrowPointerUp()"
       data-testid="dpad-arrow-left"
     >
-      <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
-    </button>
+      <lib-button variant="ghost" shape="square" fullWidth [disabled]="disabled()" [ariaLabel]="arrowLabel('left')" [title]="arrowLabel('left')">
+        <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
+      </lib-button>
+    </div>
 
     <!-- Center dot (decorative) -->
     <div class="dpad-center" aria-hidden="true"></div>
 
     <!-- Right -->
-    <button
-      type="button"
-      class="dpad-btn dpad-right"
-      [disabled]="disabled()"
-      [attr.aria-label]="arrowLabel('right')"
-      [title]="arrowLabel('right')"
+    <div
+      class="dpad-slot dpad-right"
       (pointerdown)="onArrowPointerDown('right', $event)"
       (pointerup)="onArrowPointerUp()"
       (pointercancel)="onArrowPointerUp()"
       (pointerleave)="onArrowPointerUp()"
       data-testid="dpad-arrow-right"
     >
-      <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
-    </button>
+      <lib-button variant="ghost" shape="square" fullWidth [disabled]="disabled()" [ariaLabel]="arrowLabel('right')" [title]="arrowLabel('right')">
+        <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
+      </lib-button>
+    </div>
 
     <!-- Down -->
-    <button
-      type="button"
-      class="dpad-btn dpad-down"
-      [disabled]="disabled()"
-      [attr.aria-label]="arrowLabel('down')"
-      [title]="arrowLabel('down')"
+    <div
+      class="dpad-slot dpad-down"
       (pointerdown)="onArrowPointerDown('down', $event)"
       (pointerup)="onArrowPointerUp()"
       (pointercancel)="onArrowPointerUp()"
       (pointerleave)="onArrowPointerUp()"
       data-testid="dpad-arrow-down"
     >
-      <lucide-icon name="ChevronDown" [size]="16" aria-hidden="true" />
-    </button>
+      <lib-button variant="ghost" shape="square" fullWidth [disabled]="disabled()" [ariaLabel]="arrowLabel('down')" [title]="arrowLabel('down')">
+        <lucide-icon name="ChevronDown" [size]="16" aria-hidden="true" />
+      </lib-button>
+    </div>
   </div>
   }
 </div>

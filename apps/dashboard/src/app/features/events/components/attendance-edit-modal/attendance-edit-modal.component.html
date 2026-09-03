@@ -40,20 +40,19 @@
     </div>
   }
 
-  <!-- Notes (raw: no lib-textarea exists yet) -->
+  <!-- Notes -->
   <div class="form-control mb-2">
     <label class="label" for="attendance-notes">
       <span class="label-text font-medium">Notes</span>
       <span class="label-text-alt text-base-content/50">Opcional</span>
     </label>
-    <textarea
+    <lib-textarea
       id="attendance-notes"
-      class="textarea textarea-bordered"
-      rows="3"
+      [rows]="3"
       placeholder="Motiu de la no assistència, observacions..."
       [ngModel]="editedNotes()"
       (ngModelChange)="editedNotes.set($event || null)"
-    ></textarea>
+    />
   </div>
 
   <div modalFooter class="w-full flex items-center justify-between">

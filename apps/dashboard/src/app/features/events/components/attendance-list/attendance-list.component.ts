@@ -13,7 +13,7 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search, UserCheck } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, InputComponent, SelectComponent, ToastService, type BadgeVariant } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, CheckboxComponent, InputComponent, SelectComponent, ToastService, type BadgeVariant } from '@muixer/ui';
 import { ICON_XICALLA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
 import { AttendanceService } from '../../services/attendance.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
@@ -45,6 +45,7 @@ import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS, TagCategory } f
     ButtonGroupComponent,
     BadgeComponent,
     CardComponent,
+    CheckboxComponent,
     InputComponent,
     SelectComponent,
     AttendanceEditModalComponent,

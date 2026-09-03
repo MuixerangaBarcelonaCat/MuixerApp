@@ -4,9 +4,13 @@ import {
   Component,
   computed,
   effect,
+  ElementRef,
+  HostAttributeToken,
+  inject,
   input,
   isDevMode,
   output,
+  viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
@@ -37,6 +41,23 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   success: 'btn-success',
   warning: 'btn-warning',
   error: 'btn-error',
+};
+
+// `ghost` modifier: renders `btn-ghost` (no fill, no border) but keeps the chosen `variant`'s
+// role color as the text/icon color — a lighter-weight alternative to `outline` for a coloured
+// action that shouldn't carry a box (e.g. a destructive icon button in a dense card row). Static
+// literals so Tailwind's content scanner keeps them (same rule as VARIANT_CLASSES). `ghost`
+// variant itself contributes nothing extra — it's already colourless.
+const GHOST_TEXT_CLASSES: Record<ButtonVariant, string> = {
+  primary: 'text-primary',
+  secondary: 'text-secondary',
+  accent: 'text-accent',
+  neutral: 'text-neutral',
+  ghost: '',
+  info: 'text-info',
+  success: 'text-success',
+  warning: 'text-warning',
+  error: 'text-error',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
@@ -77,9 +98,15 @@ export class ButtonComponent {
   // visual "which joinItem segment is selected" marker, not a real toggle-button semantic.
   ariaExpanded = input<boolean>();
   ariaPressed = input<boolean>();
+  // For a disclosure toggle (e.g. "Mostra"/"Amaga") pointing at the region it expands — same
+  // convention as ariaExpanded/ariaPressed, just an id reference instead of a boolean.
+  ariaControls = input<string>();
   disabled = input(false, { transform: booleanAttribute });
   loading = input(false, { transform: booleanAttribute });
   outline = input(false, { transform: booleanAttribute });
+  // See GHOST_TEXT_CLASSES above. Renders `btn-ghost` (no fill/border) while keeping `variant`'s
+  // role colour as the text/icon colour. Takes precedence over `outline` when both are set.
+  ghost = input(false, { transform: booleanAttribute });
   fullWidth = input(false, { transform: booleanAttribute });
   // For lib-button-group: adds DaisyUI's own `.join-item` to this button's real rendered element.
   // lib-button-group can't add that class itself — its own children are opaque `display:contents`
@@ -103,8 +130,36 @@ export class ButtonComponent {
   // combines with disabled/loading — see the constructor invariant below.
   routerLink = input<string | unknown[]>();
   href = input<string>();
+  // Imperative (an effect + viewChild), not the native `autofocus` attribute — same rationale as
+  // lib-input/lib-textarea's own autofocus: a button using this is almost always the default
+  // action of a dialog that just opened via an `@if`/`lib-modal[open]` toggle, and the native
+  // attribute's "focus on insertion" behavior is inconsistent for that case in a way a direct
+  // `.focus()` call isn't. (A `<dialog>.showModal()` does honor a *native* `autofocus` attribute
+  // on its own — but only when it sits on the actual focusable element, which `display: contents`
+  // hosts can't forward from `<lib-button autofocus>` down to the real inner `<button>`.)
+  autofocus = input(false, { transform: booleanAttribute });
+  // Native-tooltip text for the rendered control. Needed because `:host { display: contents }`
+  // gives the `<lib-button>` element no box, so a `title` attribute placed on it by a consumer
+  // never produces a hover tooltip and is never forwarded to the inner `<button>`/`<a>`. Set
+  // `[tooltip]` for a dynamic value; a static `title="…"` attribute on the host is also picked up
+  // (see `hostTitle` below) so existing call sites keep working. When nothing here is set, an
+  // `ariaLabel` (near-always an icon-only button's accessible name) is mirrored into `title` so it
+  // also shows as a hover tooltip — pass `tooltip=""` on a button to opt out.
+  tooltip = input<string>();
 
   clicked = output<void>();
+
+  // Static `title="…"` written directly on the `<lib-button>` host — read once at construction
+  // (dynamic `[title]` bindings won't land here; those callers should use `[tooltip]`).
+  private readonly hostTitle = inject(new HostAttributeToken('title'), { optional: true });
+
+  protected readonly resolvedTitle = computed(() => {
+    const explicit = this.tooltip();
+    if (explicit !== undefined) return explicit || null; // `tooltip=""` opts out of the mirror
+    return this.hostTitle || this.ariaLabel() || null;
+  });
+
+  private readonly nativeButtonRef = viewChild<ElementRef<HTMLElement>>('nativeButtonRef');
 
   protected readonly isDisabled = computed(() => this.disabled() || this.loading());
 
@@ -114,13 +169,17 @@ export class ButtonComponent {
     () => this.joinItem() && this.outlineMode() && !this.active(),
   );
 
+  // `ghost` and `outline` are mutually exclusive — ghost wins (see the input's doc).
+  protected readonly isGhost = computed(() => this.ghost() && !this.joinItem());
+
   protected readonly isOutlined = computed(() => {
+    if (this.isGhost()) return false;
     if (!this.joinItem()) return this.outline();
     return this.outlineMode() ? this.active() : !this.active();
   });
 
   protected readonly resolvedVariantClass = computed(() =>
-    this.isGhostSegment() ? VARIANT_CLASSES.ghost : VARIANT_CLASSES[this.variant()],
+    this.isGhostSegment() || this.isGhost() ? VARIANT_CLASSES.ghost : VARIANT_CLASSES[this.variant()],
   );
 
   protected readonly buttonClass = computed(() =>
@@ -128,6 +187,7 @@ export class ButtonComponent {
       'btn',
       'ds-lift',
       this.resolvedVariantClass(),
+      this.isGhost() ? GHOST_TEXT_CLASSES[this.variant()] : '',
       SIZE_CLASSES[this.size()],
       SHAPE_CLASSES[this.shape()],
       this.isOutlined() ? 'btn-outline' : '',
@@ -168,6 +228,11 @@ export class ButtonComponent {
           'lib-button: variant="ghost" cannot be used with joinItem — ghost has no fill or border, so a segmented control could never show which segment is selected.',
         );
       }
+    });
+
+    effect(() => {
+      if (!this.autofocus()) return;
+      this.nativeButtonRef()?.nativeElement.focus();
     });
   }
 }

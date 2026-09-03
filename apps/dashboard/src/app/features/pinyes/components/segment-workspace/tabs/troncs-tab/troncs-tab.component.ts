@@ -6,7 +6,7 @@ import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ButtonComponent, ToastService } from '@muixer/ui';
 import { generateUUID } from '../../../../../../shared/utils/uuid.util';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
 import { buildTroncBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
@@ -29,7 +29,7 @@ interface TroncFigure {
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent],
+  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent],
   templateUrl: './troncs-tab.component.html',
 })
 export class TroncsTabComponent implements OnInit {
@@ -393,9 +393,8 @@ export class TroncsTabComponent implements OnInit {
     this.clearSelection();
 
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
-      next: (res) => {
+      next: () => {
         this.state.refreshPersonList();
-        if (res.impact) this.ws.noteTroncImpact(res.impact);
         // Fase 5: removing one of several duplicate placements can resolve a conflict —
         // keep the banner live.
         this.ws.reloadConflicts();
@@ -544,7 +543,6 @@ export class TroncsTabComponent implements OnInit {
         }
 
         this.state.refreshPersonList();
-        if (created.impact) this.ws.noteTroncImpact(created.impact);
         this.advanceToNextEmptyNode(instanceId, created.node.id);
 
         this.undoRedo.push(
@@ -601,9 +599,8 @@ export class TroncsTabComponent implements OnInit {
     );
 
     this.performSwap(instanceId, assignment1.id, assignment2.id).subscribe({
-      next: (impact) => {
+      next: () => {
         this.toast.success("S'han intercanviat les persones.");
-        if (impact) this.ws.noteTroncImpact(impact);
         // Fase 5: a swap can create/resolve a duplicate — keep the banner live.
         this.ws.reloadConflicts();
         // Swap preserves both assignment ids server-side, so it's its own inverse:
@@ -680,10 +677,8 @@ export class TroncsTabComponent implements OnInit {
       );
 
     applyCrossSwap(person2Id, person1Id).subscribe({
-      next: (result) => {
+      next: () => {
         this.toast.success("S'han intercanviat les persones.");
-        if (result.a.impact) this.ws.noteTroncImpact(result.a.impact);
-        if (result.b.impact) this.ws.noteTroncImpact(result.b.impact);
         // Fase 5: a cross-figure swap can create/resolve a duplicate — keep the banner live.
         this.ws.reloadConflicts();
         this.undoRedo.push({

@@ -10,6 +10,7 @@ const makeListItem = (overrides: Partial<CompositionListItem> = {}): Composition
   name: 'Composició Test',
   description: null,
   entryCount: 2,
+  figureProfiles: [],
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
   ...overrides,

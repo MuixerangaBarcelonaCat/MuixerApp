@@ -15,15 +15,16 @@
           <h2 [id]="titleId()" class="text-lg font-bold">{{ title() }}</h2>
         }
         @if (effectiveShowCloseButton()) {
-          <button
-            type="button"
-            class="btn btn-sm btn-ghost btn-circle"
-            aria-label="Tancar"
+          <lib-button
+            variant="ghost"
+            size="sm"
+            shape="circle"
+            ariaLabel="Tancar"
             data-testid="lib-modal-close"
-            (click)="closeFromButton()"
+            (clicked)="closeFromButton()"
           >
-            <lucide-icon [img]="XIcon" [size]="16" />
-          </button>
+            <lucide-icon [img]="XIcon" [size]="16" aria-hidden="true" />
+          </lib-button>
         }
       </div>
     }
