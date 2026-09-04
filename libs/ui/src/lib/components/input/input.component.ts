@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, booleanAttribute, computed, effect, forwardRef, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, booleanAttribute, computed, effect, forwardRef, input, output, signal, viewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import type { LucideIconData } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
@@ -49,11 +49,18 @@ export class InputComponent implements ControlValueAccessor {
   // rather than modeled (browsers already validate/constrain against them).
   min = input<string | number>();
   max = input<string | number>();
+  maxLength = input<number>();
   // Imperative (via an effect + viewChild), not the native `autofocus` attribute: this field is
   // almost always toggled into existence by an `@if` (an inline rename row appearing), and the
   // native attribute's own "focus on insertion" behavior is inconsistent across browsers for that
   // case in a way a direct `.focus()` call isn't.
   autofocus = input(false, { transform: booleanAttribute });
+
+  // A real @Output, not just internal CVA touched-tracking (registerOnTouched) — some callers
+  // (the ad-hoc node label) run live-preview-then-commit-on-blur logic that needs to know the
+  // blur actually happened, and (blur) placed directly on the host element wouldn't fire: the
+  // native `blur` event does not bubble, so it never reaches the host from the inner `<input>`.
+  readonly blurred = output<void>();
 
   private readonly nativeInputRef = viewChild<ElementRef<HTMLInputElement>>('nativeInputRef');
 
@@ -117,5 +124,6 @@ export class InputComponent implements ControlValueAccessor {
 
   protected onBlur(): void {
     this.onTouched();
+    this.blurred.emit();
   }
 }

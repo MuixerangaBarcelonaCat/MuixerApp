@@ -583,6 +583,10 @@
   }
 }
 
+.direction-projection-row .direction-label.compact {
+  flex-shrink: 0;
+}
+
 .direction-node {
   min-height: 2rem;
   min-width: 6rem;
@@ -593,9 +597,18 @@
 
 .direction-projection-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: baseline;
+  gap: 0.4rem;
   padding: 0.15rem 0;
+  flex-wrap: nowrap;
+}
+
+.direction-aliases {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.875rem; // fitFontSize's max — the directive shrinks from here, never grows past it
 }
 
 // -- Projection mode (compact) 

@@ -37,6 +37,8 @@ export interface CompositionListItem {
   name: string;
   description: string | null;
   entryCount: number;
+  /** One troncProfile per entry, same order as entries — see FigureTemplateListItem.troncProfile. */
+  figureProfiles: number[][];
   createdAt: string;
   updatedAt: string;
 }

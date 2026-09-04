@@ -7,7 +7,8 @@ import {
   signal,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { ButtonComponent, ModalComponent } from '@muixer/ui';
+import { FormsModule } from '@angular/forms';
+import { ButtonComponent, CheckboxComponent, ModalComponent } from '@muixer/ui';
 import { TutorialStep } from './tutorial-step.model';
 
 /**
@@ -22,7 +23,7 @@ import { TutorialStep } from './tutorial-step.model';
   selector: 'app-tutorial-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, ButtonComponent, ModalComponent],
+  imports: [LucideAngularModule, FormsModule, ButtonComponent, CheckboxComponent, ModalComponent],
   templateUrl: './tutorial-modal.component.html',
 })
 export class TutorialModalComponent implements OnInit {

@@ -10,14 +10,25 @@ import {
   SimpleChanges,
 } from '@angular/core';
 import { SlicePipe } from '@angular/common';
-import { LucideAngularModule, Import, X } from 'lucide-angular';
+import { LucideAngularModule, Import } from 'lucide-angular';
+import { FigureZone, ImportScope, zonesForScope } from '@muixer/shared';
+import { ButtonComponent, ModalComponent, BadgeComponent } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
+import { ImportPreviewModalComponent } from '../import-preview-modal/import-preview-modal.component';
 
 @Component({
   selector: 'app-import-pinya-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, SlicePipe],
+  imports: [
+    LucideAngularModule,
+    SlicePipe,
+    ImportPreviewModalComponent,
+    ButtonComponent,
+    ModalComponent,
+    BadgeComponent,
+  ],
   templateUrl: './import-pinya-modal.component.html',
 })
 export class ImportPinyaModalComponent implements OnChanges {
@@ -29,9 +40,9 @@ export class ImportPinyaModalComponent implements OnChanges {
   readonly closed = output<void>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
+  private readonly assignmentState = inject(AssignmentStateService);
 
   readonly Import = Import;
-  readonly X = X;
 
   readonly history = signal<FigureHistoryEntry[]>([]);
   readonly loading = signal(false);
@@ -39,6 +50,8 @@ export class ImportPinyaModalComponent implements OnChanges {
   readonly selectedEntry = signal<FigureHistoryEntry | null>(null);
   readonly lastResult = signal<BulkImportResult | null>(null);
   readonly error = signal<string | null>(null);
+  readonly previewScope = signal<ImportScope | null>(null);
+  readonly confirmScope = signal<ImportScope | null>(null);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && this.open()) {
@@ -67,7 +80,57 @@ export class ImportPinyaModalComponent implements OnChanges {
     this.lastResult.set(null);
   }
 
-  doImport(): void {
+  readonly ImportScope = ImportScope;
+
+  private static readonly SCOPE_LABELS: Record<ImportScope, string> = {
+    [ImportScope.PINYA]: 'pinya',
+    [ImportScope.TRONC]: 'tronc',
+    [ImportScope.ALL]: 'figura',
+  };
+
+  scopeLabel(scope: ImportScope): string {
+    return ImportPinyaModalComponent.SCOPE_LABELS[scope];
+  }
+
+  countForScope(scope: ImportScope): number {
+    const entry = this.selectedEntry();
+    if (!entry) return 0;
+    const zones = zonesForScope(scope);
+    return zones
+      ? entry.assignments.filter((a) => zones.has(a.zone)).length
+      : entry.assignments.length;
+  }
+
+  /** Destination nodes already occupied within the given scope — these are never touched by import. */
+  occupiedCountForScope(scope: ImportScope): number {
+    const instanceId = this.currentInstanceId();
+    const zones = zonesForScope(scope);
+    return this.assignmentState
+      .assignments()
+      .filter((a) => a.figureInstanceId === instanceId && (!zones || zones.has(a.node.zone as FigureZone)))
+      .length;
+  }
+
+  onImportClick(scope: ImportScope): void {
+    if (this.occupiedCountForScope(scope) > 0) {
+      this.confirmScope.set(scope);
+      return;
+    }
+    this.doImport(scope);
+  }
+
+  confirmImport(): void {
+    const scope = this.confirmScope();
+    if (!scope) return;
+    this.confirmScope.set(null);
+    this.doImport(scope);
+  }
+
+  cancelConfirm(): void {
+    this.confirmScope.set(null);
+  }
+
+  doImport(scope: ImportScope): void {
     const entry = this.selectedEntry();
     if (!entry) return;
 
@@ -75,7 +138,7 @@ export class ImportPinyaModalComponent implements OnChanges {
     this.error.set(null);
 
     this.assignmentService
-      .bulkImport(this.currentInstanceId(), { sourceInstanceId: entry.instanceId })
+      .bulkImport(this.currentInstanceId(), { sourceInstanceId: entry.instanceId, scope })
       .subscribe({
         next: (result) => {
           this.importing.set(false);
@@ -89,13 +152,16 @@ export class ImportPinyaModalComponent implements OnChanges {
       });
   }
 
-  close(): void {
-    this.closed.emit();
+  openPreview(scope: ImportScope): void {
+    if (!this.selectedEntry()) return;
+    this.previewScope.set(scope);
   }
 
-  onBackdropClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      this.close();
-    }
+  closePreview(): void {
+    this.previewScope.set(null);
+  }
+
+  close(): void {
+    this.closed.emit();
   }
 }

@@ -8,6 +8,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
+import { ButtonComponent, ButtonGroupComponent } from '@muixer/ui';
 
 export type DpadMode = 'position' | 'size' | 'rotation';
 export type DpadStep = 1 | 10;
@@ -20,7 +21,7 @@ type RotateDir = 'cw' | 'ccw';
   selector: 'app-node-dpad',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent, ButtonGroupComponent],
   templateUrl: './node-dpad.component.html',
   styleUrl: './node-dpad.component.scss',
 })
@@ -36,8 +37,8 @@ export class NodeDpadComponent implements OnDestroy {
   holdEnded = output<void>();
 
   readonly mode = signal<DpadMode>('position');
-  readonly step = signal<DpadStep>(1);
-  readonly rotationStep = signal<DpadRotationStep>(1);
+  readonly step = signal<DpadStep>(10);
+  readonly rotationStep = signal<DpadRotationStep>(15);
 
   private repeatTimer: ReturnType<typeof setTimeout> | null = null;
   private repeatInterval: ReturnType<typeof setInterval> | null = null;
@@ -60,9 +61,9 @@ export class NodeDpadComponent implements OnDestroy {
 
   toggleStep(): void {
     if (this.mode() === 'rotation') {
-      this.rotationStep.update((s) => (s === 1 ? 15 : 1));
+      this.rotationStep.update((s) => (s === 15 ? 1 : 15));
     } else {
-      this.step.update((s) => (s === 1 ? 10 : 1));
+      this.step.update((s) => (s === 10 ? 1 : 10));
     }
   }
 

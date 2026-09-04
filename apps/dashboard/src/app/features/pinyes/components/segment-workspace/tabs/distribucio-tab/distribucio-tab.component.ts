@@ -19,7 +19,7 @@ import { CanvasStateService } from '../../../../services/canvas-state.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, ButtonComponent, ModalComponent } from '@muixer/ui';
 import { mapDistributionItemsToSlots } from '../../../../utils/distribution-slot-mapping.util';
 import { computeMaxCordons } from '../../../../utils/figure-mode-filter.util';
 import { DistributionItem, InstanceDistributionPayload } from '../../../../models/distribution.model';
@@ -36,7 +36,7 @@ const INITIAL_ZOOM = 0.75;
   selector: 'app-distribucio-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, FigureCanvasComponent, FigurePropertiesPanelComponent],
+  imports: [LucideAngularModule, FigureCanvasComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent],
   templateUrl: './distribucio-tab.component.html',
 })
 export class DistribucioTabComponent implements OnInit {

@@ -28,6 +28,7 @@ import { UserFormModalComponent } from './user-form-modal/user-form-modal.compon
 import {
   ButtonComponent,
   BadgeComponent,
+  CheckboxComponent,
   EmptyStateComponent,
   FormFieldComponent,
   InputComponent,
@@ -89,6 +90,7 @@ function formatDate(value: string | null): string {
     UserFormModalComponent,
     ButtonComponent,
     BadgeComponent,
+    CheckboxComponent,
     EmptyStateComponent,
     FormFieldComponent,
     InputComponent,

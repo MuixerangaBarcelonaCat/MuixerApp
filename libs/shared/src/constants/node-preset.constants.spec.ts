@@ -154,11 +154,24 @@ describe('DECORATION_NODE_PRESETS', () => {
     }
   });
 
-  it('includes rectangle, arrow and circle shapes', () => {
+  it('includes every decoration shape', () => {
     const shapes = DECORATION_NODE_PRESETS.map((p) => p.shape);
     expect(shapes).toContain(NodeShape.RECTANGLE);
     expect(shapes).toContain(NodeShape.ARROW);
+    expect(shapes).toContain(NodeShape.ARROW_LEFT);
+    expect(shapes).toContain(NodeShape.ARROW_UP);
+    expect(shapes).toContain(NodeShape.ARROW_DOWN);
+    expect(shapes).toContain(NodeShape.DOUBLE_ARROW);
+    expect(shapes).toContain(NodeShape.TRIANGLE);
+    expect(shapes).toContain(NodeShape.STAR);
     expect(shapes).toContain(NodeShape.CIRCLE);
+  });
+
+  it('gives arrow-up and arrow-down a wide, short default (a broad head) instead of mirroring left/right rotated 90°', () => {
+    const up = DECORATION_NODE_PRESETS.find((p) => p.positionType === 'arrow-up')!;
+    const down = DECORATION_NODE_PRESETS.find((p) => p.positionType === 'arrow-down')!;
+    expect(up.width).toBeGreaterThan(up.height);
+    expect(down.width).toBeGreaterThan(down.height);
   });
 
   it('every preset has a positionType accepted by the backend', () => {

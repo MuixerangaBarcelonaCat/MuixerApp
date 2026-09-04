@@ -1,6 +1,7 @@
 import { FigureNodeItem, FigureCanvasComponent, CanvasNode, TroncViewComponent, StageTransform } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { Observable, of } from 'rxjs';
@@ -13,7 +14,7 @@ import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.compone
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, ModalComponent, ButtonComponent } from '@muixer/ui';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class StubFigureCanvas {
@@ -308,35 +309,6 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       fixture.detectChanges();
     });
 
-    describe('currentPinyaPreset', () => {
-      it('returns null when no node is selected', () => {
-        component.selectedNodeId.set(null);
-        expect(component.currentPinyaPreset()).toBeNull();
-      });
-
-      it('returns the matching preset when positionType matches', () => {
-        const preset = component.currentPinyaPreset();
-        expect(preset).not.toBeNull();
-        expect(preset?.positionType).toBe('agulla');
-        expect(preset?.label).toBe(PINYA_NODE_PRESETS.find(p => p.positionType === 'agulla')?.label);
-      });
-
-      it('returns null when positionType does not match any preset', () => {
-        component.nodes.set([makePinyaNode({ positionType: 'custom-type' })]);
-        expect(component.currentPinyaPreset()).toBeNull();
-      });
-
-      it('returns null for a non-PINYA node', () => {
-        component.nodes.set([makePinyaNode({ zone: FigureZone.BASE, positionType: 'agulla' })]);
-        expect(component.currentPinyaPreset()).toBeNull();
-      });
-
-      it('returns null when positionType is null', () => {
-        component.nodes.set([makePinyaNode({ positionType: null })]);
-        expect(component.currentPinyaPreset()).toBeNull();
-      });
-    });
-
     describe('applyPinyaPreset', () => {
       it('does nothing when no node is selected', () => {
         component.selectedNodeId.set(null);
@@ -380,34 +352,6 @@ describe('TemplateEditorComponent — Preview Mode', () => {
         expect(node.rotation).toBe(45);
         expect(node.width).toBe(120);
         expect(node.height).toBe(60);
-      });
-
-      it('closes the dropdown after applying a preset', () => {
-        component.presetDropdownOpen.set(true);
-        component.applyPinyaPreset('mans');
-        expect(component.presetDropdownOpen()).toBe(false);
-      });
-    });
-
-    describe('presetDropdownOpen', () => {
-      it('defaults to false', () => {
-        expect(component.presetDropdownOpen()).toBe(false);
-      });
-
-      it('onNodeSelected closes the dropdown', () => {
-        component.presetDropdownOpen.set(true);
-        component.onNodeSelected(null);
-        expect(component.presetDropdownOpen()).toBe(false);
-      });
-
-      it('onNodeSelected to a different node closes the dropdown', () => {
-        component.nodes.set([
-          makePinyaNode({ id: 'node-1' }),
-          makePinyaNode({ id: 'node-2', positionType: 'mans' }),
-        ]);
-        component.presetDropdownOpen.set(true);
-        component.onNodeSelected('node-2');
-        expect(component.presetDropdownOpen()).toBe(false);
       });
     });
   });
@@ -663,6 +607,417 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       expect(ghost.renglaId).toBeNull();
       expect(ghost.renglaPosition).toBeNull();
       expect(ghost.ringLevel).toBeNull();
+    });
+  });
+
+  // Both the name-prompt and shortcuts modals are lib-modal instances, so tests scope by title
+  // rather than assuming there's only one on the page.
+  function findModalByTitle(title: string): ModalComponent {
+    const modal = fixture.debugElement
+      .queryAll(By.directive(ModalComponent))
+      .map((el) => el.componentInstance as ModalComponent)
+      .find((m) => m.title() === title);
+    expect(modal).toBeTruthy();
+    return modal!;
+  }
+
+  function findDialogByTitle(title: string): HTMLElement {
+    const el = fixture.debugElement
+      .queryAll(By.directive(ModalComponent))
+      .find((e) => (e.componentInstance as ModalComponent).title() === title);
+    expect(el).toBeTruthy();
+    const dialog: HTMLElement | null = el!.nativeElement.querySelector('dialog');
+    expect(dialog).toBeTruthy();
+    return dialog!;
+  }
+
+  describe('name-prompt modal (design system)', () => {
+    it('renders a lib-modal whose open mirrors showNamePrompt', () => {
+      expect(findModalByTitle('Nom de la figura').open()).toBe(false);
+
+      component.showNamePrompt.set(true);
+      fixture.detectChanges();
+
+      expect(findModalByTitle('Nom de la figura').open()).toBe(true);
+    });
+
+    it('confirms the typed name and closes the prompt', () => {
+      component.showNamePrompt.set(true);
+      fixture.detectChanges();
+
+      // Scoped to the modal's own dialog — the properties panel has an unrelated field sharing
+      // the same accessible name ("Nom de la figura"), never visible at the same time as this
+      // prompt, but ambiguous for a plain document-wide query.
+      const dialog = findDialogByTitle('Nom de la figura');
+      const nameInput: HTMLInputElement = dialog.querySelector('input[aria-label="Nom de la figura"]')!;
+      nameInput.value = 'Pilar de 4';
+      nameInput.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      const confirmButton: HTMLElement = dialog.querySelector('button[aria-label="Confirma el nom"]')!;
+      confirmButton.click();
+      fixture.detectChanges();
+
+      expect(component.templateName()).toBe('Pilar de 4');
+      expect(component.showNamePrompt()).toBe(false);
+    });
+
+    it('cancels via the Cancel·la button', () => {
+      component.showNamePrompt.set(true);
+      fixture.detectChanges();
+
+      const cancelButton: HTMLElement = fixture.nativeElement.querySelector(
+        'button[aria-label="Cancel·la"]',
+      );
+      cancelButton.click();
+      fixture.detectChanges();
+
+      expect(component.showNamePrompt()).toBe(false);
+    });
+
+    it('cancels when the modal is dismissed natively (e.g. Escape)', () => {
+      component.showNamePrompt.set(true);
+      fixture.detectChanges();
+
+      findModalByTitle('Nom de la figura').closed.emit();
+      fixture.detectChanges();
+
+      expect(component.showNamePrompt()).toBe(false);
+    });
+  });
+
+  describe('shortcuts modal (design system)', () => {
+    it('renders a lib-modal titled "Dreceres de teclat" whose open mirrors shortcutsModalOpen', () => {
+      expect(findModalByTitle('Dreceres de teclat').open()).toBe(false);
+
+      component.toggleShortcutsModal();
+      fixture.detectChanges();
+
+      expect(findModalByTitle('Dreceres de teclat').open()).toBe(true);
+    });
+
+    it('closes when the modal is dismissed natively (e.g. Escape or the close button)', () => {
+      component.toggleShortcutsModal();
+      fixture.detectChanges();
+      expect(component.shortcutsModalOpen()).toBe(true);
+
+      findModalByTitle('Dreceres de teclat').closed.emit();
+      fixture.detectChanges();
+
+      expect(component.shortcutsModalOpen()).toBe(false);
+    });
+
+    it('still lists the keyboard shortcuts inside the modal', () => {
+      component.toggleShortcutsModal();
+      fixture.detectChanges();
+
+      const dialog = findDialogByTitle('Dreceres de teclat');
+      expect(dialog.textContent).toContain('Selecciona node');
+      expect(dialog.textContent).toContain('Duplica node seleccionat');
+    });
+  });
+
+  describe('top bar (design system)', () => {
+    function findButtonByAriaLabel(label: string) {
+      const btn = fixture.debugElement
+        .queryAll(By.directive(ButtonComponent))
+        .find((el) => (el.componentInstance as ButtonComponent).ariaLabel() === label);
+      expect(btn).toBeTruthy();
+      return btn!.componentInstance as ButtonComponent;
+    }
+
+    it('the back-to-list button is a lib-button and navigates back on click', () => {
+      const back = findButtonByAriaLabel('Tornar a la llista');
+      expect(back).toBeTruthy();
+
+      back.clicked.emit();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/pinyes']);
+    });
+
+    // The undo/redo buttons' aria-label grows a ": <description>" suffix once there's a stack
+    // entry (see undoDescription/redoDescription), so tests match on a stable prefix and keep
+    // the same component-instance reference across a state change rather than re-querying by
+    // the now-changed exact label.
+    function findButtonByAriaLabelPrefix(prefix: string) {
+      const btn = fixture.debugElement
+        .queryAll(By.directive(ButtonComponent))
+        .find((el) => (el.componentInstance as ButtonComponent).ariaLabel()?.startsWith(prefix));
+      expect(btn).toBeTruthy();
+      return btn!.componentInstance as ButtonComponent;
+    }
+
+    it('undo/redo are icon-only square lib-buttons, disabled state mirrors canUndo/canRedo', () => {
+      const undo = findButtonByAriaLabelPrefix('Desfer');
+      const redo = findButtonByAriaLabelPrefix('Refer');
+      expect(undo.shape()).toBe('square');
+      expect(redo.shape()).toBe('square');
+      expect(undo.disabled()).toBe(true);
+      expect(redo.disabled()).toBe(true);
+
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      fixture.detectChanges();
+
+      expect(undo.disabled()).toBe(false);
+    });
+
+    it('clicking undo/redo calls performUndo/performRedo', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      fixture.detectChanges();
+
+      const undoSpy = vi.spyOn(component, 'performUndo');
+      findButtonByAriaLabelPrefix('Desfer').clicked.emit();
+      expect(undoSpy).toHaveBeenCalled();
+
+      fixture.detectChanges();
+      const redoSpy = vi.spyOn(component, 'performRedo');
+      findButtonByAriaLabelPrefix('Refer').clicked.emit();
+      expect(redoSpy).toHaveBeenCalled();
+    });
+
+    it('the preview toggle is a lib-button whose variant and aria-pressed mirror previewMode', () => {
+      let toggle = findButtonByAriaLabel('Previsualitzar figura');
+      expect(toggle.variant()).toBe('ghost');
+      expect(toggle.ariaPressed()).toBe(false);
+
+      toggle.clicked.emit();
+      fixture.detectChanges();
+
+      toggle = findButtonByAriaLabel('Previsualitzar figura');
+      expect(component.previewMode()).toBe(true);
+      expect(toggle.variant()).toBe('primary');
+      expect(toggle.ariaPressed()).toBe(true);
+    });
+
+    it('the preview toggle is disabled while in rengla edit mode', () => {
+      component.renglaEditMode.set(true);
+      fixture.detectChanges();
+
+      expect(findButtonByAriaLabel('Previsualitzar figura').disabled()).toBe(true);
+    });
+
+    it('the shortcuts and editor-help buttons are lib-buttons wired to their triggers', () => {
+      findButtonByAriaLabel('Veure dreceres de teclat').clicked.emit();
+      fixture.detectChanges();
+      expect(component.shortcutsModalOpen()).toBe(true);
+
+      findButtonByAriaLabel("Ajuda de l'editor de figures").clicked.emit();
+      fixture.detectChanges();
+      expect(component.helpModal().open).toHaveBeenCalled();
+    });
+  });
+
+  describe('left toolbar (design system)', () => {
+    function findButtonByAriaLabel(label: string) {
+      const btn = fixture.debugElement
+        .queryAll(By.directive(ButtonComponent))
+        .find((el) => (el.componentInstance as ButtonComponent).ariaLabel() === label);
+      expect(btn).toBeTruthy();
+      return btn!.componentInstance as ButtonComponent;
+    }
+
+    it('the BASE tile is a lib-button that adds a base node', () => {
+      const spy = vi.spyOn(component, 'onBaseNodeAdded');
+      findButtonByAriaLabel('Afegeix node base').clicked.emit();
+      expect(spy).toHaveBeenCalledWith({ sortOrder: component.baseNodes().length });
+    });
+
+    it('each pinya preset tile is a lib-button that adds that preset\'s node', () => {
+      const spy = vi.spyOn(component, 'addPinyaNode');
+      const preset = component.pinyaPositions[0];
+      findButtonByAriaLabel(`Afegir node ${preset.label}`).clicked.emit();
+      expect(spy).toHaveBeenCalledWith(preset);
+    });
+
+    // Stays raw (not a lib-button) — see the template comment: lib-button's fixed-height box
+    // can't fit this tile's wrapped 3-word label in the ~48px-wide column. Still shares the app's
+    // real .ds-lift button motion directly, so it's checked here rather than as a ButtonComponent.
+    it('the snap-to-grid toggle reflects and toggles snapToGrid, sharing the .ds-lift motion', () => {
+      const toggle = () => fixture.nativeElement.querySelector('button[aria-label="Encaixa a la quadrícula"]') as HTMLButtonElement;
+
+      expect(component.snapToGrid()).toBe(false);
+      expect(toggle().classList).toContain('ds-lift');
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+      expect(toggle().classList).not.toContain('active');
+
+      toggle().click();
+      fixture.detectChanges();
+
+      expect(component.snapToGrid()).toBe(true);
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+      expect(toggle().classList).toContain('active');
+    });
+  });
+
+  describe('properties panel form controls (design system)', () => {
+    const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'node-1',
+      label: 'AGULLA',
+      zone: FigureZone.PINYA,
+      positionType: 'agulla',
+      x: 100, y: 100, z: 0,
+      width: 80, height: 40, rotation: 0,
+      color: '#0d9488',
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      metadata: {},
+      ...overrides,
+    });
+
+    // A field's lib-input is freshly created here (behind the @if branch), so its first
+    // ngModel write is a *new* standalone NgModel registration — Angular defers that one's
+    // initial writeValue to a microtask (its documented fix for avoiding
+    // ExpressionChangedAfterItHasBeenCheckedError on newly-registered controls). Flushing that
+    // microtask before the follow-up detectChanges is what makes the initial value observable
+    // synchronously in the test; it's invisible in the real app, where nothing paints before
+    // microtasks flush anyway.
+    async function selectNode(overrides: Partial<FigureNodeItem> = {}): Promise<void> {
+      component.nodes.set([makeNode(overrides)]);
+      component.selectedNodeId.set('node-1');
+      fixture.detectChanges();
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    // A static `id="..."` on a <lib-input> tag lands on both the (display:contents) host AND
+    // the real inner native input it forwards the id to — two elements sharing one id. jsdom's
+    // selector engine mishandles a compound `input#id` query against a duplicate id (silently
+    // returns null even though `input[id="..."]` finds it fine), so use the attribute-selector
+    // form rather than the `#id` shorthand.
+    function nativeInput(id: string): HTMLInputElement {
+      const el: HTMLInputElement | null = fixture.nativeElement.querySelector(`input[id="${id}"]`);
+      expect(el).toBeTruthy();
+      return el!;
+    }
+
+    function setValue(input: HTMLInputElement, value: string): void {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    }
+
+    it('the label field is a lib-input bound to the selected node label', async () => {
+      await selectNode({ label: 'AGULLA' });
+      expect(nativeInput('node-label').value).toBe('AGULLA');
+
+      setValue(nativeInput('node-label'), 'NOVA ETIQUETA');
+      expect(component.nodes()[0].label).toBe('NOVA ETIQUETA');
+    });
+
+    it('the indicator field (PINYA only) is a lib-input bound to climbIndicator', async () => {
+      await selectNode({ zone: FigureZone.PINYA, climbIndicator: 'X' });
+      expect(nativeInput('node-indicator').value).toBe('X');
+
+      setValue(nativeInput('node-indicator'), 'Y');
+      expect(component.nodes()[0].climbIndicator).toBe('Y');
+    });
+
+    it('does not render the indicator field for a TRONC node', async () => {
+      await selectNode({ zone: FigureZone.TRONC });
+      expect(fixture.nativeElement.querySelector('input[id="node-indicator"]')).toBeNull();
+    });
+
+    it('the shape field (non-TRONC nodes) is a lib-select bound to the node shape', async () => {
+      await selectNode({ zone: FigureZone.PINYA, shape: NodeShape.ELLIPSE });
+      const select: HTMLSelectElement | null = fixture.nativeElement.querySelector('select[id="node-shape"]');
+      expect(select).toBeTruthy();
+      expect(select!.value).toBe(NodeShape.ELLIPSE);
+
+      select!.value = NodeShape.RECTANGLE;
+      select!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      expect(component.nodes()[0].shape).toBe(NodeShape.RECTANGLE);
+    });
+
+    it('the position-type field (PINYA only) is a lib-select bound to positionType, applying the preset', async () => {
+      await selectNode({ zone: FigureZone.PINYA, positionType: 'agulla' });
+      const select: HTMLSelectElement | null = fixture.nativeElement.querySelector('select[id="node-position-type"]');
+      expect(select).toBeTruthy();
+      expect(select!.value).toBe('agulla');
+
+      // The color/shape swatch is projected as rich <option> content (shown in the open dropdown,
+      // and in the closed control in browsers supporting base-select) AND passed to lib-select's
+      // own [swatchColor] input, which renders it in the closed control everywhere else.
+      const options = select!.querySelectorAll('option');
+      expect(options.length).toBe(PINYA_NODE_PRESETS.length);
+      expect(options[0].querySelector('span')).toBeTruthy();
+
+      const agullaPreset = PINYA_NODE_PRESETS.find((p) => p.positionType === 'agulla')!;
+      const swatch: HTMLElement | null = fixture.nativeElement.querySelector('[data-testid="lib-select-swatch"]');
+      expect(swatch).toBeTruthy();
+      expect(component.presetForPositionType('agulla')?.color).toBe(agullaPreset.color);
+
+      const mansPreset = PINYA_NODE_PRESETS.find((p) => p.positionType === 'mans')!;
+      select!.value = 'mans';
+      select!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      const node = component.nodes()[0];
+      expect(node.positionType).toBe('mans');
+      expect(node.label).toBe(mansPreset.label);
+      expect(node.color).toBe(mansPreset.color);
+    });
+
+    it('does not render the position-type field for a non-PINYA node', async () => {
+      await selectNode({ zone: FigureZone.TRONC });
+      expect(fixture.nativeElement.querySelector('select[id="node-position-type"]')).toBeNull();
+    });
+
+    it('does not render the shape field for a TRONC node', async () => {
+      await selectNode({ zone: FigureZone.TRONC });
+      expect(fixture.nativeElement.querySelector('[data-testid="lib-select-native"]')).toBeNull();
+    });
+
+    it('width/height are lib-inputs bound to the node dimensions (non-TRONC nodes)', async () => {
+      await selectNode({ width: 80, height: 40 });
+      expect(nativeInput('node-width').value).toBe('80');
+      expect(nativeInput('node-height').value).toBe('40');
+
+      setValue(nativeInput('node-width'), '120');
+      expect(component.nodes()[0].width).toBe(120);
+
+      setValue(nativeInput('node-height'), '60');
+      expect(component.nodes()[0].height).toBe(60);
+    });
+
+    it('x/y are lib-inputs bound to the node position (non-TRONC nodes)', async () => {
+      await selectNode({ x: 100, y: 100 });
+      expect(nativeInput('node-x').value).toBe('100');
+      expect(nativeInput('node-y').value).toBe('100');
+
+      setValue(nativeInput('node-x'), '150');
+      expect(component.nodes()[0].x).toBe(150);
+
+      setValue(nativeInput('node-y'), '175');
+      expect(component.nodes()[0].y).toBe(175);
+    });
+
+    it('floor (z) is a lib-input, only for a non-PINYA/BASE/TRONC zone', async () => {
+      await selectNode({ zone: FigureZone.DECORATION, z: 2 });
+      expect(nativeInput('node-z').value).toBe('2');
+
+      setValue(nativeInput('node-z'), '5');
+      expect(component.nodes()[0].z).toBe(5);
+    });
+
+    it('does not render the floor field for a PINYA node', async () => {
+      await selectNode({ zone: FigureZone.PINYA });
+      expect(fixture.nativeElement.querySelector('input[id="node-z"]')).toBeNull();
+    });
+
+    it('the template-name field (no node selected) is a lib-input bound to templateName', async () => {
+      component.selectedNodeId.set(null);
+      component.templateName.set('Pilar de 4');
+      fixture.detectChanges();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(nativeInput('template-name-input').value).toBe('Pilar de 4');
+
+      setValue(nativeInput('template-name-input'), 'Torre de 6');
+      expect(component.templateName()).toBe('Torre de 6');
     });
   });
 

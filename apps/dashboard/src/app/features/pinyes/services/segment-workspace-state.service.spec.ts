@@ -436,17 +436,6 @@ describe('SegmentWorkspaceStateService', () => {
     });
   });
 
-  describe('noteTroncImpact / freed pinya nodes (Fase 4, D11)', () => {
-    it('noteTroncImpact stores the freed pinya node ids from an assign/swap impact', () => {
-      configure();
-      service.load(EVENT_ID, SEGMENT_ID);
-
-      service.noteTroncImpact({ newConflicts: [], freedPinyaNodeIds: ['n1', 'n2'] });
-
-      expect(service.reviewItems()).toEqual({ freedPinyaNodeIds: ['n1', 'n2'] });
-    });
-  });
-
   describe('pinyaSlots', () => {
     it('uses stored distribution positions when present', () => {
       const seg = makeSegment([makeInstance('inst-a')]);

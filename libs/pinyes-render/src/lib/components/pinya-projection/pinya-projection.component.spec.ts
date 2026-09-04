@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, ImportScope, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projection.component';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import {
@@ -510,6 +510,29 @@ describe('PinyaProjectionComponent', () => {
     });
   });
 
+  // ── distributionNodeOutlines ─────────────────────────────────────────────────
+
+  describe('distributionNodeOutlines', () => {
+    // Was including DECORATION nodes in the per-figure colored glow — a decoration node keeps
+    // its own independent color (including "sense fons"/null → a transparent fill on the real
+    // node layer), so painting the figure's color as a solid, blurred glow behind it made a
+    // colorless decoration look tinted with whichever figure it sat on.
+    it('excludes DECORATION nodes — they keep their own color, not the figure glow', () => {
+      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0 });
+      const deco = makeNode({
+        id: 'd1',
+        zone: FigureZone.DECORATION,
+        positionType: 'star',
+        x: 50, y: 50, width: 111, height: 222,
+      });
+      setData(makeSegmentData([makeInstance([pinya, deco], ['n1'], { projectionX: 0, projectionY: 0 })]));
+
+      const outlines = component.distributionNodeOutlines();
+      expect(outlines.length).toBe(1);
+      expect(outlines.some((o) => o.width === 111 || o.height === 222)).toBe(false);
+    });
+  });
+
   // ── distributionAssignments ──────────────────────────────────────────────────
 
   describe('distributionAssignments', () => {
@@ -680,6 +703,31 @@ describe('PinyaProjectionComponent', () => {
 
       const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
       expect(marker.componentInstance.stageTransform()).toEqual({ x: 10, y: 20, scaleX: 2, scaleY: 2 });
+    });
+  });
+
+  // ── scope (import preview) ──────────────────────────────────────────────────
+
+  describe('scope', () => {
+    const dataWithTroncPanel = () => {
+      const node = makeNode({ id: 't1', zone: FigureZone.TRONC, z: 1, x: 0, width: 1 });
+      const inst = makeInstance([node], ['t1'], { id: 'i1' });
+      return makeSegmentData([inst]);
+    };
+
+    it('hides tronc panels when scope is PINYA', () => {
+      fixture.componentRef.setInput('data', dataWithTroncPanel());
+      fixture.componentRef.setInput('scope', ImportScope.PINYA);
+      fixture.detectChanges();
+
+      expect(component.distributionTroncPanels()).toEqual([]);
+    });
+
+    it('still shows tronc panels when scope is not set', () => {
+      fixture.componentRef.setInput('data', dataWithTroncPanel());
+      fixture.detectChanges();
+
+      expect(component.distributionTroncPanels().length).toBeGreaterThan(0);
     });
   });
 

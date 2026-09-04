@@ -15,6 +15,8 @@ export * from './lib/components/card/card.component';
 export * from './lib/components/tabs/tabs.component';
 export * from './lib/components/form-field/form-field.component';
 export * from './lib/components/input/input.component';
+export * from './lib/components/checkbox/checkbox.component';
+export * from './lib/components/textarea/textarea.component';
 export * from './lib/components/select/select.component';
 export * from './lib/components/modal/modal.component';
 export * from './lib/components/toast/toast-container.component';

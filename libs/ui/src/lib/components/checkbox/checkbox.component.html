@@ -1,0 +1,21 @@
+<label
+  [for]="checkboxId()"
+  class="inline-flex items-center gap-2"
+  [class.cursor-pointer]="!isDisabled()"
+  [class.cursor-not-allowed]="isDisabled()"
+  [class.opacity-60]="isDisabled()"
+>
+  <input
+    type="checkbox"
+    [id]="checkboxId()"
+    [class]="inputClasses()"
+    [checked]="checked()"
+    [disabled]="isDisabled()"
+    [required]="required()"
+    [attr.aria-label]="ariaLabel() ?? null"
+    (change)="onInputChange($event)"
+    (blur)="onBlur()"
+    data-testid="lib-checkbox-native"
+  />
+  <span data-testid="lib-checkbox-label"><ng-content /></span>
+</label>

@@ -145,6 +145,108 @@ function createNodeShape(
       opacity: opts.opacity,
     });
   }
+  if (shape === NodeShape.ARROW_LEFT) {
+    // Same shape as ARROW, mirrored horizontally (every x negated) so the tip points left.
+    return new Konva.Line({
+      points: [
+        w / 2, -h / 2,
+        -w / 4, -h / 2,
+        -w / 2, 0,
+        -w / 4, h / 2,
+        w / 2, h / 2,
+      ],
+      closed: true,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  if (shape === NodeShape.ARROW_UP) {
+    // ARROW rotated -90° (tip points up instead of right): travel runs along h, head
+    // width along w, tip at (0,-h/2), flat base at y=h/2, shoulders at y=-h/4.
+    return new Konva.Line({
+      points: [
+        -w / 2, h / 2,
+        -w / 2, -h / 4,
+        0, -h / 2,
+        w / 2, -h / 4,
+        w / 2, h / 2,
+      ],
+      closed: true,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  if (shape === NodeShape.ARROW_DOWN) {
+    // Same as ARROW_UP, mirrored vertically (every y negated) so the tip points down.
+    return new Konva.Line({
+      points: [
+        -w / 2, -h / 2,
+        -w / 2, h / 4,
+        0, h / 2,
+        w / 2, h / 4,
+        w / 2, -h / 2,
+      ],
+      closed: true,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  if (shape === NodeShape.DOUBLE_ARROW) {
+    // Same construction as ARROW, tapered at both ends instead of one flat edge.
+    return new Konva.Line({
+      points: [
+        -w / 2, 0,
+        -w / 4, -h / 2,
+        w / 4, -h / 2,
+        w / 2, 0,
+        w / 4, h / 2,
+        -w / 4, h / 2,
+      ],
+      closed: true,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  if (shape === NodeShape.TRIANGLE) {
+    return new Konva.Line({
+      points: [
+        0, -h / 2,
+        w / 2, h / 2,
+        -w / 2, h / 2,
+      ],
+      closed: true,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  if (shape === NodeShape.STAR) {
+    const outerRadius = Math.min(w, h) / 2;
+    return new Konva.Star({
+      numPoints: 5,
+      innerRadius: outerRadius * 0.5,
+      outerRadius,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
   if (shape === NodeShape.CIRCLE) {
     const r = Math.min(w, h) / 2;
     return new Konva.Ellipse({
@@ -936,8 +1038,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private applyReadonlyFit(): void {
     const nodes = this.nodes();
-    if (nodes.length === 0) return;
     const allBounds = [...nodes, ...this.fitExtraBounds()];
+    if (allBounds.length === 0) return;
     const fit = computeFitTransform(allBounds, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 });
     if (fit) {
       this.stage.scale({ x: fit.scale, y: fit.scale });
@@ -2429,7 +2531,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
 
-    if (this.nodes().length > 0 && !this.userAdjustedView) {
+    if ((this.nodes().length > 0 || this.fitExtraBounds().length > 0) && !this.userAdjustedView) {
       setTimeout(() => {
         this.applyReadonlyFit();
         this.stage.batchDraw();

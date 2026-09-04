@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { NodeAssignmentService } from './node-assignment.service';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM, ImportScope } from '@muixer/shared';
 
 const BASE = environment.apiUrl;
 const INSTANCE_ID = 'instance-uuid-1';
@@ -74,6 +74,14 @@ describe('NodeAssignmentService', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(payload);
     req.flush({ created: [], conflicts: [] });
+  });
+
+  it('passes scope through in the bulkImport request body', () => {
+    service.bulkImport('instance-1', { sourceInstanceId: 'source-1', scope: ImportScope.TRONC }).subscribe();
+
+    const req = httpMock.expectOne(`${BASE}/figure-instances/instance-1/assignments/bulk`);
+    expect(req.request.body).toEqual({ sourceInstanceId: 'source-1', scope: ImportScope.TRONC });
+    req.flush({ created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} });
   });
 
   it('getAvailablePersons sends GET with query params to /events/:id/segments/:id/available-persons', () => {

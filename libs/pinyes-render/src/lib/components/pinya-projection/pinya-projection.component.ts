@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FigureZone, getSegmentInstanceLabel, OwnPositionSubject } from '@muixer/shared';
+import { FigureZone, ImportScope, getSegmentInstanceLabel, OwnPositionSubject } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
@@ -84,6 +84,9 @@ export class PinyaProjectionComponent {
   /** Re-emitted from the banner's back-to-me button — the PWA resets `highlightPersonId` to its
    *  own person on this, restoring the 'self' subject. */
   readonly backToSelf = output<void>();
+
+  /** Import preview scope — `PINYA` hides the tronc panel (nothing to preview yet). `null`/`ALL` unchanged. */
+  readonly scope = input<ImportScope | null>(null);
 
   /** Signal query: the element only exists while the host renders (always, once
    *  `data` is set), but kept as a query for parity with the ResizeObserver
@@ -406,6 +409,7 @@ export class PinyaProjectionComponent {
    * (same geometry as distributionTroncPanels, converted from screen to canvas by dividing stageScale)
    */
   readonly distributionFitBounds = computed((): { x: number; y: number; width: number; height: number }[] => {
+    if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
     const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,
@@ -454,6 +458,7 @@ export class PinyaProjectionComponent {
    * so TroncViewComponent gets full space to render and is then visually scaled down.
    */
   readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
+    if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
     const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,
@@ -535,21 +540,28 @@ export class PinyaProjectionComponent {
         centerY = (mnY + mxY) / 2;
       }
 
-      return this.getInstanceProjectionNodes(inst).map((node): OutlineBox => {
-        const relX = node.x - centerX;
-        const relY = node.y - centerY;
-        const rotX = cosA * relX - sinA * relY;
-        const rotY = sinA * relX + cosA * relY;
-        return {
-          x: (projX + rotX) * distScale + offsetX,
-          y: (projY + rotY) * distScale + offsetY,
-          width: node.width * distScale,
-          height: node.height * distScale,
-          rotation: (inst.projectionAngle ?? 0) + (node.rotation ?? 0),
-          color,
-          shape: (node as { shape?: string }).shape ?? 'RECTANGLE',
-        };
-      });
+      // Decoration nodes are excluded: this glow is the figure's own per-instance color, applied
+      // uniformly to every occupying node's silhouette — a decoration node keeps its own
+      // independent color (including "sense fons"/null, rendered as a transparent fill), and
+      // painting the figure's color behind it made a colorless decoration look tinted with
+      // whichever figure it happened to sit on.
+      return this.getInstanceProjectionNodes(inst)
+        .filter((node) => node.zone !== FigureZone.DECORATION)
+        .map((node): OutlineBox => {
+          const relX = node.x - centerX;
+          const relY = node.y - centerY;
+          const rotX = cosA * relX - sinA * relY;
+          const rotY = sinA * relX + cosA * relY;
+          return {
+            x: (projX + rotX) * distScale + offsetX,
+            y: (projY + rotY) * distScale + offsetY,
+            width: node.width * distScale,
+            height: node.height * distScale,
+            rotation: (inst.projectionAngle ?? 0) + (node.rotation ?? 0),
+            color,
+            shape: (node as { shape?: string }).shape ?? 'RECTANGLE',
+          };
+        });
     });
   });
 

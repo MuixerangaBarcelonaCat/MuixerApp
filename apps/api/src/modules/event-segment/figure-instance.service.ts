@@ -225,6 +225,7 @@ export class FigureInstanceService {
       segment: targetSegment,
       figureTemplate: sourceInstance.figureTemplate ?? null,
       label: sourceInstance.label,
+      numberOfCordons: sourceInstance.numberOfCordons,
       sortOrder,
     });
 
@@ -521,7 +522,12 @@ export class FigureInstanceService {
       ),
       hasPinyaFigure && instance.figureTemplate
         ? this.dataSource.query(
-            `SELECT COUNT(*) as total FROM rengles WHERE "templateId" = $1`,
+            // Highest rengla position actually used by a PINYA node (cordo-obert exempt) — not a
+            // count of "rengles" rows, which is the template's rengla *catalog* and can differ
+            // from how many of them a given figure's nodes actually reach.
+            `SELECT MAX("renglaPosition") as total FROM figure_nodes
+             WHERE "templateId" = $1 AND zone = 'PINYA' AND "positionType" IS DISTINCT FROM 'cordo-obert'
+               AND "renglaPosition" IS NOT NULL`,
             [instance.figureTemplate.id],
           )
         : Promise.resolve([{ total: '0' }]),

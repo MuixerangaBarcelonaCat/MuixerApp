@@ -37,6 +37,8 @@ export interface FigureTemplateListItem {
   direction: number;
   nodeCount: number;
   renglaCount: number;
+  /** People per tronc/base floor, bottom-to-top (index 0 = bases). Pinya is never included. */
+  troncProfile: number[];
   createdAt: string;
   updatedAt: string;
 }

@@ -122,6 +122,39 @@ describe('SelectComponent', () => {
     });
   });
 
+  describe('swatch — a leading color dot reliably shown in the closed control, independent of', () => {
+    // browser support for appearance: base-select (which only renders rich <option> content in
+    // supported browsers — Firefox/Safari fall back to plain text, dropping any swatch projected
+    // as option content instead of using this input).
+    const swatchEl = () => fixture.debugElement.query(By.css('[data-testid="lib-select-swatch"]'));
+
+    it('renders no swatch by default', () => {
+      expect(swatchEl()).toBeNull();
+    });
+
+    it('renders a colored circle swatch when swatchColor is set', () => {
+      fixture.componentRef.setInput('swatchColor', '#0d9488');
+      fixture.detectChanges();
+      expect(swatchEl()).toBeTruthy();
+      expect(swatchEl().nativeElement.style.backgroundColor).toBeTruthy();
+      expect(swatchEl().nativeElement.classList).toContain('rounded-full');
+    });
+
+    it('renders a square swatch when swatchShape is "square"', () => {
+      fixture.componentRef.setInput('swatchColor', '#0d9488');
+      fixture.componentRef.setInput('swatchShape', 'square');
+      fixture.detectChanges();
+      expect(swatchEl().nativeElement.classList).not.toContain('rounded-full');
+    });
+
+    it('adds left padding to the select box to make room for the swatch', () => {
+      fixture.componentRef.setInput('swatchColor', '#0d9488');
+      fixture.detectChanges();
+      const box = fixture.debugElement.query(By.css('.select'));
+      expect(box.nativeElement.classList).toContain('pl-6');
+    });
+  });
+
   describe('disabled', () => {
     it('is not disabled by default', () => {
       expect(nativeSelect().disabled).toBe(false);

@@ -50,11 +50,20 @@ export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.posi
 export const DECORATION_NODE_PRESETS: NodePreset[] = [
   { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },
   { zone: FigureZone.DECORATION, positionType: 'ellipse', label: '', width: 100, height: 60, shape: NodeShape.ELLIPSE, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 30, shape: NodeShape.ARROW, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'triangle', label: '', width: 90, height: 80, shape: NodeShape.TRIANGLE, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'star', label: '', width: 70, height: 70, shape: NodeShape.STAR, color: null, requiresCustomLabel: true },
   { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: null, requiresCustomLabel: true },
+  // Arrows grouped together, narrower (shorter head) than the other shapes above, except
+  // up/down: those default wide-and-short (a broad head) rather than mirroring left/right's
+  // tall-and-narrow proportions rotated 90°.
+  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 20, shape: NodeShape.ARROW, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow-left', label: '', width: 80, height: 20, shape: NodeShape.ARROW_LEFT, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow-up', label: '', width: 80, height: 40, shape: NodeShape.ARROW_UP, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow-down', label: '', width: 80, height: 40, shape: NodeShape.ARROW_DOWN, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'double-arrow', label: '', width: 90, height: 20, shape: NodeShape.DOUBLE_ARROW, color: null, requiresCustomLabel: true },
 ];
 
-export const DECORATION_POSITION_TYPES = ['rectangle', 'ellipse', 'arrow', 'circle'] as const;
+export const DECORATION_POSITION_TYPES = ['rectangle', 'ellipse', 'triangle', 'star', 'circle', 'arrow', 'arrow-left', 'arrow-up', 'arrow-down', 'double-arrow'] as const;
 export type DecorationPositionType = (typeof DECORATION_POSITION_TYPES)[number];
 
 export const PINYA_NODE_PRESETS: NodePreset[] = [

@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { FiguresViewModeService } from './figures-view-mode.service';
 
 describe('FiguresViewModeService', () => {
-  afterEach(() => {
+  beforeEach(() => {
     localStorage.clear();
+    TestBed.configureTestingModule({});
   });
 
   it('defaults to pinyes when nothing is stored', () => {

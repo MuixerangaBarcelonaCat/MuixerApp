@@ -31,6 +31,8 @@ import {
   EventSegmentSummary,
   EventFigureSummary,
   FigureAreaCount,
+  ImportScope,
+  zonesForScope,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -131,6 +133,7 @@ export interface FigureHistoryEntry {
   eventTitle: string;
   eventDate: string;
   eventType: EventType;
+  segmentId: string;
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
@@ -139,6 +142,7 @@ export interface FigureHistoryEntry {
   assignments: {
     nodeId: string;
     nodeLabel: string;
+    zone: FigureZone;
     personId: string;
     personAlias: string;
   }[];
@@ -922,6 +926,7 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
+        segmentId: instance.segment.id,
         segmentName: instance.segment.name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
@@ -930,6 +935,7 @@ export class NodeAssignmentService {
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
+          zone: a.instanceNode.zone,
           personId: a.person.id,
           personAlias: a.person.alias,
         })),
@@ -1238,9 +1244,11 @@ export class NodeAssignmentService {
 
   async bulkImport(
     instanceId: string,
-    dto: { sourceInstanceId: string },
+    dto: { sourceInstanceId: string; scope?: ImportScope },
   ): Promise<BulkImportResult> {
     await this.checkEventLock(instanceId);
+
+    const scopeZones = zonesForScope(dto.scope ?? ImportScope.ALL);
 
     const targetInstance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
@@ -1300,6 +1308,7 @@ export class NodeAssignmentService {
     for (const sourceAssignment of sourceAssignments) {
       const sourceNode = sourceAssignment.instanceNode;
       if (sourceNode.isAdHoc) continue; // ad-hoc assignments handled below
+      if (scopeZones && !scopeZones.has(sourceNode.zone)) continue;
       const personId = sourceAssignment.person.id;
       const personAlias = sourceAssignment.person.alias;
       const nodeLabel = sourceNode.label;
@@ -1443,7 +1452,7 @@ export class NodeAssignmentService {
   async updateCordons(
     instanceId: string,
     dto: { numberOfCordons?: number | null; cordonsObertsEnabled?: boolean },
-  ): Promise<{ numberOfCordons: number | null; cordonsObertsEnabled: boolean }> {
+  ): Promise<{ numberOfCordons: number | null; cordonsObertsEnabled: boolean; removedAssignments: number }> {
     await this.checkEventLock(instanceId);
 
     const instance = await this.figureInstanceRepository.findOne({
@@ -1464,28 +1473,40 @@ export class NodeAssignmentService {
 
     await this.figureInstanceRepository.save(instance);
 
+    let removedAssignments = 0;
     if (instance.numberOfCordons !== null) {
-      await this.removeAssignmentsBeyondCordons(instanceId, instance.numberOfCordons);
+      removedAssignments += await this.removeAssignmentsBeyondCordons(instanceId, instance.numberOfCordons);
     }
     if (disablingCordonsOberts) {
-      await this.removeCordoObertAssignments(instanceId);
+      removedAssignments += await this.removeCordoObertAssignments(instanceId);
     }
 
-    return { numberOfCordons: instance.numberOfCordons, cordonsObertsEnabled: instance.cordonsObertsEnabled };
+    return {
+      numberOfCordons: instance.numberOfCordons,
+      cordonsObertsEnabled: instance.cordonsObertsEnabled,
+      removedAssignments,
+    };
   }
 
   /**
-   * Deletes assignments on PINYA nodes whose renglaPosition falls beyond
-   * numberOfCordons — those nodes become hidden from the assignment UI, so an
-   * assignment on one would otherwise silently linger and reappear if cordons
-   * are later increased again. cordo-obert nodes are exempt: they stay
-   * assignable regardless of numberOfCordons.
+   * Read-only counterpart to removeAssignmentsBeyondCordons(): how many assignments a reduction
+   * to `numberOfCordons` WOULD remove, without removing them — lets the caller confirm before
+   * committing a destructive reduction instead of finding out after the fact.
    */
-  private async removeAssignmentsBeyondCordons(instanceId: string, numberOfCordons: number): Promise<void> {
-    const hiddenNodes = await this.instanceNodeRepository.find({
+  async previewCordonsReduction(instanceId: string, numberOfCordons: number): Promise<number> {
+    const hiddenNodeIds = await this.hiddenNodeIdsBeyondCordons(instanceId, numberOfCordons);
+    if (hiddenNodeIds.length === 0) return 0;
+
+    return this.assignmentRepository.count({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(hiddenNodeIds) } },
+    });
+  }
+
+  private async hiddenNodeIdsBeyondCordons(instanceId: string, numberOfCordons: number): Promise<string[]> {
+    const nodes = await this.instanceNodeRepository.find({
       where: { figureInstance: { id: instanceId } },
     });
-    const hiddenNodeIds = hiddenNodes
+    return nodes
       .filter(
         (n) =>
           n.zone === FigureZone.PINYA &&
@@ -1494,35 +1515,50 @@ export class NodeAssignmentService {
           n.renglaPosition > numberOfCordons,
       )
       .map((n) => n.id);
-    if (hiddenNodeIds.length === 0) return;
+  }
+
+  /**
+   * Deletes assignments on PINYA nodes whose renglaPosition falls beyond
+   * numberOfCordons — those nodes become hidden from the assignment UI, so an
+   * assignment on one would otherwise silently linger and reappear if cordons
+   * are later increased again. cordo-obert nodes are exempt: they stay
+   * assignable regardless of numberOfCordons. Returns how many were removed,
+   * so callers can tell the caller-facing "reducing cordons unassigned N
+   * people" from a no-op reduction.
+   */
+  private async removeAssignmentsBeyondCordons(instanceId: string, numberOfCordons: number): Promise<number> {
+    const hiddenNodeIds = await this.hiddenNodeIdsBeyondCordons(instanceId, numberOfCordons);
+    if (hiddenNodeIds.length === 0) return 0;
 
     const assignments = await this.assignmentRepository.find({
       where: { figureInstance: { id: instanceId }, instanceNode: { id: In(hiddenNodeIds) } },
       relations: ['instanceNode'],
     });
-    if (assignments.length === 0) return;
+    if (assignments.length === 0) return 0;
 
     await this.assignmentRepository.remove(assignments);
+    return assignments.length;
   }
 
   /**
    * Deletes assignments on cordo-obert nodes — called when cordonsObertsEnabled
    * is turned off, since those nodes become hidden from the assignment UI.
    */
-  private async removeCordoObertAssignments(instanceId: string): Promise<void> {
+  private async removeCordoObertAssignments(instanceId: string): Promise<number> {
     const nodes = await this.instanceNodeRepository.find({
       where: { figureInstance: { id: instanceId } },
     });
     const cordoObertNodeIds = nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id);
-    if (cordoObertNodeIds.length === 0) return;
+    if (cordoObertNodeIds.length === 0) return 0;
 
     const assignments = await this.assignmentRepository.find({
       where: { figureInstance: { id: instanceId }, instanceNode: { id: In(cordoObertNodeIds) } },
       relations: ['instanceNode'],
     });
-    if (assignments.length === 0) return;
+    if (assignments.length === 0) return 0;
 
     await this.assignmentRepository.remove(assignments);
+    return assignments.length;
   }
 
   // ── Lock — Assignment lock after event date ────────────────────────────────

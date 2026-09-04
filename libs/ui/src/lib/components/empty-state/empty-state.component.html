@@ -4,8 +4,10 @@
   }
   <p class="text-base-content/60 text-sm">{{ message() }}</p>
   @if (actionLabel()) {
-    <button type="button" class="btn btn-primary btn-sm mt-4" (click)="clicked.emit()">
-      {{ actionLabel() }}
-    </button>
+    <div class="mt-4">
+      <lib-button size="sm" (clicked)="clicked.emit()">
+        {{ actionLabel() }}
+      </lib-button>
+    </div>
   }
 </div>

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { DelegateType, ManagedPerson, PersonProfileSummary, UserProfile } from '@muixer/shared';
+import { DelegateType, ManagedPerson, PersonProfileSummary } from '@muixer/shared';
 import { environment } from '../../../../environments/environment';
 
 /** Mirrors the API's PersonDelegateResponseDto nested shape — not the unused shared PersonDelegateDto. */
@@ -52,9 +52,4 @@ export class ProfileService {
     });
   }
 
-  changeEmail(payload: { newEmail: string; currentPassword: string }): Observable<UserProfile> {
-    return this.http.post<UserProfile>(`${environment.apiUrl}/auth/change-email`, payload, {
-      withCredentials: true,
-    });
-  }
 }

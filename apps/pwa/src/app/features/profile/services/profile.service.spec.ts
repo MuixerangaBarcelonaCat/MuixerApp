@@ -93,19 +93,4 @@ describe('ProfileService', () => {
 
     expect(completed).toBe(true);
   });
-
-  it('changeEmail() POSTs to /auth/change-email with credentials and returns the updated profile', () => {
-    let result: unknown;
-    const payload = { newEmail: 'new@test.cat', currentPassword: 'old' };
-    service.changeEmail(payload).subscribe((res) => (result = res));
-
-    const req = httpMock.expectOne(`${environment.apiUrl}/auth/change-email`);
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual(payload);
-    expect(req.request.withCredentials).toBe(true);
-    const profile = { id: 'user-1', email: 'new@test.cat' };
-    req.flush(profile);
-
-    expect(result).toEqual(profile);
-  });
 });

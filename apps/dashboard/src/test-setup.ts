@@ -8,11 +8,17 @@ if (typeof globalThis.navigator === 'undefined' || !globalThis.navigator.userAge
   });
 }
 
-(globalThis as unknown as Record<string, unknown>)['ResizeObserver'] = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// A real (constructible) class, not `vi.fn().mockImplementation(() => ({...}))` — that shape
+// isn't `new`-able, which throws for any component using the standard `new ResizeObserver(cb)`
+// call (e.g. segment-conflict-panel's scroll-arrow visibility). Doesn't invoke the callback
+// (jsdom has no real layout), so a test needing a resize to fire calls the component's own
+// update path directly instead of relying on this observer.
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+(globalThis as unknown as Record<string, unknown>)['ResizeObserver'] = MockResizeObserver;
 
 // jsdom implements <dialog>'s `open` attribute reflection but not showModal()/close() at all
 // (neither exists on the prototype) — needed for lib-modal (@muixer/ui), which uses native

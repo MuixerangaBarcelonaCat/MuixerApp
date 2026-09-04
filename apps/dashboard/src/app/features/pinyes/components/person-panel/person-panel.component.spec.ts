@@ -241,7 +241,8 @@ describe('PersonPanelComponent', () => {
       const maxBtn = fixture.nativeElement.querySelector(
         'button[aria-label="Ordena de més alt a més baix"]',
       ) as HTMLButtonElement;
-      expect(maxBtn.classList.contains('border-base-content')).toBe(true);
+      // lib-button's outlineMode: selected = outline, unselected = ghost (no fill, no border).
+      expect(maxBtn.classList.contains('btn-outline')).toBe(true);
     });
 
     it('clicking Max again deselects it', () => {
@@ -380,13 +381,13 @@ describe('PersonPanelComponent', () => {
       component.onPositionFilterChange('t1');
       fixture.detectChanges();
 
-      const clearBtn = fixture.nativeElement.querySelector('[data-testid="tag-filter-clear"]');
+      const clearBtn = fixture.nativeElement.querySelector('button[aria-label="Neteja el filtre d\'etiqueta"]');
       expect(clearBtn).toBeTruthy();
     });
 
     it('does not show a clear button when no tag filter is active', () => {
       fixture.detectChanges();
-      const clearBtn = fixture.nativeElement.querySelector('[data-testid="tag-filter-clear"]');
+      const clearBtn = fixture.nativeElement.querySelector('button[aria-label="Neteja el filtre d\'etiqueta"]');
       expect(clearBtn).toBeFalsy();
     });
 
@@ -397,7 +398,7 @@ describe('PersonPanelComponent', () => {
       component.onPositionFilterChange('t1');
       fixture.detectChanges();
 
-      const clearBtn: HTMLElement = fixture.nativeElement.querySelector('[data-testid="tag-filter-clear"]');
+      const clearBtn: HTMLElement = fixture.nativeElement.querySelector('button[aria-label="Neteja el filtre d\'etiqueta"]');
       clearBtn.click();
 
       expect(component.selectedPositionId()).toBeNull();

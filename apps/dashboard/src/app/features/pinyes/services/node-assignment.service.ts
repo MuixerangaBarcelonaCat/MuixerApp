@@ -68,6 +68,12 @@ export class NodeAssignmentService extends ApiService {
     return this.patch<CordonsResponse>(`/figure-instances/${instanceId}/cordons`, payload);
   }
 
+  /** Read-only: how many assignments reducing to `numberOfCordons` would remove, without applying it. */
+  previewCordonsImpact(instanceId: string, numberOfCordons: number): Observable<{ affectedCount: number }> {
+    const params = buildHttpParams({ numberOfCordons });
+    return this.get<{ affectedCount: number }>(`/figure-instances/${instanceId}/cordons/impact`, { params });
+  }
+
   getAvailablePersons(
     eventId: string,
     segmentId: string,

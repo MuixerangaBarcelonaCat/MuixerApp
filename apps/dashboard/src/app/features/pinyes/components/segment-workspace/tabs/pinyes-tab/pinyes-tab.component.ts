@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, BulkImportResult, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,15 +13,14 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { LucideAngularModule, Trash2, Undo2, Redo2 } from 'lucide-angular';
+import { LucideAngularModule, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, ButtonComponent } from '@muixer/ui';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
 import { FigureZone } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 import { buildPinyaBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
@@ -37,10 +36,10 @@ import { buildPinyaBuckets, pickNextAssignableNode } from '../../../../utils/ass
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LucideAngularModule,
+    ButtonComponent,
     FigureCanvasComponent,
     PersonPanelComponent,
     AlreadyAssignedDialogComponent,
-    ImportPinyaModalComponent,
   ],
   templateUrl: './pinyes-tab.component.html',
 })
@@ -56,7 +55,6 @@ export class PinyesTabComponent implements OnInit {
   /** Emitted when "Anar-hi" targets a node that only exists in the Troncs tab. */
   readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
 
-  readonly Trash2 = Trash2;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
 
@@ -126,129 +124,6 @@ export class PinyesTabComponent implements OnInit {
     /** All of this person's placements in the segment, for the multi-placement dialog (Phase 3). */
     placements: ConflictPlacement[];
   } | null>(null);
-
-  // ── Import pinya / reset snapshot ────────────────────────────────────────
-
-  readonly importMenuOpen = signal(false);
-  readonly importTarget = signal<{ instanceId: string; figureTemplateId: string } | null>(null);
-  readonly resetMenuOpen = signal(false);
-  readonly resetTarget = signal<string | null>(null);
-  readonly resetting = signal(false);
-
-  readonly importCandidates = computed(() =>
-    this.ws.instances().filter((i) => i.figureTemplateId !== null),
-  );
-  readonly resetCandidates = computed(() => this.ws.instances().filter((i) => i.snapshotted));
-
-  readonly resetTargetInstance = computed(() => {
-    const id = this.resetTarget();
-    return id ? this.instanceFor(id) : null;
-  });
-
-  readonly resetTargetAssignedCount = computed(() => {
-    const id = this.resetTarget();
-    if (!id) return 0;
-    return this.state.assignments().filter((a) => a.figureInstanceId === id).length;
-  });
-
-  openImport(): void {
-    this.resetMenuOpen.set(false);
-    const candidates = this.importCandidates();
-    if (candidates.length === 1) {
-      this.chooseImportFigure(candidates[0].instanceId);
-    } else if (candidates.length > 1) {
-      this.importMenuOpen.set(true);
-    }
-  }
-
-  chooseImportFigure(instanceId: string): void {
-    this.importMenuOpen.set(false);
-    const instance = this.instanceFor(instanceId);
-    if (!instance?.figureTemplateId) return;
-    this.importTarget.set({ instanceId, figureTemplateId: instance.figureTemplateId });
-  }
-
-  onImportCompleted(result: BulkImportResult): void {
-    let msg =
-      result.conflicts.length > 0
-        ? `S'han importat ${result.created.length} assignacions (${result.conflicts.length} conflictes omesos).`
-        : `S'han importat ${result.created.length} assignacions.`;
-    if (result.clonedAdHocNodes > 0) {
-      msg += ` S'han clonat ${result.clonedAdHocNodes} nodes manuals.`;
-    }
-    // D5 (Fase 5): duplicates are imported and marked, not skipped — surface how many landed
-    // in conflict so the tècnic knows to check the conflict panel, not just the omitted count above.
-    const duplicatedPersons = Object.values(result.conflictsByKind).reduce((a, b) => a + b, 0);
-    if (duplicatedPersons > 0) {
-      msg += ` ${duplicatedPersons} ${duplicatedPersons === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte.`;
-    }
-    this.toast.success(msg);
-    const target = this.importTarget();
-    this.importTarget.set(null);
-    if (target) {
-      this.ws.refreshInstance(target.instanceId);
-    }
-  }
-
-  onImportClosed(): void {
-    this.importTarget.set(null);
-  }
-
-  openReset(): void {
-    this.importMenuOpen.set(false);
-    const candidates = this.resetCandidates();
-    if (candidates.length === 1) {
-      this.chooseResetFigure(candidates[0].instanceId);
-    } else if (candidates.length > 1) {
-      this.resetMenuOpen.set(true);
-    }
-  }
-
-  chooseResetFigure(instanceId: string): void {
-    this.resetMenuOpen.set(false);
-    this.resetTarget.set(instanceId);
-  }
-
-  cancelReset(): void {
-    this.resetTarget.set(null);
-  }
-
-  confirmReset(): void {
-    const instanceId = this.resetTarget();
-    if (!instanceId) return;
-
-    this.undoRedo.clear();
-    this.resetting.set(true);
-    this.assignmentService.resetSnapshot(instanceId).subscribe({
-      next: (result) => {
-        this.resetting.set(false);
-        this.resetTarget.set(null);
-        let msg = `S'han eliminat ${result.removedAssignments} assignacions. La figura torna a la plantilla original.`;
-        if (result.deletedAdHocCount > 0) {
-          msg += ` S'han eliminat ${result.deletedAdHocCount} nodes manuals.`;
-        }
-        this.toast.success(msg);
-
-        this.clearSelection();
-        this.state.assignments.update((list) =>
-          list.filter((a) => a.figureInstanceId !== instanceId),
-        );
-        this.ws.instances.update((list) =>
-          list.map((i) =>
-            i.instanceId === instanceId ? { ...i, snapshotted: false, assignedCount: 0 } : i,
-          ),
-        );
-        this.ws.refreshInstance(instanceId);
-        this.state.refreshPersonList();
-      },
-      error: (err) => {
-        this.resetting.set(false);
-        this.resetTarget.set(null);
-        const msg = err?.error?.message ?? 'No s\'ha pogut reinicialitzar la figura.';
-        this.toast.error(msg);
-      },
-    });
-  }
 
   readonly attendanceMap = computed(
     () => this.state.attendanceRegistry() as Map<string, AttendanceStatus>,
@@ -502,9 +377,8 @@ export class PinyesTabComponent implements OnInit {
     this.clearSelection();
 
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
-      next: (res) => {
+      next: () => {
         this.state.refreshPersonList();
-        if (res.impact) this.ws.noteTroncImpact(res.impact);
         // Fase 5: removing one of several duplicate placements can resolve a conflict —
         // keep the banner live.
         this.ws.reloadConflicts();
@@ -629,7 +503,6 @@ export class PinyesTabComponent implements OnInit {
         }
 
         this.state.refreshPersonList();
-        if (created.impact) this.ws.noteTroncImpact(created.impact);
         this.advanceToNextEmptyNode(instanceId, created.node.id);
 
         this.undoRedo.push(
@@ -687,9 +560,8 @@ export class PinyesTabComponent implements OnInit {
     );
 
     this.performSwap(instanceId, assignment1.id, assignment2.id).subscribe({
-      next: (impact) => {
+      next: () => {
         this.toast.success("S'han intercanviat les persones.");
-        if (impact) this.ws.noteTroncImpact(impact);
         // Fase 5: a swap can create/resolve a duplicate — keep the banner live.
         this.ws.reloadConflicts();
         // Swap preserves both assignment ids server-side, so it's its own inverse:
@@ -767,10 +639,8 @@ export class PinyesTabComponent implements OnInit {
       );
 
     applyCrossSwap(person2Id, person1Id).subscribe({
-      next: (result) => {
+      next: () => {
         this.toast.success("S'han intercanviat les persones.");
-        if (result.a.impact) this.ws.noteTroncImpact(result.a.impact);
-        if (result.b.impact) this.ws.noteTroncImpact(result.b.impact);
         // Fase 5: a cross-figure swap can create/resolve a duplicate — keep the banner live.
         this.ws.reloadConflicts();
         this.undoRedo.push({

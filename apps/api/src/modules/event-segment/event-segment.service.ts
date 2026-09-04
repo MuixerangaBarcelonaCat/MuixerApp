@@ -274,8 +274,14 @@ export class EventSegmentService {
   private async loadTotalCordons(templateIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>();
     if (templateIds.length === 0) return map;
+    // Highest rengla position actually used by a PINYA node (cordo-obert exempt), matching
+    // computeMaxCordons() on the frontend — not a count of "rengles" rows, which is the
+    // template's rengla *catalog* and can differ from how many of them the figure's nodes reach.
     const rows: { templateId: string; total: string }[] = await this.dataSource.query(
-      `SELECT "templateId", COUNT(*) as total FROM rengles WHERE "templateId" = ANY($1) GROUP BY "templateId"`,
+      `SELECT "templateId", MAX("renglaPosition") as total FROM figure_nodes
+       WHERE "templateId" = ANY($1) AND zone = 'PINYA' AND "positionType" IS DISTINCT FROM 'cordo-obert'
+         AND "renglaPosition" IS NOT NULL
+       GROUP BY "templateId"`,
       [templateIds],
     );
     for (const row of rows) map.set(row.templateId, parseInt(row.total, 10));
@@ -285,14 +291,21 @@ export class EventSegmentService {
   async getTroncView(eventId: string): Promise<InstanceTroncSummary[]> {
     await this.assertEventExists(eventId);
 
-    const rows: { instance_id: string; zone: string; z: number; sort_order: number; alias: string | null }[] =
-      await this.dataSource.query(
+    const rows: {
+      instance_id: string;
+      zone: string;
+      z: number;
+      sort_order: number;
+      alias: string | null;
+      climb_indicator: string | null;
+    }[] = await this.dataSource.query(
         `SELECT
            in_."figureInstanceId" as instance_id,
            in_.zone,
            in_.z,
            in_."sortOrder" as sort_order,
-           p.alias
+           p.alias,
+           in_."climbIndicator" as climb_indicator
          FROM instance_nodes in_
          JOIN figure_instances fi ON fi.id = in_."figureInstanceId"
          JOIN event_segments es ON es.id = fi."segmentId"
@@ -319,7 +332,8 @@ export class EventSegmentService {
         const isBase = row.zone === 'BASE';
         const key = isBase ? -1 : row.z;
         if (!byFloor.has(key)) byFloor.set(key, { isBase, slots: [] });
-        byFloor.get(key)!.slots.push(row.alias ?? null);
+        const label = row.climb_indicator ? `${row.alias ?? '?'} (${row.climb_indicator})` : row.alias ?? null;
+        byFloor.get(key)!.slots.push(label);
       }
 
       const floors: TroncFloorData[] = Array.from(byFloor.entries())

@@ -26,7 +26,8 @@ import {
   ApiBearerAuth,
   ApiHeader,
 } from '@nestjs/swagger';
-import { ClientType, JwtPayload, UserProfile } from '@muixer/shared';
+import { ClientType, JwtPayload, UserProfile, UserRole } from '@muixer/shared';
+import { Roles } from './decorators/roles.decorator';
 import { AuthService } from './auth.service';
 import { User } from '../user/user.entity';
 import { LoginDto } from './dto/login.dto';
@@ -249,8 +250,9 @@ export class AuthController {
     await this.authService.changePassword(user.sub, dto);
   }
 
-  /** Canvia el correu electrònic de l'usuari autenticat, de forma immediata. */
+  /** Canvia el correu electrònic de l'usuari autenticat, de forma immediata. Reservat a TECHNICAL/ADMIN: els Membres el canvien des del Dashboard, no des de la PWA. */
   @Post('change-email')
+  @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Canviar el correu electrònic (sessió iniciada)' })

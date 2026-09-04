@@ -24,51 +24,57 @@ describe('NodeDpadComponent', () => {
     fixture.destroy();
   });
 
+  // The mode/step toggles are lib-button instances (display:contents host) — data-testid lands
+  // on that inert host, so queries scope to the real inner <button> the same way modal.component's
+  // own spec does (see its "close button" comment).
+  const modeButton = (mode: 'position' | 'size' | 'rotation') =>
+    el.querySelector<HTMLButtonElement>(`[data-testid="dpad-mode-${mode}"] button`)!;
+  const stepToggleButton = () => el.querySelector<HTMLButtonElement>('[data-testid="dpad-step-toggle"] button')!;
+
   describe('mode toggle', () => {
     it('starts in position mode', () => {
       expect(component.mode()).toBe('position');
-      const posBtn = el.querySelector<HTMLElement>('[data-testid="dpad-mode-position"]')!;
-      expect(posBtn.classList.contains('btn-primary')).toBe(true);
+      expect(modeButton('position').getAttribute('aria-pressed')).toBe('true');
     });
 
     it('switches to size mode on click', () => {
-      el.querySelector<HTMLElement>('[data-testid="dpad-mode-size"]')!.click();
+      modeButton('size').click();
       fixture.detectChanges();
       expect(component.mode()).toBe('size');
     });
 
     it('switches back to position mode', () => {
-      el.querySelector<HTMLElement>('[data-testid="dpad-mode-size"]')!.click();
+      modeButton('size').click();
       fixture.detectChanges();
-      el.querySelector<HTMLElement>('[data-testid="dpad-mode-position"]')!.click();
+      modeButton('position').click();
       fixture.detectChanges();
       expect(component.mode()).toBe('position');
     });
 
     it('switches to rotation mode on click', () => {
-      el.querySelector<HTMLElement>('[data-testid="dpad-mode-rotation"]')!.click();
+      modeButton('rotation').click();
       fixture.detectChanges();
       expect(component.mode()).toBe('rotation');
     });
   });
 
   describe('step toggle', () => {
-    it('starts at step 1', () => {
-      expect(component.step()).toBe(1);
-    });
-
-    it('toggles to step 10', () => {
-      el.querySelector<HTMLElement>('[data-testid="dpad-step-toggle"]')!.click();
-      fixture.detectChanges();
+    it('starts at step 10', () => {
       expect(component.step()).toBe(10);
     });
 
-    it('toggles back to step 1', () => {
-      el.querySelector<HTMLElement>('[data-testid="dpad-step-toggle"]')!.click();
-      fixture.detectChanges();
-      el.querySelector<HTMLElement>('[data-testid="dpad-step-toggle"]')!.click();
+    it('toggles to step 1', () => {
+      stepToggleButton().click();
       fixture.detectChanges();
       expect(component.step()).toBe(1);
+    });
+
+    it('toggles back to step 10', () => {
+      stepToggleButton().click();
+      fixture.detectChanges();
+      stepToggleButton().click();
+      fixture.detectChanges();
+      expect(component.step()).toBe(10);
     });
   });
 
@@ -78,7 +84,7 @@ describe('NodeDpadComponent', () => {
       component.nodeMoved.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('right', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dx: 1, dy: 0 }]);
+      expect(emitted).toEqual([{ dx: 10, dy: 0 }]);
     });
 
     it('emits nodeMoved with negative dy on up arrow click', () => {
@@ -86,16 +92,16 @@ describe('NodeDpadComponent', () => {
       component.nodeMoved.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('up', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dx: 0, dy: -1 }]);
+      expect(emitted).toEqual([{ dx: 0, dy: -10 }]);
     });
 
-    it('emits nodeMoved with step=10 when step toggled', () => {
+    it('emits nodeMoved with step=1 when step toggled', () => {
       const emitted: { dx: number; dy: number }[] = [];
       component.nodeMoved.subscribe((v) => emitted.push(v));
 
       component.toggleStep();
       component.onArrowPointerDown('right', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dx: 10, dy: 0 }]);
+      expect(emitted).toEqual([{ dx: 1, dy: 0 }]);
     });
 
     it('emits nodeMoved.left with negative dx', () => {
@@ -103,7 +109,7 @@ describe('NodeDpadComponent', () => {
       component.nodeMoved.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('left', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dx: -1, dy: 0 }]);
+      expect(emitted).toEqual([{ dx: -10, dy: 0 }]);
     });
 
     it('emits nodeMoved.down with positive dy', () => {
@@ -111,7 +117,7 @@ describe('NodeDpadComponent', () => {
       component.nodeMoved.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('down', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dx: 0, dy: 1 }]);
+      expect(emitted).toEqual([{ dx: 0, dy: 10 }]);
     });
   });
 
@@ -125,7 +131,7 @@ describe('NodeDpadComponent', () => {
       component.nodeResized.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('right', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dw: 1, dh: 0 }]);
+      expect(emitted).toEqual([{ dw: 10, dh: 0 }]);
     });
 
     it('emits nodeResized with negative dw on left arrow', () => {
@@ -133,7 +139,7 @@ describe('NodeDpadComponent', () => {
       component.nodeResized.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('left', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dw: -1, dh: 0 }]);
+      expect(emitted).toEqual([{ dw: -10, dh: 0 }]);
     });
 
     it('emits nodeResized with negative dh on up arrow', () => {
@@ -141,7 +147,7 @@ describe('NodeDpadComponent', () => {
       component.nodeResized.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('up', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dw: 0, dh: -1 }]);
+      expect(emitted).toEqual([{ dw: 0, dh: -10 }]);
     });
 
     it('emits nodeResized with positive dh on down arrow', () => {
@@ -149,7 +155,7 @@ describe('NodeDpadComponent', () => {
       component.nodeResized.subscribe((v) => emitted.push(v));
 
       component.onArrowPointerDown('down', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dw: 0, dh: 1 }]);
+      expect(emitted).toEqual([{ dw: 0, dh: 10 }]);
     });
   });
 
@@ -159,16 +165,16 @@ describe('NodeDpadComponent', () => {
       fixture.detectChanges();
     });
 
-    it('starts at rotation step 1°', () => {
-      expect(component.rotationStep()).toBe(1);
-      expect(component.stepLabel()).toBe('1°');
+    it('starts at rotation step 15°', () => {
+      expect(component.rotationStep()).toBe(15);
+      expect(component.stepLabel()).toBe('15°');
     });
 
-    it('toggles rotation step to 15° independently of the px step', () => {
-      el.querySelector<HTMLElement>('[data-testid="dpad-step-toggle"]')!.click();
+    it('toggles rotation step to 1° independently of the px step', () => {
+      stepToggleButton().click();
       fixture.detectChanges();
-      expect(component.rotationStep()).toBe(15);
-      expect(component.step()).toBe(1);
+      expect(component.rotationStep()).toBe(1);
+      expect(component.step()).toBe(10);
     });
 
     it('emits nodeRotated with positive dRotation on clockwise click', () => {
@@ -176,7 +182,7 @@ describe('NodeDpadComponent', () => {
       component.nodeRotated.subscribe((v) => emitted.push(v));
 
       component.onRotatePointerDown('cw', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dRotation: 1 }]);
+      expect(emitted).toEqual([{ dRotation: 15 }]);
     });
 
     it('emits nodeRotated with negative dRotation on counterclockwise click', () => {
@@ -184,16 +190,16 @@ describe('NodeDpadComponent', () => {
       component.nodeRotated.subscribe((v) => emitted.push(v));
 
       component.onRotatePointerDown('ccw', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dRotation: -1 }]);
+      expect(emitted).toEqual([{ dRotation: -15 }]);
     });
 
-    it('emits nodeRotated with the 15° step when toggled', () => {
+    it('emits nodeRotated with the 1° step when toggled', () => {
       const emitted: { dRotation: number }[] = [];
       component.nodeRotated.subscribe((v) => emitted.push(v));
 
       component.toggleStep();
       component.onRotatePointerDown('cw', new PointerEvent('pointerdown'));
-      expect(emitted).toEqual([{ dRotation: 15 }]);
+      expect(emitted).toEqual([{ dRotation: 1 }]);
     });
 
     it('does not emit nodeRotated when disabled', () => {

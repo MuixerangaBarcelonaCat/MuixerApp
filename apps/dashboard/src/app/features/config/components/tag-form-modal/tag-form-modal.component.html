@@ -78,18 +78,7 @@
     />
 
     <!-- Descripció llarga -->
-    <div class="form-control">
-      <label class="label pb-1" for="tag-long-desc">
-        <span class="label-text text-xs font-medium">Descripció llarga</span>
-      </label>
-      <textarea
-        id="tag-long-desc"
-        class="textarea textarea-bordered w-full"
-        formControlName="longDescription"
-        rows="3"
-        placeholder="Descripció detallada de l'etiqueta"
-      ></textarea>
-    </div>
+    <lib-textarea label="Descripció llarga" formControlName="longDescription" [rows]="3" placeholder="Descripció detallada de l'etiqueta" />
 
   </form>
 

@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ButtonComponent, InputComponent, BadgeComponent } from '@muixer/ui';
 import {
   FigureZone,
   ICON_OBSERVACIONS,
@@ -63,7 +64,7 @@ const DRAG_THRESHOLD_PX = 6;
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, FitTextDirective],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, FitTextDirective, ButtonComponent, InputComponent, BadgeComponent],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
@@ -179,6 +180,32 @@ export class TroncViewComponent {
   readonly xicallaDirectionNodes = computed(() =>
     this.directionNodes().filter((n) => n.zone === FigureZone.XICALLA_DIRECTION),
   );
+
+  /**
+   * Projection mode: assigned direction people grouped by zone, so all
+   * «Dir. figura» / «Dir. xicalla» people render on one line each — matching
+   * the tronc assignment panel — instead of one row per node.
+   */
+  readonly assignedDirectionGroups = computed(() => {
+    const assigns = this.assignments();
+    const groups: { zone: string; label: string; color: string; aliases: string }[] = [];
+    for (const zone of [FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION]) {
+      const aliases = this.directionNodes()
+        .filter((n) => n.zone === zone)
+        .map((n) => assigns.find((a) => a.node.id === n.id))
+        .filter((a): a is AssignmentDetail => !!a)
+        .map((a) => a.person.alias);
+      if (aliases.length > 0) {
+        groups.push({
+          zone,
+          label: this.getDirectionLabel(zone),
+          color: this.getDirectionColor(zone),
+          aliases: aliases.join(', '),
+        });
+      }
+    }
+    return groups;
+  });
 
   readonly hasAssignedDirections = computed(() => {
     const dirs = this.directionNodes();
@@ -439,7 +466,7 @@ export class TroncViewComponent {
       nodeId: node.id,
       x: node.x,
       width: node.width,
-      label: label.trim(),
+      label: label.trim().slice(0, 30),
     });
   }
 
@@ -448,7 +475,7 @@ export class TroncViewComponent {
       nodeId: node.id,
       x: node.x,
       width: node.width,
-      climbIndicator: indicator.trim() || null,
+      climbIndicator: indicator.trim().slice(0, 6) || null,
     });
   }
 

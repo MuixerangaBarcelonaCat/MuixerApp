@@ -5,6 +5,7 @@ import { CompositionService } from './composition.service';
 import { Composition } from './entities/composition.entity';
 import { CompositionEntry } from './entities/composition-entry.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
+import { FigureNode } from '../figure/entities/figure-node.entity';
 import { FigureMode, FigureZone } from '@muixer/shared';
 
 const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate => ({
@@ -70,8 +71,14 @@ describe('CompositionService', () => {
     findOne: jest.fn(),
   };
 
+  const mockNodeRepo = {
+    createQueryBuilder: jest.fn(),
+  };
+
   const compositionQb = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
@@ -81,9 +88,22 @@ describe('CompositionService', () => {
     getMany: jest.fn().mockResolvedValue([]),
   };
 
+  let nodeQb: Record<string, jest.Mock>;
+
   beforeEach(async () => {
     jest.clearAllMocks();
     mockCompositionRepo.createQueryBuilder.mockReturnValue(compositionQb);
+
+    nodeQb = {
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      addGroupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
+    mockNodeRepo.createQueryBuilder.mockReturnValue(nodeQb);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -91,6 +111,7 @@ describe('CompositionService', () => {
         { provide: getRepositoryToken(Composition), useValue: mockCompositionRepo },
         { provide: getRepositoryToken(CompositionEntry), useValue: mockEntryRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
+        { provide: getRepositoryToken(FigureNode), useValue: mockNodeRepo },
       ],
     }).compile();
 
@@ -123,6 +144,39 @@ describe('CompositionService', () => {
         expect.stringContaining('ILIKE'),
         { search: '%altar%' },
       );
+    });
+
+    it('attaches each entry\'s troncProfile as figureProfiles, in entry order', async () => {
+      const entryA = makeEntry({ id: 'entry-a', figureTemplate: makeTemplate({ id: 'tmpl-a' }) });
+      const entryB = makeEntry({ id: 'entry-b', figureTemplate: makeTemplate({ id: 'tmpl-b' }) });
+      const comp = makeComposition({ entries: [entryA, entryB] });
+      compositionQb.getMany.mockResolvedValue([comp]);
+      compositionQb.getCount.mockResolvedValue(1);
+      nodeQb.getRawMany.mockResolvedValue([
+        { templateId: 'tmpl-a', z: 0, count: '4' },
+        { templateId: 'tmpl-a', z: 1, count: '2' },
+        { templateId: 'tmpl-b', z: 0, count: '3' },
+      ]);
+
+      const result = await service.findAll({});
+
+      expect(result.data[0].figureProfiles).toEqual([[4, 2], [3]]);
+      expect(nodeQb.where).toHaveBeenCalledWith(
+        'node.templateId IN (:...ids)',
+        { ids: ['tmpl-a', 'tmpl-b'] },
+      );
+    });
+
+    it('defaults an entry to an empty profile when its figure has no tronc/base nodes', async () => {
+      const entry = makeEntry({ id: 'entry-a', figureTemplate: makeTemplate({ id: 'tmpl-a' }) });
+      const comp = makeComposition({ entries: [entry] });
+      compositionQb.getMany.mockResolvedValue([comp]);
+      compositionQb.getCount.mockResolvedValue(1);
+      nodeQb.getRawMany.mockResolvedValue([]);
+
+      const result = await service.findAll({});
+
+      expect(result.data[0].figureProfiles).toEqual([[]]);
     });
 
     it('respects page and limit', async () => {

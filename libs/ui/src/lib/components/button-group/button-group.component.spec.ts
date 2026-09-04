@@ -38,6 +38,16 @@ describe('ButtonGroupComponent', () => {
     expect(joinEl().nativeElement.className).toContain('join-vertical');
   });
 
+  it('does not stretch to fill its container by default', () => {
+    expect(joinEl().nativeElement.className).not.toContain('w-full');
+  });
+
+  it('adds w-full when fullWidth is set, so equal-width joinItem children can share the space', () => {
+    fixture.componentRef.setInput('fullWidth', true);
+    fixture.detectChanges();
+    expect(joinEl().nativeElement.className).toContain('w-full');
+  });
+
   it('projects content inside the .join wrapper', async () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();

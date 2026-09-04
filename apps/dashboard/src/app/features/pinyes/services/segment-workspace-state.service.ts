@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, TroncChangeImpact, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { FigureZone, isNodeVisibleByCordons, computeSegmentDisplayName } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
@@ -53,13 +53,6 @@ export class SegmentWorkspaceStateService {
   readonly conflicts = signal<SegmentConflict[]>([]);
   /** Dotació/conflict counters carried alongside `conflicts` — feeds the conflict banner (Fase 4). */
   readonly conflictCounters = signal<SegmentPeopleCounters | null>(null);
-  /**
-   * Pinya nodes left empty by a TRONC/BASE change, pending review in the banner (D11/Fase 4).
-   * Populated from `impact` on assign/swap (`noteTroncImpact`); for `unassign`/`move` — which
-   * don't return `impact` yet (Fase 3 deviation, closes in Fase 5) — derived client-side from
-   * already-loaded `instances()`/`assignments()` by `refreshInstance`.
-   */
-  readonly reviewItems = signal<{ freedPinyaNodeIds: string[] }>({ freedPinyaNodeIds: [] });
   /** Handoff for cross-tab navigation: set before switching tabs, consumed by the tab's ngOnInit. */
   readonly pendingSelection = signal<SegmentNodeRef | null>(null);
 
@@ -312,11 +305,6 @@ export class SegmentWorkspaceStateService {
         this.conflictCounters.set(resp.meta);
       },
     });
-  }
-
-  /** Records the `impact` a TRONC/BASE assign/swap returned (D11) — feeds the review-list banner. */
-  noteTroncImpact(impact: TroncChangeImpact): void {
-    this.reviewItems.set({ freedPinyaNodeIds: impact.freedPinyaNodeIds });
   }
 
   /**

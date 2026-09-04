@@ -2,14 +2,17 @@ import { ConflictPlacement, SegmentConflict, SegmentNodeRef, targetTabForZone } 
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   computed,
+  effect,
   inject,
   output,
   signal,
   viewChild,
 } from '@angular/core';
 import { ChevronLeft, ChevronRight, Eye, LucideAngularModule, Trash2 } from 'lucide-angular';
+import { ButtonComponent, BadgeComponent } from '@muixer/ui';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
@@ -29,7 +32,7 @@ const CARD_SCROLL_STEP = 300;
   selector: 'app-segment-conflict-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent, BadgeComponent],
   templateUrl: './segment-conflict-panel.component.html',
 })
 export class SegmentConflictPanelComponent {
@@ -49,23 +52,28 @@ export class SegmentConflictPanelComponent {
   readonly panelOpen = signal(false);
   readonly canScrollLeft = signal(false);
   readonly canScrollRight = signal(false);
+  /** Neither direction can scroll only when the cards fit without overflowing — hides the
+   * arrows entirely rather than just disabling them (disabled-but-visible reads as "there's more,
+   * you just can't reach it right now", which is misleading when there's nothing to scroll to). */
+  readonly hasOverflow = computed(() => this.canScrollLeft() || this.canScrollRight());
 
   readonly conflicts = computed(() => this.ws.conflicts());
   readonly conflictPersonCount = computed(() => this.ws.conflictCounters()?.conflictPersonCount ?? 0);
-  readonly freedPinyaNodeIds = computed(() => this.ws.reviewItems().freedPinyaNodeIds);
 
-  /** Labels of the freed pinya nodes still pending review, resolved from the loaded instances. */
-  readonly freedPinyaNodeLabels = computed(() => {
-    const ids = new Set(this.freedPinyaNodeIds());
-    if (ids.size === 0) return [];
-    const labels: string[] = [];
-    for (const instance of this.ws.instances()) {
-      for (const node of instance.nodes) {
-        if (ids.has(node.id)) labels.push(`${instance.label} — ${node.label}`);
-      }
-    }
-    return labels;
-  });
+  constructor() {
+    // Re-checks overflow on window resize / card-content changes too, not just scroll/toggle —
+    // otherwise resizing the window while the panel is already open leaves a stale arrow state
+    // until the user scrolls or re-toggles the panel.
+    let observer: ResizeObserver | null = null;
+    effect(() => {
+      const el = this.scrollContainer()?.nativeElement;
+      observer?.disconnect();
+      if (!el) return;
+      observer = new ResizeObserver(() => this.updateScrollState());
+      observer.observe(el);
+    });
+    inject(DestroyRef).onDestroy(() => observer?.disconnect());
+  }
 
   togglePanel(): void {
     this.panelOpen.update((v) => !v);
@@ -75,10 +83,6 @@ export class SegmentConflictPanelComponent {
       this.canScrollLeft.set(false);
       this.canScrollRight.set(false);
     }
-  }
-
-  dismissReview(): void {
-    this.ws.reviewItems.set({ freedPinyaNodeIds: [] });
   }
 
   areaLabel(area: ConflictPlacement['area']): string {
