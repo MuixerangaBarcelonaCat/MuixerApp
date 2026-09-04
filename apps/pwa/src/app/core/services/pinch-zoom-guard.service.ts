@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { DestroyRef, Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { LayoutService } from './layout.service';
 
@@ -15,6 +15,7 @@ import { LayoutService } from './layout.service';
 export class PinchZoomGuardService {
   private readonly document = inject(DOCUMENT);
   private readonly layout = inject(LayoutService);
+  private readonly destroyRef = inject(DestroyRef);
   private installed = false;
 
   install(): void {
@@ -25,18 +26,26 @@ export class PinchZoomGuardService {
       if (!this.layout.isFullscreen()) event.preventDefault();
     };
 
+    const touchBlock = (event: TouchEvent): void => {
+      if (event.touches.length > 1 && !this.layout.isFullscreen()) event.preventDefault();
+    };
+
     // iOS Safari pinch gesture
-    for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    const gestureTypes = ['gesturestart', 'gesturechange', 'gestureend'];
+    for (const type of gestureTypes) {
       this.document.addEventListener(type, block, { passive: false });
     }
 
     // Fallback for engines that let a multi-finger pinch slip past `touch-action`
-    this.document.addEventListener(
-      'touchmove',
-      (event: TouchEvent) => {
-        if (event.touches.length > 1 && !this.layout.isFullscreen()) event.preventDefault();
-      },
-      { passive: false },
-    );
+    this.document.addEventListener('touchmove', touchBlock, { passive: false });
+
+    // Detach on injector teardown so tests don't leak listeners onto a shared document.
+    this.destroyRef.onDestroy(() => {
+      for (const type of gestureTypes) {
+        this.document.removeEventListener(type, block);
+      }
+      this.document.removeEventListener('touchmove', touchBlock);
+      this.installed = false;
+    });
   }
 }
