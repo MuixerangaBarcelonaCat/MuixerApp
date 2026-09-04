@@ -312,10 +312,10 @@ describe('describeOwnPlacement', () => {
     expect(description.kind).toBe('TRONC');
   });
 
-  it.each([FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION])(
-    'classifies a %s node as kind TRONC, with no floor neighbours',
-    (zone) => {
-      const node = makeNode({ zone, label: 'Cap' });
+  it.each(['direccio-tronc', 'direccio-xicalla'])(
+    'classifies a %s direction node as kind TRONC, with no floor neighbours',
+    (positionType) => {
+      const node = makeNode({ zone: FigureZone.DIRECTION, positionType, label: 'Cap' });
       const instance = makeInstance({ nodes: [node], assignments: [makeAssignment(node, 'me', 'Marta')] });
 
       const description = describeOwnPlacement(toPlacement(instance, node), 1);
@@ -427,10 +427,10 @@ describe('findOwnTroncCellRect', () => {
     expect(findOwnTroncCellRect(base, instance).y).toBe(TRONC_HEADER_PX + 2 * TRONC_FLOOR_ROW_PX);
   });
 
-  it.each([FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION])(
-    'gives a %s node a full-width row, with no x/width of its own',
-    (zone) => {
-      const node = makeNode({ zone, x: 0, width: 0, sortOrder: 0 });
+  it.each(['direccio-tronc', 'direccio-xicalla'])(
+    'gives a %s direction node a full-width row, with no x/width of its own',
+    (positionType) => {
+      const node = makeNode({ zone: FigureZone.DIRECTION, positionType, x: 0, width: 0, sortOrder: 0 });
       const troncNode = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 4, sortOrder: 0 });
       const instance = makeInstance({
         nodes: [node, troncNode],
@@ -445,8 +445,8 @@ describe('findOwnTroncCellRect', () => {
   );
 
   it('stacks a second assigned direction row below the first, before the floors', () => {
-    const figDir = makeNode({ zone: FigureZone.FIGURE_DIRECTION, x: 0, width: 0, sortOrder: 0 });
-    const xicDir = makeNode({ zone: FigureZone.XICALLA_DIRECTION, x: 0, width: 0, sortOrder: 0 });
+    const figDir = makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-tronc', x: 0, width: 0, sortOrder: 0 });
+    const xicDir = makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', x: 0, width: 0, sortOrder: 0 });
     const floor = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
     const instance = makeInstance({
       nodes: [figDir, xicDir, floor],
@@ -458,7 +458,7 @@ describe('findOwnTroncCellRect', () => {
   });
 
   it('does not reserve a direction row when no direction node is assigned', () => {
-    const unassignedDir = makeNode({ zone: FigureZone.FIGURE_DIRECTION, x: 0, width: 0, sortOrder: 0 });
+    const unassignedDir = makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-tronc', x: 0, width: 0, sortOrder: 0 });
     const floor = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
     const instance = makeInstance({ nodes: [unassignedDir, floor], assignments: [] });
 

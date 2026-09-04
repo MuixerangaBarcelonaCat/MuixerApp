@@ -899,7 +899,7 @@ describe('FigureInstanceService', () => {
       expect(result.items[0].troncGridRows).toBe(2);
     });
 
-    it('adds 1 to troncGridRows for each direction zone present', async () => {
+    it('adds 1 to troncGridRows for each direction flavour present', async () => {
       const inst = {
         ...makeInstanceWithNodes(),
         figureTemplate: {
@@ -908,8 +908,8 @@ describe('FigureInstanceService', () => {
           nodes: [
             { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
             { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
-            { id: 'd1', label: 'Dir fig', zone: 'FIGURE_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
-            { id: 'd2', label: 'Dir xic', zone: 'XICALLA_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 'd1', label: 'Dir tronc', zone: 'DIRECTION', positionType: 'direccio-tronc', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 'd2', label: 'Dir xic', zone: 'DIRECTION', positionType: 'direccio-xicalla', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
           ],
         },
       };
@@ -919,7 +919,7 @@ describe('FigureInstanceService', () => {
 
       const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
 
-      expect(result.items[0].troncGridRows).toBe(3); // 1 tronc floor + 1 fig dir + 1 xicalla dir
+      expect(result.items[0].troncGridRows).toBe(3); // 1 tronc floor + 1 direccio-tronc + 1 direccio-xicalla
     });
 
     it('returns troncGridCols 0 and troncGridRows 0 when no tronc or direction nodes', async () => {

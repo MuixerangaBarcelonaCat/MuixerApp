@@ -819,7 +819,7 @@ describe('FigureTemplateService', () => {
         instanceNodes: [
           makeInstanceNode({ id: 'pinya-node', zone: FigureZone.PINYA }),
           makeInstanceNode({ id: 'deco-node', zone: FigureZone.DECORATION }),
-          makeInstanceNode({ id: 'dir-node', zone: FigureZone.FIGURE_DIRECTION }),
+          makeInstanceNode({ id: 'dir-node', zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' }),
           makeInstanceNode({ id: 'base-node', zone: FigureZone.BASE }),
         ],
       });
@@ -835,7 +835,7 @@ describe('FigureTemplateService', () => {
       const createCalls = mockNodeRepo.create.mock.calls;
       const createdZones = createCalls.map((c) => c[0].zone);
       expect(createdZones).not.toContain(FigureZone.DECORATION);
-      expect(createdZones).not.toContain(FigureZone.FIGURE_DIRECTION);
+      expect(createdZones).not.toContain(FigureZone.DIRECTION);
     });
 
     it('throws BadRequestException when no saveable nodes', async () => {

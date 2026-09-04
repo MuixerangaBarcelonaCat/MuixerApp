@@ -302,7 +302,7 @@ describe('TroncsTabComponent', () => {
           [INST_A]: [
             makeNode('t1', 'TRONC'),
             makeNode('b1', 'BASE'),
-            makeNode('d1', 'FIGURE_DIRECTION'),
+            makeNode('d1', 'DIRECTION', { positionType: 'direccio-tronc' }),
             makeNode('p1', 'PINYA'),
           ],
         },
@@ -662,19 +662,19 @@ describe('TroncsTabComponent', () => {
     it('adds a direction node to the given figure', async () => {
       await setup();
       component.onTroncNodeSelected(INST_A, 'n1');
-      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'FIGURE_DIRECTION')));
+      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
 
-      component.onDirectionAdded(INST_A, { zone: 'FIGURE_DIRECTION' });
+      component.onDirectionAdded(INST_A, { positionType: 'direccio-tronc' });
 
       expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
         INST_A,
-        expect.objectContaining({ zone: 'FIGURE_DIRECTION' }),
+        expect.objectContaining({ zone: 'DIRECTION', positionType: 'direccio-tronc' }),
       );
     });
 
     it('removes an unassigned direction node', async () => {
       await setup({
-        nodesByInstance: { [INST_A]: [makeNode('d1', 'FIGURE_DIRECTION')] },
+        nodesByInstance: { [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-tronc' })] },
       });
       assignmentService.deleteAdHocNode.mockReturnValue(of(undefined));
 
@@ -686,7 +686,7 @@ describe('TroncsTabComponent', () => {
     it('refuses to remove an assigned direction node', async () => {
       const existing = makeAssignment(INST_A, 'd1', 'p-1');
       await setup({
-        nodesByInstance: { [INST_A]: [makeNode('d1', 'FIGURE_DIRECTION')] },
+        nodesByInstance: { [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-tronc' })] },
         assignmentsByInstance: { [INST_A]: [existing] },
       });
 
@@ -876,8 +876,8 @@ describe('TroncsTabComponent', () => {
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'b1' });
     });
 
-    it('treats FIGURE_DIRECTION nodes as staying in the Troncs tab (no switch)', async () => {
-      const existing = makeAssignment(INST_A, 'd1', 'p-1', 'FIGURE_DIRECTION');
+    it('treats DIRECTION nodes as staying in the Troncs tab (no switch)', async () => {
+      const existing = makeAssignment(INST_A, 'd1', 'p-1', 'DIRECTION');
       await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
       const emitSpy = vi.fn();
       component.crossTabSelect.subscribe(emitSpy);

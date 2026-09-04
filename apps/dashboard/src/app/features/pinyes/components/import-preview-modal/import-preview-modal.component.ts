@@ -74,13 +74,11 @@ export class ImportPreviewModalComponent implements OnChanges {
     return inst ? (inst.nodes.filter((n) => n.zone === FigureZone.BASE) as TroncNodeItem[]) : [];
   }
 
-  /** Direction nodes (FIGURE_DIRECTION/XICALLA_DIRECTION) of the previewed instance. */
+  /** Direction nodes (zone DIRECTION) of the previewed instance. */
   directionNodesFor(): TroncNodeItem[] {
     const inst = this.projectionData()?.instances.find((i) => i.id === this.instanceId());
     return inst
-      ? (inst.nodes.filter(
-          (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
-        ) as TroncNodeItem[])
+      ? (inst.nodes.filter((n) => n.zone === FigureZone.DIRECTION) as TroncNodeItem[])
       : [];
   }
 

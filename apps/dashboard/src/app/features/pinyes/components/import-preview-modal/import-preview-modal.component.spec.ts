@@ -112,8 +112,8 @@ describe('ImportPreviewModalComponent', () => {
     const troncNode = { id: 'n-tronc', zone: FigureZone.TRONC };
     const baseNode = { id: 'n-base', zone: FigureZone.BASE };
     const pinyaNode = { id: 'n-pinya', zone: FigureZone.PINYA };
-    const figureDirNode = { id: 'n-figdir', zone: FigureZone.FIGURE_DIRECTION };
-    const xicallaDirNode = { id: 'n-xicdir', zone: FigureZone.XICALLA_DIRECTION };
+    const figureDirNode = { id: 'n-figdir', zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' };
+    const xicallaDirNode = { id: 'n-xicdir', zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla' };
     const decorationNode = { id: 'n-deco', zone: FigureZone.DECORATION };
 
     const assignment = { node: { id: 'n-tronc' }, person: { id: 'p1', alias: 'Marc' } };

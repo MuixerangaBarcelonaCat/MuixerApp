@@ -1696,7 +1696,7 @@ describe('NodeAssignmentService', () => {
     });
 
     it('counts direction nodes toward total but not toward pinya or tronc', async () => {
-      const directionNode = makeInstanceNode({ zone: FigureZone.FIGURE_DIRECTION });
+      const directionNode = makeInstanceNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' });
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
@@ -2827,20 +2827,20 @@ describe('NodeAssignmentService', () => {
       save: jest.fn().mockImplementation((node: any) => Promise.resolve(node)),
     });
 
-    it('creates FIGURE_DIRECTION ad-hoc node with correct defaults', async () => {
+    it('creates a direccio-tronc ad-hoc node with correct defaults', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
 
       const txManager = makeAdHocTxManager();
       const created = makeInstanceNode({
         id: 'dir-adhoc-1',
-        zone: FigureZone.FIGURE_DIRECTION,
-        positionType: null,
+        zone: FigureZone.DIRECTION,
+        positionType: 'direccio-tronc',
         shape: NodeShape.RECTANGLE,
         width: 90,
         height: 44,
         color: '#d97706',
-        label: 'Direcció fig.',
+        label: 'Direcció tronc',
         isAdHoc: true,
         createdById: 'user-1',
       });
@@ -2850,36 +2850,36 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.createAdHocNode(
         INSTANCE_ID,
-        { zone: FigureZone.FIGURE_DIRECTION, label: 'Direcció fig.', x: 100, y: 200 } as any,
+        { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc', label: 'Direcció tronc', x: 100, y: 200 } as any,
         'user-1',
       );
 
       expect(result.isAdHoc).toBe(true);
-      expect(result.zone).toBe(FigureZone.FIGURE_DIRECTION);
+      expect(result.zone).toBe(FigureZone.DIRECTION);
       expect(txManager.create).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          zone: FigureZone.FIGURE_DIRECTION,
+          zone: FigureZone.DIRECTION,
           isAdHoc: true,
-          positionType: null,
+          positionType: 'direccio-tronc',
         }),
       );
     });
 
-    it('creates XICALLA_DIRECTION ad-hoc node with correct defaults', async () => {
+    it('creates a direccio-xicalla ad-hoc node with correct defaults', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
 
       const txManager = makeAdHocTxManager();
       const created = makeInstanceNode({
         id: 'dir-adhoc-2',
-        zone: FigureZone.XICALLA_DIRECTION,
-        positionType: null,
+        zone: FigureZone.DIRECTION,
+        positionType: 'direccio-xicalla',
         shape: NodeShape.RECTANGLE,
         width: 90,
         height: 44,
         color: '#db2777',
-        label: 'Direcció xic.',
+        label: 'Direcció xicalla',
         isAdHoc: true,
         createdById: 'user-1',
       });
@@ -2889,22 +2889,23 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.createAdHocNode(
         INSTANCE_ID,
-        { zone: FigureZone.XICALLA_DIRECTION, label: 'Direcció xic.', x: 150, y: 250 } as any,
+        { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', x: 150, y: 250 } as any,
         'user-1',
       );
 
       expect(result.isAdHoc).toBe(true);
-      expect(result.zone).toBe(FigureZone.XICALLA_DIRECTION);
+      expect(result.zone).toBe(FigureZone.DIRECTION);
     });
 
-    it('allows multiple FIGURE_DIRECTION ad-hoc nodes in same segment (no node-level uniqueness)', async () => {
+    it('allows multiple direction ad-hoc nodes in same segment (no node-level uniqueness)', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
 
       const txManager = makeAdHocTxManager();
       const created = makeInstanceNode({
         id: 'dir-adhoc-3',
-        zone: FigureZone.FIGURE_DIRECTION,
+        zone: FigureZone.DIRECTION,
+        positionType: 'direccio-tronc',
         isAdHoc: true,
         createdById: 'user-1',
       });
@@ -2914,7 +2915,7 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.createAdHocNode(
         INSTANCE_ID,
-        { zone: FigureZone.FIGURE_DIRECTION, label: 'Direcció fig.', x: 100, y: 200 } as any,
+        { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc', label: 'Direcció tronc', x: 100, y: 200 } as any,
         'user-1',
       );
 
@@ -2929,13 +2930,14 @@ describe('NodeAssignmentService', () => {
       getRawOne: jest.fn().mockResolvedValue({ max: 5 }),
     };
 
-    it('clones ad-hoc FIGURE_DIRECTION node normally during import', async () => {
+    it('clones ad-hoc direction node normally during import', async () => {
       const directionSource = makeInstanceNode({
         id: 'src-dir-1',
-        zone: FigureZone.FIGURE_DIRECTION,
+        zone: FigureZone.DIRECTION,
+        positionType: 'direccio-tronc',
         isAdHoc: true,
         sourceNodeId: null,
-        label: 'Direcció fig.',
+        label: 'Direcció tronc',
       });
       const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode()] });
       const source = makeInstance({

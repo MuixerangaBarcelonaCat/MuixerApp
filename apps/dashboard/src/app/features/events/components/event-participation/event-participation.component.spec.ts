@@ -927,7 +927,7 @@ describe('EventParticipationComponent', () => {
       const response = buildResponse({
         persons: [
           makePerson('p1', 'DIRECTORA', {
-            [SEG_A]: [makePlacement({ zone: 'FIGURE_DIRECTION', area: 'DIRECTION', nodeLabel: 'Direcció' })],
+            [SEG_A]: [makePlacement({ zone: 'DIRECTION', positionType: 'direccio-tronc', area: 'DIRECTION', nodeLabel: 'Direcció' })],
           }),
         ],
       });

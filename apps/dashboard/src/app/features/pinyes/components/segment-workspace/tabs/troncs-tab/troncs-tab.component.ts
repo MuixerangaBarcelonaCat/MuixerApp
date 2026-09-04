@@ -174,7 +174,7 @@ export class TroncsTabComponent implements OnInit {
           troncNodes: visible.filter((n) => n.zone === FigureZone.TRONC) as unknown as TroncNodeItem[],
           baseNodes: visible.filter((n) => n.zone === FigureZone.BASE) as unknown as TroncNodeItem[],
           directionNodes: visible.filter(
-            (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
+            (n) => n.zone === FigureZone.DIRECTION,
           ) as unknown as TroncNodeItem[],
           color: getFigureColor(index),
         };
@@ -408,9 +408,9 @@ export class TroncsTabComponent implements OnInit {
     });
   }
 
-  onDirectionAdded(instanceId: string, event: { zone: string }): void {
+  onDirectionAdded(instanceId: string, event: { positionType: string }): void {
     if (this.ws.isLocked()) return;
-    const preset = DIRECTION_NODE_PRESETS.find((p) => p.zone === event.zone);
+    const preset = DIRECTION_NODE_PRESETS.find((p) => p.positionType === event.positionType);
     if (!preset) return;
 
     this.assignmentService

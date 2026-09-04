@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -59,10 +59,17 @@ const ZONE_LABELS: Record<string, string> = {
   BASE: 'Base',
   PINYA: 'Pinya',
   TRONC: 'Tronc',
-  FIGURE_DIRECTION: 'Direcció',
-  XICALLA_DIRECTION: 'Direcció xicalla',
+  DIRECTION: 'Direcció',
   DECORATION: 'Decoració',
 };
+
+/** Direction placements read out by flavour (`positionType`); other zones by `zone`. */
+function placementZoneLabel(pl: { zone: string; positionType: string | null }): string {
+  if (pl.zone === 'DIRECTION') {
+    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === pl.positionType)?.label ?? 'Direcció';
+  }
+  return ZONE_LABELS[pl.zone] ?? pl.zone;
+}
 
 const EMPTY_META: ParticipationMeta = {
   distinctPersons: 0,
@@ -426,7 +433,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
           label: 'Zona',
           defaultVisible: true,
           type: 'pills',
-          pills: (r) => this.detailPills(r, segmentId, (pl) => ZONE_LABELS[pl.zone] ?? pl.zone),
+          pills: (r) => this.detailPills(r, segmentId, (pl) => placementZoneLabel(pl)),
           onCellClick: (r) => this.openSegmentCell(r, segmentId),
         },
       );

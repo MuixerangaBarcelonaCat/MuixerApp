@@ -242,7 +242,7 @@ describe('PinyaProjectionComponent', () => {
 
     it('includes BASE but excludes DIRECTION nodes', () => {
       const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
-      const dir = makeNode({ id: 'd1', zone: FigureZone.FIGURE_DIRECTION });
+      const dir = makeNode({ id: 'd1', zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' });
       const pinya = makeNode({ id: 'p1', zone: FigureZone.PINYA });
       const instance = makeInstance([base, dir, pinya], ['p1']);
 
@@ -265,9 +265,9 @@ describe('PinyaProjectionComponent', () => {
   // ── getInstanceDirectionNodes ───────────────────────────────────────────────
 
   describe('getInstanceDirectionNodes', () => {
-    it('extracts FIGURE_DIRECTION and XICALLA_DIRECTION nodes', () => {
-      const figDir = makeNode({ id: 'fd1', zone: FigureZone.FIGURE_DIRECTION });
-      const xicDir = makeNode({ id: 'xd1', zone: FigureZone.XICALLA_DIRECTION });
+    it('extracts DIRECTION nodes of every flavour', () => {
+      const figDir = makeNode({ id: 'fd1', zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' });
+      const xicDir = makeNode({ id: 'xd1', zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla' });
       const tronc = makeNode({ id: 't1', zone: FigureZone.TRONC });
       const pinya = makeNode({ id: 'p1', zone: FigureZone.PINYA });
       const instance = makeInstance([figDir, xicDir, tronc, pinya], []);

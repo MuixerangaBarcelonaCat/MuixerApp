@@ -260,9 +260,10 @@ export class CompositionService {
     const troncNodes = allNodes.filter((n) => n.zone === FigureZone.TRONC);
     const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
     const distinctZLevels = new Set(troncNodes.map((n) => n.z)).size;
-    const hasFigureDirection = allNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
-    const hasXicallaDirection = allNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
-    const troncGridRows = distinctZLevels + (hasFigureDirection ? 1 : 0) + (hasXicallaDirection ? 1 : 0);
+    const directionRows = new Set(
+      allNodes.filter((n) => n.zone === FigureZone.DIRECTION).map((n) => n.positionType),
+    ).size;
+    const troncGridRows = distinctZLevels + directionRows;
 
     const template = entry.figureTemplate;
     return {

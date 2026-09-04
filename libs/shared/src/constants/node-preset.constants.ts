@@ -39,13 +39,29 @@ export interface NodePreset {
   requiresCustomLabel: boolean;
 }
 
-export const DIRECTION_NODE_PRESETS: NodePreset[] = [
-  { zone: FigureZone.FIGURE_DIRECTION, positionType: 'direccio-figura', label: 'Direcció fig.', width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
-  { zone: FigureZone.XICALLA_DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xic.', width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
+/**
+ * A direction preset. All direction nodes share `zone: FigureZone.DIRECTION`; the flavour is
+ * `positionType` (`direccio-tronc` / `direccio-xicalla` / `direccio-pinya`). `shortLabel` is
+ * the per-row caption in the tronc view's "Direccions" section; `slotOrder` fixes the order
+ * those rows stack in, everywhere they are rendered.
+ */
+export interface DirectionNodePreset extends NodePreset {
+  zone: FigureZone.DIRECTION;
+  positionType: string;
+  shortLabel: string;
+  slotOrder: number;
+}
+
+export const DIRECTION_NODE_PRESETS: DirectionNodePreset[] = [
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc',   label: 'Direcció tronc',   shortLabel: 'Tronc',   slotOrder: 0, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', shortLabel: 'Xicalla', slotOrder: 1, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
 ];
 
-export const DIRECTION_ZONES = DIRECTION_NODE_PRESETS.map((p) => p.zone);
-export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.positionType as string);
+/** Direction presets in the fixed order their rows stack (by `slotOrder`). */
+export const DIRECTION_SLOTS: DirectionNodePreset[] = [...DIRECTION_NODE_PRESETS].sort((a, b) => a.slotOrder - b.slotOrder);
+
+export const DIRECTION_ZONES: FigureZone[] = [FigureZone.DIRECTION];
+export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.positionType);
 
 export const DECORATION_NODE_PRESETS: NodePreset[] = [
   { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },
@@ -87,6 +103,5 @@ export const BASE_POSITION_TYPE = 'base';
 export const AD_HOC_ALLOWED_ZONES = [
   FigureZone.PINYA,
   FigureZone.DECORATION,
-  FigureZone.FIGURE_DIRECTION,
-  FigureZone.XICALLA_DIRECTION,
+  FigureZone.DIRECTION,
 ] as const;

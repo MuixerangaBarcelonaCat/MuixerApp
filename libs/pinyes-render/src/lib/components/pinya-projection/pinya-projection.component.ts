@@ -673,9 +673,7 @@ export class PinyaProjectionComponent {
   }
 
   getInstanceDirectionNodes(instance: ProjectionInstance): TroncNodeItem[] {
-    return instance.nodes.filter(
-      (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
-    ) as TroncNodeItem[];
+    return instance.nodes.filter((n) => n.zone === FigureZone.DIRECTION) as TroncNodeItem[];
   }
 
   getInstanceName(instance: ProjectionInstance): string {
@@ -688,9 +686,8 @@ export class PinyaProjectionComponent {
     const baseNodes = this.getInstanceBaseNodes(inst);
     const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
     const distinctZ = new Set(troncNodes.map((n) => n.z)).size;
-    const hasFigDir = dirNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
-    const hasXicDir = dirNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
-    const troncGridRows = distinctZ + (hasFigDir ? 1 : 0) + (hasXicDir ? 1 : 0);
+    const distinctDirectionRows = new Set(dirNodes.map((n) => n.positionType)).size;
+    const troncGridRows = distinctZ + distinctDirectionRows;
     const gridRows = troncGridRows + (baseNodes.length > 0 ? 1 : 0);
     const { naturalW, naturalH } = computeTroncNaturalSize(troncGridCols, gridRows);
     return { naturalW, naturalH: naturalH };

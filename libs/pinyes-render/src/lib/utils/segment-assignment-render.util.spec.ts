@@ -214,9 +214,8 @@ describe('targetTabForZone', () => {
     expect(targetTabForZone('TRONC')).toBe('troncs');
   });
 
-  it('maps FIGURE_DIRECTION and XICALLA_DIRECTION to the troncs tab', () => {
-    expect(targetTabForZone('FIGURE_DIRECTION')).toBe('troncs');
-    expect(targetTabForZone('XICALLA_DIRECTION')).toBe('troncs');
+  it('maps the DIRECTION zone to the troncs tab', () => {
+    expect(targetTabForZone('DIRECTION')).toBe('troncs');
   });
 
   it('returns null for BASE (rendered in both tabs, no switch needed)', () => {

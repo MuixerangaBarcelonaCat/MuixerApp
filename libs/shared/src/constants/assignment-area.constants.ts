@@ -22,8 +22,7 @@ export function areaForZone(zone: FigureZone): AssignmentArea | null {
       return AssignmentArea.TRONC;
     case FigureZone.PINYA:
       return AssignmentArea.PINYA;
-    case FigureZone.FIGURE_DIRECTION:
-    case FigureZone.XICALLA_DIRECTION:
+    case FigureZone.DIRECTION:
       return AssignmentArea.DIRECTION;
     case FigureZone.DECORATION:
       return null;

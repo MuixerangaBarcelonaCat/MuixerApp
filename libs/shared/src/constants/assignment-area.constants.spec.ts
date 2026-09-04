@@ -18,9 +18,8 @@ describe('areaForZone', () => {
     expect(areaForZone(FigureZone.PINYA)).toBe(AssignmentArea.PINYA);
   });
 
-  it('maps direction zones to the DIRECTION area', () => {
-    expect(areaForZone(FigureZone.FIGURE_DIRECTION)).toBe(AssignmentArea.DIRECTION);
-    expect(areaForZone(FigureZone.XICALLA_DIRECTION)).toBe(AssignmentArea.DIRECTION);
+  it('maps the DIRECTION zone to the DIRECTION area', () => {
+    expect(areaForZone(FigureZone.DIRECTION)).toBe(AssignmentArea.DIRECTION);
   });
 
   it('maps DECORATION to null (no assignment area)', () => {

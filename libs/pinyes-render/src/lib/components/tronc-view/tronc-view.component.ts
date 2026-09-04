@@ -11,7 +11,8 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ButtonComponent, InputComponent, BadgeComponent } from '@muixer/ui';
 import {
-  FigureZone,
+  DIRECTION_NODE_PRESETS,
+  DIRECTION_SLOTS,
   ICON_OBSERVACIONS,
   SHOULDER_HEIGHT_BASELINE_CM,
   TRONC_NODE_PRESETS,
@@ -145,7 +146,7 @@ export class TroncViewComponent {
     targetNodeId: string;
   }>();
 
-  readonly directionAdded = output<{ zone: string }>();
+  readonly directionAdded = output<{ positionType: string }>();
   readonly directionRemoved = output<string>();
 
   // ── Local state ────────────────────────────────────────────────────────────
@@ -173,33 +174,33 @@ export class TroncViewComponent {
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
-  readonly figureDirectionNodes = computed(() =>
-    this.directionNodes().filter((n) => n.zone === FigureZone.FIGURE_DIRECTION),
+  readonly troncDirectionNodes = computed(() =>
+    this.directionNodes().filter((n) => n.positionType === 'direccio-tronc'),
   );
 
   readonly xicallaDirectionNodes = computed(() =>
-    this.directionNodes().filter((n) => n.zone === FigureZone.XICALLA_DIRECTION),
+    this.directionNodes().filter((n) => n.positionType === 'direccio-xicalla'),
   );
 
   /**
-   * Projection mode: assigned direction people grouped by zone, so all
-   * «Dir. figura» / «Dir. xicalla» people render on one line each — matching
+   * Projection mode: assigned direction people grouped by flavour (`positionType`), so all
+   * «Direcció tronc» / «Direcció xicalla» people render on one line each — matching
    * the tronc assignment panel — instead of one row per node.
    */
   readonly assignedDirectionGroups = computed(() => {
     const assigns = this.assignments();
-    const groups: { zone: string; label: string; color: string; aliases: string }[] = [];
-    for (const zone of [FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION]) {
+    const groups: { positionType: string; label: string; color: string; aliases: string }[] = [];
+    for (const slot of DIRECTION_SLOTS) {
       const aliases = this.directionNodes()
-        .filter((n) => n.zone === zone)
+        .filter((n) => n.positionType === slot.positionType)
         .map((n) => assigns.find((a) => a.node.id === n.id))
         .filter((a): a is AssignmentDetail => !!a)
         .map((a) => a.person.alias);
       if (aliases.length > 0) {
         groups.push({
-          zone,
-          label: this.getDirectionLabel(zone),
-          color: this.getDirectionColor(zone),
+          positionType: slot.positionType,
+          label: slot.shortLabel,
+          color: slot.color ?? '#64748b',
           aliases: aliases.join(', '),
         });
       }
@@ -725,12 +726,14 @@ export class TroncViewComponent {
     return node.color ?? null;
   }
 
-  getDirectionColor(zone: string): string {
-    return zone === FigureZone.FIGURE_DIRECTION ? '#d97706' : '#db2777';
+  /** Border/accent colour for a direction flavour, by `positionType`. */
+  getDirectionColor(positionType: string | null): string {
+    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.color ?? '#64748b';
   }
 
-  getDirectionLabel(zone: string): string {
-    return zone === FigureZone.FIGURE_DIRECTION ? 'Dir.' : 'Xic.';
+  /** Short row caption for a direction flavour, by `positionType`. */
+  getDirectionLabel(positionType: string | null): string {
+    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.shortLabel ?? 'Dir.';
   }
 
   getPositionTypeBadge(node: TroncNodeItem): string {

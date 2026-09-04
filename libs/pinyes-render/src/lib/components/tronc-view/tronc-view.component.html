@@ -57,13 +57,13 @@
       @if (directionsExpanded()) {
         <div id="directions-content" class="directions-content">
 
-          <!-- FIGURE_DIRECTION slot -->
+          <!-- direccio-tronc slot -->
           <div class="direction-slot">
             <span
               class="direction-label"
-              [style.border-left-color]="getDirectionColor('FIGURE_DIRECTION')"
-            >Dir.</span>
-            @for (dirNode of figureDirectionNodes(); track dirNode.id) {
+              [style.border-left-color]="getDirectionColor('direccio-tronc')"
+            >Tronc</span>
+            @for (dirNode of troncDirectionNodes(); track dirNode.id) {
               <button
                 type="button"
                 class="tronc-node direction-node"
@@ -72,7 +72,7 @@
                 [class.dragging]="isDragging(dirNode.id)"
                 [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
                 [class.drag-over-move]="isDragOverMove(dirNode.id)"
-                [style.border-left-color]="getDirectionColor(dirNode.zone)"
+                [style.border-left-color]="getDirectionColor(dirNode.positionType)"
                 [attr.data-tronc-node-id]="dirNode.id"
                 [attr.data-instance-id]="instanceId()"
                 [attr.data-draggable]="isDraggableNode(dirNode.id) ? '' : null"
@@ -111,7 +111,7 @@
                   type="button"
                   class="btn btn-ghost btn-xs text-error"
                   (click)="onRemoveDirection(dirNode.id)"
-                  aria-label="Eliminar direcció figura"
+                  aria-label="Eliminar direcció tronc"
                   title="Eliminar"
                 >
                   <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
@@ -121,19 +121,19 @@
             <button
               type="button"
               class="btn btn-ghost btn-xs gap-1"
-              (click)="directionAdded.emit({ zone: 'FIGURE_DIRECTION' })"
+              (click)="directionAdded.emit({ positionType: 'direccio-tronc' })"
             >
               <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
               Afegir
             </button>
           </div>
 
-          <!-- XICALLA_DIRECTION slot -->
+          <!-- direccio-xicalla slot -->
           <div class="direction-slot">
             <span
               class="direction-label"
-              [style.border-left-color]="getDirectionColor('XICALLA_DIRECTION')"
-            >Xic.</span>
+              [style.border-left-color]="getDirectionColor('direccio-xicalla')"
+            >Xicalla</span>
             @for (dirNode of xicallaDirectionNodes(); track dirNode.id) {
               <button
                 type="button"
@@ -143,7 +143,7 @@
                 [class.dragging]="isDragging(dirNode.id)"
                 [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
                 [class.drag-over-move]="isDragOverMove(dirNode.id)"
-                [style.border-left-color]="getDirectionColor(dirNode.zone)"
+                [style.border-left-color]="getDirectionColor(dirNode.positionType)"
                 [attr.data-tronc-node-id]="dirNode.id"
                 [attr.data-instance-id]="instanceId()"
                 [attr.data-draggable]="isDraggableNode(dirNode.id) ? '' : null"
@@ -192,7 +192,7 @@
             <button
               type="button"
               class="btn btn-ghost btn-xs gap-1"
-              (click)="directionAdded.emit({ zone: 'XICALLA_DIRECTION' })"
+              (click)="directionAdded.emit({ positionType: 'direccio-xicalla' })"
             >
               <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
               Afegir
@@ -214,7 +214,7 @@
   <!-- ── Directions section (projection mode) ─────────────────────────── -->
   @if (mode() === 'projection' && hasAssignedDirections()) {
     <div class="directions-section projection" role="region" aria-label="Direccions">
-      @for (group of assignedDirectionGroups(); track group.zone) {
+      @for (group of assignedDirectionGroups(); track group.positionType) {
         <div class="direction-projection-row">
           <span class="direction-label compact" [style.border-left-color]="group.color">
             {{ group.label }}

@@ -149,7 +149,7 @@ export class PersonPanelComponent {
     for (const assignment of this.assignments()) {
       if (seen.has(assignment.person.id)) continue;
       const zone = assignment.node.zone;
-      // BASE → TRONC (D10); FIGURE_DIRECTION/XICALLA_DIRECTION → DIRECTION.
+      // BASE → TRONC (D10); DIRECTION → DIRECTION.
       const area: AssignmentArea =
         zone === 'TRONC' || zone === 'BASE'
           ? 'TRONC'

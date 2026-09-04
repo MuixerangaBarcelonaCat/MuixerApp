@@ -69,8 +69,8 @@ Cada posició dins d'un template. Camps clau:
 
 | Camp | Propòsit |
 |------|----------|
-| `zone` | `PINYA`, `TRONC`, `BASE`, `FIGURE_DIRECTION`, `XICALLA_DIRECTION` |
-| `positionType` | Tipus semàntic: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap` |
+| `zone` | `PINYA`, `TRONC`, `BASE`, `DIRECTION`, `DECORATION` |
+| `positionType` | Tipus semàntic. PINYA: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap`… · DIRECTION: `direccio-tronc`, `direccio-xicalla` (el «sabor» de la direcció viu al `positionType`, igual que a PINYA) |
 | `ringLevel` | Anell concèntric al qual pertany (1 = primer cordó). `null` per no-pinya i `cordo-obert` |
 | `originNodeId` | ID opcional per traçar llinatge quan es dupliquen o deriven nodes d'un altre template |
 
@@ -979,7 +979,7 @@ FigureTemplate ──── 1:N ────► FigureNode (renglaId, renglaPosi
 
 Nodes que mai pertanyen a cap rengla i sempre es mostren:
 - `agulla`, `crossa`, `contrafort`, `tap`
-- Nodes de zona `TRONC`, `BASE`, `FIGURE_DIRECTION`, `XICALLA_DIRECTION`
+- Nodes de zona `TRONC`, `BASE`, `DIRECTION`
 
 ---
 

@@ -982,10 +982,10 @@ describe('PersonPanelComponent', () => {
       expect(component.freePersons().map((p) => p.id)).not.toContain('p1');
     });
 
-    it('an optimistic FIGURE_DIRECTION assignment (before API refresh) is grouped under "Al tronc", not "A la pinya"', () => {
-      // Regression: the zone→area mapping used to check `zone === 'DIRECTION'`, but the real
-      // FigureZone values are 'FIGURE_DIRECTION'/'XICALLA_DIRECTION' — so this always fell
-      // through to the 'PINYA' default before the API refresh landed.
+    it('an optimistic DIRECTION assignment (before API refresh) is grouped under "Al tronc", not "A la pinya"', () => {
+      // Regression: direction nodes must map to the tronc area even before the API refresh lands.
+      // (Historically there were two direction zones, FIGURE_DIRECTION/XICALLA_DIRECTION, which the
+      // area mapping missed; migration UnifyAndRenameDirectionZones collapsed them into DIRECTION.)
       component.persons.set([]);
       fixture.componentRef.setInput('assignments', [
         {
@@ -994,9 +994,9 @@ describe('PersonPanelComponent', () => {
           node: {
             id: 'node-1',
             label: 'Direcció',
-            zone: 'FIGURE_DIRECTION',
+            zone: 'DIRECTION',
             z: 0,
-            positionType: null,
+            positionType: 'direccio-tronc',
             sortOrder: 0,
             climbIndicator: null,
             ringLevel: null,

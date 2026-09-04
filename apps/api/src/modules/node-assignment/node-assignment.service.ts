@@ -1158,7 +1158,7 @@ export class NodeAssignmentService {
    * counts, applying the same visibility rules used elsewhere for capacity:
    * PINYA nodes respect numberOfCordons + cordonsObertsEnabled and are zeroed
    * for REMAT/NETA; BASE counts as tronc except for REMAT; direction nodes
-   * (FIGURE_DIRECTION/XICALLA_DIRECTION) count only toward total; DECORATION
+   * (zone DIRECTION) count only toward total; DECORATION
    * is excluded entirely (not assignable).
    */
   private computeInstanceAreaSummary(
@@ -1184,7 +1184,7 @@ export class NodeAssignmentService {
     const isTronc = (n: { zone: string }): boolean =>
       n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
     const isDirection = (n: { zone: string }): boolean =>
-      n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION;
+      n.zone === FigureZone.DIRECTION;
 
     let pinyaTotal = 0;
     let troncTotal = 0;

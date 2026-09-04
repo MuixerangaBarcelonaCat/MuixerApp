@@ -14,7 +14,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_NODE_PRESETS, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
@@ -111,11 +111,27 @@ const NODE_COLORS: Record<string, string> = {
   [FigureZone.BASE]: '#EEEEEE',
   [FigureZone.PINYA]: '#3b82f6',
   [FigureZone.TRONC]: '#8b5cf6',
-  [FigureZone.FIGURE_DIRECTION]: '#d97706',
-  [FigureZone.XICALLA_DIRECTION]: '#db2777',
+  // Zone-level fallback for a direction node with no `color` of its own; the per-flavour
+  // colour (tronc / xicalla / pinya) normally comes from `node.color`, set from the preset.
+  [FigureZone.DIRECTION]: DIRECTION_NODE_PRESETS[0].color ?? '#d97706',
   [FigureZone.DECORATION]: '#999999',
 };
 const DEFAULT_NODE_COLOR = '#6b7280';
+
+/** The per-flavour direction colour by `positionType`, falling back to the zone colour. */
+function directionColorFor(positionType: string | null | undefined): string {
+  return (
+    DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.color ??
+    NODE_COLORS[FigureZone.DIRECTION]
+  );
+}
+
+/** Zone-derived fill for a node with no `color` of its own — DIRECTION resolves per `positionType`. */
+function nodeZoneColor(node: { zone: string; positionType?: string | null }): string {
+  return node.zone === FigureZone.DIRECTION
+    ? directionColorFor(node.positionType)
+    : (NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+}
 const DECORATION_STROKE = NODE_COLORS[FigureZone.DECORATION];
 
 function decorationFill(color: string | null | undefined): string {
@@ -1339,7 +1355,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         for (const node of pinyaNodes) {
           const personAlias = assignmentMap.get(node.id);
           const fill =
-            node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+            node.color ?? nodeZoneColor(node);
           const nodeGroup = new Konva.Group({
             x: node.x,
             y: node.y,
@@ -1684,7 +1700,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       );
       const fill = isDecoration
         ? decorationFill(node.color)
-        : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+        : (node.color ?? nodeZoneColor(node));
       const stroke = isSelected
         ? SELECTED_STROKE
         : isHighlighted
@@ -2106,7 +2122,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const isDecoration = node.zone === FigureZone.DECORATION;
     const fill = isDecoration
       ? decorationFill(node.color)
-      : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+      : (node.color ?? nodeZoneColor(node));
     const stroke = rn.isSelected
       ? SELECTED_STROKE
       : rn.isHighlighted
@@ -2421,7 +2437,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isDecoration = node.zone === FigureZone.DECORATION;
       const fill = isDecoration
         ? decorationFill(node.color)
-        : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+        : (node.color ?? nodeZoneColor(node));
 
       const group = new Konva.Group({
         id: node.id,
@@ -2569,7 +2585,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     isSelected: boolean,
     renglaMaxPosition: Map<string, number> = new Map(),
   ): Konva.Group {
-    const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+    const fill = node.color ?? nodeZoneColor(node);
     const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
     const strokeWidth = isSelected ? 3 : 1.5;
 
@@ -2743,7 +2759,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const pos = calculateGhostPosition(node);
     if (isGhostPositionOccupied(pos, this.nodes())) return;
     const nodeColor =
-      node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+      node.color ?? nodeZoneColor(node);
 
     const ghost = new Konva.Group({
       x: pos.x,

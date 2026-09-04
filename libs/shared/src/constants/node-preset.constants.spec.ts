@@ -1,6 +1,6 @@
 import { FigureZone } from '../enums/figure-zone.enum';
 import { NodeShape } from '../enums/node-shape.enum';
-import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DECORATION_NODE_PRESETS, DECORATION_POSITION_TYPES } from './node-preset.constants';
+import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DIRECTION_SLOTS, DIRECTION_POSITION_TYPES, DECORATION_NODE_PRESETS, DECORATION_POSITION_TYPES } from './node-preset.constants';
 
 describe('TRONC_NODE_PRESETS', () => {
   it('has at least 5 presets', () => {
@@ -118,22 +118,43 @@ describe('PINYA_NODE_PRESETS', () => {
 });
 
 describe('DIRECTION_NODE_PRESETS', () => {
-  it('has exactly two entries (figure and xicalla)', () => {
-    expect(DIRECTION_NODE_PRESETS.length).toBe(2);
+  it('includes the tronc and xicalla flavours', () => {
+    expect(DIRECTION_POSITION_TYPES).toContain('direccio-tronc');
+    expect(DIRECTION_POSITION_TYPES).toContain('direccio-xicalla');
   });
 
-  it('covers both direction zones', () => {
-    const zones = DIRECTION_NODE_PRESETS.map((p) => p.zone);
-    expect(zones).toContain(FigureZone.FIGURE_DIRECTION);
-    expect(zones).toContain(FigureZone.XICALLA_DIRECTION);
+  it('every preset lives in the single DIRECTION zone', () => {
+    for (const preset of DIRECTION_NODE_PRESETS) {
+      expect(preset.zone).toBe(FigureZone.DIRECTION);
+    }
   });
 
-  it('every preset has valid dimensions and a color', () => {
+  it('has no duplicate positionType values', () => {
+    const types = DIRECTION_NODE_PRESETS.map((p) => p.positionType);
+    expect(new Set(types).size).toBe(types.length);
+  });
+
+  it('every preset has valid dimensions, a color, a short label and a slot order', () => {
     for (const preset of DIRECTION_NODE_PRESETS) {
       expect(preset.width).toBeGreaterThan(0);
       expect(preset.height).toBeGreaterThan(0);
       expect(preset.color).toBeTruthy();
+      expect(preset.shortLabel.length).toBeGreaterThan(0);
+      expect(typeof preset.slotOrder).toBe('number');
     }
+  });
+});
+
+describe('DIRECTION_SLOTS', () => {
+  it('holds every direction preset, ordered by slotOrder', () => {
+    expect(DIRECTION_SLOTS.map((s) => s.positionType)).toEqual(
+      [...DIRECTION_NODE_PRESETS].sort((a, b) => a.slotOrder - b.slotOrder).map((s) => s.positionType),
+    );
+  });
+
+  it('puts direccio-tronc before direccio-xicalla', () => {
+    const order = DIRECTION_SLOTS.map((s) => s.positionType);
+    expect(order.indexOf('direccio-tronc')).toBeLessThan(order.indexOf('direccio-xicalla'));
   });
 });
 

@@ -1128,8 +1128,9 @@ describe('TroncViewComponent', () => {
   describe('directions section (figures netes)', () => {
     const figDirNode = makeNode({
       id: 'dir-fig-1',
-      zone: 'FIGURE_DIRECTION',
-      label: 'Dir. Figura',
+      zone: 'DIRECTION',
+      positionType: 'direccio-tronc',
+      label: 'Dir. Tronc',
       z: 0,
       x: 0,
       width: 1,
@@ -1137,7 +1138,8 @@ describe('TroncViewComponent', () => {
 
     const xicDirNode = makeNode({
       id: 'dir-xic-1',
-      zone: 'XICALLA_DIRECTION',
+      zone: 'DIRECTION',
+      positionType: 'direccio-xicalla',
       label: 'Dir. Xicalla',
       z: 0,
       x: 0,
@@ -1203,14 +1205,14 @@ describe('TroncViewComponent', () => {
       expect(dirNodes.length).toBe(1);
     });
 
-    it('figureDirectionNodes computed returns FIGURE_DIRECTION nodes', () => {
+    it('troncDirectionNodes computed returns direccio-tronc nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
-      expect(component.figureDirectionNodes().map((n) => n.id)).toEqual(['dir-fig-1']);
+      expect(component.troncDirectionNodes().map((n) => n.id)).toEqual(['dir-fig-1']);
     });
 
-    it('xicallaDirectionNodes computed returns XICALLA_DIRECTION nodes', () => {
+    it('xicallaDirectionNodes computed returns direccio-xicalla nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
@@ -1252,8 +1254,8 @@ describe('TroncViewComponent', () => {
       expect(component.directionsExpanded()).toBe(true);
     });
 
-    it('directionAdded emits zone when "Afegir" is clicked', () => {
-      const emitted: { zone: string }[] = [];
+    it('directionAdded emits positionType when "Afegir" is clicked', () => {
+      const emitted: { positionType: string }[] = [];
       component.directionAdded.subscribe((e) => emitted.push(e));
 
       fixture.componentRef.setInput('mode', 'assignment');
@@ -1266,7 +1268,7 @@ describe('TroncViewComponent', () => {
       fixture.detectChanges();
 
       expect(emitted.length).toBe(1);
-      expect(emitted[0].zone).toBe('FIGURE_DIRECTION');
+      expect(emitted[0].positionType).toBe('direccio-tronc');
     });
 
     it('directionRemoved emits nodeId when trash is clicked on unassigned direction', () => {
@@ -1301,7 +1303,7 @@ describe('TroncViewComponent', () => {
     });
 
     it('groups multiple same-zone direction assignments on one projection row', () => {
-      const xicDirNode2 = makeNode({ id: 'dir-xic-2', zone: 'XICALLA_DIRECTION', z: 0, x: 0, width: 1 });
+      const xicDirNode2 = makeNode({ id: 'dir-xic-2', zone: 'DIRECTION', positionType: 'direccio-xicalla', z: 0, x: 0, width: 1 });
       fixture.componentRef.setInput('mode', 'projection');
       fixture.componentRef.setInput('directionNodes', [xicDirNode, xicDirNode2]);
       fixture.componentRef.setInput('assignments', [
@@ -1544,7 +1546,7 @@ describe('TroncViewComponent', () => {
     });
 
     it('onDirectionNodeClick reveals the hover card for an assigned direction node', () => {
-      const dirNode = makeNode({ id: 'dir-1', zone: 'FIGURE_DIRECTION' });
+      const dirNode = makeNode({ id: 'dir-1', zone: 'DIRECTION', positionType: 'direccio-tronc' });
       fixture.componentRef.setInput('directionNodes', [dirNode]);
       fixture.componentRef.setInput('assignments', [makeAssignment('dir-1', 'Marta')]);
       fixture.detectChanges();
