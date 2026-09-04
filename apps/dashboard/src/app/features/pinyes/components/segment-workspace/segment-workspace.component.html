@@ -69,10 +69,10 @@
       </lib-button>
     </div>
 
-    <!-- Import pinya / reset snapshot — pinyes tab only, pushed to the far right -->
-    @if (activeTab() === 'pinyes') {
+    <!-- Import pinya|tronc / reset snapshot — Pinyes & Troncs tabs, pushed to the far right -->
+    @if (activeTab() === 'pinyes' || activeTab() === 'troncs') {
       <div class="flex items-center gap-1 ml-auto shrink-0">
-        @if (resetCandidates().length > 0) {
+        @if (activeTab() === 'pinyes' && resetCandidates().length > 0) {
           <lib-button
             variant="error"
             outline
@@ -91,10 +91,10 @@
             outline
             size="xs"
             [disabled]="ws.isLocked()"
-            ariaLabel="Importa les assignacions d'una pinya anterior"
+            [ariaLabel]="importTriggerAria()"
             (clicked)="openImport()"
           >
-            Importa pinya
+            {{ importTriggerLabel() }}
           </lib-button>
         }
       </div>
@@ -164,6 +164,7 @@
   <app-import-pinya-modal
     [figureTemplateId]="target.figureTemplateId"
     [currentInstanceId]="target.instanceId"
+    [origin]="target.origin"
     [open]="true"
     (importCompleted)="onImportCompleted($event)"
     (closed)="onImportClosed()"

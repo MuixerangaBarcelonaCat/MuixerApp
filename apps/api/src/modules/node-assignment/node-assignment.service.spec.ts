@@ -25,6 +25,7 @@ import {
   AssignmentArea,
   SegmentConflictKind,
   ImportScope,
+  FigureMode,
 } from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -1368,6 +1369,27 @@ describe('NodeAssignmentService', () => {
 
       expect(result.data[0].segmentId).toBe(SEGMENT_ID);
       expect(result.data[0].assignments[0].zone).toBe(FigureZone.TRONC);
+    });
+
+    it('derives figureName: null for a plain COMPLETA default, the label when renamed, the mode otherwise', async () => {
+      const tmpl = { id: TEMPLATE_ID, name: 'Pilar de 4' };
+      const ev = { id: 'e1', title: 'Assaig', date: '2026-05-01', eventType: EventType.ASSAIG };
+      const plain = makeInstance({ snapshotted: true, figureMode: FigureMode.COMPLETA });
+      plain.segment = { ...makeSegment(), event: ev };
+      const labelled = makeInstance({ snapshotted: true, id: 'fi-labelled', label: 'Pilar caminant', figureMode: FigureMode.COMPLETA });
+      labelled.segment = { ...makeSegment(), event: ev };
+      const peu = makeInstance({ snapshotted: true, id: 'fi-peu', label: null, figureMode: FigureMode.PEU });
+      peu.segment = { ...makeSegment(), event: ev };
+
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockHistoryQb.getCount.mockResolvedValue(3);
+      mockHistoryQb.getMany.mockResolvedValue([plain, labelled, peu]);
+
+      const result = await service.getHistory(TEMPLATE_ID);
+
+      expect(result.data[0].figureName).toBeNull();
+      expect(result.data[1].figureName).toBe('Pilar caminant');
+      expect(result.data[2].figureName).toBe('Peu de Pilar de 4');
     });
   });
 
