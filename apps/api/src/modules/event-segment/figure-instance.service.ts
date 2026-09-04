@@ -225,6 +225,7 @@ export class FigureInstanceService {
       segment: targetSegment,
       figureTemplate: sourceInstance.figureTemplate ?? null,
       label: sourceInstance.label,
+      numberOfCordons: sourceInstance.numberOfCordons,
       sortOrder,
     });
 
