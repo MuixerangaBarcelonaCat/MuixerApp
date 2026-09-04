@@ -1,4 +1,12 @@
-import { BulkImportResult, FigureHistoryEntry } from '@muixer/pinyes-render';
+import {
+  AssignmentDetail,
+  BulkImportResult,
+  FigureHistoryEntry,
+  PinyaProjectionComponent,
+  ProjectionSegmentData,
+  TroncNodeItem,
+  TroncViewComponent,
+} from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,7 +23,7 @@ import { FigureZone, ImportScope, zonesForScope } from '@muixer/shared';
 import { ButtonComponent, ModalComponent, BadgeComponent } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { ImportPreviewModalComponent } from '../import-preview-modal/import-preview-modal.component';
+import { ProjectionService } from '../../services/projection.service';
 
 @Component({
   selector: 'app-import-pinya-modal',
@@ -24,10 +32,11 @@ import { ImportPreviewModalComponent } from '../import-preview-modal/import-prev
   imports: [
     LucideAngularModule,
     SlicePipe,
-    ImportPreviewModalComponent,
     ButtonComponent,
     ModalComponent,
     BadgeComponent,
+    PinyaProjectionComponent,
+    TroncViewComponent,
   ],
   templateUrl: './import-pinya-modal.component.html',
 })
@@ -41,6 +50,7 @@ export class ImportPinyaModalComponent implements OnChanges {
 
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly assignmentState = inject(AssignmentStateService);
+  private readonly projectionService = inject(ProjectionService);
 
   readonly Import = Import;
 
@@ -50,14 +60,21 @@ export class ImportPinyaModalComponent implements OnChanges {
   readonly selectedEntry = signal<FigureHistoryEntry | null>(null);
   readonly lastResult = signal<BulkImportResult | null>(null);
   readonly error = signal<string | null>(null);
-  readonly previewScope = signal<ImportScope | null>(null);
   readonly confirmScope = signal<ImportScope | null>(null);
+
+  /** Which scope the right-hand preview renders. Defaults to the whole figure. */
+  readonly previewScope = signal<ImportScope>(ImportScope.ALL);
+  readonly previewLoading = signal(false);
+  readonly previewError = signal<string | null>(null);
+  readonly projectionData = signal<ProjectionSegmentData | null>(null);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && this.open()) {
       this.selectedEntry.set(null);
       this.lastResult.set(null);
       this.error.set(null);
+      this.projectionData.set(null);
+      this.previewError.set(null);
       this.loadHistory();
     }
   }
@@ -74,13 +91,49 @@ export class ImportPinyaModalComponent implements OnChanges {
     });
   }
 
+  /** Segment name and/or renamed figure label under the event title, joined with « - ». */
+  entrySubtitle(entry: FigureHistoryEntry): string {
+    return [entry.segmentName, entry.figureName].filter(Boolean).join(' - ');
+  }
+
   selectEntry(entry: FigureHistoryEntry): void {
     if (!entry.snapshotted) return;
+    if (this.selectedEntry()?.instanceId === entry.instanceId) return;
     this.selectedEntry.set(entry);
     this.lastResult.set(null);
+    this.error.set(null);
+    this.previewScope.set(ImportScope.ALL);
+    this.loadPreview(entry);
+  }
+
+  private loadPreview(entry: FigureHistoryEntry): void {
+    this.previewLoading.set(true);
+    this.previewError.set(null);
+    this.projectionData.set(null);
+    this.projectionService.getProjection(entry.eventId, entry.segmentId).subscribe({
+      next: (data) => {
+        this.projectionData.set(data);
+        this.previewLoading.set(false);
+      },
+      error: () => {
+        this.previewError.set('No s\'ha pogut carregar la previsualització.');
+        this.previewLoading.set(false);
+      },
+    });
+  }
+
+  setPreviewScope(scope: ImportScope): void {
+    this.previewScope.set(scope);
   }
 
   readonly ImportScope = ImportScope;
+
+  /** The three import scopes as a strip — shared by the preview switch and the import-action rows. */
+  readonly SCOPES: readonly { scope: ImportScope; label: string }[] = [
+    { scope: ImportScope.PINYA, label: 'Pinya' },
+    { scope: ImportScope.TRONC, label: 'Tronc' },
+    { scope: ImportScope.ALL, label: 'Tot' },
+  ];
 
   private static readonly SCOPE_LABELS: Record<ImportScope, string> = {
     [ImportScope.PINYA]: 'pinya',
@@ -152,13 +205,34 @@ export class ImportPinyaModalComponent implements OnChanges {
       });
   }
 
-  openPreview(scope: ImportScope): void {
-    if (!this.selectedEntry()) return;
-    this.previewScope.set(scope);
+  // ── preview node helpers (scoped to the selected entry's instance) ────────────
+
+  private previewInstance() {
+    const instanceId = this.selectedEntry()?.instanceId;
+    return this.projectionData()?.instances.find((i) => i.id === instanceId) ?? null;
   }
 
-  closePreview(): void {
-    this.previewScope.set(null);
+  troncNodesFor(): TroncNodeItem[] {
+    const inst = this.previewInstance();
+    return inst ? (inst.nodes.filter((n) => n.zone === FigureZone.TRONC) as TroncNodeItem[]) : [];
+  }
+
+  baseNodesFor(): TroncNodeItem[] {
+    const inst = this.previewInstance();
+    return inst ? (inst.nodes.filter((n) => n.zone === FigureZone.BASE) as TroncNodeItem[]) : [];
+  }
+
+  directionNodesFor(): TroncNodeItem[] {
+    const inst = this.previewInstance();
+    return inst
+      ? (inst.nodes.filter(
+          (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
+        ) as TroncNodeItem[])
+      : [];
+  }
+
+  assignmentsFor(): AssignmentDetail[] {
+    return this.previewInstance()?.assignments ?? [];
   }
 
   close(): void {

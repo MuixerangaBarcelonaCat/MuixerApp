@@ -1,4 +1,4 @@
-<lib-modal size="lg" title="Importació de pinya anterior" [open]="open()" (closed)="close()">
+<lib-modal size="4xl" title="Importació de pinya anterior" [open]="open()" (closed)="close()">
   @if (loading()) {
     <div class="flex justify-center py-8">
       <span class="loading loading-spinner loading-md text-primary"></span>
@@ -13,90 +13,136 @@
     }
 
     @if (history().length > 0) {
-      <p class="text-sm text-base-content/60 mb-3">
-        Seleccioneu un event per importar-ne les assignacions:
-      </p>
-      <!-- Selectable list rows (border/bg selected-state language) stay raw markup rather than
-           lib-button — same judgment call as person-panel's per-person rows: a domain-specific
-           selectable-row pattern lib-button doesn't model, not a gap. -->
-      <ul class="space-y-1 max-h-96 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
-        @for (entry of history(); track entry.instanceId) {
-          <li class="rounded-lg border transition-colors"
-            [class]="!entry.snapshotted
-              ? 'border-base-300 opacity-50'
-              : selectedEntry()?.instanceId === entry.instanceId
-                ? 'border-primary bg-primary/5'
-                : 'border-base-300 hover:border-base-content/30'"
-          >
-            <button
-              type="button"
-              role="option"
-              [attr.aria-selected]="selectedEntry()?.instanceId === entry.instanceId"
-              [disabled]="!entry.snapshotted"
-              class="w-full text-left px-3 py-2 text-sm"
-              [class.cursor-not-allowed]="!entry.snapshotted"
-              [class.text-primary]="selectedEntry()?.instanceId === entry.instanceId"
-              [class.hover:bg-base-200]="entry.snapshotted && selectedEntry()?.instanceId !== entry.instanceId"
-              [attr.title]="!entry.snapshotted ? 'Aquesta instància no té assignacions per importar' : null"
-              (click)="selectEntry(entry)"
-            >
-              <div class="flex items-center justify-between">
-                <span class="font-medium">{{ entry.eventTitle }}</span>
-                <span class="text-xs text-base-content/50">{{ entry.eventDate | slice:0:10 }}</span>
-              </div>
-              <div class="text-xs text-base-content/50 mt-0.5 flex items-center gap-2">
-                @if (entry.segmentName) {
-                  <span>{{ entry.segmentName }}</span>
-                }
-                <lib-badge variant="ghost" size="xs">{{ entry.assignmentCount }}/{{ entry.totalNodes }} assignades</lib-badge>
-              </div>
-            </button>
+      <div class="flex flex-col gap-4 md:flex-row md:items-stretch">
+        <!-- Left: selectable list of importable figures -->
+        <div class="md:w-5/12 md:shrink-0">
+          <p class="text-sm text-base-content/60 mb-3">
+            Seleccioneu un esdeveniment per veure'n la pinya i importar-ne les assignacions:
+          </p>
+          <!-- Selectable list rows (border/bg selected-state language) stay raw markup rather than
+               lib-button — same judgment call as person-panel's per-person rows: a domain-specific
+               selectable-row pattern lib-button doesn't model, not a gap. -->
+          <ul class="space-y-1 max-h-[60vh] overflow-y-auto" role="listbox" aria-label="Pinyes anteriors">
+            @for (entry of history(); track entry.instanceId) {
+              <li class="rounded-lg border transition-colors"
+                [class]="!entry.snapshotted
+                  ? 'border-base-300 opacity-50'
+                  : selectedEntry()?.instanceId === entry.instanceId
+                    ? 'border-primary bg-primary/5'
+                    : 'border-base-300 hover:border-base-content/30'"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  [attr.aria-selected]="selectedEntry()?.instanceId === entry.instanceId"
+                  [disabled]="!entry.snapshotted"
+                  class="w-full text-left px-3 py-2 text-sm"
+                  [class.cursor-not-allowed]="!entry.snapshotted"
+                  [class.text-primary]="selectedEntry()?.instanceId === entry.instanceId"
+                  [class.hover:bg-base-200]="entry.snapshotted && selectedEntry()?.instanceId !== entry.instanceId"
+                  [attr.title]="!entry.snapshotted ? 'Aquesta instància no té assignacions per importar' : null"
+                  (click)="selectEntry(entry)"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-medium">{{ entry.eventTitle }}</span>
+                    <span class="text-xs text-base-content/50">{{ entry.eventDate | slice:0:10 }}</span>
+                  </div>
+                  <div class="text-xs text-base-content/50 mt-0.5 flex items-center gap-2">
+                    @if (entrySubtitle(entry); as subtitle) {
+                      <span>{{ subtitle }}</span>
+                    }
+                    <lib-badge variant="ghost" size="xs">{{ entry.assignmentCount }}/{{ entry.totalNodes }} assignades</lib-badge>
+                  </div>
+                </button>
 
-            @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {
-              <div class="border-t border-primary/20 px-2 py-1.5 space-y-1">
-                @for (row of [
-                  { scope: ImportScope.PINYA, label: 'Pinya' },
-                  { scope: ImportScope.TRONC, label: 'Tronc' },
-                  { scope: ImportScope.ALL, label: 'Figura' }
-                ]; track row.scope) {
-                  <div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-md bg-base-100/60">
-                    <div class="text-xs">
-                      <span class="font-medium">{{ row.label }}</span>
-                      <span class="text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                      <lib-button
-                        variant="ghost"
-                        size="xs"
-                        [disabled]="countForScope(row.scope) === 0"
-                        (clicked)="openPreview(row.scope)"
-                      >
-                        Previsualitza
-                      </lib-button>
-                      <lib-button
-                        variant="primary"
-                        size="xs"
-                        [disabled]="countForScope(row.scope) === 0"
-                        [loading]="importing()"
-                        (clicked)="onImportClick(row.scope)"
-                      >
-                        @if (!importing()) {
-                          <i-lucide [img]="Import" class="size-3" />
-                        }
-                        Importa
-                      </lib-button>
-                    </div>
+                @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {
+                  <div class="border-t border-primary/20 px-2 py-1.5 space-y-1">
+                    @for (row of SCOPES; track row.scope) {
+                      <div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-md bg-base-100/60">
+                        <div class="text-xs">
+                          <span class="font-medium">{{ row.label }}</span>
+                          <span class="text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
+                        </div>
+                        <lib-button
+                          variant="primary"
+                          size="xs"
+                          [disabled]="countForScope(row.scope) === 0"
+                          [loading]="importing()"
+                          (clicked)="onImportClick(row.scope)"
+                        >
+                          @if (!importing()) {
+                            <i-lucide [img]="Import" class="size-3" />
+                          }
+                          Importa
+                        </lib-button>
+                      </div>
+                    }
                   </div>
                 }
-              </div>
+              </li>
             }
-          </li>
-        }
-      </ul>
+          </ul>
+        </div>
+
+        <!-- Right: live preview of the selected figure -->
+        <div class="flex-1 min-w-0 rounded-lg border border-base-300 bg-base-200/40 flex flex-col">
+          @if (!selectedEntry()) {
+            <div class="flex flex-1 items-center justify-center p-8 text-sm text-base-content/50 min-h-[40vh]">
+              Seleccioneu una pinya de la llista per previsualitzar-la.
+            </div>
+          } @else {
+            <!-- scope switch for the preview -->
+            <div class="flex flex-wrap gap-1 border-b border-base-300 p-2">
+              @for (row of SCOPES; track row.scope) {
+                <lib-button
+                  [variant]="previewScope() === row.scope ? 'primary' : 'ghost'"
+                  size="xs"
+                  (clicked)="setPreviewScope(row.scope)"
+                >
+                  {{ row.label }}
+                </lib-button>
+              }
+            </div>
+
+            <div class="relative flex-1 min-h-[40vh]">
+              @if (previewLoading()) {
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <span class="loading loading-spinner loading-md text-primary"></span>
+                </div>
+              }
+              @if (previewError()) {
+                <div class="absolute inset-0 flex items-center justify-center p-4">
+                  <div class="alert alert-error text-sm">{{ previewError() }}</div>
+                </div>
+              }
+              @if (!previewLoading() && !previewError() && projectionData(); as data) {
+                @if (previewScope() === ImportScope.TRONC) {
+                  <app-tronc-view
+                    class="block w-full h-full"
+                    mode="projection"
+                    [troncNodes]="troncNodesFor()"
+                    [baseNodes]="baseNodesFor()"
+                    [directionNodes]="directionNodesFor()"
+                    [assignments]="assignmentsFor()"
+                  />
+                } @else {
+                  <lib-pinya-projection
+                    class="block w-full h-full"
+                    [data]="data"
+                    [instanceId]="selectedEntry()!.instanceId"
+                    [scope]="previewScope()"
+                    [showZoomControls]="false"
+                  />
+                }
+              }
+            </div>
+          }
+        </div>
+      </div>
     }
 
     @if (lastResult()) {
-      <div class="alert" [class]="lastResult()!.conflicts.length > 0 ? 'alert-error' : 'alert-success'">
+      <div class="alert mt-4" [class]="lastResult()!.conflicts.length > 0 ? 'alert-error' : 'alert-success'">
         <p class="text-sm font-medium">
           {{ lastResult()!.created.length }} assignacions importades
           @if (lastResult()!.conflicts.length > 0) {
@@ -114,7 +160,7 @@
     }
 
     @if (error()) {
-      <div class="alert alert-error text-sm">{{ error() }}</div>
+      <div class="alert alert-error text-sm mt-4">{{ error() }}</div>
     }
   }
 
@@ -135,16 +181,4 @@
       <lib-button variant="primary" size="sm" (clicked)="confirmImport()">Entesos, importa</lib-button>
     </div>
   </lib-modal>
-}
-
-@if (previewScope(); as scope) {
-  <app-import-preview-modal
-    [eventId]="selectedEntry()!.eventId"
-    [segmentId]="selectedEntry()!.segmentId"
-    [instanceId]="selectedEntry()!.instanceId"
-    [scope]="scope"
-    [eventTitle]="selectedEntry()!.eventTitle"
-    [open]="true"
-    (closed)="closePreview()"
-  />
 }
