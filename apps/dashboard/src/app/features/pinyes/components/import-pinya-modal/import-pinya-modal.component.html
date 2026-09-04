@@ -1,4 +1,4 @@
-<lib-modal size="4xl" title="Importació de pinya anterior" [open]="open()" (closed)="close()">
+<lib-modal size="4xl" [title]="title()" [open]="open()" (closed)="close()">
   @if (loading()) {
     <div class="flex justify-center py-8">
       <span class="loading loading-spinner loading-md text-primary"></span>
@@ -57,10 +57,10 @@
 
                 @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {
                   <div class="border-t border-primary/20 px-2 py-1.5 space-y-1">
-                    @for (row of SCOPES; track row.scope) {
+                    @for (row of scopes(); track row.scope) {
                       <div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-md bg-base-100/60">
                         <div class="text-xs">
-                          <span class="font-medium">{{ row.label }}</span>
+                          <span class="font-medium">{{ row.actionLabel }}</span>
                           <span class="text-base-content/50 ml-1">{{ countForScope(row.scope) }} assignacions</span>
                         </div>
                         <lib-button
@@ -93,7 +93,7 @@
           } @else {
             <!-- scope switch for the preview -->
             <div class="flex flex-wrap gap-1 border-b border-base-300 p-2">
-              @for (row of SCOPES; track row.scope) {
+              @for (row of scopes(); track row.scope) {
                 <lib-button
                   [variant]="previewScope() === row.scope ? 'primary' : 'ghost'"
                   size="xs"

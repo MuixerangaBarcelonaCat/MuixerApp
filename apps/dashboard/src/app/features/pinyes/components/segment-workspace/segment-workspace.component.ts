@@ -208,17 +208,29 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Import pinya / reset snapshot (top bar, pinyes tab only) ───────────────
+  // ── Import pinya|tronc / reset snapshot (top bar) ─────────────────────────
   // Moved here from the pinyes tab's own footer: both act on the whole
   // instance (all its assignments), not just the pinya canvas, so they belong
-  // in the workspace-wide header rather than one tab's chrome. Still gated to
-  // the pinyes tab in the template, since "Importa pinya" only makes sense there.
+  // in the workspace-wide header rather than one tab's chrome. The import
+  // trigger shows on both the Pinyes and Troncs tabs (labelled and scoped by
+  // origin — see importOrigin()); reset stays pinyes-only.
 
   readonly importMenuOpen = signal(false);
-  readonly importTarget = signal<{ instanceId: string; figureTemplateId: string } | null>(null);
+  readonly importTarget = signal<{
+    instanceId: string;
+    figureTemplateId: string;
+    origin: 'pinya' | 'tronc';
+  } | null>(null);
   readonly resetMenuOpen = signal(false);
   readonly resetTarget = signal<string | null>(null);
   readonly resetting = signal(false);
+
+  readonly importTriggerLabel = computed(() =>
+    this.activeTab() === 'troncs' ? 'Importa tronc' : 'Importa pinya',
+  );
+  readonly importTriggerAria = computed(() =>
+    "Importa les assignacions d'una figura anterior",
+  );
 
   readonly importCandidates = computed(() =>
     this.ws.instances().filter((i) => i.figureTemplateId !== null),
@@ -246,11 +258,20 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** 'tronc' when the import was triggered from the Troncs tab, 'pinya' otherwise. */
+  private importOrigin(): 'pinya' | 'tronc' {
+    return this.activeTab() === 'troncs' ? 'tronc' : 'pinya';
+  }
+
   chooseImportFigure(instanceId: string): void {
     this.importMenuOpen.set(false);
     const instance = this.instanceFor(instanceId);
     if (!instance?.figureTemplateId) return;
-    this.importTarget.set({ instanceId, figureTemplateId: instance.figureTemplateId });
+    this.importTarget.set({
+      instanceId,
+      figureTemplateId: instance.figureTemplateId,
+      origin: this.importOrigin(),
+    });
   }
 
   onImportCompleted(result: BulkImportResult): void {

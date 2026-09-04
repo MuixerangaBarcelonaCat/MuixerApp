@@ -10,6 +10,7 @@ import {
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
   OnChanges,
@@ -44,6 +45,11 @@ export class ImportPinyaModalComponent implements OnChanges {
   readonly figureTemplateId = input.required<string>();
   readonly currentInstanceId = input.required<string>();
   readonly open = input<boolean>(false);
+  /**
+   * Which panel opened the modal — scopes the offered imports: 'pinya' allows PINYA + everything,
+   * 'tronc' allows TRONC + everything. Never lets you pull the other area in isolation.
+   */
+  readonly origin = input<'pinya' | 'tronc'>('pinya');
 
   readonly importCompleted = output<BulkImportResult>();
   readonly closed = output<void>();
@@ -96,13 +102,18 @@ export class ImportPinyaModalComponent implements OnChanges {
     return [entry.segmentName, entry.figureName].filter(Boolean).join(' - ');
   }
 
+  /** Preview scope a freshly selected figure opens on: its own area in tronc mode, the whole figure otherwise. */
+  private defaultScope(): ImportScope {
+    return this.origin() === 'tronc' ? ImportScope.TRONC : ImportScope.ALL;
+  }
+
   selectEntry(entry: FigureHistoryEntry): void {
     if (!entry.snapshotted) return;
     if (this.selectedEntry()?.instanceId === entry.instanceId) return;
     this.selectedEntry.set(entry);
     this.lastResult.set(null);
     this.error.set(null);
-    this.previewScope.set(ImportScope.ALL);
+    this.previewScope.set(this.defaultScope());
     this.loadPreview(entry);
   }
 
@@ -128,12 +139,25 @@ export class ImportPinyaModalComponent implements OnChanges {
 
   readonly ImportScope = ImportScope;
 
-  /** The three import scopes as a strip — shared by the preview switch and the import-action rows. */
-  readonly SCOPES: readonly { scope: ImportScope; label: string }[] = [
-    { scope: ImportScope.PINYA, label: 'Pinya' },
-    { scope: ImportScope.TRONC, label: 'Tronc' },
-    { scope: ImportScope.ALL, label: 'Tot' },
-  ];
+  /**
+   * Import scopes offered for this origin, shared by the preview switch (`label`) and the
+   * import-action rows (`actionLabel` — spelled out there since the button sits alone).
+   */
+  readonly scopes = computed<readonly { scope: ImportScope; label: string; actionLabel: string }[]>(() =>
+    this.origin() === 'tronc'
+      ? [
+          { scope: ImportScope.TRONC, label: 'Tronc', actionLabel: 'Tronc' },
+          { scope: ImportScope.ALL, label: 'Tot', actionLabel: 'Pinya i tronc' },
+        ]
+      : [
+          { scope: ImportScope.PINYA, label: 'Pinya', actionLabel: 'Pinya' },
+          { scope: ImportScope.ALL, label: 'Tot', actionLabel: 'Pinya i tronc' },
+        ],
+  );
+
+  readonly title = computed(() =>
+    this.origin() === 'tronc' ? 'Importació de tronc anterior' : 'Importació de pinya anterior',
+  );
 
   private static readonly SCOPE_LABELS: Record<ImportScope, string> = {
     [ImportScope.PINYA]: 'pinya',
