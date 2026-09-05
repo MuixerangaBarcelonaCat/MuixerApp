@@ -5,11 +5,12 @@ import {
   computed,
   effect,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FigureZone, ImportScope, getSegmentInstanceLabel } from '@muixer/shared';
+import { FigureZone, ImportScope, getSegmentInstanceLabel, OwnPositionSubject } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
@@ -73,6 +74,17 @@ export class PinyaProjectionComponent {
    */
   readonly highlightPersonId = input<string | null>(null);
 
+  /**
+   * The looked-up person's alias — set only while `highlightPersonId` points at someone other
+   * than the caller (the PWA's person search). Drives the banner/marker third-person wording
+   * (`subject`); `null` (the default) means "the caller themselves".
+   */
+  readonly highlightPersonName = input<string | null>(null);
+
+  /** Re-emitted from the banner's back-to-me button — the PWA resets `highlightPersonId` to its
+   *  own person on this, restoring the 'self' subject. */
+  readonly backToSelf = output<void>();
+
   /** Import preview scope — `PINYA` hides the tronc panel (nothing to preview yet). `null`/`ALL` unchanged. */
   readonly scope = input<ImportScope | null>(null);
 
@@ -120,6 +132,13 @@ export class PinyaProjectionComponent {
   private readonly ownPlacements = computed(() => {
     const personId = this.highlightPersonId();
     return personId ? findOwnPlacements(this.data(), personId) : [];
+  });
+
+  /** Fed to the banner and the marker — 'other' whenever `highlightPersonName` names someone
+   *  besides the caller, 'self' otherwise (including the PWA's own default view). */
+  readonly ownPositionSubject = computed((): OwnPositionSubject => {
+    const name = this.highlightPersonName();
+    return name ? { kind: 'other', alias: name } : { kind: 'self' };
   });
 
   /** The "you are here" banner state — see `ownPlacements` for why it reads raw `data()`. */
@@ -590,6 +609,11 @@ export class PinyaProjectionComponent {
   onTroba(): void {
     const bounds = this.ownFlightBounds();
     if (bounds) this.flyTo(bounds);
+  }
+
+  /** The banner's back-to-me button — just relayed; the PWA owns resetting `highlightPersonId`. */
+  onBack(): void {
+    this.backToSelf.emit();
   }
 
   /** Bumps the tick the marker watches to fire its one-shot arrival bounce. */

@@ -1,41 +1,13 @@
 <app-mobile-header title="Agenda" />
 
-@if (seasons().length > 1) {
-  <div class="mb-3">
-    <lib-select
-      size="sm"
-      ariaLabel="Temporada"
-      [ngModel]="effectiveSeasonId()"
-      (ngModelChange)="onSeasonChange($event)"
-    >
-      @for (season of seasons(); track season.id) {
-        <option [value]="season.id">{{ season.name }}</option>
-      }
-    </lib-select>
-  </div>
-}
-
-<div class="flex items-center gap-2 mb-4">
-  @if (viewMode() === 'list' && isCurrentSeason()) {
-    <nav class="tabs tabs-bordered flex-1" role="tablist" aria-label="Filtre d'assajos i actuacions">
-      @for (tab of tabs; track tab.key; let i = $index) {
-        <button
-          type="button"
-          role="tab"
-          class="tab flex-1"
-          [class.tab-active]="activeFilter() === tab.key"
-          [attr.aria-selected]="activeFilter() === tab.key"
-          [tabindex]="activeFilter() === tab.key ? 0 : -1"
-          (click)="setFilter(tab.key)"
-          (keydown)="onFilterKeydown($event, i)"
-        >
-          {{ tab.label }}
-        </button>
-      }
-    </nav>
-  } @else {
-    <span class="flex-1"></span>
-  }
+<div class="flex items-center justify-end gap-4 mb-4">
+  <a
+    routerLink="/events/past"
+    class="flex items-center gap-0.5 text-sm text-base-content/60 hover:text-base-content/80"
+  >
+    Passats
+    <lucide-icon [img]="ChevronRightIcon" [size]="16" aria-hidden="true" />
+  </a>
 
   <button
     type="button"
@@ -51,36 +23,16 @@
   </button>
 </div>
 
-<app-pull-to-refresh #pullRef (refresh)="onRefresh()">
-  @if (viewMode() === 'list') {
-    <section class="flex flex-col gap-3 pb-4" aria-live="polite">
-      @if (isLoading()) {
-        <app-skeleton-card [count]="4" />
-      } @else if (hasError()) {
-        <app-empty-state
-          message="S'ha produït un error en carregar els assajos i les actuacions. Torneu-ho a provar."
-          actionLabel="Torna-ho a provar"
-          (action)="onRefresh()"
-        />
-      } @else if (events().length === 0) {
-        <app-empty-state [message]="emptyMessage()" />
-      } @else {
-        @for (event of events(); track event.id) {
-          <app-event-card
-            [event]="event"
-            (attendanceChanged)="onAttendanceChanged($event)"
-          />
-        }
-        @if (isTruncated()) {
-          <p class="text-center text-sm text-base-content/50 py-2">
-            Hi ha més assajos i actuacions. Canvieu el filtre per veure'ls tots.
-          </p>
-        }
-      }
-    </section>
-  } @else {
+@if (viewMode() === 'list') {
+  <app-event-feed
+    timeFilter="upcoming"
+    emptyMessage="No hi ha assajos ni actuacions propers programats."
+    (attendanceChanged)="onAttendanceChanged($event)"
+  />
+} @else {
+  <app-pull-to-refresh #calendarPullRef (refresh)="onCalendarRefresh()">
     <section aria-live="polite">
-      @if (isCalendarLoading() && allSeasonEvents().length === 0) {
+      @if (isCalendarLoading() && allEvents().length === 0) {
         <div class="flex flex-col gap-2" aria-busy="true">
           <div class="h-8 bg-base-300 rounded animate-pulse w-1/2 mx-auto mb-2"></div>
           <div class="grid grid-cols-7 gap-1">
@@ -93,18 +45,18 @@
         <app-empty-state
           message="No s'ha pogut carregar el calendari. Torneu-ho a provar."
           actionLabel="Torna-ho a provar"
-          (action)="loadAllSeasonEvents()"
+          (action)="loadCalendarEvents()"
         />
       } @else {
         <app-calendar-view
-          [events]="allSeasonEvents()"
+          [events]="allEvents()"
           [selectedDate]="selectedDate()"
           (selectedDateChange)="onSelectedDateChange($event)"
         />
 
         @if (isCalendarTruncated()) {
           <p class="text-center text-xs text-warning py-1">
-            El calendari no mostra tots els assajos i actuacions de la temporada.
+            El calendari no mostra tots els assajos i actuacions.
           </p>
         }
 
@@ -123,5 +75,5 @@
         }
       }
     </section>
-  }
-</app-pull-to-refresh>
+  </app-pull-to-refresh>
+}

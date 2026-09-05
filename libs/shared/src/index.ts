@@ -25,6 +25,7 @@ export * from './constants/domain-icons.constants';
 export * from './utils/color.util';
 export * from './utils/segment-title.util';
 export * from './utils/own-position.util';
+export * from './utils/text-search.util';
 export * from './utils/tag-category.util';
 export * from './utils/tag-compliance.util';
 export * from './utils/import-scope.util';

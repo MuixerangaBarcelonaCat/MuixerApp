@@ -20,7 +20,7 @@ import {
   OwnPositionSummary,
   OWN_POSITION_MULTIPLE_PLACEMENTS,
 } from '@muixer/shared';
-import { LucideAngularModule, MapPin, Clock, Info } from 'lucide-angular';
+import { LucideAngularModule, MapPin, Clock, Info, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -51,6 +51,7 @@ export class EventDetailComponent {
   protected readonly MapPin = MapPin;
   protected readonly Clock = Clock;
   protected readonly Info = Info;
+  protected readonly ChevronRight = ChevronRight;
 
   private readonly eventService = inject(EventService);
   private readonly titleService = inject(Title);
@@ -88,6 +89,14 @@ export class EventDetailComponent {
     if (!date) return false;
     return date < new Date().toISOString().slice(0, 10);
   });
+
+  /**
+   * Roll-call ("Passa llista") is a day-of tool for marking who physically showed up — only
+   * relevant the day it applies to, so it's hidden any other day rather than cluttering every
+   * future/past event screen for TECHNICAL/ADMIN accounts.
+   */
+  protected readonly isToday = computed(() => this.event()?.date === new Date().toISOString().slice(0, 10));
+  protected readonly showRollCallLink = computed(() => this.isStaff() && this.isToday());
 
   protected readonly segmentsResource = rxResource<MeSegment[], string>({
     params: () => this.id(),

@@ -59,7 +59,7 @@ export const appRoutes: Routes = [
       },
       {
         path: 'events/:id/roll-call',
-        title: 'Marca assistència',
+        title: 'Passa llista',
         canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
         loadComponent: () =>
           import('./features/events/roll-call/roll-call.component').then(
@@ -67,12 +67,11 @@ export const appRoutes: Routes = [
           ),
       },
       {
-        path: 'events/:id/watch-as',
-        title: 'Veure com...',
-        canActivate: [rolesGuard([UserRole.TECHNICAL, UserRole.ADMIN], false)],
+        path: 'events/past',
+        title: 'Esdeveniments passats',
         loadComponent: () =>
-          import('./features/events/watch-as/watch-as.component').then(
-            (m) => m.WatchAsComponent,
+          import('./features/events/past-events/past-events.component').then(
+            (m) => m.PastEventsComponent,
           ),
       },
       {
