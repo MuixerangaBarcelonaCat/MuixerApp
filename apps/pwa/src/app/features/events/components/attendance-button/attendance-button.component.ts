@@ -13,12 +13,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
 import { EventService } from '../../services/event.service';
-import { ToastService } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui';
 
 @Component({
   selector: 'app-attendance-button',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ButtonComponent, ButtonGroupComponent],
   template: `
     @if (isLocked()) {
       <span class="badge badge-info badge-sm gap-1 py-3">
@@ -28,36 +29,30 @@ import { ToastService } from '@muixer/ui';
         He assistit
       </span>
     } @else {
-      <div class="join w-full" role="group" [attr.aria-label]="ariaLabel()">
-        <button
-          type="button"
-          class="join-item btn btn-sm flex-1 whitespace-nowrap"
-          [class.btn-success]="displayStatus() === ANIRE"
-          [class.btn-outline]="displayStatus() !== ANIRE"
+      <lib-button-group>
+        <lib-button
+          joinItem
+          size="xs"
+          [variant]="displayStatus() === ANIRE ? 'success' : 'neutral'"
+          [active]="displayStatus() === ANIRE"
+          [loading]="isPending() && displayStatus() === ANIRE"
           [disabled]="isEffectivelyDisabled()"
-          [attr.aria-pressed]="displayStatus() === ANIRE"
-          (click)="setStatus(ANIRE)"
-        >
-          @if (isPending() && displayStatus() === ANIRE) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Vinc
-        </button>
-        <button
-          type="button"
-          class="join-item btn btn-sm flex-1 whitespace-nowrap"
-          [class.btn-error]="displayStatus() === NO_VAIG"
-          [class.btn-outline]="displayStatus() !== NO_VAIG"
+          [ariaPressed]="displayStatus() === ANIRE"
+          [ariaLabel]="ariaLabelFor(ANIRE)"
+          (clicked)="setStatus(ANIRE)"
+        >Vinc</lib-button>
+        <lib-button
+          joinItem
+          size="xs"
+          [variant]="displayStatus() === NO_VAIG ? 'error' : 'neutral'"
+          [active]="displayStatus() === NO_VAIG"
+          [loading]="isPending() && displayStatus() === NO_VAIG"
           [disabled]="isEffectivelyDisabled()"
-          [attr.aria-pressed]="displayStatus() === NO_VAIG"
-          (click)="setStatus(NO_VAIG)"
-        >
-          @if (isPending() && displayStatus() === NO_VAIG) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          No vinc
-        </button>
-      </div>
+          [ariaPressed]="displayStatus() === NO_VAIG"
+          [ariaLabel]="ariaLabelFor(NO_VAIG)"
+          (clicked)="setStatus(NO_VAIG)"
+        >No vinc</lib-button>
+      </lib-button-group>
     }
   `,
 })
@@ -95,11 +90,16 @@ export class AttendanceButtonComponent {
     [AttendanceStatus.ASSISTIT]: 'He assistit',
   };
 
-  protected readonly ariaLabel = computed(() => {
+  /**
+   * Per-button accessible name — `lib-button-group` is a pure layout wrapper with no group-level
+   * `aria-label` of its own, so each segment carries its own full context (matching how the
+   * roll-call status segments do it too) rather than relying on an outer group label.
+   */
+  protected ariaLabelFor(status: AttendanceStatus): string {
     const ctx = this.ariaContext();
-    const label = AttendanceButtonComponent.STATUS_LABELS[this.displayStatus()];
+    const label = AttendanceButtonComponent.STATUS_LABELS[status];
     return ctx ? `Assistència ${ctx}: ${label}` : `Assistència: ${label}`;
-  });
+  }
 
   setStatus(target: AttendanceStatus): void {
     if (this.isEffectivelyDisabled()) return;

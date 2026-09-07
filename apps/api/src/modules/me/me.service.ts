@@ -20,8 +20,6 @@ import {
   PendingDependent,
   PersonProfileSummary,
   MeNewsItem,
-  MeSeason,
-  UserRole,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -34,7 +32,6 @@ import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
-import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
@@ -61,7 +58,6 @@ export class MeService {
     private readonly attendanceRepository: Repository<Attendance>,
     @InjectRepository(NodeAssignment)
     private readonly nodeAssignmentRepository: Repository<NodeAssignment>,
-    private readonly seasonService: SeasonService,
     private readonly attendanceService: AttendanceService,
     private readonly personDelegateService: PersonDelegateService,
     private readonly personService: PersonService,
@@ -102,16 +98,6 @@ export class MeService {
     return managed;
   }
 
-  async findSeasons(): Promise<MeSeason[]> {
-    const { data } = await this.seasonService.findAll();
-    return data.map((s) => ({
-      id: s.id,
-      name: s.name,
-      startDate: s.startDate as unknown as string,
-      endDate: s.endDate as unknown as string,
-    }));
-  }
-
   async findEvents(
     jwtUser: JwtPayload,
     filters: MeEventFilterDto,
@@ -119,16 +105,9 @@ export class MeService {
     const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
     if (managedPersons.length === 0) return this.emptyPage(filters);
 
-    const season = filters.seasonId
-      ? await this.seasonService.findEntityById(filters.seasonId)
-      : await this.seasonService.findCurrentEntity();
-    if (!season) return this.emptyPage(filters);
-
     const { type, timeFilter = 'upcoming', page = 1, limit = 20 } = filters;
 
-    const qb = this.eventRepository
-      .createQueryBuilder('event')
-      .where('event."seasonId" = :seasonId', { seasonId: season.id });
+    const qb = this.eventRepository.createQueryBuilder('event');
 
     if (type) {
       qb.andWhere('event."eventType" = :type', { type });
@@ -181,15 +160,12 @@ export class MeService {
     };
   }
 
-  async findEventSegments(
-    jwtUser: JwtPayload,
-    eventId: string,
-    requestedPersonId?: string,
-  ): Promise<MeSegment[]> {
+  async findEventSegments(jwtUser: JwtPayload, eventId: string): Promise<MeSegment[]> {
     const segments = await this.eventSegmentService.findAllByEvent(eventId);
     const published = segments.filter((segment) => segment.isPublished);
 
-    const personId = await this.resolveTargetPersonId(jwtUser, requestedPersonId);
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const personId = managedPersons.find((p) => p.isSelf)?.personId ?? null;
     const placementsBySegment = await this.fetchOwnPlacementsBySegment(personId, published);
 
     return published.map((segment) => ({
@@ -205,32 +181,6 @@ export class MeService {
       })),
       myPlacements: placementsBySegment.get(segment.id) ?? [],
     }));
-  }
-
-  /**
-   * Resolves which person's placements to show: the caller's own person when no `requestedPersonId`
-   * is given; any person for TECHNICAL/ADMIN; only the caller's own managed persons (self + delegates)
-   * for MEMBER — otherwise 403, so a member can't view an arbitrary person by editing the URL.
-   */
-  private async resolveTargetPersonId(
-    jwtUser: JwtPayload,
-    requestedPersonId?: string,
-  ): Promise<string | null> {
-    if (!requestedPersonId) {
-      const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
-      return managedPersons.find((p) => p.isSelf)?.personId ?? null;
-    }
-
-    if (jwtUser.role === UserRole.TECHNICAL || jwtUser.role === UserRole.ADMIN) {
-      return requestedPersonId;
-    }
-
-    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
-    const isManaged = managedPersons.some((p) => p.personId === requestedPersonId);
-    if (!isManaged) {
-      throw new ForbiddenException('No autoritzat per consultar esta persona');
-    }
-    return requestedPersonId;
   }
 
   /**

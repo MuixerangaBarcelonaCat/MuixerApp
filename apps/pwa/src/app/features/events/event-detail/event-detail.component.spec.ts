@@ -252,17 +252,34 @@ describe('EventDetailComponent', () => {
     });
   });
 
-  describe('staff tools', () => {
-    it('shows the staff tools card for TECHNICAL', async () => {
-      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.TECHNICAL);
-      const card = fixture.nativeElement.querySelector('a[href*="roll-call"]');
-      expect(card).toBeTruthy();
+  describe('roll-call link ("Passa llista")', () => {
+    const TODAY = new Date().toISOString().slice(0, 10);
+
+    it('shows it for TECHNICAL on the day of the event', async () => {
+      fixture = await setup(of({ ...MOCK_DETAIL, date: TODAY }), of([]), UserRole.TECHNICAL);
+      const link = fixture.nativeElement.querySelector('a[href*="roll-call"]');
+      expect(link).toBeTruthy();
+      expect(link.textContent).toContain('Passa llista');
     });
 
-    it('hides the staff tools card for MEMBER', async () => {
-      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.MEMBER);
-      const card = fixture.nativeElement.querySelector('a[href*="roll-call"]');
-      expect(card).toBeFalsy();
+    it('shows it for ADMIN on the day of the event', async () => {
+      fixture = await setup(of({ ...MOCK_DETAIL, date: TODAY }), of([]), UserRole.ADMIN);
+      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeTruthy();
+    });
+
+    it('hides it for MEMBER even on the day of the event', async () => {
+      fixture = await setup(of({ ...MOCK_DETAIL, date: TODAY }), of([]), UserRole.MEMBER);
+      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeFalsy();
+    });
+
+    it('hides it for TECHNICAL on a future event', async () => {
+      fixture = await setup(of({ ...MOCK_DETAIL, date: '2099-01-01' }), of([]), UserRole.TECHNICAL);
+      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeFalsy();
+    });
+
+    it('hides it for TECHNICAL on a past event', async () => {
+      fixture = await setup(of({ ...MOCK_DETAIL, date: '2020-01-01' }), of([]), UserRole.TECHNICAL);
+      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeFalsy();
     });
   });
 

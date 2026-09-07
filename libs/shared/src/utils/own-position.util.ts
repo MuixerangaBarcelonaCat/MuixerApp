@@ -26,6 +26,9 @@ export type OwnPositionSegment =
   | { kind: 'figure'; value: string }
   | { kind: 'alias'; value: string };
 
+/** Who the sentence is about — the caller («Sou…») or someone they looked up («Marta és…»). */
+export type OwnPositionSubject = { kind: 'self' } | { kind: 'other'; alias: string };
+
 export interface OwnPositionInput {
   /** The node's own label — what the tècniques named the position, e.g. «Lateral». */
   nodeLabel: string;
@@ -49,6 +52,18 @@ export const OWN_POSITION_MULTIPLE_PLACEMENTS =
 /** Shown when the member is not in this segment at all — silence would read as a bug. */
 export const OWN_POSITION_NO_PLACEMENT = 'No teniu cap posició en este segment.';
 
+/** `OWN_POSITION_NO_PLACEMENT`, or the third-person form when looking up someone else. */
+export function ownPositionNoPlacement(subject: OwnPositionSubject = { kind: 'self' }): string {
+  return subject.kind === 'self' ? OWN_POSITION_NO_PLACEMENT : `${subject.alias} no ix en este segment.`;
+}
+
+/** `OWN_POSITION_MULTIPLE_PLACEMENTS`, or the third-person form when looking up someone else. */
+export function ownPositionMultiplePlacements(subject: OwnPositionSubject = { kind: 'self' }): string {
+  return subject.kind === 'self'
+    ? OWN_POSITION_MULTIPLE_PLACEMENTS
+    : `${subject.alias} està en més d'un lloc alhora. Parleu amb la tècnica.`;
+}
+
 const VOWEL_OR_H = /^[aeiouàáèéêíìïòóôúùüh]/i;
 
 /** The correct form of «de» before `name`: elided to «d'» before a vowel or a silent h. */
@@ -56,8 +71,15 @@ export function elideDe(name: string): string {
   return VOWEL_OR_H.test(name) ? "d'" : 'de ';
 }
 
-export function formatOwnPosition(input: OwnPositionInput): OwnPositionSegment[] {
-  const segments: OwnPositionSegment[] = [{ kind: 'text', value: 'Sou ' }, { kind: 'label', value: input.nodeLabel }];
+export function formatOwnPosition(
+  input: OwnPositionInput,
+  subject: OwnPositionSubject = { kind: 'self' },
+): OwnPositionSegment[] {
+  const opening: OwnPositionSegment[] =
+    subject.kind === 'self'
+      ? [{ kind: 'text', value: 'Sou ' }]
+      : [{ kind: 'alias', value: subject.alias }, { kind: 'text', value: ' és ' }];
+  const segments: OwnPositionSegment[] = [...opening, { kind: 'label', value: input.nodeLabel }];
 
   if (input.cordon != null) {
     segments.push({ kind: 'text', value: ` (cordó ${input.cordon})` });

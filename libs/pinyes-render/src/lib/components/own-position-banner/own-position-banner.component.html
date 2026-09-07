@@ -1,9 +1,19 @@
 @switch (state().kind) {
   @case ('MULTIPLE') {
-    <p class="text-error">{{ OWN_POSITION_MULTIPLE_PLACEMENTS }}</p>
+    <p class="text-error flex items-center gap-2">
+      <span>{{ multiplePlacementsText() }}</span>
+      @if (isOther()) {
+        <button type="button" class="btn btn-xs btn-ghost btn-circle shrink-0" (click)="back.emit()" aria-label="Torna a la teua posició">✕</button>
+      }
+    </p>
   }
   @case ('NONE') {
-    <p class="text-white/70">{{ OWN_POSITION_NO_PLACEMENT }}</p>
+    <p class="text-white/70 flex items-center gap-2">
+      <span>{{ noPlacementText() }}</span>
+      @if (isOther()) {
+        <button type="button" class="btn btn-xs btn-ghost btn-circle shrink-0" (click)="back.emit()" aria-label="Torna a la teua posició">✕</button>
+      }
+    </p>
   }
   @default {
     <p class="flex items-center gap-x-2 gap-y-1 flex-wrap">
@@ -16,7 +26,10 @@
           >{{ segment.value }}</span>
         }
       </span>
-      <button type="button" class="btn btn-xs btn-primary shrink-0" (click)="troba.emit()">Troba'm</button>
+      <button type="button" class="btn btn-xs btn-primary shrink-0" (click)="troba.emit()">{{ actionLabel() }}</button>
+      @if (isOther()) {
+        <button type="button" class="btn btn-xs btn-ghost btn-circle shrink-0" (click)="back.emit()" aria-label="Torna a la teua posició">✕</button>
+      }
     </p>
   }
 }

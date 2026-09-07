@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsIn, IsInt, IsUUID, Min, Max } from 'class-validator';
+import { IsOptional, IsEnum, IsIn, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventType } from '@muixer/shared';
 
@@ -8,10 +8,6 @@ export class MeEventFilterDto {
   @IsOptional()
   @IsEnum(EventType)
   type?: EventType;
-
-  @IsOptional()
-  @IsUUID()
-  seasonId?: string;
 
   @IsOptional()
   @IsIn(TIME_FILTER_VALUES)

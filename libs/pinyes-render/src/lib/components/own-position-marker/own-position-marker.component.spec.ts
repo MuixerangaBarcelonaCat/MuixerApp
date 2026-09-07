@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { OwnPositionSubject } from '@muixer/shared';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { MarkerTarget, OwnPositionMarkerComponent } from './own-position-marker.component';
@@ -15,11 +16,13 @@ describe('OwnPositionMarkerComponent', () => {
     stageTransform?: StageTransform;
     viewport?: { width: number; height: number };
     arrivedTick?: number;
+    subject?: OwnPositionSubject;
   }) => {
     if ('target' in overrides) fixture.componentRef.setInput('target', overrides.target);
     if (overrides.stageTransform) fixture.componentRef.setInput('stageTransform', overrides.stageTransform);
     fixture.componentRef.setInput('viewport', overrides.viewport ?? VIEWPORT);
     if (overrides.arrivedTick !== undefined) fixture.componentRef.setInput('arrivedTick', overrides.arrivedTick);
+    if (overrides.subject) fixture.componentRef.setInput('subject', overrides.subject);
     fixture.detectChanges();
   };
 
@@ -76,6 +79,23 @@ describe('OwnPositionMarkerComponent', () => {
       setInputs({ target: { kind: 'screen', x: 500, y: 150 } });
       expect(pinEl()).toBeNull();
       expect(chevronEl()).toBeTruthy();
+    });
+
+    it('labels the chevron for the caller by default', () => {
+      setInputs({ target: { kind: 'screen', x: 500, y: 150 } });
+      expect(chevronEl().attributes['aria-label']).toBe('Ves a la teua posició');
+    });
+
+    it('labels the chevron with the alias when looking up someone else', () => {
+      const other: OwnPositionSubject = { kind: 'other', alias: 'Marta' };
+      setInputs({ target: { kind: 'screen', x: 500, y: 150 }, subject: other });
+      expect(chevronEl().attributes['aria-label']).toBe('Ves a la posició de Marta');
+    });
+
+    it('elides the preposition before a vowel alias', () => {
+      const other: OwnPositionSubject = { kind: 'other', alias: 'Anna' };
+      setInputs({ target: { kind: 'screen', x: 500, y: 150 }, subject: other });
+      expect(chevronEl().attributes['aria-label']).toBe("Ves a la posició d'Anna");
     });
 
     it('treats the exact viewport edges as inside', () => {

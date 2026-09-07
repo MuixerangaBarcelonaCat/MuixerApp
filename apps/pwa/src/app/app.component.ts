@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { ToastContainerComponent } from '@muixer/ui';
 import { SplashScreenComponent } from './shared/components/splash-screen/splash-screen.component';
 import { AuthService } from './core/auth/services/auth.service';
+import { PinchZoomGuardService } from './core/services/pinch-zoom-guard.service';
 
 @Component({
   selector: 'app-root',
@@ -20,4 +21,8 @@ import { AuthService } from './core/auth/services/auth.service';
 export class AppComponent {
   private readonly auth = inject(AuthService);
   showSplash = computed(() => !this.auth.isReady());
+
+  constructor() {
+    inject(PinchZoomGuardService).install();
+  }
 }

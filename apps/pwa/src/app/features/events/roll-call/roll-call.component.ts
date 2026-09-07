@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { BadgeComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -15,7 +15,7 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.PENDENT]: 'Pendent',
   [AttendanceStatus.ANIRE]: 'Vindrà',
   [AttendanceStatus.NO_VAIG]: 'No vindrà',
-  [AttendanceStatus.ASSISTIT]: 'Ha assistit',
+  [AttendanceStatus.ASSISTIT]: 'Ha vingut',
 };
 
 /** The API always returns a human Catalan message in the body for 4xx errors; fall back only for network/5xx failures. */
@@ -33,7 +33,8 @@ function errorMessage(err: unknown, fallback: string): string {
   imports: [
     FormsModule,
     LucideAngularModule,
-    BadgeComponent,
+    ButtonComponent,
+    ButtonGroupComponent,
     ModalComponent,
     MobileHeaderComponent,
     SkeletonCardComponent,
@@ -46,9 +47,9 @@ export class RollCallComponent {
 
   protected readonly Search = Search;
   protected readonly statuses = [
+    AttendanceStatus.ASSISTIT,
     AttendanceStatus.ANIRE,
     AttendanceStatus.NO_VAIG,
-    AttendanceStatus.ASSISTIT,
   ];
 
   private readonly rollCallService = inject(RollCallService);

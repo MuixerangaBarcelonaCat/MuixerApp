@@ -23,4 +23,16 @@
   html {
     font-family: 'Quicksand', system-ui, sans-serif;
   }
+
+  // App-like touch behaviour: no browser pinch-zoom, no double-tap-zoom. iOS Safari needs the
+  // JS guard in PinchZoomGuardService on top of this. The segment projection screen opts back
+  // in — its Konva canvas drives its own pinch-zoom.
+  html,
+  body {
+    touch-action: pan-x pan-y;
+  }
+
+  app-segment-projection {
+    touch-action: none;
+  }
 }

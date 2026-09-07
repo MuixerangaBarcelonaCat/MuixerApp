@@ -1,5 +1,6 @@
-import { FigureHistoryEntry, BulkImportResult } from '@muixer/pinyes-render';
+import { FigureHistoryEntry, BulkImportResult, PinyaProjectionComponent, TroncViewComponent } from '@muixer/pinyes-render';
 import { FigureZone, ImportScope } from '@muixer/shared';
+import { Component, input } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of, throwError } from 'rxjs';
@@ -7,6 +8,26 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { ImportPinyaModalComponent } from './import-pinya-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
+import { ProjectionService } from '../../services/projection.service';
+
+// Stubs: the real components pull in Konva/ResizeObserver rendering concerns this suite
+// doesn't need to exercise — same pattern as projection-view.component.spec.ts.
+@Component({ selector: 'lib-pinya-projection', standalone: true, template: '' })
+class PinyaProjectionStub {
+  readonly data = input.required<unknown>();
+  readonly instanceId = input<string | null>(null);
+  readonly scope = input<ImportScope | null>(null);
+  readonly showZoomControls = input<boolean>(true);
+}
+
+@Component({ selector: 'app-tronc-view', standalone: true, template: '' })
+class TroncViewStub {
+  readonly troncNodes = input<unknown[]>([]);
+  readonly baseNodes = input<unknown[]>([]);
+  readonly directionNodes = input<unknown[]>([]);
+  readonly assignments = input<unknown[]>([]);
+  readonly mode = input<string>('assignment');
+}
 
 const TEMPLATE_ID = 'template-uuid-1';
 const INSTANCE_ID = 'instance-uuid-1';
@@ -19,6 +40,7 @@ const makeHistoryEntry = (instanceId = SOURCE_INSTANCE_ID): FigureHistoryEntry =
   eventType: 'REHEARSAL',
   segmentId: 'segment-uuid-1',
   segmentName: 'Bloc 1',
+  figureName: null,
   instanceId,
   snapshotted: true,
   assignmentCount: 5,
@@ -35,6 +57,7 @@ describe('ImportPinyaModalComponent', () => {
     getHistory: ReturnType<typeof vi.fn>;
     bulkImport: ReturnType<typeof vi.fn>;
   };
+  let projectionService: { getProjection: ReturnType<typeof vi.fn> };
   let importCompletedSpy: Mock;
   let closedSpy: Mock;
   let state: AssignmentStateService;
@@ -44,15 +67,24 @@ describe('ImportPinyaModalComponent', () => {
       getHistory: vi.fn().mockReturnValue(of({ data: [makeHistoryEntry()] })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} } as unknown as BulkImportResult)),
     };
+    projectionService = {
+      getProjection: vi.fn().mockReturnValue(of({ instances: [] } as unknown as never)),
+    };
 
     await TestBed.configureTestingModule({
       imports: [ImportPinyaModalComponent],
       providers: [
         { provide: NodeAssignmentService, useValue: assignmentService },
+        { provide: ProjectionService, useValue: projectionService },
         AssignmentStateService,
         allLucideIconsProvider,
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(ImportPinyaModalComponent, {
+        remove: { imports: [PinyaProjectionComponent, TroncViewComponent] },
+        add: { imports: [PinyaProjectionStub, TroncViewStub] },
+      })
+      .compileComponents();
 
     state = TestBed.inject(AssignmentStateService);
 
@@ -92,6 +124,62 @@ describe('ImportPinyaModalComponent', () => {
       fixture.componentRef.setInput('open', true);
       fixture.detectChanges();
       expect(component.history()).toHaveLength(2);
+    });
+  });
+
+  // ── origin scoping ─────────────────────────────────────────────────────────
+
+  describe('origin', () => {
+    it('offers pinya + tot (never tronc alone) by default', () => {
+      expect(component.scopes().map((s) => s.scope)).toEqual([ImportScope.PINYA, ImportScope.ALL]);
+      expect(component.title()).toBe('Importació de pinya anterior');
+    });
+
+    it('offers tronc + tot (never pinya alone) when opened from the troncs panel', () => {
+      fixture.componentRef.setInput('origin', 'tronc');
+      fixture.detectChanges();
+
+      expect(component.scopes().map((s) => s.scope)).toEqual([ImportScope.TRONC, ImportScope.ALL]);
+      expect(component.title()).toBe('Importació de tronc anterior');
+    });
+
+    it('labels the ALL scope "Tot" in the preview switch but "Pinya i tronc" on the import button', () => {
+      const all = component.scopes().find((s) => s.scope === ImportScope.ALL)!;
+      expect(all.label).toBe('Tot');
+      expect(all.actionLabel).toBe('Pinya i tronc');
+    });
+
+    it('defaults the preview to the whole figure for a pinya origin, to tronc for a tronc origin', () => {
+      component.selectEntry({ ...makeHistoryEntry(), snapshotted: true });
+      expect(component.previewScope()).toBe(ImportScope.ALL);
+
+      fixture.componentRef.setInput('origin', 'tronc');
+      fixture.detectChanges();
+      component.selectEntry({ ...makeHistoryEntry('other'), snapshotted: true });
+      expect(component.previewScope()).toBe(ImportScope.TRONC);
+    });
+  });
+
+  // ── entry subtitle ─────────────────────────────────────────────────────────
+
+  describe('entrySubtitle', () => {
+    it('shows the segment name alone when the figure has no custom label', () => {
+      expect(component.entrySubtitle({ ...makeHistoryEntry(), segmentName: 'Bloc 1', figureName: null }))
+        .toBe('Bloc 1');
+    });
+
+    it('shows the figure label alone when there is no segment name', () => {
+      expect(component.entrySubtitle({ ...makeHistoryEntry(), segmentName: null, figureName: 'Pilar caminant' }))
+        .toBe('Pilar caminant');
+    });
+
+    it('joins segment name and figure label with « - » when both exist', () => {
+      expect(component.entrySubtitle({ ...makeHistoryEntry(), segmentName: 'Bloc 1', figureName: 'Pilar caminant' }))
+        .toBe('Bloc 1 - Pilar caminant');
+    });
+
+    it('is empty when neither exists', () => {
+      expect(component.entrySubtitle({ ...makeHistoryEntry(), segmentName: null, figureName: null })).toBe('');
     });
   });
 
@@ -179,6 +267,7 @@ describe('ImportPinyaModalComponent', () => {
       eventType: 'REHEARSAL',
       segmentId: 'seg-1',
       segmentName: 'Bloc 1',
+      figureName: null,
       instanceId: 'inst-1',
       snapshotted: true,
       assignmentCount: 3,
@@ -213,21 +302,24 @@ describe('ImportPinyaModalComponent', () => {
       );
     });
 
-    it('opens the preview modal for the chosen scope', () => {
+    it('defaults the preview scope to the whole figure on selection', () => {
       component.selectEntry(entryWithMixedZones());
 
-      component.openPreview(ImportScope.TRONC);
+      expect(component.previewScope()).toBe(ImportScope.ALL);
+    });
+
+    it('switches the preview scope', () => {
+      component.selectEntry(entryWithMixedZones());
+
+      component.setPreviewScope(ImportScope.TRONC);
 
       expect(component.previewScope()).toBe(ImportScope.TRONC);
     });
 
-    it('closes the preview modal', () => {
+    it('loads the projection for the selected entry to feed the preview', () => {
       component.selectEntry(entryWithMixedZones());
-      component.openPreview(ImportScope.PINYA);
 
-      component.closePreview();
-
-      expect(component.previewScope()).toBeNull();
+      expect(projectionService.getProjection).toHaveBeenCalledWith('e1', 'seg-1');
     });
   });
 
@@ -241,6 +333,7 @@ describe('ImportPinyaModalComponent', () => {
       eventType: 'REHEARSAL',
       segmentId: 'seg-1',
       segmentName: 'Bloc 1',
+      figureName: null,
       instanceId: 'inst-1',
       snapshotted: true,
       assignmentCount: 3,

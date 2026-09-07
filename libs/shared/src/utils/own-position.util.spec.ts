@@ -5,11 +5,14 @@ import {
   OWN_POSITION_MULTIPLE_PLACEMENTS,
   OWN_POSITION_NO_PLACEMENT,
   OwnPositionInput,
+  OwnPositionSubject,
+  ownPositionMultiplePlacements,
+  ownPositionNoPlacement,
   ownPositionToPlainText,
 } from './own-position.util';
 
-const plain = (input: OwnPositionInput): string =>
-  ownPositionToPlainText(formatOwnPosition(input));
+const plain = (input: OwnPositionInput, subject?: OwnPositionSubject): string =>
+  ownPositionToPlainText(formatOwnPosition(input, subject));
 
 const base = (overrides: Partial<OwnPositionInput> = {}): OwnPositionInput => ({
   nodeLabel: 'Lateral',
@@ -145,6 +148,52 @@ describe('formatOwnPosition', () => {
         { kind: 'text', value: '.' },
       ]);
     });
+  });
+});
+
+describe('formatOwnPosition for another person', () => {
+  const other: OwnPositionSubject = { kind: 'other', alias: 'Marta' };
+
+  it('opens with the alias and «és» instead of «Sou»', () => {
+    expect(plain(base(), other)).toBe('Marta és Lateral.');
+  });
+
+  it('keeps the rest of the clause identical to the self phrasing', () => {
+    expect(plain(base({ cordon: 2, figureName: 'Roscana', behind: 'Anna' }), other)).toBe(
+      "Marta és Lateral (cordó 2) a Roscana, darrere d'Anna.",
+    );
+  });
+
+  it('tags the alias as its own segment, distinct from a neighbour alias', () => {
+    const segments = formatOwnPosition(base(), other);
+    expect(segments).toEqual([
+      { kind: 'alias', value: 'Marta' },
+      { kind: 'text', value: ' és ' },
+      { kind: 'label', value: 'Lateral' },
+      { kind: 'text', value: '.' },
+    ]);
+  });
+});
+
+describe('ownPositionNoPlacement', () => {
+  it('defaults to the self phrasing', () => {
+    expect(ownPositionNoPlacement()).toBe(OWN_POSITION_NO_PLACEMENT);
+  });
+
+  it('names the other person when given a third-party subject', () => {
+    expect(ownPositionNoPlacement({ kind: 'other', alias: 'Marta' })).toBe('Marta no ix en este segment.');
+  });
+});
+
+describe('ownPositionMultiplePlacements', () => {
+  it('defaults to the self phrasing', () => {
+    expect(ownPositionMultiplePlacements()).toBe(OWN_POSITION_MULTIPLE_PLACEMENTS);
+  });
+
+  it('names the other person when given a third-party subject', () => {
+    expect(ownPositionMultiplePlacements({ kind: 'other', alias: 'Marta' })).toBe(
+      "Marta està en més d'un lloc alhora. Parleu amb la tècnica.",
+    );
   });
 });
 

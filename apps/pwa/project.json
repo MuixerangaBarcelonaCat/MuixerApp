@@ -95,7 +95,9 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "options": {},
+      "options": {
+        "setupFiles": ["apps/pwa/src/test-setup.ts"]
+      },
       "configurations": {
         "ci": {
           "coverage": true,

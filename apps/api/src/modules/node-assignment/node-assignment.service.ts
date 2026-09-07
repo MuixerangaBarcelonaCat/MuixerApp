@@ -35,6 +35,7 @@ import {
   DirectionAssignmentEntry,
   ImportScope,
   zonesForScope,
+  getSegmentInstanceLabel,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -137,6 +138,9 @@ export interface FigureHistoryEntry {
   eventType: EventType;
   segmentId: string;
   segmentName: string | null;
+  /** Figure name shown under the event title: the instance label, or the mode-derived name
+   *  («Peu de …», «Remat de …», «… net») when the mode isn't COMPLETA; null for a plain default. */
+  figureName: string | null;
   instanceId: string;
   snapshotted: boolean;
   assignmentCount: number;
@@ -930,6 +934,18 @@ export class NodeAssignmentService {
 
     const data = instances.map((instance) => {
       const event = instance.segment.event as Event;
+      // Show a figure name when the user renamed the instance OR the mode isn't the plain
+      // COMPLETA default (so «Peu de …» / «Remat de …» / «… net» still read on unnamed figures).
+      const figureMode = instance.figureMode ?? FigureMode.COMPLETA;
+      const figureName =
+        instance.label || figureMode !== FigureMode.COMPLETA
+          ? getSegmentInstanceLabel({
+              label: instance.label,
+              figureMode,
+              // hasPinya is unused by getSegmentInstanceLabel (see its doc comment).
+              figureTemplate: { name: template.name, hasPinya: false },
+            })
+          : null;
       return {
         eventId: event.id,
         eventTitle: event.title,
@@ -937,6 +953,7 @@ export class NodeAssignmentService {
         eventType: event.eventType,
         segmentId: instance.segment.id,
         segmentName: instance.segment.name ?? null,
+        figureName,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
         assignmentCount: instance.assignments?.length ?? 0,
