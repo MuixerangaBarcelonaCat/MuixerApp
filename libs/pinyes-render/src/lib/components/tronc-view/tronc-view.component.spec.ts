@@ -1679,4 +1679,33 @@ describe('TroncViewComponent', () => {
       expect(spy).toHaveBeenCalled();
     });
   });
+
+  // ── gridTemplateColumns ──────────────────────────────────────────────────
+
+  describe('gridTemplateColumns', () => {
+    it('does not reserve the add-node button column outside editor mode (assignment)', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', x: 0, width: 2 })]);
+      fixture.detectChanges();
+
+      expect(component.gridTemplateColumns()).not.toContain('2.5rem) 2.5rem');
+      expect(component.gridTemplateColumns()).toBe('repeat(4, minmax(2.5rem, 1fr))');
+    });
+
+    it('does not reserve the add-node button column in projection mode', () => {
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', x: 0, width: 2 })]);
+      fixture.detectChanges();
+
+      expect(component.gridTemplateColumns()).toBe('repeat(4, minmax(2.5rem, 1fr))');
+    });
+
+    it('still reserves the add-node button column in editor mode', () => {
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', x: 0, width: 2 })]);
+      fixture.detectChanges();
+
+      expect(component.gridTemplateColumns()).toBe('repeat(4, minmax(2.5rem, 1fr)) 2.5rem');
+    });
+  });
 });

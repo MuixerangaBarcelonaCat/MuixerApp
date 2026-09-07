@@ -359,6 +359,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly placementSlotId = input<string | null>(null);
   /** Whether ad-hoc nodes can be dragged/rotated/resized directly on this canvas (Nodes extra tab only). */
   readonly adHocNodesEditable = input<boolean>(false);
+  /**
+   * Composition mode only: suppress the tronc panel's own visible dashed-rect + "Tronc de X"
+   * label — keep the fully-transparent hit rect and its drag/dblclick behaviour. Set by hosts
+   * that render their own visual on top instead (see `troncPanelMoved`); other composition-mode
+   * hosts (e.g. the composition editor) leave this `false` and keep today's placeholder.
+   */
+  readonly troncPanelVisualHidden = input<boolean>(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -383,6 +390,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     troncPanelX: number | null;
     troncPanelY: number | null;
   }>();
+  /**
+   * Composition mode only: the tronc panel Konva group's live world-space top-left — emitted on
+   * initial placement and on every `dragmove` (of the panel itself, or of its linked figure
+   * while `troncPanelVisualHidden` is set), unlike `troncMoved` which only fires on `dragend`.
+   * A host rendering its own visual overlay uses this as the single source of truth for where
+   * to position it, instead of re-deriving linked/detached placement itself.
+   */
+  readonly troncPanelMoved = output<{ slotId: string; x: number; y: number }>();
   readonly nodeDoubleClicked = output<string>();
   readonly stageTransformChanged = output<{
     x: number;
@@ -1483,32 +1498,42 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       draggable: true,
     });
 
+    const hideVisual = this.troncPanelVisualHidden();
+
+    // Hit area: always present (drag/click target), visible dashed rect only when a host
+    // isn't rendering its own overlay on top (see `troncPanelVisualHidden`).
     troncGroup.add(new Konva.Rect({
       x: 0,
       y: 0,
       width: troncW,
       height: troncH,
-      fill: figColor + '20',
-      stroke: figColor,
-      strokeWidth: 1.5,
-      dash: [6, 3],
+      fill: hideVisual ? 'transparent' : figColor + '20',
+      stroke: hideVisual ? undefined : figColor,
+      strokeWidth: hideVisual ? 0 : 1.5,
+      dash: hideVisual ? undefined : [6, 3],
       cornerRadius: 4,
       listening: true,
     }));
 
-    troncGroup.add(new Konva.Text({
-      x: 0,
-      y: 0,
-      width: troncW,
-      height: troncH,
-      text: 'Tronc de ' + (slot.label ?? slot.figureTemplate.name),
-      fontSize: 18,
-      fontFamily: 'Inter, sans-serif',
-      fill: figColor,
-      align: 'center',
-      verticalAlign: 'middle',
-      listening: false,
-    }));
+    if (!hideVisual) {
+      troncGroup.add(new Konva.Text({
+        x: 0,
+        y: 0,
+        width: troncW,
+        height: troncH,
+        text: 'Tronc de ' + (slot.label ?? slot.figureTemplate.name),
+        fontSize: 18,
+        fontFamily: 'Inter, sans-serif',
+        fill: figColor,
+        align: 'center',
+        verticalAlign: 'middle',
+        listening: false,
+      }));
+    }
+
+    const emitTroncPanelMoved = () => {
+      this.troncPanelMoved.emit({ slotId: slot.slotId, x: troncGroup.x(), y: troncGroup.y() });
+    };
 
     // Keep tronc in sync when figure is dragged (linked mode)
     slotGroup.on('dragmove.tronc', () => {
@@ -1517,6 +1542,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       troncGroup.x(pos.x);
       troncGroup.y(pos.y);
       this.pinyaLayer.batchDraw();
+      emitTroncPanelMoved();
     });
 
     slotGroup.on('dragend.tronc', () => {
@@ -1524,6 +1550,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const pos = this.computeLinkedTroncPosition(slotGroup, figureHalfHeight, troncW, troncH);
       troncGroup.x(pos.x);
       troncGroup.y(pos.y);
+      emitTroncPanelMoved();
     });
 
     troncGroup.on('dragmove', () => {
@@ -1532,6 +1559,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         troncGroup.x(this.snapValue(troncGroup.x(), spacing));
         troncGroup.y(this.snapValue(troncGroup.y(), spacing));
       }
+      emitTroncPanelMoved();
     });
 
     troncGroup.on('dragend', () => {
@@ -1556,9 +1584,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       troncGroup.y(pos.y);
       this.pinyaLayer.batchDraw();
       this.troncMoved.emit({ slotId: slot.slotId, troncPanelX: null, troncPanelY: null });
+      emitTroncPanelMoved();
     });
 
     this.pinyaLayer.add(troncGroup);
+    emitTroncPanelMoved();
   }
 
   private makeRotationHandle(slotId: string, slotGroup: Konva.Group, x: number, y: number): Konva.Circle {
