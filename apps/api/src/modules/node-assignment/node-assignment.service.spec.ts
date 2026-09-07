@@ -1562,6 +1562,45 @@ describe('NodeAssignmentService', () => {
       expect(result.segments[0].figures[0].tronc).toEqual({ assigned: 0, total: 0 });
       expect(result.segments[0].figures[0].total).toEqual({ assigned: 1, total: 1 });
       expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([]);
+      expect(result.segments[0].figures[0].directions).toEqual([]);
+    });
+
+    it('surfaces direction assignments per figure as { positionType, personAlias }', async () => {
+      const person = makePerson();
+      const dirNode = makeInstanceNode({
+        id: 'dn-1',
+        zone: FigureZone.DIRECTION,
+        positionType: 'direccio-pinya',
+        isAdHoc: true,
+      });
+      const assignment = {
+        ...makeAssignment(),
+        id: 'a-dir',
+        instanceNode: dirNode,
+        person,
+        figureInstance: { id: 'fi-1' },
+      };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      };
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...dirNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([assignment]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].directions).toEqual([
+        { positionType: 'direccio-pinya', personAlias: 'Pepet' },
+      ]);
     });
 
     it('sets distinctPersonCount and conflictAssignmentCount = 0 per figure when there is no conflict', async () => {

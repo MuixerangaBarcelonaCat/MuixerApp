@@ -13,6 +13,8 @@ import { ButtonComponent, InputComponent, BadgeComponent } from '@muixer/ui';
 import {
   DIRECTION_NODE_PRESETS,
   DIRECTION_SLOTS,
+  DirectionAssignmentEntry,
+  formatDirectionNames,
   ICON_OBSERVACIONS,
   SHOULDER_HEIGHT_BASELINE_CM,
   TRONC_NODE_PRESETS,
@@ -194,20 +196,15 @@ export class TroncViewComponent {
    */
   readonly projectionDirectionNames = computed<string[]>(() => {
     const assigns = this.assignments();
-    const dirNodes = this.directionNodes();
-    const names: string[] = [];
-    for (const slot of DIRECTION_SLOTS) {
-      for (const node of dirNodes.filter((n) => n.positionType === slot.positionType)) {
+    const entries = this.directionNodes()
+      .map((node): DirectionAssignmentEntry | null => {
         const assignment = assigns.find((a) => a.node.id === node.id);
-        if (!assignment) continue;
-        names.push(
-          slot.projectionMarker
-            ? `${assignment.person.alias} (${slot.projectionMarker})`
-            : assignment.person.alias,
-        );
-      }
-    }
-    return names;
+        return assignment
+          ? { positionType: node.positionType, personAlias: assignment.person.alias }
+          : null;
+      })
+      .filter((e): e is DirectionAssignmentEntry => e !== null);
+    return formatDirectionNames(entries);
   });
 
   readonly hasAssignedDirections = computed(() => {

@@ -12,8 +12,14 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA } from '../../../../shared/constants/domain-icons';
-import { ICON_OBSERVACIONS, computeSegmentDisplayName, getSegmentInstanceLabel } from '@muixer/shared';
+import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '../../../../shared/constants/domain-icons';
+import {
+  ICON_OBSERVACIONS,
+  computeSegmentDisplayName,
+  getSegmentInstanceLabel,
+  formatDirectionNames,
+  DIRECCIO_PINYA_POSITION_TYPE,
+} from '@muixer/shared';
 import { forkJoin } from 'rxjs';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -77,6 +83,7 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
   readonly ICON_RENGLA = ICON_RENGLA;
+  readonly ICON_DIRECCIO = ICON_DIRECCIO;
   readonly ICON_CONFLICT = ICON_OBSERVACIONS;
 
   private readonly segmentService = inject(EventSegmentService);
@@ -817,6 +824,29 @@ export class SegmentManagerComponent implements OnInit {
     return displayFloors
       .map((f) => f.slots.map((s) => s ?? '?').join(' - '))
       .join(' // ');
+  }
+
+  /**
+   * Troncs mode: every figure director on one line — «Quim · Aina (X) · Pep (P)», in the fixed
+   * `DIRECTION_SLOTS` order (tronc → xicalla → pinya). Null when the figure has no directors.
+   */
+  directionSummaryText(instance: InstanceDetail): string | null {
+    const directions = this.figureSummaryByInstance().get(instance.id)?.directions ?? [];
+    const names = formatDirectionNames(directions);
+    return names.length ? names.join(' · ') : null;
+  }
+
+  /**
+   * Pinyes mode: the pinya director(s) only — «Marta», no flavour marker (the list is already
+   * scoped to one flavour). Null when the figure has no pinya director.
+   */
+  pinyaDirectionText(instance: InstanceDetail): string | null {
+    const directions = this.figureSummaryByInstance().get(instance.id)?.directions ?? [];
+    const names = formatDirectionNames(directions, {
+      positionTypes: [DIRECCIO_PINYA_POSITION_TYPE],
+      markers: false,
+    });
+    return names.length ? names.join(' · ') : null;
   }
 
   isCollapsed(segmentId: string): boolean {

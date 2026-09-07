@@ -32,6 +32,7 @@ import {
   EventSegmentSummary,
   EventFigureSummary,
   FigureAreaCount,
+  DirectionAssignmentEntry,
   ImportScope,
   zonesForScope,
 } from '@muixer/shared';
@@ -1179,6 +1180,7 @@ export class NodeAssignmentService {
     tronc: FigureAreaCount;
     total: FigureAreaCount;
     troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
+    directions: DirectionAssignmentEntry[];
     distinctPersonCount: number;
     conflictAssignmentCount: number;
   } {
@@ -1207,6 +1209,7 @@ export class NodeAssignmentService {
     let troncAssigned = 0;
     let directionAssigned = 0;
     const troncBaseAssignments: EventFigureSummary['troncBaseAssignments'] = [];
+    const directions: DirectionAssignmentEntry[] = [];
     for (const a of instanceAssignments) {
       const n = a.instanceNode;
       if (!n) continue;
@@ -1216,6 +1219,7 @@ export class NodeAssignmentService {
         troncAssigned++;
       } else if (isDirection(n)) {
         directionAssigned++;
+        directions.push({ positionType: n.positionType ?? null, personAlias: a.person.alias as string });
       }
       if (n.zone === FigureZone.TRONC || n.zone === FigureZone.BASE) {
         troncBaseAssignments.push({
@@ -1242,6 +1246,7 @@ export class NodeAssignmentService {
         total: pinyaTotal + troncTotal + directionTotal,
       },
       troncBaseAssignments,
+      directions,
       distinctPersonCount,
       conflictAssignmentCount,
     };

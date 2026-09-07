@@ -372,12 +372,18 @@
                           >
                             <span class="truncate">{{ getInstanceLabel(instance) }}</span>
 
-                            <!-- Pinya mode: assigned/total counts -->
+                            <!-- Pinya mode: assigned/total counts + pinya director -->
                             @if (viewMode() === 'pinyes') {
                               @if (figurePinyaLabel(instance); as label) {
-                                <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="label">
+                                <span class="flex items-center gap-0.5 text-xs text-base-content/75 shrink-0 font-normal" [attr.aria-label]="label">
                                   <lucide-icon [name]="ICON_PERSONA" [size]="11" />
                                   {{ label }}
+                                </span>
+                              }
+                              @if (pinyaDirectionText(instance); as director) {
+                                <span class="flex items-center gap-0.5 text-xs text-base-content/40 shrink-0 font-normal" [attr.aria-label]="'Direcció pinya: ' + director">
+                                  <lucide-icon [name]="ICON_DIRECCIO" [size]="11" />
+                                  {{ director }}
                                 </span>
                               }
                             }
@@ -396,21 +402,39 @@
                         </div>
                       }
 
-                      <!-- Tronc mode: floor summary -->
+                      <!-- Tronc mode: floor summary + directors. Wrapped in a button so a click
+                           anywhere on this block opens the assignment canvas, same as the pinya
+                           row. tabindex=-1: the figure-name button above is the keyboard control. -->
                       @if (viewMode() === 'troncs') {
-                        @if (troncLoading()) {
-                          <span class="text-xs text-base-content/30 mt-0.5 block">S'estan carregant...</span>
-                        } @else if (instance.snapshotted) {
-                          @if (troncSummaryText(instance); as summary) {
-                            <p class="text-xs text-base-content/60 mt-0.5 leading-snug break-words" [attr.aria-label]="'Tronc de ' + getInstanceLabel(instance)">
-                              {{ summary }}
-                            </p>
+                        <button
+                          type="button"
+                          tabindex="-1"
+                          class="block w-full text-left mt-0.5 hover:text-primary transition-colors"
+                          (click)="navigateToAssignment(segment.id, instance.id)"
+                          [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
+                        >
+                          @if (troncLoading()) {
+                            <span class="text-xs text-base-content/30 block">S'estan carregant...</span>
+                          } @else if (instance.snapshotted) {
+                            @if (troncSummaryText(instance); as summary) {
+                              <span class="text-xs text-base-content/75 leading-snug break-words block">
+                                {{ summary }}
+                              </span>
+                            } @else {
+                              <span class="text-xs text-base-content/30 block">Sense assignacions al tronc</span>
+                            }
                           } @else {
-                            <span class="text-xs text-base-content/30 mt-0.5 block">Sense assignacions al tronc</span>
+                            <span class="text-xs text-base-content/30 block">Sense assignacions</span>
                           }
-                        } @else {
-                          <span class="text-xs text-base-content/30 mt-0.5 block">Sense assignacions</span>
-                        }
+
+                          <!-- All figure directors, in slot order (tronc · xicalla · pinya) -->
+                          @if (directionSummaryText(instance); as directors) {
+                            <span class="text-xs text-base-content/40 mt-0.5 leading-snug break-words flex items-start gap-1">
+                              <lucide-icon [name]="ICON_DIRECCIO" [size]="11" class="mt-px shrink-0 text-base-content/30" aria-hidden="true" />
+                              <span>{{ directors }}</span>
+                            </span>
+                          }
+                        </button>
                       }
                     </div>
 
