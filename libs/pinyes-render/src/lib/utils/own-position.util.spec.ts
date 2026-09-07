@@ -457,6 +457,26 @@ describe('findOwnTroncCellRect', () => {
     expect(findOwnTroncCellRect(floor, instance).y).toBe(TRONC_HEADER_PX + 2 * TRONC_FLOOR_ROW_PX);
   });
 
+  it('stacks the three direction flavours in slot order (tronc, xicalla, pinya) above the floors', () => {
+    const pinyaDir = makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-pinya', x: 0, width: 0, sortOrder: 0 });
+    const xicDir = makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', x: 0, width: 0, sortOrder: 0 });
+    const troncDir = makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-tronc', x: 0, width: 0, sortOrder: 0 });
+    const floor = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
+    const instance = makeInstance({
+      nodes: [pinyaDir, xicDir, troncDir, floor],
+      assignments: [
+        makeAssignment(troncDir, 'p1', 'Joan'),
+        makeAssignment(xicDir, 'p2', 'Aina'),
+        makeAssignment(pinyaDir, 'me', 'Marta'),
+      ],
+    });
+
+    expect(findOwnTroncCellRect(troncDir, instance).y).toBe(TRONC_HEADER_PX + 0 * TRONC_FLOOR_ROW_PX);
+    expect(findOwnTroncCellRect(xicDir, instance).y).toBe(TRONC_HEADER_PX + 1 * TRONC_FLOOR_ROW_PX);
+    expect(findOwnTroncCellRect(pinyaDir, instance).y).toBe(TRONC_HEADER_PX + 2 * TRONC_FLOOR_ROW_PX);
+    expect(findOwnTroncCellRect(floor, instance).y).toBe(TRONC_HEADER_PX + 3 * TRONC_FLOOR_ROW_PX);
+  });
+
   it('does not reserve a direction row when no direction node is assigned', () => {
     const unassignedDir = makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-tronc', x: 0, width: 0, sortOrder: 0 });
     const floor = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });

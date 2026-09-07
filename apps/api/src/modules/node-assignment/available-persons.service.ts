@@ -200,6 +200,7 @@ export class AvailablePersonsService {
           nodeId: assignment.instanceNode?.id ?? '',
           nodeLabel: assignment.instanceNode?.label ?? '',
           zone,
+          positionType: assignment.instanceNode?.positionType ?? null,
           area: areaForZone(zone) as AssignmentArea,
           z: assignment.instanceNode?.z ?? null,
           renglaPosition: assignment.instanceNode?.renglaPosition ?? null,

@@ -118,9 +118,17 @@ describe('PINYA_NODE_PRESETS', () => {
 });
 
 describe('DIRECTION_NODE_PRESETS', () => {
-  it('includes the tronc and xicalla flavours', () => {
+  it('includes the tronc, xicalla and pinya flavours', () => {
     expect(DIRECTION_POSITION_TYPES).toContain('direccio-tronc');
     expect(DIRECTION_POSITION_TYPES).toContain('direccio-xicalla');
+    expect(DIRECTION_POSITION_TYPES).toContain('direccio-pinya');
+  });
+
+  it('gives direccio-pinya a deep green (emerald-800) and the "Direcció pinya" label', () => {
+    const pinya = DIRECTION_NODE_PRESETS.find((p) => p.positionType === 'direccio-pinya')!;
+    expect(pinya.color).toBe('#065f46');
+    expect(pinya.label).toBe('Direcció pinya');
+    expect(pinya.shortLabel).toBe('Pinya');
   });
 
   it('every preset lives in the single DIRECTION zone', () => {
@@ -152,9 +160,10 @@ describe('DIRECTION_SLOTS', () => {
     );
   });
 
-  it('puts direccio-tronc before direccio-xicalla', () => {
+  it('orders the flavours tronc → xicalla → pinya', () => {
     const order = DIRECTION_SLOTS.map((s) => s.positionType);
     expect(order.indexOf('direccio-tronc')).toBeLessThan(order.indexOf('direccio-xicalla'));
+    expect(order.indexOf('direccio-xicalla')).toBeLessThan(order.indexOf('direccio-pinya'));
   });
 });
 

@@ -85,6 +85,8 @@ export interface ConflictPlacement {
   nodeId: string;
   nodeLabel: string | null;
   zone: string;
+  /** The node's semantic type — e.g. `direccio-pinya`. Optional: not every fixture sets it. */
+  positionType?: string | null;
   area: AssignmentArea;
   z: number | null;
   renglaPosition: number | null;

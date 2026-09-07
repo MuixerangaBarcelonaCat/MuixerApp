@@ -55,10 +55,18 @@ export interface DirectionNodePreset extends NodePreset {
 export const DIRECTION_NODE_PRESETS: DirectionNodePreset[] = [
   { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc',   label: 'Direcció tronc',   shortLabel: 'Tronc',   slotOrder: 0, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
   { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', shortLabel: 'Xicalla', slotOrder: 1, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',   label: 'Direcció pinya',   shortLabel: 'Pinya',   slotOrder: 2, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#065f46', requiresCustomLabel: false },
 ];
 
 /** Direction presets in the fixed order their rows stack (by `slotOrder`). */
 export const DIRECTION_SLOTS: DirectionNodePreset[] = [...DIRECTION_NODE_PRESETS].sort((a, b) => a.slotOrder - b.slotOrder);
+
+/**
+ * The «direcció pinya» flavour — a pinya director. Named because its conflict rule differs:
+ * it does not conflict with a PINYA placement of the *same* figure instance
+ * (`conflictRelevantPlacements` in `assignment-area.constants.ts`).
+ */
+export const DIRECCIO_PINYA_POSITION_TYPE = 'direccio-pinya';
 
 export const DIRECTION_ZONES: FigureZone[] = [FigureZone.DIRECTION];
 export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.positionType);

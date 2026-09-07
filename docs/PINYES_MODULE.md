@@ -70,7 +70,7 @@ Cada posició dins d'un template. Camps clau:
 | Camp | Propòsit |
 |------|----------|
 | `zone` | `PINYA`, `TRONC`, `BASE`, `DIRECTION`, `DECORATION` |
-| `positionType` | Tipus semàntic. PINYA: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap`… · DIRECTION: `direccio-tronc`, `direccio-xicalla` (el «sabor» de la direcció viu al `positionType`, igual que a PINYA) |
+| `positionType` | Tipus semàntic. PINYA: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap`… · DIRECTION: `direccio-tronc`, `direccio-xicalla`, `direccio-pinya` (el «sabor» de la direcció viu al `positionType`, igual que a PINYA) |
 | `ringLevel` | Anell concèntric al qual pertany (1 = primer cordó). `null` per no-pinya i `cordo-obert` |
 | `originNodeId` | ID opcional per traçar llinatge quan es dupliquen o deriven nodes d'un altre template |
 
@@ -835,6 +835,7 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 3. **XOR template/composition**: Una `FigureInstance` té exactament un de `figureTemplate` o `compositionTemplate`. Mai tots dos, mai cap.
 
 4. **Unicitat per node**: `NodeAssignment` és única per `[figureInstance, instanceNode]`. Des de la Fase 5 una persona pot tenir ≥2 `NodeAssignment` al mateix `EventSegment` (o a la mateixa `FigureInstance`) — es classifica com a conflicte tou (`classifyPlacementKind`), no es rebutja.
+   - **Excepció «direcció pinya»**: una col·locació a `direccio-pinya` **no** compta com a conflicte si la persona també ocupa una posició de **pinya de la mateixa `FigureInstance`** (el director de pinya està a la seua pròpia figura). Segueix sent conflicte amb tronc/base/una altra direcció de la mateixa figura, o amb la pinya d'una figura diferent. Regla única a `conflictRelevantPlacements` (`@muixer/shared`), aplicada pels dos motors de conflicte (D13).
 
 5. **ringLevel consistency**: Tots els nodes d'un template amb `ringLevel = N` impliquen l'existència d'almenys un node amb `ringLevel = 1..N-1`. No poden haver-hi forats.
 

@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { DIRECTION_NODE_PRESETS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { conflictRelevantPlacements, DIRECTION_NODE_PRESETS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -64,7 +64,7 @@ const ZONE_LABELS: Record<string, string> = {
 };
 
 /** Direction placements read out by flavour (`positionType`); other zones by `zone`. */
-function placementZoneLabel(pl: { zone: string; positionType: string | null }): string {
+export function placementZoneLabel(pl: { zone: string; positionType: string | null }): string {
   if (pl.zone === 'DIRECTION') {
     return DIRECTION_NODE_PRESETS.find((p) => p.positionType === pl.positionType)?.label ?? 'Direcció';
   }
@@ -529,7 +529,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   isConflicted(row: ParticipationRow, segmentId: string): boolean {
-    return this.allPlacementsFor(row, segmentId).length > 1;
+    // A `direccio-pinya` placement doesn't conflict with its own figure's pinya (D13) — the
+    // server applies the same rule to `conflictSegmentIds`, keep the cell styling in step.
+    return conflictRelevantPlacements(this.allPlacementsFor(row, segmentId), (p) => p).length > 1;
   }
 
   /** % of segments the person shows up in, rounded — `0` for an event with no segments. */
@@ -548,7 +550,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       const all = this.allPlacementsFor(row, segment.id);
       const tronc = all.filter((p) => p.area === 'TRONC');
       if (tronc.length === 0) continue;
-      const conflicted = all.length > 1;
+      const conflicted = this.isConflicted(row, segment.id);
       for (const placement of tronc) {
         pills.push({
           text: `${this.segmentLabel(segment)}: ${formatNodeCordonLabel(placement.nodeLabel, placement.renglaPosition)} · ${placement.figureName}`,

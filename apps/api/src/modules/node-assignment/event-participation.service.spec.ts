@@ -360,6 +360,49 @@ describe('EventParticipationService', () => {
       expect(meta.conflictedPersons).toBe(0);
     });
 
+    it('does NOT report a conflict for direcció pinya + pinya of the same figure', async () => {
+      primeQueries(
+        [makeSegmentRow(SEG_A)],
+        [
+          makeMatrixRow(PERSON_1, SEG_A, {
+            assignmentId: 'a-dp', nodeId: 'n-dp', instanceId: 'fig-a',
+            zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',
+          }),
+          makeMatrixRow(PERSON_1, SEG_A, {
+            assignmentId: 'a-pi', nodeId: 'n-pi', instanceId: 'fig-a',
+            zone: FigureZone.PINYA, positionType: 'vents',
+          }),
+        ],
+      );
+
+      const { persons, meta } = await service.getEventParticipation(EVENT_ID);
+
+      expect(persons[0].placements[SEG_A]).toHaveLength(2); // both still listed
+      expect(persons[0].conflictSegmentIds).toEqual([]);
+      expect(meta.conflictedPersons).toBe(0);
+    });
+
+    it('DOES report a conflict for direcció pinya + pinya of a different figure', async () => {
+      primeQueries(
+        [makeSegmentRow(SEG_A)],
+        [
+          makeMatrixRow(PERSON_1, SEG_A, {
+            assignmentId: 'a-dp', nodeId: 'n-dp', instanceId: 'fig-a',
+            zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',
+          }),
+          makeMatrixRow(PERSON_1, SEG_A, {
+            assignmentId: 'a-pi', nodeId: 'n-pi', instanceId: 'fig-b',
+            zone: FigureZone.PINYA, positionType: 'vents',
+          }),
+        ],
+      );
+
+      const { persons, meta } = await service.getEventParticipation(EVENT_ID);
+
+      expect(persons[0].conflictSegmentIds).toEqual([SEG_A]);
+      expect(meta.conflictsByKind.PINYA_PINYA).toBe(1);
+    });
+
     it('reports only the segment that is actually duplicated', async () => {
       primeQueries(
         [makeSegmentRow(SEG_A), makeSegmentRow(SEG_B)],

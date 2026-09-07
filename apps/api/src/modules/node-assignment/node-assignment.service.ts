@@ -21,6 +21,7 @@ import {
   SegmentConflictKind,
   areaForZone,
   classifyPlacementKind,
+  conflictRelevantPlacements,
   isNodeVisibleByCordons,
   ConflictPlacement,
   SegmentConflict,
@@ -735,6 +736,7 @@ export class NodeAssignmentService {
         nodeId: a.instanceNode.id,
         nodeLabel: a.instanceNode.label ?? null,
         zone,
+        positionType: a.instanceNode.positionType ?? null,
         area: areaForZone(zone) as AssignmentArea,
         z: a.instanceNode.z ?? null,
         renglaPosition: a.instanceNode.renglaPosition ?? null,
@@ -751,7 +753,13 @@ export class NodeAssignmentService {
     }
 
     const conflicts: SegmentConflict[] = [];
-    for (const [personId, { alias, placements }] of groupsByPersonId) {
+    for (const [personId, { alias, placements: allPlacements }] of groupsByPersonId) {
+      // A `direccio-pinya` placement doesn't conflict with the same figure's own pinya (D13).
+      const placements = conflictRelevantPlacements(allPlacements, (p) => ({
+        positionType: p.positionType,
+        area: p.area,
+        instanceId: p.figureInstanceId,
+      }));
       if (placements.length < 2) continue;
 
       placements.sort((x, y) => {

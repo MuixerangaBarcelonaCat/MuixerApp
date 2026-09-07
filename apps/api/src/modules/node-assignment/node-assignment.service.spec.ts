@@ -1147,6 +1147,65 @@ describe('NodeAssignmentService', () => {
       expect(result.data).toEqual([]);
     });
 
+    describe('direcció pinya exemption', () => {
+      const FIG_A = makeInstance({ id: 'fig-a' });
+      const FIG_B = makeInstance({ id: 'fig-b' });
+
+      const dpNode = (id: string) => makeInstanceNode({ id, zone: FigureZone.DIRECTION, positionType: 'direccio-pinya' }) as any;
+      const pinyaNode = (id: string) => makeInstanceNode({ id, zone: FigureZone.PINYA, positionType: 'vents' }) as any;
+
+      it('is NOT a conflict: direcció pinya + pinya of the same figure', async () => {
+        mockAssignmentRepo.find.mockResolvedValueOnce([
+          makeConflictAssignment({ id: 'a-dp', figureInstance: FIG_A, instanceNode: dpNode('n-dp') }),
+          makeConflictAssignment({ id: 'a-pi', figureInstance: FIG_A, instanceNode: pinyaNode('n-pi') }),
+        ]);
+
+        const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+        expect(result.data).toEqual([]);
+        expect(result.meta.conflictPersonCount).toBe(0);
+      });
+
+      it('IS a conflict: direcció pinya + pinya of a different figure (PINYA_PINYA)', async () => {
+        mockAssignmentRepo.find.mockResolvedValueOnce([
+          makeConflictAssignment({ id: 'a-dp', figureInstance: FIG_A, instanceNode: dpNode('n-dp') }),
+          makeConflictAssignment({ id: 'a-pi', figureInstance: FIG_B, instanceNode: pinyaNode('n-pi') }),
+        ]);
+
+        const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+        expect(result.data).toHaveLength(1);
+        expect(result.data[0].kind).toBe(SegmentConflictKind.PINYA_PINYA);
+        expect(result.data[0].placements.map((p) => p.assignmentId).sort()).toEqual(['a-dp', 'a-pi']);
+      });
+
+      it('IS a conflict: direcció pinya + tronc of the same figure (TRONC_PINYA)', async () => {
+        mockAssignmentRepo.find.mockResolvedValueOnce([
+          makeConflictAssignment({ id: 'a-dp', figureInstance: FIG_A, instanceNode: dpNode('n-dp') }),
+          makeConflictAssignment({ id: 'a-tr', figureInstance: FIG_A, instanceNode: makeInstanceNode({ id: 'n-tr', zone: FigureZone.TRONC }) as any }),
+        ]);
+
+        const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+        expect(result.data).toHaveLength(1);
+        expect(result.data[0].kind).toBe(SegmentConflictKind.TRONC_PINYA);
+      });
+
+      it('classifies on the relevant subset: dp + pinya (same fig) + tronc (other fig) → TRONC_PINYA, dp excused', async () => {
+        mockAssignmentRepo.find.mockResolvedValueOnce([
+          makeConflictAssignment({ id: 'a-dp', figureInstance: FIG_A, instanceNode: dpNode('n-dp') }),
+          makeConflictAssignment({ id: 'a-pi', figureInstance: FIG_A, instanceNode: pinyaNode('n-pi') }),
+          makeConflictAssignment({ id: 'a-tr', figureInstance: FIG_B, instanceNode: makeInstanceNode({ id: 'n-tr', zone: FigureZone.TRONC }) as any }),
+        ]);
+
+        const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+        expect(result.data).toHaveLength(1);
+        expect(result.data[0].kind).toBe(SegmentConflictKind.TRONC_PINYA);
+        expect(result.data[0].placements.map((p) => p.assignmentId).sort()).toEqual(['a-pi', 'a-tr']);
+      });
+    });
+
     it('scopes the query to the given segment, so a person duplicated across segments is not a conflict', async () => {
       mockAssignmentRepo.find.mockResolvedValueOnce([]);
 

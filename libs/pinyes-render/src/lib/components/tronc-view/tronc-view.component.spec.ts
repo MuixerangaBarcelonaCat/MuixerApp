@@ -1185,14 +1185,16 @@ describe('TroncViewComponent', () => {
       expect(content).toBeNull();
     });
 
-    it('shows "Afegir" buttons when no direction nodes exist', () => {
+    it('shows one "Afegir" button per direction flavour when no direction nodes exist', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.componentRef.setInput('directionNodes', []);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
 
+      const slots = fixture.nativeElement.querySelectorAll('.directions-content .direction-slot');
+      expect(slots.length).toBe(3); // tronc, xicalla, pinya
       const addButtons = fixture.nativeElement.querySelectorAll('.directions-content .btn-ghost');
-      expect(addButtons.length).toBe(2);
+      expect(addButtons.length).toBe(3);
     });
 
     it('shows direction node button when a direction node exists', () => {
@@ -1205,18 +1207,24 @@ describe('TroncViewComponent', () => {
       expect(dirNodes.length).toBe(1);
     });
 
-    it('troncDirectionNodes computed returns direccio-tronc nodes', () => {
-      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+    it('directionSlots groups the instance nodes by flavour, in slot order', () => {
+      const pinyaDirNode = makeNode({ id: 'dir-pin-1', zone: 'DIRECTION', positionType: 'direccio-pinya', z: 0, x: 0, width: 1 });
+      fixture.componentRef.setInput('directionNodes', [xicDirNode, pinyaDirNode, figDirNode]);
       fixture.detectChanges();
 
-      expect(component.troncDirectionNodes().map((n) => n.id)).toEqual(['dir-fig-1']);
+      const slots = component.directionSlots();
+      expect(slots.map((s) => s.slot.positionType)).toEqual(['direccio-tronc', 'direccio-xicalla', 'direccio-pinya']);
+      expect(slots.map((s) => s.nodes.map((n) => n.id))).toEqual([['dir-fig-1'], ['dir-xic-1'], ['dir-pin-1']]);
     });
 
-    it('xicallaDirectionNodes computed returns direccio-xicalla nodes', () => {
-      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+    it('renders a slot (and its "Afegir" button) for a flavour with no nodes', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      component.directionsExpanded.set(true);
       fixture.detectChanges();
 
-      expect(component.xicallaDirectionNodes().map((n) => n.id)).toEqual(['dir-xic-1']);
+      const slots = fixture.nativeElement.querySelectorAll('.directions-content .direction-slot');
+      expect(slots.length).toBe(3);
     });
 
     it('hasAssignedDirections returns false when no assignments', () => {

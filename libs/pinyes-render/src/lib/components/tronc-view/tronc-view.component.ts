@@ -174,13 +174,18 @@ export class TroncViewComponent {
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
-  readonly troncDirectionNodes = computed(() =>
-    this.directionNodes().filter((n) => n.positionType === 'direccio-tronc'),
-  );
-
-  readonly xicallaDirectionNodes = computed(() =>
-    this.directionNodes().filter((n) => n.positionType === 'direccio-xicalla'),
-  );
+  /**
+   * One entry per direction flavour (`DIRECTION_SLOTS` order: tronc → xicalla → pinya), each
+   * with the instance's nodes of that flavour. Every slot is always present — an empty one
+   * still renders its "Afegir" button.
+   */
+  readonly directionSlots = computed(() => {
+    const nodes = this.directionNodes();
+    return DIRECTION_SLOTS.map((slot) => ({
+      slot,
+      nodes: nodes.filter((n) => n.positionType === slot.positionType),
+    }));
+  });
 
   /**
    * Projection mode: assigned direction people grouped by flavour (`positionType`), so all

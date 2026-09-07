@@ -47,6 +47,7 @@ import { TagCatalogLegacyPlurals1784800000000 } from './1784800000000-TagCatalog
 import { AddTecnicaTag1784900000000 } from './1784900000000-AddTecnicaTag';
 import { AddDecorationNodeShapes1785000000000 } from './1785000000000-AddDecorationNodeShapes';
 import { UnifyAndRenameDirectionZones1785100000000 } from './1785100000000-UnifyAndRenameDirectionZones';
+import { AddDireccioPinyaToTecnicaTag1785200000000 } from './1785200000000-AddDireccioPinyaToTecnicaTag';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -97,4 +98,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddTecnicaTag1784900000000,
   AddDecorationNodeShapes1785000000000,
   UnifyAndRenameDirectionZones1785100000000,
+  AddDireccioPinyaToTecnicaTag1785200000000,
 ];

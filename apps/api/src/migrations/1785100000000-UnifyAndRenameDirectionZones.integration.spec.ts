@@ -21,10 +21,11 @@ describe('UnifyAndRenameDirectionZones (integration)', () => {
   let dataSource: DataSource;
 
   const TARGET = 'UnifyAndRenameDirectionZones1785100000000';
-  const before = migrations.slice(
-    0,
-    migrations.findIndex((m) => m.name === TARGET),
-  );
+  const targetIndex = migrations.findIndex((m) => m.name === TARGET);
+  const before = migrations.slice(0, targetIndex);
+  // Run up to and including the migration under test — but not later ones, which would keep
+  // mutating the rows this suite asserts on.
+  const upToTarget = migrations.slice(0, targetIndex + 1);
 
   const TEMPLATE_ID = '11111111-1111-1111-1111-111111111111';
 
@@ -89,12 +90,12 @@ describe('UnifyAndRenameDirectionZones (integration)', () => {
 
     await pre.destroy();
 
-    // 2. Run the migration under test (and anything after it).
+    // 2. Run the migration under test (nothing later, so this suite's rows aren't mutated again).
     dataSource = new DataSource({
       type: 'postgres',
       url: container.getConnectionUri(),
       entities: ENTITIES,
-      migrations,
+      migrations: upToTarget,
       migrationsTableName: 'typeorm_migrations',
       synchronize: false,
       logging: false,
