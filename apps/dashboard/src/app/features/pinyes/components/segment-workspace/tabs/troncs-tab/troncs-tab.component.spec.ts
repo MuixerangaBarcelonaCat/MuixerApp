@@ -673,6 +673,15 @@ describe('TroncsTabComponent', () => {
       );
     });
 
+    it('selects the newly created direction node so the person search auto-focuses', async () => {
+      await setup();
+      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
+
+      component.onDirectionAdded(INST_A, { positionType: 'direccio-tronc' });
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'dir-1' });
+    });
+
     it('removes an unassigned direction node', async () => {
       await setup({
         nodesByInstance: { [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-tronc' })] },

@@ -120,11 +120,12 @@
               }
               <button
                 type="button"
-                class="btn btn-ghost btn-xs gap-1"
+                class="btn btn-ghost btn-xs btn-square"
                 (click)="directionAdded.emit({ positionType: ds.slot.positionType })"
+                [attr.aria-label]="'Afegir direcció ' + ds.slot.shortLabel.toLowerCase()"
+                title="Afegir"
               >
                 <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-                Afegir
               </button>
             </div>
           }

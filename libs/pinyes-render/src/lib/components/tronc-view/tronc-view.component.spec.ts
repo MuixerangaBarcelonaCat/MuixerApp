@@ -1197,6 +1197,19 @@ describe('TroncViewComponent', () => {
       expect(addButtons.length).toBe(3);
     });
 
+    it('renders the add-direction button as an icon-only "+" with an accessible label', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('directionNodes', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const addButton = fixture.nativeElement.querySelector(
+        '.directions-content .direction-slot .btn-ghost',
+      ) as HTMLButtonElement;
+      expect(addButton.textContent?.trim()).toBe('');
+      expect(addButton.getAttribute('aria-label')).toBe('Afegir direcció tronc');
+    });
+
     it('shows direction node button when a direction node exists', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.componentRef.setInput('directionNodes', [figDirNode]);

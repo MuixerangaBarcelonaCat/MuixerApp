@@ -459,7 +459,12 @@ export class TroncsTabComponent implements OnInit {
         color: preset.color ?? undefined,
       })
       .subscribe({
-        next: () => this.ws.refreshInstance(instanceId),
+        next: (created) => {
+          this.ws.refreshInstance(instanceId);
+          // Select the fresh node so it's highlighted and the person panel auto-focuses
+          // its "Cerca per nom o àlies" input, ready to assign someone straight away.
+          this.select({ slotId: instanceId, nodeId: created.id });
+        },
         error: () => this.toast.error("No s'ha pogut crear la direcció."),
       });
   }
