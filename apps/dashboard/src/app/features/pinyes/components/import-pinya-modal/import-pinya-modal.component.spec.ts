@@ -1,4 +1,4 @@
-import { FigureHistoryEntry, BulkImportResult, PinyaProjectionComponent, TroncViewComponent } from '@muixer/pinyes-render';
+import { FigureHistoryEntry, BulkImportResult, InstanceNodeItem, PinyaProjectionComponent, ProjectionSegmentData, TroncViewComponent } from '@muixer/pinyes-render';
 import { FigureZone, ImportScope } from '@muixer/shared';
 import { Component, input } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -207,6 +207,69 @@ describe('ImportPinyaModalComponent', () => {
         INSTANCE_ID,
         { sourceInstanceId: SOURCE_INSTANCE_ID, scope: ImportScope.ALL },
       );
+    });
+  });
+
+  // ── preview node helpers ───────────────────────────────────────────────────
+
+  describe('preview node helpers', () => {
+    const makeNode = (id: string, zone: FigureZone): InstanceNodeItem => ({
+      id,
+      label: id,
+      zone,
+      positionType: null,
+      x: 0,
+      y: 0,
+      z: 0,
+      width: 30,
+      height: 30,
+      rotation: 0,
+      color: null,
+      shape: 'RECTANGLE',
+      sortOrder: 0,
+      climbIndicator: null,
+      ringLevel: null,
+      originNodeId: null,
+      renglaId: null,
+      renglaPosition: null,
+      sourceNodeId: null,
+      isSnapshotted: true,
+      isAdHoc: false,
+      createdById: null,
+    });
+
+    beforeEach(() => {
+      fixture.componentRef.setInput('open', true);
+      fixture.detectChanges();
+      projectionService.getProjection.mockReturnValue(
+        of({
+          instances: [
+            {
+              id: SOURCE_INSTANCE_ID,
+              nodes: [
+                makeNode('t1', FigureZone.TRONC),
+                makeNode('b1', FigureZone.BASE),
+                makeNode('d1', FigureZone.DIRECTION),
+                makeNode('p1', FigureZone.PINYA),
+              ],
+              assignments: [],
+            },
+          ],
+        } as unknown as ProjectionSegmentData),
+      );
+      component.selectEntry(makeHistoryEntry());
+    });
+
+    it('directionNodesFor returns the DIRECTION-zoned nodes', () => {
+      expect(component.directionNodesFor().map((n) => n.id)).toEqual(['d1']);
+    });
+
+    it('troncNodesFor returns the TRONC-zoned nodes', () => {
+      expect(component.troncNodesFor().map((n) => n.id)).toEqual(['t1']);
+    });
+
+    it('baseNodesFor returns the BASE-zoned nodes', () => {
+      expect(component.baseNodesFor().map((n) => n.id)).toEqual(['b1']);
     });
   });
 
