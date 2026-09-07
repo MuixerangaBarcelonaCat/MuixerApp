@@ -136,7 +136,7 @@
 
   <!-- ── Figure name header (projection mode) ─────────────────────────── -->
   @if (mode() === 'projection' && figureName()) {
-    <div class="px-2 pt-1 pb-0.5">
+    <div class="px-2 pt-1 pb-0">
       <span class="text-sm font-semibold text-gray-900 truncate block">{{ figureName() }}</span>
     </div>
   }
@@ -144,20 +144,9 @@
   <!-- ── Directions section (projection mode) ─────────────────────────── -->
   @if (mode() === 'projection' && hasAssignedDirections()) {
     <div class="directions-section projection" role="region" aria-label="Direccions">
-      @for (group of assignedDirectionGroups(); track group.positionType) {
-        <div class="direction-projection-row">
-          <span class="direction-label compact" [style.border-left-color]="group.color">
-            {{ group.label }}
-          </span>
-          <span
-            class="direction-aliases font-medium"
-            appFitText
-            [fitTextValue]="group.aliases"
-            [fitTextMinPx]="8"
-            [fitTextMaxPx]="14"
-          >{{ group.aliases }}</span>
-        </div>
-      }
+      <div class="direction-projection-row">
+        <span class="direction-names font-medium">[{{ projectionDirectionNames().join(', ') }}]</span>
+      </div>
     </div>
   }
 

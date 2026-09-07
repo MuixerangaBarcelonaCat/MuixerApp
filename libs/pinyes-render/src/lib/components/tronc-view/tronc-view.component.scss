@@ -523,7 +523,7 @@
   flex-shrink: 0;
 
   &.projection {
-    padding: 0.25rem 0.35rem;
+    padding: 0 0.35rem 0.2rem;
     background: transparent;
     border-bottom: none;
   }
@@ -576,15 +576,6 @@
   padding-left: 0.35rem;
   flex-shrink: 0;
   min-width: 6rem;
-
-  &.compact {
-    font-size: 0.6rem;
-    min-width: 1rem;
-  }
-}
-
-.direction-projection-row .direction-label.compact {
-  flex-shrink: 0;
 }
 
 .direction-node {
@@ -599,16 +590,17 @@
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
-  padding: 0.15rem 0;
-  flex-wrap: nowrap;
+  padding: 0 0 0.1rem;
+  flex-wrap: wrap;
 }
 
-.direction-aliases {
+.direction-names {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  font-size: 0.875rem; // fitFontSize's max — the directive shrinks from here, never grows past it
+  font-size: 0.8rem;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
 }
 
 // -- Projection mode (compact) 

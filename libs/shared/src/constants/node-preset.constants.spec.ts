@@ -131,6 +131,15 @@ describe('DIRECTION_NODE_PRESETS', () => {
     expect(pinya.shortLabel).toBe('Pinya');
   });
 
+  it('marks xicalla with X and pinya with P for the projection, tronc unmarked', () => {
+    const byType = Object.fromEntries(
+      DIRECTION_NODE_PRESETS.map((p) => [p.positionType, p.projectionMarker]),
+    );
+    expect(byType['direccio-tronc']).toBeNull();
+    expect(byType['direccio-xicalla']).toBe('X');
+    expect(byType['direccio-pinya']).toBe('P');
+  });
+
   it('every preset lives in the single DIRECTION zone', () => {
     for (const preset of DIRECTION_NODE_PRESETS) {
       expect(preset.zone).toBe(FigureZone.DIRECTION);

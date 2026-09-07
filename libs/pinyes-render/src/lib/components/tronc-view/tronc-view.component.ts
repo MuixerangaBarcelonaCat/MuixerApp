@@ -188,29 +188,26 @@ export class TroncViewComponent {
   });
 
   /**
-   * Projection mode: assigned direction people grouped by flavour (`positionType`), so all
-   * «Direcció tronc» / «Direcció xicalla» people render on one line each — matching
-   * the tronc assignment panel — instead of one row per node.
+   * Projection mode: every assigned direction person on ONE line, in `DIRECTION_SLOTS` order.
+   * Each name carries its flavour marker — «(X)» for direcció xicalla, «(P)» for direcció
+   * pinya, nothing for direcció tronc. The line wraps when it is too long.
    */
-  readonly assignedDirectionGroups = computed(() => {
+  readonly projectionDirectionNames = computed<string[]>(() => {
     const assigns = this.assignments();
-    const groups: { positionType: string; label: string; color: string; aliases: string }[] = [];
+    const dirNodes = this.directionNodes();
+    const names: string[] = [];
     for (const slot of DIRECTION_SLOTS) {
-      const aliases = this.directionNodes()
-        .filter((n) => n.positionType === slot.positionType)
-        .map((n) => assigns.find((a) => a.node.id === n.id))
-        .filter((a): a is AssignmentDetail => !!a)
-        .map((a) => a.person.alias);
-      if (aliases.length > 0) {
-        groups.push({
-          positionType: slot.positionType,
-          label: slot.shortLabel,
-          color: slot.color ?? '#64748b',
-          aliases: aliases.join(', '),
-        });
+      for (const node of dirNodes.filter((n) => n.positionType === slot.positionType)) {
+        const assignment = assigns.find((a) => a.node.id === node.id);
+        if (!assignment) continue;
+        names.push(
+          slot.projectionMarker
+            ? `${assignment.person.alias} (${slot.projectionMarker})`
+            : assignment.person.alias,
+        );
       }
     }
-    return groups;
+    return names;
   });
 
   readonly hasAssignedDirections = computed(() => {

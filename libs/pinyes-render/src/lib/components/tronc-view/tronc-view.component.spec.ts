@@ -1326,6 +1326,38 @@ describe('TroncViewComponent', () => {
       expect(projRows[0].textContent).toContain('Joan');
     });
 
+    it('puts every direction flavour on one projection row with per-flavour markers', () => {
+      const pinDirNode = makeNode({ id: 'dir-pin-1', zone: 'DIRECTION', positionType: 'direccio-pinya', z: 0, x: 0, width: 1 });
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode, pinDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Tere'),
+        makeAssignment('dir-xic-1', 'Marta'),
+        makeAssignment('dir-pin-1', 'Joan'),
+      ]);
+      fixture.detectChanges();
+
+      const projRows = fixture.nativeElement.querySelectorAll('.direction-projection-row');
+      expect(projRows.length).toBe(1);
+      const text = projRows[0].textContent as string;
+      expect(text).toContain('[Tere, Marta (X), Joan (P)]');
+      expect(text).toContain('Tere');
+      expect(text).not.toContain('Tere (');
+      expect(text).toContain('Marta (X)');
+      expect(text).toContain('Joan (P)');
+    });
+
+    it('projectionDirectionNames lists names in slot order with markers', () => {
+      const pinDirNode = makeNode({ id: 'dir-pin-1', zone: 'DIRECTION', positionType: 'direccio-pinya', z: 0, x: 0, width: 1 });
+      fixture.componentRef.setInput('directionNodes', [pinDirNode, xicDirNode, figDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-pin-1', 'Joan'),
+        makeAssignment('dir-xic-1', 'Marta'),
+        makeAssignment('dir-fig-1', 'Tere'),
+      ]);
+      expect(component.projectionDirectionNames()).toEqual(['Tere', 'Marta (X)', 'Joan (P)']);
+    });
+
     it('does not render projection directions when no assignments', () => {
       fixture.componentRef.setInput('mode', 'projection');
       fixture.componentRef.setInput('directionNodes', [figDirNode]);

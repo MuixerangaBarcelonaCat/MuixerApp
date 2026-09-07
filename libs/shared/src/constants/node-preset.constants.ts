@@ -43,19 +43,22 @@ export interface NodePreset {
  * A direction preset. All direction nodes share `zone: FigureZone.DIRECTION`; the flavour is
  * `positionType` (`direccio-tronc` / `direccio-xicalla` / `direccio-pinya`). `shortLabel` is
  * the per-row caption in the tronc view's "Direccions" section; `slotOrder` fixes the order
- * those rows stack in, everywhere they are rendered.
+ * those rows stack in, everywhere they are rendered. `projectionMarker` is the short letter
+ * appended after a person's name on the projection's single direction line (e.g. «(X)»);
+ * `null` leaves the name unmarked.
  */
 export interface DirectionNodePreset extends NodePreset {
   zone: FigureZone.DIRECTION;
   positionType: string;
   shortLabel: string;
   slotOrder: number;
+  projectionMarker: string | null;
 }
 
 export const DIRECTION_NODE_PRESETS: DirectionNodePreset[] = [
-  { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc',   label: 'Direcció tronc',   shortLabel: 'Tronc',   slotOrder: 0, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
-  { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', shortLabel: 'Xicalla', slotOrder: 1, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
-  { zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',   label: 'Direcció pinya',   shortLabel: 'Pinya',   slotOrder: 2, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#065f46', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc',   label: 'Direcció tronc',   shortLabel: 'Tronc',   slotOrder: 0, projectionMarker: null, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', shortLabel: 'Xicalla', slotOrder: 1, projectionMarker: 'X',  width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',   label: 'Direcció pinya',   shortLabel: 'Pinya',   slotOrder: 2, projectionMarker: 'P',  width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#065f46', requiresCustomLabel: false },
 ];
 
 /** Direction presets in the fixed order their rows stack (by `slotOrder`). */
