@@ -3,7 +3,7 @@ import { Location } from '@angular/common';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { BehaviorSubject, of } from 'rxjs';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { LucideAngularModule } from 'lucide-angular';
 import type { BulkImportResult } from '@muixer/pinyes-render';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
@@ -109,6 +109,11 @@ describe('SegmentWorkspaceComponent', () => {
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
   let assignmentService: { resetSnapshot: MockFn };
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+
+  // `FiguresViewModeService` (@muixer/pinyes remembered tab) reads real jsdom `localStorage` at
+  // construction — it can leak a value across specs (this file's own, or another file sharing a
+  // worker) and make an unrelated test's `else` branch flaky. Guarantee a clean slate.
+  beforeEach(() => localStorage.clear());
 
   const setup = async (opts: { queryParams?: Record<string, string>; instanceIdParam?: string } = {}) => {
     ws = makeWsMock();

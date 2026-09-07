@@ -10,7 +10,7 @@ import { ButtonComponent, ToastService } from '@muixer/ui';
 import { generateUUID } from '../../../../../../shared/utils/uuid.util';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
 import { buildTroncBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
-import { DIRECTION_NODE_PRESETS, FigureZone } from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, FigureZone, areaForZone, conflictRelevantPlacements } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 
 interface TroncFigure {
@@ -292,6 +292,13 @@ export class TroncsTabComponent implements OnInit {
 
     const targetRef = this.selectedRef();
     if (targetRef) {
+      if (!this.wouldConflict(event.personId, targetRef)) {
+        // Domain rule (D-«direcció pinya»): a direcció-pinya placement never conflicts with a
+        // pinya placement of the same figure instance — assign directly, no dialog.
+        this.triggerAssign(targetRef, event.personId);
+        return;
+      }
+
       // figureName is shown as "X ja és <node> a <figureName>" — the figure the
       // person is CURRENTLY in, not the one they'd move to (that's targetInstanceId).
       const currentInstance = this.instanceFor(event.instanceId);
@@ -317,6 +324,32 @@ export class TroncsTabComponent implements OnInit {
   /** All of a person's placements in the segment, from the API-provided `assignedPlacements` (Phase 3). */
   private placementsForPerson(personId: string): ConflictPlacement[] {
     return this.state.confirmedPersons().find((p) => p.id === personId)?.assignedPlacements ?? [];
+  }
+
+  /**
+   * Whether adding `target` to `personId`'s existing placements in the segment would actually
+   * count as a conflict, per the same domain rule the segment-conflict engine uses
+   * (`conflictRelevantPlacements`, D-«direcció pinya»): a direcció-pinya placement is excused
+   * when the person also holds a pinya placement of the *same* figure instance. Built from the
+   * live `state.assignments()` (not `placementsForPerson`, which mirrors a separately-fetched
+   * person list that can lag behind an assignment just made in this same session).
+   */
+  private wouldConflict(personId: string, target: SegmentNodeRef): boolean {
+    const targetNode = this.nodeFor(target);
+    const targetArea = targetNode ? areaForZone(targetNode.zone as FigureZone) : null;
+    const existing = this.state
+      .assignments()
+      .filter((a) => a.person.id === personId)
+      .map((a) => ({
+        positionType: a.node.positionType,
+        area: (areaForZone(a.node.zone as FigureZone) ?? '') as string,
+        instanceId: a.figureInstanceId,
+      }));
+    const hypothetical = [
+      ...existing,
+      { positionType: targetNode?.positionType ?? null, area: (targetArea ?? '') as string, instanceId: target.slotId },
+    ];
+    return conflictRelevantPlacements(hypothetical, (p) => p).length >= 2;
   }
 
   onReassignDialogClosed(): void {

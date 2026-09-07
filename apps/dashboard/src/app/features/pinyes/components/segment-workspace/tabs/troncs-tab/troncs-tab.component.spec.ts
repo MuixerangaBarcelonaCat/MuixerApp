@@ -128,6 +128,7 @@ const makeAssignment = (
   nodeId: string,
   personId = `p-${++assignmentSeq}`,
   zone = 'TRONC',
+  positionType: string | null = null,
 ): AssignmentDetail => ({
   id: `as-${assignmentSeq}`,
   figureInstanceId: instanceId,
@@ -136,7 +137,7 @@ const makeAssignment = (
     label: nodeId,
     zone,
     z: 1,
-    positionType: null,
+    positionType,
     sortOrder: 0,
     climbIndicator: null,
     ringLevel: null,
@@ -848,6 +849,40 @@ describe('TroncsTabComponent', () => {
 
       expect(component.reassignDialog()).toBeNull();
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+    });
+
+    it('does not open the dialog when assigning a person to a direcció node of a figure whose pinya they already hold (D-«direcció pinya»)', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1', 'PINYA');
+      await setup({
+        instances: [makeInstance(INST_A)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-pinya' })],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_A, 'd1');
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).toBeNull();
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'd1', personId: 'p-1' });
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+    });
+
+    it('still opens the dialog for a direcció/pinya pair across two different figures', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1', 'PINYA');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_B]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-pinya' })],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_B, 'd1');
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).not.toBeNull();
     });
   });
 
