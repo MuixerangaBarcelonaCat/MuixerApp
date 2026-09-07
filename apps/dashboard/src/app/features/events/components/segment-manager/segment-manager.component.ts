@@ -273,6 +273,29 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
+  /** True when at least one segment is published — drives the bulk publish toggle's label/icon. */
+  readonly anySegmentPublished = computed(() => this.segments().some((s) => s.isPublished));
+
+  /**
+   * Bulk publish toggle: when nothing is published, publish every segment; when something is,
+   * unpublish every published one. Only the segments that actually change are PATCHed.
+   */
+  toggleAllVisibility(): void {
+    const publish = !this.anySegmentPublished();
+    const targets = this.segments().filter((s) => s.isPublished !== publish);
+    if (targets.length === 0) return;
+
+    forkJoin(
+      targets.map((s) => this.segmentService.update(this.eventId(), s.id, { isPublished: publish })),
+    ).subscribe({
+      next: (updated) => {
+        const byId = new Map(updated.map((u) => [u.id, u]));
+        this.segments.update((list) => list.map((s) => byId.get(s.id) ?? s));
+      },
+      error: () => this.toast.error('Error en canviar la visibilitat dels segments.'),
+    });
+  }
+
   removeSegment(segment: SegmentDetail) {
     const displayedName = this.displayName()(segment);
     if (!confirm(`Segur que vols eliminar "${displayedName}" i totes les seues figures? Esta acció no es pot desfer.`)) {

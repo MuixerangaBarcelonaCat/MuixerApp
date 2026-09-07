@@ -249,6 +249,78 @@ describe('SegmentManagerComponent', () => {
     });
   });
 
+  describe('toggleAllVisibility()', () => {
+    it('anySegmentPublished reflects whether at least one segment is published', () => {
+      component.segments.set([
+        makeSegment({ id: 's1', isPublished: false }),
+        makeSegment({ id: 's2', isPublished: false }),
+      ]);
+      expect(component.anySegmentPublished()).toBe(false);
+
+      component.segments.set([
+        makeSegment({ id: 's1', isPublished: false }),
+        makeSegment({ id: 's2', isPublished: true }),
+      ]);
+      expect(component.anySegmentPublished()).toBe(true);
+    });
+
+    it('publishes every unpublished segment when none are published', () => {
+      const s1 = makeSegment({ id: 's1', isPublished: false });
+      const s2 = makeSegment({ id: 's2', isPublished: false });
+      component.segments.set([s1, s2]);
+      (segmentService.update as ReturnType<typeof vi.fn>).mockImplementation((_e: string, id: string) =>
+        of({ ...(id === 's1' ? s1 : s2), isPublished: true }),
+      );
+
+      component.toggleAllVisibility();
+
+      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, 's1', { isPublished: true });
+      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, 's2', { isPublished: true });
+      expect(component.segments().every((s) => s.isPublished)).toBe(true);
+    });
+
+    it('unpublishes only the published segments when at least one is published', () => {
+      const s1 = makeSegment({ id: 's1', isPublished: true });
+      const s2 = makeSegment({ id: 's2', isPublished: false });
+      component.segments.set([s1, s2]);
+      (segmentService.update as ReturnType<typeof vi.fn>).mockReturnValue(of({ ...s1, isPublished: false }));
+
+      component.toggleAllVisibility();
+
+      expect(segmentService.update).toHaveBeenCalledTimes(1);
+      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, 's1', { isPublished: false });
+      expect(component.segments().every((s) => !s.isPublished)).toBe(true);
+    });
+
+    it('renders "No publicat" and fires the toggle on click when nothing is published', () => {
+      component.segments.set([makeSegment({ id: 's1', isPublished: false })]);
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, 'toggleAllVisibility');
+
+      const btn = fixture.nativeElement.querySelector('[aria-label^="Cap segment publicat"]');
+      expect(btn).not.toBeNull();
+      expect(btn.textContent).toContain('No publicat');
+      // Whole control (not just the icon) carries the lib-button role colour.
+      expect(btn.className).toContain('text-neutral');
+
+      btn.click();
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('renders "Publicat" in the success colour when at least one segment is published', () => {
+      component.segments.set([
+        makeSegment({ id: 's1', isPublished: true }),
+        makeSegment({ id: 's2', isPublished: false }),
+      ]);
+      fixture.detectChanges();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label^="Segments publicats"]');
+      expect(btn).not.toBeNull();
+      expect(btn.textContent).toContain('Publicat');
+      expect(btn.className).toContain('text-success');
+    });
+  });
+
   describe('removeSegment()', () => {
     it('calls service and removes from list after confirm', () => {
       const seg = makeSegment();

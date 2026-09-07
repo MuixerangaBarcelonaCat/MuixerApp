@@ -8,6 +8,26 @@
       </h2>
 
       <div class="flex items-center gap-2 flex-wrap">
+        <!-- Bulk publish toggle -->
+        @if (segments().length > 0) {
+          <lib-button
+            [variant]="anySegmentPublished() ? 'success' : 'neutral'"
+            ghost
+            size="xs"
+            [ariaLabel]="anySegmentPublished() ? 'Segments publicats — cliqueu per ocultar-los tots als membres' : 'Cap segment publicat — cliqueu per publicar-los tots'"
+            [ariaPressed]="anySegmentPublished()"
+            (clicked)="toggleAllVisibility()"
+          >
+            @if (anySegmentPublished()) {
+              <lucide-icon name="Eye" [size]="13" />
+              Publicat
+            } @else {
+              <lucide-icon name="EyeOff" [size]="13" />
+              No publicat
+            }
+          </lib-button>
+        }
+
         <!-- Collapse / expand all -->
         @if (segments().length > 0) {
           <div class="flex items-center gap-1" role="group" aria-label="Plegar o desplegar tots els segments">
@@ -441,7 +461,7 @@
                     <!-- Troncs mode: figure mode selector (Completa/Peu/Remat/Neta), or static 'Neta' label -->
                     @if (viewMode() === 'troncs') {
                       @if (figureModeOptions(instance); as options) {
-                        <div class="w-24 shrink-0 self-center">
+                        <div class="w-24 shrink-0">
                           <lib-select
                             size="xs"
                             [ariaLabel]="'Mode de ' + getInstanceLabel(instance)"
@@ -455,7 +475,7 @@
                           </lib-select>
                         </div>
                       } @else {
-                        <span class="w-16 shrink-0 self-center">
+                        <span class="w-16 shrink-0">
                           <lib-badge variant="ghost" size="xs">
                             <span class="inline-flex items-center gap-1">
                               <lucide-icon [name]="ICON_FIGURA_NETA" [size]="10" aria-hidden="true" />Neta
@@ -518,9 +538,10 @@
                       }
                     }
 
-                    <!-- Copy to segment -->
+                    <!-- Copy to segment. No self-* — inherits the row's align-items, so it sits
+                         top-aligned with the rename pencil in troncs mode, centred in pinyes. -->
                     @if (!isLocked()) {
-                      <span class="shrink-0 self-center">
+                      <span class="shrink-0">
                         <lib-button
                           variant="ghost"
                           size="xs"
@@ -534,7 +555,7 @@
 
                     <!-- Delete instance -->
                     @if (!isLocked()) {
-                      <span class="text-error shrink-0 self-center">
+                      <span class="text-error shrink-0">
                         <lib-button
                           variant="ghost"
                           size="xs"
