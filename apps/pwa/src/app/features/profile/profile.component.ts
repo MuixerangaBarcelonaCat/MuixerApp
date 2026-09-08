@@ -7,7 +7,7 @@ import { MobileHeaderComponent } from '../../shared/components/mobile-header/mob
 import { PersonSwitcherComponent } from '../../shared/components/person-switcher/person-switcher.component';
 import { PillBadgeComponent } from '../../shared/components/pill-badge/pill-badge.component';
 import { SkeletonCardComponent } from '../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
+import { EmptyStateComponent } from '@muixer/ui';
 import { DelegationsModalComponent } from './delegations-modal/delegations-modal.component';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { ProfileService } from './services/profile.service';

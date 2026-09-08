@@ -12,7 +12,7 @@ import { RouterLink } from '@angular/router';
 import { AttendanceStatus, MeEvent, PaginatedResponse } from '@muixer/shared';
 import { LucideAngularModule, CalendarDays, List, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { EmptyStateComponent } from '@muixer/ui';
 import { PullToRefreshComponent } from '../../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { EventCardComponent } from '../components/event-card/event-card.component';
 import { CalendarViewComponent } from '../components/calendar-view/calendar-view.component';

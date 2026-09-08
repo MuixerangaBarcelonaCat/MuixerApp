@@ -7,7 +7,7 @@ import { LucideAngularModule, AlertTriangle } from 'lucide-angular';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LucideAngularModule],
   template: `
-    <div class="alert alert-warning shadow-sm mb-4" role="alert">
+    <div class="alert alert-warning shadow-raised mb-4" role="alert">
       <lucide-icon [img]="AlertTriangle" [size]="20" />
       <div>
         <p class="font-medium">Compte no vinculat</p>

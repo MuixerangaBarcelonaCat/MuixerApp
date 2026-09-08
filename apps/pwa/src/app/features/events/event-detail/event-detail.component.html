@@ -7,10 +7,10 @@
 @if (isLoading()) {
   <app-skeleton-card [count]="1" />
 } @else if (hasError() || !event()) {
-  <app-empty-state
+  <lib-empty-state
     message="No s'ha pogut carregar la informació. Torneu-ho a provar."
     actionLabel="Torna-ho a provar"
-    (action)="eventResource.reload()"
+    (clicked)="eventResource.reload()"
   />
 } @else {
   @let ev = event()!;

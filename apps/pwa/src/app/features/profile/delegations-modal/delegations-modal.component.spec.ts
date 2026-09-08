@@ -121,7 +121,7 @@ describe('DelegationsModalComponent', () => {
       fixture.componentRef.setInput('personId', 'p-1');
       await stableFixture(fixture);
 
-      expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('lib-empty-state')).toBeTruthy();
     });
   });
 

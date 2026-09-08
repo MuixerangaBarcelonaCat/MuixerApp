@@ -23,7 +23,7 @@ import {
 import { LucideAngularModule, MapPin, Clock, Info, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { EmptyStateComponent } from '@muixer/ui';
 import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
 import { FormatEventDatePipe } from '../../../shared/pipes/format-event-date.pipe';
 import { EventService } from '../services/event.service';

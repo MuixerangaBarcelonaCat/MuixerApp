@@ -7,14 +7,14 @@ import {
 import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { LucideAngularModule, ArrowLeft } from 'lucide-angular';
+import { ButtonComponent } from '@muixer/ui';
 
 @Component({
   selector: 'app-mobile-header',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent],
   templateUrl: './mobile-header.component.html',
-  styleUrls: ['./mobile-header.component.scss'],
 })
 export class MobileHeaderComponent {
   title = input.required<string>();

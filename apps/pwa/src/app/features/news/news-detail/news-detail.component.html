@@ -7,10 +7,10 @@
 @if (isLoading()) {
   <app-skeleton-card [count]="1" />
 } @else if (hasError() || !news()) {
-  <app-empty-state
+  <lib-empty-state
     message="No s'ha pogut carregar la notícia. Torneu-ho a provar."
     actionLabel="Torna-ho a provar"
-    (action)="newsResource.reload()"
+    (clicked)="newsResource.reload()"
   />
 } @else {
   @let item = news()!;

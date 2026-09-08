@@ -9,10 +9,10 @@
   </div>
 } @else if (hasError() || !data()) {
   <div class="flex items-center justify-center h-screen w-screen bg-base-200 p-4">
-    <app-empty-state
+    <lib-empty-state
       message="No s'ha pogut carregar la projecció."
       actionLabel="Torna-ho a provar"
-      (action)="projectionResource.reload()"
+      (clicked)="projectionResource.reload()"
     />
   </div>
 } @else {

@@ -15,7 +15,7 @@ interface Tab {
   imports: [RouterLink, RouterLinkActive, LucideAngularModule],
   template: `
     <nav
-      class="fixed bottom-0 inset-x-0 bg-base-100 border-t border-base-300 z-50"
+      class="fixed bottom-0 inset-x-0 bg-base-100 border-t border-base-300 z-chrome"
       style="padding-bottom: env(safe-area-inset-bottom, 0px)"
       aria-label="Navegació principal"
     >
@@ -26,7 +26,7 @@ interface Tab {
             routerLinkActive="text-primary"
             #rla="routerLinkActive"
             class="flex flex-col items-center justify-center w-full h-full
-                   text-base-content/60 transition-colors duration-200"
+                   text-base-content/60 transition-colors duration-fast ease-ds"
             [attr.aria-current]="rla.isActive ? 'page' : null"
           >
             <lucide-icon [img]="tab.icon" [size]="22" aria-hidden="true" />

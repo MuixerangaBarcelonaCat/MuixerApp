@@ -155,7 +155,7 @@ describe('HomeComponent', () => {
     });
 
     it('should show empty state', () => {
-      const emptyState = fixture.nativeElement.querySelector('app-empty-state');
+      const emptyState = fixture.nativeElement.querySelector('lib-empty-state');
       expect(emptyState).toBeTruthy();
     });
   });

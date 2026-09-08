@@ -42,10 +42,10 @@
           </div>
         </div>
       } @else if (hasCalendarError()) {
-        <app-empty-state
+        <lib-empty-state
           message="No s'ha pogut carregar el calendari. Torneu-ho a provar."
           actionLabel="Torna-ho a provar"
-          (action)="loadCalendarEvents()"
+          (clicked)="loadCalendarEvents()"
         />
       } @else {
         <app-calendar-view

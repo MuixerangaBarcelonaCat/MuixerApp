@@ -3,10 +3,15 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, ModalComponent, ToastService } from '@muixer/ui';
+import {
+  ButtonComponent,
+  ButtonGroupComponent,
+  EmptyStateComponent,
+  ModalComponent,
+  ToastService,
+} from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
 
 const SIGNED_UP_STATUSES = [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT];

@@ -184,7 +184,7 @@ describe('EventListComponent', () => {
     component.toggleView();
     await stable();
 
-    expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lib-empty-state')).toBeTruthy();
   });
 
   it('should refresh calendar data on pull-to-refresh', async () => {

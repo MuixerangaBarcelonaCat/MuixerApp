@@ -186,7 +186,7 @@ describe('ProfileComponent', () => {
     });
 
     it('shows an empty state instead of crashing', () => {
-      expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('lib-empty-state')).toBeTruthy();
     });
   });
 });

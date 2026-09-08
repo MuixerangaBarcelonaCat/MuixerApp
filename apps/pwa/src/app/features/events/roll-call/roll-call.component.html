@@ -51,9 +51,9 @@
   @if (isLoading()) {
     <app-skeleton-card [count]="4" />
   } @else if (hasError()) {
-    <app-empty-state message="No s'ha pogut carregar l'assistència" />
+    <lib-empty-state message="No s'ha pogut carregar l'assistència" />
   } @else if (hasNoResults()) {
-    <app-empty-state message="Cap persona trobada" />
+    <lib-empty-state message="Cap persona trobada" />
   } @else {
     @if (signedUpItems().length > 0) {
       <ul class="space-y-2">

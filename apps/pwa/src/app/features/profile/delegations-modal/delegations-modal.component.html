@@ -22,7 +22,7 @@
         <span class="loading loading-spinner"></span>
       </div>
     } @else if (delegates().length === 0) {
-      <app-empty-state [icon]="Users" message="Encara no hi ha cap delegació. Les persones que afegiu podran confirmar la vostra assistència." />
+      <lib-empty-state [icon]="Users" message="Encara no hi ha cap delegació. Les persones que afegiu podran confirmar la vostra assistència." />
     } @else {
       <ul class="flex flex-col gap-2 mb-4">
         @for (delegate of delegates(); track delegate.id) {

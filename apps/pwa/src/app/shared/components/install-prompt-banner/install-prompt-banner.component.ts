@@ -1,14 +1,15 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { LucideAngularModule, Download, Share, X } from 'lucide-angular';
+import { ButtonComponent } from '@muixer/ui';
 import { InstallPromptService } from '../../services/install-prompt.service';
 
 @Component({
   selector: 'app-install-prompt-banner',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent],
   template: `
-    <div class="alert alert-info shadow-sm mb-4 relative pr-10" role="alert">
+    <div class="alert alert-info shadow-raised mb-4 relative pr-10" role="alert">
       @if (installPrompt.isIos) {
         <lucide-icon [img]="Share" [size]="20" class="shrink-0 self-start mt-0.5" />
         <div class="flex-1 min-w-0">
@@ -24,18 +25,21 @@ import { InstallPromptService } from '../../services/install-prompt.service';
           <p class="font-medium">Instal·la l'app</p>
           <p class="text-sm">Afegeix Muixer a la pantalla d'inici del mòbil.</p>
         </div>
-        <button type="button" class="btn btn-sm btn-primary shrink-0" (click)="installPrompt.promptInstall()">
-          Instal·la
-        </button>
+        <span class="shrink-0">
+          <lib-button size="sm" (clicked)="installPrompt.promptInstall()">Instal·la</lib-button>
+        </span>
       }
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square absolute top-2 right-2"
-        aria-label="Tanca"
-        (click)="installPrompt.dismiss()"
-      >
-        <lucide-icon [img]="X" [size]="14" />
-      </button>
+      <span class="absolute top-2 right-2">
+        <lib-button
+          variant="ghost"
+          size="xs"
+          shape="square"
+          ariaLabel="Tanca"
+          (clicked)="installPrompt.dismiss()"
+        >
+          <lucide-icon [img]="X" [size]="14" />
+        </lib-button>
+      </span>
     </div>
   `,
 })
