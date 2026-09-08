@@ -81,7 +81,7 @@ El catàleg definitiu el crea la migració
 | TRONC   | Alçadores                  | `alcadora`        | `alçadora`      |                                         |
 | TRONC   | Figures SP / Figures Netes | `figures-netes`   | —               | capacitat, no posició                   |
 | TRONC   | No troncs                  | `sense-tronc`     | —               | decisió explícita de no fer tronc       |
-| TRONC   | Tècnica                    | `tecnica`         | `direccio-figura`, `direccio-xicalla` | afegida per `1784900000000-AddTecnicaTag` |
+| TRONC   | Tècnica                    | `tecnica`         | `direccio-tronc`, `direccio-xicalla`, `direccio-pinya` | afegida per `1784900000000-AddTecnicaTag`; `direccio-figura` → `direccio-tronc` per `1785100000000-UnifyAndRenameDirectionZones`; `direccio-pinya` per `1785200000000-AddDireccioPinyaToTecnicaTag` |
 | XICALLA | Xicalla                    | `xicalla`         | —               | xicalla que participa a les figures     |
 | XICALLA | Xiquets/es de la colla     | `xiquets-colla`   | —               | ja és de la colla, encara no participa  |
 | ALTRES  | Acompanyants               | `acompanyant`     | —               |                                         |
@@ -118,8 +118,8 @@ Els nodes de figura (`FigureNode.positionType` i `InstanceNode.positionType`) gu
 string tret dels presets de `libs/shared/src/constants/node-preset.constants.ts`: tronc
 (`segona`, `terça`, `quarta`, `quinta`, `sisena`, `puntal`, `alçadora`, `xiqueta`), pinya
 (`agulla`, `mans`, `laterals`, `vents`, `cordo-obert`, `tap`, `crossa`, `contrafort`,
-`comodin`), direccions (`direccio-figura`, `direccio-xicalla`), decoració i el valor solt
-`base` (`BASE_POSITION_TYPE`).
+`comodin`), direccions (`direccio-tronc`, `direccio-xicalla`, `direccio-pinya` — zona
+`DIRECTION`), decoració i el valor solt `base` (`BASE_POSITION_TYPE`).
 
 `Tag.positionTypes` és una llista d'eixos strings, però **no hi ha cap clau forana ni cap
 validació**: `CreateTagDto` només comprova que siga un array de strings
@@ -249,9 +249,10 @@ Conseqüència pràctica: un sync no pot ressuscitar ni sobreescriure una etique
 s'edita a `/config/tags` es queda com està.
 
 El pas del catàleg legacy al definitiu el van fer dues migracions. Una tercera,
-`1784900000000-AddTecnicaTag`, hi afegeix «Tècnica» (grup TRONC, apunta als `positionType`s
-`direccio-figura` i `direccio-xicalla`, color del preset «Direcció fig.»); el seu `down` només
-la lleva si no té ningú assignat.
+`1784900000000-AddTecnicaTag`, hi afegeix «Tècnica» (grup TRONC, apunta als `positionType`s de
+direcció; després de `1785100000000-UnifyAndRenameDirectionZones` i
+`1785200000000-AddDireccioPinyaToTecnicaTag` són `direccio-tronc`, `direccio-xicalla` i
+`direccio-pinya`); el seu `down` només la lleva si no té ningú assignat.
 
 `1784700000000-TagCatalog` va crear o actualitzar per `slug` les etiquetes del catàleg,
 remapar `person_positions` de les legacy a les definitives (`segon-lateral` → laterals,

@@ -4,6 +4,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { DataSource } from 'typeorm';
 import { FigureInstanceService } from './figure-instance.service';
 import { FigureInstance } from './entities/figure-instance.entity';
+import { InstanceNode } from './entities/instance-node.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { Composition } from '../composition/entities/composition.entity';
@@ -50,6 +51,10 @@ const mockInstanceRepo = {
   createQueryBuilder: jest.fn().mockReturnValue(mockInstanceQb),
 };
 
+const mockInstanceNodeRepo = {
+  find: jest.fn(),
+};
+
 const mockSegmentRepo = {
   findOne: jest.fn(),
 };
@@ -91,6 +96,7 @@ describe('FigureInstanceService', () => {
       providers: [
         FigureInstanceService,
         { provide: getRepositoryToken(FigureInstance), useValue: mockInstanceRepo },
+        { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockFigureTemplateRepo },
         { provide: getRepositoryToken(Composition), useValue: mockCompositionRepo },
@@ -102,6 +108,7 @@ describe('FigureInstanceService', () => {
 
     service = module.get<FigureInstanceService>(FigureInstanceService);
     jest.clearAllMocks();
+    mockInstanceNodeRepo.find.mockResolvedValue([]);
     mockNodeAssignmentService.checkEventLock.mockResolvedValue(undefined);
     mockNodeAssignmentService.checkEventLockByEventId.mockResolvedValue(undefined);
     mockNodeAssignmentService.getSegmentMoveConflicts.mockResolvedValue([]);
@@ -734,7 +741,7 @@ describe('FigureInstanceService', () => {
       troncPanelHeight: 80,
     });
 
-    it('returns segment info and items with only PINYA/BASE nodes', async () => {
+    it('returns segment info and items with nodes from every zone (not just PINYA/BASE)', async () => {
       mockSegmentRepo.findOne.mockResolvedValue({ ...makeSegment(), name: 'Segment 1' });
       mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
       mockDataSource.query.mockResolvedValue([]);
@@ -743,8 +750,30 @@ describe('FigureInstanceService', () => {
 
       expect(result.segment.id).toBe(SEGMENT_ID);
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].figureTemplate.nodes).toHaveLength(1);
-      expect(result.items[0].figureTemplate.nodes[0].zone).toBe('PINYA');
+      expect(result.items[0].figureTemplate.nodes).toHaveLength(2);
+      expect(result.items[0].figureTemplate.nodes.map((n) => n.zone).sort()).toEqual(['PINYA', 'TRONC']);
+    });
+
+    it('returns z, sortOrder and climbIndicator on each node', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1, sortOrder: 3, climbIndicator: 'X' },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureTemplate.nodes[0].z).toBe(1);
+      expect(result.items[0].figureTemplate.nodes[0].sortOrder).toBe(3);
+      expect(result.items[0].figureTemplate.nodes[0].climbIndicator).toBe('X');
     });
 
     it('maps distribution fields from the instance', async () => {
@@ -836,12 +865,121 @@ describe('FigureInstanceService', () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
       mockDataSource.query.mockResolvedValue([
-        { instanceId: INSTANCE_ID, figureNodeId: 'node-1', personAlias: 'JoanP' },
+        { instanceId: INSTANCE_ID, figureNodeId: 'node-1', personId: 'person-uuid-1', personAlias: 'JoanP' },
       ]);
 
       const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
 
-      expect(result.items[0].assignments).toEqual([{ figureNodeId: 'node-1', personAlias: 'JoanP' }]);
+      expect(result.items[0].assignments).toEqual([
+        { figureNodeId: 'node-1', personId: 'person-uuid-1', personAlias: 'JoanP' },
+      ]);
+    });
+
+    it('includes personId in the assignments SQL select', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      const [sql] = mockDataSource.query.mock.calls[0];
+      expect(sql).toContain('"personId"');
+    });
+
+    it('joins assignments by the instance node\'s own id, not sourceNodeId (ad-hoc nodes have none)', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      const [sql] = mockDataSource.query.mock.calls[0];
+      expect(sql).toContain('inode.id AS "figureNodeId"');
+    });
+
+    it('reads live FigureTemplate nodes for a non-snapshotted instance (no InstanceNode query)', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([{ ...makeInstanceWithNodes(), snapshotted: false }]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(mockInstanceNodeRepo.find).not.toHaveBeenCalled();
+      expect(result.items[0].figureTemplate.nodes.map((n) => n.zone).sort()).toEqual(['PINYA', 'TRONC']);
+    });
+
+    it('reads the snapshotted InstanceNode set (not the live template) for a snapshotted instance', async () => {
+      const inst = { ...makeInstanceWithNodes(), snapshotted: true };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        {
+          id: 'adhoc-dir-1',
+          label: 'Direcció pinya',
+          zone: 'DIRECTION',
+          positionType: 'direccio-pinya',
+          x: 0,
+          y: 0,
+          z: 0,
+          width: 90,
+          height: 44,
+          rotation: 0,
+          color: null,
+          shape: 'RECTANGLE',
+          renglaId: null,
+          renglaPosition: null,
+          sortOrder: 0,
+          climbIndicator: null,
+          sourceNodeId: null, // ad-hoc: never backed by a FigureNode
+          figureInstance: { id: INSTANCE_ID },
+        },
+      ]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      const [findArgs] = mockInstanceNodeRepo.find.mock.calls[0];
+      expect(findArgs.where.figureInstance.id.value).toEqual([INSTANCE_ID]);
+      expect(result.items[0].figureTemplate.nodes).toEqual([
+        expect.objectContaining({ id: 'adhoc-dir-1', zone: 'DIRECTION', positionType: 'direccio-pinya' }),
+      ]);
+    });
+
+    it('matches an assignment to an ad-hoc (snapshotted-only) node by its own id', async () => {
+      const inst = { ...makeInstanceWithNodes(), snapshotted: true };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        {
+          id: 'adhoc-dir-1',
+          label: 'Direcció pinya',
+          zone: 'DIRECTION',
+          positionType: 'direccio-pinya',
+          x: 0,
+          y: 0,
+          z: 0,
+          width: 90,
+          height: 44,
+          rotation: 0,
+          color: null,
+          shape: 'RECTANGLE',
+          renglaId: null,
+          renglaPosition: null,
+          sortOrder: 0,
+          climbIndicator: null,
+          sourceNodeId: null,
+          figureInstance: { id: INSTANCE_ID },
+        },
+      ]);
+      mockDataSource.query.mockResolvedValue([
+        { instanceId: INSTANCE_ID, figureNodeId: 'adhoc-dir-1', personId: 'person-uuid-1', personAlias: 'JoanP' },
+      ]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].assignments).toEqual([
+        { figureNodeId: 'adhoc-dir-1', personId: 'person-uuid-1', personAlias: 'JoanP' },
+      ]);
     });
 
     it('returns empty assignments when no one is assigned', async () => {
@@ -899,7 +1037,7 @@ describe('FigureInstanceService', () => {
       expect(result.items[0].troncGridRows).toBe(2);
     });
 
-    it('adds 1 to troncGridRows for each direction zone present', async () => {
+    it('adds 1 to troncGridRows for each direction flavour present', async () => {
       const inst = {
         ...makeInstanceWithNodes(),
         figureTemplate: {
@@ -908,8 +1046,8 @@ describe('FigureInstanceService', () => {
           nodes: [
             { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
             { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
-            { id: 'd1', label: 'Dir fig', zone: 'FIGURE_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
-            { id: 'd2', label: 'Dir xic', zone: 'XICALLA_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 'd1', label: 'Dir tronc', zone: 'DIRECTION', positionType: 'direccio-tronc', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 'd2', label: 'Dir xic', zone: 'DIRECTION', positionType: 'direccio-xicalla', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
           ],
         },
       };
@@ -919,7 +1057,7 @@ describe('FigureInstanceService', () => {
 
       const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
 
-      expect(result.items[0].troncGridRows).toBe(3); // 1 tronc floor + 1 fig dir + 1 xicalla dir
+      expect(result.items[0].troncGridRows).toBe(3); // 1 tronc floor + 1 direccio-tronc + 1 direccio-xicalla
     });
 
     it('returns troncGridCols 0 and troncGridRows 0 when no tronc or direction nodes', async () => {

@@ -39,8 +39,8 @@ describe('buildPinyaBuckets', () => {
   it('excludes TRONC and DIRECTION nodes', () => {
     const nodes = [
       n('tr', FigureZone.TRONC, null, null),
-      n('fd', FigureZone.FIGURE_DIRECTION, null, null),
-      n('xd', FigureZone.XICALLA_DIRECTION, null, null),
+      n('fd', FigureZone.DIRECTION, 'direccio-tronc', null),
+      n('xd', FigureZone.DIRECTION, 'direccio-xicalla', null),
     ];
     expect(buildPinyaBuckets(nodes)).toEqual([]);
   });
@@ -213,7 +213,7 @@ describe('buildTroncBuckets', () => {
 
   it('places DIRECTION nodes after all TRONC floors', () => {
     const buckets = buildTroncBuckets([
-      n('fd', FigureZone.FIGURE_DIRECTION, null, null),
+      n('fd', FigureZone.DIRECTION, 'direccio-tronc', null),
       n('t1', FigureZone.TRONC, null, null, { z: 1, x: 10 }),
     ]);
     expect(buckets).toHaveLength(2);
@@ -221,10 +221,10 @@ describe('buildTroncBuckets', () => {
     expect(buckets[1].map((x) => x.id)).toEqual(['fd']);
   });
 
-  it('places XICALLA_DIRECTION in the same bucket as FIGURE_DIRECTION', () => {
+  it('places every direction flavour in the same bucket', () => {
     const buckets = buildTroncBuckets([
-      n('xd', FigureZone.XICALLA_DIRECTION, null, null),
-      n('fd', FigureZone.FIGURE_DIRECTION, null, null),
+      n('xd', FigureZone.DIRECTION, 'direccio-xicalla', null),
+      n('fd', FigureZone.DIRECTION, 'direccio-tronc', null),
     ]);
     expect(buckets).toHaveLength(1);
     expect(buckets[0]).toHaveLength(2);
@@ -232,7 +232,7 @@ describe('buildTroncBuckets', () => {
 
   it('produces full tronc order: BASE → floor1 → floor2 → DIRECTION', () => {
     const buckets = buildTroncBuckets([
-      n('dir', FigureZone.FIGURE_DIRECTION, null, null),
+      n('dir', FigureZone.DIRECTION, 'direccio-tronc', null),
       n('t2a', FigureZone.TRONC, null, null, { z: 2, x: 10 }),
       n('t1b', FigureZone.TRONC, null, null, { z: 1, x: 20 }),
       n('t1a', FigureZone.TRONC, null, null, { z: 1, x: 10 }),

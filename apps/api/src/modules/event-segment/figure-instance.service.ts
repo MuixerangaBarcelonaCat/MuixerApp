@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { FigureInstance } from './entities/figure-instance.entity';
+import { InstanceNode } from './entities/instance-node.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { Composition } from '../composition/entities/composition.entity';
@@ -20,6 +21,7 @@ export interface DistributionNodeItem {
   zone: string;
   x: number;
   y: number;
+  z: number;
   width: number;
   height: number;
   rotation: number;
@@ -28,11 +30,38 @@ export interface DistributionNodeItem {
   renglaId: string | null;
   renglaPosition: number | null;
   positionType: string | null;
+  sortOrder: number;
+  climbIndicator: string | null;
 }
 
 export interface DistributionAssignment {
   figureNodeId: string;
+  personId: string;
   personAlias: string;
+}
+
+/** Common shape of `FigureNode` and `InstanceNode` — either can back a `DistributionNodeItem`. */
+type DistributionSourceNode = DistributionNodeItem;
+
+function toDistributionNodeItem(n: DistributionSourceNode): DistributionNodeItem {
+  return {
+    id: n.id,
+    label: n.label,
+    zone: n.zone,
+    x: n.x,
+    y: n.y,
+    z: n.z,
+    width: n.width,
+    height: n.height,
+    rotation: n.rotation,
+    color: n.color,
+    shape: n.shape,
+    renglaId: n.renglaId,
+    renglaPosition: n.renglaPosition,
+    positionType: n.positionType,
+    sortOrder: n.sortOrder,
+    climbIndicator: n.climbIndicator,
+  };
 }
 
 export interface DistributionItem {
@@ -78,6 +107,8 @@ export class FigureInstanceService {
   constructor(
     @InjectRepository(FigureInstance)
     private readonly instanceRepository: Repository<FigureInstance>,
+    @InjectRepository(InstanceNode)
+    private readonly instanceNodeRepository: Repository<InstanceNode>,
     @InjectRepository(EventSegment)
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureTemplate)
@@ -383,11 +414,43 @@ export class FigureInstanceService {
       .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
     const instanceIds = figureInstances.map((inst) => inst.id);
 
-    type AssignmentRow = { instanceId: string; figureNodeId: string; personAlias: string };
+    // A snapshotted instance's real nodes are its own InstanceNodes (possibly including
+    // ad-hoc ones — e.g. a "Direcció pinya" row — that never exist on the reusable
+    // FigureTemplate, and may have since diverged from it: see invariant 2, "once
+    // snapshotted, InstanceNodes are unaffected by template changes"). Only a
+    // not-yet-snapshotted instance genuinely has no nodes but the live template's.
+    const snapshottedIds = figureInstances.filter((inst) => inst.snapshotted).map((inst) => inst.id);
+    const instanceNodesByInstance = new Map<string, InstanceNode[]>();
+    if (snapshottedIds.length > 0) {
+      const instanceNodes = await this.instanceNodeRepository.find({
+        where: { figureInstance: { id: In(snapshottedIds) } },
+        relations: ['figureInstance'],
+        order: { sortOrder: 'ASC' },
+      });
+      for (const n of instanceNodes) {
+        const list = instanceNodesByInstance.get(n.figureInstance.id) ?? [];
+        list.push(n);
+        instanceNodesByInstance.set(n.figureInstance.id, list);
+      }
+    }
+    const nodesByInstance = new Map<string, DistributionNodeItem[]>(
+      figureInstances.map((inst) => [
+        inst.id,
+        (inst.snapshotted
+          ? (instanceNodesByInstance.get(inst.id) ?? [])
+          : (inst.figureTemplate!.nodes ?? [])
+        ).map(toDistributionNodeItem),
+      ]),
+    );
+
+    // Assignments only ever exist on a snapshotted instance (the first assignment is what
+    // snapshots it — see the domain model), so joining by the InstanceNode's own id (not
+    // `sourceNodeId`, which an ad-hoc node never has) is always correct here.
+    type AssignmentRow = { instanceId: string; figureNodeId: string; personId: string; personAlias: string };
     let allAssignmentRows: AssignmentRow[] = [];
     if (instanceIds.length > 0) {
       allAssignmentRows = await this.dataSource.query(
-        `SELECT na."figureInstanceId" AS "instanceId", inode."sourceNodeId" AS "figureNodeId", p.alias AS "personAlias"
+        `SELECT na."figureInstanceId" AS "instanceId", inode.id AS "figureNodeId", p.id AS "personId", p.alias AS "personAlias"
          FROM node_assignments na
          JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
          JOIN persons p ON na."personId" = p.id
@@ -399,21 +462,20 @@ export class FigureInstanceService {
     const assignmentsByInstance = new Map<string, DistributionAssignment[]>();
     for (const row of allAssignmentRows) {
       const list = assignmentsByInstance.get(row.instanceId) ?? [];
-      list.push({ figureNodeId: row.figureNodeId, personAlias: row.personAlias });
+      list.push({ figureNodeId: row.figureNodeId, personId: row.personId, personAlias: row.personAlias });
       assignmentsByInstance.set(row.instanceId, list);
     }
 
-    const CANVAS_ZONES = new Set([FigureZone.PINYA, FigureZone.BASE]);
-
     const items: DistributionItem[] = figureInstances.map((inst) => {
-      const allNodes = inst.figureTemplate!.nodes ?? [];
+      const allNodes = nodesByInstance.get(inst.id) ?? [];
 
       const troncNodes = allNodes.filter((n) => n.zone === FigureZone.TRONC);
       const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
       const distinctZLevels = new Set(troncNodes.map((n) => n.z)).size;
-      const hasFigureDirection = allNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
-      const hasXicallaDirection = allNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
-      const troncGridRows = distinctZLevels + (hasFigureDirection ? 1 : 0) + (hasXicallaDirection ? 1 : 0);
+      const directionRows = new Set(
+        allNodes.filter((n) => n.zone === FigureZone.DIRECTION).map((n) => n.positionType),
+      ).size;
+      const troncGridRows = distinctZLevels + directionRows;
 
       return {
         instanceId: inst.id,
@@ -425,23 +487,7 @@ export class FigureInstanceService {
         figureTemplate: {
           id: inst.figureTemplate!.id,
           name: inst.figureTemplate!.name,
-          nodes: allNodes
-            .filter((n) => CANVAS_ZONES.has(n.zone as FigureZone))
-            .map((n) => ({
-              id: n.id,
-              label: n.label,
-              zone: n.zone,
-              x: n.x,
-              y: n.y,
-              width: n.width,
-              height: n.height,
-              rotation: n.rotation,
-              color: n.color,
-              shape: n.shape,
-              renglaId: n.renglaId,
-              renglaPosition: n.renglaPosition,
-              positionType: n.positionType,
-            })),
+          nodes: allNodes,
         },
         troncGridCols,
         troncGridRows,

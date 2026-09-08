@@ -15,12 +15,9 @@ describe('isNodeColorEditable', () => {
     expect(isNodeColorEditable({ zone: FigureZone.TRONC, positionType: 'segona' })).toBe(true);
   });
 
-  it('returns true for FIGURE_DIRECTION nodes', () => {
-    expect(isNodeColorEditable({ zone: FigureZone.FIGURE_DIRECTION, positionType: 'direccio-figura' })).toBe(true);
-  });
-
-  it('returns true for XICALLA_DIRECTION nodes', () => {
-    expect(isNodeColorEditable({ zone: FigureZone.XICALLA_DIRECTION, positionType: 'direccio-xicalla' })).toBe(true);
+  it('returns true for direction nodes', () => {
+    expect(isNodeColorEditable({ zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' })).toBe(true);
+    expect(isNodeColorEditable({ zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla' })).toBe(true);
   });
 
   it('returns true for DECORATION nodes', () => {

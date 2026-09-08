@@ -4,6 +4,7 @@ export * from './lib/components/person-hover-card/person-hover-card.component';
 export * from './lib/components/pinya-projection/pinya-projection.component';
 export * from './lib/components/own-position-banner/own-position-banner.component';
 export * from './lib/components/own-position-marker/own-position-marker.component';
+export * from './lib/components/tronc-panel-measurer/tronc-panel-measurer.component';
 
 export * from './lib/directives/fit-text.directive';
 

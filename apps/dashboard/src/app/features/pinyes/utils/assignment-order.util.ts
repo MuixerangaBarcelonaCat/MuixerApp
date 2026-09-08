@@ -126,7 +126,7 @@ export function buildTroncBuckets(
     if (floor.length > 0) buckets.push(floor);
   }
 
-  push((n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION);
+  push((n) => n.zone === FigureZone.DIRECTION);
 
   return buckets;
 }

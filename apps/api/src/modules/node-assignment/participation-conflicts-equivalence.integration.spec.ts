@@ -307,4 +307,45 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
       [SegmentConflictKind.PINYA_PINYA]: 2,
     });
   });
+
+  it('both engines agree on the direcció pinya exemption (same figure excused, cross-figure not)', async () => {
+    await dropDuplicateConstraints();
+    const event = await makeEvent();
+    const seg = await makeSegment(event, 0);
+
+    const figA = await makeInstanceWithNodes(seg, [
+      FigureZone.PINYA,
+      FigureZone.DIRECTION,
+      FigureZone.DIRECTION,
+    ]);
+    const figB = await makeInstanceWithNodes(seg, [FigureZone.PINYA]);
+    // Turn figA's two DIRECTION nodes into «direcció pinya» (per-node uniqueness needs one each).
+    await db.dataSource
+      .getRepository(InstanceNode)
+      .update([figA.nodes[1].id, figA.nodes[2].id], { positionType: 'direccio-pinya' });
+
+    // EXCUSED: direcció pinya + pinya, same figure → no conflict.
+    const pSame = await makePerson('DIRPINYA');
+    await setAttendance(event, pSame, AttendanceStatus.ANIRE);
+    await assign(figA.instance, figA.nodes[1], pSame, seg);
+    await assign(figA.instance, figA.nodes[0], pSame, seg);
+
+    // NOT excused: direcció pinya (figA) + pinya of figB → PINYA_PINYA conflict.
+    const pCross = await makePerson('DIRPINYACREUAT');
+    await setAttendance(event, pCross, AttendanceStatus.ANIRE);
+    await assign(figA.instance, figA.nodes[2], pCross, seg);
+    await assign(figB.instance, figB.nodes[0], pCross, seg);
+
+    const overview = await participation.getEventParticipation(event.id);
+    const canonical = await assignments.getSegmentConflicts(seg.id);
+
+    const engineByPerson = new Map(canonical.data.map((c) => [c.personId, c.kind]));
+    expect(engineByPerson.has(pSame.id)).toBe(false);
+    expect(engineByPerson.get(pCross.id)).toBe(SegmentConflictKind.PINYA_PINYA);
+
+    const overviewById = new Map(overview.persons.map((p) => [p.id, p]));
+    expect(overviewById.get(pSame.id)?.conflictSegmentIds).toEqual([]);
+    expect(overviewById.get(pCross.id)?.conflictSegmentIds).toEqual([seg.id]);
+    expect(overview.meta.conflictsByKind[SegmentConflictKind.PINYA_PINYA]).toBe(1);
+  });
 });

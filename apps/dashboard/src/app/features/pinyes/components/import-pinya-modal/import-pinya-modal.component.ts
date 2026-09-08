@@ -248,11 +248,7 @@ export class ImportPinyaModalComponent implements OnChanges {
 
   directionNodesFor(): TroncNodeItem[] {
     const inst = this.previewInstance();
-    return inst
-      ? (inst.nodes.filter(
-          (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
-        ) as TroncNodeItem[])
-      : [];
+    return inst ? (inst.nodes.filter((n) => n.zone === FigureZone.DIRECTION) as TroncNodeItem[]) : [];
   }
 
   assignmentsFor(): AssignmentDetail[] {

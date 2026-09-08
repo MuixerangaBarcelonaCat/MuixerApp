@@ -1,6 +1,6 @@
 import { FigureZone } from '../enums/figure-zone.enum';
 import { NodeShape } from '../enums/node-shape.enum';
-import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DECORATION_NODE_PRESETS, DECORATION_POSITION_TYPES } from './node-preset.constants';
+import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DIRECTION_SLOTS, DIRECTION_POSITION_TYPES, DECORATION_NODE_PRESETS, DECORATION_POSITION_TYPES } from './node-preset.constants';
 
 describe('TRONC_NODE_PRESETS', () => {
   it('has at least 5 presets', () => {
@@ -118,22 +118,61 @@ describe('PINYA_NODE_PRESETS', () => {
 });
 
 describe('DIRECTION_NODE_PRESETS', () => {
-  it('has exactly two entries (figure and xicalla)', () => {
-    expect(DIRECTION_NODE_PRESETS.length).toBe(2);
+  it('includes the tronc, xicalla and pinya flavours', () => {
+    expect(DIRECTION_POSITION_TYPES).toContain('direccio-tronc');
+    expect(DIRECTION_POSITION_TYPES).toContain('direccio-xicalla');
+    expect(DIRECTION_POSITION_TYPES).toContain('direccio-pinya');
   });
 
-  it('covers both direction zones', () => {
-    const zones = DIRECTION_NODE_PRESETS.map((p) => p.zone);
-    expect(zones).toContain(FigureZone.FIGURE_DIRECTION);
-    expect(zones).toContain(FigureZone.XICALLA_DIRECTION);
+  it('gives direccio-pinya a deep green (emerald-800) and the "Direcció pinya" label', () => {
+    const pinya = DIRECTION_NODE_PRESETS.find((p) => p.positionType === 'direccio-pinya')!;
+    expect(pinya.color).toBe('#065f46');
+    expect(pinya.label).toBe('Direcció pinya');
+    expect(pinya.shortLabel).toBe('Pinya');
   });
 
-  it('every preset has valid dimensions and a color', () => {
+  it('marks xicalla with X and pinya with P for the projection, tronc unmarked', () => {
+    const byType = Object.fromEntries(
+      DIRECTION_NODE_PRESETS.map((p) => [p.positionType, p.projectionMarker]),
+    );
+    expect(byType['direccio-tronc']).toBeNull();
+    expect(byType['direccio-xicalla']).toBe('X');
+    expect(byType['direccio-pinya']).toBe('P');
+  });
+
+  it('every preset lives in the single DIRECTION zone', () => {
+    for (const preset of DIRECTION_NODE_PRESETS) {
+      expect(preset.zone).toBe(FigureZone.DIRECTION);
+    }
+  });
+
+  it('has no duplicate positionType values', () => {
+    const types = DIRECTION_NODE_PRESETS.map((p) => p.positionType);
+    expect(new Set(types).size).toBe(types.length);
+  });
+
+  it('every preset has valid dimensions, a color, a short label and a slot order', () => {
     for (const preset of DIRECTION_NODE_PRESETS) {
       expect(preset.width).toBeGreaterThan(0);
       expect(preset.height).toBeGreaterThan(0);
       expect(preset.color).toBeTruthy();
+      expect(preset.shortLabel.length).toBeGreaterThan(0);
+      expect(typeof preset.slotOrder).toBe('number');
     }
+  });
+});
+
+describe('DIRECTION_SLOTS', () => {
+  it('holds every direction preset, ordered by slotOrder', () => {
+    expect(DIRECTION_SLOTS.map((s) => s.positionType)).toEqual(
+      [...DIRECTION_NODE_PRESETS].sort((a, b) => a.slotOrder - b.slotOrder).map((s) => s.positionType),
+    );
+  });
+
+  it('orders the flavours tronc → xicalla → pinya', () => {
+    const order = DIRECTION_SLOTS.map((s) => s.positionType);
+    expect(order.indexOf('direccio-tronc')).toBeLessThan(order.indexOf('direccio-xicalla'));
+    expect(order.indexOf('direccio-xicalla')).toBeLessThan(order.indexOf('direccio-pinya'));
   });
 });
 

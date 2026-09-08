@@ -29,6 +29,8 @@ export const ICON_RENGLA = 'GitCommitHorizontal' as const;
 export const ICON_FIGURA_NETA = 'Sparkles' as const;
 export const ICON_COMPOSITION = 'LayoutGrid' as const;
 export const ICON_TEMPLATE = 'DraftingCompass' as const;
+/** Figure directors (direcció tronc/xicalla/pinya) — the «bastó del mestre», jocular. */
+export const ICON_DIRECCIO = 'CandyCane' as const;
 
 // Event types
 export const ICON_ASSAIG = 'Calendar' as const;

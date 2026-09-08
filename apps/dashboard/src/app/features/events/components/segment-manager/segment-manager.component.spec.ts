@@ -76,6 +76,7 @@ const makeFigureSummary = (overrides: Partial<EventFigureSummary> = {}): EventFi
   tronc: makeAreaCount(0, 0),
   total: makeAreaCount(0, 0),
   troncBaseAssignments: [],
+  directions: [],
   distinctPersonCount: 0,
   conflictAssignmentCount: 0,
   ...overrides,
@@ -245,6 +246,78 @@ describe('SegmentManagerComponent', () => {
 
       expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, { isPublished: true });
       expect(component.segments()[0].isPublished).toBe(true);
+    });
+  });
+
+  describe('toggleAllVisibility()', () => {
+    it('anySegmentPublished reflects whether at least one segment is published', () => {
+      component.segments.set([
+        makeSegment({ id: 's1', isPublished: false }),
+        makeSegment({ id: 's2', isPublished: false }),
+      ]);
+      expect(component.anySegmentPublished()).toBe(false);
+
+      component.segments.set([
+        makeSegment({ id: 's1', isPublished: false }),
+        makeSegment({ id: 's2', isPublished: true }),
+      ]);
+      expect(component.anySegmentPublished()).toBe(true);
+    });
+
+    it('publishes every unpublished segment when none are published', () => {
+      const s1 = makeSegment({ id: 's1', isPublished: false });
+      const s2 = makeSegment({ id: 's2', isPublished: false });
+      component.segments.set([s1, s2]);
+      (segmentService.update as ReturnType<typeof vi.fn>).mockImplementation((_e: string, id: string) =>
+        of({ ...(id === 's1' ? s1 : s2), isPublished: true }),
+      );
+
+      component.toggleAllVisibility();
+
+      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, 's1', { isPublished: true });
+      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, 's2', { isPublished: true });
+      expect(component.segments().every((s) => s.isPublished)).toBe(true);
+    });
+
+    it('unpublishes only the published segments when at least one is published', () => {
+      const s1 = makeSegment({ id: 's1', isPublished: true });
+      const s2 = makeSegment({ id: 's2', isPublished: false });
+      component.segments.set([s1, s2]);
+      (segmentService.update as ReturnType<typeof vi.fn>).mockReturnValue(of({ ...s1, isPublished: false }));
+
+      component.toggleAllVisibility();
+
+      expect(segmentService.update).toHaveBeenCalledTimes(1);
+      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, 's1', { isPublished: false });
+      expect(component.segments().every((s) => !s.isPublished)).toBe(true);
+    });
+
+    it('renders "No publicat" and fires the toggle on click when nothing is published', () => {
+      component.segments.set([makeSegment({ id: 's1', isPublished: false })]);
+      fixture.detectChanges();
+      const spy = vi.spyOn(component, 'toggleAllVisibility');
+
+      const btn = fixture.nativeElement.querySelector('[aria-label^="Cap segment publicat"]');
+      expect(btn).not.toBeNull();
+      expect(btn.textContent).toContain('No publicat');
+      // Whole control (not just the icon) carries the lib-button role colour.
+      expect(btn.className).toContain('text-neutral');
+
+      btn.click();
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('renders "Publicat" in the success colour when at least one segment is published', () => {
+      component.segments.set([
+        makeSegment({ id: 's1', isPublished: true }),
+        makeSegment({ id: 's2', isPublished: false }),
+      ]);
+      fixture.detectChanges();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label^="Segments publicats"]');
+      expect(btn).not.toBeNull();
+      expect(btn.textContent).toContain('Publicat');
+      expect(btn.className).toContain('text-success');
     });
   });
 
@@ -600,6 +673,29 @@ describe('SegmentManagerComponent', () => {
       );
     });
 
+    it('clicking the tronc summary block navigates to instance assignment (troncs mode)', () => {
+      const seg = makeSegment({
+        id: 'seg-1',
+        instances: [makeInstance({ id: 'inst-1', snapshotted: true })],
+      });
+      component.segments.set([seg]);
+      component.setViewMode('troncs');
+      component.troncData.set(new Map([['inst-1', [{ z: 1, isBase: false, slots: ['Joan'] }]]]));
+      fixture.detectChanges();
+
+      const infoBlock = fixture.nativeElement.querySelector('.flex-1.min-w-0');
+      const summaryBtn = [...infoBlock.querySelectorAll('button')].find(
+        (b: HTMLButtonElement) =>
+          !b.hasAttribute('data-instance-id') && b.getAttribute('aria-label')?.startsWith('Assigna'),
+      ) as HTMLButtonElement;
+      summaryBtn.click();
+
+      expect(routerMock.navigate).toHaveBeenCalledWith(
+        ['/pinyes/events', EVENT_ID, 'segments', 'seg-1', 'assign', 'inst-1'],
+        { queryParams: { returnUrl: '/rehearsals/event-123', tab: 'troncs' } },
+      );
+    });
+
     it('navigates to correct assignment canvas URL', () => {
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith(
@@ -893,6 +989,65 @@ describe('SegmentManagerComponent', () => {
     it('returns null when there is no summary data for the instance', () => {
       const inst = makeInstance({ id: 'unknown-instance' });
       expect(component.figurePinyaLabel(inst)).toBeNull();
+    });
+  });
+
+  describe('figure directions', () => {
+    const loadSummary = (summary: EventAssignmentSummary) => {
+      (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(of(summary));
+      component.ngOnInit();
+    };
+
+    const withDirections = (directions: EventFigureSummary['directions']) =>
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            conflicts: makeEmptyCounters(),
+            sortOrder: 0,
+            figures: [makeFigureSummary({ instanceId: 'inst-uuid-1', directions })],
+          },
+        ],
+      });
+
+    describe('directionSummaryText() — troncs mode', () => {
+      it('lists every director in slot order with (X)/(P) markers', () => {
+        withDirections([
+          { positionType: 'direccio-pinya', personAlias: 'Pep' },
+          { positionType: 'direccio-tronc', personAlias: 'Quim' },
+          { positionType: 'direccio-xicalla', personAlias: 'Aina' },
+        ]);
+
+        expect(component.directionSummaryText(makeInstance({ id: 'inst-uuid-1' }))).toBe(
+          'Quim · Aina (X) · Pep (P)',
+        );
+      });
+
+      it('returns null when the figure has no directors', () => {
+        withDirections([]);
+        expect(component.directionSummaryText(makeInstance({ id: 'inst-uuid-1' }))).toBeNull();
+      });
+
+      it('returns null when there is no summary for the instance', () => {
+        expect(component.directionSummaryText(makeInstance({ id: 'unknown' }))).toBeNull();
+      });
+    });
+
+    describe('pinyaDirectionText() — pinyes mode', () => {
+      it('lists only the pinya director(s), without a marker', () => {
+        withDirections([
+          { positionType: 'direccio-tronc', personAlias: 'Quim' },
+          { positionType: 'direccio-pinya', personAlias: 'Marta' },
+        ]);
+
+        expect(component.pinyaDirectionText(makeInstance({ id: 'inst-uuid-1' }))).toBe('Marta');
+      });
+
+      it('returns null when the figure only has a non-pinya director', () => {
+        withDirections([{ positionType: 'direccio-tronc', personAlias: 'Quim' }]);
+        expect(component.pinyaDirectionText(makeInstance({ id: 'inst-uuid-1' }))).toBeNull();
+      });
     });
   });
 

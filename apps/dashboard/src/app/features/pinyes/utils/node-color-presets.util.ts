@@ -20,8 +20,7 @@ export function getPresetColorsForZone(zone: FigureZone): string[] {
     case FigureZone.TRONC:
       colors = TRONC_NODE_PRESETS.map((p) => p.color).filter(Boolean) as string[];
       break;
-    case FigureZone.FIGURE_DIRECTION:
-    case FigureZone.XICALLA_DIRECTION:
+    case FigureZone.DIRECTION:
       colors = DIRECTION_NODE_PRESETS.map((p) => p.color).filter(Boolean) as string[];
       break;
     case FigureZone.DECORATION:

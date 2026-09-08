@@ -15,6 +15,7 @@ import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../mode
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
+import { TroncPanelMeasurerComponent, TroncPanelMeasureSpec } from '../tronc-panel-measurer/tronc-panel-measurer.component';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
@@ -56,7 +57,7 @@ interface DistributionTroncPanel {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
+  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
@@ -104,6 +105,26 @@ export class PinyaProjectionComponent {
 
   /** Real Konva stage transform — updated via (stageTransformChanged) from FigureCanvasComponent. */
   protected readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+
+  /** Each instance's real, DOM-measured tronc panel size — see `getTroncPanelNaturalSize`. */
+  private readonly measuredTroncSizes = signal<Map<string, { width: number; height: number }>>(new Map());
+
+  /** One measurement panel per effective instance — see `TroncPanelMeasurerComponent`. */
+  protected readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() => {
+    if (this.scope() === ImportScope.PINYA) return [];
+    return this.effectiveInstances().map((inst) => ({
+      instanceId: inst.id,
+      troncNodes: this.getInstanceTroncNodes(inst),
+      baseNodes: this.getInstanceBaseNodes(inst),
+      directionNodes: this.getInstanceDirectionNodes(inst),
+      assignments: inst.assignments,
+      figureName: this.getInstanceName(inst),
+    }));
+  });
+
+  onMeasuredSizesReady(sizes: Map<string, { width: number; height: number }>): void {
+    this.measuredTroncSizes.set(sizes);
+  }
 
   /** Bumped on every `(flightLanded)` from the canvas — drives the marker's one-shot arrival bounce. */
   protected readonly arrivedTick = signal(0);
@@ -697,24 +718,30 @@ export class PinyaProjectionComponent {
   }
 
   getInstanceDirectionNodes(instance: ProjectionInstance): TroncNodeItem[] {
-    return instance.nodes.filter(
-      (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
-    ) as TroncNodeItem[];
+    return instance.nodes.filter((n) => n.zone === FigureZone.DIRECTION) as TroncNodeItem[];
   }
 
   getInstanceName(instance: ProjectionInstance): string {
     return getSegmentInstanceLabel(instance);
   }
 
+  /**
+   * Prefers the real, DOM-measured size (see `measuredTroncSizes`/`TroncPanelMeasurerComponent`)
+   * over the `computeTroncNaturalSize` approximation, which has drifted from `TroncViewComponent`'s
+   * real CSS grid before (same fix as the Distribució tab's auto-placement, `mapDistributionItemsToSlots`).
+   * Falls back to the approximation until measurement resolves, so the first paint is never blank.
+   */
   private getTroncPanelNaturalSize(inst: ProjectionInstance): { naturalW: number; naturalH: number } {
+    const measured = this.measuredTroncSizes().get(inst.id);
+    if (measured) return { naturalW: measured.width, naturalH: measured.height };
+
     const troncNodes = this.getInstanceTroncNodes(inst);
     const dirNodes = this.getInstanceDirectionNodes(inst);
     const baseNodes = this.getInstanceBaseNodes(inst);
     const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
     const distinctZ = new Set(troncNodes.map((n) => n.z)).size;
-    const hasFigDir = dirNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
-    const hasXicDir = dirNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
-    const troncGridRows = distinctZ + (hasFigDir ? 1 : 0) + (hasXicDir ? 1 : 0);
+    const distinctDirectionRows = new Set(dirNodes.map((n) => n.positionType)).size;
+    const troncGridRows = distinctZ + distinctDirectionRows;
     const gridRows = troncGridRows + (baseNodes.length > 0 ? 1 : 0);
     const { naturalW, naturalH } = computeTroncNaturalSize(troncGridCols, gridRows);
     return { naturalW, naturalH: naturalH };

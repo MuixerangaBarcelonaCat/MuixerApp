@@ -16,14 +16,14 @@ export type FiguresViewTab = 'pinyes' | 'troncs';
 
 /**
  * Which workspace tab a node's canvas lives in — PINYA only exists in the Pinyes tab;
- * TRONC and both direction zones only exist in the Troncs tab; BASE is rendered in both,
+ * TRONC and DIRECTION only exist in the Troncs tab; BASE is rendered in both,
  * so it needs no tab switch. Used to make "Anar-hi" on the already-assigned dialog jump to
  * the right tab (FE-BUG-style gap: previously it just tried to select a node the current
  * tab's canvas doesn't render, which looked like nothing happened).
  */
 export function targetTabForZone(zone: string): FiguresViewTab | null {
   if (zone === FigureZone.PINYA) return 'pinyes';
-  if (zone === FigureZone.TRONC || zone === FigureZone.FIGURE_DIRECTION || zone === FigureZone.XICALLA_DIRECTION) {
+  if (zone === FigureZone.TRONC || zone === FigureZone.DIRECTION) {
     return 'troncs';
   }
   return null;

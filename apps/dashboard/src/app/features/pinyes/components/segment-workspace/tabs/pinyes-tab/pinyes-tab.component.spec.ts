@@ -122,6 +122,7 @@ const makeAssignment = (
   nodeId: string,
   personId = `p-${++assignmentSeq}`,
   zone = 'PINYA',
+  positionType: string | null = null,
 ): AssignmentDetail => ({
   id: `as-${assignmentSeq}`,
   figureInstanceId: instanceId,
@@ -130,7 +131,7 @@ const makeAssignment = (
     label: nodeId,
     zone,
     z: 0,
-    positionType: null,
+    positionType,
     sortOrder: 0,
     climbIndicator: null,
     ringLevel: null,
@@ -887,6 +888,64 @@ describe('PinyesTabComponent', () => {
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+    });
+
+    it('does not open the dialog when assigning a person to a direcció node of a figure whose pinya they already hold (D-«direcció pinya»)', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1', 'PINYA');
+      await setup({
+        instances: [makeInstance(INST_A)],
+        nodesByInstance: {
+          [INST_A]: [
+            makeNode('n1', 'PINYA'),
+            makeNode('d1', 'DIRECTION', { positionType: 'direccio-pinya' }),
+          ],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'd1' });
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).toBeNull();
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'd1', personId: 'p-1' });
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+    });
+
+    it('does not open the dialog the other way round: assigning to the pinya of a figure whose direcció they already hold', async () => {
+      const existing = makeAssignment(INST_A, 'd1', 'p-1', 'DIRECTION', 'direccio-pinya');
+      await setup({
+        instances: [makeInstance(INST_A)],
+        nodesByInstance: {
+          [INST_A]: [
+            makeNode('n1', 'PINYA'),
+            makeNode('d1', 'DIRECTION', { positionType: 'direccio-pinya' }),
+          ],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).toBeNull();
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n1', personId: 'p-1' });
+    });
+
+    it('still opens the dialog for a direcció/pinya pair across two different figures', async () => {
+      const existing = makeAssignment(INST_A, 'd1', 'p-1', 'DIRECTION', 'direccio-pinya');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-pinya' })],
+          [INST_B]: [makeNode('m1', 'PINYA')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).not.toBeNull();
     });
   });
 

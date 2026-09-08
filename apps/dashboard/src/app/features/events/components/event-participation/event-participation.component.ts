@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { conflictRelevantPlacements, DIRECTION_NODE_PRESETS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -59,10 +59,17 @@ const ZONE_LABELS: Record<string, string> = {
   BASE: 'Base',
   PINYA: 'Pinya',
   TRONC: 'Tronc',
-  FIGURE_DIRECTION: 'Direcció',
-  XICALLA_DIRECTION: 'Direcció xicalla',
+  DIRECTION: 'Direcció',
   DECORATION: 'Decoració',
 };
+
+/** Direction placements read out by flavour (`positionType`); other zones by `zone`. */
+export function placementZoneLabel(pl: { zone: string; positionType: string | null }): string {
+  if (pl.zone === 'DIRECTION') {
+    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === pl.positionType)?.label ?? 'Direcció';
+  }
+  return ZONE_LABELS[pl.zone] ?? pl.zone;
+}
 
 const EMPTY_META: ParticipationMeta = {
   distinctPersons: 0,
@@ -426,7 +433,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
           label: 'Zona',
           defaultVisible: true,
           type: 'pills',
-          pills: (r) => this.detailPills(r, segmentId, (pl) => ZONE_LABELS[pl.zone] ?? pl.zone),
+          pills: (r) => this.detailPills(r, segmentId, (pl) => placementZoneLabel(pl)),
           onCellClick: (r) => this.openSegmentCell(r, segmentId),
         },
       );
@@ -522,7 +529,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   isConflicted(row: ParticipationRow, segmentId: string): boolean {
-    return this.allPlacementsFor(row, segmentId).length > 1;
+    // A `direccio-pinya` placement doesn't conflict with its own figure's pinya (D13) — the
+    // server applies the same rule to `conflictSegmentIds`, keep the cell styling in step.
+    return conflictRelevantPlacements(this.allPlacementsFor(row, segmentId), (p) => p).length > 1;
   }
 
   /** % of segments the person shows up in, rounded — `0` for an event with no segments. */
@@ -541,7 +550,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       const all = this.allPlacementsFor(row, segment.id);
       const tronc = all.filter((p) => p.area === 'TRONC');
       if (tronc.length === 0) continue;
-      const conflicted = all.length > 1;
+      const conflicted = this.isConflicted(row, segment.id);
       for (const placement of tronc) {
         pills.push({
           text: `${this.segmentLabel(segment)}: ${formatNodeCordonLabel(placement.nodeLabel, placement.renglaPosition)} · ${placement.figureName}`,

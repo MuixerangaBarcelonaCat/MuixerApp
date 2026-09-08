@@ -1128,8 +1128,9 @@ describe('TroncViewComponent', () => {
   describe('directions section (figures netes)', () => {
     const figDirNode = makeNode({
       id: 'dir-fig-1',
-      zone: 'FIGURE_DIRECTION',
-      label: 'Dir. Figura',
+      zone: 'DIRECTION',
+      positionType: 'direccio-tronc',
+      label: 'Dir. Tronc',
       z: 0,
       x: 0,
       width: 1,
@@ -1137,7 +1138,8 @@ describe('TroncViewComponent', () => {
 
     const xicDirNode = makeNode({
       id: 'dir-xic-1',
-      zone: 'XICALLA_DIRECTION',
+      zone: 'DIRECTION',
+      positionType: 'direccio-xicalla',
       label: 'Dir. Xicalla',
       z: 0,
       x: 0,
@@ -1183,14 +1185,29 @@ describe('TroncViewComponent', () => {
       expect(content).toBeNull();
     });
 
-    it('shows "Afegir" buttons when no direction nodes exist', () => {
+    it('shows one "Afegir" button per direction flavour when no direction nodes exist', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.componentRef.setInput('directionNodes', []);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
 
+      const slots = fixture.nativeElement.querySelectorAll('.directions-content .direction-slot');
+      expect(slots.length).toBe(3); // tronc, xicalla, pinya
       const addButtons = fixture.nativeElement.querySelectorAll('.directions-content .btn-ghost');
-      expect(addButtons.length).toBe(2);
+      expect(addButtons.length).toBe(3);
+    });
+
+    it('renders the add-direction button as an icon-only "+" with an accessible label', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('directionNodes', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const addButton = fixture.nativeElement.querySelector(
+        '.directions-content .direction-slot .btn-ghost',
+      ) as HTMLButtonElement;
+      expect(addButton.textContent?.trim()).toBe('');
+      expect(addButton.getAttribute('aria-label')).toBe('Afegir direcció tronc');
     });
 
     it('shows direction node button when a direction node exists', () => {
@@ -1203,18 +1220,24 @@ describe('TroncViewComponent', () => {
       expect(dirNodes.length).toBe(1);
     });
 
-    it('figureDirectionNodes computed returns FIGURE_DIRECTION nodes', () => {
-      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+    it('directionSlots groups the instance nodes by flavour, in slot order', () => {
+      const pinyaDirNode = makeNode({ id: 'dir-pin-1', zone: 'DIRECTION', positionType: 'direccio-pinya', z: 0, x: 0, width: 1 });
+      fixture.componentRef.setInput('directionNodes', [xicDirNode, pinyaDirNode, figDirNode]);
       fixture.detectChanges();
 
-      expect(component.figureDirectionNodes().map((n) => n.id)).toEqual(['dir-fig-1']);
+      const slots = component.directionSlots();
+      expect(slots.map((s) => s.slot.positionType)).toEqual(['direccio-tronc', 'direccio-xicalla', 'direccio-pinya']);
+      expect(slots.map((s) => s.nodes.map((n) => n.id))).toEqual([['dir-fig-1'], ['dir-xic-1'], ['dir-pin-1']]);
     });
 
-    it('xicallaDirectionNodes computed returns XICALLA_DIRECTION nodes', () => {
-      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+    it('renders a slot (and its "Afegir" button) for a flavour with no nodes', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      component.directionsExpanded.set(true);
       fixture.detectChanges();
 
-      expect(component.xicallaDirectionNodes().map((n) => n.id)).toEqual(['dir-xic-1']);
+      const slots = fixture.nativeElement.querySelectorAll('.directions-content .direction-slot');
+      expect(slots.length).toBe(3);
     });
 
     it('hasAssignedDirections returns false when no assignments', () => {
@@ -1252,8 +1275,8 @@ describe('TroncViewComponent', () => {
       expect(component.directionsExpanded()).toBe(true);
     });
 
-    it('directionAdded emits zone when "Afegir" is clicked', () => {
-      const emitted: { zone: string }[] = [];
+    it('directionAdded emits positionType when "Afegir" is clicked', () => {
+      const emitted: { positionType: string }[] = [];
       component.directionAdded.subscribe((e) => emitted.push(e));
 
       fixture.componentRef.setInput('mode', 'assignment');
@@ -1266,7 +1289,7 @@ describe('TroncViewComponent', () => {
       fixture.detectChanges();
 
       expect(emitted.length).toBe(1);
-      expect(emitted[0].zone).toBe('FIGURE_DIRECTION');
+      expect(emitted[0].positionType).toBe('direccio-tronc');
     });
 
     it('directionRemoved emits nodeId when trash is clicked on unassigned direction', () => {
@@ -1301,7 +1324,7 @@ describe('TroncViewComponent', () => {
     });
 
     it('groups multiple same-zone direction assignments on one projection row', () => {
-      const xicDirNode2 = makeNode({ id: 'dir-xic-2', zone: 'XICALLA_DIRECTION', z: 0, x: 0, width: 1 });
+      const xicDirNode2 = makeNode({ id: 'dir-xic-2', zone: 'DIRECTION', positionType: 'direccio-xicalla', z: 0, x: 0, width: 1 });
       fixture.componentRef.setInput('mode', 'projection');
       fixture.componentRef.setInput('directionNodes', [xicDirNode, xicDirNode2]);
       fixture.componentRef.setInput('assignments', [
@@ -1314,6 +1337,38 @@ describe('TroncViewComponent', () => {
       expect(projRows.length).toBe(1);
       expect(projRows[0].textContent).toContain('Marta');
       expect(projRows[0].textContent).toContain('Joan');
+    });
+
+    it('puts every direction flavour on one projection row with per-flavour markers', () => {
+      const pinDirNode = makeNode({ id: 'dir-pin-1', zone: 'DIRECTION', positionType: 'direccio-pinya', z: 0, x: 0, width: 1 });
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode, pinDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Tere'),
+        makeAssignment('dir-xic-1', 'Marta'),
+        makeAssignment('dir-pin-1', 'Joan'),
+      ]);
+      fixture.detectChanges();
+
+      const projRows = fixture.nativeElement.querySelectorAll('.direction-projection-row');
+      expect(projRows.length).toBe(1);
+      const text = projRows[0].textContent as string;
+      expect(text).toContain('[Tere, Marta (X), Joan (P)]');
+      expect(text).toContain('Tere');
+      expect(text).not.toContain('Tere (');
+      expect(text).toContain('Marta (X)');
+      expect(text).toContain('Joan (P)');
+    });
+
+    it('projectionDirectionNames lists names in slot order with markers', () => {
+      const pinDirNode = makeNode({ id: 'dir-pin-1', zone: 'DIRECTION', positionType: 'direccio-pinya', z: 0, x: 0, width: 1 });
+      fixture.componentRef.setInput('directionNodes', [pinDirNode, xicDirNode, figDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-pin-1', 'Joan'),
+        makeAssignment('dir-xic-1', 'Marta'),
+        makeAssignment('dir-fig-1', 'Tere'),
+      ]);
+      expect(component.projectionDirectionNames()).toEqual(['Tere', 'Marta (X)', 'Joan (P)']);
     });
 
     it('does not render projection directions when no assignments', () => {
@@ -1544,7 +1599,7 @@ describe('TroncViewComponent', () => {
     });
 
     it('onDirectionNodeClick reveals the hover card for an assigned direction node', () => {
-      const dirNode = makeNode({ id: 'dir-1', zone: 'FIGURE_DIRECTION' });
+      const dirNode = makeNode({ id: 'dir-1', zone: 'DIRECTION', positionType: 'direccio-tronc' });
       fixture.componentRef.setInput('directionNodes', [dirNode]);
       fixture.componentRef.setInput('assignments', [makeAssignment('dir-1', 'Marta')]);
       fixture.detectChanges();
@@ -1635,6 +1690,35 @@ describe('TroncViewComponent', () => {
 
       (btn!.componentInstance as ButtonComponent).clicked.emit();
       expect(spy).toHaveBeenCalled();
+    });
+  });
+
+  // ── gridTemplateColumns ──────────────────────────────────────────────────
+
+  describe('gridTemplateColumns', () => {
+    it('does not reserve the add-node button column outside editor mode (assignment)', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', x: 0, width: 2 })]);
+      fixture.detectChanges();
+
+      expect(component.gridTemplateColumns()).not.toContain('2.5rem) 2.5rem');
+      expect(component.gridTemplateColumns()).toBe('repeat(4, minmax(2.5rem, 1fr))');
+    });
+
+    it('does not reserve the add-node button column in projection mode', () => {
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', x: 0, width: 2 })]);
+      fixture.detectChanges();
+
+      expect(component.gridTemplateColumns()).toBe('repeat(4, minmax(2.5rem, 1fr))');
+    });
+
+    it('still reserves the add-node button column in editor mode', () => {
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', x: 0, width: 2 })]);
+      fixture.detectChanges();
+
+      expect(component.gridTemplateColumns()).toBe('repeat(4, minmax(2.5rem, 1fr)) 2.5rem');
     });
   });
 });

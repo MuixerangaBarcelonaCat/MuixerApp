@@ -39,13 +39,40 @@ export interface NodePreset {
   requiresCustomLabel: boolean;
 }
 
-export const DIRECTION_NODE_PRESETS: NodePreset[] = [
-  { zone: FigureZone.FIGURE_DIRECTION, positionType: 'direccio-figura', label: 'Direcció fig.', width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
-  { zone: FigureZone.XICALLA_DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xic.', width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
+/**
+ * A direction preset. All direction nodes share `zone: FigureZone.DIRECTION`; the flavour is
+ * `positionType` (`direccio-tronc` / `direccio-xicalla` / `direccio-pinya`). `shortLabel` is
+ * the per-row caption in the tronc view's "Direccions" section; `slotOrder` fixes the order
+ * those rows stack in, everywhere they are rendered. `projectionMarker` is the short letter
+ * appended after a person's name on the projection's single direction line (e.g. «(X)»);
+ * `null` leaves the name unmarked.
+ */
+export interface DirectionNodePreset extends NodePreset {
+  zone: FigureZone.DIRECTION;
+  positionType: string;
+  shortLabel: string;
+  slotOrder: number;
+  projectionMarker: string | null;
+}
+
+export const DIRECTION_NODE_PRESETS: DirectionNodePreset[] = [
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc',   label: 'Direcció tronc',   shortLabel: 'Tronc',   slotOrder: 0, projectionMarker: null, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', shortLabel: 'Xicalla', slotOrder: 1, projectionMarker: 'X',  width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',   label: 'Direcció pinya',   shortLabel: 'Pinya',   slotOrder: 2, projectionMarker: 'P',  width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#065f46', requiresCustomLabel: false },
 ];
 
-export const DIRECTION_ZONES = DIRECTION_NODE_PRESETS.map((p) => p.zone);
-export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.positionType as string);
+/** Direction presets in the fixed order their rows stack (by `slotOrder`). */
+export const DIRECTION_SLOTS: DirectionNodePreset[] = [...DIRECTION_NODE_PRESETS].sort((a, b) => a.slotOrder - b.slotOrder);
+
+/**
+ * The «direcció pinya» flavour — a pinya director. Named because its conflict rule differs:
+ * it does not conflict with a PINYA placement of the *same* figure instance
+ * (`conflictRelevantPlacements` in `assignment-area.constants.ts`).
+ */
+export const DIRECCIO_PINYA_POSITION_TYPE = 'direccio-pinya';
+
+export const DIRECTION_ZONES: FigureZone[] = [FigureZone.DIRECTION];
+export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.positionType);
 
 export const DECORATION_NODE_PRESETS: NodePreset[] = [
   { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },
@@ -87,6 +114,5 @@ export const BASE_POSITION_TYPE = 'base';
 export const AD_HOC_ALLOWED_ZONES = [
   FigureZone.PINYA,
   FigureZone.DECORATION,
-  FigureZone.FIGURE_DIRECTION,
-  FigureZone.XICALLA_DIRECTION,
+  FigureZone.DIRECTION,
 ] as const;
