@@ -68,10 +68,7 @@
 
     <!-- Delete error -->
     @if (deleteError()) {
-      <div class="alert alert-error text-sm">
-        <span>{{ deleteError() }}</span>
-        <lib-button variant="ghost" size="xs" (clicked)="deleteError.set(null)">✕</lib-button>
-      </div>
+      <lib-alert variant="error" dense dismissible (dismissed)="deleteError.set(null)">{{ deleteError() }}</lib-alert>
     }
 
     <!-- Sync status -->

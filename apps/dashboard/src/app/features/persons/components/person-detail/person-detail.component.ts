@@ -13,6 +13,7 @@ import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import {
   ToastService,
+  AlertComponent,
   BadgeComponent,
   ButtonComponent,
   CardComponent,
@@ -56,6 +57,7 @@ import { DelegateType, LegalDocumentType } from '@muixer/shared';
   imports: [
     ReactiveFormsModule,
     RouterModule,
+    AlertComponent,
     BadgeComponent,
     ButtonComponent,
     CardComponent,

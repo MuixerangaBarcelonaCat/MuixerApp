@@ -639,12 +639,13 @@
         del segment?
       </p>
       @if (pendingInstanceRemoval()!.instance.assignedCount > 0) {
-        <div class="alert alert-warning mt-3 py-2 text-sm gap-2">
-          <lucide-icon [name]="ICON_PERSONA" [size]="16" />
-          <span>
-            <strong>{{ pendingInstanceRemoval()!.instance.assignedCount }} assignacions</strong>
-            es perdran.
-          </span>
+        <div class="mt-3">
+          <lib-alert variant="warning" dense>
+            <span>
+              <strong>{{ pendingInstanceRemoval()!.instance.assignedCount }} assignacions</strong>
+              es perdran.
+            </span>
+          </lib-alert>
         </div>
       }
       <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>

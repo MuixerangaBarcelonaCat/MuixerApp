@@ -26,7 +26,7 @@ import { EventSegmentService } from '../../../pinyes/services/event-segment.serv
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
-import { ToastService, ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, ModalComponent, InputComponent, SelectComponent } from '@muixer/ui';
+import { ToastService, AlertComponent, ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, ModalComponent, InputComponent, SelectComponent } from '@muixer/ui';
 import {
   FigurePickerModalComponent,
   InstanceSelection,
@@ -61,6 +61,7 @@ interface PendingCordonsChange {
     FormsModule,
     LucideAngularModule,
     DragDropModule,
+    AlertComponent,
     ButtonComponent,
     ButtonGroupComponent,
     BadgeComponent,

@@ -11,6 +11,7 @@ import { SlicePipe } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { NotificationTargetType, AttendanceStatus } from '@muixer/shared';
 import {
+  AlertComponent,
   BadgeComponent,
   ButtonComponent,
   ButtonGroupComponent,
@@ -35,6 +36,7 @@ type SendState = 'idle' | 'sending' | 'success' | 'error';
     LucideAngularModule,
     PageHeaderComponent,
     PersonSearchInputComponent,
+    AlertComponent,
     BadgeComponent,
     ButtonComponent,
     ButtonGroupComponent,

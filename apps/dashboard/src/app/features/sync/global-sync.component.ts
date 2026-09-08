@@ -1,16 +1,16 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ButtonComponent, CardComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, CardComponent } from '@muixer/ui';
 import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-global-sync',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterModule, LucideAngularModule, ButtonComponent, CardComponent],
+  imports: [RouterModule, LucideAngularModule, AlertComponent, ButtonComponent, CardComponent],
   template: `
-    <div class="space-y-4 max-w-2xl mx-auto">
+    <div class="flex flex-col gap-4 max-w-2xl mx-auto">
 
       <!-- Capçalera -->
       <div class="flex items-center gap-3">
@@ -24,13 +24,9 @@ import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
       </div>
 
       <!-- Avís -->
-      <div class="alert alert-warning shadow-raised">
-        <lucide-icon name="AlertTriangle" [size]="18" />
-        <div>
-          <p class="font-semibold text-sm">Funcionalitat temporal</p>
-          <p class="text-xs opacity-80">Aquesta funcionalitat desapareixerà quan MuixerApp siga l'aplicació principal. Sincronitza primer les persones, després els events.</p>
-        </div>
-      </div>
+      <lib-alert variant="warning" title="Funcionalitat temporal">
+        <p class="text-xs opacity-80">Aquesta funcionalitat desapareixerà quan MuixerApp siga l'aplicació principal. Sincronitza primer les persones, després els events.</p>
+      </lib-alert>
 
       <!-- Cards de sincronització -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -112,7 +112,7 @@
               }
               @if (previewError()) {
                 <div class="absolute inset-0 flex items-center justify-center p-4">
-                  <div class="alert alert-error text-sm">{{ previewError() }}</div>
+                  <lib-alert variant="error" dense>{{ previewError() }}</lib-alert>
                 </div>
               }
               @if (!previewLoading() && !previewError() && projectionData(); as data) {
@@ -142,25 +142,29 @@
     }
 
     @if (lastResult()) {
-      <div class="alert mt-4" [class]="lastResult()!.conflicts.length > 0 ? 'alert-error' : 'alert-success'">
-        <p class="text-sm font-medium">
-          {{ lastResult()!.created.length }} assignacions importades
-          @if (lastResult()!.conflicts.length > 0) {
-            , {{ lastResult()!.conflicts.length }} conflictes omesos
-          }
-        </p>
-        @if (lastResult()!.conflicts.length > 0) {
-          <ul class="mt-1 text-xs space-y-0.5">
-            @for (c of lastResult()!.conflicts; track c.nodeId) {
-              <li>{{ c.nodeLabel }} / {{ c.personAlias }}: {{ c.reason }}</li>
+      <div class="mt-4">
+        <lib-alert [variant]="lastResult()!.conflicts.length > 0 ? 'error' : 'success'">
+          <p class="text-sm font-medium">
+            {{ lastResult()!.created.length }} assignacions importades
+            @if (lastResult()!.conflicts.length > 0) {
+              , {{ lastResult()!.conflicts.length }} conflictes omesos
             }
-          </ul>
-        }
+          </p>
+          @if (lastResult()!.conflicts.length > 0) {
+            <ul class="mt-1 text-xs space-y-0.5">
+              @for (c of lastResult()!.conflicts; track c.nodeId) {
+                <li>{{ c.nodeLabel }} / {{ c.personAlias }}: {{ c.reason }}</li>
+              }
+            </ul>
+          }
+        </lib-alert>
       </div>
     }
 
     @if (error()) {
-      <div class="alert alert-error text-sm mt-4">{{ error() }}</div>
+      <div class="mt-4">
+        <lib-alert variant="error" dense>{{ error() }}</lib-alert>
+      </div>
     }
   }
 

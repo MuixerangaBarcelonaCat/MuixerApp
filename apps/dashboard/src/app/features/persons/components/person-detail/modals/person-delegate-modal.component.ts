@@ -13,7 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { DelegateType, UserRole } from '@muixer/shared';
-import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent } from '@muixer/ui';
+import { AlertComponent, BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent } from '@muixer/ui';
 import { UserService } from '../../../../config/services/user.service';
 import { UserDto } from '../../../../config/models/user.model';
 import {
@@ -25,7 +25,7 @@ import {
   selector: 'app-person-delegate-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent],
+  imports: [FormsModule, AlertComponent, BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent],
   templateUrl: './person-delegate-modal.component.html',
 })
 export class PersonDelegateModalComponent implements OnInit, OnDestroy {
