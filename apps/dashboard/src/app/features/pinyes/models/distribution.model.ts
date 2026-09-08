@@ -4,6 +4,7 @@ export interface DistributionNodeItem {
   zone: string;
   x: number;
   y: number;
+  z: number;
   width: number;
   height: number;
   rotation: number;
@@ -12,10 +13,13 @@ export interface DistributionNodeItem {
   renglaId: string | null;
   renglaPosition: number | null;
   positionType: string | null;
+  sortOrder: number;
+  climbIndicator: string | null;
 }
 
 export interface DistributionAssignment {
   figureNodeId: string;
+  personId: string;
   personAlias: string;
 }
 

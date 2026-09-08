@@ -1,5 +1,5 @@
-import { CompositionSlotWithNodes, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, repositionCordoObertNodes, computeTroncNaturalSize } from '@muixer/pinyes-render';
-import { DistributionItem } from '../models/distribution.model';
+import { CompositionSlotWithNodes, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, repositionCordoObertNodes, computeTroncNaturalSize, TroncNodeItem, AssignmentDetail } from '@muixer/pinyes-render';
+import { DistributionItem, DistributionNodeItem, DistributionAssignment } from '../models/distribution.model';
 import { filterNodesByFigureMode } from './figure-mode-filter.util';
 
 /**
@@ -11,9 +11,16 @@ import { filterNodesByFigureMode } from './figure-mode-filter.util';
  * explicit tronc panel positions). When only some items lack a position, each
  * of those is appended to the right of what is already placed with
  * `placeNewFigure`, so saved positions are never disturbed.
+ *
+ * `troncSizeByInstance` — when given, the auto-placement pass uses each instance's real,
+ * DOM-measured tronc panel size (see `TroncPanelMeasurerComponent`) instead of the analytic
+ * `computeTroncNaturalSize` approximation, which has drifted from `TroncViewComponent`'s real
+ * CSS grid before. An instance missing from the map (or the map itself being omitted) falls
+ * back to the approximation, so this stays safely callable without a real DOM pass.
  */
 export function mapDistributionItemsToSlots(
   items: DistributionItem[],
+  troncSizeByInstance: Map<string, { width: number; height: number }> = new Map(),
 ): CompositionSlotWithNodes[] {
   const placedExtents: { x: number; width: number }[] = [];
 
@@ -47,10 +54,10 @@ export function mapDistributionItemsToSlots(
       // DECORATION, which is rendered but must not shift the pivot.
       const pivotNodes = pinyaBaseNodes(positionedNodes);
       const occupiedNodes = pinyaCanvasNodes(positionedNodes);
-      const { naturalW, naturalH } = computeTroncNaturalSize(
-        item.troncGridCols,
-        effectiveTroncGridRows(item, positionedNodes),
-      );
+      const measured = troncSizeByInstance.get(item.instanceId);
+      const { naturalW, naturalH } = measured
+        ? { naturalW: measured.width, naturalH: measured.height }
+        : computeTroncNaturalSize(item.troncGridCols, effectiveTroncGridRows(item, positionedNodes));
       return {
         ...figureExtentFromNodes(item.instanceId, pivotNodes),
         nodes: pivotNodes,
@@ -139,6 +146,69 @@ function effectiveTroncGridRows(
 ): number {
   const showsBase = item.figureMode !== 'REMAT' && modeFilteredNodes.some((n) => n.zone === 'BASE');
   return item.troncGridRows + (showsBase ? 1 : 0);
+}
+
+/**
+ * Splits an instance's (mode/cordon-filtered) node list into the three groups
+ * `<app-tronc-view>` needs — mirrors `PinyaProjectionComponent`'s own
+ * `getInstanceTroncNodes`/`getInstanceBaseNodes`/`getInstanceDirectionNodes` accessors,
+ * including hiding BASE nodes for REMAT (its base is hidden in that mode).
+ */
+export function troncViewNodesFor(
+  nodes: DistributionNodeItem[],
+  figureMode: string,
+): { troncNodes: TroncNodeItem[]; baseNodes: TroncNodeItem[]; directionNodes: TroncNodeItem[] } {
+  return {
+    troncNodes: nodes.filter((n) => n.zone === 'TRONC'),
+    baseNodes: figureMode === 'REMAT' ? [] : nodes.filter((n) => n.zone === 'BASE'),
+    directionNodes: nodes.filter((n) => n.zone === 'DIRECTION'),
+  };
+}
+
+/**
+ * Adapts the segment-distribution API's thin `DistributionAssignment[]` (figureNodeId +
+ * personId + personAlias) into the richer `AssignmentDetail[]` `<app-tronc-view>` expects,
+ * looking up each node's other fields from `nodes`. Fields `AssignmentDetail` requires but
+ * `TroncViewComponent` never reads in `projection` mode (name/firstSurname/notes/ringLevel/...)
+ * are filled with harmless placeholders.
+ */
+export function troncViewAssignmentsFor(
+  assignments: DistributionAssignment[],
+  nodes: DistributionNodeItem[],
+): AssignmentDetail[] {
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
+  const details: AssignmentDetail[] = [];
+  for (const a of assignments) {
+    const node = nodesById.get(a.figureNodeId);
+    if (!node) continue;
+    details.push({
+      id: `${a.figureNodeId}:${a.personId}`,
+      figureInstanceId: '',
+      node: {
+        id: node.id,
+        label: node.label,
+        zone: node.zone,
+        z: node.z,
+        positionType: node.positionType,
+        sortOrder: node.sortOrder,
+        climbIndicator: node.climbIndicator,
+        ringLevel: null,
+        originNodeId: null,
+        sourceNodeId: null,
+        renglaPosition: node.renglaPosition,
+      },
+      person: {
+        id: a.personId,
+        alias: a.personAlias,
+        name: a.personAlias,
+        firstSurname: '',
+        shoulderHeight: null,
+        notes: null,
+        notesEmoji: null,
+      },
+    });
+  }
+  return details;
 }
 
 export function computeSlotLabel(item: DistributionItem): string {

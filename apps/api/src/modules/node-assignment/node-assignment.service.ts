@@ -21,6 +21,7 @@ import {
   SegmentConflictKind,
   areaForZone,
   classifyPlacementKind,
+  conflictRelevantPlacements,
   isNodeVisibleByCordons,
   ConflictPlacement,
   SegmentConflict,
@@ -31,6 +32,7 @@ import {
   EventSegmentSummary,
   EventFigureSummary,
   FigureAreaCount,
+  DirectionAssignmentEntry,
   ImportScope,
   zonesForScope,
   getSegmentInstanceLabel,
@@ -739,6 +741,7 @@ export class NodeAssignmentService {
         nodeId: a.instanceNode.id,
         nodeLabel: a.instanceNode.label ?? null,
         zone,
+        positionType: a.instanceNode.positionType ?? null,
         area: areaForZone(zone) as AssignmentArea,
         z: a.instanceNode.z ?? null,
         renglaPosition: a.instanceNode.renglaPosition ?? null,
@@ -755,7 +758,13 @@ export class NodeAssignmentService {
     }
 
     const conflicts: SegmentConflict[] = [];
-    for (const [personId, { alias, placements }] of groupsByPersonId) {
+    for (const [personId, { alias, placements: allPlacements }] of groupsByPersonId) {
+      // A `direccio-pinya` placement doesn't conflict with the same figure's own pinya (D13).
+      const placements = conflictRelevantPlacements(allPlacements, (p) => ({
+        positionType: p.positionType,
+        area: p.area,
+        instanceId: p.figureInstanceId,
+      }));
       if (placements.length < 2) continue;
 
       placements.sort((x, y) => {
@@ -1175,7 +1184,7 @@ export class NodeAssignmentService {
    * counts, applying the same visibility rules used elsewhere for capacity:
    * PINYA nodes respect numberOfCordons + cordonsObertsEnabled and are zeroed
    * for REMAT/NETA; BASE counts as tronc except for REMAT; direction nodes
-   * (FIGURE_DIRECTION/XICALLA_DIRECTION) count only toward total; DECORATION
+   * (zone DIRECTION) count only toward total; DECORATION
    * is excluded entirely (not assignable).
    */
   private computeInstanceAreaSummary(
@@ -1188,6 +1197,7 @@ export class NodeAssignmentService {
     tronc: FigureAreaCount;
     total: FigureAreaCount;
     troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
+    directions: DirectionAssignmentEntry[];
     distinctPersonCount: number;
     conflictAssignmentCount: number;
   } {
@@ -1201,7 +1211,7 @@ export class NodeAssignmentService {
     const isTronc = (n: { zone: string }): boolean =>
       n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
     const isDirection = (n: { zone: string }): boolean =>
-      n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION;
+      n.zone === FigureZone.DIRECTION;
 
     let pinyaTotal = 0;
     let troncTotal = 0;
@@ -1216,6 +1226,7 @@ export class NodeAssignmentService {
     let troncAssigned = 0;
     let directionAssigned = 0;
     const troncBaseAssignments: EventFigureSummary['troncBaseAssignments'] = [];
+    const directions: DirectionAssignmentEntry[] = [];
     for (const a of instanceAssignments) {
       const n = a.instanceNode;
       if (!n) continue;
@@ -1225,6 +1236,7 @@ export class NodeAssignmentService {
         troncAssigned++;
       } else if (isDirection(n)) {
         directionAssigned++;
+        directions.push({ positionType: n.positionType ?? null, personAlias: a.person.alias as string });
       }
       if (n.zone === FigureZone.TRONC || n.zone === FigureZone.BASE) {
         troncBaseAssignments.push({
@@ -1251,6 +1263,7 @@ export class NodeAssignmentService {
         total: pinyaTotal + troncTotal + directionTotal,
       },
       troncBaseAssignments,
+      directions,
       distinctPersonCount,
       conflictAssignmentCount,
     };

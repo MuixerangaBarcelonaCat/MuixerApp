@@ -122,7 +122,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` · `OTHER` |
 | `EventType` | `ASSAIG` · `ACTUACIO` |
 | `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
-| `FigureZone` | `BASE` · `PINYA` · `TRONC` · `FIGURE_DIRECTION` · `XICALLA_DIRECTION` · `DECORATION` |
+| `FigureZone` | `BASE` · `PINYA` · `TRONC` · `DIRECTION` · `DECORATION` |
 | `Gender` | `MALE` · `FEMALE` · `OTHER` |
 | `ImportScope` | `PINYA` · `TRONC` · `ALL` |
 | `LegalDocumentType` | `PRIVACY_POLICY` · `TRANSPARENCY_CLAUSE` |

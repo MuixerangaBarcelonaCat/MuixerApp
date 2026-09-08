@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeSlotLabel, mapDistributionItemsToSlots } from './distribution-slot-mapping.util';
+import { computeSlotLabel, mapDistributionItemsToSlots, troncViewNodesFor, troncViewAssignmentsFor } from './distribution-slot-mapping.util';
 import { DistributionItem } from '../models/distribution.model';
 import { DEFAULT_PLACEMENT_GAP } from '@muixer/pinyes-render';
 
@@ -13,6 +13,7 @@ const makeDistributionNode = (
   zone,
   x: 0,
   y: 0,
+  z: 0,
   width: 30,
   height: 30,
   rotation: 0,
@@ -21,6 +22,8 @@ const makeDistributionNode = (
   renglaId: null,
   renglaPosition: null,
   positionType: null,
+  sortOrder: 0,
+  climbIndicator: null,
   ...overrides,
 });
 
@@ -230,6 +233,50 @@ describe('mapDistributionItemsToSlots', () => {
     expect(slot.troncPanelY).toBe(-300);
   });
 
+  it('uses a measured tronc size instead of the approximation, when one is provided for the instance', () => {
+    const items = [
+      {
+        ...itemWithPosition('a', null, null),
+        troncGridCols: 2,
+        troncGridRows: 2,
+        figureTemplate: {
+          id: 'fig-a',
+          name: 'a',
+          nodes: [makeDistributionNode('n1', 'PINYA', { width: 100, height: 100 })],
+        },
+      },
+    ];
+
+    const [withoutMeasurement] = mapDistributionItemsToSlots(items);
+    const [withMeasurement] = mapDistributionItemsToSlots(items, new Map([['a', { width: 900, height: 700 }]]));
+
+    expect({ x: withMeasurement.troncPanelX, y: withMeasurement.troncPanelY }).not.toEqual({
+      x: withoutMeasurement.troncPanelX,
+      y: withoutMeasurement.troncPanelY,
+    });
+  });
+
+  it('falls back to the approximation for an instance missing from the measured-size map', () => {
+    const items = [
+      {
+        ...itemWithPosition('a', null, null),
+        troncGridCols: 2,
+        troncGridRows: 2,
+        figureTemplate: {
+          id: 'fig-a',
+          name: 'a',
+          nodes: [makeDistributionNode('n1', 'PINYA', { width: 100, height: 100 })],
+        },
+      },
+    ];
+
+    const [withEmptyMap] = mapDistributionItemsToSlots(items, new Map());
+    const [withoutMap] = mapDistributionItemsToSlots(items);
+
+    expect(withEmptyMap.troncPanelX).toEqual(withoutMap.troncPanelX);
+    expect(withEmptyMap.troncPanelY).toEqual(withoutMap.troncPanelY);
+  });
+
   it('places an unpositioned item to the right of an already-positioned one', () => {
     const [, b] = mapDistributionItemsToSlots([
       {
@@ -245,12 +292,12 @@ describe('mapDistributionItemsToSlots', () => {
   it('passes assignments through to the slot', () => {
     const item = {
       ...itemWithPosition('a', 0, 0),
-      assignments: [{ figureNodeId: 'n1', personAlias: 'JoanP' }],
+      assignments: [{ figureNodeId: 'n1', personId: 'person-1', personAlias: 'JoanP' }],
     };
 
     const [slot] = mapDistributionItemsToSlots([item]);
 
-    expect(slot.assignments).toEqual([{ figureNodeId: 'n1', personAlias: 'JoanP' }]);
+    expect(slot.assignments).toEqual([{ figureNodeId: 'n1', personId: 'person-1', personAlias: 'JoanP' }]);
   });
 
   it('maps troncGridCols/Rows and troncPanelX/Y (including null for linked mode)', () => {
@@ -357,6 +404,61 @@ describe('mapDistributionItemsToSlots', () => {
     const cordoObert = slot.figureTemplate.nodes.find((n) => n.id === 'co');
     expect(cordoObert?.x).toBe(20);
     expect(cordoObert?.y).toBe(20);
+  });
+});
+
+describe('troncViewNodesFor', () => {
+  it('splits nodes into tronc/base/direction by zone, ignoring PINYA and DECORATION', () => {
+    const nodes = [
+      makeDistributionNode('p1', 'PINYA'),
+      makeDistributionNode('t1', 'TRONC'),
+      makeDistributionNode('b1', 'BASE'),
+      makeDistributionNode('d1', 'DIRECTION'),
+      makeDistributionNode('dec1', 'DECORATION'),
+    ];
+
+    const { troncNodes, baseNodes, directionNodes } = troncViewNodesFor(nodes, 'COMPLETA');
+
+    expect(troncNodes.map((n) => n.id)).toEqual(['t1']);
+    expect(baseNodes.map((n) => n.id)).toEqual(['b1']);
+    expect(directionNodes.map((n) => n.id)).toEqual(['d1']);
+  });
+
+  it('hides BASE nodes when figureMode is REMAT', () => {
+    const nodes = [makeDistributionNode('t1', 'TRONC'), makeDistributionNode('b1', 'BASE')];
+
+    const { baseNodes } = troncViewNodesFor(nodes, 'REMAT');
+
+    expect(baseNodes).toEqual([]);
+  });
+
+  it('keeps BASE nodes for non-REMAT figureModes', () => {
+    const nodes = [makeDistributionNode('b1', 'BASE')];
+
+    const { baseNodes } = troncViewNodesFor(nodes, 'PEU');
+
+    expect(baseNodes.map((n) => n.id)).toEqual(['b1']);
+  });
+});
+
+describe('troncViewAssignmentsFor', () => {
+  it('maps each assignment to an AssignmentDetail using its matching node', () => {
+    const nodes = [makeDistributionNode('t1', 'TRONC', { climbIndicator: 'X' })];
+    const assignments = [{ figureNodeId: 't1', personId: 'person-1', personAlias: 'JoanP' }];
+
+    const [detail] = troncViewAssignmentsFor(assignments, nodes);
+
+    expect(detail.node.id).toBe('t1');
+    expect(detail.person.id).toBe('person-1');
+    expect(detail.person.alias).toBe('JoanP');
+  });
+
+  it('skips an assignment whose node is not in the given node list', () => {
+    const assignments = [{ figureNodeId: 'missing', personId: 'person-1', personAlias: 'JoanP' }];
+
+    const details = troncViewAssignmentsFor(assignments, []);
+
+    expect(details).toEqual([]);
   });
 });
 

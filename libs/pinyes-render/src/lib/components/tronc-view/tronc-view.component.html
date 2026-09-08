@@ -57,147 +57,78 @@
       @if (directionsExpanded()) {
         <div id="directions-content" class="directions-content">
 
-          <!-- FIGURE_DIRECTION slot -->
-          <div class="direction-slot">
-            <span
-              class="direction-label"
-              [style.border-left-color]="getDirectionColor('FIGURE_DIRECTION')"
-            >Dir.</span>
-            @for (dirNode of figureDirectionNodes(); track dirNode.id) {
-              <button
-                type="button"
-                class="tronc-node direction-node"
-                [class.selected]="isSelected(dirNode.id)"
-                [class.assigned]="isAssigned(dirNode.id)"
-                [class.dragging]="isDragging(dirNode.id)"
-                [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
-                [class.drag-over-move]="isDragOverMove(dirNode.id)"
-                [style.border-left-color]="getDirectionColor(dirNode.zone)"
-                [attr.data-tronc-node-id]="dirNode.id"
-                [attr.data-instance-id]="instanceId()"
-                [attr.data-draggable]="isDraggableNode(dirNode.id) ? '' : null"
-                (click)="onDirectionNodeClick(dirNode, $event)"
-                (mouseenter)="onNodeHover($event, dirNode.id)"
-                (mouseleave)="onNodeLeave()"
-                (pointerdown)="onNodePointerDown(dirNode, $event)"
-                (pointermove)="onNodePointerMove($event)"
-                (pointerup)="onNodePointerUp($event)"
-                (pointercancel)="onNodePointerCancel($event)"
-                [attr.aria-label]="getNodeAriaLabel(dirNode)"
-                [attr.aria-pressed]="isSelected(dirNode.id)"
-              >
-                @if (getAssignment(dirNode.id); as assignment) {
-                  <span class="alias-row">
-                    <span class="person-alias">{{ assignment.person.alias }}</span>
-                    @if (getNotes(assignment); as notes) {
-                      @if (getNotesEmoji(assignment); as emoji) {
-                        <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
-                      } @else {
-                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
-                      }
-                    }
-                  </span>
-                  <span
-                    class="attendance-dot"
-                    [style.background-color]="getAttendanceColor(assignment)"
-                    aria-hidden="true"
-                  ></span>
-                } @else {
-                  <span class="node-label text-base-content/40">Sense assignar</span>
-                }
-              </button>
-              @if (!isAssigned(dirNode.id)) {
+          @for (ds of directionSlots(); track ds.slot.positionType) {
+            <div class="direction-slot">
+              <span
+                class="direction-label"
+                [style.border-left-color]="ds.slot.color"
+              >{{ ds.slot.shortLabel }}</span>
+              @for (dirNode of ds.nodes; track dirNode.id) {
                 <button
                   type="button"
-                  class="btn btn-ghost btn-xs text-error"
-                  (click)="onRemoveDirection(dirNode.id)"
-                  aria-label="Eliminar direcció figura"
-                  title="Eliminar"
+                  class="tronc-node direction-node"
+                  [class.selected]="isSelected(dirNode.id)"
+                  [class.assigned]="isAssigned(dirNode.id)"
+                  [class.dragging]="isDragging(dirNode.id)"
+                  [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
+                  [class.drag-over-move]="isDragOverMove(dirNode.id)"
+                  [style.border-left-color]="getDirectionColor(dirNode.positionType)"
+                  [attr.data-tronc-node-id]="dirNode.id"
+                  [attr.data-instance-id]="instanceId()"
+                  [attr.data-draggable]="isDraggableNode(dirNode.id) ? '' : null"
+                  (click)="onDirectionNodeClick(dirNode, $event)"
+                  (mouseenter)="onNodeHover($event, dirNode.id)"
+                  (mouseleave)="onNodeLeave()"
+                  (pointerdown)="onNodePointerDown(dirNode, $event)"
+                  (pointermove)="onNodePointerMove($event)"
+                  (pointerup)="onNodePointerUp($event)"
+                  (pointercancel)="onNodePointerCancel($event)"
+                  [attr.aria-label]="getNodeAriaLabel(dirNode)"
+                  [attr.aria-pressed]="isSelected(dirNode.id)"
                 >
-                  <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+                  @if (getAssignment(dirNode.id); as assignment) {
+                    <span class="alias-row">
+                      <span class="person-alias">{{ assignment.person.alias }}</span>
+                      @if (getNotes(assignment); as notes) {
+                        @if (getNotesEmoji(assignment); as emoji) {
+                          <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                        } @else {
+                          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                        }
+                      }
+                    </span>
+                    <span
+                      class="attendance-dot"
+                      [style.background-color]="getAttendanceColor(assignment)"
+                      aria-hidden="true"
+                    ></span>
+                  } @else {
+                    <span class="node-label text-base-content/40">Sense assignar</span>
+                  }
                 </button>
+                @if (!isAssigned(dirNode.id)) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs text-error"
+                    (click)="onRemoveDirection(dirNode.id)"
+                    [attr.aria-label]="'Eliminar direcció ' + ds.slot.shortLabel.toLowerCase()"
+                    title="Eliminar"
+                  >
+                    <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+                  </button>
+                }
               }
-            }
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs gap-1"
-              (click)="directionAdded.emit({ zone: 'FIGURE_DIRECTION' })"
-            >
-              <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-              Afegir
-            </button>
-          </div>
-
-          <!-- XICALLA_DIRECTION slot -->
-          <div class="direction-slot">
-            <span
-              class="direction-label"
-              [style.border-left-color]="getDirectionColor('XICALLA_DIRECTION')"
-            >Xic.</span>
-            @for (dirNode of xicallaDirectionNodes(); track dirNode.id) {
               <button
                 type="button"
-                class="tronc-node direction-node"
-                [class.selected]="isSelected(dirNode.id)"
-                [class.assigned]="isAssigned(dirNode.id)"
-                [class.dragging]="isDragging(dirNode.id)"
-                [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
-                [class.drag-over-move]="isDragOverMove(dirNode.id)"
-                [style.border-left-color]="getDirectionColor(dirNode.zone)"
-                [attr.data-tronc-node-id]="dirNode.id"
-                [attr.data-instance-id]="instanceId()"
-                [attr.data-draggable]="isDraggableNode(dirNode.id) ? '' : null"
-                (click)="onDirectionNodeClick(dirNode, $event)"
-                (mouseenter)="onNodeHover($event, dirNode.id)"
-                (mouseleave)="onNodeLeave()"
-                (pointerdown)="onNodePointerDown(dirNode, $event)"
-                (pointermove)="onNodePointerMove($event)"
-                (pointerup)="onNodePointerUp($event)"
-                (pointercancel)="onNodePointerCancel($event)"
-                [attr.aria-label]="getNodeAriaLabel(dirNode)"
-                [attr.aria-pressed]="isSelected(dirNode.id)"
+                class="btn btn-ghost btn-xs btn-square"
+                (click)="directionAdded.emit({ positionType: ds.slot.positionType })"
+                [attr.aria-label]="'Afegir direcció ' + ds.slot.shortLabel.toLowerCase()"
+                title="Afegir"
               >
-                @if (getAssignment(dirNode.id); as assignment) {
-                  <span class="alias-row">
-                    <span class="person-alias">{{ assignment.person.alias }}</span>
-                    @if (getNotes(assignment); as notes) {
-                      @if (getNotesEmoji(assignment); as emoji) {
-                        <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
-                      } @else {
-                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
-                      }
-                    }
-                  </span>
-                  <span
-                    class="attendance-dot"
-                    [style.background-color]="getAttendanceColor(assignment)"
-                    aria-hidden="true"
-                  ></span>
-                } @else {
-                  <span class="node-label text-base-content/40">Sense assignar</span>
-                }
+                <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
               </button>
-              @if (!isAssigned(dirNode.id)) {
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs text-error"
-                  (click)="onRemoveDirection(dirNode.id)"
-                  aria-label="Eliminar direcció xicalla"
-                  title="Eliminar"
-                >
-                  <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
-                </button>
-              }
-            }
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs gap-1"
-              (click)="directionAdded.emit({ zone: 'XICALLA_DIRECTION' })"
-            >
-              <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-              Afegir
-            </button>
-          </div>
+            </div>
+          }
 
         </div>
       }
@@ -206,7 +137,7 @@
 
   <!-- ── Figure name header (projection mode) ─────────────────────────── -->
   @if (mode() === 'projection' && figureName()) {
-    <div class="px-2 pt-1 pb-0.5">
+    <div class="px-2 pt-1 pb-0">
       <span class="text-sm font-semibold text-gray-900 truncate block">{{ figureName() }}</span>
     </div>
   }
@@ -214,20 +145,9 @@
   <!-- ── Directions section (projection mode) ─────────────────────────── -->
   @if (mode() === 'projection' && hasAssignedDirections()) {
     <div class="directions-section projection" role="region" aria-label="Direccions">
-      @for (group of assignedDirectionGroups(); track group.zone) {
-        <div class="direction-projection-row">
-          <span class="direction-label compact" [style.border-left-color]="group.color">
-            {{ group.label }}
-          </span>
-          <span
-            class="direction-aliases font-medium"
-            appFitText
-            [fitTextValue]="group.aliases"
-            [fitTextMinPx]="8"
-            [fitTextMaxPx]="14"
-          >{{ group.aliases }}</span>
-        </div>
-      }
+      <div class="direction-projection-row">
+        <span class="direction-names font-medium">[{{ projectionDirectionNames().join(', ') }}]</span>
+      </div>
     </div>
   }
 

@@ -128,6 +128,7 @@ const makeAssignment = (
   nodeId: string,
   personId = `p-${++assignmentSeq}`,
   zone = 'TRONC',
+  positionType: string | null = null,
 ): AssignmentDetail => ({
   id: `as-${assignmentSeq}`,
   figureInstanceId: instanceId,
@@ -136,7 +137,7 @@ const makeAssignment = (
     label: nodeId,
     zone,
     z: 1,
-    positionType: null,
+    positionType,
     sortOrder: 0,
     climbIndicator: null,
     ringLevel: null,
@@ -302,7 +303,7 @@ describe('TroncsTabComponent', () => {
           [INST_A]: [
             makeNode('t1', 'TRONC'),
             makeNode('b1', 'BASE'),
-            makeNode('d1', 'FIGURE_DIRECTION'),
+            makeNode('d1', 'DIRECTION', { positionType: 'direccio-tronc' }),
             makeNode('p1', 'PINYA'),
           ],
         },
@@ -662,19 +663,28 @@ describe('TroncsTabComponent', () => {
     it('adds a direction node to the given figure', async () => {
       await setup();
       component.onTroncNodeSelected(INST_A, 'n1');
-      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'FIGURE_DIRECTION')));
+      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
 
-      component.onDirectionAdded(INST_A, { zone: 'FIGURE_DIRECTION' });
+      component.onDirectionAdded(INST_A, { positionType: 'direccio-tronc' });
 
       expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
         INST_A,
-        expect.objectContaining({ zone: 'FIGURE_DIRECTION' }),
+        expect.objectContaining({ zone: 'DIRECTION', positionType: 'direccio-tronc' }),
       );
+    });
+
+    it('selects the newly created direction node so the person search auto-focuses', async () => {
+      await setup();
+      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
+
+      component.onDirectionAdded(INST_A, { positionType: 'direccio-tronc' });
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'dir-1' });
     });
 
     it('removes an unassigned direction node', async () => {
       await setup({
-        nodesByInstance: { [INST_A]: [makeNode('d1', 'FIGURE_DIRECTION')] },
+        nodesByInstance: { [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-tronc' })] },
       });
       assignmentService.deleteAdHocNode.mockReturnValue(of(undefined));
 
@@ -686,7 +696,7 @@ describe('TroncsTabComponent', () => {
     it('refuses to remove an assigned direction node', async () => {
       const existing = makeAssignment(INST_A, 'd1', 'p-1');
       await setup({
-        nodesByInstance: { [INST_A]: [makeNode('d1', 'FIGURE_DIRECTION')] },
+        nodesByInstance: { [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-tronc' })] },
         assignmentsByInstance: { [INST_A]: [existing] },
       });
 
@@ -849,6 +859,40 @@ describe('TroncsTabComponent', () => {
       expect(component.reassignDialog()).toBeNull();
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
     });
+
+    it('does not open the dialog when assigning a person to a direcció node of a figure whose pinya they already hold (D-«direcció pinya»)', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1', 'PINYA');
+      await setup({
+        instances: [makeInstance(INST_A)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-pinya' })],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_A, 'd1');
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).toBeNull();
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'd1', personId: 'p-1' });
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+    });
+
+    it('still opens the dialog for a direcció/pinya pair across two different figures', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1', 'PINYA');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_B]: [makeNode('d1', 'DIRECTION', { positionType: 'direccio-pinya' })],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_B, 'd1');
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).not.toBeNull();
+    });
   });
 
   describe('cross-tab "Anar-hi" navigation', () => {
@@ -876,8 +920,8 @@ describe('TroncsTabComponent', () => {
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'b1' });
     });
 
-    it('treats FIGURE_DIRECTION nodes as staying in the Troncs tab (no switch)', async () => {
-      const existing = makeAssignment(INST_A, 'd1', 'p-1', 'FIGURE_DIRECTION');
+    it('treats DIRECTION nodes as staying in the Troncs tab (no switch)', async () => {
+      const existing = makeAssignment(INST_A, 'd1', 'p-1', 'DIRECTION');
       await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
       const emitSpy = vi.fn();
       component.crossTabSelect.subscribe(emitSpy);

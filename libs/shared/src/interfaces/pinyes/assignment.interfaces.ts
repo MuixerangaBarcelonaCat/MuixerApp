@@ -5,6 +5,7 @@ import { NodeShape } from '../../enums/node-shape.enum';
 import { TagCategory } from '../../enums/tag-category.enum';
 import { PaginatedMeta } from '../pagination.interface';
 import { ConflictPlacement, SegmentPeopleCounters } from './segment-conflict.interfaces';
+import { DirectionAssignmentEntry } from '../../utils/direction-summary.util';
 
 // ── Core assignment types ───────────────────────────────────────────────────
 
@@ -161,6 +162,8 @@ export interface EventFigureSummary {
   total: FigureAreaCount;
   /** TRONC/BASE assignments only, unfiltered by figureMode — still needed for name display. */
   troncBaseAssignments: EventAssignmentEntry[];
+  /** DIRECTION assignments (figure directors): flavour + alias, unordered. */
+  directions: DirectionAssignmentEntry[];
   distinctPersonCount: number;
   conflictAssignmentCount: number;
 }

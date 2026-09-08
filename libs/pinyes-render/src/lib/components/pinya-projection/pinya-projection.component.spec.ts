@@ -18,6 +18,9 @@ import {
   OwnPositionMarkerComponent,
   findOwnTroncCellRect,
   computeDistributionTransform,
+  computeTroncNaturalSize,
+  TroncPanelMeasurerComponent,
+  TroncPanelMeasureSpec,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -51,6 +54,12 @@ class TroncViewStub {
   readonly panelColor = input<string>('');
   readonly panelBorderColor = input<string>('');
   readonly figureName = input<string>('');
+}
+
+@Component({ selector: 'lib-tronc-panel-measurer', standalone: true, template: '' })
+class TroncPanelMeasurerStub {
+  readonly panels = input<TroncPanelMeasureSpec[]>([]);
+  readonly sizesReady = output<Map<string, { width: number; height: number }>>();
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -127,8 +136,8 @@ describe('PinyaProjectionComponent', () => {
       providers: [allLucideIconsProvider],
     })
       .overrideComponent(PinyaProjectionComponent, {
-        remove: { imports: [FigureCanvasComponent, TroncViewComponent] },
-        add: { imports: [FigureCanvasStub, TroncViewStub] },
+        remove: { imports: [FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent] },
+        add: { imports: [FigureCanvasStub, TroncViewStub, TroncPanelMeasurerStub] },
       })
       .compileComponents();
 
@@ -242,7 +251,7 @@ describe('PinyaProjectionComponent', () => {
 
     it('includes BASE but excludes DIRECTION nodes', () => {
       const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
-      const dir = makeNode({ id: 'd1', zone: FigureZone.FIGURE_DIRECTION });
+      const dir = makeNode({ id: 'd1', zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' });
       const pinya = makeNode({ id: 'p1', zone: FigureZone.PINYA });
       const instance = makeInstance([base, dir, pinya], ['p1']);
 
@@ -265,9 +274,9 @@ describe('PinyaProjectionComponent', () => {
   // ── getInstanceDirectionNodes ───────────────────────────────────────────────
 
   describe('getInstanceDirectionNodes', () => {
-    it('extracts FIGURE_DIRECTION and XICALLA_DIRECTION nodes', () => {
-      const figDir = makeNode({ id: 'fd1', zone: FigureZone.FIGURE_DIRECTION });
-      const xicDir = makeNode({ id: 'xd1', zone: FigureZone.XICALLA_DIRECTION });
+    it('extracts DIRECTION nodes of every flavour', () => {
+      const figDir = makeNode({ id: 'fd1', zone: FigureZone.DIRECTION, positionType: 'direccio-tronc' });
+      const xicDir = makeNode({ id: 'xd1', zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla' });
       const tronc = makeNode({ id: 't1', zone: FigureZone.TRONC });
       const pinya = makeNode({ id: 'p1', zone: FigureZone.PINYA });
       const instance = makeInstance([figDir, xicDir, tronc, pinya], []);
@@ -478,6 +487,80 @@ describe('PinyaProjectionComponent', () => {
         troncBox.top < decoBox.bottom &&
         decoBox.top < troncBox.bottom;
       expect(overlaps).toBe(false);
+    });
+  });
+
+  // ── measured tronc panel sizes (Phase D) ────────────────────────────────────
+
+  describe('measured tronc panel sizes', () => {
+    const measurerStub = (): TroncPanelMeasurerStub =>
+      fixture.debugElement.query(By.directive(TroncPanelMeasurerStub)).componentInstance as TroncPanelMeasurerStub;
+
+    it('passes one measurement panel per effective instance', () => {
+      const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i1' })]));
+
+      expect(measurerStub().panels().map((p) => p.instanceId)).toEqual(['i1']);
+    });
+
+    it('passes the instance assignments to the measurer (so the two-pass measurement sizes a wrapped direction line correctly)', () => {
+      const dirNode = makeNode({ id: 'd1', zone: FigureZone.DIRECTION, positionType: 'direccio-tronc', x: 0, y: 0, z: 0 });
+      setData(makeSegmentData([makeInstance([dirNode], ['d1'], { id: 'i1' })]));
+
+      const [panel] = measurerStub().panels();
+      expect(panel.assignments.map((a) => a.node.id)).toEqual(['d1']);
+    });
+
+    it('falls back to the approximation before measurement resolves', () => {
+      const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i1' })]));
+      const [effective] = component.effectiveInstances();
+
+      const size = component['getTroncPanelNaturalSize'](effective);
+
+      expect(size).toEqual(computeTroncNaturalSize(2, 1));
+    });
+
+    it('uses the measured size instead of the approximation once sizesReady fires', () => {
+      const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i1' })]));
+
+      measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+      fixture.detectChanges();
+
+      const [effective] = component.effectiveInstances();
+      const size = component['getTroncPanelNaturalSize'](effective);
+      expect(size).toEqual({ naturalW: 555, naturalH: 333 });
+    });
+
+    it('reflects the measured size in distributionTroncPanels too', () => {
+      const nodes = [
+        makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 400, height: 300 }),
+        makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 }),
+      ];
+      setData(makeSegmentData([makeInstance(nodes, ['p1'], { id: 'i1' })]));
+
+      measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+      fixture.detectChanges();
+
+      const [panel] = component.distributionTroncPanels();
+      expect(panel.naturalW).toBe(555);
+      expect(panel.naturalH).toBe(333);
+    });
+
+    it('reflects the measured size in distributionFitBounds too (camera auto-fit padding)', () => {
+      const nodes = [
+        makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 400, height: 300 }),
+        makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 }),
+      ];
+      setData(makeSegmentData([makeInstance(nodes, ['p1'], { id: 'i1' })]));
+      const before = component.distributionFitBounds()[0];
+
+      measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+      fixture.detectChanges();
+
+      const after = component.distributionFitBounds()[0];
+      expect(after).not.toEqual(before);
     });
   });
 

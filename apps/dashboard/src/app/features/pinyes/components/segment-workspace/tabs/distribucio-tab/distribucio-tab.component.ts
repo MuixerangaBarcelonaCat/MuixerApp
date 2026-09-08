@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, FigureMode } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, FigureMode, TroncNodeItem, AssignmentDetail, getFigureColor } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,9 +20,33 @@ import { SegmentDistributionService } from '../../../../services/segment-distrib
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService, ButtonComponent, ModalComponent } from '@muixer/ui';
-import { mapDistributionItemsToSlots } from '../../../../utils/distribution-slot-mapping.util';
+import {
+  mapDistributionItemsToSlots,
+  troncViewNodesFor,
+  troncViewAssignmentsFor,
+  computeSlotLabel,
+} from '../../../../utils/distribution-slot-mapping.util';
 import { computeMaxCordons } from '../../../../utils/figure-mode-filter.util';
 import { DistributionItem, InstanceDistributionPayload } from '../../../../models/distribution.model';
+
+/** One tronc-view overlay rendered on top of the (visually hidden) Konva tronc panel. */
+export interface TroncViewPanel {
+  slotId: string;
+  screenX: number;
+  screenY: number;
+  scale: number;
+  /** The real, DOM-measured grid width (see `TroncPanelMeasurerComponent`'s two-pass
+   *  measurement) — `null` until measurement resolves. Constraining the overlay to this width
+   *  is what makes a long direction line wrap instead of stretching the panel, matching
+   *  Previsualitza. */
+  width: number | null;
+  troncNodes: TroncNodeItem[];
+  baseNodes: TroncNodeItem[];
+  directionNodes: TroncNodeItem[];
+  assignments: AssignmentDetail[];
+  figureName: string;
+  color: string;
+}
 
 const INITIAL_ZOOM = 0.75;
 
@@ -36,7 +60,7 @@ const INITIAL_ZOOM = 0.75;
   selector: 'app-distribucio-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, FigureCanvasComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent],
+  imports: [LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent],
   templateUrl: './distribucio-tab.component.html',
 })
 export class DistribucioTabComponent implements OnInit {
@@ -52,6 +76,72 @@ export class DistribucioTabComponent implements OnInit {
   private readonly items = signal<DistributionItem[]>([]);
   readonly selectedSlotId = signal<string | null>(null);
   readonly loading = signal(true);
+
+  /**
+   * One measurement panel per loaded item, always — not just while unplaced — so the live
+   * overlay (`troncViewPanels`) always has a real, current width to constrain itself to (see
+   * `TroncPanelMeasurerComponent`). `onSizesReady` also completes a pending auto-layout when
+   * one is waiting (`pendingPlacementItems`).
+   */
+  readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() =>
+    this.items().map((item) => ({
+      instanceId: item.instanceId,
+      ...troncViewNodesFor(item.figureTemplate.nodes, item.figureMode),
+      assignments: troncViewAssignmentsFor(item.assignments, item.figureTemplate.nodes),
+      figureName: computeSlotLabel(item),
+    })),
+  );
+
+  /** Each instance's real, DOM-measured tronc panel size — see `measurePanels`/`onSizesReady`. */
+  private readonly measuredTroncSizes = signal<Map<string, { width: number; height: number }>>(new Map());
+
+  /** Set while a fully-unplaced segment is waiting for every instance's size to be measured
+   *  before the auto-layout can run — `loading` stays `true` throughout. */
+  private pendingPlacementItems: DistributionItem[] | null = null;
+
+  /** Real Konva stage transform — updated via (stageTransformChanged) from the canvas. */
+  private readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+  /** Each tronc panel's live world-space top-left, reported by (troncPanelMoved) — the
+   *  same source of truth the (now visually hidden) Konva tronc panel positions itself with. */
+  private readonly troncPanelPositions = signal<Map<string, { x: number; y: number }>>(new Map());
+
+  /**
+   * One overlay per slot whose position is already known (i.e. the canvas has rendered it at
+   * least once) — renders the real `<app-tronc-view>` on top of the canvas's own (visually
+   * hidden, see `troncPanelVisualHidden`) tronc panel, replacing the old "Tronc de X" Konva
+   * placeholder so the panel always matches Previsualitza's rendering exactly.
+   */
+  readonly troncViewPanels = computed<TroncViewPanel[]>(() => {
+    const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
+    const positions = this.troncPanelPositions();
+    const sizes = this.measuredTroncSizes();
+    const itemsById = new Map(this.items().map((i) => [i.instanceId, i]));
+
+    const panels: TroncViewPanel[] = [];
+    for (const slot of this.slots()) {
+      const pos = positions.get(slot.slotId);
+      if (!pos) continue;
+      const item = itemsById.get(slot.slotId);
+      const { troncNodes, baseNodes, directionNodes } = troncViewNodesFor(
+        slot.figureTemplate.nodes,
+        item?.figureMode ?? 'COMPLETA',
+      );
+      panels.push({
+        slotId: slot.slotId,
+        screenX: pos.x * stageScale + stageX,
+        screenY: pos.y * stageScale + stageY,
+        scale: stageScale,
+        width: sizes.get(slot.slotId)?.width ?? null,
+        troncNodes,
+        baseNodes,
+        directionNodes,
+        assignments: troncViewAssignmentsFor(item?.assignments ?? [], slot.figureTemplate.nodes),
+        figureName: slot.label ?? slot.figureTemplate.name,
+        color: getFigureColor(slot.sortOrder),
+      });
+    }
+    return panels;
+  });
 
   readonly propertiesEntry = computed<FigurePropertiesEntry | null>(() => {
     const slot = this.slots().find((s) => s.slotId === this.selectedSlotId());
@@ -130,6 +220,18 @@ export class DistribucioTabComponent implements OnInit {
       ),
     );
     this.save();
+  }
+
+  onStageTransformChanged(t: { x: number; y: number; scaleX: number; scaleY: number }): void {
+    this.stageTransform.set(t);
+  }
+
+  onTroncPanelMoved(event: { slotId: string; x: number; y: number }): void {
+    this.troncPanelPositions.update((current) => {
+      const next = new Map(current);
+      next.set(event.slotId, { x: event.x, y: event.y });
+      return next;
+    });
   }
 
   onOffsetXChanged(event: { id: string; value: number }): void {
@@ -278,6 +380,15 @@ export class DistribucioTabComponent implements OnInit {
     this.distributionService.getDistribution(this.ws.eventId(), this.ws.segmentId()).subscribe({
       next: (data) => {
         this.items.set(data.items);
+        const isFullyUnplaced = data.items.length > 0 && data.items.every((i) => i.projectionX === null);
+        if (isFullyUnplaced) {
+          // Real DOM measurement first — see TroncPanelMeasurerComponent (always mounted, via
+          // `measurePanels`) — so the auto-layout packs figures against each other's *actual*
+          // tronc panel size, not an approximation. `onSizesReady` completes this once ready.
+          this.pendingPlacementItems = data.items;
+          this.tryRunPendingPlacement();
+          return;
+        }
         this.slots.set(mapDistributionItemsToSlots(data.items));
         this.loading.set(false);
       },
@@ -286,6 +397,23 @@ export class DistribucioTabComponent implements OnInit {
         this.toast.error("No s'ha pogut carregar la distribució.");
       },
     });
+  }
+
+  onSizesReady(sizes: Map<string, { width: number; height: number }>): void {
+    this.measuredTroncSizes.set(sizes);
+    this.tryRunPendingPlacement();
+  }
+
+  /** Runs the auto-layout once every pending (fully-unplaced) item has a measured size. */
+  private tryRunPendingPlacement(): void {
+    const items = this.pendingPlacementItems;
+    if (!items) return;
+    const sizes = this.measuredTroncSizes();
+    if (!items.every((i) => sizes.has(i.instanceId))) return;
+
+    this.slots.set(mapDistributionItemsToSlots(items, sizes));
+    this.loading.set(false);
+    this.pendingPlacementItems = null;
   }
 
   private save(): void {

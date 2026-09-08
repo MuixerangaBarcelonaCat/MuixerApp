@@ -7,6 +7,8 @@
       </div>
     }
 
+    <lib-tronc-panel-measurer [panels]="measurePanels()" (sizesReady)="onSizesReady($event)" />
+
     <app-figure-canvas
       #canvas
       mode="composition"
@@ -15,10 +17,36 @@
       [gridEnabled]="true"
       [gridSpacing]="gridSpacing"
       [snapToGrid]="snapToGrid"
+      [troncPanelVisualHidden]="true"
       (slotSelected)="onSlotSelected($event)"
       (slotMoved)="onSlotMoved($event)"
       (troncMoved)="onTroncMoved($event)"
+      (troncPanelMoved)="onTroncPanelMoved($event)"
+      (stageTransformChanged)="onStageTransformChanged($event)"
     />
+
+    <!-- Tronc panel overlays: the real <app-tronc-view> rendering, positioned on top of the
+         canvas's own (visually hidden) tronc panel — see troncViewPanels. -->
+    @for (panel of troncViewPanels(); track panel.slotId) {
+      <div
+        class="absolute pointer-events-none origin-top-left"
+        [style.left.px]="panel.screenX"
+        [style.top.px]="panel.screenY"
+        [style.width.px]="panel.width"
+        [style.transform]="'scale(' + panel.scale + ')'"
+      >
+        <app-tronc-view
+          mode="projection"
+          [troncNodes]="panel.troncNodes"
+          [baseNodes]="panel.baseNodes"
+          [directionNodes]="panel.directionNodes"
+          [assignments]="panel.assignments"
+          [panelColor]="panel.color"
+          [panelBorderColor]="panel.color"
+          [figureName]="panel.figureName"
+        />
+      </div>
+    }
 
     <!-- Positioning goes on this wrapper, not <lib-button> itself: its display:contents host
          renders no box of its own, so a layout class placed there is inert. -->

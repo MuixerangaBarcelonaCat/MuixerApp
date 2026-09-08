@@ -1210,8 +1210,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     if (zone === FigureZone.BASE) return `Base ${this.baseNodes().length + 1}`;
     if (zone === FigureZone.PINYA) return 'Pinya';
     if (zone === FigureZone.TRONC) return `Pis ${z}`;
-    if (zone === FigureZone.FIGURE_DIRECTION) return 'Direcció';
-    return 'Xicalla Dir.';
+    return 'Direcció';
   }
 
 }

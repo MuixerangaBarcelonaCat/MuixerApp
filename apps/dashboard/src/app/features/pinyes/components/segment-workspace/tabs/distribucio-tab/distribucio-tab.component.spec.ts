@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, CanvasMode, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, CanvasMode, InstanceDetail, SegmentDetail, TroncNodeItem, AssignmentDetail } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
@@ -29,11 +29,32 @@ class StubFigureCanvas {
   readonly gridEnabled = input<boolean>(false);
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
+  readonly troncPanelVisualHidden = input<boolean>(false);
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
+  readonly troncPanelMoved = output<{ slotId: string; x: number; y: number }>();
+  readonly stageTransformChanged = output<{ x: number; y: number; scaleX: number; scaleY: number }>();
   centerOnContent = vi.fn();
   setZoom = vi.fn();
+}
+
+@Component({ selector: 'lib-tronc-panel-measurer', standalone: true, template: '' })
+class StubTroncPanelMeasurer {
+  readonly panels = input<TroncPanelMeasureSpec[]>([]);
+  readonly sizesReady = output<Map<string, { width: number; height: number }>>();
+}
+
+@Component({ selector: 'app-tronc-view', standalone: true, template: '' })
+class StubTroncView {
+  readonly mode = input<string>('assignment');
+  readonly troncNodes = input<TroncNodeItem[]>([]);
+  readonly baseNodes = input<TroncNodeItem[]>([]);
+  readonly directionNodes = input<TroncNodeItem[]>([]);
+  readonly assignments = input<AssignmentDetail[]>([]);
+  readonly panelColor = input<string | null>(null);
+  readonly panelBorderColor = input<string | null>(null);
+  readonly figureName = input<string | null>(null);
 }
 
 @Component({ selector: 'app-figure-properties-panel', standalone: true, template: '' })
@@ -96,6 +117,7 @@ const makeDistributionNode = (
   zone,
   x: 0,
   y: 0,
+  z: 0,
   width: 30,
   height: 30,
   rotation: 0,
@@ -104,6 +126,8 @@ const makeDistributionNode = (
   renglaId: null,
   renglaPosition: null,
   positionType: null,
+  sortOrder: 0,
+  climbIndicator: null,
   ...overrides,
 });
 
@@ -185,8 +209,8 @@ describe('DistribucioTabComponent', () => {
       ],
     })
       .overrideComponent(DistribucioTabComponent, {
-        remove: { imports: [FigureCanvasComponent, FigurePropertiesPanelComponent] },
-        add: { imports: [StubFigureCanvas, StubPropertiesPanel] },
+        remove: { imports: [FigureCanvasComponent, FigurePropertiesPanelComponent, TroncViewComponent, TroncPanelMeasurerComponent] },
+        add: { imports: [StubFigureCanvas, StubPropertiesPanel, StubTroncView, StubTroncPanelMeasurer] },
       })
       .compileComponents();
 
@@ -205,6 +229,15 @@ describe('DistribucioTabComponent', () => {
   const panelStub = (): StubPropertiesPanel | null =>
     (fixture.debugElement.query((n) => n.componentInstance instanceof StubPropertiesPanel)
       ?.componentInstance as StubPropertiesPanel) ?? null;
+
+  const troncViewStubs = (): StubTroncView[] =>
+    fixture.debugElement
+      .queryAll((n) => n.componentInstance instanceof StubTroncView)
+      .map((n) => n.componentInstance as StubTroncView);
+
+  const measurerStub = (): StubTroncPanelMeasurer | null =>
+    (fixture.debugElement.query((n) => n.componentInstance instanceof StubTroncPanelMeasurer)
+      ?.componentInstance as StubTroncPanelMeasurer) ?? null;
 
   describe('loading', () => {
     it('loads the distribution for the workspace event/segment', async () => {
@@ -233,6 +266,59 @@ describe('DistribucioTabComponent', () => {
       await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(canvasStub().setZoom).toHaveBeenCalledWith(0.75);
+    });
+  });
+
+  describe('auto-placement measurement', () => {
+    it('measures unplaced instances before computing the layout, staying in loading state meanwhile', async () => {
+      const item = makeDistributionItem(INST_A, { projectionX: null, projectionY: null });
+      await setup({ items: [item] });
+
+      expect(component.loading()).toBe(true);
+      expect(component.slots()).toEqual([]);
+      const measurer = measurerStub();
+      expect(measurer).not.toBeNull();
+      expect(measurer!.panels().map((p) => p.instanceId)).toEqual([INST_A]);
+    });
+
+    it('passes each instance\'s assignments to the measurer (so a wrapped direction line measures correctly)', async () => {
+      const item = makeDistributionItem(INST_A, {
+        figureTemplate: {
+          id: `tpl-${INST_A}`,
+          name: `Figura ${INST_A}`,
+          nodes: [makeDistributionNode('d1', 'DIRECTION')],
+        },
+        assignments: [{ figureNodeId: 'd1', personId: 'person-1', personAlias: 'JoanP' }],
+      });
+      await setup({ items: [item] });
+
+      const [panel] = measurerStub()!.panels();
+      expect(panel.assignments.map((a) => a.node.id)).toEqual(['d1']);
+    });
+
+    it('computes slots with the measured sizes once sizesReady fires, and leaves the loading state', async () => {
+      const item = makeDistributionItem(INST_A, { projectionX: null, projectionY: null });
+      await setup({ items: [item] });
+
+      measurerStub()!.sizesReady.emit(new Map([[INST_A, { width: 500, height: 300 }]]));
+      fixture.detectChanges();
+
+      expect(component.loading()).toBe(false);
+      expect(component.slots().map((s) => s.slotId)).toEqual([INST_A]);
+    });
+
+    it('computes the layout immediately for an already-placed segment, without waiting for measurement', async () => {
+      await setup(); // default fixture item already has a saved projectionX
+
+      expect(component.loading()).toBe(false);
+      expect(component.slots()).toHaveLength(1);
+    });
+
+    it('keeps measuring (continuously) even for an already-placed segment, so the live overlay gets a real size', async () => {
+      await setup(); // default fixture item already has a saved projectionX
+
+      expect(measurerStub()).not.toBeNull();
+      expect(measurerStub()!.panels().map((p) => p.instanceId)).toEqual([INST_A]);
     });
   });
 
@@ -329,6 +415,101 @@ describe('DistribucioTabComponent', () => {
         SEGMENT_ID,
         expect.arrayContaining([expect.objectContaining({ instanceId: INST_A, troncPanelX: 120, troncPanelY: 80 })]),
       );
+    });
+  });
+
+  describe('tronc panel overlay', () => {
+    it('hides the canvas own tronc panel visual, since the overlay renders the real one', async () => {
+      await setup();
+
+      expect(canvasStub().troncPanelVisualHidden()).toBe(true);
+    });
+
+    it('renders no overlay for a slot until the canvas reports its tronc panel position', async () => {
+      await setup();
+
+      expect(troncViewStubs()).toHaveLength(0);
+    });
+
+    it('renders an overlay at the screen position derived from the reported world position and the stage transform', async () => {
+      await setup();
+
+      canvasStub().stageTransformChanged.emit({ x: 5, y: 10, scaleX: 2, scaleY: 2 });
+      canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 100, y: 50 });
+      fixture.detectChanges();
+
+      const [panel] = component.troncViewPanels();
+      expect(panel.screenX).toBe(100 * 2 + 5);
+      expect(panel.screenY).toBe(50 * 2 + 10);
+      expect(troncViewStubs()).toHaveLength(1);
+    });
+
+    it('passes the instance tronc/base/direction nodes and assignments to the overlay', async () => {
+      const item = makeDistributionItem(INST_A, {
+        figureTemplate: {
+          id: `tpl-${INST_A}`,
+          name: `Figura ${INST_A}`,
+          nodes: [
+            makeDistributionNode('p1', 'PINYA'),
+            makeDistributionNode('t1', 'TRONC'),
+            makeDistributionNode('b1', 'BASE'),
+            makeDistributionNode('d1', 'DIRECTION'),
+          ],
+        },
+        assignments: [{ figureNodeId: 't1', personId: 'person-1', personAlias: 'JoanP' }],
+      });
+      await setup({ items: [item] });
+
+      canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 0, y: 0 });
+      fixture.detectChanges();
+
+      const [stub] = troncViewStubs();
+      expect(stub.troncNodes().map((n) => n.id)).toEqual(['t1']);
+      expect(stub.baseNodes().map((n) => n.id)).toEqual(['b1']);
+      expect(stub.directionNodes().map((n) => n.id)).toEqual(['d1']);
+      expect(stub.assignments()[0].person.alias).toBe('JoanP');
+    });
+
+    it('constrains the overlay wrapper to the measured width, once available (so directions wrap like Previsualitza)', async () => {
+      await setup();
+
+      canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 0, y: 0 });
+      measurerStub()!.sizesReady.emit(new Map([[INST_A, { width: 234, height: 80 }]]));
+      fixture.detectChanges();
+
+      const [panel] = component.troncViewPanels();
+      expect(panel.width).toBe(234);
+    });
+
+    it('leaves the overlay wrapper unconstrained before measurement resolves', async () => {
+      await setup();
+
+      canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 0, y: 0 });
+      fixture.detectChanges();
+
+      const [panel] = component.troncViewPanels();
+      expect(panel.width).toBeNull();
+    });
+
+    it('uses the slot label (or template name) as the overlay figureName', async () => {
+      await setup();
+
+      canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 0, y: 0 });
+      fixture.detectChanges();
+
+      const [stub] = troncViewStubs();
+      expect(stub.figureName()).toBe(`Figura ${INST_A}`);
+    });
+
+    it('prefixes the overlay figureName the same way Previsualitza does for PEU/REMAT/NETA modes', async () => {
+      const item = makeDistributionItem(INST_A, { figureMode: 'PEU' });
+      await setup({ items: [item] });
+
+      canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 0, y: 0 });
+      fixture.detectChanges();
+
+      const [stub] = troncViewStubs();
+      expect(stub.figureName()).toBe(`Peu de Figura ${INST_A}`);
     });
   });
 
@@ -462,7 +643,7 @@ describe('DistribucioTabComponent', () => {
               makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 }),
             ],
           },
-          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'n2', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });
@@ -483,7 +664,7 @@ describe('DistribucioTabComponent', () => {
             name: 'Figura a',
             nodes: [makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 })],
           },
-          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'n2', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });
@@ -507,7 +688,7 @@ describe('DistribucioTabComponent', () => {
             name: 'Figura a',
             nodes: [makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 })],
           },
-          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'n2', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });
@@ -550,7 +731,7 @@ describe('DistribucioTabComponent', () => {
             name: 'Figura a',
             nodes: [makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 })],
           },
-          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'n2', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });
@@ -573,7 +754,7 @@ describe('DistribucioTabComponent', () => {
               makeDistributionNode('co', 'PINYA', { renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' }),
             ],
           },
-          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'co', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });
@@ -692,7 +873,7 @@ describe('DistribucioTabComponent', () => {
             name: 'Figura a',
             nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
           },
-          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'co', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });
@@ -712,7 +893,7 @@ describe('DistribucioTabComponent', () => {
             name: 'Figura a',
             nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
           },
-          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'co', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });
@@ -735,7 +916,7 @@ describe('DistribucioTabComponent', () => {
             name: 'Figura a',
             nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
           },
-          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+          assignments: [{ figureNodeId: 'co', personId: 'person-uuid-1', personAlias: 'JoanP' }],
         }),
       ];
       await setup({ items });

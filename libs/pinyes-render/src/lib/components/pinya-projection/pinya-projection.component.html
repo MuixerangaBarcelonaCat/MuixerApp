@@ -3,6 +3,8 @@
      Les figures sense posició desada s'ubiquen amb l'algorisme de col·locació
      (figure-placement.util) perquè sempre es mostren amb aquest mateix canvas. -->
 <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
+  <lib-tronc-panel-measurer [panels]="measurePanels()" (sizesReady)="onMeasuredSizesReady($event)" />
+
   <app-figure-canvas
     #figureCanvas
     class="block w-full h-full"

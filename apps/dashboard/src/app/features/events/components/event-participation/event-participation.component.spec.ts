@@ -5,6 +5,7 @@ import { of, throwError } from 'rxjs';
 import {
   EventParticipationComponent,
   ParticipationRow,
+  placementZoneLabel,
 } from './event-participation.component';
 import { ParticipationService } from '../../services/participation.service';
 import {
@@ -17,7 +18,7 @@ import {
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
-import { TagCategory } from '@muixer/shared';
+import { conflictRelevantPlacements, TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const EVENT_ID = 'event-1';
@@ -97,12 +98,68 @@ const makePerson = (
       (t, k) => t + placements[k].filter((p) => p.area === 'TRONC').length,
       0,
     ),
-    conflictSegmentIds: segmentIds.filter((k) => placements[k].length > 1),
+    conflictSegmentIds: segmentIds.filter(
+      (k) => conflictRelevantPlacements(placements[k], (p) => p).length > 1,
+    ),
     ...overrides,
   };
 };
 
 // ── Pure-unit tests: stateless helpers, no TestBed needed ────────────────────
+
+describe('placementZoneLabel', () => {
+  it('labels non-direction zones by zone', () => {
+    expect(placementZoneLabel({ zone: 'TRONC', positionType: 'segona' })).toBe('Tronc');
+    expect(placementZoneLabel({ zone: 'PINYA', positionType: 'agulla' })).toBe('Pinya');
+  });
+
+  it('labels a direction placement by its flavour', () => {
+    expect(placementZoneLabel({ zone: 'DIRECTION', positionType: 'direccio-tronc' })).toBe('Direcció tronc');
+    expect(placementZoneLabel({ zone: 'DIRECTION', positionType: 'direccio-xicalla' })).toBe('Direcció xicalla');
+    expect(placementZoneLabel({ zone: 'DIRECTION', positionType: 'direccio-pinya' })).toBe('Direcció pinya');
+  });
+
+  it('falls back to "Direcció" for an unknown direction flavour', () => {
+    expect(placementZoneLabel({ zone: 'DIRECTION', positionType: null })).toBe('Direcció');
+  });
+});
+
+describe('EventParticipationComponent — isConflicted (direcció pinya exemption)', () => {
+  let component: Pick<EventParticipationComponent, 'isConflicted' | 'allPlacementsFor'>;
+
+  beforeEach(() => {
+    component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
+  });
+
+  const row = (placements: ParticipationPlacement[]) =>
+    ({ placements: { s1: placements } }) as unknown as ParticipationRow;
+
+  const dp = makePlacement({ assignmentId: 'a-dp', zone: 'DIRECTION', area: 'DIRECTION', positionType: 'direccio-pinya' });
+
+  it('direcció pinya + pinya of the same figure is not a conflict', () => {
+    const placements = [
+      { ...dp, instanceId: 'fig-a' },
+      makePlacement({ assignmentId: 'a-pi', instanceId: 'fig-a', area: 'PINYA' }),
+    ];
+    expect(component.isConflicted(row(placements), 's1')).toBe(false);
+  });
+
+  it('direcció pinya + pinya of a different figure is a conflict', () => {
+    const placements = [
+      { ...dp, instanceId: 'fig-a' },
+      makePlacement({ assignmentId: 'a-pi', instanceId: 'fig-b', area: 'PINYA' }),
+    ];
+    expect(component.isConflicted(row(placements), 's1')).toBe(true);
+  });
+
+  it('direcció pinya + tronc of the same figure is a conflict', () => {
+    const placements = [
+      { ...dp, instanceId: 'fig-a' },
+      makeTroncPlacement({ assignmentId: 'a-tr', instanceId: 'fig-a' }),
+    ];
+    expect(component.isConflicted(row(placements), 's1')).toBe(true);
+  });
+});
 
 describe('EventParticipationComponent — statusLabel', () => {
   let component: Pick<EventParticipationComponent, 'statusLabel' | 'isPast'>;
@@ -927,7 +984,7 @@ describe('EventParticipationComponent', () => {
       const response = buildResponse({
         persons: [
           makePerson('p1', 'DIRECTORA', {
-            [SEG_A]: [makePlacement({ zone: 'FIGURE_DIRECTION', area: 'DIRECTION', nodeLabel: 'Direcció' })],
+            [SEG_A]: [makePlacement({ zone: 'DIRECTION', positionType: 'direccio-tronc', area: 'DIRECTION', nodeLabel: 'Direcció' })],
           }),
         ],
       });

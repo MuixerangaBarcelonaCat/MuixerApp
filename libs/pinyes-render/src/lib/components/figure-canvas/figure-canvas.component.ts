@@ -14,7 +14,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_NODE_PRESETS, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
@@ -111,11 +111,27 @@ const NODE_COLORS: Record<string, string> = {
   [FigureZone.BASE]: '#EEEEEE',
   [FigureZone.PINYA]: '#3b82f6',
   [FigureZone.TRONC]: '#8b5cf6',
-  [FigureZone.FIGURE_DIRECTION]: '#d97706',
-  [FigureZone.XICALLA_DIRECTION]: '#db2777',
+  // Zone-level fallback for a direction node with no `color` of its own; the per-flavour
+  // colour (tronc / xicalla / pinya) normally comes from `node.color`, set from the preset.
+  [FigureZone.DIRECTION]: DIRECTION_NODE_PRESETS[0].color ?? '#d97706',
   [FigureZone.DECORATION]: '#999999',
 };
 const DEFAULT_NODE_COLOR = '#6b7280';
+
+/** The per-flavour direction colour by `positionType`, falling back to the zone colour. */
+function directionColorFor(positionType: string | null | undefined): string {
+  return (
+    DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.color ??
+    NODE_COLORS[FigureZone.DIRECTION]
+  );
+}
+
+/** Zone-derived fill for a node with no `color` of its own — DIRECTION resolves per `positionType`. */
+function nodeZoneColor(node: { zone: string; positionType?: string | null }): string {
+  return node.zone === FigureZone.DIRECTION
+    ? directionColorFor(node.positionType)
+    : (NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+}
 const DECORATION_STROKE = NODE_COLORS[FigureZone.DECORATION];
 
 function decorationFill(color: string | null | undefined): string {
@@ -343,6 +359,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly placementSlotId = input<string | null>(null);
   /** Whether ad-hoc nodes can be dragged/rotated/resized directly on this canvas (Nodes extra tab only). */
   readonly adHocNodesEditable = input<boolean>(false);
+  /**
+   * Composition mode only: suppress the tronc panel's own visible dashed-rect + "Tronc de X"
+   * label — keep the fully-transparent hit rect and its drag/dblclick behaviour. Set by hosts
+   * that render their own visual on top instead (see `troncPanelMoved`); other composition-mode
+   * hosts (e.g. the composition editor) leave this `false` and keep today's placeholder.
+   */
+  readonly troncPanelVisualHidden = input<boolean>(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -367,6 +390,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     troncPanelX: number | null;
     troncPanelY: number | null;
   }>();
+  /**
+   * Composition mode only: the tronc panel Konva group's live world-space top-left — emitted on
+   * initial placement and on every `dragmove` (of the panel itself, or of its linked figure
+   * while `troncPanelVisualHidden` is set), unlike `troncMoved` which only fires on `dragend`.
+   * A host rendering its own visual overlay uses this as the single source of truth for where
+   * to position it, instead of re-deriving linked/detached placement itself.
+   */
+  readonly troncPanelMoved = output<{ slotId: string; x: number; y: number }>();
   readonly nodeDoubleClicked = output<string>();
   readonly stageTransformChanged = output<{
     x: number;
@@ -1339,7 +1370,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         for (const node of pinyaNodes) {
           const personAlias = assignmentMap.get(node.id);
           const fill =
-            node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+            node.color ?? nodeZoneColor(node);
           const nodeGroup = new Konva.Group({
             x: node.x,
             y: node.y,
@@ -1467,32 +1498,42 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       draggable: true,
     });
 
+    const hideVisual = this.troncPanelVisualHidden();
+
+    // Hit area: always present (drag/click target), visible dashed rect only when a host
+    // isn't rendering its own overlay on top (see `troncPanelVisualHidden`).
     troncGroup.add(new Konva.Rect({
       x: 0,
       y: 0,
       width: troncW,
       height: troncH,
-      fill: figColor + '20',
-      stroke: figColor,
-      strokeWidth: 1.5,
-      dash: [6, 3],
+      fill: hideVisual ? 'transparent' : figColor + '20',
+      stroke: hideVisual ? undefined : figColor,
+      strokeWidth: hideVisual ? 0 : 1.5,
+      dash: hideVisual ? undefined : [6, 3],
       cornerRadius: 4,
       listening: true,
     }));
 
-    troncGroup.add(new Konva.Text({
-      x: 0,
-      y: 0,
-      width: troncW,
-      height: troncH,
-      text: 'Tronc de ' + (slot.label ?? slot.figureTemplate.name),
-      fontSize: 18,
-      fontFamily: 'Inter, sans-serif',
-      fill: figColor,
-      align: 'center',
-      verticalAlign: 'middle',
-      listening: false,
-    }));
+    if (!hideVisual) {
+      troncGroup.add(new Konva.Text({
+        x: 0,
+        y: 0,
+        width: troncW,
+        height: troncH,
+        text: 'Tronc de ' + (slot.label ?? slot.figureTemplate.name),
+        fontSize: 18,
+        fontFamily: 'Inter, sans-serif',
+        fill: figColor,
+        align: 'center',
+        verticalAlign: 'middle',
+        listening: false,
+      }));
+    }
+
+    const emitTroncPanelMoved = () => {
+      this.troncPanelMoved.emit({ slotId: slot.slotId, x: troncGroup.x(), y: troncGroup.y() });
+    };
 
     // Keep tronc in sync when figure is dragged (linked mode)
     slotGroup.on('dragmove.tronc', () => {
@@ -1501,6 +1542,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       troncGroup.x(pos.x);
       troncGroup.y(pos.y);
       this.pinyaLayer.batchDraw();
+      emitTroncPanelMoved();
     });
 
     slotGroup.on('dragend.tronc', () => {
@@ -1508,6 +1550,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const pos = this.computeLinkedTroncPosition(slotGroup, figureHalfHeight, troncW, troncH);
       troncGroup.x(pos.x);
       troncGroup.y(pos.y);
+      emitTroncPanelMoved();
     });
 
     troncGroup.on('dragmove', () => {
@@ -1516,6 +1559,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         troncGroup.x(this.snapValue(troncGroup.x(), spacing));
         troncGroup.y(this.snapValue(troncGroup.y(), spacing));
       }
+      emitTroncPanelMoved();
     });
 
     troncGroup.on('dragend', () => {
@@ -1540,9 +1584,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       troncGroup.y(pos.y);
       this.pinyaLayer.batchDraw();
       this.troncMoved.emit({ slotId: slot.slotId, troncPanelX: null, troncPanelY: null });
+      emitTroncPanelMoved();
     });
 
     this.pinyaLayer.add(troncGroup);
+    emitTroncPanelMoved();
   }
 
   private makeRotationHandle(slotId: string, slotGroup: Konva.Group, x: number, y: number): Konva.Circle {
@@ -1684,7 +1730,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       );
       const fill = isDecoration
         ? decorationFill(node.color)
-        : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+        : (node.color ?? nodeZoneColor(node));
       const stroke = isSelected
         ? SELECTED_STROKE
         : isHighlighted
@@ -2106,7 +2152,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const isDecoration = node.zone === FigureZone.DECORATION;
     const fill = isDecoration
       ? decorationFill(node.color)
-      : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+      : (node.color ?? nodeZoneColor(node));
     const stroke = rn.isSelected
       ? SELECTED_STROKE
       : rn.isHighlighted
@@ -2421,7 +2467,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isDecoration = node.zone === FigureZone.DECORATION;
       const fill = isDecoration
         ? decorationFill(node.color)
-        : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+        : (node.color ?? nodeZoneColor(node));
 
       const group = new Konva.Group({
         id: node.id,
@@ -2569,7 +2615,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     isSelected: boolean,
     renglaMaxPosition: Map<string, number> = new Map(),
   ): Konva.Group {
-    const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+    const fill = node.color ?? nodeZoneColor(node);
     const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
     const strokeWidth = isSelected ? 3 : 1.5;
 
@@ -2743,7 +2789,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const pos = calculateGhostPosition(node);
     if (isGhostPositionOccupied(pos, this.nodes())) return;
     const nodeColor =
-      node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+      node.color ?? nodeZoneColor(node);
 
     const ghost = new Konva.Group({
       x: pos.x,

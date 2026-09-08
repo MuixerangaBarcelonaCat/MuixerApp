@@ -17,6 +17,7 @@ import {
   TagCategory,
   areaForZone,
   classifyPlacementKind,
+  conflictRelevantPlacements,
 } from '@muixer/shared';
 
 /** Attendance statuses that mean "this person is coming / came". */
@@ -356,12 +357,20 @@ export class EventParticipationService {
           total + person.placements[id].filter((p) => p.area === AssignmentArea.TRONC).length,
         0,
       );
-      // A conflict is >1 placement in the SAME segment. Placements spread across
-      // different segments are legal and must not be reported.
-      person.conflictSegmentIds = segmentIds.filter((id) => person.placements[id].length > 1);
+      // A conflict is >1 *conflict-relevant* placement in the SAME segment (a `direccio-pinya`
+      // placement is excused against the same figure's own pinya, D13). Placements spread
+      // across different segments are legal and must not be reported.
+      person.conflictSegmentIds = segmentIds.filter(
+        (id) => this.conflictRelevantFor(person.placements[id]).length > 1,
+      );
     }
 
     return [...byId.values()];
+  }
+
+  /** One segment's placements narrowed to those that count toward a conflict (D13). */
+  private conflictRelevantFor(placements: EventParticipationPlacement[]): EventParticipationPlacement[] {
+    return conflictRelevantPlacements(placements, (p) => p);
   }
 
   private toPlacement(row: MatrixRow): EventParticipationPlacement {
@@ -404,7 +413,9 @@ export class EventParticipationService {
     // can never diverge from the canonical `getSegmentConflicts` (D13).
     for (const person of persons) {
       for (const segmentId of person.conflictSegmentIds) {
-        const kind = classifyPlacementKind(person.placements[segmentId].map((p) => p.area));
+        const kind = classifyPlacementKind(
+          this.conflictRelevantFor(person.placements[segmentId]).map((p) => p.area),
+        );
         conflictsByKind[kind] += 1;
       }
     }

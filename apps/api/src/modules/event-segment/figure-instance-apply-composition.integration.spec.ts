@@ -5,6 +5,7 @@ import { FigureInstanceService } from './figure-instance.service';
 import { EventSegmentService } from './event-segment.service';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
+import { InstanceNode } from './entities/instance-node.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { Composition } from '../composition/entities/composition.entity';
 import { Event } from '../event/event.entity';
@@ -37,6 +38,7 @@ describe('FigureInstanceService.applyComposition (integration)', () => {
         EventSegmentService,
         ...realRepositoryProviders(db.dataSource, [
           FigureInstance,
+          InstanceNode,
           EventSegment,
           FigureTemplate,
           Composition,

@@ -11,7 +11,10 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ButtonComponent, InputComponent, BadgeComponent } from '@muixer/ui';
 import {
-  FigureZone,
+  DIRECTION_NODE_PRESETS,
+  DIRECTION_SLOTS,
+  DirectionAssignmentEntry,
+  formatDirectionNames,
   ICON_OBSERVACIONS,
   SHOULDER_HEIGHT_BASELINE_CM,
   TRONC_NODE_PRESETS,
@@ -145,7 +148,7 @@ export class TroncViewComponent {
     targetNodeId: string;
   }>();
 
-  readonly directionAdded = output<{ zone: string }>();
+  readonly directionAdded = output<{ positionType: string }>();
   readonly directionRemoved = output<string>();
 
   // ── Local state ────────────────────────────────────────────────────────────
@@ -173,38 +176,35 @@ export class TroncViewComponent {
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
-  readonly figureDirectionNodes = computed(() =>
-    this.directionNodes().filter((n) => n.zone === FigureZone.FIGURE_DIRECTION),
-  );
-
-  readonly xicallaDirectionNodes = computed(() =>
-    this.directionNodes().filter((n) => n.zone === FigureZone.XICALLA_DIRECTION),
-  );
+  /**
+   * One entry per direction flavour (`DIRECTION_SLOTS` order: tronc → xicalla → pinya), each
+   * with the instance's nodes of that flavour. Every slot is always present — an empty one
+   * still renders its "Afegir" button.
+   */
+  readonly directionSlots = computed(() => {
+    const nodes = this.directionNodes();
+    return DIRECTION_SLOTS.map((slot) => ({
+      slot,
+      nodes: nodes.filter((n) => n.positionType === slot.positionType),
+    }));
+  });
 
   /**
-   * Projection mode: assigned direction people grouped by zone, so all
-   * «Dir. figura» / «Dir. xicalla» people render on one line each — matching
-   * the tronc assignment panel — instead of one row per node.
+   * Projection mode: every assigned direction person on ONE line, in `DIRECTION_SLOTS` order.
+   * Each name carries its flavour marker — «(X)» for direcció xicalla, «(P)» for direcció
+   * pinya, nothing for direcció tronc. The line wraps when it is too long.
    */
-  readonly assignedDirectionGroups = computed(() => {
+  readonly projectionDirectionNames = computed<string[]>(() => {
     const assigns = this.assignments();
-    const groups: { zone: string; label: string; color: string; aliases: string }[] = [];
-    for (const zone of [FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION]) {
-      const aliases = this.directionNodes()
-        .filter((n) => n.zone === zone)
-        .map((n) => assigns.find((a) => a.node.id === n.id))
-        .filter((a): a is AssignmentDetail => !!a)
-        .map((a) => a.person.alias);
-      if (aliases.length > 0) {
-        groups.push({
-          zone,
-          label: this.getDirectionLabel(zone),
-          color: this.getDirectionColor(zone),
-          aliases: aliases.join(', '),
-        });
-      }
-    }
-    return groups;
+    const entries = this.directionNodes()
+      .map((node): DirectionAssignmentEntry | null => {
+        const assignment = assigns.find((a) => a.node.id === node.id);
+        return assignment
+          ? { positionType: node.positionType, personAlias: assignment.person.alias }
+          : null;
+      })
+      .filter((e): e is DirectionAssignmentEntry => e !== null);
+    return formatDirectionNames(entries);
   });
 
   readonly hasAssignedDirections = computed(() => {
@@ -711,8 +711,12 @@ export class TroncViewComponent {
     const halfCols = this.totalColumns();
     const realCols = halfCols / 2;
     const minSize = realCols > 7 ? '1.5rem' : realCols > 4 ? '2rem' : '2.5rem';
-    // Add 2 extra half-columns (= 1 real column) for the add-node button
-    return `repeat(${halfCols}, minmax(${minSize}, 1fr)) 2.5rem`;
+    const base = `repeat(${halfCols}, minmax(${minSize}, 1fr))`;
+    // Add 2 extra half-columns (= 1 real column) for the add-node button — editor mode only,
+    // the only mode that renders it (see `floor-add-node-btn` in the template). Reserving it
+    // unconditionally made every panel (assignment/projection) measure and render wider than
+    // its real content, most visibly as extra empty space on the right in the projection panel.
+    return this.mode() === 'editor' ? `${base} 2.5rem` : base;
   }
 
   /** Grid column for the add-node button (always in the extra column at the end). */
@@ -725,12 +729,14 @@ export class TroncViewComponent {
     return node.color ?? null;
   }
 
-  getDirectionColor(zone: string): string {
-    return zone === FigureZone.FIGURE_DIRECTION ? '#d97706' : '#db2777';
+  /** Border/accent colour for a direction flavour, by `positionType`. */
+  getDirectionColor(positionType: string | null): string {
+    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.color ?? '#64748b';
   }
 
-  getDirectionLabel(zone: string): string {
-    return zone === FigureZone.FIGURE_DIRECTION ? 'Dir.' : 'Xic.';
+  /** Short row caption for a direction flavour, by `positionType`. */
+  getDirectionLabel(positionType: string | null): string {
+    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.shortLabel ?? 'Dir.';
   }
 
   getPositionTypeBadge(node: TroncNodeItem): string {

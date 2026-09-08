@@ -189,11 +189,11 @@ describe('ghost-clone.util', () => {
       ).toBe(false);
     });
 
-    it('returns false for FIGURE_DIRECTION zone', () => {
+    it('returns false for the DIRECTION zone', () => {
       expect(
         isGhostEligible({
-          zone: FigureZone.FIGURE_DIRECTION,
-          positionType: null,
+          zone: FigureZone.DIRECTION,
+          positionType: 'direccio-tronc',
           renglaPosition: null
         }, 0),
       ).toBe(false);
