@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, booleanAttribute, computed, effect, forwardRef, input, output, signal, viewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import type { LucideIconData } from 'lucide-angular';
-import { LucideAngularModule } from 'lucide-angular';
+import { Eye, EyeOff, LucideAngularModule } from 'lucide-angular';
 import { FormFieldComponent } from '../form-field/form-field.component';
 
 export type InputSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -22,6 +22,10 @@ let nextId = 0;
   imports: [LucideAngularModule, FormFieldComponent],
   templateUrl: './input.component.html',
   styleUrls: ['./input.component.scss'],
+  // A static `id="…"` on <lib-input> is bound to the `id` input *and* reflected onto the host
+  // element. Stripping it here leaves a single element carrying the id — the native input — so an
+  // external <label for="…"> focuses the field instead of the wrapper.
+  host: { '[attr.id]': 'null' },
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -67,6 +71,20 @@ export class InputComponent implements ControlValueAccessor {
   protected readonly value = signal('');
   private readonly formDisabled = signal(false);
   private readonly generatedId = `lib-input-${++nextId}`;
+
+  // Reveal toggle: offered automatically for every password field (no opt-in flag), because a
+  // masked field the user can't read back is the same usability problem everywhere it appears.
+  protected readonly EyeIcon = Eye;
+  protected readonly EyeOffIcon = EyeOff;
+  private readonly revealed = signal(false);
+
+  protected readonly isPassword = computed(() => this.type() === 'password');
+  // `revealed` is only honored while the field really is a password one, so a caller switching
+  // the type away can't leave the input showing a stale `text`.
+  protected readonly effectiveType = computed(() =>
+    this.isPassword() && this.revealed() ? 'text' : this.type(),
+  );
+  protected readonly isRevealed = computed(() => this.isPassword() && this.revealed());
 
   protected readonly inputId = computed(() => this.id() ?? this.generatedId);
   protected readonly descriptionId = computed(() => `${this.inputId()}-description`);
@@ -120,6 +138,10 @@ export class InputComponent implements ControlValueAccessor {
     const newValue = (event.target as HTMLInputElement).value;
     this.value.set(newValue);
     this.onChange(newValue);
+  }
+
+  protected toggleReveal(): void {
+    this.revealed.update((revealed) => !revealed);
   }
 
   protected onBlur(): void {

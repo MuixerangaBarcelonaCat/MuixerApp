@@ -9,6 +9,7 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule, AlertCircle } from 'lucide-angular';
 import { InviteRegistrationContext, RegisterViaInviteRequest } from '@muixer/shared';
+import { InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { PersonDataFieldsComponent } from '../../../shared/components/person-data-fields/person-data-fields.component';
 import {
@@ -27,7 +28,13 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   selector: 'app-activate',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, PersonDataFieldsComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    LucideAngularModule,
+    PersonDataFieldsComponent,
+    InputComponent,
+  ],
   templateUrl: './activate.component.html',
 })
 export class ActivateComponent {

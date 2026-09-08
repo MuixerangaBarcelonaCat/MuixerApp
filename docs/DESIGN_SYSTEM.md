@@ -297,7 +297,7 @@ The label/required-marker/hint/error chrome shared by `lib-input` and `lib-selec
 | `ariaLabel` | `string` | — | For a compact, label-less field (no visible `label`) that still needs an accessible name — `label` always renders visible text via `lib-form-field`, which isn't the right call for e.g. an inline rename field in a toolbar row |
 | `icon` | `LucideIconData` | — | Optional prefix icon inside the box |
 | `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg`. Watch for this specifically when migrating a page whose raw markup used unmodified `.input input-bordered` (no size class, i.e. DaisyUI's implicit `md`, 48px) — swapping in `lib-input` with no `size` set silently shrinks it to `sm` (32px). Pass `size="md"` explicitly to preserve the original height (hit on the auth pages) |
-| `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically. `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types |
+| `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically; a passed `id` lands on the native `<input>` only (the host strips its own reflected copy, so an external `<label for="…">` focuses the field, not the wrapper). `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types, and `'password'` brings its own reveal toggle — see below |
 | `min`, `max` | `string \| number` | — | Passed straight through to the native `min`/`max` attributes — meaningful for `type="number"`/`"date"`, browsers already validate/constrain against them |
 | `maxLength` | `number` | — | Passed straight through to the native `maxlength` attribute |
 | `autofocus` | `boolean` | `false` | Imperative (a constructor `effect()` + `viewChild` calling `.focus()`), not the native HTML `autofocus` attribute — this field is almost always toggled into existence by an `@if` (an inline rename row appearing), and the native attribute's own "focus on insertion" behavior is inconsistent across browsers for that case in a way a direct call isn't |
@@ -310,8 +310,11 @@ The native `<input>` itself always carries `min-h-6` — a >=24px tap target ind
 
 Border weight and the focus-swap-in-place treatment come from the shared `_fields.scss` partial — see above.
 
+**`type="password"` renders a reveal toggle** (eye / crossed-out eye) at the trailing edge of the box, with no opt-in flag: a masked field nobody can read back is the same usability problem on every screen, so the affordance is part of the type rather than a per-caller decision. It's a `type="button"` (never submits the surrounding form), carries `aria-pressed` + a Catalan `aria-label` that flips with the state, is disabled together with the field, and only flips the *rendered* type — the `type` input the caller passed is never mutated, so switching a field away from `password` while revealed can't leave it showing plain text. This is the reason every password field in both apps goes through `lib-input`.
+
 ```html
 <lib-input formControlName="email" label="Correu electrònic" [icon]="Mail" type="email" required />
+<lib-input formControlName="password" label="Contrasenya" type="password" autocomplete="current-password" />
 <lib-input formControlName="shoulderHeight" label="Alçada espatlles (cm)" type="number" [min]="0" [max]="250" />
 ```
 

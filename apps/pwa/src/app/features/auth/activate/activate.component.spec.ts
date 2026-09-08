@@ -102,7 +102,7 @@ describe('ActivateComponent', () => {
 
     expect(component.form.controls.email.value).toBe('legacy@test.cat');
     expect(component.form.controls.email.disabled).toBe(true);
-    expect(fixture.nativeElement.querySelector('#activate-email').disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('input[type="email"]').disabled).toBe(true);
   });
 
   it('leaves the email empty and editable when the account has none yet', async () => {
