@@ -138,26 +138,10 @@ describe('DelegationsModalComponent', () => {
       await stableFixture(fixture);
     });
 
+    // Backdrop click / Escape / "click inside doesn't close" are lib-modal's own responsibility,
+    // already covered by its spec (libs/ui) — this page only needs to verify its own wiring.
     it('emits closed when the close button is clicked', () => {
       (fixture.nativeElement.querySelector('[aria-label="Tancar"]') as HTMLButtonElement).click();
-      expect(closed).toBe(true);
-    });
-
-    it('emits closed when the backdrop is clicked', () => {
-      const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
-      dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      expect(closed).toBe(true);
-    });
-
-    it('does not emit closed when the modal content itself is clicked', () => {
-      const box = fixture.nativeElement.querySelector('.modal-box') as HTMLElement;
-      box.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      expect(closed).toBe(false);
-    });
-
-    it('emits closed on Escape', () => {
-      const dialog = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
-      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       expect(closed).toBe(true);
     });
   });
@@ -175,11 +159,11 @@ describe('DelegationsModalComponent', () => {
     });
 
     function fillForm(alias: string, delegateType: DelegateType): void {
-      setInputValue(fixture.nativeElement.querySelector('#delegate-alias'), alias);
-      (fixture.nativeElement.querySelector('#delegate-type') as HTMLSelectElement).value =
+      setInputValue(fixture.nativeElement.querySelector('#delegate-alias input'), alias);
+      (fixture.nativeElement.querySelector('#delegate-type select') as HTMLSelectElement).value =
         delegateType;
       fixture.nativeElement
-        .querySelector('#delegate-type')
+        .querySelector('#delegate-type select')
         .dispatchEvent(new Event('change'));
       fixture.detectChanges();
     }
@@ -197,12 +181,12 @@ describe('DelegationsModalComponent', () => {
     });
 
     it('has no relationship type selected by default', () => {
-      const select = fixture.nativeElement.querySelector('#delegate-type') as HTMLSelectElement;
+      const select = fixture.nativeElement.querySelector('#delegate-type select') as HTMLSelectElement;
       expect(select.value).toBe('');
     });
 
     it('disables submit until a relationship type is selected', () => {
-      setInputValue(fixture.nativeElement.querySelector('#delegate-alias'), 'Oncle');
+      setInputValue(fixture.nativeElement.querySelector('#delegate-alias input'), 'Oncle');
       fixture.detectChanges();
 
       const submitButton = fixture.nativeElement.querySelector(
@@ -225,7 +209,7 @@ describe('DelegationsModalComponent', () => {
       expect(toastService.success).not.toHaveBeenCalled();
       expect(profileService.listDelegates).toHaveBeenCalledTimes(2);
       expect(
-        (fixture.nativeElement.querySelector('#delegate-alias') as HTMLInputElement).value,
+        (fixture.nativeElement.querySelector('#delegate-alias input') as HTMLInputElement).value,
       ).toBe('');
     });
 
@@ -269,17 +253,17 @@ describe('DelegationsModalComponent', () => {
     });
 
     it('asks for confirmation before removing', () => {
-      (fixture.nativeElement.querySelector('[data-testid="remove-delegate"]') as HTMLButtonElement).click();
+      (fixture.nativeElement.querySelector('[data-testid="remove-delegate"] button') as HTMLButtonElement).click();
       fixture.detectChanges();
 
       expect(profileService.removeDelegate).not.toHaveBeenCalled();
-      expect(fixture.nativeElement.querySelector('[data-testid="confirm-remove"]')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="confirm-remove"] button')).toBeTruthy();
     });
 
     it('removes the delegate after confirming and reloads the list without a success toast', async () => {
-      (fixture.nativeElement.querySelector('[data-testid="remove-delegate"]') as HTMLButtonElement).click();
+      (fixture.nativeElement.querySelector('[data-testid="remove-delegate"] button') as HTMLButtonElement).click();
       fixture.detectChanges();
-      (fixture.nativeElement.querySelector('[data-testid="confirm-remove"]') as HTMLButtonElement).click();
+      (fixture.nativeElement.querySelector('[data-testid="confirm-remove"] button') as HTMLButtonElement).click();
       await stableFixture(fixture);
 
       expect(profileService.removeDelegate).toHaveBeenCalledWith('p-1', 'd-2');
@@ -288,13 +272,13 @@ describe('DelegationsModalComponent', () => {
     });
 
     it('cancels the removal without calling removeDelegate', () => {
-      (fixture.nativeElement.querySelector('[data-testid="remove-delegate"]') as HTMLButtonElement).click();
+      (fixture.nativeElement.querySelector('[data-testid="remove-delegate"] button') as HTMLButtonElement).click();
       fixture.detectChanges();
-      (fixture.nativeElement.querySelector('[data-testid="cancel-remove"]') as HTMLButtonElement).click();
+      (fixture.nativeElement.querySelector('[data-testid="cancel-remove"] button') as HTMLButtonElement).click();
       fixture.detectChanges();
 
       expect(profileService.removeDelegate).not.toHaveBeenCalled();
-      expect(fixture.nativeElement.querySelector('[data-testid="confirm-remove"]')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('[data-testid="confirm-remove"] button')).toBeFalsy();
     });
   });
 });

@@ -1,13 +1,11 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
-import { LucideAngularModule, Settings, Users, User } from 'lucide-angular';
+import { LucideAngularModule, ChevronRight, Settings, Users, User } from 'lucide-angular';
 import { ManagedPerson, PersonProfileSummary } from '@muixer/shared';
 import { MobileHeaderComponent } from '../../shared/components/mobile-header/mobile-header.component';
 import { PersonSwitcherComponent } from '../../shared/components/person-switcher/person-switcher.component';
-import { PillBadgeComponent } from '../../shared/components/pill-badge/pill-badge.component';
 import { SkeletonCardComponent } from '../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '@muixer/ui';
+import { ButtonComponent, CardComponent, EmptyStateComponent } from '@muixer/ui';
 import { DelegationsModalComponent } from './delegations-modal/delegations-modal.component';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { ProfileService } from './services/profile.service';
@@ -17,17 +15,16 @@ import { ProfileService } from './services/profile.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
     LucideAngularModule,
     MobileHeaderComponent,
     PersonSwitcherComponent,
-    PillBadgeComponent,
     SkeletonCardComponent,
+    ButtonComponent,
+    CardComponent,
     EmptyStateComponent,
     DelegationsModalComponent,
   ],
   templateUrl: './profile.component.html',
-  styleUrls: ['./profile.component.scss'],
 })
 export class ProfileComponent {
   private readonly auth = inject(AuthService);
@@ -36,6 +33,7 @@ export class ProfileComponent {
   protected readonly SettingsIcon = Settings;
   protected readonly UsersIcon = Users;
   protected readonly UserIcon = User;
+  protected readonly ChevronRight = ChevronRight;
 
   /** Placeholder tiles — real stats are deferred (see implementation plan §5). */
   protected readonly statPlaceholders = ['Assajos', 'Actuacions', 'Assistència'];

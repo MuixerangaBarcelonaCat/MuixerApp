@@ -1,9 +1,9 @@
 <div class="dropdown">
-  <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-1 px-2">
+  <lib-button variant="ghost" size="sm" data-testid="person-switcher-trigger">
     <span class="truncate max-w-32">{{ selectedLabel() }}</span>
     <lucide-icon [img]="ChevronDown" [size]="16" />
-  </div>
-  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-10 w-48 p-2 shadow-sm">
+  </lib-button>
+  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-dropdown w-48 p-2 shadow-overlay">
     @for (item of items(); track item.personId) {
       <li>
         <button
