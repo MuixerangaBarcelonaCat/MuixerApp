@@ -8,6 +8,9 @@ tags: [domini]
 > §6-7 actualitzades agost 2026: l'onboarding de membres passa d'invitació per correu
 > (mai implementada) a enllaç copiat manualment + registre a la PWA, i s'hi afegeix el
 > flux de dependents (xicalla).
+> §6.0 afegida setembre 2026: regla d'accés (només s'entra si ja existeix la `Person`),
+> els dos estats d'entrada segons si ja tenim el correu, i comparació d'emails
+> insensible a majúscules.
 
 ---
 
@@ -25,10 +28,14 @@ Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense co
 - **Dashboard** (ADMIN/TECHNICAL): gent de la junta/tècnica, gestiona tota l'app.
 - **PWA** (MEMBER): membres normals, només veuen les seues coses (assajos, actuacions, la seua fitxa).
 
+**Regla d'or:** només pot entrar a l'app algú que ja existisca com a **Persona** al Dashboard (encara que siga una fitxa provisional, a mitges). Els perfils els creen i gestionen sempre els admins/tècnics; ningú es dona d'alta pel seu compte.
+
 **Com fa "login" un membre per primera vegada — no hi ha registre lliure:**
 1. Algú del Dashboard (ADMIN/TECHNICAL) entra a la fitxa de la persona i prem **"Crea enllaç d'invitació"**.
 2. Este enllaç **no s'envia sol per correu** — l'admin l'ha de copiar i enviar-lo a mà (WhatsApp, normalment) a la persona.
-3. La persona obre l'enllaç al mòbil → s'obre la PWA a la pantalla **"Activa el teu compte"**, ja amb el seu nom prellenat → tria un email i una contrasenya, accepta la política de privacitat → **ja queda dins**, sense haver de tornar a fer login.
+3. La persona obre l'enllaç al mòbil → s'obre la PWA a la pantalla **"Activa el teu compte"**, ja amb **totes les dades que tenim d'ella prellenades** (nom, cognoms, gènere, telèfon, data de naixement) → les revisa i corregeix, completa el que falte, tria una contrasenya, accepta la política de privacitat → **ja queda dins**, sense haver de tornar a fer login.
+   - **Si ja teníem el seu correu** (ve del sistema antic), apareix escrit i **no el pot canviar** — si és incorrecte, l'ha de canviar un tècnic des del Dashboard abans que ella active el compte.
+   - **Si no en teníem cap** (persona donada d'alta a mà), el correu l'escriu ella. Si ja pertany a un altre compte, li dirà que aquest correu ja existeix — llavors cal mirar si eixa persona ja té compte o si hi ha una fitxa duplicada.
 4. **L'enllaç caduca als 3 dies.** Si caduca abans que la persona l'active, l'admin torna a prémer el mateix botó i genera un enllaç nou — sempre l'últim que s'ha enviat és el vàlid, els anteriors deixen de funcionar.
 5. **Un cop el compte ja està actiu, el botó d'enllaç desapareix** de la fitxa (ja no es pot tornar a generar) — a partir d'ací la persona entra sempre amb el seu email i contrasenya.
 
@@ -147,9 +154,44 @@ Body: { email, password, role?, personId? }   ├─ crear User (isActive: true)
 
 ## 6. Onboarding de membres (enllaç d'invitació, no correu)
 
+### 6.0 Regla d'accés
+
+**Només s'entra a l'app si abans existeix una `Person`.** No hi ha registre lliure ni cap
+pantalla pública on algú puga donar-se d'alta. La seqüència és sempre la mateixa:
+
+```
+Un ADMIN/TECHNICAL crea la Person   →   genera l'enllaç d'invitació   →   la persona l'activa
+   (o la porta el sync legacy)              (Dashboard, fitxa)              (PWA, /activate)
+```
+
+La `Person` pot ser **provisional** (alias amb prefix `~`, dades a mitges): serveix igualment
+per convidar, i activar el compte la promou a definitiva. Qui gestiona el padró de persones
+són sempre els admins i tècnics; l'usuari final només completa i corregeix les seues pròpies
+dades durant l'activació.
+
+**Dos estats d'entrada**, segons si ja tenim el correu de la persona:
+
+| Origen de la `Person` | `user.email` en generar l'enllaç | Camp email a `/activate` |
+|---|---|---|
+| Sync legacy amb correu | ple (el sync crea el `User` esborrany amb el correu legacy) | prellenat i **bloquejat** |
+| Sync legacy sense correu | `null` | buit i editable |
+| Creada a mà al Dashboard | `null` | buit i editable |
+
+`Person` **no té columna email** — el correu viu només a `User`. Per això una persona creada
+a mà arriba a l'activació sense correu conegut i és ella qui l'escriu; si el que escriu ja
+pertany a un altre compte, rep un 409 (`Ja existeix un compte amb aquest email`). Quan el
+correu ja el tenim, el del cos de la petició s'ignora i es manté el de l'admin: canviar-lo és
+una acció de tècnic, no d'usuari.
+
+Els correus es normalitzen a minúscules en escriure'ls i es comparen sense distingir
+majúscules (`AuthService.findByEmail`), tant al login com al registre i al canvi de correu —
+un membre que escriu `Joan@Correu.cat` entra igual.
+
+### 6.1 Generació de l'enllaç i activació
+
 No s'envia cap correu: l'admin genera un enllaç des del Dashboard i el reenvia manualment
-(WhatsApp). El membre l'obri a la PWA, completa les seues dades i el compte s'activa amb
-auto-login.
+(WhatsApp). El membre l'obri a la PWA, revisa les dades que ja tenim, completa el que falta i
+el compte s'activa amb auto-login.
 
 ```
 Dashboard (admin)                         Backend
@@ -174,11 +216,15 @@ PWA (membre)                              Backend
 ─────────────                             ───────
 GET /auth/invite/:token             →     AuthController.getInviteContext()
                                           ├─ valida hash + expiresAt
-                                    ←     { person (prellenat), expiresAt, legalDocument }
+                                    ←     { email (o null), person (prellenat),
+                                            expiresAt, legalDocument }
 
 POST /auth/invite/register          →     AuthController.registerViaInvite()
 { token, email, password,                 AuthService.registerViaInvite() — transaccional:
-  legalAccepted, name, firstSurname,      ├─ valida token + email no usat
+  legalAccepted, name, firstSurname,      ├─ valida token; email = user.email ?? dto.email
+                                          │   (si el compte ja en té, el del cos s'ignora)
+                                          ├─ si no en tenia: 409 si el correu és d'un ALTRE
+                                          │   usuari — el propi esborrany no compta
   secondSurname?, gender, phone,          ├─ activa User (email, password, isActive: true)
   birthDate }                             ├─ promou Person (PersonService.update amb manager):
                                           │   isProvisional → false, treu prefix `~` de l'alias
@@ -190,6 +236,11 @@ POST /auth/invite/register          →     AuthController.registerViaInvite()
 El formulari de registre és `PersonRegistrationDataDto` (nom, cognoms, gènere, telèfon E.164
 validat amb `libphonenumber-js`, data de naixement) + `email`/`password`/`legalAccepted` —
 compartit amb el flux de dependents (§7) via el mateix DTO base.
+
+**Tots** els camps que el context retorna arriben prellenats (nom, cognoms, gènere, telèfon
+partit en país + número via `splitPhoneNumber`, data de naixement) i són editables: l'usuari
+corregeix el que estiga malament i completa el que falte. L'única excepció és el correu quan
+ja el tenim (§6.0). El formulari, doncs, és de **revisió**, no d'alta des de zero.
 
 ---
 

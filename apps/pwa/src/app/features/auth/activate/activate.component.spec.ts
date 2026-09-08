@@ -7,6 +7,7 @@ import { ActivateComponent } from './activate.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 const mockContext: InviteRegistrationContext = {
+  email: null,
   person: {
     name: 'Joan',
     firstSurname: 'Garcia',
@@ -28,9 +29,9 @@ describe('ActivateComponent', () => {
   };
   let router: { navigate: ReturnType<typeof vi.fn> };
 
-  const setup = async (token: string | null) => {
+  const setup = async (token: string | null, context: InviteRegistrationContext = mockContext) => {
     authService = {
-      getInviteContext: vi.fn().mockReturnValue(of(mockContext)),
+      getInviteContext: vi.fn().mockReturnValue(of(context)),
       registerViaInvite: vi.fn().mockReturnValue(of(void 0)),
     };
     router = { navigate: vi.fn() };
@@ -84,11 +85,47 @@ describe('ActivateComponent', () => {
     expect(fixture.nativeElement.querySelector('form')).toBeFalsy();
   });
 
-  it('prefills the personal-data form group from the invite context', async () => {
+  it('prefills every personal-data field the invite context carries, phone and birth date included', async () => {
     await setup('raw-token');
 
-    expect(component.form.controls.personalData.controls.name.value).toBe('Joan');
-    expect(component.form.controls.personalData.controls.firstSurname.value).toBe('Garcia');
+    const personalData = component.form.controls.personalData.controls;
+    expect(personalData.name.value).toBe('Joan');
+    expect(personalData.firstSurname.value).toBe('Garcia');
+    expect(personalData.gender.value).toBe(Gender.MALE);
+    expect(personalData.country.value).toBe('ES');
+    expect(personalData.phoneNumber.value).toBe('612345678');
+    expect(personalData.birthDate.value).toBe('2000-01-15');
+  });
+
+  it('prefills and locks the email when the colla already has one on file', async () => {
+    await setup('raw-token', { ...mockContext, email: 'legacy@test.cat' });
+
+    expect(component.form.controls.email.value).toBe('legacy@test.cat');
+    expect(component.form.controls.email.disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('#activate-email').disabled).toBe(true);
+  });
+
+  it('leaves the email empty and editable when the account has none yet', async () => {
+    await setup('raw-token');
+
+    expect(component.form.controls.email.value).toBe('');
+    expect(component.form.controls.email.disabled).toBe(false);
+  });
+
+  it('still submits the locked email, which the backend ignores in favour of its own', async () => {
+    await setup('raw-token', { ...mockContext, email: 'legacy@test.cat' });
+
+    component.form.patchValue({
+      password: 'newpass123',
+      confirmPassword: 'newpass123',
+      legalAccepted: true,
+    });
+
+    component.onSubmit();
+
+    expect(authService.registerViaInvite).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'legacy@test.cat' }),
+    );
   });
 
   it('renders the legal document content and requires the acceptance checkbox', async () => {

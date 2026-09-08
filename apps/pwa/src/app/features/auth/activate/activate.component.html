@@ -23,6 +23,11 @@
       } @else if (loading()) {
         <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
       } @else {
+        <p class="text-sm text-base-content/60">
+          Hola{{ context()?.person?.name ? ', ' + context()?.person?.name : '' }}! Revisa les dades que ja tenim,
+          completa el que falte i tria una contrasenya.
+        </p>
+
         <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
           <label class="form-control w-full" for="activate-email">
             <div class="label pb-1"><span class="label-text font-medium">Correu electrònic</span></div>
@@ -34,6 +39,13 @@
               autocomplete="email"
               inputmode="email"
             />
+            @if (context()?.email) {
+              <div class="label pt-1">
+                <span class="label-text-alt text-base-content/60">
+                  Este és el correu que la colla té registrat. Si no és correcte, demana-li a un tècnic que el canvie.
+                </span>
+              </div>
+            }
           </label>
 
           <label class="form-control w-full" for="activate-password">

@@ -553,6 +553,26 @@ describe('AuthService', () => {
       expect(legalService.findActive).toHaveBeenCalledWith(LegalDocumentType.PRIVACY_POLICY);
     });
 
+    it.each([
+      ['exposes the email the colla already has on file', 'legacy@test.cat'],
+      ['exposes a null email when the account has none yet', null],
+    ])('%s', async (_label, email) => {
+      userRepo.findOne.mockResolvedValue(
+        makeUser({
+          email,
+          inviteToken: hashToken('valid-token'),
+          inviteExpiresAt: new Date(Date.now() + 3600_000),
+          isActive: false,
+          person: { id: 'person-1', alias: '~joan', name: 'Joan', firstSurname: 'Garcia' } as Person,
+        }),
+      );
+      legalService.findActive.mockResolvedValue({ content: 'Text legal', version: 3 });
+
+      const result = await service.getInviteContext('valid-token');
+
+      expect(result.email).toBe(email);
+    });
+
     it('handles a birthDate returned as a plain string instead of a Date', async () => {
       const user = makeUser({
         inviteToken: hashToken('valid-token'),
