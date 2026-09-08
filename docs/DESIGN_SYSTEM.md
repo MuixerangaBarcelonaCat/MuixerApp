@@ -300,6 +300,8 @@ The label/required-marker/hint/error chrome shared by `lib-input` and `lib-selec
 | `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically; a passed `id` lands on the native `<input>` only (the host strips its own reflected copy, so an external `<label for="…">` focuses the field, not the wrapper). `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types, and `'password'` brings its own reveal toggle — see below |
 | `min`, `max` | `string \| number` | — | Passed straight through to the native `min`/`max` attributes — meaningful for `type="number"`/`"date"`, browsers already validate/constrain against them |
 | `maxLength` | `number` | — | Passed straight through to the native `maxlength` attribute |
+| `name` | `string` | — | Passed straight through to the native `name` attribute. Only needed for credential fields: the browser's password manager keys off `autocomplete` first and falls back to `name` (most third-party managers — Bitwarden, 1Password — read `name` directly), and the auto-generated `id` is useless to them. See the credential-field recipe below |
+| `readonly` | `boolean` | `false` | Native `readOnly`: visible, focusable, **submitted with the form**, not editable. Reach for this over `disabled` whenever the value is real data the browser should be able to read — a `disabled` field is excluded from submission and ignored by password managers entirely. Hides the `type="password"` reveal toggle (nothing to type, and the value isn't the user's to unmask) |
 | `autofocus` | `boolean` | `false` | Imperative (a constructor `effect()` + `viewChild` calling `.focus()`), not the native HTML `autofocus` attribute — this field is almost always toggled into existence by an `@if` (an inline rename row appearing), and the native attribute's own "focus on insertion" behavior is inconsistent across browsers for that case in a way a direct call isn't |
 
 | Output | Payload | Notes |
@@ -316,6 +318,26 @@ Border weight and the focus-swap-in-place treatment come from the shared `_field
 <lib-input formControlName="email" label="Correu electrònic" [icon]="Mail" type="email" required />
 <lib-input formControlName="password" label="Contrasenya" type="password" autocomplete="current-password" />
 <lib-input formControlName="shoulderHeight" label="Alçada espatlles (cm)" type="number" [min]="0" [max]="250" />
+```
+
+**Credential fields — the recipe.** For the browser (and any external password manager) to offer to save the credentials and refill them later, a login/activation/reset form needs all of this, not just `type="password"`:
+
+- A real `<form>` with a `type="submit"` button. An `(ngSubmit)` handler is enough — the manager listens for the submit event, it doesn't need a page navigation.
+- The identifier field tagged `autocomplete="username"` **and** `name="username"`. Not `autocomplete="email"`: that token is for a contact-address field, and it doesn't pair the field with the password. This applies to the "forgot password" screens too, where the email *is* the identifier.
+- The password tagged `autocomplete="current-password"` (sign-in) or `new-password` (activation, reset, change-password), plus a matching `name`. A change-password form that carries both tokens gets an *update* prompt instead of a second saved entry.
+- On a screen where the identifier is already known and locked (the invite activation, whose email comes from the server), the field must be **`readonly`, never `disabled`** — otherwise the browser saves the new password with no username attached and can't refill the email at the next login. This is exactly the screen where the save matters most, since it's the user's very first password.
+- Deliberate exception: an admin creating *someone else's* account (`user-form-modal`) uses `autocomplete="off"` + `new-password` — we don't want the admin's browser storing it as their own credential.
+
+Requires a secure origin: on plain HTTP (other than `localhost`) Chrome flags the form and iOS restricts keychain AutoFill.
+
+```html
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+  <lib-input formControlName="email" label="Correu electrònic" type="email"
+             autocomplete="username" name="username" [readonly]="emailIsLocked()" />
+  <lib-input formControlName="password" label="Contrasenya" type="password"
+             autocomplete="current-password" name="password" />
+  <lib-button type="submit" variant="primary">Entra</lib-button>
+</form>
 ```
 
 `textarea` has its own component — see `lib-textarea` below — sharing the same `ControlValueAccessor`/`lib-form-field` contract rather than being folded into `lib-input` itself (a multi-line control needs `rows`/`resize`, neither meaningful for a single-line input).

@@ -101,8 +101,21 @@ describe('ActivateComponent', () => {
     await setup('raw-token', { ...mockContext, email: 'legacy@test.cat' });
 
     expect(component.form.controls.email.value).toBe('legacy@test.cat');
-    expect(component.form.controls.email.disabled).toBe(true);
-    expect(fixture.nativeElement.querySelector('input[type="email"]').disabled).toBe(true);
+    // Readonly, no disabled: un camp disabled no s'envia amb el formulari i el gestor de
+    // contrasenyes del navegador l'ignora, així que guardaria la contrasenya nova sense usuari
+    // associat — justament al moment en què l'usuari tria la seua primera contrasenya.
+    expect(component.form.controls.email.disabled).toBe(false);
+    const emailInput = fixture.nativeElement.querySelector('input[type="email"]');
+    expect(emailInput.readOnly).toBe(true);
+    expect(emailInput.disabled).toBe(false);
+  });
+
+  it('marks the email as the username so the browser can save it with the new password', async () => {
+    await setup('raw-token', { ...mockContext, email: 'legacy@test.cat' });
+
+    const emailInput = fixture.nativeElement.querySelector('input[type="email"]');
+    expect(emailInput.getAttribute('autocomplete')).toBe('username');
+    expect(emailInput.getAttribute('name')).toBe('username');
   });
 
   it('leaves the email empty and editable when the account has none yet', async () => {

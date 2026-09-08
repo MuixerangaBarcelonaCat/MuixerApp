@@ -16,6 +16,8 @@
       [attr.max]="max() ?? null"
       [attr.maxlength]="maxLength() ?? null"
       [attr.autocomplete]="autocomplete() ?? null"
+      [attr.name]="name() ?? null"
+      [readOnly]="readonly()"
       [attr.aria-label]="ariaLabel() ?? null"
       [attr.aria-invalid]="hasError() ? 'true' : null"
       [attr.aria-describedby]="hasDescription() ? descriptionId() : null"
@@ -23,7 +25,7 @@
       (blur)="onBlur()"
       data-testid="lib-input-native"
     />
-    @if (isPassword()) {
+    @if (isPassword() && !readonly()) {
       <button
         type="button"
         class="shrink-0 -mr-1 p-1 rounded text-base-content/40 hover:text-base-content/70 disabled:opacity-40 disabled:hover:text-base-content/40"

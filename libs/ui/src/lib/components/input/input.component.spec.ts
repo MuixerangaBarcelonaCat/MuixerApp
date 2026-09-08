@@ -65,6 +65,40 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('date');
   });
 
+  describe('name — perquè els gestors de contrasenyes reconeguen el camp', () => {
+    it('sets no name attribute by default', () => {
+      expect(nativeInput().hasAttribute('name')).toBe(false);
+    });
+
+    it('forwards name to the native input', () => {
+      fixture.componentRef.setInput('name', 'password');
+      fixture.detectChanges();
+      expect(nativeInput().getAttribute('name')).toBe('password');
+    });
+  });
+
+  describe('readonly — camp visible i enviable, però no editable', () => {
+    it('is not readonly by default', () => {
+      expect(nativeInput().readOnly).toBe(false);
+    });
+
+    it('forwards readonly to the native input without disabling it', () => {
+      fixture.componentRef.setInput('readonly', true);
+      fixture.detectChanges();
+      // A diferència de `disabled`, un camp readonly s'envia amb el formulari i el gestor de
+      // contrasenyes del navegador el veu — d'ací que l'email prellenat de l'activació l'use.
+      expect(nativeInput().readOnly).toBe(true);
+      expect(nativeInput().disabled).toBe(false);
+    });
+
+    it('hides the password reveal button while readonly, as there is nothing to type', () => {
+      fixture.componentRef.setInput('type', 'password');
+      fixture.componentRef.setInput('readonly', true);
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css('[data-testid="lib-input-reveal"]'))).toBeNull();
+    });
+  });
+
   describe('maxLength', () => {
     it('sets no maxlength attribute by default', () => {
       expect(nativeInput().hasAttribute('maxlength')).toBe(false);

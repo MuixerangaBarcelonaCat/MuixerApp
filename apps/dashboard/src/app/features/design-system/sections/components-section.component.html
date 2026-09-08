@@ -163,6 +163,12 @@
         placeholder="••••••••"
         hint="El botó de l'ull surt sol per a qualsevol type=&quot;password&quot;"
       />
+      <lib-input
+        label="Només lectura"
+        [ngModel]="'membre@exemple.com'"
+        readonly
+        hint="A diferència de «disabled», s'envia amb el formulari i el navegador el llegeix"
+      />
     </div>
   </div>
 

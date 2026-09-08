@@ -44,6 +44,8 @@ Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense co
 
 **Login del dia a dia (compte ja actiu):** email + contrasenya, tant al Dashboard com a la PWA. La sessió es manté sola una bona temporada (8 hores al Dashboard, 7 dies a la PWA) sense haver de tornar a introduir res — només cal tornar a fer login si ha passat molt de temps o s'ha fet "Tanca la sessió".
 
+**Digueu-los que accepten el "Voleu guardar la contrasenya?".** Quan la persona tria la seua contrasenya (a l'activació) o entra per primera vegada, el navegador li oferirà guardar-la; si accepta, no l'haurà d'escriure mai més i ens estalvia la major part de les incidències d'accés. Els formularis estan preparats perquè el navegador reconega els dos camps (correu i contrasenya) i els guarde junts. **Perquè funcione cal que l'app es servisca per HTTPS**: sobre HTTP el navegador marca el formulari com a insegur i l'iPhone no ofereix el clauer.
+
 **Si un membre oblida la contrasenya (compte ja actiu):**
 1. A la pantalla de login, prem **"Heu oblidat la contrasenya?"** (existeix tant al Dashboard com a la PWA) i escriu el seu email.
 2. Si eixe email correspon a un compte actiu, li arriba un correu amb un enllaç per triar una contrasenya nova, **vàlid només 1 hora**.
@@ -69,6 +71,13 @@ Què **sí** pot fer un tècnic per ajudar-lo:
 
 ## 1. Login
 
+> **Gestor de contrasenyes del navegador.** Els formularis de credencials porten
+> `autocomplete="username"` + `name="username"` a l'identificador i `current-password` /
+> `new-password` (amb el `name` corresponent) a les contrasenyes, dins d'un `<form>` amb
+> `type="submit"` real. A l'activació l'email prellenat va **`readonly`, no `disabled`**: un camp
+> `disabled` no s'envia i el gestor de contrasenyes l'ignora, així que guardaria la contrasenya
+> sense usuari associat. La recepta completa és a
+> [docs/DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) § `lib-input`.
 
 ```
 Client (Dashboard/PWA)                    Backend (NestJS)

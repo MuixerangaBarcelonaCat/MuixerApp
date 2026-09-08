@@ -75,7 +75,6 @@ export class ActivateComponent {
         // coneix, el camp queda bloquejat i el canvi de correu passa per un tècnic.
         if (context.email) {
           this.form.controls.email.setValue(context.email);
-          this.form.controls.email.disable();
         }
 
         const { country, phoneNumber } = splitPhoneNumber(context.person.phone);

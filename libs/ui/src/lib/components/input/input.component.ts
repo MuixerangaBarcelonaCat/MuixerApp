@@ -48,6 +48,13 @@ export class InputComponent implements ControlValueAccessor {
   disabled = input(false, { transform: booleanAttribute });
   required = input(false, { transform: booleanAttribute });
   autocomplete = input<string>();
+  // El gestor de contrasenyes del navegador identifica els camps per `autocomplete` i, com a
+  // reserva (i en la majoria de gestors externs), pel `name`. L'`id` no serveix: és generat.
+  name = input<string>();
+  // Camp que es veu i s'envia amb el formulari, però no s'edita. Preferible a `disabled` quan
+  // el valor és una dada real que el navegador ha de poder llegir (l'email prellenat de
+  // l'activació): un camp `disabled` no s'envia i els gestors de contrasenyes l'ignoren.
+  readonly = input(false, { transform: booleanAttribute });
   id = input<string>();
   // Native range constraints — meaningful only for type="number"/"date", passed straight through
   // rather than modeled (browsers already validate/constrain against them).
@@ -84,6 +91,8 @@ export class InputComponent implements ControlValueAccessor {
   protected readonly effectiveType = computed(() =>
     this.isPassword() && this.revealed() ? 'text' : this.type(),
   );
+  // Sense res a escriure, el botó de l'ull no aporta res i deixaria mostrar en clar un valor
+  // que l'usuari no controla.
   protected readonly isRevealed = computed(() => this.isPassword() && this.revealed());
 
   protected readonly inputId = computed(() => this.id() ?? this.generatedId);
