@@ -283,7 +283,7 @@ describe('HomeComponent', () => {
       const links = fixture.nativeElement.querySelectorAll('[data-testid="news-item"]');
       expect(links.length).toBe(2);
       expect(links[0].textContent).toContain('Nova temporada');
-      expect(links[0].getAttribute('href')).toBe('/news/n-1');
+      expect(links[0].querySelector('a').getAttribute('href')).toBe('/news/n-1');
     });
 
     it('hides the Notícies section when there is no published news', async () => {

@@ -7,7 +7,7 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
   template: `
     @for (_ of items(); track $index) {
       <div
-        class="card bg-base-100 shadow-sm animate-pulse"
+        class="card bg-base-100 shadow-raised animate-pulse"
         role="status"
         aria-busy="true"
         aria-label="S'està carregant el contingut"

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { DependentRegistrationRequest, PendingDependent, PersonRegistrationData } from '@muixer/shared';
+import { AlertComponent, ButtonComponent } from '@muixer/ui';
 import { DependentsService } from '../../../core/services/dependents.service';
 import { PersonDataFieldsComponent } from '../../../shared/components/person-data-fields/person-data-fields.component';
 import { buildPersonDataFormGroup, combinePhoneNumber } from '../../../shared/utils/person-data-form.util';
@@ -22,7 +23,7 @@ function toPrefill(dependent: PendingDependent): Partial<PersonRegistrationData>
   selector: 'app-pending-dependents',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, PersonDataFieldsComponent],
+  imports: [ReactiveFormsModule, AlertComponent, ButtonComponent, PersonDataFieldsComponent],
   templateUrl: './pending-dependents.component.html',
 })
 export class PendingDependentsComponent {
