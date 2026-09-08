@@ -125,7 +125,7 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 ## Component library
 
-Seven components shipped so far, all in `libs/ui/src/lib/components/`, none rolled out to real app code yet (that's Phase 7). Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
+All shipped components live in `libs/ui/src/lib/components/`. Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
 
 ### `lib-button`
 
@@ -445,6 +445,33 @@ inject(ToastService).info('...');
 ```
 
 `dismiss(id)` removes one; every toast auto-dismisses after a flat 4000ms regardless of type. Icons are per-type (`CheckCircle`/`AlertCircle`/`AlertTriangle`/`Info`) — information isn't conveyed by color alone. `<lib-toast-container />` is mounted once per app shell; it's responsive by viewport width (full-width top banner with safe-area support below `sm`, DaisyUI's corner-stacking `toast-top toast-end` at `sm` and up) rather than taking a `position` input — one component, no per-app configuration.
+
+### `lib-alert`
+
+An inline contextual notice — a form-feedback strip or a page-level banner. Not for transient
+notifications (that's `ToastService`) or floating anchored notifications (raw markup — see the
+PWA's `push-permission-banner`).
+
+| Input | Type | Default | Notes |
+|-------|------|---------|-------|
+| `variant` | `'info' \| 'success' \| 'warning' \| 'error'` | `'info'` | Sets the DaisyUI `alert-*` colour **and** the paired Lucide icon (`Info`/`CheckCircle`/`AlertTriangle`/`AlertCircle`) — same "never colour alone" rule as `lib-toast` (WCAG 1.4.1) |
+| `dense` | `boolean` | `false` | Compact inline strip (`text-sm`, tight padding, no elevation) vs. the default banner (`shadow-raised`) |
+| `title` | `string` | — | Optional bold lead line above the projected body |
+| `dismissible` | `boolean` | `false` | Renders a `Tancar`-labelled ✕ `lib-button`; emits `dismissed` |
+| `icon` | `LucideIconData` | — | Overrides the per-variant icon (e.g. a platform-specific glyph) |
+| `assertive` | `boolean` | per-variant | `error`/`warning` announce assertively (`role="alert"`), `info`/`success` politely (`role="status"`); set to force either way |
+
+Output: `dismissed`. Body is `<ng-content>`; a trailing action goes in the `[actions]` slot
+(`<span actions>…</span>`). Host is `display: contents` — put margin/positioning on a wrapper,
+per the Component conventions gotcha.
+
+```html
+<lib-alert variant="warning" title="Compte no vinculat">
+  <p class="text-sm">El compte no està vinculat a cap membre.</p>
+</lib-alert>
+
+<lib-alert variant="error" dense><p>El correu electrònic ja està en ús.</p></lib-alert>
+```
 
 ### `lib-empty-state`
 

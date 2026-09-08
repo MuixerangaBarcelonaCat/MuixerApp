@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { AlertComponent } from '@muixer/ui';
 import { BottomTabBarComponent } from '../../../shared/components/bottom-tab-bar/bottom-tab-bar.component';
-import { NoPersonBannerComponent } from '../../../shared/components/no-person-banner/no-person-banner.component';
 import { ConsentModalComponent } from '../../../shared/components/consent-modal/consent-modal.component';
 import { InstallPromptBannerComponent } from '../../../shared/components/install-prompt-banner/install-prompt-banner.component';
 import { PushPermissionBannerComponent } from '../../../shared/components/push-permission-banner/push-permission-banner.component';
@@ -15,8 +15,8 @@ import { LayoutService } from '../../services/layout.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterOutlet,
+    AlertComponent,
     BottomTabBarComponent,
-    NoPersonBannerComponent,
     ConsentModalComponent,
     InstallPromptBannerComponent,
     PushPermissionBannerComponent,
@@ -32,7 +32,13 @@ import { LayoutService } from '../../services/layout.service';
       [class.px-4]="!layout.isFullscreen()"
     >
       @if (!auth.hasLinkedPerson() && !layout.isFullscreen()) {
-        <app-no-person-banner />
+        <div class="mb-4">
+          <lib-alert variant="warning" title="Compte no vinculat">
+            <p class="text-sm">
+              El compte no està vinculat a cap membre. Contacteu amb l'equip tècnic.
+            </p>
+          </lib-alert>
+        </div>
       }
       @if (installPrompt.shouldShow()) {
         <app-install-prompt-banner />
