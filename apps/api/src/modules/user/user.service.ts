@@ -12,9 +12,10 @@ import crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { Person } from '../person/person.entity';
 import { User } from './user.entity';
-import { UserRole } from '@muixer/shared';
+import { AuditAction, UserRole } from '@muixer/shared';
 import { UserResponseDto } from './dto/user-response.dto';
 import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
+import { RecoveryLinkResponseDto } from './dto/recovery-link-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { plainToInstance } from 'class-transformer';
@@ -23,7 +24,11 @@ import { UserFilterDto } from './dto/user-filter.dto';
 import { hashToken } from '../../common/utils/hash-token.util';
 import { TokenService } from '../auth/token.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
-import { INVITE_TOKEN_TTL_HOURS } from '../auth/constants/auth.constants';
+import { AuditService } from '../audit/audit.service';
+import {
+  INVITE_TOKEN_TTL_HOURS,
+  RECOVERY_LINK_TTL_HOURS,
+} from '../auth/constants/auth.constants';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -38,6 +43,7 @@ export class UserService {
     private readonly tokenService: TokenService,
     private readonly personDelegateService: PersonDelegateService,
     private readonly configService: ConfigService,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(
@@ -174,6 +180,55 @@ export class UserService {
     const inviteUrl = `${protocol}://${pwaSiteAddress}/activate?token=${rawToken}`;
 
     return { inviteUrl, expiresAt: expiresAt.toISOString() };
+  }
+
+  /**
+   * Genera un enllaç per triar una contrasenya nova per a un compte **ja actiu**, sense passar
+   * pel correu: el membre que no recorda la contrasenya sovint tampoc té accés al seu correu en
+   * eixe moment, i «Heu oblidat la contrasenya?» el deixa bloquejat. Reutilitza el mateix
+   * `resetToken` que el flux per correu, així que consumir-lo (`AuthService.resetPassword`) ja
+   * revoca totes les sessions obertes. Un compte que encara no s'ha activat mai no entra ací —
+   * eixe cas és l'enllaç d'invitació.
+   */
+  async createRecoveryLink(personId: string, actorUserId: string): Promise<RecoveryLinkResponseDto> {
+    const person = await this.personRepository.findOne({
+      where: { id: personId },
+      relations: ['user'],
+    });
+    if (!person) throw new BadRequestException('Person not found');
+
+    const user = person.user;
+    if (!user) {
+      throw new BadRequestException('Aquesta persona no té cap compte vinculat');
+    }
+    if (!user.isActive || !user.passwordHash) {
+      throw new BadRequestException(
+        "Aquest compte encara no s'ha activat: useu l'enllaç d'invitació",
+      );
+    }
+
+    const rawToken = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + RECOVERY_LINK_TTL_HOURS);
+    user.resetToken = hashToken(rawToken);
+    user.resetExpiresAt = expiresAt;
+    await this.userRepository.save(user);
+
+    // Un enllaç generat per un tercer és una via d'entrada al compte d'una altra persona:
+    // queda registrat sempre, encara que l'enllaç no s'arribe a usar.
+    await this.auditService.record({
+      actorUserId,
+      action: AuditAction.RECOVERY_LINK_CREATED,
+      targetType: 'User',
+      targetId: user.id,
+      metadata: { personId: person.id, alias: person.alias },
+    });
+
+    const protocol = this.configService.get<string>('NODE_ENV') === 'production' ? 'https' : 'http';
+    const pwaSiteAddress = this.configService.get<string>('PWA_SITE_ADDRESS');
+    const recoveryUrl = `${protocol}://${pwaSiteAddress}/reset-password?token=${rawToken}`;
+
+    return { recoveryUrl, expiresAt: expiresAt.toISOString() };
   }
 
   async grantRole(userId: string, role: UserRole, actorId: string) {

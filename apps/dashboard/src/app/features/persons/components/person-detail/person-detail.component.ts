@@ -114,6 +114,7 @@ export class PersonDetailComponent implements OnInit {
   selectedPositionIds = signal<string[]>([]);
 
   creatingInviteLink = signal(false);
+  creatingRecoveryLink = signal(false);
   delegateModalOpen = signal(false);
   delegateModalIsPrimary = signal(false);
 
@@ -350,6 +351,33 @@ export class PersonDetailComponent implements OnInit {
       error: (err) => {
         this.creatingInviteLink.set(false);
         this.toast.error(err?.error?.message ?? 'Error en crear l\'enllaç d\'invitació');
+      },
+    });
+  }
+
+  /**
+   * Enllaç de contrasenya nova per a un compte ja actiu, quan el membre no recorda la
+   * contrasenya i tampoc pot arribar al seu correu (que és el cas habitual): el tècnic el genera
+   * i el reenvia a mà, igual que fa amb l'enllaç d'invitació.
+   */
+  createRecoveryLink() {
+    const p = this.person();
+    if (!p || this.creatingRecoveryLink()) return;
+
+    this.creatingRecoveryLink.set(true);
+    this.personService.createRecoveryLink(p.id).subscribe({
+      next: async ({ recoveryUrl }) => {
+        this.creatingRecoveryLink.set(false);
+        const copied = await this.copyToClipboard(recoveryUrl);
+        this.toast.success(
+          copied
+            ? 'Enllaç de recuperació copiat al portapapers. Caduca en 24 hores.'
+            : `Enllaç de recuperació: ${recoveryUrl}`,
+        );
+      },
+      error: (err) => {
+        this.creatingRecoveryLink.set(false);
+        this.toast.error(err?.error?.message ?? "Error en crear l'enllaç de recuperació");
       },
     });
   }

@@ -81,7 +81,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-08-26 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-09-08 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **21 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -116,7 +116,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 |------|--------|
 | `AssignmentArea` | `TRONC` · `PINYA` · `DIRECTION` |
 | `AttendanceStatus` | `PENDENT` · `ANIRE` · `NO_VAIG` · `ASSISTIT` |
-| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` |
+| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` · `ATTENDANCE_LOCK_OVERRIDE` · `RECOVERY_LINK_CREATED` |
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `ClientType` | `dashboard` · `pwa` |
 | `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` · `OTHER` |
@@ -124,9 +124,10 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
 | `FigureZone` | `BASE` · `PINYA` · `TRONC` · `FIGURE_DIRECTION` · `XICALLA_DIRECTION` · `DECORATION` |
 | `Gender` | `MALE` · `FEMALE` · `OTHER` |
+| `ImportScope` | `PINYA` · `TRONC` · `ALL` |
 | `LegalDocumentType` | `PRIVACY_POLICY` · `TRANSPARENCY_CLAUSE` |
 | `NewsStatus` | `DRAFT` · `SCHEDULED` · `PUBLISHED` |
-| `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `CIRCLE` |
+| `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `ARROW_LEFT` · `ARROW_UP` · `ARROW_DOWN` · `DOUBLE_ARROW` · `TRIANGLE` · `STAR` · `CIRCLE` |
 | `NotificationTargetType` | `ALL` · `EVENT_ATTENDANCE` · `PERSON` |
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
 | `SegmentConflictKind` | `TRONC_TRONC` · `TRONC_PINYA` · `PINYA_PINYA` |

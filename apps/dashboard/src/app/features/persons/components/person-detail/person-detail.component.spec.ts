@@ -70,6 +70,7 @@ describe('PersonDetailComponent', () => {
     getOne: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     createInviteLink: ReturnType<typeof vi.fn>;
+    createRecoveryLink: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -83,6 +84,12 @@ describe('PersonDetailComponent', () => {
       update: vi.fn().mockReturnValue(of({ id: 'p1', positions: [], shoulderHeight: null })),
       createInviteLink: vi.fn().mockReturnValue(
         of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
+      ),
+      createRecoveryLink: vi.fn().mockReturnValue(
+        of({
+          recoveryUrl: 'http://localhost:4300/reset-password?token=xyz',
+          expiresAt: '2026-01-02T00:00:00Z',
+        }),
       ),
     };
 
@@ -467,6 +474,63 @@ describe('PersonDetailComponent', () => {
 
       const toastService = TestBed.inject(ToastService);
       expect(toastService.toasts().at(-1)?.message).toContain('http://localhost:4300/activate?token=abc');
+    });
+
+    it('offers the recovery link only for a person whose account is already active', () => {
+      component.person.set(makePerson({ user: { id: 'u1', email: 'a@b.cat', isActive: true } as Person['user'] }));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain('Crea enllaç de recuperació');
+    });
+
+    it('offers the invite link, not the recovery one, while the account is still pending', () => {
+      component.person.set(makePerson({ user: { id: 'u1', email: null, isActive: false } as Person['user'] }));
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain("Crea enllaç d'invitació");
+      expect(text).not.toContain('Crea enllaç de recuperació');
+    });
+
+    it('offers neither link when the person has no account at all', () => {
+      component.person.set(makePerson({ user: null }));
+      component.delegates.set([]);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).not.toContain('Crea enllaç de recuperació');
+    });
+
+    it('creates a recovery link, copies it to the clipboard and shows a success toast', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      component.person.set(makePerson());
+
+      component.createRecoveryLink();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(mockPersonService.createRecoveryLink).toHaveBeenCalledWith('p1');
+      expect(writeText).toHaveBeenCalledWith('http://localhost:4300/reset-password?token=xyz');
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toContain('portapapers');
+    });
+
+    it('surfaces the backend message when a recovery link is refused', async () => {
+      (mockPersonService as unknown as { createRecoveryLink: unknown }).createRecoveryLink = vi
+        .fn()
+        .mockReturnValue(
+          throwError(() => ({
+            error: { message: "Aquest compte encara no s'ha activat: useu l'enllaç d'invitació" },
+          })),
+        );
+      component.person.set(makePerson());
+
+      component.createRecoveryLink();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toContain("encara no s'ha activat");
     });
 
     it('shows an error toast when creating the invite link fails', async () => {

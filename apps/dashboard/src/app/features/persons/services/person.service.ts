@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { InviteLinkResponse } from '@muixer/shared';
+import { InviteLinkResponse, RecoveryLinkResponse } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -47,5 +47,10 @@ export class PersonService extends ApiService {
   /** Crea (o regenera) l'enllaç d'invitació d'una persona sense compte actiu. */
   createInviteLink(personId: string): Observable<InviteLinkResponse> {
     return this.post<InviteLinkResponse>('/users/invite-link', { personId });
+  }
+
+  /** Crea l'enllaç per triar una contrasenya nova d'una persona amb el compte ja actiu. */
+  createRecoveryLink(personId: string): Observable<RecoveryLinkResponse> {
+    return this.post<RecoveryLinkResponse>('/users/recovery-link', { personId });
   }
 }

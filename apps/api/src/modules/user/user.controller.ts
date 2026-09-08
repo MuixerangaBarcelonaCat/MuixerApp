@@ -17,6 +17,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserService } from './user.service';
 import { CreateInviteLinkDto } from './dto/create-invite-link.dto';
 import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
+import { CreateRecoveryLinkDto } from './dto/create-recovery-link.dto';
+import { RecoveryLinkResponseDto } from './dto/recovery-link-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
@@ -49,6 +51,25 @@ export class UserController {
   @ApiResponse({ status: 400, description: "La persona no existeix o ja té un compte actiu" })
   createInviteLink(@Body() dto: CreateInviteLinkDto): Promise<InviteLinkResponseDto> {
     return this.userService.createOrRefreshInviteLink(dto.personId);
+  }
+
+  @Post('recovery-link')
+  @ApiOperation({
+    summary: "Crea un enllaç per triar una contrasenya nova, per a un compte ja actiu",
+    description:
+      "Alternativa a «Heu oblidat la contrasenya?» quan el membre no té accés al seu correu: " +
+      "l'enllaç el genera un ADMIN/TECHNICAL i el reenvia a mà. Queda auditat.",
+  })
+  @ApiResponse({ status: 201, description: 'Enllaç de recuperació generat' })
+  @ApiResponse({
+    status: 400,
+    description: "La persona no existeix, no té compte, o el compte encara no s'ha activat",
+  })
+  createRecoveryLink(
+    @Body() dto: CreateRecoveryLinkDto,
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<RecoveryLinkResponseDto> {
+    return this.userService.createRecoveryLink(dto.personId, actor.sub);
   }
 
   @Get()

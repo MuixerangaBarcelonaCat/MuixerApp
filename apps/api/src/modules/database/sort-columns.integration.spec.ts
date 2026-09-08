@@ -12,6 +12,7 @@ import { UserService } from '../user/user.service';
 import { TokenService } from '../auth/token.service';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { USER_SORT_BY_FIELDS } from '../user/constants/user-sort.constants';
+import { AuditService } from '../audit/audit.service';
 import { EventService } from '../event/event.service';
 import { SeasonService } from '../season/season.service';
 import { Event } from '../event/event.entity';
@@ -78,6 +79,7 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
           ...realRepositoryProviders(db.dataSource, [User, Person, RefreshToken, PersonDelegate]),
           { provide: DataSource, useValue: db.dataSource },
           { provide: ConfigService, useValue: { get: jest.fn() } },
+          { provide: AuditService, useValue: { record: jest.fn() } },
         ],
       }).compile();
       service = module.get(UserService);

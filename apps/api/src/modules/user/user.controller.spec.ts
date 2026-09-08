@@ -7,6 +7,7 @@ import { UserService } from './user.service';
 const mockUserService = () => ({
   createUser: jest.fn(),
   createOrRefreshInviteLink: jest.fn(),
+  createRecoveryLink: jest.fn(),
   findAll: jest.fn(),
   grantRole: jest.fn(),
   deactivateUser: jest.fn(),
@@ -46,6 +47,23 @@ describe('UserController', () => {
 
     expect(service.createOrRefreshInviteLink).toHaveBeenCalledWith('person-1');
     expect(result).toEqual(inviteResponse);
+  });
+
+  it('createRecoveryLink delegates to UserService with the personId and the acting user', async () => {
+    const recoveryResponse = {
+      recoveryUrl: 'https://app.example.com/reset-password?token=abc',
+      expiresAt: '2026-01-01T00:00:00.000Z',
+    };
+    service.createRecoveryLink.mockResolvedValue(recoveryResponse);
+    const dto = { personId: 'person-1' };
+
+    const result = await controller.createRecoveryLink(dto as never, {
+      sub: 'actor-1',
+      role: UserRole.TECHNICAL,
+    } as never);
+
+    expect(service.createRecoveryLink).toHaveBeenCalledWith('person-1', 'actor-1');
+    expect(result).toEqual(recoveryResponse);
   });
 
   it('findAll delegates to UserService with the filters', async () => {
