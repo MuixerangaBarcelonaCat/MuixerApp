@@ -65,6 +65,18 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('date');
   });
 
+  describe('inputMode', () => {
+    it('sets no inputmode attribute by default', () => {
+      expect(nativeInput().getAttribute('inputmode')).toBeNull();
+    });
+
+    it('forwards inputMode to the native input (mobile keyboard hint)', () => {
+      fixture.componentRef.setInput('inputMode', 'email');
+      fixture.detectChanges();
+      expect(nativeInput().getAttribute('inputmode')).toBe('email');
+    });
+  });
+
   describe('maxLength', () => {
     it('sets no maxlength attribute by default', () => {
       expect(nativeInput().hasAttribute('maxlength')).toBe(false);

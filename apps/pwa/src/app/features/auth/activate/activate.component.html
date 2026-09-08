@@ -6,67 +6,47 @@
   "
 >
   <div class="text-center my-8">
-    <h1 class="text-2xl font-bold text-base-content">MuixerApp</h1>
+    <h1 class="text-2xl font-serif font-bold text-base-content">MuixerApp</h1>
     <p class="text-sm text-base-content/50 mt-1">Activa el teu compte</p>
   </div>
 
-  <div class="card bg-base-100 shadow-lg w-full max-w-md">
+  <div class="card bg-base-100 shadow-modal w-full max-w-md">
     <div class="card-body gap-5">
       @if (invalidLink()) {
-        <div class="alert alert-error text-sm py-2" role="alert">
-          <lucide-icon [img]="AlertCircle" [size]="16" />
-          <span>Este enllaç d'invitació no és vàlid o ha caducat.</span>
-        </div>
+        <lib-alert variant="error" dense>Este enllaç d'invitació no és vàlid o ha caducat.</lib-alert>
         <a routerLink="/login" class="link link-hover text-sm text-center text-base-content/60">
           Torna a l'inici de sessió
         </a>
       } @else if (loading()) {
         <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
       } @else {
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
-          <label class="form-control w-full" for="activate-email">
-            <div class="label pb-1"><span class="label-text font-medium">Correu electrònic</span></div>
-            <input
-              id="activate-email"
-              type="email"
-              class="input input-bordered text-sm h-11"
-              formControlName="email"
-              autocomplete="email"
-              inputmode="email"
-            />
-          </label>
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
+          <lib-input
+            label="Correu electrònic"
+            type="email"
+            inputMode="email"
+            size="md"
+            formControlName="email"
+            autocomplete="email"
+          />
 
-          <label class="form-control w-full" for="activate-password">
-            <div class="label pb-1"><span class="label-text font-medium">Contrasenya</span></div>
-            <input
-              id="activate-password"
-              type="password"
-              class="input input-bordered text-sm h-11"
-              formControlName="password"
-              autocomplete="new-password"
-            />
-            @if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
-              <div class="label pt-1">
-                <span class="label-text-alt text-error" role="alert">La contrasenya ha de tindre almenys 8 caràcters</span>
-              </div>
-            }
-          </label>
+          <lib-input
+            label="Contrasenya"
+            type="password"
+            size="md"
+            formControlName="password"
+            autocomplete="new-password"
+            [errorText]="form.get('password')?.hasError('minlength') && form.get('password')?.touched ? 'La contrasenya ha de tindre almenys 8 caràcters' : undefined"
+          />
 
-          <label class="form-control w-full" for="activate-confirm-password">
-            <div class="label pb-1"><span class="label-text font-medium">Confirmeu la contrasenya</span></div>
-            <input
-              id="activate-confirm-password"
-              type="password"
-              class="input input-bordered text-sm h-11"
-              formControlName="confirmPassword"
-              autocomplete="new-password"
-            />
-            @if (form.hasError('passwordMismatch') && form.get('confirmPassword')?.touched) {
-              <div class="label pt-1">
-                <span class="label-text-alt text-error" role="alert">Les contrasenyes no coincideixen</span>
-              </div>
-            }
-          </label>
+          <lib-input
+            label="Confirmeu la contrasenya"
+            type="password"
+            size="md"
+            formControlName="confirmPassword"
+            autocomplete="new-password"
+            [errorText]="form.hasError('passwordMismatch') && form.get('confirmPassword')?.touched ? 'Les contrasenyes no coincideixen' : undefined"
+          />
 
           <div class="divider text-xs text-base-content/40">Dades personals</div>
 
@@ -76,30 +56,27 @@
 
           <div class="max-h-40 overflow-y-auto rounded-box bg-base-200 p-3 text-sm whitespace-pre-wrap">{{ context()?.legalDocument?.content }}</div>
 
-          <label class="label cursor-pointer justify-start gap-3">
-            <input type="checkbox" class="checkbox checkbox-sm" formControlName="legalAccepted" />
-            <span class="label-text">He llegit i accepte la política de privacitat</span>
-          </label>
+          <lib-checkbox size="sm" formControlName="legalAccepted">
+            He llegit i accepte la política de privacitat
+          </lib-checkbox>
 
           @if (errorMessage()) {
-            <div class="alert alert-error text-sm py-2" role="alert">
-              <lucide-icon [img]="AlertCircle" [size]="16" />
-              <span>{{ errorMessage() }}</span>
-            </div>
+            <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
           }
 
-          <button
+          <lib-button
             type="submit"
-            class="btn btn-primary w-full h-12 text-base"
-            [disabled]="form.invalid || isSubmitting()"
+            variant="primary"
+            fullWidth
+            [disabled]="form.invalid"
+            [loading]="isSubmitting()"
           >
             @if (isSubmitting()) {
-              <span class="loading loading-spinner loading-sm"></span>
               S'està activant el compte...
             } @else {
               Activa el compte
             }
-          </button>
+          </lib-button>
         </form>
       }
     </div>

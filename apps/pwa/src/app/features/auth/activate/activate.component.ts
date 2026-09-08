@@ -7,8 +7,8 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, AlertCircle } from 'lucide-angular';
 import { InviteRegistrationContext, RegisterViaInviteRequest } from '@muixer/shared';
+import { AlertComponent, ButtonComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { PersonDataFieldsComponent } from '../../../shared/components/person-data-fields/person-data-fields.component';
 import { buildPersonDataFormGroup, combinePhoneNumber } from '../../../shared/utils/person-data-form.util';
@@ -23,7 +23,15 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   selector: 'app-activate',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, PersonDataFieldsComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    AlertComponent,
+    ButtonComponent,
+    CheckboxComponent,
+    InputComponent,
+    PersonDataFieldsComponent,
+  ],
   templateUrl: './activate.component.html',
 })
 export class ActivateComponent {
@@ -31,8 +39,6 @@ export class ActivateComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
-
-  protected readonly AlertCircle = AlertCircle;
 
   private readonly token = this.route.snapshot.queryParamMap.get('token');
 
