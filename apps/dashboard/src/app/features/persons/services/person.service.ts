@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { InviteLinkResponse, RecoveryLinkResponse } from '@muixer/shared';
+import { InviteLinkResponse } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -49,8 +49,10 @@ export class PersonService extends ApiService {
     return this.post<InviteLinkResponse>('/users/invite-link', { personId });
   }
 
-  /** Crea l'enllaç per triar una contrasenya nova d'una persona amb el compte ja actiu. */
-  createRecoveryLink(personId: string): Observable<RecoveryLinkResponse> {
-    return this.post<RecoveryLinkResponse>('/users/recovery-link', { personId });
-  }
+  // DESACTIVAT: enllaç de contrasenya nova generat per un tècnic per a un compte ja actiu.
+  // L'endpoint del backend també està comentat. Motiu i instruccions per rehabilitar-ho:
+  // apps/api/src/modules/user/user.controller.ts i docs/AUTH_FLOW.md §8.1.
+  // createRecoveryLink(personId: string): Observable<RecoveryLinkResponse> {
+  //   return this.post<RecoveryLinkResponse>('/users/recovery-link', { personId });
+  // }
 }

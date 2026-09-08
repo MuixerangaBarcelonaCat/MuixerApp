@@ -116,7 +116,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 |------|--------|
 | `AssignmentArea` | `TRONC` · `PINYA` · `DIRECTION` |
 | `AttendanceStatus` | `PENDENT` · `ANIRE` · `NO_VAIG` · `ASSISTIT` |
-| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` · `ATTENDANCE_LOCK_OVERRIDE` · `RECOVERY_LINK_CREATED` |
+| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` · `ATTENDANCE_LOCK_OVERRIDE` |
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `ClientType` | `dashboard` · `pwa` |
 | `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` · `OTHER` |

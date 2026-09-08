@@ -15,8 +15,6 @@ import { UserRole } from '@muixer/shared';
 import { hashToken } from '../../common/utils/hash-token.util';
 import { TokenService } from '../auth/token.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
-import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '@muixer/shared';
 
 const makeTransactionManager = () => ({
   create: jest.fn((_entity: unknown, data: unknown) => data),
@@ -63,7 +61,6 @@ describe('UserService', () => {
   let mockTokenService: { revokeAllUserTokens: jest.Mock };
   let mockPersonDelegateService: { demotePrimaryIfAny: jest.Mock };
   let mockConfigService: { get: jest.Mock };
-  let mockAuditService: { record: jest.Mock };
 
   beforeEach(async () => {
     userQb = {
@@ -104,10 +101,6 @@ describe('UserService', () => {
       get: jest.fn(),
     };
 
-    mockAuditService = {
-      record: jest.fn().mockResolvedValue(undefined),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
@@ -117,7 +110,6 @@ describe('UserService', () => {
         { provide: TokenService, useValue: mockTokenService },
         { provide: PersonDelegateService, useValue: mockPersonDelegateService },
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: AuditService, useValue: mockAuditService },
       ],
     }).compile();
 
@@ -412,119 +404,6 @@ describe('UserService', () => {
       const result = await service.createOrRefreshInviteLink('person-uuid');
 
       expect(result.inviteUrl).toMatch(/^https?:\/\/app\.example\.com\/activate\?token=.+$/);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // createRecoveryLink
-  // ---------------------------------------------------------------------------
-
-  describe('createRecoveryLink', () => {
-    const seedActivePerson = () => {
-      const user = makeUser({ id: 'user-uuid', isActive: true, passwordHash: 'hashed' });
-      const person = makePerson({ user });
-      mockPersonRepo.findOne.mockResolvedValue(person);
-      mockUserRepo.save.mockImplementation(async (u: User) => u);
-      return { user, person };
-    };
-
-    it('throws BadRequestException when the person does not exist', async () => {
-      mockPersonRepo.findOne.mockResolvedValue(null);
-
-      await expect(service.createRecoveryLink('bad-id', 'actor-uuid')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('throws BadRequestException when the person has no account at all', async () => {
-      mockPersonRepo.findOne.mockResolvedValue(makePerson({ user: null }));
-
-      await expect(service.createRecoveryLink('person-uuid', 'actor-uuid')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('refuses an account that has never been activated — that case needs an invite link', async () => {
-      const user = makeUser({ isActive: false, passwordHash: null as unknown as string });
-      mockPersonRepo.findOne.mockResolvedValue(makePerson({ user }));
-
-      await expect(service.createRecoveryLink('person-uuid', 'actor-uuid')).rejects.toThrow(
-        BadRequestException,
-      );
-      expect(mockUserRepo.save).not.toHaveBeenCalled();
-    });
-
-    it('stores a hash of the recovery token, never the raw one', async () => {
-      seedActivePerson();
-
-      const result = await service.createRecoveryLink('person-uuid', 'actor-uuid');
-      const rawToken = new URL(result.recoveryUrl).searchParams.get('token')!;
-
-      const savedUser = mockUserRepo.save.mock.calls[0][0] as User;
-      expect(savedUser.resetToken).not.toBe(rawToken);
-      expect(savedUser.resetToken).toBe(hashToken(rawToken));
-    });
-
-    it('builds the recovery URL from PWA_SITE_ADDRESS with a /reset-password?token= path', async () => {
-      seedActivePerson();
-      mockConfigService.get.mockImplementation((key: string) =>
-        key === 'PWA_SITE_ADDRESS' ? 'app.example.com' : undefined,
-      );
-
-      const result = await service.createRecoveryLink('person-uuid', 'actor-uuid');
-
-      expect(result.recoveryUrl).toMatch(
-        /^https?:\/\/app\.example\.com\/reset-password\?token=.+$/,
-      );
-    });
-
-    it('sets expiration ~24h in the future — long enough to survive until the member reads WhatsApp', async () => {
-      seedActivePerson();
-
-      const before = Date.now();
-      const result = await service.createRecoveryLink('person-uuid', 'actor-uuid');
-      const after = Date.now();
-
-      const expiry = new Date(result.expiresAt).getTime();
-      const expectedMs = 24 * 60 * 60 * 1000;
-
-      expect(expiry).toBeGreaterThanOrEqual(before + expectedMs - 1000);
-      expect(expiry).toBeLessThanOrEqual(after + expectedMs + 1000);
-    });
-
-    it('records who generated the link, for whom — an admin-issued way into someone else\'s account', async () => {
-      const { user, person } = seedActivePerson();
-
-      await service.createRecoveryLink('person-uuid', 'actor-uuid');
-
-      expect(mockAuditService.record).toHaveBeenCalledWith(
-        expect.objectContaining({
-          actorUserId: 'actor-uuid',
-          action: AuditAction.RECOVERY_LINK_CREATED,
-          targetType: 'User',
-          targetId: user.id,
-          metadata: expect.objectContaining({ personId: person.id }),
-        }),
-      );
-    });
-
-    it('regenerates the token on a repeat call, invalidating the previous link', async () => {
-      seedActivePerson();
-
-      const first = await service.createRecoveryLink('person-uuid', 'actor-uuid');
-      const second = await service.createRecoveryLink('person-uuid', 'actor-uuid');
-
-      const firstToken = new URL(first.recoveryUrl).searchParams.get('token');
-      const secondToken = new URL(second.recoveryUrl).searchParams.get('token');
-      expect(secondToken).not.toBe(firstToken);
-    });
-
-    it('does not revoke the open sessions yet — only using the link changes the password', async () => {
-      seedActivePerson();
-
-      await service.createRecoveryLink('person-uuid', 'actor-uuid');
-
-      expect(mockTokenService.revokeAllUserTokens).not.toHaveBeenCalled();
     });
   });
 

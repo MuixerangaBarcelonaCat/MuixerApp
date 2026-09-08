@@ -121,7 +121,7 @@ graph TD
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`audit`](../apps/api/src/modules/audit) | 3 | 99 | [[GDPR_COMPLIANCE]] |
-| [`auth`](../apps/api/src/modules/auth) | 27 | 1423 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
+| [`auth`](../apps/api/src/modules/auth) | 27 | 1421 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`composition`](../apps/api/src/modules/composition) | 8 | 655 | [[PINYES_MODULE]] |
 | [`database`](../apps/api/src/modules/database) | 5 | 217 | [[DATA_MODEL]] |
 | [`event`](../apps/api/src/modules/event) | 13 | 1225 | [[DATA_MODEL]] |
@@ -138,7 +138,7 @@ graph TD
 | [`season`](../apps/api/src/modules/season) | 6 | 388 | [[DATA_MODEL]] |
 | [`sync`](../apps/api/src/modules/sync) | 10 | 1785 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 8 | 321 | [[TAGS]] · [[DATA_MODEL]] |
-| [`user`](../apps/api/src/modules/user) | 14 | 945 | [[DATA_MODEL]] |
+| [`user`](../apps/api/src/modules/user) | 14 | 996 | [[DATA_MODEL]] |
 
 Migracions TypeORM: **49** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
@@ -152,7 +152,7 @@ Migracions TypeORM: **49** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 364 | — |
 | [`events`](../apps/dashboard/src/app/features/events) | 18 | 3919 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 115 | [[DASHBOARD_UI]] |
-| [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1598 | [[DASHBOARD_UI]] |
+| [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1613 | [[DASHBOARD_UI]] |
 | [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 47 | 9866 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
 | [`sync`](../apps/dashboard/src/app/features/sync) | 2 | 73 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 
@@ -160,7 +160,7 @@ Migracions TypeORM: **49** a [`apps/api/src/migrations`](../apps/api/src/migrati
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
-| [`auth`](../apps/pwa/src/app/features/auth) | 4 | 326 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
+| [`auth`](../apps/pwa/src/app/features/auth) | 4 | 325 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`dependents`](../apps/pwa/src/app/features/dependents) | 1 | 105 | — |
 | [`events`](../apps/pwa/src/app/features/events) | 12 | 1450 | [[DASHBOARD_UI]] |
 | [`home`](../apps/pwa/src/app/features/home) | 2 | 156 | [[DASHBOARD_UI]] |
@@ -172,8 +172,8 @@ Migracions TypeORM: **49** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 4 | 182 | — |
-| [`enums`](../libs/shared/src/enums) | 20 | 188 | — |
-| [`interfaces`](../libs/shared/src/interfaces) | 23 | 841 | — |
+| [`enums`](../libs/shared/src/enums) | 20 | 189 | — |
+| [`interfaces`](../libs/shared/src/interfaces) | 23 | 840 | — |
 | [`utils`](../libs/shared/src/utils) | 7 | 317 | — |
 
 ### Fitxers més grans (candidats a dividir)

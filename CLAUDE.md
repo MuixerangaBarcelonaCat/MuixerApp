@@ -75,7 +75,7 @@ Modules under `src/modules/`:
 | Module | Content |
 |--------|---------|
 | `auth` | JWT (15min) + httpOnly refresh token (7d), Passport, token rotation, invite accept, bootstrap |
-| `user` | admin/member accounts (`users`), roles, invite provisioning, admin-issued recovery links; OneToOne `Person` |
+| `user` | admin/member accounts (`users`), roles, invite provisioning; OneToOne `Person` |
 | `person` | CRUD + soft delete via `isActive` boolean |
 | `person-delegate` | delegation: attendance on behalf of others (`managedBy` / `mentor`) |
 | `season` · `event` | seasons, events and attendance |
@@ -177,7 +177,7 @@ Core entities: User, Person, PersonDelegate, Tag, Season, Event, Attendance, Ref
 
 ## Authentication
 
-Login (email+password) → 15min JWT access token (in memory/signal) + 7d refresh token (httpOnly cookie with rotation and reuse detection). On 401 the interceptor refreshes and retries. `logout` revokes the token, `logout-all` revokes them all. `/auth` throttle: 10 req/60s. A cron job cleans expired refresh tokens. **Invites do not send email yet** (`user.service` only logs the token) — but `auth.service` does use `MailService` for password reset. Members who can't reach their inbox are covered by `POST /users/recovery-link` (ADMIN/TECHNICAL, audited): an admin-generated `/reset-password` link for an already-active account, forwarded by hand — see [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) §8.1.
+Login (email+password) → 15min JWT access token (in memory/signal) + 7d refresh token (httpOnly cookie with rotation and reuse detection). On 401 the interceptor refreshes and retries. `logout` revokes the token, `logout-all` revokes them all. `/auth` throttle: 10 req/60s. A cron job cleans expired refresh tokens. **Invites do not send email yet** (`user.service` only logs the token) — but `auth.service` does use `MailService` for password reset. Password recovery is email-only: «Heu oblidat la contrasenya?» → `/auth/forgot-password` → emailed `/reset-password` link. An admin-generated recovery link was built and then **deliberately disabled** (commented out in `user.controller.ts` / `user.service.ts` / `person-detail.component.*`) because a hand-forwarded link is a bearer token with no identity check — see [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) §8.1 before re-enabling it.
 
 Frontend: `AuthService` (signals `currentUser`, `isAuthenticated`, `userRole`, `hasLinkedPerson`), `authGuard`, `rolesGuard(...)`, `AuthInterceptor`. Bootstrap silent refresh is gated by the `muixer_has_session` localStorage hint (avoids the console 401 on the login screen).
 
