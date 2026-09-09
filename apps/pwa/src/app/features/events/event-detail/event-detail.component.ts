@@ -8,7 +8,6 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
-import { SlicePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
   MeEventDetail,
@@ -20,12 +19,12 @@ import {
   OwnPositionSummary,
   OWN_POSITION_MULTIPLE_PLACEMENTS,
 } from '@muixer/shared';
-import { LucideAngularModule, MapPin, Clock, Info, ChevronRight } from 'lucide-angular';
+import { LucideAngularModule, Info, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '@muixer/ui';
+import { ButtonComponent, CardComponent, EmptyStateComponent } from '@muixer/ui';
 import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
-import { FormatEventDatePipe } from '../../../shared/pipes/format-event-date.pipe';
+import { EventCardComponent } from '../components/event-card/event-card.component';
 import { EventService } from '../services/event.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
@@ -38,18 +37,17 @@ import { AuthService } from '../../../core/auth/services/auth.service';
     RouterLink,
     MobileHeaderComponent,
     SkeletonCardComponent,
+    ButtonComponent,
+    CardComponent,
     EmptyStateComponent,
     AttendanceButtonComponent,
-    FormatEventDatePipe,
-    SlicePipe,
+    EventCardComponent,
   ],
   templateUrl: './event-detail.component.html',
 })
 export class EventDetailComponent {
   readonly id = input.required<string>();
 
-  protected readonly MapPin = MapPin;
-  protected readonly Clock = Clock;
   protected readonly Info = Info;
   protected readonly ChevronRight = ChevronRight;
 
@@ -72,10 +70,6 @@ export class EventDetailComponent {
   );
   protected readonly isLoading = this.eventResource.isLoading;
   protected readonly hasError = computed(() => !!this.eventResource.error());
-
-  protected readonly isAssaig = computed(
-    () => this.event()?.eventType === EventType.ASSAIG,
-  );
 
   protected readonly headerTitle = computed(() => {
     const ev = this.event();

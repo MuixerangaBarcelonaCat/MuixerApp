@@ -2,11 +2,13 @@ import { Component, ChangeDetectionStrategy, inject, input, signal, computed, ef
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
-import { LucideAngularModule, Search } from 'lucide-angular';
+import { Search } from 'lucide-angular';
 import {
   ButtonComponent,
   ButtonGroupComponent,
+  CardComponent,
   EmptyStateComponent,
+  InputComponent,
   ModalComponent,
   ToastService,
 } from '@muixer/ui';
@@ -37,9 +39,10 @@ function errorMessage(err: unknown, fallback: string): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
-    LucideAngularModule,
     ButtonComponent,
     ButtonGroupComponent,
+    CardComponent,
+    InputComponent,
     ModalComponent,
     MobileHeaderComponent,
     SkeletonCardComponent,

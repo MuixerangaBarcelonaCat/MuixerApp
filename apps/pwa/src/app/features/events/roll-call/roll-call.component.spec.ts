@@ -61,12 +61,10 @@ describe('RollCallComponent', () => {
   });
 
   it('lets the search box shrink so the add-person button stays on screen on narrow viewports', () => {
-    const searchLabel: HTMLElement = fixture.nativeElement.querySelector('label.input');
-    expect(searchLabel.className).toContain('min-w-0');
-    const addBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
-      '[aria-label="Afegeix una persona provisional (ve per primera vegada)"]',
-    );
-    expect(addBtn.className).toContain('shrink-0');
+    const searchWrap: HTMLElement = fixture.nativeElement.querySelector('[data-testid="roll-call-search"]');
+    expect(searchWrap.className).toContain('min-w-0');
+    const addBtnWrap: HTMLElement = fixture.nativeElement.querySelector('[data-testid="roll-call-add-person"]');
+    expect(addBtnWrap.className).toContain('shrink-0');
   });
 
   it('renders the status buttons as Ha vingut / Vindrà / No vindrà, in that order', () => {

@@ -125,6 +125,13 @@ describe('EventListComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(0);
   });
 
+  it('should hide the Passats link in calendar view — those events are already visible there', async () => {
+    component.toggleView();
+    await stable();
+
+    expect(fixture.nativeElement.querySelector('a[href="/events/past"]')).toBeFalsy();
+  });
+
   // --- Calendar view ---
 
   it('should toggle to calendar view', async () => {
@@ -175,8 +182,19 @@ describe('EventListComponent', () => {
     component.onSelectedDateChange(null);
     fixture.detectChanges();
 
-    const heading = fixture.nativeElement.querySelector('h3.text-sm.text-base-content\\/60');
-    expect(heading).toBeFalsy();
+    expect(fixture.nativeElement.querySelectorAll('app-event-card').length).toBe(0);
+  });
+
+  it('should not show a heading above the selected day\'s event cards', async () => {
+    component.toggleView();
+    await stable();
+
+    component.onSelectedDateChange('2026-07-07');
+    fixture.detectChanges();
+
+    // Scoped to the (removed) selected-day heading's own class, not the calendar's unrelated
+    // month-label <h3> ("Setembre del 2026"), which stays.
+    expect(fixture.nativeElement.querySelector('h3.text-base-content\\/60')).toBeFalsy();
   });
 
   it('should show error state when the calendar fails to load', async () => {
