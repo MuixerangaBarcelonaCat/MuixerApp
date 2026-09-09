@@ -13,7 +13,7 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search, UserCheck } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, CheckboxComponent, InputComponent, SelectComponent, ToastService, type BadgeVariant } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, InputComponent, SelectComponent, ToastService, type BadgeVariant } from '@muixer/ui';
 import { ICON_XICALLA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
 import { AttendanceService } from '../../services/attendance.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
@@ -45,7 +45,6 @@ import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS, TagCategory } f
     ButtonGroupComponent,
     BadgeComponent,
     CardComponent,
-    CheckboxComponent,
     InputComponent,
     SelectComponent,
     AttendanceEditModalComponent,
@@ -92,7 +91,6 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
   private attendanceSearchTimeout: ReturnType<typeof setTimeout> | undefined;
 
   editingAttendance = signal<AttendanceItem | null>(null);
-  confirmedFilterActive = signal(true);
   positionFilter = signal<AttendancePosition | null>(null);
 
   totalAttendancePages = computed(() =>
@@ -117,11 +115,9 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    if (this.confirmedFilterActive()) {
-      this.attendanceStatusFilter.set(
-        this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE,
-      );
-    }
+    this.attendanceStatusFilter.set(
+      this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE,
+    );
     this.loadAttendance();
   }
 
@@ -161,16 +157,6 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
 
   onAttendanceStatusFilter(value: string) {
     this.attendanceStatusFilter.set(value ? (value as AttendanceStatus) : undefined);
-    this.confirmedFilterActive.set(false);
-    this.attendancePage.set(1);
-    this.loadAttendance();
-  }
-
-  toggleConfirmedFilter() {
-    const isActive = !this.confirmedFilterActive();
-    this.confirmedFilterActive.set(isActive);
-    const status = this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE;
-    this.attendanceStatusFilter.set(isActive ? status : undefined);
     this.attendancePage.set(1);
     this.loadAttendance();
   }
