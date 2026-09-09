@@ -464,6 +464,43 @@ describe('PersonPanelComponent', () => {
       expect(component.showXicalla()).toBe(true);
     });
 
+    it('focuses the search input on init even when no node is selected', () => {
+      vi.useFakeTimers();
+      try {
+        const fresh = TestBed.createComponent(PersonPanelComponent);
+        fresh.componentRef.setInput('eventId', EVENT_ID);
+        fresh.componentRef.setInput('segmentId', SEGMENT_ID);
+        fresh.detectChanges();
+        vi.advanceTimersByTime(1);
+
+        const searchInput = fresh.nativeElement.querySelector('input[type="search"]');
+        expect(document.activeElement).toBe(searchInput);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('re-focuses the search input when the node is deselected', () => {
+      vi.useFakeTimers();
+      try {
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1);
+
+        const searchInput: HTMLInputElement = fixture.nativeElement.querySelector('input[type="search"]');
+        searchInput.blur();
+        expect(document.activeElement).not.toBe(searchInput);
+
+        fixture.componentRef.setInput('selectedNodeId', null);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1);
+
+        expect(document.activeElement).toBe(searchInput);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('does not steal focus from the height input when a node gets selected mid-typing', () => {
       vi.useFakeTimers();
       try {

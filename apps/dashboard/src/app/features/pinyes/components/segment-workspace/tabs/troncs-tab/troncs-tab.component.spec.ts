@@ -59,6 +59,7 @@ class StubPersonPanel {
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
   readonly navigateNode = output<-1 | 1>();
+  focusSearch = vi.fn();
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -709,6 +710,47 @@ describe('TroncsTabComponent', () => {
       panel.navigateNode.emit(1);
 
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 't1' });
+    });
+  });
+
+  describe('background click keeps the search input focused', () => {
+    const panelStub = () =>
+      fixture.debugElement.query((n) => n.componentInstance instanceof StubPersonPanel)
+        .componentInstance as StubPersonPanel;
+
+    it('clicking the tronc background clears the selection and refocuses the search input', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })] } });
+      component.onTroncNodeSelected(INST_A, 'n1');
+      expect(component.selectedRef()).not.toBeNull();
+
+      const pane: HTMLElement = fixture.nativeElement.querySelector('.overflow-y-auto');
+      pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.selectedRef()).toBeNull();
+      expect(panelStub().focusSearch).toHaveBeenCalled();
+    });
+
+    it('clicking inside a tronc view does not clear the selection', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })] } });
+      component.onTroncNodeSelected(INST_A, 'n1');
+
+      const troncView: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+      troncView.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+    });
+
+    it('clicking an undo/redo button does not clear the selection', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })] } });
+      component.onTroncNodeSelected(INST_A, 'n1');
+
+      const button: HTMLElement = fixture.nativeElement.querySelector('button');
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
     });
   });
 

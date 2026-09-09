@@ -330,13 +330,18 @@ export class PersonPanelComponent {
 
     effect((onCleanup) => {
       const nodeId = this.selectedNodeId();
+
+      // Keep the search box focused at all times: with no node selected it
+      // searches for someone, with a node selected it fills that node. The
+      // height-filter guard still wins so we never yank focus mid-typing.
+      const focusTimer = setTimeout(() => {
+        if (this.heightFocused()) return;
+        this.focusSearch();
+      }, 0);
+      onCleanup(() => clearTimeout(focusTimer));
+
       if (nodeId !== null) {
         this.hasTypedSinceNodeSelected = false;
-        const focusTimer = setTimeout(() => {
-          if (this.heightFocused()) return;
-          this.focusSearch();
-        }, 0);
-        onCleanup(() => clearTimeout(focusTimer));
         // Auto-toggle the Xicalla filter to match the selected node's zone.
         // Left untouched when a node is deselected (nodeId === null).
         // Goes through onXicallaChange (not a direct signal set) so the person

@@ -1,5 +1,5 @@
 import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
-import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
@@ -76,6 +76,25 @@ export class TroncsTabComponent implements OnInit {
       this.ws.pendingSelection.set(null);
       this.select(pending);
     }
+  }
+
+  @ViewChild('personPanel') private personPanel?: PersonPanelComponent;
+
+  /**
+   * The tronc view has no full-bleed canvas that swallows background clicks, so
+   * clicks on the empty area around the figures fall through to the tab host.
+   * Mirror the Pinyes canvas: deselect the current node and pull focus back to
+   * the person search box, so the box is never left "orphaned" after an outside
+   * click. Clicks on a tronc view, the person panel, or a control are ignored.
+   */
+  @HostListener('click', ['$event'])
+  onBackgroundClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('app-tronc-view, app-person-panel, button, a, [role="button"], input')) {
+      return;
+    }
+    this.clearSelection();
+    this.personPanel?.focusSearch();
   }
 
   readonly MapIcon = MapIcon;
