@@ -24,6 +24,7 @@ const makePerson = (overrides: Partial<Person> = {}): Person => ({
   phone: null,
   birthDate: null,
   shoulderHeight: null,
+  gender: null,
   isXicalla: false,
   isMember: false,
   availability: 'AVAILABLE' as Person['availability'],
@@ -568,6 +569,58 @@ describe('PersonDetailComponent', () => {
       expect(mockPersonService.update).toHaveBeenCalledWith(
         'p1',
         expect.objectContaining({ shoulderHeight: 145 }),
+      );
+    });
+  });
+
+  describe('Gènere', () => {
+    const patchForm = (person: Person) =>
+      (component as unknown as { patchForm(p: Person): void }).patchForm(person);
+
+    it('renders the gender label in read-only mode', () => {
+      component.person.set(makePerson({ gender: 'FEMALE' as Person['gender'] }));
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('Dona');
+    });
+
+    it('shows "Sense especificar" in read-only mode when no gender is set', () => {
+      component.person.set(makePerson({ gender: null }));
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('Sense especificar');
+    });
+
+    it('patches the form control from the person', () => {
+      const person = makePerson({ gender: 'MALE' as Person['gender'] });
+      component.person.set(person);
+      patchForm(person);
+      expect(component.form.value.gender).toBe('MALE');
+    });
+
+    it('sends the selected gender when saving', () => {
+      const person = makePerson();
+      component.person.set(person);
+      patchForm(person);
+      component.editing.set(true);
+      component.form.patchValue({ gender: 'OTHER' as Person['gender'] });
+      component.save();
+
+      expect(mockPersonService.update).toHaveBeenCalledWith(
+        'p1',
+        expect.objectContaining({ gender: 'OTHER' }),
+      );
+    });
+
+    it('sends null when the gender field is left empty', () => {
+      const person = makePerson({ gender: 'MALE' as Person['gender'] });
+      component.person.set(person);
+      patchForm(person);
+      component.editing.set(true);
+      component.form.patchValue({ gender: '' });
+      component.save();
+
+      expect(mockPersonService.update).toHaveBeenCalledWith(
+        'p1',
+        expect.objectContaining({ gender: null }),
       );
     });
   });

@@ -1,4 +1,4 @@
-import { AvailabilityStatus, OnboardingStatus, FigureZone, TagCategory, TagCompliance } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, FigureZone, Gender, TagCategory, TagCompliance } from '@muixer/shared';
 
 export interface Position {
   id: string;
@@ -18,6 +18,7 @@ export interface Person {
   phone: string | null;
   birthDate: string | null;
   shoulderHeight: number | null;
+  gender: Gender | null;
   isXicalla: boolean;
   isMember: boolean;
   isProvisional?: boolean;
@@ -81,6 +82,7 @@ export interface UpdatePersonDto {
   phone: string | null;
   birthDate: string | null;
   shoulderHeight: number | null;
+  gender: Gender | null;
   isXicalla: boolean;
   isMember: boolean;
   isProvisional?: boolean;
