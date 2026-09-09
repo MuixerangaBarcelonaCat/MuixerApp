@@ -9,7 +9,11 @@ import { NodeAssignmentService } from '../../../../services/node-assignment.serv
 import { ButtonComponent, ToastService } from '@muixer/ui';
 import { generateUUID } from '../../../../../../shared/utils/uuid.util';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { buildTroncBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
+import {
+  buildTroncBuckets,
+  pickAdjacentNode,
+  pickNextAssignableNode,
+} from '../../../../utils/assignment-order.util';
 import { DIRECTION_NODE_PRESETS, FigureZone, areaForZone, conflictRelevantPlacements } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 
@@ -105,6 +109,37 @@ export class TroncsTabComponent implements OnInit {
       event.preventDefault();
       this.performRedo();
       return;
+    }
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      this.navigateAdjacent(event.shiftKey ? -1 : 1);
+    }
+  }
+
+  /**
+   * Steps the selection to the node immediately before (`-1`) or after (`1`)
+   * the current one, following the established tronc order and stopping on
+   * every visible node (assigned nodes included). Wraps around at both ends.
+   */
+  navigateAdjacent(direction: 1 | -1): void {
+    const ref = this.selectedRef();
+    const instanceId = ref?.slotId ?? this.ws.selectedInstanceId() ?? this.ws.instances()[0]?.instanceId;
+    if (!instanceId) return;
+    const instance = this.instanceFor(instanceId);
+    if (!instance) return;
+
+    const visibleIds = new Set(
+      this.ws
+        .visibleNodesFor(instance)
+        .filter((n) => n.zone !== FigureZone.PINYA && n.zone !== FigureZone.DECORATION)
+        .map((n) => n.id),
+    );
+    const buckets = buildTroncBuckets(instance.nodes);
+    const currentId = ref?.slotId === instanceId ? ref.nodeId : null;
+    const next = pickAdjacentNode(buckets, currentId, direction, visibleIds);
+    if (next) {
+      this.select({ slotId: instanceId, nodeId: next.id });
     }
   }
 

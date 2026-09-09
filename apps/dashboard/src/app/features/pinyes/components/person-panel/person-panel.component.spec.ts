@@ -736,6 +736,42 @@ describe('PersonPanelComponent', () => {
     });
   });
 
+  describe('node navigation from the search input', () => {
+    const makeKeyEvent = (key: string, shiftKey = false) =>
+      ({ key, shiftKey, preventDefault: vi.fn() }) as unknown as KeyboardEvent;
+
+    let navigateNodeSpy: Mock;
+
+    beforeEach(() => {
+      navigateNodeSpy = vi.fn();
+      component.navigateNode.subscribe((d) => navigateNodeSpy(d));
+    });
+
+    it('Tab with no search results emits navigateNode forward', () => {
+      component.search.set('');
+      fixture.detectChanges();
+      const event = makeKeyEvent('Tab');
+      component.onSearchKeyDown(event);
+      expect(navigateNodeSpy).toHaveBeenCalledWith(1);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('Shift+Tab with no search results emits navigateNode backward', () => {
+      component.search.set('');
+      fixture.detectChanges();
+      component.onSearchKeyDown(makeKeyEvent('Tab', true));
+      expect(navigateNodeSpy).toHaveBeenCalledWith(-1);
+    });
+
+    it('Tab does not emit navigateNode while there are search results', () => {
+      component.persons.set([makeAvailablePerson('p1', 'ANIRE', { alias: 'Marc1' })]);
+      component.search.set('marc');
+      fixture.detectChanges();
+      component.onSearchKeyDown(makeKeyEvent('Tab'));
+      expect(navigateNodeSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('unassign via keyboard from the empty search input', () => {
     const makeKeyEvent = (key: string) =>
       ({

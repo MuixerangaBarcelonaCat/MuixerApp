@@ -62,6 +62,8 @@ export class PersonPanelComponent {
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
+  /** Emitted when the user presses Tab / Shift+Tab in the search box with no results, to step to the next/previous node. */
+  readonly navigateNode = output<-1 | 1>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly state = inject(AssignmentStateService);
@@ -480,14 +482,25 @@ export class PersonPanelComponent {
   onSearchKeyDown(event: KeyboardEvent): void {
     const resultsCount = this.searchResults().length;
 
-    if (event.key === 'ArrowDown' || (event.key === 'Tab' && !event.shiftKey)) {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      if (resultsCount > 0) {
+        this.highlightedIndex.update((i) =>
+          event.shiftKey ? Math.max(i - 1, 0) : Math.min(i + 1, resultsCount - 1),
+        );
+      } else {
+        this.navigateNode.emit(event.shiftKey ? -1 : 1);
+      }
+      return;
+    }
+    if (event.key === 'ArrowDown') {
       if (resultsCount > 0) {
         event.preventDefault();
         this.highlightedIndex.update((i) => Math.min(i + 1, resultsCount - 1));
       }
       return;
     }
-    if (event.key === 'ArrowUp' || (event.key === 'Tab' && event.shiftKey)) {
+    if (event.key === 'ArrowUp') {
       if (resultsCount > 0) {
         event.preventDefault();
         this.highlightedIndex.update((i) => Math.max(i - 1, 0));
