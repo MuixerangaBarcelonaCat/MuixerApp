@@ -69,6 +69,8 @@ class StubRenglaOverlay {
   readonly renglaCreated = output<unknown>();
   readonly renglaUpdated = output<unknown>();
   readonly renglaDeleted = output<unknown>();
+  readonly renglaStartChanged = output<unknown>();
+  readonly creatingRengla = signal(false);
 }
 
 describe('TemplateEditorComponent — Preview Mode', () => {
@@ -475,6 +477,37 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       component.onKeyDown(event);
       expect(duplicateSpy).toHaveBeenCalled();
       expect(ghostSpy).not.toHaveBeenCalled();
+    });
+
+    describe('Ctrl+Z while picking nodes for a new rengla', () => {
+      beforeEach(() => {
+        component.renglaEditMode.set(true);
+        fixture.detectChanges();
+      });
+
+      it('does not undo the last saved rengla while mid-creation', () => {
+        component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+        fixture.detectChanges();
+        const overlay = component.renglaOverlay() as unknown as { creatingRengla: ReturnType<typeof signal<boolean>> };
+        overlay.creatingRengla.set(true);
+
+        const undoSpy = vi.spyOn(component, 'performUndo');
+        component.onKeyDown(createKeyEvent('z', { ctrlKey: true }));
+
+        expect(undoSpy).not.toHaveBeenCalled();
+      });
+
+      it('still undoes when not mid-creation', () => {
+        component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+        fixture.detectChanges();
+        const overlay = component.renglaOverlay() as unknown as { creatingRengla: ReturnType<typeof signal<boolean>> };
+        overlay.creatingRengla.set(false);
+
+        const undoSpy = vi.spyOn(component, 'performUndo');
+        component.onKeyDown(createKeyEvent('z', { ctrlKey: true }));
+
+        expect(undoSpy).toHaveBeenCalled();
+      });
     });
 
     it('should not toggle preview when editing an input', () => {

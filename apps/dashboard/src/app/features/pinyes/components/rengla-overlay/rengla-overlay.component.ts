@@ -208,6 +208,16 @@ export class RenglaOverlayComponent {
     this.startPosition.set(1);
   }
 
+  /** True while the user is mid-creation with at least one node already picked. */
+  readonly hasPendingRenglaNodes = computed(
+    () => this.creatingRengla() && this.pendingNodeIds().length > 0,
+  );
+
+  /** Drops the most recently picked node from the in-progress rengla (Ctrl+Z). */
+  removeLastPendingNode(): void {
+    this.pendingNodeIds.update((ids) => ids.slice(0, -1));
+  }
+
   onStartPositionChange(rawValue: string): void {
     const value = parseInt(rawValue, 10);
     if (!isNaN(value) && value >= 1) {
@@ -243,6 +253,16 @@ export class RenglaOverlayComponent {
     if (event.key === 'Enter' && this.creatingRengla()) {
       event.preventDefault();
       this.finishCreating();
+      return;
+    }
+    const isMod = event.metaKey || event.ctrlKey;
+    if (isMod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+      // While picking nodes for a new rengla, Ctrl+Z drops the last picked node
+      // rather than undoing the last saved rengla (handled by the template editor).
+      if (this.hasPendingRenglaNodes()) {
+        event.preventDefault();
+        this.removeLastPendingNode();
+      }
       return;
     }
     if ((event.key === 'Delete' || event.key === 'Backspace') && this.selectedRenglaId()) {
