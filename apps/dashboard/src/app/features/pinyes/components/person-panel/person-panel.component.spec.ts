@@ -736,6 +736,55 @@ describe('PersonPanelComponent', () => {
     });
   });
 
+  describe('unassign via keyboard from the empty search input', () => {
+    const makeKeyEvent = (key: string) =>
+      ({
+        key,
+        shiftKey: false,
+        preventDefault: vi.fn(),
+        target: { value: '' } as HTMLInputElement,
+      }) as unknown as KeyboardEvent;
+
+    const makeAssignment = (personId: string) => ({
+      id: `assignment-${personId}`,
+      figureInstanceId: 'instance-1',
+      node: {
+        id: 'node-1',
+        label: 'Base 1',
+        zone: 'BASE',
+        z: 0,
+        positionType: null,
+        sortOrder: 0,
+        climbIndicator: null,
+        ringLevel: null,
+        originNodeId: null,
+        sourceNodeId: null,
+      },
+      person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: null },
+    });
+
+    let unassignSpy: Mock;
+
+    beforeEach(() => {
+      unassignSpy = vi.fn();
+      component.unassignRequested.subscribe((a) => unassignSpy(a));
+      component.search.set('');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.componentRef.setInput('assignments', [makeAssignment('p1')]);
+      fixture.detectChanges();
+    });
+
+    it('Backspace unassigns the person on the selected node', () => {
+      component.onSearchKeyDown(makeKeyEvent('Backspace'));
+      expect(unassignSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'assignment-p1' }));
+    });
+
+    it('Delete unassigns the person on the selected node, like Backspace', () => {
+      component.onSearchKeyDown(makeKeyEvent('Delete'));
+      expect(unassignSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'assignment-p1' }));
+    });
+  });
+
   // ── sortedConfirmedPersons (F2 intelligent filter) ─────────────────────────
 
   describe('sortedConfirmedPersons', () => {

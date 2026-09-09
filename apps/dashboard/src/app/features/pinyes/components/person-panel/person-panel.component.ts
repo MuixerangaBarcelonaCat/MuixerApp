@@ -506,7 +506,7 @@ export class PersonPanelComponent {
       }
       return;
     }
-    if (event.key === 'Backspace') {
+    if (event.key === 'Backspace' || event.key === 'Delete') {
       const input = event.target as HTMLInputElement;
       if (input.value === '' && !this.hasTypedSinceNodeSelected) {
         const assignment = this.selectedAssignment();
