@@ -74,7 +74,9 @@ export interface CreateEventPayload {
   seasonId?: string;
 }
 
-export type UpdateEventPayload = Partial<CreateEventPayload>;
+export type UpdateEventPayload = {
+  [K in keyof CreateEventPayload]?: CreateEventPayload[K] | null;
+};
 
 export interface PaginatedResponse<T> {
   data: T[];
