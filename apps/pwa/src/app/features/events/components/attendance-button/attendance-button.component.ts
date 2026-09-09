@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
+import { LucideAngularModule, Check } from 'lucide-angular';
 import { AttendanceStatus } from '@muixer/shared';
 import { EventService } from '../../services/event.service';
 import { ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui';
@@ -19,16 +20,15 @@ import { ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui'
   selector: 'app-attendance-button',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, ButtonGroupComponent],
+  imports: [ButtonComponent, ButtonGroupComponent, LucideAngularModule],
   template: `
-    @if (isLocked()) {
+    @if (isLockedBadgeOnly()) {
       <span class="badge badge-info badge-sm gap-1 py-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-        </svg>
+        <lucide-angular [img]="Check" class="size-3" />
         He assistit
       </span>
     } @else {
+      <div class="flex items-center gap-2">
       <lib-button-group>
         <lib-button
           joinItem
@@ -53,6 +53,13 @@ import { ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui'
           (clicked)="setStatus(NO_VAIG)"
         >No vinc</lib-button>
       </lib-button-group>
+      @if (displayStatus() === ASSISTIT) {
+        <span class="badge badge-info badge-sm gap-1 py-3">
+          <lucide-angular [img]="Check" class="size-3" />
+          He assistit
+        </span>
+      }
+      </div>
     }
   `,
 })
@@ -66,6 +73,8 @@ export class AttendanceButtonComponent {
 
   protected readonly ANIRE = AttendanceStatus.ANIRE;
   protected readonly NO_VAIG = AttendanceStatus.NO_VAIG;
+  protected readonly ASSISTIT = AttendanceStatus.ASSISTIT;
+  protected readonly Check = Check;
 
   private readonly eventService = inject(EventService);
   private readonly toast = inject(ToastService);
@@ -77,8 +86,14 @@ export class AttendanceButtonComponent {
   protected readonly displayStatus = computed(
     () => this.localStatus() ?? AttendanceStatus.PENDENT,
   );
-  protected readonly isLocked = computed(
-    () => this.displayStatus() === AttendanceStatus.ASSISTIT,
+  /**
+   * `ASSISTIT` no longer hard-locks the control: a member who was marked as attended (by the
+   * rehearsal tablet, by staff, or by the performance auto-sweep) can still move back to «No
+   * vinc» while the event is editable. Only once the parent disables the control (event out of
+   * its editing window) does `ASSISTIT` collapse to a read-only badge.
+   */
+  protected readonly isLockedBadgeOnly = computed(
+    () => this.displayStatus() === AttendanceStatus.ASSISTIT && this.disabled(),
   );
   protected readonly isEffectivelyDisabled = computed(
     () => this.disabled() || this.isPending(),
