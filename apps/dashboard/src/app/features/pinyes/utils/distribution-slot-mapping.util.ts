@@ -136,11 +136,16 @@ export function mapDistributionItemsToSlots(
  * shifted from where placement assumed — misaligning the tronc panel against
  * real nodes (including its own BASE row).
  */
-function pinyaBaseNodes<T extends { zone: string }>(nodes: T[]): T[] {
-  return nodes.filter((n) => n.zone === 'PINYA' || n.zone === 'BASE');
+function pinyaBaseNodes<T extends { zone: string; isAdHoc?: boolean }>(nodes: T[]): T[] {
+  return nodes.filter((n) => (n.zone === 'PINYA' || n.zone === 'BASE') && !n.isAdHoc);
 }
 
-/** Nodes actually rendered on the pinya canvas — used only to block tronc placement. */
+/**
+ * Nodes actually rendered on the pinya canvas — used only to block tronc
+ * placement. Includes DECORATION and ad-hoc ("extra") nodes: they are drawn,
+ * so a tronc panel must avoid them, but (like DECORATION) they never move the
+ * pivot — see `pinyaBaseNodes`.
+ */
 function pinyaCanvasNodes<T extends { zone: string }>(nodes: T[]): T[] {
   return nodes.filter((n) => n.zone === 'PINYA' || n.zone === 'BASE' || n.zone === 'DECORATION');
 }

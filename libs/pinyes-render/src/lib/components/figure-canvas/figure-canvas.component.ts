@@ -1234,9 +1234,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     );
 
     for (const slot of sortedSlots) {
-      const pinyaNodes = slot.figureTemplate.nodes.filter(
-        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-      );
+      // pivotNodesFor also excludes ad-hoc ("extra") nodes — this mode renders the
+      // Distribució tab too (see distribucio-tab.component.html), where instances
+      // can carry them; an inline filter here would silently drift from the pivot
+      // every other mode/view uses (see slotPivot below).
+      const pinyaNodes = pivotNodesFor(slot.figureTemplate.nodes);
 
       const isSelected = slot.slotId === selectedSlotId;
 
@@ -1478,10 +1480,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private renderTroncPanel(slot: CompositionSlotWithNodes, slotGroup: Konva.Group, figColor: string): void {
     const { naturalW: troncW, naturalH: troncH } = computeTroncNaturalSize(slot.troncGridCols ?? 0, slot.troncGridRows ?? 0);
 
-    // Bounding box for pivot computation (same logic as renderCompositionSlots)
-    const pinyaNodes = slot.figureTemplate.nodes.filter(
-      (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-    );
+    // Bounding box for pivot computation (same logic as renderCompositionSlots, ad-hoc excluded)
+    const pinyaNodes = pivotNodesFor(slot.figureTemplate.nodes);
     let minY = 0, maxY = 0;
     if (pinyaNodes.length > 0) {
       minY = Math.min(...pinyaNodes.map((n) => n.y - n.height / 2));

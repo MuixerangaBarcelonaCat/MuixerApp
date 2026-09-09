@@ -24,6 +24,7 @@ const makeDistributionNode = (
   positionType: null,
   sortOrder: 0,
   climbIndicator: null,
+  isAdHoc: false,
   ...overrides,
 });
 
@@ -179,6 +180,39 @@ describe('mapDistributionItemsToSlots', () => {
 
     expect(withDecoration.offsetX).toBe(pivotOnly.offsetX);
     expect(withDecoration.offsetY).toBe(pivotOnly.offsetY);
+  });
+
+  it('does not let an ad-hoc PINYA node shift the pivot (same treatment as DECORATION)', () => {
+    const pivotOnlyItems = [
+      {
+        ...itemWithPosition('a', null, null),
+        figureTemplate: {
+          id: 'fig-a',
+          name: 'a',
+          nodes: [makeDistributionNode('p1', 'PINYA', { x: 0, y: 0, width: 200, height: 100 })],
+        },
+      },
+    ];
+    const withAdHocItems = [
+      {
+        ...itemWithPosition('a', null, null),
+        figureTemplate: {
+          id: 'fig-a',
+          name: 'a',
+          nodes: [
+            makeDistributionNode('p1', 'PINYA', { x: 0, y: 0, width: 200, height: 100 }),
+            // Extra node far outside the PINYA bbox — must not move the pivot.
+            makeDistributionNode('extra', 'PINYA', { x: 900, y: 900, width: 100, height: 100, isAdHoc: true }),
+          ],
+        },
+      },
+    ];
+
+    const [pivotOnly] = mapDistributionItemsToSlots(pivotOnlyItems);
+    const [withAdHoc] = mapDistributionItemsToSlots(withAdHocItems);
+
+    expect(withAdHoc.offsetX).toBe(pivotOnly.offsetX);
+    expect(withAdHoc.offsetY).toBe(pivotOnly.offsetY);
   });
 
   it('ignores TRONC-zone grid coordinates when computing auto-placement extents', () => {

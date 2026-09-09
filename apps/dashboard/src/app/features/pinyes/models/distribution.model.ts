@@ -15,6 +15,8 @@ export interface DistributionNodeItem {
   positionType: string | null;
   sortOrder: number;
   climbIndicator: string | null;
+  /** Ad-hoc ("extra") node — drawn, but excluded from the figure's placement/rotation pivot. */
+  isAdHoc?: boolean;
 }
 
 export interface DistributionAssignment {

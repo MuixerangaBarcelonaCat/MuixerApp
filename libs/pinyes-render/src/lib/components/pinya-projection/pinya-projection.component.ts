@@ -23,6 +23,7 @@ import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canva
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { TroncPanelMeasurerComponent, TroncPanelMeasureSpec } from '../tronc-panel-measurer/tronc-panel-measurer.component';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
+import { pivotNodesFor } from '../../utils/segment-assignment-render.util';
 import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
@@ -302,13 +303,13 @@ export class PinyaProjectionComponent {
    * row). Empty when any instance has a saved position.
    *
    * The pivot node set (`nodes`, defining each figure's placed x/y) MUST be
-   * raw, unfiltered PINYA+BASE — exactly what `distributionNodes` uses as its
-   * Konva rotation pivot (see its doc comment). Using any other set (assigned-
-   * only PINYA, or including DECORATION) shifts the figure's actual rendered
-   * position away from what placement assumed, misaligning the tronc panel
-   * against real nodes — including the figure's own BASE row. Decoration and
-   * assignment status still matter for `occupiedNodes`: they block tronc
-   * placement without affecting the pivot.
+   * PINYA+BASE excluding ad-hoc nodes — exactly what `distributionNodes` uses
+   * as its Konva rotation pivot (see its doc comment). Using any other set
+   * (assigned-only PINYA, or including DECORATION/ad-hoc) shifts the figure's
+   * actual rendered position away from what placement assumed, misaligning the
+   * tronc panel against real nodes — including the figure's own BASE row.
+   * Decoration, ad-hoc nodes and assignment status still matter for
+   * `occupiedNodes`: they block tronc placement without affecting the pivot.
    */
   private readonly batchPlacements = computed((): Map<string, PlacedFigurePosition> => {
     const instances = this.filteredInstances();
@@ -316,9 +317,7 @@ export class PinyaProjectionComponent {
       return new Map();
     }
     const specs = instances.map((inst) => {
-      const pivotNodes = inst.nodes.filter(
-        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-      );
+      const pivotNodes = pivotNodesFor(inst.nodes);
       const occupiedNodes = this.getInstanceProjectionNodes(inst);
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
       return {
@@ -406,11 +405,10 @@ export class PinyaProjectionComponent {
       const cosA = Math.cos(angleRad);
       const sinA = Math.sin(angleRad);
 
-      // Compute the figure's rotation pivot — the center of its PINYA+BASE bounding box.
-      // This matches the offsetX/Y the distribution editor applies to the Konva group.
-      const pinyaBaseNodes = inst.nodes.filter(
-        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-      );
+      // Compute the figure's rotation pivot — the center of its PINYA+BASE bounding box
+      // (ad-hoc excluded — pivotNodesFor, same as everywhere else). This matches the
+      // offsetX/Y the distribution editor applies to the Konva group.
+      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
       let centerX = 0;
       let centerY = 0;
       if (pinyaBaseNodes.length > 0) {
@@ -475,10 +473,10 @@ export class PinyaProjectionComponent {
         return { x: panelCanvasX + troncW / 2, y: panelCanvasY + troncH / 2, width: troncW, height: troncH };
       }
 
-      // Linked: panel sits above the figure's pinya top edge.
-      const pinyaBaseNodes = inst.nodes.filter(
-        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-      );
+      // Linked: panel sits above the figure's pinya top edge (pivotNodesFor: ad-hoc
+      // excluded — otherwise an extra node far from the real pinya inflates this
+      // half-height and pushes the panel away from it).
+      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
       const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
       const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
       const figHalfH = (mxY - mnY) / 2;
@@ -526,10 +524,9 @@ export class PinyaProjectionComponent {
       const figScreenX = canvasCX * stageScale + stageX;
       const figScreenY = canvasCY * stageScale + stageY;
 
-      // Figure visual half-height (world coords → screen via totalScale).
-      const pinyaBaseNodes = inst.nodes.filter(
-        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-      );
+      // Figure visual half-height (world coords → screen via totalScale). pivotNodesFor:
+      // ad-hoc excluded, same reasoning as distributionFitBounds above.
+      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
       const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
       const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
       const figHalfH = (mxY - mnY) / 2;
@@ -573,9 +570,9 @@ export class PinyaProjectionComponent {
       const cosA = Math.cos(angleRad);
       const sinA = Math.sin(angleRad);
 
-      const pinyaBaseNodes = inst.nodes.filter(
-        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-      );
+      // pivotNodesFor: must match distributionNodes()'s pivot exactly, or the glow is
+      // centered on a different point than the nodes it sits behind.
+      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
       let centerX = 0, centerY = 0;
       if (pinyaBaseNodes.length > 0) {
         const mnX = Math.min(...pinyaBaseNodes.map((n) => n.x - n.width / 2));
@@ -586,13 +583,14 @@ export class PinyaProjectionComponent {
         centerY = (mnY + mxY) / 2;
       }
 
-      // Decoration nodes are excluded: this glow is the figure's own per-instance color, applied
-      // uniformly to every occupying node's silhouette — a decoration node keeps its own
-      // independent color (including "sense fons"/null, rendered as a transparent fill), and
-      // painting the figure's color behind it made a colorless decoration look tinted with
-      // whichever figure it happened to sit on.
+      // Decoration and ad-hoc nodes are excluded: this glow is the figure's own per-instance
+      // color, applied uniformly to every occupying node's silhouette — a decoration node keeps
+      // its own independent color (including "sense fons"/null, rendered as a transparent
+      // fill), and an ad-hoc ("extra") node is likewise not part of the figure's own structure,
+      // so painting the figure's color behind either made it look tinted with whichever figure
+      // it happened to sit on.
       return this.getInstanceProjectionNodes(inst)
-        .filter((node) => node.zone !== FigureZone.DECORATION)
+        .filter((node) => node.zone !== FigureZone.DECORATION && !node.isAdHoc)
         .map((node): OutlineBox => {
           const relX = node.x - centerX;
           const relY = node.y - centerY;
