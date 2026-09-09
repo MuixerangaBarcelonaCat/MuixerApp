@@ -43,6 +43,11 @@ describe('PushSubscriptionService', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      /* no-op */
+    }
     Object.defineProperty(globalThis, 'Notification', {
       value: defaultNotification,
       configurable: true,
@@ -101,6 +106,68 @@ describe('PushSubscriptionService', () => {
       });
       const result = await service.requestPermissionAndSubscribe();
       expect(result).toBe(false);
+      http.expectNone('/api/me/push-subscriptions');
+    });
+  });
+
+  describe('syncOnStartup', () => {
+    it('re-subscribes silently when permission is granted but the device has no subscription', async () => {
+      Object.defineProperty(globalThis, 'Notification', {
+        value: { permission: 'granted', requestPermission: vi.fn() },
+        configurable: true,
+      });
+      mockPushManager.getSubscription.mockResolvedValueOnce(null);
+
+      const promise = service.syncOnStartup();
+      http.expectOne('/api/me/push-subscriptions/status').flush({ isSubscribed: false, deviceCount: 0 });
+      await new Promise((r) => setTimeout(r, 0));
+      http.expectOne('/api/notifications/vapid-public-key').flush({ publicKey: 'test-key' });
+      await new Promise((r) => setTimeout(r, 0));
+      http.expectOne('/api/me/push-subscriptions').flush({ id: 'sub-1' });
+      await promise;
+
+      expect(Notification.requestPermission).not.toHaveBeenCalled();
+      expect(service.isSubscribed()).toBe(true);
+    });
+
+    it('does not prompt or subscribe when permission is still default', async () => {
+      const promise = service.syncOnStartup();
+      http.expectOne('/api/me/push-subscriptions/status').flush({ isSubscribed: false, deviceCount: 0 });
+      await promise;
+
+      http.expectNone('/api/me/push-subscriptions');
+      expect(Notification.requestPermission).not.toHaveBeenCalled();
+    });
+
+    it('does not re-subscribe after the user unsubscribed in settings, even with permission granted', async () => {
+      Object.defineProperty(globalThis, 'Notification', {
+        value: { permission: 'granted', requestPermission: vi.fn() },
+        configurable: true,
+      });
+      mockPushManager.getSubscription.mockResolvedValueOnce(mockSubscription);
+      const unsub = service.unsubscribe();
+      await new Promise((r) => setTimeout(r, 0));
+      http.expectOne('/api/me/push-subscriptions').flush({});
+      await unsub;
+
+      await service.syncOnStartup();
+
+      http.expectNone('/api/me/push-subscriptions/status');
+      http.expectNone('/api/me/push-subscriptions');
+      http.expectNone('/api/notifications/vapid-public-key');
+    });
+
+    it('does nothing when the device is already subscribed', async () => {
+      Object.defineProperty(globalThis, 'Notification', {
+        value: { permission: 'granted', requestPermission: vi.fn() },
+        configurable: true,
+      });
+      mockPushManager.getSubscription.mockResolvedValueOnce(mockSubscription);
+
+      const promise = service.syncOnStartup();
+      http.expectOne('/api/me/push-subscriptions/status').flush({ isSubscribed: true, deviceCount: 1 });
+      await promise;
+
       http.expectNone('/api/me/push-subscriptions');
     });
   });
