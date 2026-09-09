@@ -698,6 +698,18 @@ describe('PinyaProjectionComponent', () => {
       expect(marker.componentInstance.subject()).toEqual({ kind: 'other', alias: 'Marta' });
     });
 
+    it('feeds the banner the numbered figure name when two figures share a name', () => {
+      const node = makeNode({ id: 'n1', label: 'Lateral' });
+      const a = makeInstance([], [], { id: 'a', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      const b = makeInstance([node], ['n1'], { id: 'b', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      setData(makeSegmentData([a, b]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      expect(banner.componentInstance.state().figureName).toBe('Pilar 2');
+    });
+
     it('re-emits backToSelf when the banner emits back', () => {
       const inst = makeInstance([makeNode({ id: 'n1' })], [], { id: 'i1' });
       setData(makeSegmentData([inst]));
@@ -711,6 +723,26 @@ describe('PinyaProjectionComponent', () => {
       banner.componentInstance.back.emit();
 
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── getInstanceName ─────────────────────────────────────────────────────────
+
+  describe('getInstanceName', () => {
+    it('leaves the name bare when it is the only figure with that name', () => {
+      const a = makeInstance([], [], { id: 'a', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      const b = makeInstance([], [], { id: 'b', figureTemplate: { id: 'f2', name: 'Vano', hasPinya: true } });
+      setData(makeSegmentData([a, b]));
+
+      expect(component.getInstanceName(a)).toBe('Pilar');
+    });
+
+    it('numbers figures that share a name, in order', () => {
+      const a = makeInstance([], [], { id: 'a', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      const b = makeInstance([], [], { id: 'b', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      setData(makeSegmentData([a, b]));
+
+      expect([component.getInstanceName(a), component.getInstanceName(b)]).toEqual(['Pilar 1', 'Pilar 2']);
     });
   });
 

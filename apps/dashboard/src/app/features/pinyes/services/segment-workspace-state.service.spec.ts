@@ -268,6 +268,20 @@ describe('SegmentWorkspaceStateService', () => {
       expect(labels[2]).toBe('Torreta neta');
     });
 
+    it('numbers instances that share a display label, in order', () => {
+      configure({
+        segment: makeSegment([
+          makeInstance('inst-a', { figureTemplate: { id: 't', name: 'Pilar', hasPinya: true } }),
+          makeInstance('inst-b', { figureTemplate: { id: 't', name: 'Pilar', hasPinya: true } }),
+          makeInstance('inst-c', { figureTemplate: { id: 'u', name: 'Vano', hasPinya: true } }),
+        ]),
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.instances().map((i) => i.label)).toEqual(['Pilar 1', 'Pilar 2', 'Vano']);
+    });
+
     it('loads nodes for every instance and computes totalCount excluding decorations and cordons-hidden nodes', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { numberOfCordons: 1 })]),

@@ -289,6 +289,30 @@ describe('mapDistributionItemsToSlots', () => {
     expect(b.offsetX).toBeGreaterThan(400 + 50 + DEFAULT_PLACEMENT_GAP - 1);
   });
 
+  it('numbers slot labels when two items share the same figure name', () => {
+    const items = [
+      itemWithPosition('a', 0, 0, 0, { figureTemplate: { id: 'fig-1', name: 'Pilar', nodes: [] } }),
+      itemWithPosition('b', 100, 0, 0, { figureTemplate: { id: 'fig-1', name: 'Pilar', nodes: [] } }),
+    ];
+
+    const [a, b] = mapDistributionItemsToSlots(items);
+
+    expect(a.label).toBe('Pilar 1');
+    expect(b.label).toBe('Pilar 2');
+  });
+
+  it('leaves the label bare when only one item carries that figure name', () => {
+    const items = [
+      itemWithPosition('a', 0, 0, 0, { figureTemplate: { id: 'fig-1', name: 'Pilar', nodes: [] } }),
+      itemWithPosition('b', 100, 0, 0, { figureTemplate: { id: 'fig-2', name: 'Vano', nodes: [] } }),
+    ];
+
+    const [a, b] = mapDistributionItemsToSlots(items);
+
+    expect(a.label).toBe('Pilar');
+    expect(b.label).toBe('Vano');
+  });
+
   it('passes assignments through to the slot', () => {
     const item = {
       ...itemWithPosition('a', 0, 0),

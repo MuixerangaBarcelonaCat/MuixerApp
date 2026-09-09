@@ -1,5 +1,11 @@
 import { FigureMode } from '../enums/figure-mode.enum';
-import { computeSegmentDisplayName, getSegmentInstanceLabel, SegmentTitleInstance } from './segment-title.util';
+import {
+  computeInstanceDisplayNames,
+  computeSegmentDisplayName,
+  getSegmentInstanceLabel,
+  NumberedSegmentInstance,
+  SegmentTitleInstance,
+} from './segment-title.util';
 
 const makeInstance = (overrides: Partial<SegmentTitleInstance> = {}): SegmentTitleInstance => ({
   label: null,
@@ -7,6 +13,11 @@ const makeInstance = (overrides: Partial<SegmentTitleInstance> = {}): SegmentTit
   figureTemplate: null,
   ...overrides,
 });
+
+const makeNumbered = (
+  id: string,
+  overrides: Partial<SegmentTitleInstance> = {},
+): NumberedSegmentInstance => ({ id, ...makeInstance(overrides) });
 
 describe('computeSegmentDisplayName', () => {
   it('returns the custom name when set', () => {
@@ -97,5 +108,69 @@ describe('getSegmentInstanceLabel', () => {
     // Gating the suffix on it made PEU/REMAT/NETA unreachable for any caller fed projection data.
     const instance = makeInstance({ figureMode: FigureMode.PEU, figureTemplate: { name: 'Tronc', hasPinya: false } });
     expect(getSegmentInstanceLabel(instance)).toBe('Peu de Tronc');
+  });
+});
+
+describe('computeInstanceDisplayNames', () => {
+  it('leaves a label untouched when only one figure carries it', () => {
+    const names = computeInstanceDisplayNames([
+      makeNumbered('a', { figureTemplate: { name: 'Pilar', hasPinya: true } }),
+      makeNumbered('b', { figureTemplate: { name: 'Vano', hasPinya: true } }),
+    ]);
+    expect(names.get('a')).toBe('Pilar');
+    expect(names.get('b')).toBe('Vano');
+  });
+
+  it('appends an ordinal, in input order, when several figures share a label', () => {
+    const names = computeInstanceDisplayNames([
+      makeNumbered('a', { figureTemplate: { name: 'Pilar', hasPinya: true } }),
+      makeNumbered('b', { figureTemplate: { name: 'Pilar', hasPinya: true } }),
+      makeNumbered('c', { figureTemplate: { name: 'Pilar', hasPinya: true } }),
+    ]);
+    expect(names.get('a')).toBe('Pilar 1');
+    expect(names.get('b')).toBe('Pilar 2');
+    expect(names.get('c')).toBe('Pilar 3');
+  });
+
+  it('reverts to the bare label once a single figure remains', () => {
+    const names = computeInstanceDisplayNames([
+      makeNumbered('a', { figureTemplate: { name: 'Pilar', hasPinya: true } }),
+    ]);
+    expect(names.get('a')).toBe('Pilar');
+  });
+
+  it('numbers each colliding label group independently', () => {
+    const names = computeInstanceDisplayNames([
+      makeNumbered('a', { figureTemplate: { name: 'Pilar', hasPinya: true } }),
+      makeNumbered('b', { figureTemplate: { name: 'Torre', hasPinya: true } }),
+      makeNumbered('c', { figureTemplate: { name: 'Pilar', hasPinya: true } }),
+      makeNumbered('d', { figureTemplate: { name: 'Torre', hasPinya: true } }),
+    ]);
+    expect([names.get('a'), names.get('b'), names.get('c'), names.get('d')]).toEqual([
+      'Pilar 1',
+      'Torre 1',
+      'Pilar 2',
+      'Torre 2',
+    ]);
+  });
+
+  it('groups by the mode-derived label, not the raw template name', () => {
+    const names = computeInstanceDisplayNames([
+      makeNumbered('a', { figureTemplate: { name: 'Roscana', hasPinya: true } }),
+      makeNumbered('b', { figureMode: FigureMode.PEU, figureTemplate: { name: 'Roscana', hasPinya: true } }),
+      makeNumbered('c', { figureMode: FigureMode.PEU, figureTemplate: { name: 'Roscana', hasPinya: true } }),
+    ]);
+    expect(names.get('a')).toBe('Roscana');
+    expect(names.get('b')).toBe('Peu de Roscana 1');
+    expect(names.get('c')).toBe('Peu de Roscana 2');
+  });
+
+  it('numbers figures sharing an explicit custom label', () => {
+    const names = computeInstanceDisplayNames([
+      makeNumbered('a', { label: 'Pilar de 4', figureTemplate: { name: 'p4', hasPinya: true } }),
+      makeNumbered('b', { label: 'Pilar de 4', figureTemplate: { name: 'p4', hasPinya: true } }),
+    ]);
+    expect(names.get('a')).toBe('Pilar de 4 1');
+    expect(names.get('b')).toBe('Pilar de 4 2');
   });
 });

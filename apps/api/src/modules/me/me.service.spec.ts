@@ -686,6 +686,28 @@ describe('MeService', () => {
       ]);
     });
 
+    it('numbers the figure name when the segment holds two figures of the same name', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        makeSegment({
+          instances: [
+            { id: 'i1', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } },
+            { id: 'i2', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } },
+          ],
+        }),
+      ] as never);
+      nodeAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({
+          figureInstance: { id: 'i2', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { name: 'Pilar' } },
+          instanceNode: { label: 'Vent', renglaPosition: 1 },
+        }),
+      ] as never);
+
+      const result = await service.findEventSegments(mockUser, 'event-1');
+
+      expect(result[0].myPlacements[0].figureName).toBe('Pilar 2');
+    });
+
     it('omits the figure name when the segment holds a single figure', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
       eventSegmentService.findAllByEvent.mockResolvedValue([

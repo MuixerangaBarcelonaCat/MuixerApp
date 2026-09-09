@@ -320,6 +320,19 @@ describe('DistribucioTabComponent', () => {
       expect(measurerStub()).not.toBeNull();
       expect(measurerStub()!.panels().map((p) => p.instanceId)).toEqual([INST_A]);
     });
+
+    it('numbers the measurer figureName when two instances share the same figure name', async () => {
+      const shared = { id: 'tpl-shared', name: 'Pilar', nodes: [makeDistributionNode('n1', 'PINYA')] };
+      await setup({
+        items: [
+          makeDistributionItem(INST_A, { figureTemplate: shared }),
+          makeDistributionItem(INST_B, { figureTemplate: shared, projectionX: 200 }),
+        ],
+      });
+
+      const names = measurerStub()!.panels().map((p) => p.figureName);
+      expect(names).toEqual(['Pilar 1', 'Pilar 2']);
+    });
   });
 
   describe('selection', () => {

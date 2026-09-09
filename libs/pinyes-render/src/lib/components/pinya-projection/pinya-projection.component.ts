@@ -10,7 +10,13 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FigureZone, ImportScope, getSegmentInstanceLabel, OwnPositionSubject } from '@muixer/shared';
+import {
+  FigureZone,
+  ImportScope,
+  computeInstanceDisplayNames,
+  getSegmentInstanceLabel,
+  OwnPositionSubject,
+} from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
@@ -143,6 +149,23 @@ export class PinyaProjectionComponent {
   });
 
   /**
+   * Per-instance display names for the whole segment: a figure sharing its name with another in
+   * the same segment gets a trailing ordinal («Pilar 1», «Pilar 2»), a unique one stays bare.
+   * Keyed off the raw `data().instances` (never `filteredInstances()`) so the Dashboard's
+   * single-figure preview route still numbers against the full set.
+   */
+  private readonly instanceDisplayNames = computed(() =>
+    computeInstanceDisplayNames(
+      this.data().instances.map((i) => ({
+        id: i.id,
+        label: i.label,
+        figureMode: i.figureMode,
+        figureTemplate: i.figureTemplate,
+      })),
+    ),
+  );
+
+  /**
    * Every assignment `highlightPersonId` holds in this segment, against the raw, unfiltered
    * `data()` — deliberately not `filteredInstances()`, which exists for the Dashboard's
    * single-figure preview route (`instanceId`) and would silently misreport
@@ -170,7 +193,9 @@ export class PinyaProjectionComponent {
     if (placements.length === 0) return { kind: 'NONE' };
     if (placements.length > 1) return { kind: 'MULTIPLE' };
 
-    return describeOwnPlacement(placements[0], this.data().instances.length);
+    const figureName =
+      this.data().instances.length > 1 ? this.getInstanceName(placements[0].instance) : null;
+    return describeOwnPlacement(placements[0], figureName);
   });
 
   /**
@@ -722,7 +747,7 @@ export class PinyaProjectionComponent {
   }
 
   getInstanceName(instance: ProjectionInstance): string {
-    return getSegmentInstanceLabel(instance);
+    return this.instanceDisplayNames().get(instance.id) ?? getSegmentInstanceLabel(instance);
   }
 
   /**
