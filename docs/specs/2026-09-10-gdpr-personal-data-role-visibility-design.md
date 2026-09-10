@@ -51,6 +51,9 @@ Restringir l'accés a les dades personals de les persones del cens: només els u
 | Absència vs `null` | Els camps protegits **s'ometen** de la resposta (no s'envien com a `null`), perquè el frontend no pugui confondre "amagat" amb "buit". |
 | Camps personals en altres mòduls | **Minimització per a tothom** en lloc de propagar el rol per quatre serveis més. |
 | Ordenació per camp protegit | **Fallback silenciós a `alias`** per a `TECHNICAL`, no error 400: una vista desada per un admin degrada en lloc de petar. |
+| Camps editables per `TECHNICAL` | `alias`, `name` i `shoulderHeight` **es mantenen editables** — són dades operatives que la comissió tècnica necessita. Els camps `ADMIN`-only no es renderitzen. |
+| Promoció de provisional a membre | **Només `ADMIN`** — `PersonService.update` exigeix `firstSurname` no buit i un usuari vinculat, així que el flux requereix dades personals per definició. |
+| Construcció del payload de desat | **Llista blanca explícita de claus**, no "controls `disabled` + `getRawValue()`" — `getRawValue()` inclou els controls deshabilitats. |
 | Permisos d'escriptura de persones | **Sense canvis** (decisió del producte). Vegeu §6.2. |
 | Gestió d'usuaris (`/config/users`) | **Passa a només `ADMIN`**. |
 
@@ -141,7 +144,14 @@ export const PERSONAL_SORT_FIELDS: readonly PersonSortByField[] = [
 
 ### 4.5 Cerca — tancar la inferència per coincidència
 
-La clàusula actual busca a `alias`, `name`, `firstSurname` i `secondSurname`. Provar "Garcia" i llegir els resultats permet deduir cognoms. Per a `TECHNICAL` la clàusula es redueix a `alias` + `name`; per a `ADMIN` es manté completa.
+Provar "Garcia" en un cercador i llegir qui apareix als resultats permet deduir cognoms sense que el camp surti mai a la resposta. Hi ha **quatre** clàusules `ILIKE` sobre `firstSurname` al backend:
+
+| Fitxer | Endpoint | Acció |
+|--------|----------|-------|
+| `modules/person/person.service.ts:62` | `GET /persons` | Per a `TECHNICAL` la clàusula es redueix a `alias` + `name`; per a `ADMIN` es manté completa (inclou `secondSurname`) |
+| `modules/event/attendance.service.ts:47` | `GET /events/:id/attendance` | S'elimina `firstSurname` de la clàusula **per a tots els rols** (coherent amb §4.6) |
+| `modules/node-assignment/available-persons.service.ts:95` | `GET /events/:eventId/segments/:segmentId/available-persons` | Igual: s'elimina `firstSurname` per a tots els rols |
+| `modules/user/user.service.ts:95` | `GET /users` | **Sense canvis** — l'endpoint passa a `ADMIN`-only a §4.7, així que no hi ha fuita |
 
 ### 4.6 Minimització en altres mòduls
 
@@ -211,9 +221,12 @@ adminOnly?: boolean;
 
 **`person-detail.component.html`** — per a `TECHNICAL`:
 
-- La targeta "Informació personal" mostra `alias`, `name` i `shoulderHeight` en mode lectura; cognoms, telèfon, naixement i correu desapareixen.
+- La targeta "Informació personal" conserva `alias`, `name` i `shoulderHeight`, **editables**. Cognoms, telèfon, data de naixement i correu no es renderitzen (ni en lectura ni en edició).
 - `notes` surt de la targeta "Informació de la colla".
-- L'edició queda limitada als camps de colla (posicions, estat, disponibilitat, acollida, data camisa).
+- La resta de la targeta de colla no canvia: posicions, estat, disponibilitat, acollida i data camisa segueixen sent editables.
+- El botó "Promoure a membre" / "Marcar provisional" només es mostra si `auth.isAdmin()` (vegeu §3: la promoció exigeix `firstSurname` i usuari vinculat).
+
+Com que `name` i `alias` segueixen sent editables per a `TECHNICAL`, els seus `Validators.required` no bloquegen mai el desat. `firstSurname` no té validator, així que la seva absència tampoc.
 
 **`person-detail.component.ts` — correcció obligatòria del payload.** `save()` construeix avui el payload amb tots els camps del formulari:
 
@@ -223,7 +236,22 @@ firstSurname: raw.firstSurname ?? undefined,
 
 `patchForm()` inicialitza aquests controls a `''` quan el valor no arriba, i `'' ?? undefined` avalua a `''`, no a `undefined`. Per tant, en el moment que l'API deixi d'enviar `firstSurname`/`phone`/`notes` a un `TECHNICAL`, prémer "Desar" hi escriuria cadenes buides sobre dades reals. Com que els permisos d'escriptura no canvien, el backend ho acceptaria.
 
-**Solució:** `save()` construeix el payload en dos blocs — els camps de colla sempre, i els personals només si `auth.isAdmin()`. Els controls personals es registren `disabled` per a `TECHNICAL`, de manera que els validators `Validators.required` de `name` i `alias` no bloquegen el desat.
+**Solució: llista blanca explícita de claus.** `save()` construeix el payload a partir de dos conjunts de claus declarats, no a partir de tot `getRawValue()`:
+
+```typescript
+/** Claus que qualsevol rol amb accés al dashboard pot desar. */
+const OPERATIONAL_KEYS = [
+  'alias', 'name', 'shoulderHeight', 'isActive', 'isMember', 'isXicalla',
+  'availability', 'onboardingStatus', 'shirtDate',
+] as const;
+
+/** Claus que només un ADMIN pot desar. */
+const PERSONAL_KEYS = [
+  'firstSurname', 'secondSurname', 'phone', 'birthDate', 'notes',
+] as const;
+```
+
+El payload s'omple recorrent `OPERATIONAL_KEYS` i, si `auth.isAdmin()`, també `PERSONAL_KEYS`. **No es pot confiar en marcar els controls com a `disabled`**: `form.getRawValue()` inclou els controls deshabilitats, de manera que les cadenes buides tornarien a sortir i el bug reapareixeria.
 
 ### 5.5 Altres components — treure `firstSurname`
 
@@ -234,6 +262,7 @@ firstSurname: raw.firstSurname ?? undefined,
 | `features/pinyes/components/node-popover/node-popover.component.ts` | Línia secundària sota l'àlies |
 | `features/pinyes/components/assignment-canvas/assignment-canvas.component.ts` + `.html` | Fallback de `pendingDeletePersonName()` |
 | `shared/components/forms/person-search-input/person-search-input.component.html` | Desplegable de resultats |
+| `features/persons/components/person-detail/modals/person-link-user-modal.component.html` | Mateix patró que el cercador de persones |
 | `features/events/models/attendance.model.ts` | Treure `firstSurname` de la interfície |
 | `features/pinyes/models/assignment.model.ts` | Treure `firstSurname` de la interfície |
 | `features/pinyes/components/person-panel/person-panel.component.ts` | Treure la referència al camp |
@@ -241,7 +270,12 @@ firstSurname: raw.firstSurname ?? undefined,
 
 ### 5.6 Ruta de configuració d'usuaris
 
-**`apps/dashboard/src/app/features/config/config.routes.ts`** — la ruta d'usuaris afegeix `rolesGuard(UserRole.ADMIN)`. L'enllaç de navegació cap a `/config/users` es mostra només si `auth.isAdmin()`.
+**`config.routes.ts`** — la ruta filla `users` afegeix `canActivate: [rolesGuard(UserRole.ADMIN)]`. Avui no té cap guard propi i hereta el `rolesGuard(TECHNICAL, ADMIN)` del pare a `app.routes.ts`.
+
+Com que `rolesGuard` redirigeix a `/login` en cas de rol insuficient, **cal amagar també els punts d'entrada** o un `TECHNICAL` que hi cliqui semblarà que ha perdut la sessió:
+
+- `features/config/config.component.ts` — la targeta/enllaç "Usuaris".
+- `features/home/home.component.html` — l'accés directe a `/config/users`.
 
 ---
 
@@ -261,6 +295,8 @@ Per decisió de producte els permisos d'escriptura no canvien. Un usuari `TECHNI
 
 Els cognoms desapareixen de les pantalles d'assistència i assignació **també per als admins**. És conscient: l'`alias` és únic i és l'identificador que fa servir la colla en aquestes pantalles.
 
+Un `TECHNICAL` deixa de poder promoure persones provisionals a membres regulars i de poder cercar per cognom al cens. Totes dues operacions requereixen dades personals, així que passen a ser feina d'`ADMIN`.
+
 ---
 
 ## 7. Testing
@@ -271,14 +307,14 @@ Els cognoms desapareixen de les pantalles d'assistència i assignació **també 
 |--------|-------|
 | `person.service.spec.ts` | `findAll`/`findOne` ometen `firstSurname`, `secondSurname`, `phone`, `birthDate`, `notes`, `managedBy` amb rol `TECHNICAL`; els inclouen amb `ADMIN`. Fallback d'ordenació a `alias` per camp personal + `TECHNICAL`. Clàusula de cerca reduïda per `TECHNICAL`. |
 | `person.controller.spec.ts` | El rol de `@CurrentUser()` arriba al servei a cada handler. |
-| `attendance.service.spec.ts`, `node-assignment.service.spec.ts` | Les respostes no contenen `firstSurname`. |
+| `attendance.service.spec.ts`, `node-assignment.service.spec.ts`, `available-persons.service.spec.ts` | Les respostes no contenen `firstSurname` i la clàusula de cerca no l'inclou. |
 
 **Frontend**
 
 | Fitxer | Casos |
 |--------|-------|
 | `person-list.component.spec.ts` | Columnes `adminOnly` absents de la taula i del toggle per a `TECHNICAL`; claus de `localStorage` no permeses descartades. |
-| `person-detail.component.spec.ts` (nou) | El payload de desat d'un `TECHNICAL` no conté camps personals; un `ADMIN` sí. Formulari desat correctament amb controls personals `disabled`. |
+| `person-detail.component.spec.ts` (nou) | El payload de desat d'un `TECHNICAL` conté només `OPERATIONAL_KEYS`; el d'un `ADMIN` inclou també `PERSONAL_KEYS`. Cas de regressió explícit: amb `firstSurname` absent a la resposta de l'API, el payload d'un `TECHNICAL` **no** hi envia `''`. Botó de promoció ocult per a `TECHNICAL`. |
 | `auth.service.spec.ts` | `isAdmin` cert només amb rol `ADMIN`. |
 
 Llindar de cobertura del projecte: 70% (CI amb `--configuration=ci`).
@@ -291,16 +327,16 @@ Llindar de cobertura del projecte: 70% (CI amb `--configuration=ci`).
 
 ```
 modules/person/dto/person-response.dto.ts        # grups + treure email
-modules/person/person.service.ts                 # toResponseDto + cerca
+modules/person/person.service.ts                 # toResponseDto + cerca per rol
 modules/person/person.controller.ts              # @CurrentUser
 modules/person/constants/person-sort.constants.ts # PERSONAL_SORT_FIELDS + treure email
-modules/event/attendance.service.ts              # treure firstSurname
-modules/node-assignment/node-assignment.service.ts
-modules/node-assignment/available-persons.service.ts
+modules/event/attendance.service.ts              # treure firstSurname (mapper + cerca)
+modules/node-assignment/node-assignment.service.ts        # mapper
+modules/node-assignment/available-persons.service.ts      # mapper + cerca
 modules/user/user.controller.ts                  # @Roles(ADMIN)
 ```
 
-**Frontend (16)**
+**Frontend (20)**
 
 ```
 core/auth/services/auth.service.ts               # isAdmin
@@ -319,7 +355,12 @@ features/pinyes/components/node-popover/node-popover.component.ts
 features/pinyes/components/assignment-canvas/assignment-canvas.component.ts + .html
 features/pinyes/components/assignment-canvas/services/assignment-operations.service.ts
 features/pinyes/components/person-panel/person-panel.component.ts
+features/persons/components/person-detail/modals/person-link-user-modal.component.html
 features/config/config.routes.ts                 # rolesGuard(ADMIN)
+features/config/config.component.ts              # amagar entrada "Usuaris"
+features/home/home.component.html                # amagar accés directe a /config/users
 ```
+
+**Nota sobre `?sortBy=email`:** en treure `'email'` de la llista blanca, la petició passa a retornar 400 en lloc de fer fallback. No afecta ningú: `sortBy` no es persisteix a `localStorage` (només s'hi desen les columnes visibles) i la columna "Correu" desapareix del llistat.
 
 Més els fitxers `.spec.ts` corresponents.
