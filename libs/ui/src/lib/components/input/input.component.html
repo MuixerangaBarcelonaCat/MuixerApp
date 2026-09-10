@@ -7,7 +7,7 @@
       #nativeInputRef
       [id]="inputId()"
       class="grow w-full min-w-0 bg-transparent outline-none min-h-6"
-      [type]="type()"
+      [type]="effectiveType()"
       [placeholder]="placeholder() ?? ''"
       [value]="value()"
       [disabled]="isDisabled()"
@@ -16,6 +16,8 @@
       [attr.max]="max() ?? null"
       [attr.maxlength]="maxLength() ?? null"
       [attr.autocomplete]="autocomplete() ?? null"
+      [attr.name]="name() ?? null"
+      [readOnly]="readonly()"
       [attr.aria-label]="ariaLabel() ?? null"
       [attr.aria-invalid]="hasError() ? 'true' : null"
       [attr.aria-describedby]="hasDescription() ? descriptionId() : null"
@@ -23,5 +25,19 @@
       (blur)="onBlur()"
       data-testid="lib-input-native"
     />
+    @if (isPassword() && !readonly()) {
+      <button
+        type="button"
+        class="shrink-0 -mr-1 p-1 rounded text-base-content/40 hover:text-base-content/70 disabled:opacity-40 disabled:hover:text-base-content/40"
+        [disabled]="isDisabled()"
+        [attr.aria-label]="isRevealed() ? 'Amaga la contrasenya' : 'Mostra la contrasenya'"
+        [attr.aria-pressed]="isRevealed()"
+        [attr.aria-controls]="inputId()"
+        (click)="toggleReveal()"
+        data-testid="lib-input-reveal"
+      >
+        <lucide-icon [img]="isRevealed() ? EyeOffIcon : EyeIcon" [size]="16" />
+      </button>
+    }
   </div>
 </lib-form-field>

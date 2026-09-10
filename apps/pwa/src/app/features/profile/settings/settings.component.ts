@@ -14,7 +14,7 @@ import { MobileHeaderComponent } from '../../../shared/components/mobile-header/
 import { PushSettingsComponent } from '../components/push-settings/push-settings.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { ProfileService } from '../services/profile.service';
-import { ToastService } from '@muixer/ui';
+import { InputComponent, ToastService } from '@muixer/ui';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
 
 type SettingsSection = 'password' | 'about';
@@ -29,7 +29,13 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   selector: 'app-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, ReactiveFormsModule, MobileHeaderComponent, PushSettingsComponent],
+  imports: [
+    LucideAngularModule,
+    ReactiveFormsModule,
+    MobileHeaderComponent,
+    PushSettingsComponent,
+    InputComponent,
+  ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
 })

@@ -21,6 +21,20 @@ export const appRoutes: Routes = [
       ),
     canActivate: [alreadyAuthGuard],
   },
+  // Pantalla per triar una contrasenya nova a partir d'un token de `/auth/reset-password`.
+  // Ara mateix el correu de «Heu oblidat la contrasenya?» apunta a SITE_ADDRESS (el dashboard),
+  // així que a la PWA esta ruta encara no rep ningú. Es manté perquè el destinatari natural del
+  // correu és un membre: quan vulguem que hi aterre ací, només cal que
+  // `AuthService.requestPasswordReset` use PWA_SITE_ADDRESS. També és on aterrava l'enllaç de
+  // recuperació generat per un tècnic, ara desactivat (docs/AUTH_FLOW.md §8.1).
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./features/auth/reset-password/reset-password.component').then(
+        (m) => m.ResetPasswordComponent,
+      ),
+    canActivate: [alreadyAuthGuard],
+  },
   {
     path: 'activate',
     loadComponent: () =>

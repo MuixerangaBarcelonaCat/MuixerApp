@@ -207,6 +207,7 @@ describe('AuthService', () => {
 
   it('getInviteContext() GETs /auth/invite/:token and does not touch auth state', () => {
     const context: InviteRegistrationContext = {
+      email: null,
       person: { name: 'Joan', firstSurname: 'Garcia', secondSurname: null, gender: null, phone: null, birthDate: null },
       expiresAt: '2026-01-01T00:00:00Z',
       legalDocument: { content: 'Text legal', version: 1 },

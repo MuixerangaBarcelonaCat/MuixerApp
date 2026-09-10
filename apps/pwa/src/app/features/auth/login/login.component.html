@@ -23,65 +23,32 @@
   <div class="card bg-base-100 shadow-lg w-full max-w-sm">
     <div class="card-body gap-5">
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
-        <label class="form-control w-full" for="login-email">
-          <div class="label pb-1">
-            <span class="label-text font-medium">Correu electrònic</span>
-          </div>
-          <div
-            class="input input-bordered flex items-center gap-2"
-            [class.input-error]="
-              form.get('email')?.invalid && form.get('email')?.touched
-            "
-          >
-            <lucide-icon
-              [img]="Mail"
-              [size]="16"
-              class="text-base-content/40 shrink-0"
-            />
-            <input
-              id="login-email"
-              type="email"
-              class="grow bg-transparent outline-none text-sm h-6"
-              placeholder="nom@exemple.com"
-              formControlName="email"
-              autocomplete="email"
-              inputmode="email"
-            />
-          </div>
-          @if (form.get('email')?.invalid && form.get('email')?.touched) {
-            <div class="label pt-1">
-              <span class="label-text-alt text-error" role="alert">
-                Correu electrònic no vàlid
-              </span>
-            </div>
-          }
-        </label>
+        <lib-input
+          label="Correu electrònic"
+          type="email"
+          size="md"
+          [icon]="Mail"
+          placeholder="nom@exemple.com"
+          formControlName="email"
+          autocomplete="username"
+          name="username"
+          [errorText]="
+            form.get('email')?.invalid && form.get('email')?.touched
+              ? 'Correu electrònic no vàlid'
+              : undefined
+          "
+        />
 
-        <label class="form-control w-full" for="login-password">
-          <div class="label pb-1">
-            <span class="label-text font-medium">Contrasenya</span>
-          </div>
-          <div
-            class="input input-bordered flex items-center gap-2"
-            [class.input-error]="
-              form.get('password')?.invalid && form.get('password')?.touched
-            "
-          >
-            <lucide-icon
-              [img]="Lock"
-              [size]="16"
-              class="text-base-content/40 shrink-0"
-            />
-            <input
-              id="login-password"
-              type="password"
-              class="grow bg-transparent outline-none text-sm h-6"
-              placeholder="••••••••"
-              formControlName="password"
-              autocomplete="current-password"
-            />
-          </div>
-        </label>
+        <lib-input
+          label="Contrasenya"
+          type="password"
+          size="md"
+          [icon]="Lock"
+          placeholder="••••••••"
+          formControlName="password"
+          autocomplete="current-password"
+          name="password"
+        />
 
         @if (errorMessage()) {
           <div class="alert alert-error text-sm py-2" role="alert">

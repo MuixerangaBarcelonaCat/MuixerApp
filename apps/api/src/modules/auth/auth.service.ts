@@ -10,7 +10,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, ILike } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { AuditAction, ClientType, LegalDocumentType, UserProfile, UserRole } from '@muixer/shared';
@@ -63,12 +63,21 @@ export class AuthService {
     private readonly personService: PersonService,
   ) {}
 
+  /**
+   * Busca un usuari per email ignorant majúscules/minúscules. Els emails s'escriuen normalitzats
+   * a minúscules (sync i auto-registre), però hi ha comptes antics creats a mà amb la caixa
+   * original: comparar amb `LOWER()` cobreix els dos casos sense migrar dades.
+   */
+  private findByEmail(email: string, relations: string[] = []): Promise<User | null> {
+    // `_` i `%` són comodins per a LIKE i apareixen en emails reals (joan_garcia@…):
+    // cal escapar-los perquè la cerca segueixi sent d'igualtat exacta.
+    const pattern = email.trim().replace(/[\\%_]/g, '\\$&');
+    return this.userRepo.findOne({ where: { email: ILike(pattern) }, relations });
+  }
+
   /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
   async validateUser(email: string, password: string): Promise<User | null> {
-    const user = await this.userRepo.findOne({
-      where: { email },
-      relations: ['person'],
-    });
+    const user = await this.findByEmail(email, ['person']);
 
     // Always run bcrypt.compare, even when the user doesn't exist, comparing
     // against a dummy hash of equal cost — otherwise a missing user short-circuits
@@ -245,9 +254,17 @@ export class AuthService {
       throw new UnauthorizedException('Invitació invàlida o caducada');
     }
 
-    const existingWithEmail = await this.userRepo.findOne({ where: { email: dto.email } });
-    if (existingWithEmail) {
-      throw new ConflictException('Ja existeix un compte amb aquest email');
+    // L'email el fixa l'admin quan ja el coneixem (sync legacy): el del cos s'ignora. Només
+    // quan el compte encara no en té (persona creada a mà) acceptem el que escriu la persona.
+    const email = user.email ?? dto.email.trim().toLowerCase();
+
+    if (!user.email) {
+      const existingWithEmail = await this.findByEmail(email);
+      // El propi compte-esborrany del convidat pot ja portar aquest email; només és conflicte
+      // si pertany a un altre usuari.
+      if (existingWithEmail && existingWithEmail.id !== user.id) {
+        throw new ConflictException('Ja existeix un compte amb aquest email');
+      }
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -263,7 +280,7 @@ export class AuthService {
 
     await this.dataSource.transaction(async (manager) => {
       await manager.update(User, user.id, {
-        email: dto.email,
+        email,
         passwordHash,
         isActive: true,
         inviteToken: null,
@@ -296,7 +313,7 @@ export class AuthService {
       metadata: { privacyPolicyVersion: consentVersion },
     });
 
-    user.email = dto.email;
+    user.email = email;
     user.passwordHash = passwordHash;
     user.isActive = true;
     user.inviteToken = null;
@@ -332,6 +349,9 @@ export class AuthService {
     const legalDocument = await this.legalService.findActive(LegalDocumentType.PRIVACY_POLICY);
 
     return {
+      // Quan el compte-esborrany ja porta email (sync legacy o alta prèvia), el formulari
+      // el mostra bloquejat; si és null, la persona l'escriu ella.
+      email: user.email,
       person: {
         name: person.name,
         firstSurname: person.firstSurname,
@@ -407,7 +427,7 @@ export class AuthService {
    * pugui respondre igual independentment del resultat.
    */
   async requestPasswordReset(email: string): Promise<void> {
-    const user = await this.userRepo.findOne({ where: { email } });
+    const user = await this.findByEmail(email);
     if (!user || !user.isActive) return;
 
     const rawToken = crypto.randomBytes(16).toString('hex');
@@ -480,13 +500,17 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Contrasenya actual incorrecta');
 
-    if (dto.newEmail !== user.email) {
-      const existing = await this.userRepo.findOne({ where: { email: dto.newEmail } });
-      if (existing) throw new ConflictException('Ja existeix un compte amb aquest correu electrònic');
+    const newEmail = dto.newEmail.trim().toLowerCase();
+
+    if (newEmail !== user.email) {
+      const existing = await this.findByEmail(newEmail);
+      if (existing && existing.id !== user.id) {
+        throw new ConflictException('Ja existeix un compte amb aquest correu electrònic');
+      }
     }
 
-    await this.userRepo.update(user.id, { email: dto.newEmail });
-    user.email = dto.newEmail;
+    await this.userRepo.update(user.id, { email: newEmail });
+    user.email = newEmail;
 
     return this.toUserProfile(user);
   }

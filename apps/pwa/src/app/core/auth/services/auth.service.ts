@@ -175,6 +175,13 @@ export class AuthService {
       .pipe(map(() => void 0));
   }
 
+  /** Estableix una contrasenya nova a partir d'un token de recuperació. Revoca les sessions obertes al backend. */
+  resetPassword(token: string, password: string): Observable<void> {
+    return this.http
+      .post<{ message: string }>(`${environment.apiUrl}/auth/reset-password`, { token, password })
+      .pipe(map(() => void 0));
+  }
+
   /** Prellenat + text legal vigent per a un token d'invitació. No toca l'estat de sessió. */
   getInviteContext(token: string): Observable<InviteRegistrationContext> {
     return this.http.get<InviteRegistrationContext>(`${environment.apiUrl}/auth/invite/${token}`);

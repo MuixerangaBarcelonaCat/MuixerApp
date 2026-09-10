@@ -8,6 +8,12 @@ tags: [domini]
 > §6-7 actualitzades agost 2026: l'onboarding de membres passa d'invitació per correu
 > (mai implementada) a enllaç copiat manualment + registre a la PWA, i s'hi afegeix el
 > flux de dependents (xicalla).
+> §6.0 afegida setembre 2026: regla d'accés (només s'entra si ja existeix la `Person`),
+> els dos estats d'entrada segons si ja tenim el correu, i comparació d'emails
+> insensible a majúscules.
+> §8.1 afegida setembre 2026 i **desactivada immediatament**: l'enllaç de recuperació
+> generat per un tècnic està implementat però comentat al codi. La secció explica per què
+> i què caldria abans de rehabilitar-lo.
 
 ---
 
@@ -25,14 +31,20 @@ Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense co
 - **Dashboard** (ADMIN/TECHNICAL): gent de la junta/tècnica, gestiona tota l'app.
 - **PWA** (MEMBER): membres normals, només veuen les seues coses (assajos, actuacions, la seua fitxa).
 
+**Regla d'or:** només pot entrar a l'app algú que ja existisca com a **Persona** al Dashboard (encara que siga una fitxa provisional, a mitges). Els perfils els creen i gestionen sempre els admins/tècnics; ningú es dona d'alta pel seu compte.
+
 **Com fa "login" un membre per primera vegada — no hi ha registre lliure:**
 1. Algú del Dashboard (ADMIN/TECHNICAL) entra a la fitxa de la persona i prem **"Crea enllaç d'invitació"**.
 2. Este enllaç **no s'envia sol per correu** — l'admin l'ha de copiar i enviar-lo a mà (WhatsApp, normalment) a la persona.
-3. La persona obre l'enllaç al mòbil → s'obre la PWA a la pantalla **"Activa el teu compte"**, ja amb el seu nom prellenat → tria un email i una contrasenya, accepta la política de privacitat → **ja queda dins**, sense haver de tornar a fer login.
+3. La persona obre l'enllaç al mòbil → s'obre la PWA a la pantalla **"Activa el teu compte"**, ja amb **totes les dades que tenim d'ella prellenades** (nom, cognoms, gènere, telèfon, data de naixement) → les revisa i corregeix, completa el que falte, tria una contrasenya, accepta la política de privacitat → **ja queda dins**, sense haver de tornar a fer login.
+   - **Si ja teníem el seu correu** (ve del sistema antic), apareix escrit i **no el pot canviar** — si és incorrecte, l'ha de canviar un tècnic des del Dashboard abans que ella active el compte.
+   - **Si no en teníem cap** (persona donada d'alta a mà), el correu l'escriu ella. Si ja pertany a un altre compte, li dirà que aquest correu ja existeix — llavors cal mirar si eixa persona ja té compte o si hi ha una fitxa duplicada.
 4. **L'enllaç caduca als 3 dies.** Si caduca abans que la persona l'active, l'admin torna a prémer el mateix botó i genera un enllaç nou — sempre l'últim que s'ha enviat és el vàlid, els anteriors deixen de funcionar.
-5. **Un cop el compte ja està actiu, el botó d'enllaç desapareix** de la fitxa (ja no es pot tornar a generar) — a partir d'ací la persona entra sempre amb el seu email i contrasenya.
+5. **Un cop el compte ja està actiu, el botó d'invitació desapareix** de la fitxa i es mostra l'indicador "Compte actiu" — a partir d'ací la persona entra sempre amb el seu email i contrasenya.
 
 **Login del dia a dia (compte ja actiu):** email + contrasenya, tant al Dashboard com a la PWA. La sessió es manté sola una bona temporada (8 hores al Dashboard, 7 dies a la PWA) sense haver de tornar a introduir res — només cal tornar a fer login si ha passat molt de temps o s'ha fet "Tanca la sessió".
+
+**Digueu-los que accepten el "Voleu guardar la contrasenya?".** Quan la persona tria la seua contrasenya (a l'activació) o entra per primera vegada, el navegador li oferirà guardar-la; si accepta, no l'haurà d'escriure mai més i ens estalvia la major part de les incidències d'accés. Els formularis estan preparats perquè el navegador reconega els dos camps (correu i contrasenya) i els guarde junts. **Perquè funcione cal que l'app es servisca per HTTPS**: sobre HTTP el navegador marca el formulari com a insegur i l'iPhone no ofereix el clauer.
 
 **Si un membre oblida la contrasenya (compte ja actiu):**
 1. A la pantalla de login, prem **"Heu oblidat la contrasenya?"** (existeix tant al Dashboard com a la PWA) i escriu el seu email.
@@ -43,13 +55,29 @@ Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense co
 
 **Important — què fer si un membre encara no ha activat mai el compte i ha "oblidat" la contrasenya:** no aplica "Heu oblidat la contrasenya?" (el seu compte encara no en té cap). Cal tornar al pas de dalt: l'admin li genera un **enllaç d'invitació** nou des de la fitxa.
 
-**Important — què fer si un membre JA actiu ha perdut l'accés del tot (mòbil perdut, no recorda l'email, etc.):** el botó d'enllaç d'invitació ja no funciona per a comptes actius (dona error "ja té un compte actiu"). De moment cal passar-ho a l'equip tècnic — no hi ha una via d'autoservei des del Dashboard per a este cas (marcat a [[DEBT]] si cal ampliar-ho).
+**Si un membre no recorda la contrasenya i ara mateix no pot entrar al seu correu:** de moment **l'única via és el correu**. Ha de recuperar l'accés a la seua bústia (des del mòbil sol ser només obrir l'app de correu) i seguir els passos de dalt. No hi ha cap manera que un tècnic li done accés directament: es va implementar un enllaç de recuperació generat pel tècnic i **es va desactivar a propòsit** perquè qualsevol que reba eixe enllaç pot entrar al compte, i reenviant-lo per WhatsApp no podem comprovar que arribe a la persona correcta (§8.1).
+
+Què **sí** pot fer un tècnic per ajudar-lo:
+- Dir-li **quin correu** té guardat al compte (el pot consultar a la seua fitxa) — moltes vegades el problema és només que prova amb un correu equivocat.
+- Si el correu de la fitxa és antic o incorrecte, canviar-l'hi des del Dashboard i que després faça "Heu oblidat la contrasenya?" amb el correu nou.
+
+**Important — què fer si el compte encara no s'ha activat mai:** allí no serveix "Heu oblidat la contrasenya?" (el compte encara no en té cap). Cal generar un **enllaç d'invitació** nou des de la fitxa.
+
+**Important — si un membre JA actiu ha perdut l'accés del tot (mòbil perdut, no recorda ni el correu):** el tècnic li diu quin correu té al compte i, si cal, l'hi canvia per un al qual sí puga accedir; a partir d'ací, "Heu oblidat la contrasenya?". Que la persona s'el canvie ella mateixa segueix requerint la contrasenya actual.
 
 **Qui pot veure/reenviar l'enllaç d'invitació d'una persona:** només ADMIN/TECHNICAL des del Dashboard (fitxa de la persona). El sistema no l'envia mai automàticament — sempre passa per una persona real que el reenvia a mà, per això no cal tindre un email configurat per a cada membre per activar el compte.
 
 ---
 
 ## 1. Login
+
+> **Gestor de contrasenyes del navegador.** Els formularis de credencials porten
+> `autocomplete="username"` + `name="username"` a l'identificador i `current-password` /
+> `new-password` (amb el `name` corresponent) a les contrasenyes, dins d'un `<form>` amb
+> `type="submit"` real. A l'activació l'email prellenat va **`readonly`, no `disabled`**: un camp
+> `disabled` no s'envia i el gestor de contrasenyes l'ignora, així que guardaria la contrasenya
+> sense usuari associat. La recepta completa és a
+> [docs/DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) § `lib-input`.
 
 ```
 Client (Dashboard/PWA)                    Backend (NestJS)
@@ -147,9 +175,44 @@ Body: { email, password, role?, personId? }   ├─ crear User (isActive: true)
 
 ## 6. Onboarding de membres (enllaç d'invitació, no correu)
 
+### 6.0 Regla d'accés
+
+**Només s'entra a l'app si abans existeix una `Person`.** No hi ha registre lliure ni cap
+pantalla pública on algú puga donar-se d'alta. La seqüència és sempre la mateixa:
+
+```
+Un ADMIN/TECHNICAL crea la Person   →   genera l'enllaç d'invitació   →   la persona l'activa
+   (o la porta el sync legacy)              (Dashboard, fitxa)              (PWA, /activate)
+```
+
+La `Person` pot ser **provisional** (alias amb prefix `~`, dades a mitges): serveix igualment
+per convidar, i activar el compte la promou a definitiva. Qui gestiona el padró de persones
+són sempre els admins i tècnics; l'usuari final només completa i corregeix les seues pròpies
+dades durant l'activació.
+
+**Dos estats d'entrada**, segons si ja tenim el correu de la persona:
+
+| Origen de la `Person` | `user.email` en generar l'enllaç | Camp email a `/activate` |
+|---|---|---|
+| Sync legacy amb correu | ple (el sync crea el `User` esborrany amb el correu legacy) | prellenat i **bloquejat** |
+| Sync legacy sense correu | `null` | buit i editable |
+| Creada a mà al Dashboard | `null` | buit i editable |
+
+`Person` **no té columna email** — el correu viu només a `User`. Per això una persona creada
+a mà arriba a l'activació sense correu conegut i és ella qui l'escriu; si el que escriu ja
+pertany a un altre compte, rep un 409 (`Ja existeix un compte amb aquest email`). Quan el
+correu ja el tenim, el del cos de la petició s'ignora i es manté el de l'admin: canviar-lo és
+una acció de tècnic, no d'usuari.
+
+Els correus es normalitzen a minúscules en escriure'ls i es comparen sense distingir
+majúscules (`AuthService.findByEmail`), tant al login com al registre i al canvi de correu —
+un membre que escriu `Joan@Correu.cat` entra igual.
+
+### 6.1 Generació de l'enllaç i activació
+
 No s'envia cap correu: l'admin genera un enllaç des del Dashboard i el reenvia manualment
-(WhatsApp). El membre l'obri a la PWA, completa les seues dades i el compte s'activa amb
-auto-login.
+(WhatsApp). El membre l'obri a la PWA, revisa les dades que ja tenim, completa el que falta i
+el compte s'activa amb auto-login.
 
 ```
 Dashboard (admin)                         Backend
@@ -167,18 +230,24 @@ POST /users/invite-link             →     UserController.createInviteLink()
 
 El botó **"Crea enllaç d'invitació"** no es desactiva mai: repetir la crida regenera el
 token (i és l'única manera de "reenviar" un enllaç caducat). Un cop el compte és actiu, el
-botó desapareix i es mostra un indicador estàtic "Compte actiu".
+botó desapareix i es mostra només l'indicador "Compte actiu": per a un compte que ja existeix
+l'única via de recuperació és el correu (§8), perquè l'acció equivalent generada pel tècnic
+està desactivada (§8.1).
 
 ```
 PWA (membre)                              Backend
 ─────────────                             ───────
 GET /auth/invite/:token             →     AuthController.getInviteContext()
                                           ├─ valida hash + expiresAt
-                                    ←     { person (prellenat), expiresAt, legalDocument }
+                                    ←     { email (o null), person (prellenat),
+                                            expiresAt, legalDocument }
 
 POST /auth/invite/register          →     AuthController.registerViaInvite()
 { token, email, password,                 AuthService.registerViaInvite() — transaccional:
-  legalAccepted, name, firstSurname,      ├─ valida token + email no usat
+  legalAccepted, name, firstSurname,      ├─ valida token; email = user.email ?? dto.email
+                                          │   (si el compte ja en té, el del cos s'ignora)
+                                          ├─ si no en tenia: 409 si el correu és d'un ALTRE
+                                          │   usuari — el propi esborrany no compta
   secondSurname?, gender, phone,          ├─ activa User (email, password, isActive: true)
   birthDate }                             ├─ promou Person (PersonService.update amb manager):
                                           │   isProvisional → false, treu prefix `~` de l'alias
@@ -190,6 +259,11 @@ POST /auth/invite/register          →     AuthController.registerViaInvite()
 El formulari de registre és `PersonRegistrationDataDto` (nom, cognoms, gènere, telèfon E.164
 validat amb `libphonenumber-js`, data de naixement) + `email`/`password`/`legalAccepted` —
 compartit amb el flux de dependents (§7) via el mateix DTO base.
+
+**Tots** els camps que el context retorna arriben prellenats (nom, cognoms, gènere, telèfon
+partit en país + número via `splitPhoneNumber`, data de naixement) i són editables: l'usuari
+corregeix el que estiga malament i completa el que falte. L'única excepció és el correu quan
+ja el tenim (§6.0). El formulari, doncs, és de **revisió**, no d'alta des de zero.
 
 ---
 
@@ -246,6 +320,98 @@ POST /auth/reset-password           →     AuthController.resetPassword()
 
 `SITE_ADDRESS` (Dashboard) és una variable diferent de `PWA_SITE_ADDRESS` (§6, enllaç d'invitació) — no confondre-les.
 
+### 8.1 Enllaç de recuperació generat per un tècnic — implementat i DESACTIVAT
+
+> **Estat: desactivat a propòsit.** El codi existeix però està comentat a
+> `user.controller.ts`, `user.service.ts`, `user.module.ts`, `auth.constants.ts`,
+> `invite.interfaces.ts`, `audit-action.enum.ts`, `person.service.ts` i
+> `person-detail.component.{ts,html}`. Els tests corresponents es van retirar; són al commit
+> `e2f5e96`. **No el rehabiliteu sense llegir «Què caldria abans» d'aquesta secció.**
+
+#### Quin problema volia resoldre
+
+El flux per correu (§8) assumeix que la persona pot llegir la seua bústia en eixe moment. Per a
+un membre poc tecnològic això sovint no és cert, i el deixa bloquejat. La idea era que un
+ADMIN/TECHNICAL generés l'enllaç des de la fitxa de la persona i el reenviés a mà, igual que
+l'enllaç d'invitació — sense que el correu hi participés en cap pas.
+
+```
+Dashboard (tècnic)                        Backend (@Roles ADMIN, TECHNICAL)
+──────────────────                        ─────────────────────────────────
+POST /users/recovery-link           →     UserController.createRecoveryLink()
+{ personId }                              UserService.createRecoveryLink(personId, actor.sub)
+                                          ├─ sense Person → 400
+                                          ├─ Person sense User → 400 ("no té cap compte vinculat")
+                                          ├─ User no actiu / sense passwordHash → 400
+                                          │   ("useu l'enllaç d'invitació")
+                                          ├─ randomBytes(16) → resetToken (SHA-256) a la DB
+                                          ├─ resetExpiresAt = now + RECOVERY_LINK_TTL_HOURS (24h)
+                                          ├─ AuditAction.RECOVERY_LINK_CREATED (actor + persona)
+                                    ←     { recoveryUrl, expiresAt }
+```
+
+Reutilitzava **el mateix `resetToken`** que el flux per correu, així que consumir-lo passava per
+`POST /auth/reset-password` sense cap camí nou: revocava totes les sessions obertes i esborrava
+el token.
+
+#### Per què està desactivat
+
+L'enllaç és un **token portador** («bearer token»): l'única credencial és conéixer la URL. Qui la
+tinga pot triar una contrasenya nova i entrar al compte, i el sistema **no comprova en cap moment
+que siga el propietari**. Això, en si mateix, és igual que el flux per correu — la diferència
+crítica és **el canal**:
+
+| | Per correu (§8) | Generat pel tècnic (§8.1) |
+|---|---|---|
+| A qui arriba l'enllaç | a la bústia del propietari del compte, per definició | a qui el tècnic decidisca, escrivint un número a mà |
+| Qui pot equivocar-se | ningú: l'adreça la té el sistema | el tècnic (número equivocat, fitxa duplicada) i el receptor (reenviament a un grup) |
+| Reenviament posterior | improbable | trivial: és un missatge de WhatsApp |
+| Vida de la finestra d'atac | 1 hora | 24 hores |
+
+Concretament: un ADMIN/TECHNICAL ja té el poder de suplantar qualsevol compte (pot canviar-ne
+l'email, generar invitacions...), i això és inherent al rol. El problema no era el privilegi, era
+que **el token eixia de les seues mans** i viatjava per un canal que no controlem. Un error
+d'un dígit al número de telèfon, o un reenviament sense pensar, entregava un compte sencer a una
+altra persona durant 24 hores. L'únic senyal que quedava era que el propietari legítim es trobava
+desconnectat de sobte, sense saber per què.
+
+Amb una colla d'unes desenes de persones que es coneixen entre elles el risc pràctic és baix, però
+el cost de tenir-ho desactivat també: qui no recorda la contrasenya obre l'app de correu del
+mòbil. Preferim la via que no depén del criteri de qui reenvia.
+
+#### Què caldria abans de rehabilitar-ho
+
+En ordre de cost/benefici. Els tres primers punts són barats i canvien el pitjor cas de «24 hores
+per suplantar en silenci» a «minuts, i el propietari rep un avís»:
+
+1. **TTL molt més curt** — 15 minuts en lloc de 24 hores (`RECOVERY_LINK_TTL_HOURS`). Converteix
+   «enllaç reenviable durant un dia» en «enllaç que només serveix ara mateix, amb el tècnic al
+   costat». Els 24 h originals es van triar pensant en WhatsApp asíncron, que és justament el forat.
+2. **Auditar el consum i avisar el propietari** — afegir una acció d'auditoria dins
+   `AuthService.resetPassword` (ara només s'audita la *creació* de l'enllaç, no el seu ús) i
+   enviar un avís «S'ha canviat la teua contrasenya» pel mòdul `push-notification` (ja existeix,
+   amb VAPID configurat) i/o per `MailService`. No ho evita, però ho fa detectable.
+3. **Segon factor que el tècnic no dicta** — la pantalla `/reset-password` demana, a més de la
+   contrasenya nova, una dada que ja tenim a la `Person` i que no viatja dins de l'enllaç: la
+   **data de naixement**. No és un secret fort dins d'una colla, però trenca el cas «he obert un
+   enllaç que no era per a mi». El throttle de `/auth` (10 req/60 s) ja limita l'endevinació.
+4. **Enviar-lo pel canal verificat** — que el backend l'envie per SMS a `person.phone` en lloc de
+   copiar-lo al portapapers del tècnic. Elimina l'error de destinatari, però requereix un
+   proveïdor d'SMS (cost real).
+
+**El que NO cal fer:** lligar el token a una IP o a un dispositiu. Amb mòbils en 4G/5G canviant
+d'IP contínuament generaria més incidències de suport que atacs evitats.
+
+#### Detalls d'implementació que es mantenen al codi comentat
+
+El botó **"Crea enllaç de recuperació"** només es mostrava a la branca de compte actiu de
+`person-detail` (per a un compte pendent l'acció correcta és l'enllaç d'invitació, i el backend
+també ho refusava). L'enllaç apuntava a la **PWA** (`PWA_SITE_ADDRESS`), no al Dashboard, perquè
+el destinatari és un membre; per això la PWA té la seua pròpia ruta `/reset-password`
+(`app.routes.ts`), bessona de la del Dashboard. **Eixa ruta i el seu component es mantenen
+actius**: ara mateix no hi aterra ningú (el correu de §8 usa `SITE_ADDRESS`), però és el destí
+natural del correu d'un membre si algun dia el volem apuntar a la PWA.
+
 ---
 
 ## 9. Consentiment legal (`ConsentController`)
@@ -287,6 +453,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 | Fitxer | Responsabilitat |
 |--------|----------------|
 | `modules/user/user.service.ts` | `createOrRefreshInviteLink(personId)` — crea/reutilitza `User`, genera i (re)hasheja el token |
+| `modules/user/user.service.ts` | `createRecoveryLink(personId, actorUserId)` — **comentat**: enllaç de contrasenya nova per a un compte ja actiu (§8.1) |
 | `modules/person/dto/person-registration-data.dto.ts` | DTO base compartit (registre propi i dependents): nom, cognoms, gènere, telèfon (`IsValidPhoneNumber`), data naixement |
 | `modules/person-delegate/person-delegate.service.ts` | `findProvisionalPrimaryDependents(userId)` — dependents provisionals on l'usuari és delegat primari |
 | `modules/me/me.service.ts` | `getPendingDependents` / `completePendingDependent` (`GET`/`POST /me/pending-dependents`) |
@@ -307,6 +474,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 | Fitxer | Responsabilitat |
 |--------|----------------|
 | `features/auth/activate/activate.component.ts` | Ruta `/activate?token=`. Prellenat via `getInviteContext`, formulari complet, `registerViaInvite` → auto-login → `/home` |
+| `features/auth/reset-password/reset-password.component.ts` | Ruta `/reset-password?token=` per a qualsevol `resetToken`; en desar, remet a `/login`. Ara mateix sense trànsit: el correu de §8 aterra al Dashboard (§8.1) |
 | `shared/components/person-data-fields/person-data-fields.component.ts` | Subformulari reutilitzat pel registre i pels dependents — pren un `FormGroup` ja construït, no en té estat propi |
 | `shared/utils/person-data-form.util.ts` | `buildPersonDataFormGroup`, `combinePhoneNumber`/`splitPhoneNumber` (país + número ↔ E.164 via `libphonenumber-js`), `getCountryOptions` |
 | `features/dependents/pending-dependents/pending-dependents.component.ts` | Ruta `/pending-dependents`. Completa **un dependent alhora**, torna a demanar la llista entre cada enviament |
@@ -320,7 +488,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 |--------|-----------|
 | `enums/client-type.enum.ts` | `ClientType.DASHBOARD \| ClientType.PWA` |
 | `interfaces/auth.interfaces.ts` | `JwtPayload`, `PersonSummary`, `UserProfile` |
-| `interfaces/invite.interfaces.ts` | `InviteLinkResponse`, `PersonRegistrationData`, `RegisterViaInviteRequest`, `InviteRegistrationContext` |
+| `interfaces/invite.interfaces.ts` | `InviteLinkResponse`, `RecoveryLinkResponse`, `PersonRegistrationData`, `RegisterViaInviteRequest`, `InviteRegistrationContext` |
 | `interfaces/me/pending-dependent.interface.ts` | `PendingDependent`, `DependentRegistrationRequest` |
 
 ---
@@ -339,6 +507,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 | `PWA_SITE_ADDRESS` | `localhost:4300` | Host usat per construir `inviteUrl` (`/activate?token=`) |
 | `SITE_ADDRESS` | `localhost:4200` | Host usat per construir l'enllaç de `reset-password` (Dashboard) — **diferent** de `PWA_SITE_ADDRESS` |
 | `INVITE_TOKEN_TTL_HOURS` | `72` | Vida del token d'invitació en hores |
+| ~~`RECOVERY_LINK_TTL_HOURS`~~ | — | **Desactivada** amb l'enllaç de recuperació generat per un tècnic (§8.1). Si es rehabilita, useu un valor molt més curt que les 24 hores originals |
 | `COOKIE_SECURE` | `true` | Si no és `'false'` i `NODE_ENV=production`, marca la cookie `muixer_rt` com `secure` |
 
 ---

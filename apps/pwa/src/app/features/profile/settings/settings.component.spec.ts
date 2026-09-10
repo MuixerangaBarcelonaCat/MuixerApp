@@ -124,14 +124,12 @@ describe('SettingsComponent', () => {
       confirmPassword: string = newPassword,
     ): void {
       openSection();
-      setInputValue(
-        fixture.nativeElement.querySelector('#password-current-password'),
-        currentPassword,
-      );
-      setInputValue(fixture.nativeElement.querySelector('#password-new-password'), newPassword);
-      const confirmInput = fixture.nativeElement.querySelector(
-        '#password-confirm-password',
-      ) as HTMLInputElement;
+      // The three fields are lib-inputs, so they carry generated ids — take them in DOM order.
+      const [currentInput, newInput, confirmInput] = Array.from(
+        fixture.nativeElement.querySelectorAll('#password-form input[type="password"]'),
+      ) as HTMLInputElement[];
+      setInputValue(currentInput, currentPassword);
+      setInputValue(newInput, newPassword);
       setInputValue(confirmInput, confirmPassword);
       confirmInput.dispatchEvent(new Event('blur'));
       fixture.detectChanges();

@@ -3,13 +3,14 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule, Mail, Lock, AlertCircle } from 'lucide-angular';
+import { InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule],
+  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, InputComponent],
   templateUrl: './login.component.html',
 })
 export class LoginComponent {

@@ -28,49 +28,34 @@
             (ngSubmit)="submitPasswordChange()"
             class="space-y-3 mt-3"
           >
-            <label class="form-control w-full" for="password-current-password">
-              <div class="label pb-1">
-                <span class="label-text-alt">Contrasenya actual</span>
-              </div>
-              <input
-                id="password-current-password"
-                type="password"
-                class="input input-bordered input-sm w-full"
-                formControlName="currentPassword"
-                autocomplete="current-password"
-              />
-            </label>
+            <lib-input
+              label="Contrasenya actual"
+              type="password"
+              formControlName="currentPassword"
+              autocomplete="current-password"
+              name="password"
+            />
 
-            <label class="form-control w-full" for="password-new-password">
-              <div class="label pb-1">
-                <span class="label-text-alt">Contrasenya nova (mínim 8 caràcters)</span>
-              </div>
-              <input
-                id="password-new-password"
-                type="password"
-                class="input input-bordered input-sm w-full"
-                formControlName="newPassword"
-                autocomplete="new-password"
-              />
-            </label>
+            <lib-input
+              label="Contrasenya nova (mínim 8 caràcters)"
+              type="password"
+              formControlName="newPassword"
+              autocomplete="new-password"
+              name="new-password"
+            />
 
-            <label class="form-control w-full" for="password-confirm-password">
-              <div class="label pb-1">
-                <span class="label-text-alt">Confirmeu la contrasenya nova</span>
-              </div>
-              <input
-                id="password-confirm-password"
-                type="password"
-                class="input input-bordered input-sm w-full"
-                formControlName="confirmPassword"
-                autocomplete="new-password"
-              />
-              @if (passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched) {
-                <div class="label pt-1">
-                  <span class="label-text-alt text-error" role="alert">Les contrasenyes no coincideixen</span>
-                </div>
-              }
-            </label>
+            <lib-input
+              label="Confirmeu la contrasenya nova"
+              type="password"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+              name="confirm-new-password"
+              [errorText]="
+                passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched
+                  ? 'Les contrasenyes no coincideixen'
+                  : undefined
+              "
+            />
 
             @if (passwordError()) {
               <div class="alert alert-error text-sm py-2" role="alert">

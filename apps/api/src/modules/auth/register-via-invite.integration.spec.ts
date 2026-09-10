@@ -83,7 +83,11 @@ describe('AuthService.registerViaInvite (integration)', () => {
     await truncateAllTables(db.dataSource);
   });
 
-  const seedInvitedUser = async (rawToken: string, overrides: Partial<Person> = {}) => {
+  const seedInvitedUser = async (
+    rawToken: string,
+    overrides: Partial<Person> = {},
+    userOverrides: Partial<User> = {},
+  ) => {
     const person = await personRepo.save(
       personRepo.create({
         name: 'Provisional',
@@ -101,6 +105,7 @@ describe('AuthService.registerViaInvite (integration)', () => {
         inviteToken: hashToken(rawToken),
         inviteExpiresAt: new Date(Date.now() + 3600_000),
         person,
+        ...userOverrides,
       }),
     );
     return { person, user };
@@ -170,5 +175,51 @@ describe('AuthService.registerViaInvite (integration)', () => {
 
     const reloadedPerson = await personRepo.findOne({ where: { id: person.id } });
     expect(reloadedPerson?.isProvisional).toBe(true);
+  });
+
+  it('activates a sync-created stub whose own account already holds the submitted email', async () => {
+    // The legacy sync creates a credential-less User keyed by the legacy email, and the invite
+    // reuses it. The email-taken guard must not mistake that row for a rival account.
+    const { person, user } = await seedInvitedUser('raw-token-4', {}, { email: 'new-member@test.cat' });
+
+    await service.registerViaInvite(registrationPayload('raw-token-4'));
+
+    const reloadedUser = await userRepo.findOne({ where: { id: user.id } });
+    expect(reloadedUser?.isActive).toBe(true);
+    expect(reloadedUser?.email).toBe('new-member@test.cat');
+
+    const reloadedPerson = await personRepo.findOne({ where: { id: person.id } });
+    expect(reloadedPerson?.isProvisional).toBe(false);
+  });
+
+  it('keeps the admin-set email and ignores a different one submitted in the body', async () => {
+    const { user } = await seedInvitedUser('raw-token-5', {}, { email: 'legacy@test.cat' });
+
+    await service.registerViaInvite({
+      ...registrationPayload('raw-token-5'),
+      email: 'attacker@test.cat',
+    });
+
+    const reloadedUser = await userRepo.findOne({ where: { id: user.id } });
+    expect(reloadedUser?.email).toBe('legacy@test.cat');
+  });
+
+  it('normalises a submitted email to lowercase and detects collisions case-insensitively', async () => {
+    await userRepo.save(
+      userRepo.create({ email: 'taken@test.cat', role: UserRole.MEMBER, isActive: true }),
+    );
+    const { user } = await seedInvitedUser('raw-token-6');
+
+    await expect(
+      service.registerViaInvite({ ...registrationPayload('raw-token-6'), email: 'Taken@Test.Cat' }),
+    ).rejects.toThrow(ConflictException);
+
+    await service.registerViaInvite({
+      ...registrationPayload('raw-token-6'),
+      email: 'New-Member@Test.Cat',
+    });
+
+    const reloadedUser = await userRepo.findOne({ where: { id: user.id } });
+    expect(reloadedUser?.email).toBe('new-member@test.cat');
   });
 });

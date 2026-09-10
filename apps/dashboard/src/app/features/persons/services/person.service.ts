@@ -48,4 +48,11 @@ export class PersonService extends ApiService {
   createInviteLink(personId: string): Observable<InviteLinkResponse> {
     return this.post<InviteLinkResponse>('/users/invite-link', { personId });
   }
+
+  // DESACTIVAT: enllaç de contrasenya nova generat per un tècnic per a un compte ja actiu.
+  // L'endpoint del backend també està comentat. Motiu i instruccions per rehabilitar-ho:
+  // apps/api/src/modules/user/user.controller.ts i docs/AUTH_FLOW.md §8.1.
+  // createRecoveryLink(personId: string): Observable<RecoveryLinkResponse> {
+  //   return this.post<RecoveryLinkResponse>('/users/recovery-link', { personId });
+  // }
 }
