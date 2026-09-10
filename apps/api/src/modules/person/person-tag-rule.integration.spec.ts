@@ -9,6 +9,7 @@ import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { UserRole } from '@muixer/shared';
 
 /**
  * El filtre «no compleix la regla» ha de tornar exactament qui no satisfà cap de les tres
@@ -87,7 +88,7 @@ describe('Person tag rule filter (integration)', () => {
   });
 
   it('`tagRuleOk: false` a findAll torna els mateixos qui que la consulta de referència', async () => {
-    const { data } = await service.findAll({ page: 1, limit: 100, tagRuleOk: false });
+    const { data } = await service.findAll({ page: 1, limit: 100, tagRuleOk: false }, UserRole.ADMIN);
     const aliases = data.map((person) => person.alias).sort();
 
     expect(aliases).toEqual(['nomespinya', 'sense']);
@@ -95,7 +96,7 @@ describe('Person tag rule filter (integration)', () => {
   });
 
   it('`tagRuleOk: true` a findAll torna la resta', async () => {
-    const { data } = await service.findAll({ page: 1, limit: 100, tagRuleOk: true });
+    const { data } = await service.findAll({ page: 1, limit: 100, tagRuleOk: true }, UserRole.ADMIN);
     const aliases = data.map((person) => person.alias).sort();
 
     expect(aliases).toEqual(['acompanya', 'pinyatronc', 'xicalleta']);
@@ -144,13 +145,16 @@ describe('Person tag rule filter (integration)', () => {
     await attend(senseId, past, 'ASSISTIT');
     await attend(pinyaId, currentA, 'NO_VAIG');
 
-    const { data } = await service.findAll({
-      page: 1,
-      limit: 100,
-      tagRuleOk: false,
-      sortBy: 'attendedCount',
-      sortOrder: 'DESC',
-    });
+    const { data } = await service.findAll(
+      {
+        page: 1,
+        limit: 100,
+        tagRuleOk: false,
+        sortBy: 'attendedCount',
+        sortOrder: 'DESC',
+      },
+      UserRole.ADMIN,
+    );
 
     expect(data.map((person) => [person.alias, person.attendedCount])).toEqual([
       ['sense', 2],

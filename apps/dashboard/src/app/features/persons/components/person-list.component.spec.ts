@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
@@ -7,6 +8,7 @@ import { PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
 import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
+import { AuthService } from '../../../core/auth/services/auth.service';
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;
@@ -15,6 +17,7 @@ describe('PersonListComponent', () => {
     getPositions: ReturnType<typeof vi.fn>;
   };
   let router: { navigate: ReturnType<typeof vi.fn> };
+  const isAdmin = signal(false);
 
   const mockPerson = {
     id: 'p1',
@@ -56,11 +59,13 @@ describe('PersonListComponent', () => {
       providers: [
         { provide: PersonService, useValue: personService },
         { provide: Router, useValue: router },
+        { provide: AuthService, useValue: { isAdmin } },
         allLucideIconsProvider,
       ],
     }).compileComponents();
 
     localStorage.clear();
+    isAdmin.set(false);
     fixture = TestBed.createComponent(PersonListComponent);
     fixture.detectChanges();
   });
@@ -95,11 +100,46 @@ describe('PersonListComponent', () => {
   });
 
   it('labels the tags column "Etiquetes" instead of "Posicions"', () => {
-    const positionsColumn = fixture.componentInstance.allColumns.find(c => c.key === 'positions');
+    isAdmin.set(true);
+    fixture.detectChanges();
+    const positionsColumn = fixture.componentInstance.tableColumns().find(c => c.key === 'positions');
     expect(positionsColumn?.label).toBe('Etiquetes');
   });
 
+  it('shows a TECHNICAL exactly alias and name columns without a column toggle despite hostile stored ADMIN preferences', () => {
+    localStorage.setItem(
+      'person-list-visible-columns',
+      JSON.stringify(['phone', 'birthDate', 'notes', 'createdAt', 'unknown']),
+    );
+    isAdmin.set(false);
+
+    fixture = TestBed.createComponent(PersonListComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.tableColumns().map((column) => column.key)).toEqual([
+      'alias',
+      'name',
+    ]);
+    expect(fixture.componentInstance.visibleColumnKeys()).toEqual(['alias', 'name']);
+    expect(fixture.nativeElement.querySelector('app-column-toggle')).toBeNull();
+  });
+
+  it('keeps protected and operational columns available to an ADMIN', () => {
+    isAdmin.set(true);
+
+    fixture = TestBed.createComponent(PersonListComponent);
+    fixture.detectChanges();
+
+    const keys = fixture.componentInstance.tableColumns().map((column) => column.key);
+    expect(keys).toContain('phone');
+    expect(keys).toContain('birthDate');
+    expect(keys).toContain('shoulderHeight');
+    expect(fixture.nativeElement.querySelector('app-column-toggle')).not.toBeNull();
+  });
+
   it('renders each tag as a color badge in the table', () => {
+    isAdmin.set(true);
+    fixture.componentInstance.visibleColumnKeys.set(['alias', 'name', 'positions']);
     fixture.componentInstance.persons.set([
       { ...mockPerson, positions: [{ id: 'pos1', name: 'Pinya', slug: 'pinya', zone: null, color: '#ff0000' }] } as never,
     ]);
@@ -213,6 +253,8 @@ describe('PersonListComponent', () => {
     });
 
     it('mostra "Falten etiquetes" com una etiqueta més, amb la icona d\'avís, quan la persona no compleix la regla', () => {
+      isAdmin.set(true);
+      fixture.componentInstance.visibleColumnKeys.set(['alias', 'name', 'positions']);
       fixture.componentInstance.persons.set([
         { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
       ]);

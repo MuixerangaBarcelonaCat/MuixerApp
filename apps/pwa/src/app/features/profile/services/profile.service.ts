@@ -1,19 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { DelegateType, ManagedPerson, PersonProfileSummary } from '@muixer/shared';
+import {
+  DelegateType,
+  ManagedPerson,
+  PersonDelegateDto,
+  PersonProfileSummary,
+} from '@muixer/shared';
 import { environment } from '../../../../environments/environment';
 
-/** Mirrors the API's PersonDelegateResponseDto nested shape — not the unused shared PersonDelegateDto. */
-export interface ProfileDelegate {
-  id: string;
-  delegateType: DelegateType;
-  isActive: boolean;
-  isPrimary: boolean;
-  createdAt: string;
-  user: { id: string; email: string; person: { id: string; alias: string } | null };
-  person: { id: string; alias: string };
-}
+export type ProfileDelegate = PersonDelegateDto;
 
 @Injectable({ providedIn: 'root' })
 export class ProfileService {

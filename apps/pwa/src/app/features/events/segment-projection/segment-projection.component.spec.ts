@@ -3,12 +3,12 @@ import { ApplicationRef, Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { of, throwError, NEVER } from 'rxjs';
 import { Router } from '@angular/router';
+import { MemberProjectionPerson } from '@muixer/shared';
 import {
-  AssignmentDetail,
-  AssignmentPersonDetail,
+  MemberProjectionAssignment,
+  MemberProjectionInstance,
+  MemberProjectionSegmentData,
   PinyaProjectionComponent,
-  ProjectionInstance,
-  ProjectionSegmentData,
 } from '@muixer/pinyes-render';
 import { SegmentProjectionComponent } from './segment-projection.component';
 import { ProjectionService } from '../services/projection.service';
@@ -26,18 +26,14 @@ class PinyaProjectionStub {
   readonly onTroba = vi.fn();
 }
 
-const makePerson = (overrides: Partial<AssignmentPersonDetail> = {}): AssignmentPersonDetail => ({
+const makePerson = (overrides: Partial<MemberProjectionPerson> = {}): MemberProjectionPerson => ({
   id: 'p1',
   alias: 'Marta',
   name: 'Marta',
-  firstSurname: 'Puig',
-  shoulderHeight: null,
-  notes: null,
-  notesEmoji: null,
   ...overrides,
 });
 
-const makeAssignment = (person: AssignmentPersonDetail): AssignmentDetail => ({
+const makeAssignment = (person: MemberProjectionPerson): MemberProjectionAssignment => ({
   id: `a-${person.id}`,
   figureInstanceId: 'i1',
   node: {
@@ -55,7 +51,10 @@ const makeAssignment = (person: AssignmentPersonDetail): AssignmentDetail => ({
   person,
 });
 
-const makeInstance = (assignments: AssignmentDetail[], overrides: Partial<ProjectionInstance> = {}): ProjectionInstance => ({
+const makeInstance = (
+  assignments: MemberProjectionAssignment[],
+  overrides: Partial<MemberProjectionInstance> = {},
+): MemberProjectionInstance => ({
   id: 'i1',
   label: null,
   sortOrder: 0,
@@ -87,7 +86,9 @@ const makeAuthService = (personId: string | null) => ({
 })
 class TestHostComponent {}
 
-const makeData = (overrides: Partial<ProjectionSegmentData> = {}): ProjectionSegmentData => ({
+const makeData = (
+  overrides: Partial<MemberProjectionSegmentData> = {},
+): MemberProjectionSegmentData => ({
   segment: { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
   instances: [],
   personAttendance: {},
@@ -258,8 +259,8 @@ describe('SegmentProjectionComponent', () => {
   });
 
   describe('looking up another person', () => {
-    const marta = makePerson({ id: 'p-marta', alias: 'Marta', name: 'Marta', firstSurname: 'Puig' });
-    const anna = makePerson({ id: 'p-anna', alias: 'Anna', name: 'Anna', firstSurname: 'Ferrer' });
+    const marta = makePerson({ id: 'p-marta', alias: 'Marta', name: 'Marta' });
+    const anna = makePerson({ id: 'p-anna', alias: 'Anna', name: 'Anna' });
 
     const searchButton = (f: ComponentFixture<TestHostComponent>): HTMLButtonElement | null =>
       f.nativeElement.querySelector('[aria-label="Cerca una persona"]');
@@ -333,7 +334,7 @@ describe('SegmentProjectionComponent', () => {
     });
 
     it('treats selecting oneself the same as never having looked anyone up', async () => {
-      const self = makePerson({ id: 'p1', alias: 'Jo Mateixa', name: 'Jo', firstSurname: 'Mateixa' });
+      const self = makePerson({ id: 'p1', alias: 'Jo Mateixa', name: 'Jo' });
       fixture = await setup(
         of(makeData({ instances: [makeInstance([makeAssignment(self), makeAssignment(marta)])] })),
         'p1',

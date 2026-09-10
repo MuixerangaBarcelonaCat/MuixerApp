@@ -184,6 +184,24 @@ describe('EventParticipationService', () => {
       const { persons } = await service.getEventParticipation(EVENT_ID);
 
       expect(persons).toHaveLength(1);
+      expect(Object.keys(persons[0]).sort()).toEqual([
+        'alias',
+        'assignedSegmentCount',
+        'attendanceStatus',
+        'conflictSegmentIds',
+        'id',
+        'isActive',
+        'isXicalla',
+        'name',
+        'nextPerformanceStatus',
+        'notes',
+        'notesEmoji',
+        'placementCount',
+        'placements',
+        'positions',
+        'shoulderHeight',
+        'troncPlacementCount',
+      ]);
       expect(persons[0].assignedSegmentCount).toBe(0);
       expect(persons[0].placementCount).toBe(0);
       expect(persons[0].attendanceStatus).toBe(AttendanceStatus.ANIRE);
@@ -560,6 +578,10 @@ describe('EventParticipationService', () => {
 
       await service.getEventParticipation(EVENT_ID);
 
+      const [matrixSql] = query.mock.calls[1];
+      expect(matrixSql).toContain('p.alias');
+      expect(matrixSql).toContain('p.name');
+      expect(matrixSql).not.toContain('firstSurname');
       const [, params] = query.mock.calls[1];
       expect(params[0]).toBe(EVENT_ID);
       expect(params[1]).toEqual([SEG_A, SEG_B]);

@@ -20,12 +20,12 @@ describe('RollCallComponent', () => {
     {
       id: 'att-1',
       status: AttendanceStatus.PENDENT,
-      person: { id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig' },
+      person: { id: 'person-1', alias: 'Anna', name: 'Anna' },
     },
     {
       id: 'att-2',
       status: AttendanceStatus.ANIRE,
-      person: { id: 'person-2', alias: 'Jordi', name: 'Jordi', firstSurname: 'Ferrer' },
+      person: { id: 'person-2', alias: 'Jordi', name: 'Jordi' },
     },
   ];
 
@@ -98,6 +98,31 @@ describe('RollCallComponent', () => {
     expect(fixture.componentInstance['notSignedUpItems']()).toEqual([attendanceItems[0]]);
   });
 
+  it('does not match a surname accidentally present in an attendance response', () => {
+    const leakedItem = {
+      ...attendanceItems[1],
+      person: { ...attendanceItems[1].person, firstSurname: 'Ferrer' },
+    } as AttendanceItem;
+    fixture.componentInstance['items'].set([leakedItem]);
+
+    fixture.componentInstance['searchTerm'].set('Ferrer');
+
+    expect(fixture.componentInstance['hasNoResults']()).toBe(true);
+  });
+
+  it('uses the name when an attendance entry has no alias', () => {
+    fixture.componentInstance['items'].set([
+      {
+        ...attendanceItems[1],
+        person: { ...attendanceItems[1].person, alias: '', name: 'Jordi' },
+      },
+    ]);
+    fixture.detectChanges();
+
+    const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
+    expect(row.textContent).toContain('Jordi');
+  });
+
   it('updates an existing attendance record', () => {
     rollCallService.updateAttendance.mockReturnValue(
       of({ attendance: { id: 'att-1', status: AttendanceStatus.ASSISTIT }, summary: {} }),
@@ -158,7 +183,7 @@ describe('RollCallComponent', () => {
   });
 
   it('creates a provisional person and marks them ASSISTIT', () => {
-    const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu', firstSurname: '' };
+    const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu' };
     rollCallService.createProvisionalPerson.mockReturnValue(of(newPerson));
     rollCallService.createAttendance.mockReturnValue(
       of({ attendance: { id: 'att-3', status: AttendanceStatus.ASSISTIT }, summary: {} }),

@@ -11,7 +11,6 @@ export interface AttendancePerson {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   isXicalla: boolean;
   isProvisional?: boolean;
   notes: string | null;

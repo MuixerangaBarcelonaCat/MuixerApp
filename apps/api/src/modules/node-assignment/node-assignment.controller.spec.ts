@@ -15,14 +15,13 @@ const mockAssignment = {
   figureInstanceId: INSTANCE_ID,
   compositionSlotId: null,
   node: { id: 'node-uuid-1', label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0 },
-  person: { id: 'person-uuid-1', alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
+  person: { id: 'person-uuid-1', alias: 'Pepet', name: 'Pere', shoulderHeight: 140 },
 };
 
 const mockAvailablePerson = {
   id: 'person-uuid-1',
   alias: 'Pepet',
   name: 'Pere',
-  firstSurname: 'Garcia',
   shoulderHeight: 140,
   isXicalla: false,
   attendanceStatus: 'CONFIRMED',

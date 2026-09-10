@@ -6,15 +6,14 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { AuthModule } from '../auth/auth.module';
 import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
-// Només el necessitava l'enllaç de recuperació (desactivat, vegeu user.controller.ts).
-// import { AuditModule } from '../audit/audit.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Person]),
     AuthModule,
     PersonDelegateModule,
-    // AuditModule,
+    AuditModule,
   ],
   controllers: [UserController],
   providers: [UserService],

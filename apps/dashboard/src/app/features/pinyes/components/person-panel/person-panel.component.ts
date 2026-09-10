@@ -175,7 +175,6 @@ export class PersonPanelComponent {
           id: assignment.person.id,
           alias: assignment.person.alias,
           name: assignment.person.name,
-          firstSurname: assignment.person.firstSurname,
           shoulderHeight: assignment.person.shoulderHeight,
           notes: assignment.person.notes,
           notesEmoji: assignment.person.notesEmoji,

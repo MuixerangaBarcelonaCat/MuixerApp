@@ -204,7 +204,7 @@
   @if (selectedAssignment(); as assignment) {
     <div class="px-2 py-2 border-b border-base-200 bg-base-200/40 flex items-center justify-between gap-1">
       <span class="text-xs font-semibold truncate min-w-0">
-        {{ assignment.person.alias || assignment.person.name + ' ' + assignment.person.firstSurname }}
+        {{ assignment.person.alias || assignment.person.name }}
       </span>
       <span class="shrink-0">
         <lib-button

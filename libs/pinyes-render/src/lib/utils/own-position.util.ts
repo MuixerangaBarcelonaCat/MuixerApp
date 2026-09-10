@@ -1,6 +1,10 @@
 import { DIRECTION_SLOTS, FigureZone, getSegmentInstanceLabel } from '@muixer/shared';
-import { AssignmentDetail, InstanceNodeItem } from '../models/assignment.model';
-import { ProjectionInstance, ProjectionSegmentData } from '../models/projection.model';
+import { InstanceNodeItem } from '../models/assignment.model';
+import {
+  ProjectionAssignment,
+  ProjectionInstance,
+  ProjectionRenderableData,
+} from '../models/projection.model';
 import { TRONC_FLOOR_ROW_PX, TRONC_HALF_UNIT_PX, TRONC_HEADER_PX, TRONC_LABEL_COL_PX } from './tronc-size.util';
 
 const TRONC_ZONES = new Set<string>([
@@ -12,11 +16,14 @@ export interface OwnPlacement {
   instance: ProjectionInstance;
   instanceIndex: number;
   node: InstanceNodeItem;
-  assignment: AssignmentDetail;
+  assignment: ProjectionAssignment;
 }
 
 /** Every assignment `personId` holds in this segment. Normally 0 or 1; invariant 4 permits more. */
-export function findOwnPlacements(data: ProjectionSegmentData, personId: string): OwnPlacement[] {
+export function findOwnPlacements(
+  data: ProjectionRenderableData,
+  personId: string,
+): OwnPlacement[] {
   const placements: OwnPlacement[] = [];
 
   data.instances.forEach((instance, instanceIndex) => {

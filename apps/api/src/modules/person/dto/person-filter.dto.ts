@@ -8,7 +8,10 @@ const toBool = ({ value }: { value: unknown }) =>
   value === 'true' ? true : value === 'false' ? false : undefined;
 
 export class PersonFilterDto {
-  @ApiPropertyOptional({ description: 'Cerca per àlies, nom o cognoms (insensible a accents)' })
+  @ApiPropertyOptional({
+    description:
+      'Cerca per àlies o nom (els administradors també poden cercar per cognoms; insensible a accents)',
+  })
   @IsString()
   @IsOptional()
   search?: string;

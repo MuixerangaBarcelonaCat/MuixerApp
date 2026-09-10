@@ -74,7 +74,10 @@
       <tbody>
         @for (row of filtered(); track row.person.id) {
           <tr>
-            <td class="font-medium">{{ row.person.firstName }} {{ row.person.lastName }}</td>
+            <td>
+              <span class="font-mono font-semibold">{{ row.person.alias }}</span>
+              <span class="text-base-content/60"> · {{ row.person.name }}</span>
+            </td>
             <td class="text-center">
               <lib-badge [variant]="row.activeDevices > 0 ? 'primary' : 'ghost'">
                 {{ row.activeDevices }}

@@ -21,7 +21,11 @@ import {
   TRONC_Z_DEFAULTS,
   TroncNodePreset,
 } from '@muixer/shared';
-import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
+import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
+import {
+  ProjectionAssignment,
+  projectionShoulderHeight,
+} from '../../models/projection.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
@@ -83,7 +87,7 @@ export class TroncViewComponent {
   /** BASE-zone nodes (z=0, intersection with pinya). Positioned by sortOrder index in tronc view. */
   readonly baseNodes = input<TroncNodeItem[]>([]);
 
-  readonly assignments = input<AssignmentDetail[]>([]);
+  readonly assignments = input<ProjectionAssignment[]>([]);
   readonly selectedNodeId = input<string | null>(null);
   /** Person IDs in conflict in this segment; a node is flagged when its assigned person is one. */
   readonly conflictPersonIds = input<Set<string>>(new Set());
@@ -557,7 +561,7 @@ export class TroncViewComponent {
     return this.highlightedNodeIds().has(nodeId);
   }
 
-  getAssignment(nodeId: string): AssignmentDetail | undefined {
+  getAssignment(nodeId: string): ProjectionAssignment | undefined {
     return this.assignments().find((a) => a.node.id === nodeId);
   }
 
@@ -567,23 +571,27 @@ export class TroncViewComponent {
     return !!assignment && this.conflictPersonIds().has(assignment.person.id);
   }
 
-  getHeightDisplay(shoulderHeight: number | null): string {
+  getHeightDisplay(shoulderHeight: number | null | undefined): string {
     if (shoulderHeight == null || shoulderHeight === 0) return '';
     if (this.heightMode() === 'absolute') return `${shoulderHeight}`;
     const diff = shoulderHeight - SHOULDER_HEIGHT_BASELINE_CM;
     return diff >= 0 ? `+${diff}` : `${diff}`;
   }
 
-  getAttendanceStatus(assignment: AssignmentDetail): AttendanceStatus | null {
+  getAssignmentShoulderHeight(assignment: ProjectionAssignment): number | null {
+    return projectionShoulderHeight(assignment.person);
+  }
+
+  getAttendanceStatus(assignment: ProjectionAssignment): AttendanceStatus | null {
     const personId = assignment.person.id;
     return this.attendanceMap().get(personId) ?? null;
   }
 
-  getNotes(assignment: AssignmentDetail): string | null {
+  getNotes(assignment: ProjectionAssignment): string | null {
     return this.personDetailsMap().get(assignment.person.id)?.notes ?? null;
   }
 
-  getNotesEmoji(assignment: AssignmentDetail): string | null {
+  getNotesEmoji(assignment: ProjectionAssignment): string | null {
     return this.personDetailsMap().get(assignment.person.id)?.notesEmoji ?? null;
   }
 
@@ -601,7 +609,7 @@ export class TroncViewComponent {
         alias: assignment.person.alias,
         attendanceStatus: this.getAttendanceStatus(assignment),
         isXicalla: details?.isXicalla ?? false,
-        shoulderHeight: assignment.person.shoulderHeight,
+        shoulderHeight: projectionShoulderHeight(assignment.person),
         notes: details?.notes ?? null,
         notesEmoji: details?.notesEmoji ?? null,
         positions: details?.positions ?? [],
@@ -616,7 +624,7 @@ export class TroncViewComponent {
     this.hoveredPerson.set(null);
   }
 
-  getAttendanceColor(assignment: AssignmentDetail): string {
+  getAttendanceColor(assignment: ProjectionAssignment): string {
     const status = this.getAttendanceStatus(assignment);
     const past = this.isPast();
     if (status === 'ASSISTIT') return 'oklch(var(--su))';
@@ -681,12 +689,14 @@ export class TroncViewComponent {
   getNodeAriaLabel(node: TroncNodeItem): string {
     const assignment = this.getAssignment(node.id);
     if (!assignment) return `Node ${this.displayLabel(node)}, sense assignar`;
-    const height = this.getHeightDisplay(assignment.person.shoulderHeight);
+    const height = this.getHeightDisplay(
+      projectionShoulderHeight(assignment.person),
+    );
     return `${node.label}: ${this.displayAlias(node, assignment)}, alçada ${height}`;
   }
 
   /** Person alias with the node's climb indicator appended, e.g. "Marta (X)". */
-  displayAlias(node: TroncNodeItem, assignment: AssignmentDetail): string {
+  displayAlias(node: TroncNodeItem, assignment: ProjectionAssignment): string {
     return formatAssignedLabel(assignment.person.alias, node.climbIndicator);
   }
 

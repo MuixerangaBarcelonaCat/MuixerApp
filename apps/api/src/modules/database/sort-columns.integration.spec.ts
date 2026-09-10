@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import { UserRole } from '@muixer/shared';
 import { PersonService } from '../person/person.service';
 import { Person } from '../person/person.entity';
 import { Tag } from '../tag/tag.entity';
@@ -121,7 +122,10 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
     }).compile();
     const service = module.get<PersonService>(PersonService);
 
-    const { data } = await service.findAll({ sortBy: 'alias', sortOrder: 'DESC', page: 1, limit: 50 });
+    const { data } = await service.findAll(
+      { sortBy: 'alias', sortOrder: 'DESC', page: 1, limit: 50 },
+      UserRole.ADMIN,
+    );
 
     expect(data.map((p) => p.alias)).toContain('sortcheck');
 

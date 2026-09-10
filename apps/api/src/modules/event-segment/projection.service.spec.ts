@@ -11,6 +11,7 @@ import { AttendanceStatus, FigureMode } from '@muixer/shared';
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'seg-uuid-1';
 const SEGMENT_2_ID = 'seg-uuid-2';
+const STAFF_OPTIONS = { audience: 'staff' } as const;
 
 const makeSegment = (id: string, sortOrder: number): Partial<EventSegment> => ({
   id,
@@ -91,6 +92,8 @@ describe('ProjectionService', () => {
     ]);
     mockInstanceRepo.find.mockResolvedValue([]);
     mockAttendanceRepo.find.mockResolvedValue([]);
+    mockNodeAssignmentService.getInstanceNodes.mockResolvedValue([]);
+    mockNodeAssignmentService.getByInstance.mockResolvedValue([]);
     service = await buildService();
   });
 
@@ -98,21 +101,23 @@ describe('ProjectionService', () => {
 
   it('throws NotFoundException when segment does not exist', async () => {
     mockSegmentRepo.findOne.mockResolvedValue(null);
-    await expect(service.getProjection(EVENT_ID, SEGMENT_ID)).rejects.toThrow(NotFoundException);
+    await expect(
+      service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS),
+    ).rejects.toThrow(NotFoundException);
   });
 
   // ── segment navigation ───────────────────────────────────────────────────
 
   it('returns prevSegmentId=null for first segment', async () => {
     mockSegmentRepo.findOne.mockResolvedValue(makeSegment(SEGMENT_ID, 0));
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.segment.prevSegmentId).toBeNull();
     expect(result.segment.nextSegmentId).toBe(SEGMENT_2_ID);
   });
 
   it('returns nextSegmentId=null for last segment', async () => {
     mockSegmentRepo.findOne.mockResolvedValue(makeSegment(SEGMENT_2_ID, 1));
-    const result = await service.getProjection(EVENT_ID, SEGMENT_2_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_2_ID, STAFF_OPTIONS);
     expect(result.segment.prevSegmentId).toBe(SEGMENT_ID);
     expect(result.segment.nextSegmentId).toBeNull();
   });
@@ -121,7 +126,7 @@ describe('ProjectionService', () => {
 
   it('returns empty personAttendance when no attendances exist', async () => {
     mockAttendanceRepo.find.mockResolvedValue([]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.personAttendance).toEqual({});
   });
 
@@ -131,14 +136,14 @@ describe('ProjectionService', () => {
       makeAttendance('person-2', AttendanceStatus.ANIRE),
       makeAttendance('person-3', AttendanceStatus.NO_VAIG),
     ]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.personAttendance['person-1']).toBe(AttendanceStatus.ASSISTIT);
     expect(result.personAttendance['person-2']).toBe(AttendanceStatus.ANIRE);
     expect(result.personAttendance['person-3']).toBe(AttendanceStatus.NO_VAIG);
   });
 
   it('fetches attendances scoped to the event (not the segment)', async () => {
-    await service.getProjection(EVENT_ID, SEGMENT_ID);
+    await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(mockAttendanceRepo.find).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { event: { id: EVENT_ID } },
@@ -153,14 +158,14 @@ describe('ProjectionService', () => {
       makeAttendance('person-1', AttendanceStatus.PENDENT),
       makeAttendance('person-1', AttendanceStatus.ASSISTIT),
     ]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.personAttendance['person-1']).toBe(AttendanceStatus.ASSISTIT);
   });
 
   // ── conflicts (D13 — last line of defense during assaig) ────────────────
 
   it('defaults conflicts to an empty array in production (no duplicates yet)', async () => {
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.conflicts).toEqual([]);
   });
 
@@ -177,7 +182,7 @@ describe('ProjectionService', () => {
       meta: DEFAULT_CONFLICTS_META,
     });
 
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
 
     expect(result.conflicts).toEqual([conflict]);
     expect(mockNodeAssignmentService.getSegmentConflicts).toHaveBeenCalledWith(SEGMENT_ID);
@@ -187,22 +192,100 @@ describe('ProjectionService', () => {
 
   it('returns empty instances array when no instances exist', async () => {
     mockInstanceRepo.find.mockResolvedValue([]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.instances).toHaveLength(0);
   });
 
   it('includes instance data with figureTemplate=null for composition instances', async () => {
     mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.instances).toHaveLength(1);
     expect(result.instances[0].figureTemplate).toBeNull();
+  });
+
+  it('omits technical person fields from member projection assignments', async () => {
+    mockInstanceRepo.find.mockResolvedValue([
+      {
+        ...makeInstance(),
+        figureTemplate: { id: 'fig-1', name: 'Figura' },
+      },
+    ]);
+    mockNodeAssignmentService.getByInstance.mockResolvedValue([
+      {
+        id: 'assignment-1',
+        figureInstanceId: 'inst-uuid-1',
+        node: { id: 'node-1' },
+        person: {
+          id: 'person-1',
+          alias: 'Alies',
+          name: 'Nom',
+          shoulderHeight: 145,
+          notes: 'Nota tècnica',
+          notesEmoji: '💪',
+        },
+      },
+    ]);
+
+    const result = await service.getProjection(
+      EVENT_ID,
+      SEGMENT_ID,
+      { audience: 'member' },
+    );
+
+    expect(result.instances[0].assignments[0].person).toEqual({
+      id: 'person-1',
+      alias: 'Alies',
+      name: 'Nom',
+    });
+    expect(
+      JSON.stringify(result.instances[0].assignments[0].person),
+    ).toBe('{"id":"person-1","alias":"Alies","name":"Nom"}');
+  });
+
+  it('retains operational person fields in staff projection assignments', async () => {
+    mockInstanceRepo.find.mockResolvedValue([
+      {
+        ...makeInstance(),
+        figureTemplate: { id: 'fig-1', name: 'Figura' },
+      },
+    ]);
+    mockNodeAssignmentService.getByInstance.mockResolvedValue([
+      {
+        id: 'assignment-1',
+        figureInstanceId: 'inst-uuid-1',
+        node: { id: 'node-1' },
+        person: {
+          id: 'person-1',
+          alias: 'Alies',
+          name: 'Nom',
+          shoulderHeight: 145,
+          notes: 'Nota tècnica',
+          notesEmoji: '💪',
+        },
+      },
+    ]);
+
+    const result = await service.getProjection(
+      EVENT_ID,
+      SEGMENT_ID,
+      STAFF_OPTIONS,
+    );
+
+    expect(result.instances[0].assignments[0].person).toEqual({
+      id: 'person-1',
+      alias: 'Alies',
+      name: 'Nom',
+      shoulderHeight: 145,
+      notes: 'Nota tècnica',
+      notesEmoji: '💪',
+    });
   });
 
   // ── hasDistribution ───────────────────────────────────────────────────────
 
   it('returns hasDistribution=false when no instances have projectionX set', async () => {
     mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.hasDistribution).toBe(false);
   });
 
@@ -210,13 +293,13 @@ describe('ProjectionService', () => {
     mockInstanceRepo.find.mockResolvedValue([
       { ...makeInstance(), projectionX: 100, projectionY: 200 },
     ]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.hasDistribution).toBe(true);
   });
 
   it('returns hasDistribution=false for empty segment', async () => {
     mockInstanceRepo.find.mockResolvedValue([]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     expect(result.hasDistribution).toBe(false);
   });
 
@@ -235,7 +318,7 @@ describe('ProjectionService', () => {
         troncPanelHeight: 80,
       },
     ]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     const inst = result.instances[0];
     expect(inst.projectionAngle).toBe(45);
     expect(inst.troncPanelX).toBe(10);
@@ -246,7 +329,7 @@ describe('ProjectionService', () => {
 
   it('returns null distribution fields when not set', async () => {
     mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
-    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
     const inst = result.instances[0];
     expect(inst.projectionAngle).toBeNull();
     expect(inst.troncPanelX).toBeNull();
@@ -256,14 +339,14 @@ describe('ProjectionService', () => {
 
   describe('onlyPublished', () => {
     it('does not scope the segment lookup to isPublished by default (Dashboard path)', async () => {
-      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
       expect(mockSegmentRepo.findOne).toHaveBeenCalledWith({
         where: { id: SEGMENT_ID, event: { id: EVENT_ID } },
       });
     });
 
     it('does not scope the sibling lookup to isPublished by default (Dashboard path)', async () => {
-      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      await service.getProjection(EVENT_ID, SEGMENT_ID, STAFF_OPTIONS);
       expect(mockSegmentRepo.find).toHaveBeenCalledWith({
         where: { event: { id: EVENT_ID } },
         order: { sortOrder: 'ASC' },
@@ -272,14 +355,20 @@ describe('ProjectionService', () => {
     });
 
     it('scopes the segment lookup to published segments when onlyPublished is true', async () => {
-      await service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true });
+      await service.getProjection(EVENT_ID, SEGMENT_ID, {
+        audience: 'staff',
+        onlyPublished: true,
+      });
       expect(mockSegmentRepo.findOne).toHaveBeenCalledWith({
         where: { id: SEGMENT_ID, event: { id: EVENT_ID }, isPublished: true },
       });
     });
 
     it('scopes the sibling lookup to published segments when onlyPublished is true', async () => {
-      await service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true });
+      await service.getProjection(EVENT_ID, SEGMENT_ID, {
+        audience: 'staff',
+        onlyPublished: true,
+      });
       expect(mockSegmentRepo.find).toHaveBeenCalledWith({
         where: { event: { id: EVENT_ID }, isPublished: true },
         order: { sortOrder: 'ASC' },
@@ -290,7 +379,10 @@ describe('ProjectionService', () => {
     it('throws NotFoundException when the segment lookup finds nothing under the isPublished scope', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(null);
       await expect(
-        service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true }),
+        service.getProjection(EVENT_ID, SEGMENT_ID, {
+          audience: 'staff',
+          onlyPublished: true,
+        }),
       ).rejects.toThrow(NotFoundException);
     });
   });

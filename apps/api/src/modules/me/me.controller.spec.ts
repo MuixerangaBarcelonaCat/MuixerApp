@@ -214,6 +214,7 @@ describe('MeController', () => {
       expect(result).toEqual([
         expect.objectContaining({ id: 'del-1', delegateType: DelegateType.PARENT, isPrimary: false }),
       ]);
+      expect(result[0].user).not.toHaveProperty('email');
     });
   });
 
@@ -234,6 +235,7 @@ describe('MeController', () => {
 
       expect(meService.createPersonDelegate).toHaveBeenCalledWith('user-1', 'p-1', dto);
       expect(result).toEqual(expect.objectContaining({ id: 'del-new', delegateType: DelegateType.PARTNER }));
+      expect(result.user).not.toHaveProperty('email');
     });
   });
 

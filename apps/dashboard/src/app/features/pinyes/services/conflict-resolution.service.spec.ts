@@ -42,7 +42,6 @@ const makeAssignment = (placement: ConflictPlacement, personId: string): Assignm
     id: personId,
     alias: 'Alias',
     name: 'Nom',
-    firstSurname: 'Cognom',
     shoulderHeight: null,
     notes: null,
     notesEmoji: null,

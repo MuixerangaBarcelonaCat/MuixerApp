@@ -24,6 +24,7 @@ import {
   SelectComponent,
   TextareaComponent,
 } from '@muixer/ui';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
@@ -48,7 +49,7 @@ import {
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
-import { DelegateType, LegalDocumentType } from '@muixer/shared';
+import { DelegateType, Gender, LegalDocumentType } from '@muixer/shared';
 
 @Component({
   standalone: true,
@@ -83,6 +84,7 @@ export class PersonDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
+  protected readonly auth = inject(AuthService);
 
   readonly ICON_USER_X = DOMAIN_ICONS.USER_X;
 
@@ -96,7 +98,9 @@ export class PersonDetailComponent implements OnInit {
   readonly headerSubtitle = computed(() => {
     const p = this.person();
     if (!p) return '';
-    const full = [p.name, p.firstSurname, p.secondSurname].filter(Boolean).join(' ').trim();
+    const full = this.auth.isAdmin()
+      ? [p.name, p.firstSurname, p.secondSurname].filter(Boolean).join(' ').trim()
+      : p.name;
     return full && full !== p.alias ? full : '';
   });
 
@@ -144,6 +148,7 @@ export class PersonDetailComponent implements OnInit {
     alias: ['', Validators.required],
     phone: [''],
     birthDate: [''],
+    gender: [null as Gender | null],
     shoulderHeight: [null as number | null],
     notes: [''],
     notesEmoji: [null as string | null],
@@ -162,6 +167,15 @@ export class PersonDetailComponent implements OnInit {
   readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
   readonly formatNodeCordonLabel = formatNodeCordonLabel;
   readonly Math = Math;
+  readonly genderOptions = [
+    { value: Gender.MALE, label: 'Home' },
+    { value: Gender.FEMALE, label: 'Dona' },
+    { value: Gender.OTHER, label: 'Altre' },
+  ];
+
+  getGenderLabel(gender: Gender | null | undefined): string {
+    return this.genderOptions.find((option) => option.value === gender)?.label ?? '—';
+  }
 
   ngOnInit() {
     this.tagService.getAll().subscribe({
@@ -234,13 +248,9 @@ export class PersonDetailComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id')!;
     const raw = this.form.getRawValue();
 
-    const payload: Partial<UpdatePersonDto> & { positionIds?: string[] } = {
+    const operationalPayload: Partial<UpdatePersonDto> = {
       name: raw.name ?? undefined,
-      firstSurname: raw.firstSurname ?? undefined,
-      secondSurname: raw.secondSurname ?? undefined,
       alias: raw.alias ?? undefined,
-      phone: raw.phone ?? undefined,
-      birthDate: raw.birthDate || undefined,
       shoulderHeight: raw.shoulderHeight || null,
       notes: raw.notes ?? undefined,
       notesEmoji: raw.notesEmoji ?? null,
@@ -253,6 +263,16 @@ export class PersonDetailComponent implements OnInit {
       shirtDate: raw.shirtDate || null,
       positionIds: this.selectedPositionIds(),
     };
+    const payload: Partial<UpdatePersonDto> = this.auth.isAdmin()
+      ? {
+          ...operationalPayload,
+          firstSurname: raw.firstSurname ?? undefined,
+          secondSurname: raw.secondSurname || null,
+          phone: raw.phone || null,
+          birthDate: raw.birthDate || null,
+          gender: raw.gender ?? null,
+        }
+      : operationalPayload;
 
     this.personService.update(id, payload).subscribe({
       next: (updated) => {
@@ -272,6 +292,7 @@ export class PersonDetailComponent implements OnInit {
     const p = this.person();
     if (!p || this.togglingProvisional()) return;
     const newValue = !p.isProvisional;
+    if (!newValue && !this.auth.isAdmin()) return;
     if (
       !newValue &&
       !confirm(
@@ -320,6 +341,7 @@ export class PersonDetailComponent implements OnInit {
       alias: person.alias ?? '',
       phone: person.phone ?? '',
       birthDate: person.birthDate ?? '',
+      gender: person.gender ?? null,
       shoulderHeight: person.shoulderHeight || null,
       notes: person.notes ?? '',
       notesEmoji: person.notesEmoji ?? null,
@@ -453,6 +475,14 @@ export class PersonDetailComponent implements OnInit {
 
   getDelegateTypeLabel(type: DelegateType): string {
     return PersonDetailComponent.DELEGATE_TYPE_LABELS[type] ?? type;
+  }
+
+  delegateLabel(delegate: PersonDelegateItem): string {
+    if (delegate.user.person) return delegate.user.person.alias;
+    if (this.auth.isAdmin() && 'email' in delegate.user && delegate.user.email) {
+      return delegate.user.email;
+    }
+    return 'Compte sense perfil';
   }
 
   loadDelegates(): void {

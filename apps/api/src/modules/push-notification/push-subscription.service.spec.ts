@@ -166,6 +166,39 @@ describe('PushSubscriptionService', () => {
     });
   });
 
+  describe('getSummary', () => {
+    it('returns only id, alias and name for each person and orders without surname', async () => {
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          {
+            personId: 'person-1',
+            alias: 'Pepet',
+            name: 'Pere',
+            activeDevices: '2',
+            lastPushAt: null,
+          },
+        ]),
+      };
+      repo.createQueryBuilder.mockReturnValue(queryBuilder as never);
+
+      const result = await service.getSummary();
+
+      expect(result[0].person).toEqual({ id: 'person-1', alias: 'Pepet', name: 'Pere' });
+      expect(queryBuilder.addSelect).not.toHaveBeenCalledWith(
+        expect.stringContaining('firstSurname'),
+        expect.anything(),
+      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('person.alias', 'ASC');
+    });
+  });
+
   describe('deactivate', () => {
     it('sets isActive false on the given subscription', async () => {
       repo.update.mockResolvedValue({ affected: 1 } as never);

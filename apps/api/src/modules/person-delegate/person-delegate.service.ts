@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { DelegateType } from '@muixer/shared';
+import { DelegateType, DelegationCandidate } from '@muixer/shared';
 import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
 import { User } from '../user/user.entity';
@@ -32,6 +32,59 @@ export class PersonDelegateService {
       relations: ['user', 'user.person', 'person'],
       order: { createdAt: 'ASC' },
     });
+  }
+
+  async findCandidates(
+    personId: string,
+    search?: string,
+  ): Promise<DelegationCandidate[]> {
+    const qb = this.userRepo
+      .createQueryBuilder('user')
+      .innerJoin('user.person', 'person')
+      .select([
+        'user.id',
+        'user.isActive',
+        'person.id',
+        'person.alias',
+        'person.name',
+      ])
+      .where('person.id != :personId', { personId })
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1
+          FROM person_delegates existing_delegate
+          WHERE existing_delegate.user_id = user.id
+            AND existing_delegate.person_id = :personId
+        )`,
+        { personId },
+      );
+
+    if (search?.trim()) {
+      qb.andWhere(
+        `(
+          unaccent(person.alias) ILIKE unaccent(:search)
+          OR unaccent(person.name) ILIKE unaccent(:search)
+        )`,
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    const users = await qb
+      .orderBy('person.alias', 'ASC')
+      .addOrderBy('person.name', 'ASC')
+      .getMany();
+
+    return users.flatMap((user) =>
+      user.person
+        ? [{
+            candidateUserId: user.id,
+            personId: user.person.id,
+            alias: user.person.alias,
+            name: user.person.name,
+            accountState: user.isActive ? 'ACTIVE' : 'PENDING_ACTIVATION',
+          }]
+        : [],
+    );
   }
 
   /**
@@ -75,6 +128,12 @@ export class PersonDelegateService {
     });
     if (!user) {
       throw new NotFoundException(`User #${dto.userId} not found`);
+    }
+
+    if (!user.person) {
+      throw new BadRequestException(
+        'L’usuari seleccionat no té cap persona vinculada. Gestioneu este compte des d’Usuaris.',
+      );
     }
 
     if (user.person && user.person.id === personId) {

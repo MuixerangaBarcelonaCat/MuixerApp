@@ -57,7 +57,6 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
       id: `person-${nodeId}`,
       alias,
       name: 'Test',
-      firstSurname: 'User',
       shoulderHeight,
       notes: null,
       notesEmoji: null,

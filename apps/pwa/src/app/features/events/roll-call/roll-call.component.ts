@@ -68,9 +68,7 @@ export class RollCallComponent {
   private readonly matchesSearch = (item: AttendanceItem): boolean => {
     const term = this.searchTerm().trim().toLowerCase();
     if (!term) return true;
-    return `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`
-      .toLowerCase()
-      .includes(term);
+    return `${item.person.alias} ${item.person.name}`.toLowerCase().includes(term);
   };
 
   protected readonly signedUpItems = computed(() =>
@@ -106,6 +104,10 @@ export class RollCallComponent {
 
   protected statusLabel(status: AttendanceStatus): string {
     return STATUS_LABELS[status];
+  }
+
+  protected personLabel(item: AttendanceItem | undefined): string {
+    return item ? item.person.alias || item.person.name : '';
   }
 
   protected statusVariant(status: AttendanceStatus): 'success' | 'error' | 'warning' | 'neutral' {

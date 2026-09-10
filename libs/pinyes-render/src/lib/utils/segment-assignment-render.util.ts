@@ -1,5 +1,5 @@
 import { FigureZone } from '@muixer/shared';
-import { AssignmentDetail } from '../models/assignment.model';
+import { ProjectionAssignment } from '../models/projection.model';
 import {
   CanvasNode,
   CompositionSlotWithNodes,
@@ -34,7 +34,7 @@ export interface SegmentRenderNode {
   key: string;
   slotId: string;
   node: CanvasNode;
-  assignment: AssignmentDetail | null;
+  assignment: ProjectionAssignment | null;
   isSelected: boolean;
   isDimmed: boolean;
   isHighlighted: boolean;
@@ -43,12 +43,12 @@ export interface SegmentRenderNode {
 /** Flattens slots into per-node render descriptors for the segment-assignment canvas mode. */
 export function buildSegmentRenderNodes(
   slots: CompositionSlotWithNodes[],
-  assignments: AssignmentDetail[],
+  assignments: ProjectionAssignment[],
   selected: SegmentNodeRef | null,
   dimmedSlotIds: Set<string>,
   highlightedNodeIds: Set<string>,
 ): SegmentRenderNode[] {
-  const assignmentByRef = new Map<string, AssignmentDetail>();
+  const assignmentByRef = new Map<string, ProjectionAssignment>();
   for (const a of assignments) {
     assignmentByRef.set(`${a.figureInstanceId}:${a.node.id}`, a);
   }

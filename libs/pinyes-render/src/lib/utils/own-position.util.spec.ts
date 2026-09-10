@@ -65,7 +65,6 @@ const makeAssignment = (
     id: personId,
     alias,
     name: alias,
-    firstSurname: '',
     shoulderHeight: null,
     notes: null,
     notesEmoji: null,

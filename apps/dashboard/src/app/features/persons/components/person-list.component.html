@@ -98,11 +98,13 @@
       [filters]="activeFilterChips()"
       (removeFilter)="onRemoveFilterChip($event)"
     />
-    <app-column-toggle
-      [columns]="allColumns"
-      [visibleKeys]="visibleColumnKeys()"
-      (toggleColumn)="toggleColumn($event)"
-    />
+    @if (auth.isAdmin()) {
+      <app-column-toggle
+        [columns]="allColumns()"
+        [visibleKeys]="visibleColumnKeys()"
+        (toggleColumn)="toggleColumn($event)"
+      />
+    }
   </div>
 
   <!-- Taula -->

@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import { DelegateType } from '@muixer/shared';
+import { DelegateType, DelegationCandidate } from '@muixer/shared';
+import { buildHttpParams } from '../../../core/utils/http-params.util';
 
 export interface PersonDelegateItem {
   id: string;
@@ -11,13 +12,10 @@ export interface PersonDelegateItem {
   createdAt: string;
   user: {
     id: string;
-    email: string;
+    email?: string | null;
     person: { id: string; alias: string } | null;
   };
-  person: {
-    id: string;
-    alias: string;
-  };
+  person: { id: string; alias: string };
 }
 
 export interface CreateDelegatePayload {
@@ -38,6 +36,17 @@ export interface UpdateDelegatePayload {
 export class PersonDelegateService extends ApiService {
   getByPerson(personId: string): Observable<PersonDelegateItem[]> {
     return this.get<PersonDelegateItem[]>(`/persons/${personId}/delegates`);
+  }
+
+  getCandidates(
+    personId: string,
+    search?: string,
+  ): Observable<DelegationCandidate[]> {
+    const params = buildHttpParams({ search });
+    return this.get<DelegationCandidate[]>(
+      `/persons/${personId}/delegates/candidates`,
+      { params },
+    );
   }
 
   createDelegate(

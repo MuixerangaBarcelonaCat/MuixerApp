@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
@@ -18,12 +19,17 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
-import { UserRole } from '@muixer/shared';
+import { JwtPayload, UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PersonDelegateService } from './person-delegate.service';
 import { CreatePersonDelegateDto } from './dto/create-person-delegate.dto';
 import { UpdatePersonDelegateDto } from './dto/update-person-delegate.dto';
-import { PersonDelegateResponseDto } from './dto/person-delegate-response.dto';
+import {
+  AdminPersonDelegateResponseDto,
+  PersonDelegateResponseDto,
+} from './dto/person-delegate-response.dto';
+import { DelegationCandidateResponseDto } from './dto/delegation-candidate-response.dto';
 
 @ApiTags('person-delegates')
 @ApiBearerAuth()
@@ -38,9 +44,27 @@ export class PersonDelegateController {
   @ApiResponse({ status: 200, description: 'Llista de delegats' })
   async findAll(
     @Param('personId', ParseUUIDPipe) personId: string,
-  ): Promise<PersonDelegateResponseDto[]> {
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<(PersonDelegateResponseDto | AdminPersonDelegateResponseDto)[]> {
     const delegates = await this.delegateService.findByPerson(personId);
-    return plainToInstance(PersonDelegateResponseDto, delegates, {
+    const responseType =
+      actor.role === UserRole.ADMIN
+        ? AdminPersonDelegateResponseDto
+        : PersonDelegateResponseDto;
+    return plainToInstance(responseType, delegates, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  @Get('candidates')
+  @ApiOperation({ summary: 'Cercar candidats per a delegar una persona' })
+  @ApiParam({ name: 'personId', description: 'UUID de la persona' })
+  async findCandidates(
+    @Param('personId', ParseUUIDPipe) personId: string,
+    @Query('search') search?: string,
+  ): Promise<DelegationCandidateResponseDto[]> {
+    const candidates = await this.delegateService.findCandidates(personId, search);
+    return plainToInstance(DelegationCandidateResponseDto, candidates, {
       excludeExtraneousValues: true,
     });
   }
@@ -55,9 +79,14 @@ export class PersonDelegateController {
   async create(
     @Param('personId', ParseUUIDPipe) personId: string,
     @Body() dto: CreatePersonDelegateDto,
-  ): Promise<PersonDelegateResponseDto> {
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<PersonDelegateResponseDto | AdminPersonDelegateResponseDto> {
     const delegate = await this.delegateService.create(personId, dto);
-    return plainToInstance(PersonDelegateResponseDto, delegate, {
+    const responseType =
+      actor.role === UserRole.ADMIN
+        ? AdminPersonDelegateResponseDto
+        : PersonDelegateResponseDto;
+    return plainToInstance(responseType, delegate, {
       excludeExtraneousValues: true,
     });
   }
@@ -72,9 +101,14 @@ export class PersonDelegateController {
     @Param('personId', ParseUUIDPipe) personId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdatePersonDelegateDto,
-  ): Promise<PersonDelegateResponseDto> {
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<PersonDelegateResponseDto | AdminPersonDelegateResponseDto> {
     const delegate = await this.delegateService.update(personId, id, dto);
-    return plainToInstance(PersonDelegateResponseDto, delegate, {
+    const responseType =
+      actor.role === UserRole.ADMIN
+        ? AdminPersonDelegateResponseDto
+        : PersonDelegateResponseDto;
+    return plainToInstance(responseType, delegate, {
       excludeExtraneousValues: true,
     });
   }

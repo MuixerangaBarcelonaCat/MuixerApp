@@ -305,7 +305,7 @@ export class TroncsTabComponent implements OnInit {
       this.reassignDialog.set({
         personId: event.personId,
         personAlias:
-          assignment.person.alias || `${assignment.person.name} ${assignment.person.firstSurname}`,
+          assignment.person.alias || assignment.person.name,
         oldInstanceId: event.instanceId,
         oldAssignmentId: assignment.id,
         oldNodeId: assignment.node.id,
@@ -550,7 +550,7 @@ export class TroncsTabComponent implements OnInit {
         originNodeId: matchedNode?.originNodeId ?? null,
         sourceNodeId: matchedNode?.sourceNodeId ?? null,
       },
-      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null, notes: null, notesEmoji: null },
+      person: { id: personId, alias: '...', name: '', shoulderHeight: null, notes: null, notesEmoji: null },
     };
     this.state.assignments.update((list) => [...list, tempAssignment]);
     this.clearSelection();

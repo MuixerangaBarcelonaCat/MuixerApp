@@ -1,6 +1,7 @@
 import { PersonAssignmentEntry } from '@muixer/pinyes-render';
 import { TagCategory } from '@muixer/shared';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
@@ -14,6 +15,7 @@ import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.
 import { SeasonService } from '../../../events/services/season.service';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ToastService } from '@muixer/ui';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 
 const makePerson = (overrides: Partial<Person> = {}): Person => ({
   id: 'p1',
@@ -63,6 +65,7 @@ describe('PersonDetailComponent', () => {
   let component: PersonDetailComponent;
   let mockDelegateService: {
     getByPerson: ReturnType<typeof vi.fn>;
+    getCandidates: ReturnType<typeof vi.fn>;
     removeDelegate: ReturnType<typeof vi.fn>;
     updateDelegate: ReturnType<typeof vi.fn>;
   };
@@ -71,10 +74,12 @@ describe('PersonDetailComponent', () => {
     update: ReturnType<typeof vi.fn>;
     createInviteLink: ReturnType<typeof vi.fn>;
   };
+  const isAdmin = signal(false);
 
   beforeEach(async () => {
     mockDelegateService = {
       getByPerson: vi.fn().mockReturnValue(of([])),
+      getCandidates: vi.fn().mockReturnValue(of([])),
       removeDelegate: vi.fn().mockReturnValue(of(void 0)),
       updateDelegate: vi.fn().mockReturnValue(of(null)),
     };
@@ -95,6 +100,7 @@ describe('PersonDetailComponent', () => {
         { provide: NodeAssignmentService, useValue: { getPersonHistory: () => of({ data: [], meta: { total: 0, page: 1, limit: 20 } }) } },
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
         { provide: PersonDelegateService, useValue: mockDelegateService },
+        { provide: AuthService, useValue: { isAdmin } },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -105,6 +111,7 @@ describe('PersonDetailComponent', () => {
       ],
     }).compileComponents();
 
+    isAdmin.set(false);
     fixture = TestBed.createComponent(PersonDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -135,6 +142,89 @@ describe('PersonDetailComponent', () => {
 
       const cell = fixture.nativeElement.querySelector('tbody tr td:nth-child(5)');
       expect(cell.textContent.trim()).toBe('Mans');
+    });
+  });
+
+  describe('role-safe person fields', () => {
+    it('does not render protected registration fields for a TECHNICAL', () => {
+      isAdmin.set(false);
+      component.person.set(makePerson({
+        firstSurname: 'Secret',
+        phone: '600000000',
+        birthDate: '2000-01-01',
+      }));
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).not.toContain('Primer cognom');
+      expect(text).not.toContain('Segon cognom');
+      expect(text).not.toContain('Telèfon');
+      expect(text).not.toContain('Naixement');
+      expect(text).not.toContain('Gènere');
+      expect(text).not.toContain('Secret');
+      expect(text).not.toContain('600000000');
+    });
+
+    it('sends only operational fields when a TECHNICAL saves', () => {
+      isAdmin.set(false);
+      const person = makePerson();
+      component.person.set(person);
+      (component as unknown as { patchForm(person: Person): void }).patchForm(person);
+      component.save();
+
+      const payload = mockPersonService.update.mock.calls.at(-1)?.[1];
+      expect(Object.keys(payload).sort()).toEqual([
+        'alias',
+        'availability',
+        'isActive',
+        'isMember',
+        'isXicalla',
+        'name',
+        'notes',
+        'notesEmoji',
+        'onboardingStatus',
+        'positionIds',
+        'shirtDate',
+        'shoulderHeight',
+      ].sort());
+    });
+
+    it('renders protected fields including gender for an ADMIN', () => {
+      isAdmin.set(true);
+      component.person.set(makePerson({ gender: 'FEMALE' } as Partial<Person>));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain('Primer cognom');
+      component.editing.set(true);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[formControlName="gender"]')).not.toBeNull();
+    });
+
+    it('includes protected registration fields when an ADMIN saves', () => {
+      isAdmin.set(true);
+      const person = makePerson({ gender: 'FEMALE' } as Partial<Person>);
+      component.person.set(person);
+      (component as unknown as { patchForm(person: Person): void }).patchForm(person);
+      component.save();
+
+      expect(mockPersonService.update).toHaveBeenCalledWith(
+        'p1',
+        expect.objectContaining({
+          firstSurname: 'S',
+          secondSurname: null,
+          phone: null,
+          birthDate: null,
+          gender: 'FEMALE',
+        }),
+      );
+    });
+
+    it('does not let a TECHNICAL promote a provisional person', () => {
+      isAdmin.set(false);
+      component.person.set(makePerson({ isProvisional: true }));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).not.toContain('Promoure a membre');
     });
   });
 
@@ -333,6 +423,7 @@ describe('PersonDetailComponent', () => {
     });
 
     it('shows "Responsable" with the primary manager\'s email and type badge', () => {
+      isAdmin.set(true);
       component.delegates.set([makeDelegateItem()]);
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
@@ -352,7 +443,17 @@ describe('PersonDetailComponent', () => {
       expect(fixture.nativeElement.textContent).not.toContain('parent@test.com');
     });
 
+    it('shows a generic label instead of email to a TECHNICAL when a delegate has no linked person', () => {
+      isAdmin.set(false);
+      component.delegates.set([makeDelegateItem()]);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain('Compte sense perfil');
+      expect(fixture.nativeElement.textContent).not.toContain('parent@test.com');
+    });
+
     it('shows a titled, comma-separated "Delegacions" list for secondary managers, with a remove action each when in edit mode', () => {
+      isAdmin.set(true);
       component.delegates.set([
         makeDelegateItem(),
         makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.PARTNER, user: { id: 'u2', email: 'partner@test.com', person: null } }),
@@ -414,6 +515,7 @@ describe('PersonDetailComponent', () => {
     });
 
     it('shows a remove action for the responsable when in edit mode', () => {
+      isAdmin.set(true);
       component.delegates.set([makeDelegateItem()]);
       component.editing.set(true);
       fixture.detectChanges();
@@ -485,7 +587,7 @@ describe('PersonDetailComponent', () => {
     });
 
     it('shows a "Compte actiu" indicator instead of the invite button once the account is active', () => {
-      component.person.set(makePerson({ user: { id: 'u1', email: 'active@test.com', isActive: true } }));
+      component.person.set(makePerson({ user: { id: 'u1', email: 'active@test.com', state: 'ACTIVE' } }));
       fixture.detectChanges();
 
       const text = fixture.nativeElement.textContent;
@@ -494,7 +596,7 @@ describe('PersonDetailComponent', () => {
     });
 
     it('shows a regenerate button and a "Pendent d\'activar" badge when the linked account is inactive', () => {
-      component.person.set(makePerson({ user: { id: 'u1', email: null, isActive: false } }));
+      component.person.set(makePerson({ user: { id: 'u1', email: null, state: 'PENDING_ACTIVATION' } }));
       fixture.detectChanges();
 
       const text = fixture.nativeElement.textContent;
@@ -514,6 +616,7 @@ describe('PersonDetailComponent', () => {
     });
 
     it('askRemoveDelegate opens confirm dialog', () => {
+      isAdmin.set(true);
       const delegate = makeDelegateItem();
       component.askRemoveDelegate(delegate);
       fixture.detectChanges();

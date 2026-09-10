@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DelegateType } from '@muixer/shared';
+import { DelegateType, UserRole } from '@muixer/shared';
 import { PersonDelegateController } from './person-delegate.controller';
 import { PersonDelegateService } from './person-delegate.service';
 
@@ -8,6 +8,7 @@ describe('PersonDelegateController', () => {
 
   const mockService = {
     findByPerson: jest.fn(),
+    findCandidates: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
@@ -49,13 +50,66 @@ describe('PersonDelegateController', () => {
       ];
       mockService.findByPerson.mockResolvedValue(delegates);
 
-      const result = await controller.findAll(personId);
+      const result = await controller.findAll(personId, {
+        sub: 'technical-1',
+        role: UserRole.TECHNICAL,
+      } as never);
 
       expect(mockService.findByPerson).toHaveBeenCalledWith(personId);
       expect(result[0]).toHaveProperty('id', 'del-1');
       expect(result[0]).toHaveProperty('user');
-      expect(result[0].user).toHaveProperty('email', 'parent@test.com');
+      expect(result[0].user).not.toHaveProperty('email');
       expect((result[0].user as unknown as Record<string, unknown>)['passwordHash']).toBeUndefined();
+    });
+
+    it('includes delegate email for ADMIN staff', async () => {
+      mockService.findByPerson.mockResolvedValue([
+        {
+          id: 'del-1',
+          user: { id: 'user-1', email: 'parent@test.com', person: null },
+          person: { id: 'person-1', alias: 'child' },
+        },
+      ]);
+
+      const result = await controller.findAll('person-1', {
+        sub: 'admin-1',
+        role: UserRole.ADMIN,
+      } as never);
+
+      expect(result[0].user).toHaveProperty('email', 'parent@test.com');
+    });
+  });
+
+  describe('findCandidates', () => {
+    it('returns narrow candidates without email or surnames', async () => {
+      mockService.findCandidates.mockResolvedValue([
+        {
+          candidateUserId: 'user-1',
+          personId: 'person-2',
+          alias: 'parent',
+          name: 'Parent',
+          accountState: 'ACTIVE',
+        },
+      ]);
+
+      const result = await (
+        controller as unknown as {
+          findCandidates(personId: string, search?: string): Promise<Record<string, unknown>[]>;
+        }
+      ).findCandidates('person-1', 'par');
+
+      expect(mockService.findCandidates).toHaveBeenCalledWith('person-1', 'par');
+      expect(result).toEqual([
+        {
+          candidateUserId: 'user-1',
+          personId: 'person-2',
+          alias: 'parent',
+          name: 'Parent',
+          accountState: 'ACTIVE',
+        },
+      ]);
+      expect(result[0]).not.toHaveProperty('email');
+      expect(result[0]).not.toHaveProperty('firstSurname');
     });
   });
 
@@ -73,7 +127,10 @@ describe('PersonDelegateController', () => {
       };
       mockService.create.mockResolvedValue(created);
 
-      const result = await controller.create(personId, dto);
+      const result = await controller.create(personId, dto, {
+        sub: 'technical-1',
+        role: UserRole.TECHNICAL,
+      } as never);
 
       expect(mockService.create).toHaveBeenCalledWith(personId, dto);
       expect(result).toHaveProperty('id', 'del-1');
@@ -94,7 +151,10 @@ describe('PersonDelegateController', () => {
       };
       mockService.update.mockResolvedValue(updated);
 
-      const result = await controller.update('p1', 'del-1', dto);
+      const result = await controller.update('p1', 'del-1', dto, {
+        sub: 'technical-1',
+        role: UserRole.TECHNICAL,
+      } as never);
 
       expect(result.delegateType).toBe(DelegateType.GUARDIAN);
       expect(mockService.update).toHaveBeenCalledWith('p1', 'del-1', dto);

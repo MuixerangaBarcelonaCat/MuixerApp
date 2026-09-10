@@ -14,12 +14,13 @@ class DelegateUserDto {
   id: string;
 
   @Expose()
-  email: string;
-
-  /** The delegate's own linked person, if self-managed — lets the UI link to their profile. */
-  @Expose()
   @Type(() => DelegatePersonDto)
   person: DelegatePersonDto | null;
+}
+
+class AdminDelegateUserDto extends DelegateUserDto {
+  @Expose()
+  email: string | null;
 }
 
 export class PersonDelegateResponseDto {
@@ -45,4 +46,10 @@ export class PersonDelegateResponseDto {
   @Expose()
   @Type(() => DelegatePersonDto)
   person: DelegatePersonDto;
+}
+
+export class AdminPersonDelegateResponseDto extends PersonDelegateResponseDto {
+  @Expose()
+  @Type(() => AdminDelegateUserDto)
+  declare user: AdminDelegateUserDto;
 }

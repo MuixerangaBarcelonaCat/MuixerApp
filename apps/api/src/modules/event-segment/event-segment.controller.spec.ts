@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventSegmentController } from './event-segment.controller';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
-import { ProjectionService, ProjectionData } from './projection.service';
+import { ProjectionService, StaffProjectionData } from './projection.service';
 import { SegmentWithInstances } from './event-segment.service';
 import { SegmentMoveConflictResolution } from '@muixer/shared';
 
@@ -45,7 +45,7 @@ const mockSegmentService: Partial<EventSegmentService> = {
   reorder: jest.fn().mockResolvedValue(undefined),
 };
 
-const mockProjectionData: ProjectionData = {
+const mockProjectionData: StaffProjectionData = {
   segment: { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-next' },
   instances: [],
   hasDistribution: false,
@@ -203,7 +203,11 @@ describe('getProjection', () => {
     it('delegates to projection service and returns aggregated data', async () => {
       const result = await controller.getProjection(EVENT_ID, SEGMENT_ID);
       expect(result).toEqual(mockProjectionData);
-      expect(mockProjectionService.getProjection).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(mockProjectionService.getProjection).toHaveBeenCalledWith(
+        EVENT_ID,
+        SEGMENT_ID,
+        { audience: 'staff' },
+      );
     });
 
     it('returns prev/next segment IDs from projection service', async () => {

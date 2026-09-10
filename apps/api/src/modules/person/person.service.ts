@@ -1,12 +1,16 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
-import { plainToInstance } from 'class-transformer';
+import { EntityManager, FindOptionsSelect, In, Repository } from 'typeorm';
 import { Person } from './person.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
-import { PersonResponseDto } from './dto/person-response.dto';
 import { Tag } from '../tag/tag.entity';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import {
@@ -15,11 +19,94 @@ import {
   type PersonSortOrder,
 } from './constants/person-sort.constants';
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
-import { TagCategory } from '@muixer/shared';
+import { TagCategory, UserRole } from '@muixer/shared';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
 const DEFAULT_TAG_SLUG = 'persona-nova';
+const TECHNICAL_SORT_FIELDS = new Set<PersonSortByField>(['alias', 'name']);
+
+const TECHNICAL_DIRECTORY_SELECT = [
+  'person.id',
+  'person.name',
+  'person.alias',
+  'position.id',
+  'position.name',
+  'position.slug',
+  'position.color',
+  'position.category',
+  'position.positionTypes',
+];
+
+const ADMIN_LIST_SELECT = [
+  'person.id',
+  'person.name',
+  'person.firstSurname',
+  'person.secondSurname',
+  'person.alias',
+  'person.phone',
+  'person.birthDate',
+  'person.shoulderHeight',
+  'person.gender',
+  'person.isXicalla',
+  'person.isActive',
+  'person.isMember',
+  'person.isProvisional',
+  'person.availability',
+  'person.onboardingStatus',
+  'person.notes',
+  'person.notesEmoji',
+  'person.shirtDate',
+  'person.createdAt',
+  'person.updatedAt',
+  ...TECHNICAL_DIRECTORY_SELECT.slice(3),
+  'user.id',
+  'user.email',
+  'user.isActive',
+];
+
+const OPERATIONAL_DETAIL_SELECT: FindOptionsSelect<Person> = {
+  id: true,
+  name: true,
+  alias: true,
+  shoulderHeight: true,
+  isXicalla: true,
+  isActive: true,
+  isMember: true,
+  isProvisional: true,
+  availability: true,
+  onboardingStatus: true,
+  notes: true,
+  notesEmoji: true,
+  shirtDate: true,
+  positions: {
+    id: true,
+    name: true,
+    slug: true,
+    color: true,
+    category: true,
+    positionTypes: true,
+  },
+  user: {
+    isActive: true,
+  },
+};
+
+const ADMIN_DETAIL_SELECT: FindOptionsSelect<Person> = {
+  ...OPERATIONAL_DETAIL_SELECT,
+  firstSurname: true,
+  secondSurname: true,
+  phone: true,
+  birthDate: true,
+  gender: true,
+  createdAt: true,
+  updatedAt: true,
+  user: {
+    id: true,
+    email: true,
+    isActive: true,
+  },
+};
 
 /** La temporada que conté el dia d'avui; la més recent si n'hi haguera de solapades. */
 const CURRENT_SEASON_SUBQUERY = `(
@@ -61,7 +148,8 @@ export class PersonService {
   /** Retorna una llista paginada i ordenada de persones aplicant tots els filtres disponibles. Usa `unaccent` per cerques insensibles a accents. */
   async findAll(
     filters: PersonFilterDto,
-  ): Promise<{ data: PersonResponseDto[]; total: number }> {
+    role: UserRole,
+  ): Promise<{ data: Person[]; total: number }> {
     const {
       search,
       positionIds,
@@ -77,6 +165,16 @@ export class PersonService {
       sortOrder,
     } = filters;
 
+    if (
+      role === UserRole.TECHNICAL &&
+      sortBy !== undefined &&
+      !TECHNICAL_SORT_FIELDS.has(sortBy)
+    ) {
+      throw new ForbiddenException(
+        'No teniu permís per ordenar per aquest camp',
+      );
+    }
+
     const orderColumn = this.resolveSortColumn(sortBy);
     const orderDirection: PersonSortOrder =
       sortOrder === 'DESC' ? 'DESC' : 'ASC';
@@ -84,14 +182,21 @@ export class PersonService {
     const queryBuilder = this.personRepository
       .createQueryBuilder('person')
       .leftJoinAndSelect('person.positions', 'position')
-      .leftJoinAndSelect('person.mentor', 'mentor')
-      .leftJoinAndSelect('person.user', 'user');
+      .select(
+        role === UserRole.TECHNICAL
+          ? TECHNICAL_DIRECTORY_SELECT
+          : ADMIN_LIST_SELECT,
+      );
+    if (role === UserRole.ADMIN) {
+      queryBuilder.leftJoinAndSelect('person.user', 'user');
+    }
 
     if (search) {
-      queryBuilder.andWhere(
-        '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search) OR unaccent(person.firstSurname) ILIKE unaccent(:search) OR unaccent(person.secondSurname) ILIKE unaccent(:search))',
-        { search: `%${search}%` },
-      );
+      const searchFields =
+        role === UserRole.TECHNICAL
+          ? '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search))'
+          : '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search) OR unaccent(person.firstSurname) ILIKE unaccent(:search) OR unaccent(person.secondSurname) ILIKE unaccent(:search))';
+      queryBuilder.andWhere(searchFields, { search: `%${search}%` });
     }
 
     if (positionIds && positionIds.length > 0) {
@@ -138,7 +243,7 @@ export class PersonService {
 
     const total = await queryBuilder.getCount();
 
-    if (sortBy === 'attendedCount') {
+    if (role === UserRole.ADMIN && sortBy === 'attendedCount') {
       // Només quan cal ordenar-hi: TypeORM necessita l'expressió com a columna seleccionada
       // per poder-la referenciar des de la seua consulta de paginació amb joins.
       queryBuilder.addSelect(ATTENDED_COUNT_EXPRESSION, 'attended_count');
@@ -152,17 +257,17 @@ export class PersonService {
 
     // Assistències de la temporada en curs, resoltes només per a la pàgina carregada: unir-les
     // a la consulta paginada multiplicaria les files contra `person.positions`.
-    const attendedCounts = await this.loadAttendedCounts(data.map((person) => person.id));
-    for (const person of data) {
-      (person as Person & { attendedCount: number }).attendedCount =
-        attendedCounts.get(person.id) ?? 0;
+    if (role === UserRole.ADMIN) {
+      const attendedCounts = await this.loadAttendedCounts(
+        data.map((person) => person.id),
+      );
+      for (const person of data) {
+        (person as Person & { attendedCount: number }).attendedCount =
+          attendedCounts.get(person.id) ?? 0;
+      }
     }
 
-    const responseData = plainToInstance(PersonResponseDto, data, {
-      excludeExtraneousValues: true,
-    });
-
-    return { data: responseData, total };
+    return { data, total };
   }
 
   private async loadAttendedCounts(personIds: string[]): Promise<Map<string, number>> {
@@ -198,23 +303,28 @@ export class PersonService {
   }
 
   /** Retorna una persona per ID incloent posicions, mentor i gestor. Llança NotFoundException si no existeix. */
-  async findOne(id: string): Promise<PersonResponseDto> {
+  async findOne(
+    id: string,
+    role: UserRole,
+  ): Promise<Person> {
     const person = await this.personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor', 'user'],
+      relations: { positions: true, user: true },
+      select:
+        role === UserRole.TECHNICAL
+          ? OPERATIONAL_DETAIL_SELECT
+          : ADMIN_DETAIL_SELECT,
     });
 
     if (!person) {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    return plainToInstance(PersonResponseDto, person, {
-      excludeExtraneousValues: true,
-    });
+    return person;
   }
 
   /** Crea una nova persona amb les posicions i mentor indicats. */
-  async create(createPersonDto: CreatePersonDto): Promise<PersonResponseDto> {
+  async create(createPersonDto: CreatePersonDto): Promise<Person> {
     const { positionIds, mentorId, ...personData } = createPersonDto;
 
     const person = this.personRepository.create(personData);
@@ -248,10 +358,7 @@ export class PersonService {
       person.mentor = mentor;
     }
 
-    const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return this.personRepository.save(person);
   }
 
   /**
@@ -259,7 +366,7 @@ export class PersonService {
    * The alias is automatically prefixed with "~" to avoid collisions with regular persons.
    * Provisional persons appear in attendance but are excluded from the default census view.
    */
-  async createProvisional(alias: string): Promise<PersonResponseDto> {
+  async createProvisional(alias: string): Promise<Person> {
     const provisionalAlias = `${PROVISIONAL_PREFIX}${alias}`.slice(
       0,
       MAX_ALIAS_LENGTH,
@@ -282,10 +389,7 @@ export class PersonService {
       isActive: true,
     });
 
-    const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return this.personRepository.save(person);
   }
 
   /**
@@ -301,7 +405,7 @@ export class PersonService {
     id: string,
     updatePersonDto: UpdatePersonDto,
     manager?: EntityManager,
-  ): Promise<PersonResponseDto> {
+  ): Promise<Person> {
     const personRepository = manager
       ? manager.getRepository(Person)
       : this.personRepository;
@@ -405,10 +509,7 @@ export class PersonService {
       }
     }
 
-    const saved = await personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return personRepository.save(person);
   }
 
   /** Soft delete: marca la persona com a inactiva (`isActive = false`) sense eliminar-la de la DB. */
@@ -422,10 +523,10 @@ export class PersonService {
   }
 
   /** Reactiva una persona prèviament desactivada manualment. */
-  async activate(id: string): Promise<PersonResponseDto> {
+  async activate(id: string): Promise<Person> {
     const person = await this.personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor'],
+      relations: ['positions', 'mentor', 'user'],
     });
 
     if (!person) {
@@ -434,9 +535,6 @@ export class PersonService {
 
     person.isActive = true;
 
-    const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return this.personRepository.save(person);
   }
 }

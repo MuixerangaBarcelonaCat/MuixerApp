@@ -141,7 +141,6 @@ const makeAssignment = (instanceId: string, nodeId: string, personId?: string): 
       id: pid,
       alias: `Alias ${pid}`,
       name: 'Nom',
-      firstSurname: 'Cognom',
       shoulderHeight: null,
       notes: null,
       notesEmoji: null,

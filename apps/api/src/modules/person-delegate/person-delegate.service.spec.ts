@@ -114,6 +114,56 @@ describe('PersonDelegateService', () => {
     });
   });
 
+  describe('findCandidates', () => {
+    it('returns linked-person identities and excludes existing delegates without selecting email', async () => {
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            id: 'user-1',
+            isActive: true,
+            person: { id: 'person-2', alias: 'parent', name: 'Parent' },
+          },
+        ]),
+      };
+      (mockUserRepository as Record<string, unknown>)['createQueryBuilder'] = jest
+        .fn()
+        .mockReturnValue(queryBuilder);
+
+      const result = await (
+        service as unknown as {
+          findCandidates(personId: string, search?: string): Promise<Record<string, unknown>[]>;
+        }
+      ).findCandidates('person-1', 'par');
+
+      expect(queryBuilder.select).toHaveBeenCalledWith([
+        'user.id',
+        'user.isActive',
+        'person.id',
+        'person.alias',
+        'person.name',
+      ]);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('person_delegates'),
+        { personId: 'person-1' },
+      );
+      expect(result).toEqual([
+        {
+          candidateUserId: 'user-1',
+          personId: 'person-2',
+          alias: 'parent',
+          name: 'Parent',
+          accountState: 'ACTIVE',
+        },
+      ]);
+    });
+  });
+
   describe('findByUser', () => {
     it('should return persons delegated to a user', async () => {
       const userId = 'user-1';
@@ -189,24 +239,19 @@ describe('PersonDelegateService', () => {
       });
     });
 
-    it('creates a delegate even when the linked user account is still inactive (pending activation)', async () => {
+    it('rejects a delegate user without a linked person even when the account is inactive', async () => {
       const person = { id: personId, alias: 'child' };
       const inactiveUser = { id: 'user-1', email: null, isActive: false, person: null };
-      const created = {
-        id: 'del-1',
-        person,
-        user: inactiveUser,
-        delegateType: DelegateType.PARENT,
-        isActive: true,
-      };
 
       mockPersonRepository.findOne.mockResolvedValue(person);
       mockUserRepository.findOne.mockResolvedValue(inactiveUser);
-      mockDelegateRepository.findOne.mockResolvedValue(null);
-      mockDelegateRepository.create.mockReturnValue(created);
-      mockDelegateRepository.save.mockResolvedValue(created);
 
-      await expect(service.create(personId, dto)).resolves.toEqual(created);
+      await expect(service.create(personId, dto)).rejects.toThrow(
+        new BadRequestException(
+          'L’usuari seleccionat no té cap persona vinculada. Gestioneu este compte des d’Usuaris.',
+        ),
+      );
+      expect(mockDelegateRepository.create).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when person does not exist', async () => {
@@ -228,7 +273,10 @@ describe('PersonDelegateService', () => {
 
     it('should throw ConflictException when delegate already exists', async () => {
       mockPersonRepository.findOne.mockResolvedValue({ id: personId });
-      mockUserRepository.findOne.mockResolvedValue({ id: 'user-1' });
+      mockUserRepository.findOne.mockResolvedValue({
+        id: 'user-1',
+        person: { id: 'person-parent' },
+      });
       mockDelegateRepository.findOne.mockResolvedValue({ id: 'existing' });
 
       await expect(service.create(personId, dto)).rejects.toThrow(
@@ -252,7 +300,7 @@ describe('PersonDelegateService', () => {
 
     it('should demote the existing primary and create the new one as primary, in a transaction', async () => {
       const person = { id: personId };
-      const user = { id: 'user-1', email: 'parent@test.com', person: null };
+      const user = { id: 'user-1', email: 'parent@test.com', person: { id: 'person-parent' } };
       const primaryDto = { ...dto, isPrimary: true };
 
       mockPersonRepository.findOne.mockResolvedValue(person);
@@ -274,7 +322,7 @@ describe('PersonDelegateService', () => {
 
     it('should not demote any primary or use a transaction when isPrimary is not set', async () => {
       const person = { id: personId };
-      const user = { id: 'user-1', email: 'parent@test.com', person: null };
+      const user = { id: 'user-1', email: 'parent@test.com', person: { id: 'person-parent' } };
       const created = { id: 'del-1', person, user, delegateType: DelegateType.PARENT, isPrimary: false };
 
       mockPersonRepository.findOne.mockResolvedValue(person);
@@ -290,7 +338,7 @@ describe('PersonDelegateService', () => {
 
     it('should throw BadRequestException when isPrimary is requested for a person who already manages their own account', async () => {
       const person = { id: personId, user: { id: 'self-user' } };
-      const user = { id: 'user-1', email: 'parent@test.com', person: null };
+      const user = { id: 'user-1', email: 'parent@test.com', person: { id: 'person-parent' } };
       const primaryDto = { ...dto, isPrimary: true };
 
       mockPersonRepository.findOne.mockResolvedValue(person);
@@ -375,23 +423,20 @@ describe('PersonDelegateService', () => {
         await expect(service.create(personId, baseDto)).resolves.toBeDefined();
       });
 
-      it('allows a GUARDIAN primary delegate when the manager already manages another non-Xicalla person', async () => {
+      it('rejects a GUARDIAN primary delegate when the user has no linked person', async () => {
         mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
         mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
         mockDelegateRepository.findOne.mockImplementation(createFindOneImpl({ id: 'existing-del' }));
-        dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
-          cb({ getRepository: () => txRepo }),
-        );
 
         await expect(
           service.create(personId, { ...baseDto, delegateType: DelegateType.GUARDIAN }),
-        ).resolves.toBeDefined();
+        ).rejects.toThrow(BadRequestException);
       });
 
       it('does not apply the rule to a non-primary delegate for a Xicalla person', async () => {
         const created = { id: 'del-1', person: xicallaPerson, delegateType: DelegateType.PARTNER, isPrimary: false };
         mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
-        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
+        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: { id: 'parent-person' } });
         mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
         mockDelegateRepository.create.mockReturnValue(created);
         mockDelegateRepository.save.mockResolvedValue(created);

@@ -13,7 +13,7 @@ const PRIMARY_DELEGATE: ProfileDelegate = {
   isActive: true,
   isPrimary: true,
   createdAt: '2026-01-01T00:00:00.000Z',
-  user: { id: 'u-2', email: 'mare@a.com', person: { id: 'p-2', alias: 'Mare' } },
+  user: { id: 'u-2', person: { id: 'p-2', alias: 'Mare' } },
   person: { id: 'p-1', alias: 'Xicalla1' },
 };
 
@@ -23,7 +23,7 @@ const SECONDARY_DELEGATE: ProfileDelegate = {
   isActive: true,
   isPrimary: false,
   createdAt: '2026-01-02T00:00:00.000Z',
-  user: { id: 'u-3', email: 'oncle@a.com', person: null },
+  user: { id: 'u-3', person: null },
   person: { id: 'p-1', alias: 'Xicalla1' },
 };
 
@@ -76,7 +76,7 @@ describe('DelegationsModalComponent', () => {
       expect(fixture.nativeElement.querySelector('.loading')).toBeTruthy();
     });
 
-    it('renders each delegate with its alias and Catalan relationship label', async () => {
+    it('renders aliases and a generic label for delegates without a linked profile', async () => {
       createTestBed([PRIMARY_DELEGATE, SECONDARY_DELEGATE]);
       await TestBed.compileComponents();
       fixture = TestBed.createComponent(DelegationsModalComponent);
@@ -86,7 +86,7 @@ describe('DelegationsModalComponent', () => {
       const text = fixture.nativeElement.textContent as string;
       expect(text).toContain('Mare');
       expect(text).toContain('Pare/Mare');
-      expect(text).toContain('oncle@a.com');
+      expect(text).toContain('Compte sense perfil');
       expect(text).toContain('Altres');
     });
 

@@ -177,7 +177,6 @@ describe('EventDetailComponent — tabbed sections', () => {
       id: 'person-1',
       alias: 'PERSIANA',
       name: 'Joana',
-      firstSurname: 'Vila',
       isXicalla: false,
       isProvisional: false,
       notes: null,

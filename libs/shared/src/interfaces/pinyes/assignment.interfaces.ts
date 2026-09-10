@@ -25,7 +25,6 @@ export interface AssignmentPersonDetail {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | null;
 }
 
@@ -75,7 +74,6 @@ export interface AvailablePerson {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
   attendanceStatus: AttendanceStatus;

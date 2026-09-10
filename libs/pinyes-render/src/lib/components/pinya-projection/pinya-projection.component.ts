@@ -11,8 +11,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FigureZone, ImportScope, getSegmentInstanceLabel, OwnPositionSubject } from '@muixer/shared';
-import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
-import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
+import { AttendanceStatus, InstanceNodeItem } from '../../models/assignment.model';
+import {
+  ProjectionAssignment,
+  ProjectionInstance,
+  ProjectionRenderableData,
+} from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { TroncPanelMeasurerComponent, TroncPanelMeasureSpec } from '../tronc-panel-measurer/tronc-panel-measurer.component';
@@ -61,7 +65,7 @@ interface DistributionTroncPanel {
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
-  readonly data = input.required<ProjectionSegmentData>();
+  readonly data = input.required<ProjectionRenderableData>();
 
   /** Restricts rendering to a single figure. `null` renders the whole segment. */
   readonly instanceId = input<string | null>(null);
@@ -416,7 +420,7 @@ export class PinyaProjectionComponent {
   });
 
   /** Combined assignments from all instances for the unified distribution canvas. */
-  readonly distributionAssignments = computed((): AssignmentDetail[] =>
+  readonly distributionAssignments = computed((): ProjectionAssignment[] =>
     this.effectiveInstances().flatMap((inst) => inst.assignments),
   );
 

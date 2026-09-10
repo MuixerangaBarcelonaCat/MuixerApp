@@ -1,4 +1,3 @@
-import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import {
   AvailabilityStatus,
   Gender,
@@ -7,121 +6,169 @@ import {
   TagCompliance,
   evaluateTagCompliance,
 } from '@muixer/shared';
+import { Person } from '../person.entity';
+import { Tag } from '../../tag/tag.entity';
+import { User } from '../../user/user.entity';
 
-class PositionResponseDto {
-  @Expose()
+export type PersonAccountState = 'NONE' | 'PENDING_ACTIVATION' | 'ACTIVE';
+
+export class PersonPositionDto {
   id: string;
-
-  @Expose()
   name: string;
-
-  @Expose()
   slug: string;
-
-  @Expose()
-  color: string;
-
-  @Expose()
+  color: string | null;
   category: TagCategory;
-
-  @Expose()
   positionTypes: string[];
 }
 
-class PersonSelfUserDto {
-  @Expose()
+export class TechnicalPersonDirectoryItemDto {
   id: string;
-
-  @Expose()
-  email: string | null;
-
-  @Expose()
-  isActive: boolean;
+  name: string;
+  alias: string;
+  positions: PersonPositionDto[];
 }
 
-export class PersonResponseDto {
-  @Expose()
+export class OperationalPersonDetailDto {
   id: string;
-
-  @Exclude()
-  legacyId: string | null;
-
-  @Expose()
   name: string;
-
-  @Expose()
-  firstSurname: string;
-
-  @Expose()
-  secondSurname: string | null;
-
-  @Expose()
   alias: string;
-
-  @Expose()
-  phone: string | null;
-
-  @Expose()
-  birthDate: Date | null;
-
-  @Expose()
   shoulderHeight: number | null;
-
-  @Expose()
-  gender: Gender | null;
-
-  @Expose()
   isXicalla: boolean;
-
-  @Expose()
   isMember: boolean;
-
-  @Expose()
   isProvisional: boolean;
-
-  @Expose()
   availability: AvailabilityStatus;
-
-  @Expose()
   onboardingStatus: OnboardingStatus;
-
-  @Expose()
   shirtDate: Date | null;
-
-  @Expose()
   notes: string | null;
-
-  @Expose()
   notesEmoji: string | null;
-
-  @Expose()
   isActive: boolean;
-
-  @Expose()
-  @Type(() => PositionResponseDto)
-  positions: PositionResponseDto[];
-
-  /** Avís, mai una validació: alimenta un badge i el filtre `tagRuleOk`. */
-  @Expose()
-  @Transform(({ obj }) =>
-    evaluateTagCompliance(
-      ((obj.positions ?? []) as { category: TagCategory }[]).map((p) => p.category),
-    ),
-  )
+  positions: PersonPositionDto[];
   tagCompliance: TagCompliance;
+  accountState: PersonAccountState;
+}
 
-  /** Assistències `ASSISTIT` de la temporada en curs; només la llista paginada el resol. */
-  @Expose()
-  @Transform(({ obj }) => obj.attendedCount ?? 0)
+export class AdminPersonListItemDto extends OperationalPersonDetailDto {
+  firstSurname: string;
+  secondSurname: string | null;
+  phone: string | null;
+  birthDate: Date | null;
+  gender: Gender | null;
   attendedCount: number;
-
-  @Expose()
-  @Type(() => PersonSelfUserDto)
-  user: PersonSelfUserDto | null;
-
-  @Expose()
+  user: AdminPersonUserDto | null;
   createdAt: Date;
-
-  @Expose()
   updatedAt: Date;
+}
+
+export class AdminPersonUserDto {
+  id: string;
+  email: string | null;
+  state: PersonAccountState;
+}
+
+export class AdminPersonDetailDto extends OperationalPersonDetailDto {
+  firstSurname: string;
+  secondSurname: string | null;
+  phone: string | null;
+  birthDate: Date | null;
+  gender: Gender | null;
+  user: AdminPersonUserDto | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type PersonWithListData = Person & { attendedCount?: number };
+
+function toAccountState(user: User | null | undefined): PersonAccountState {
+  if (!user) return 'NONE';
+  return user.isActive ? 'ACTIVE' : 'PENDING_ACTIVATION';
+}
+
+function toPositionDto(position: Tag): PersonPositionDto {
+  return {
+    id: position.id,
+    name: position.name,
+    slug: position.slug,
+    color: position.color,
+    category: position.category,
+    positionTypes: position.positionTypes,
+  };
+}
+
+function toPositions(person: Person): PersonPositionDto[] {
+  return (person.positions ?? []).map(toPositionDto);
+}
+
+function toOperationalFields(person: Person): OperationalPersonDetailDto {
+  const positions = toPositions(person);
+  return {
+    id: person.id,
+    name: person.name,
+    alias: person.alias,
+    shoulderHeight: person.shoulderHeight,
+    isXicalla: person.isXicalla,
+    isMember: person.isMember,
+    isProvisional: person.isProvisional,
+    availability: person.availability,
+    onboardingStatus: person.onboardingStatus,
+    shirtDate: person.shirtDate,
+    notes: person.notes,
+    notesEmoji: person.notesEmoji,
+    isActive: person.isActive,
+    positions,
+    tagCompliance: evaluateTagCompliance(positions.map((position) => position.category)),
+    accountState: toAccountState(person.user as User | null),
+  };
+}
+
+function toAdminUser(user: User | null | undefined): AdminPersonUserDto | null {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    state: toAccountState(user),
+  };
+}
+
+export function toTechnicalPersonDirectoryItem(
+  person: Person,
+): TechnicalPersonDirectoryItemDto {
+  return {
+    id: person.id,
+    name: person.name,
+    alias: person.alias,
+    positions: toPositions(person),
+  };
+}
+
+export function toOperationalPersonDetail(person: Person): OperationalPersonDetailDto {
+  return toOperationalFields(person);
+}
+
+export function toAdminPersonListItem(person: PersonWithListData): AdminPersonListItemDto {
+  return {
+    ...toOperationalFields(person),
+    firstSurname: person.firstSurname,
+    secondSurname: person.secondSurname,
+    phone: person.phone,
+    birthDate: person.birthDate,
+    gender: person.gender,
+    attendedCount: person.attendedCount ?? 0,
+    user: toAdminUser(person.user as User | null),
+    createdAt: person.createdAt,
+    updatedAt: person.updatedAt,
+  };
+}
+
+export function toAdminPersonDetail(person: Person): AdminPersonDetailDto {
+  return {
+    ...toOperationalFields(person),
+    firstSurname: person.firstSurname,
+    secondSurname: person.secondSurname,
+    phone: person.phone,
+    birthDate: person.birthDate,
+    gender: person.gender,
+    user: toAdminUser(person.user as User | null),
+    createdAt: person.createdAt,
+    updatedAt: person.updatedAt,
+  };
 }

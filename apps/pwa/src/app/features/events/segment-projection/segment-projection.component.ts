@@ -15,8 +15,8 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-angular';
-import { computeSegmentDisplayName, matchesSearch } from '@muixer/shared';
-import { AssignmentPersonDetail, ProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-render';
+import { computeSegmentDisplayName, matchesSearch, MemberProjectionPerson } from '@muixer/shared';
+import { MemberProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-render';
 import { ModalComponent } from '@muixer/ui';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ProjectionService } from '../services/projection.service';
@@ -55,7 +55,7 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
   private readonly ownPersonId = computed(() => this.authService.currentUser()?.person?.id ?? null);
 
   /** Set while looking up someone else via the person-search picker; `null` means "the caller". */
-  protected readonly selectedParticipant = signal<AssignmentPersonDetail | null>(null);
+  protected readonly selectedParticipant = signal<MemberProjectionPerson | null>(null);
 
   /** Fed to `lib-pinya-projection` — the looked-up person's id, or the caller's own. */
   protected readonly highlightPersonId = computed(() => this.selectedParticipant()?.id ?? this.ownPersonId());
@@ -67,10 +67,10 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
 
   /** Every distinct person placed anywhere in this segment — the picker's search space. A person
    *  not in this list has no position to show, so there is nothing useful to look them up for. */
-  protected readonly participants = computed((): AssignmentPersonDetail[] => {
+  protected readonly participants = computed((): MemberProjectionPerson[] => {
     const data = this.data();
     if (!data) return [];
-    const byId = new Map<string, AssignmentPersonDetail>();
+    const byId = new Map<string, MemberProjectionPerson>();
     for (const instance of data.instances) {
       for (const assignment of instance.assignments) {
         if (!byId.has(assignment.person.id)) byId.set(assignment.person.id, assignment.person);
@@ -79,10 +79,10 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     return [...byId.values()];
   });
 
-  protected readonly filteredParticipants = computed((): AssignmentPersonDetail[] => {
+  protected readonly filteredParticipants = computed((): MemberProjectionPerson[] => {
     const query = this.filterText();
     return this.participants().filter(
-      (p) => matchesSearch(p.alias, query) || matchesSearch(p.name, query) || matchesSearch(p.firstSurname, query),
+      (p) => matchesSearch(p.alias, query) || matchesSearch(p.name, query),
     );
   });
 
@@ -95,14 +95,14 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
   }
 
   protected readonly projectionResource = rxResource<
-    ProjectionSegmentData,
+    MemberProjectionSegmentData,
     { eventId: string; segmentId: string }
   >({
     params: () => ({ eventId: this.eventId(), segmentId: this.segmentId() }),
     stream: ({ params }) => this.projectionService.getProjection(params.eventId, params.segmentId),
   });
 
-  protected readonly data = computed((): ProjectionSegmentData | undefined =>
+  protected readonly data = computed((): MemberProjectionSegmentData | undefined =>
     this.projectionResource.error() ? undefined : this.projectionResource.value(),
   );
   protected readonly isLoading = this.projectionResource.isLoading;
@@ -142,7 +142,7 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     this.filterText.set('');
   }
 
-  selectParticipant(person: AssignmentPersonDetail): void {
+  selectParticipant(person: MemberProjectionPerson): void {
     // Picking yourself out of the list isn't "looking someone up" — it's still "me". Route it
     // through the same state as the back-to-me button, so the banner reads "Sou…" with no
     // Troba'm-relabel/back-to-me button, exactly as if nobody had been searched for at all.

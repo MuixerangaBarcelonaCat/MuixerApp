@@ -755,6 +755,7 @@ describe('MeService', () => {
       const result = await service.findSegmentProjection('event-1', 'seg-1');
 
       expect(projectionService.getProjection).toHaveBeenCalledWith('event-1', 'seg-1', {
+        audience: 'member',
         onlyPublished: true,
       });
       expect(result).toBe(expected);

@@ -33,7 +33,6 @@ export interface AssignmentPersonDetail {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | null;
   notes: string | null;
   notesEmoji: string | null;
@@ -128,7 +127,6 @@ export interface AvailablePerson {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
   notes: string | null;

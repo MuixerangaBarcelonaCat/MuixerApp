@@ -8,7 +8,6 @@ import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
 import {
-  getFullName,
   getAvailabilityLabel,
   getOnboardingLabel,
   formatDate,
@@ -28,6 +27,7 @@ import { EventType } from '@muixer/shared';
 import { PersonNewModalComponent } from './modals/person-new-modal.component';
 import { TutorialModalComponent } from '../../../shared/components/tutorial-modal/tutorial-modal.component';
 import { TutorialStep } from '../../../shared/components/tutorial-modal/tutorial-step.model';
+import { AuthService } from '../../../core/auth/services/auth.service';
 
 const STORAGE_KEY = 'person-list-visible-columns';
 
@@ -56,8 +56,8 @@ const ACTIVATION_TUTORIAL_STEPS: TutorialStep[] = [
 ];
 
 export const ALL_COLUMNS: ColumnDef[] = [
-  { key: 'alias', label: 'Alies', defaultVisible: true, sortField: 'alias', primary: true },
-  { key: 'fullName', label: 'Nom complet', defaultVisible: true, sortField: 'name' },
+  { key: 'alias', label: 'Àlies', defaultVisible: true, sortField: 'alias', primary: true },
+  { key: 'name', label: 'Nom', defaultVisible: true, sortField: 'name' },
   { key: 'phone', label: 'Telèfon', defaultVisible: false, sortField: 'phone' },
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
@@ -107,12 +107,17 @@ export class PersonListComponent {
 
   private readonly personService = inject(PersonService);
   private readonly router = inject(Router);
+  protected readonly auth = inject(AuthService);
   private readonly activationTutorial = viewChild<TutorialModalComponent>('activationTutorial');
   private pendingActivationPerson = signal<Person | null>(null);
 
   Math = Math;
 
-  readonly allColumns = ALL_COLUMNS;
+  readonly allColumns = computed(() =>
+    this.auth.isAdmin()
+      ? ALL_COLUMNS
+      : ALL_COLUMNS.filter((column) => column.key === 'alias' || column.key === 'name'),
+  );
   readonly shoulderBaselineCm = SHOULDER_HEIGHT_BASELINE_CM;
 
   searchInput = '';
@@ -371,6 +376,7 @@ export class PersonListComponent {
   }
 
   toggleColumn(key: string) {
+    if (!this.auth.isAdmin() || !this.allColumns().some((column) => column.key === key)) return;
     const current = this.visibleColumnKeys();
     const updated = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
     this.visibleColumnKeys.set(updated);
@@ -378,13 +384,19 @@ export class PersonListComponent {
   }
 
   private loadVisibleColumns(): string[] {
+    const allowed = this.allColumns();
+    if (!this.auth.isAdmin()) return allowed.map((column) => column.key);
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) return JSON.parse(stored) as string[];
+      if (stored) {
+        const storedKeys = JSON.parse(stored) as string[];
+        const allowedKeys = new Set(allowed.map((column) => column.key));
+        return storedKeys.filter((key) => allowedKeys.has(key));
+      }
     } catch {
       /* noop */
     }
-    return ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
+    return allowed.filter((c) => c.defaultVisible).map((c) => c.key);
   }
 
   private saveVisibleColumns(keys: string[]) {
@@ -437,27 +449,27 @@ export class PersonListComponent {
 
   getCellValueForPerson(person: Person, key: string): string {
     switch (key) {
-      case 'fullName': return getFullName(person);
+      case 'name': return person.name;
       case 'alias': return person.alias || '—';
       case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
       case 'attendedCount': return String(person.attendedCount ?? 0);
-      case 'availability': return getAvailabilityLabel(person.availability);
-      case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
-      case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
+      case 'availability': return person.availability ? getAvailabilityLabel(person.availability) : '—';
+      case 'onboardingStatus': return person.onboardingStatus ? getOnboardingLabel(person.onboardingStatus) : '—';
+      case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight ?? null);
       case 'isActive': return person.isActive ? 'Actiu' : 'Inactiu';
       case 'isMember': return person.isMember ? 'Sí' : 'No';
       case 'isXicalla': return person.isXicalla ? 'Sí' : 'No';
       case 'birthDate': return person.birthDate ? formatDate(person.birthDate) : '—';
       case 'shirtDate': return person.shirtDate ? formatDate(person.shirtDate) : '—';
-      case 'createdAt': return formatDate(person.createdAt);
-      case 'updatedAt': return formatDate(person.updatedAt);
+      case 'createdAt': return person.createdAt ? formatDate(person.createdAt) : '—';
+      case 'updatedAt': return person.updatedAt ? formatDate(person.updatedAt) : '—';
       default: return (person as unknown as Record<string, unknown>)[key] as string ?? '—';
     }
   }
 
   /** All columns with value extractors — data-table handles visibility via visibleColumns input */
   readonly tableColumns = computed<ColumnDef<Person>[]>(() =>
-    ALL_COLUMNS.map(col => ({
+    this.allColumns().map(col => ({
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
       ...(col.key === 'positions' && {

@@ -18,7 +18,6 @@ const makeAvailablePerson = (
   id,
   alias: 'Pepet',
   name: 'Pere',
-  firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
   notes: null,
@@ -845,7 +844,7 @@ describe('PersonPanelComponent', () => {
         originNodeId: null,
         sourceNodeId: null,
       },
-      person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: null },
+      person: { id: personId, alias: 'Pepet', name: 'Pere', shoulderHeight: null },
     });
 
     it('excludes an assigned person missing from the (tag-filtered) persons list', () => {
@@ -1003,7 +1002,7 @@ describe('PersonPanelComponent', () => {
             originNodeId: null,
             sourceNodeId: null,
           },
-          person: { id: 'p1', alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: null },
+          person: { id: 'p1', alias: 'Pepet', name: 'Pere', shoulderHeight: null },
         },
       ]);
       fixture.detectChanges();

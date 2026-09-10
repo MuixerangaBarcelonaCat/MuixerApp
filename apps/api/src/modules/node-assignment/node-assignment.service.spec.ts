@@ -43,7 +43,6 @@ const makePerson = (id = PERSON_ID) => ({
   id,
   alias: 'Pepet',
   name: 'Pere',
-  firstSurname: 'Garcia',
   shoulderHeight: 140,
 });
 
@@ -249,7 +248,29 @@ describe('NodeAssignmentService', () => {
       expect(result[0].id).toBe(ASSIGNMENT_ID);
       expect(result[0].node.id).toBe(INSTANCE_NODE_ID);
       expect(result[0].node.ringLevel).toBe(1);
-      expect(result[0].person.id).toBe(PERSON_ID);
+      expect(result[0].person).toEqual({
+        id: PERSON_ID,
+        alias: 'Pepet',
+        name: 'Pere',
+        shoulderHeight: 140,
+        notes: null,
+        notesEmoji: null,
+      });
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            id: true,
+            person: {
+              id: true,
+              alias: true,
+              name: true,
+              shoulderHeight: true,
+              notes: true,
+              notesEmoji: true,
+            },
+          }),
+        }),
+      );
     });
 
     it('returns empty array when no assignments', async () => {
@@ -2656,7 +2677,7 @@ describe('NodeAssignmentService', () => {
       const adHocAssignment = makeAssignment({
         figureInstance: source as any,
         instanceNode: adHocSourceNode as any,
-        person: makePerson() as any,
+        person: { ...makePerson(), alias: null } as any,
       });
 
       mockInstanceRepo.findOne
@@ -2681,6 +2702,7 @@ describe('NodeAssignmentService', () => {
       // Bug fix: must be the reason classified from the caught error, not the
       // hardcoded generic Catalan string that used to be pushed regardless.
       expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+      expect(result.conflicts[0].personAlias).toBe('Pere');
     });
 
     it('still clones ad-hoc nodes when scope restricts the regular loop to PINYA (regression: scope must never filter ad-hoc cloning)', async () => {

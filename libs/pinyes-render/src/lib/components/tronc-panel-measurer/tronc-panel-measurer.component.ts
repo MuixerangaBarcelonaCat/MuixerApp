@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, effect, input, output, signal, viewChildren } from '@angular/core';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
-import { AssignmentDetail } from '../../models/assignment.model';
+import { ProjectionAssignment } from '../../models/projection.model';
 
 export interface TroncPanelMeasureSpec {
   instanceId: string;
@@ -9,7 +9,7 @@ export interface TroncPanelMeasureSpec {
   directionNodes: TroncNodeItem[];
   /** Only DIRECTION-node assignments matter for sizing (see the two-element doc comment below);
    *  harmless to pass every assignment, the rest are simply never matched. */
-  assignments: AssignmentDetail[];
+  assignments: ProjectionAssignment[];
   figureName: string | null;
 }
 

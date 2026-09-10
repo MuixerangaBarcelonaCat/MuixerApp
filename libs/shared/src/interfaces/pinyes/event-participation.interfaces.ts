@@ -70,7 +70,6 @@ export interface EventParticipationPerson {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
   /** false = soft-deleted. Such a person may still hold placements, and is kept so

@@ -8,9 +8,9 @@ import { DeviceListComponent } from './device-list.component';
 import { NotificationService } from '../../services/notification.service';
 
 const mockSummary = (): DeviceSummary[] => [
-  { person: { id: 'p1', firstName: 'Anna', lastName: 'Ferrer' }, activeDevices: 2, lastPushAt: '2026-08-18T10:00:00.000Z' },
-  { person: { id: 'p2', firstName: 'Joan', lastName: 'Puig' }, activeDevices: 1, lastPushAt: null },
-  { person: { id: 'p3', firstName: 'Maria', lastName: 'Vila' }, activeDevices: 0, lastPushAt: null },
+  { person: { id: 'p1', alias: 'ANNETA', name: 'Anna' }, activeDevices: 2, lastPushAt: '2026-08-18T10:00:00.000Z' },
+  { person: { id: 'p2', alias: 'JOANET', name: 'Joan' }, activeDevices: 1, lastPushAt: null },
+  { person: { id: 'p3', alias: 'MAR', name: 'Maria' }, activeDevices: 0, lastPushAt: null },
 ];
 
 describe('DeviceListComponent', () => {
@@ -60,7 +60,13 @@ describe('DeviceListComponent', () => {
     await setup();
     component.search.set('anna');
     expect(component.filtered().length).toBe(1);
-    expect(component.filtered()[0].person.firstName).toBe('Anna');
+    expect(component.filtered()[0].person.name).toBe('Anna');
+  });
+
+  it('filters by alias without requiring a surname', async () => {
+    await setup();
+    component.search.set('joanet');
+    expect(component.filtered().map((row) => row.person.id)).toEqual(['p2']);
   });
 
   it('sorts by devices descending by default', async () => {

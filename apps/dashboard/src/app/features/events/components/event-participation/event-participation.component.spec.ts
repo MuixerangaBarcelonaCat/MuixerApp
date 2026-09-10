@@ -82,7 +82,6 @@ const makePerson = (
     id,
     alias,
     name: 'Joana',
-    firstSurname: 'Vila',
     shoulderHeight: 140,
     isXicalla: false,
     isActive: true,
@@ -593,7 +592,7 @@ describe('EventParticipationComponent', () => {
     it('ranks an alias prefix above a name substring', async () => {
       const response = buildResponse({
         persons: [
-          makePerson('p1', 'ZZZ', {}, { name: 'Marta', firstSurname: 'Mans' }),
+          makePerson('p1', 'ZZZ', {}, { name: 'Marta Mans' }),
           makePerson('p2', 'MARTAM', {}),
         ],
       });

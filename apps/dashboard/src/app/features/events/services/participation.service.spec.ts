@@ -52,7 +52,6 @@ describe('ParticipationService', () => {
           id: 'person-1',
           alias: 'PERSIANA',
           name: 'Joana',
-          firstSurname: 'Vila',
           shoulderHeight: 140,
           isXicalla: false,
           isActive: true,

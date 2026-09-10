@@ -10,7 +10,12 @@ import { LegalDocumentsComponent } from './components/legal-documents/legal-docu
 
 export const configRoutes: Routes = [
   { path: '', component: ConfigComponent },
-  { path: 'users', component: UserListComponent, data: { title: 'Usuaris' } },
+  {
+    path: 'users',
+    component: UserListComponent,
+    data: { title: 'Usuaris' },
+    canActivate: [rolesGuard(UserRole.ADMIN)],
+  },
   { path: 'tags', component: TagsListComponent, data: { title: 'Etiquetes' } },
   { path: 'tags/:id', component: TagDetailComponent, data: { title: "Detall d'etiqueta" } },
   { path: 'seasons', component: SeasonListComponent, data: { title: 'Temporades' } },

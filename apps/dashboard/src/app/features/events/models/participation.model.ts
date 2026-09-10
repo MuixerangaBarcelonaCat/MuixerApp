@@ -52,7 +52,6 @@ export interface ParticipationPerson {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
   /** false = soft-deleted, but may still hold placements. */

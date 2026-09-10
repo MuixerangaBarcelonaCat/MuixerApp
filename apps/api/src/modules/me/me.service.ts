@@ -25,7 +25,10 @@ import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
-import { ProjectionService, ProjectionData } from '../event-segment/projection.service';
+import {
+  MemberProjectionData,
+  ProjectionService,
+} from '../event-segment/projection.service';
 import { EventSegmentService, SegmentWithInstances } from '../event-segment/event-segment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
@@ -227,8 +230,14 @@ export class MeService {
     return bySegment;
   }
 
-  findSegmentProjection(eventId: string, segmentId: string): Promise<ProjectionData> {
-    return this.projectionService.getProjection(eventId, segmentId, { onlyPublished: true });
+  findSegmentProjection(
+    eventId: string,
+    segmentId: string,
+  ): Promise<MemberProjectionData> {
+    return this.projectionService.getProjection(eventId, segmentId, {
+      audience: 'member',
+      onlyPublished: true,
+    });
   }
 
   private async fetchAttendancesByEvent(

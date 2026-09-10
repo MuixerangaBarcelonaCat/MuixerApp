@@ -25,15 +25,7 @@
         >
           <span class="font-mono font-semibold text-sm">{{ person.alias }}</span>
           <span class="text-base-content/60">—</span>
-          <span>{{ person.name }} {{ person.firstSurname }}</span>
-          <span class="ml-auto flex items-center gap-1">
-            @if (person.isProvisional) {
-              <lib-badge size="xs" variant="warning">Provisional</lib-badge>
-            }
-            @if (person.isXicalla) {
-              <lib-badge size="xs" variant="ghost">👶</lib-badge>
-            }
-          </span>
+          <span>{{ person.name }}</span>
         </li>
       }
     </ul>

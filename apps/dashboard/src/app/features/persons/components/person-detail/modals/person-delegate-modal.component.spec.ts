@@ -3,33 +3,35 @@ import { of, throwError } from 'rxjs';
 import { DelegateType } from '@muixer/shared';
 import { PersonDelegateModalComponent } from './person-delegate-modal.component';
 import { PersonDelegateService } from '../../../services/person-delegate.service';
-import { UserService } from '../../../../config/services/user.service';
 import { ComponentRef } from '@angular/core';
 
 describe('PersonDelegateModalComponent', () => {
   let fixture: ComponentFixture<PersonDelegateModalComponent>;
   let component: PersonDelegateModalComponent;
   let componentRef: ComponentRef<PersonDelegateModalComponent>;
-  let mockDelegateService: { createDelegate: ReturnType<typeof vi.fn> };
-  let mockUserService: { getAll: ReturnType<typeof vi.fn> };
+  let mockDelegateService: {
+    createDelegate: ReturnType<typeof vi.fn>;
+    getCandidates: ReturnType<typeof vi.fn>;
+  };
 
   const mockUsers = {
     data: [
-      { id: 'u1', email: 'user1@test.com', role: 'MEMBER', isActive: true, person: { id: 'p-u1', alias: 'User1' } },
-      { id: 'u2', email: 'user2@test.com', role: 'TECHNICAL', isActive: true, person: null },
+      { candidateUserId: 'u1', personId: 'p-u1', alias: 'User1', name: 'Joana', accountState: 'ACTIVE' },
+      { candidateUserId: 'u2', personId: 'p-u2', alias: 'User2', name: 'Pere', accountState: 'PENDING_ACTIVATION' },
     ],
     total: 2,
   };
 
   beforeEach(async () => {
-    mockDelegateService = { createDelegate: vi.fn() };
-    mockUserService = { getAll: vi.fn().mockReturnValue(of(mockUsers)) };
+    mockDelegateService = {
+      createDelegate: vi.fn(),
+      getCandidates: vi.fn().mockReturnValue(of(mockUsers.data)),
+    };
 
     await TestBed.configureTestingModule({
       imports: [PersonDelegateModalComponent],
       providers: [
         { provide: PersonDelegateService, useValue: mockDelegateService },
-        { provide: UserService, useValue: mockUserService },
       ],
     }).compileComponents();
 
@@ -58,72 +60,26 @@ describe('PersonDelegateModalComponent', () => {
   });
 
   it('loads users on init and renders them', () => {
-    expect(mockUserService.getAll).toHaveBeenCalled();
+    expect(mockDelegateService.getCandidates).toHaveBeenCalledWith('person-1', undefined);
     const items = fixture.nativeElement.querySelectorAll('ul li');
     expect(items.length).toBe(2);
   });
 
-  it('loads users regardless of activation status, so inactive accounts can still be linked', () => {
-    const call = mockUserService.getAll.mock.calls[0][0];
-    expect(call.isActive).toBeUndefined();
-  });
-
-  it('does not show a role badge for MEMBER users', () => {
-    mockUserService.getAll.mockReturnValue(
-      of({
-        data: [{ id: 'u4', email: 'member@test.com', role: 'MEMBER', isActive: true, person: null }],
-        total: 1,
-      }),
-    );
-    component.ngOnInit();
-    fixture.detectChanges();
-
-    const badges = fixture.nativeElement.querySelectorAll('ul li .badge-outline');
-    expect(badges.length).toBe(0);
-  });
-
-  it('shows the role in Catalan for TECHNICAL and ADMIN users', () => {
-    mockUserService.getAll.mockReturnValue(
-      of({
-        data: [
-          { id: 'u5', email: 'tech@test.com', role: 'TECHNICAL', isActive: true, person: null },
-          { id: 'u6', email: 'admin@test.com', role: 'ADMIN', isActive: true, person: null },
-        ],
-        total: 2,
-      }),
-    );
-    component.ngOnInit();
-    fixture.detectChanges();
-
-    const badges = Array.from(
-      fixture.nativeElement.querySelectorAll('ul li .badge-outline'),
-    ).map((b) => (b as HTMLElement).textContent?.trim());
-    expect(badges).toEqual(['Tècnica', 'Administrador']);
+  it('loads narrow person-scoped candidates without rendering email', () => {
+    expect(mockDelegateService.getCandidates).toHaveBeenCalledWith('person-1', undefined);
+    expect(fixture.nativeElement.textContent).toContain('User1');
+    expect(fixture.nativeElement.textContent).toContain('Joana');
+    expect(fixture.nativeElement.textContent).not.toContain('@');
   });
 
   it('shows a "Pendent d\'activar" badge for an inactive user', () => {
-    mockUserService.getAll.mockReturnValue(
-      of({
-        data: [
-          { id: 'u3', email: 'inactive@test.com', role: 'MEMBER', isActive: false, person: null },
-        ],
-        total: 1,
-      }),
-    );
-    component.ngOnInit();
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Pendent d\'activar');
   });
 
-  it('filters out existing delegate user IDs', () => {
-    componentRef.setInput('existingDelegateUserIds', ['u1']);
-    component.ngOnInit();
-    fixture.detectChanges();
-    const items = fixture.nativeElement.querySelectorAll('ul li');
-    expect(items.length).toBe(1);
-    expect(fixture.nativeElement.textContent).toContain('user2@test.com');
-    expect(fixture.nativeElement.textContent).not.toContain('user1@test.com');
+  it('does not render candidate email data', () => {
+    expect(fixture.nativeElement.textContent).not.toContain('@');
   });
 
   it('disables save button when no user is selected', () => {

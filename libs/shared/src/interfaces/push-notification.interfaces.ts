@@ -26,7 +26,7 @@ export interface PushSubscriptionStatus {
 }
 
 export interface DeviceSummary {
-  person: { id: string; firstName: string; lastName: string };
+  person: { id: string; alias: string; name: string };
   activeDevices: number;
   lastPushAt: string | null;
 }

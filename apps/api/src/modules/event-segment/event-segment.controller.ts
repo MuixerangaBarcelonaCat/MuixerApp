@@ -17,7 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@muixer/shared';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
-import { ProjectionService, ProjectionData } from './projection.service';
+import { ProjectionService, StaffProjectionData } from './projection.service';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
@@ -184,8 +184,10 @@ export class EventSegmentController {
   getProjection(
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
-  ): Promise<ProjectionData> {
-    return this.projectionService.getProjection(eventId, segmentId);
+  ): Promise<StaffProjectionData> {
+    return this.projectionService.getProjection(eventId, segmentId, {
+      audience: 'staff',
+    });
   }
 
   @ApiOperation({ summary: 'Copy a figure instance to another segment within the same event' })

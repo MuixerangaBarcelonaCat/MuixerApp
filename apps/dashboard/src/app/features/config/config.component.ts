@@ -18,9 +18,11 @@ import { AuthService } from '../../core/auth/services/auth.service';
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-        <lib-card sash="title" title="Usuaris" [icon]="ICON_USERS" routerLink="users">
-          <p class="text-md text-base-content/60">Gestió d'accés i rols</p>
-        </lib-card>
+        @if (auth.isAdmin()) {
+          <lib-card sash="title" title="Usuaris" [icon]="ICON_USERS" routerLink="users">
+            <p class="text-md text-base-content/60">Gestió d'accés i rols</p>
+          </lib-card>
+        }
 
         <lib-card sash="title" title="Etiquetes" [icon]="ICON_TAG" routerLink="tags">
           <p class="text-md text-base-content/60">Categories i etiquetes</p>

@@ -7,7 +7,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  FindOptionsSelect,
+  In,
+  Repository,
+} from 'typeorm';
 import {
   EventType,
   FigureMode,
@@ -48,6 +54,51 @@ import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
 
+const ASSIGNMENT_PERSON_SELECT = {
+  id: true,
+  alias: true,
+  name: true,
+  shoulderHeight: true,
+  notes: true,
+  notesEmoji: true,
+} as const;
+
+const ASSIGNMENT_DETAIL_SELECT: FindOptionsSelect<NodeAssignment> = {
+  id: true,
+  figureInstance: { id: true },
+  instanceNode: {
+    id: true,
+    label: true,
+    zone: true,
+    z: true,
+    positionType: true,
+    sortOrder: true,
+    climbIndicator: true,
+    ringLevel: true,
+    originNodeId: true,
+    sourceNodeId: true,
+    renglaPosition: true,
+  },
+  person: ASSIGNMENT_PERSON_SELECT,
+};
+
+const CONFLICT_ASSIGNMENT_SELECT: FindOptionsSelect<NodeAssignment> = {
+  id: true,
+  person: { id: true, alias: true },
+  figureInstance: {
+    id: true,
+    figureTemplate: { id: true, name: true },
+  },
+  instanceNode: {
+    id: true,
+    label: true,
+    zone: true,
+    positionType: true,
+    z: true,
+    renglaPosition: true,
+  },
+};
+
 // ─── Response interfaces ────────────────────────────────────────────────────
 
 /**
@@ -84,7 +135,6 @@ export interface AssignmentDetail {
     id: string;
     alias: string;
     name: string;
-    firstSurname: string;
     shoulderHeight: number | null;
     notes: string | null;
     notesEmoji: string | null;
@@ -228,7 +278,6 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
       id: assignment.person.id,
       alias: assignment.person.alias,
       name: assignment.person.name,
-      firstSurname: assignment.person.firstSurname,
       shoulderHeight: assignment.person.shoulderHeight ?? null,
       notes: assignment.person.notes ?? null,
       notesEmoji: assignment.person.notesEmoji ?? null,
@@ -365,6 +414,7 @@ export class NodeAssignmentService {
     const assignments = await this.assignmentRepository.find({
       where: { figureInstance: { id: instanceId } },
       relations: ['instanceNode', 'person', 'figureInstance'],
+      select: ASSIGNMENT_DETAIL_SELECT,
     });
 
     return assignments.map(toAssignmentDetail);
@@ -434,7 +484,10 @@ export class NodeAssignmentService {
       throw new BadRequestException('Els nodes decoratius no es poden assignar.');
     }
 
-    const person = await this.personRepository.findOne({ where: { id: dto.personId } });
+    const person = await this.personRepository.findOne({
+      where: { id: dto.personId },
+      select: ASSIGNMENT_PERSON_SELECT,
+    });
     if (!person) {
       throw new NotFoundException(`Person with ID ${dto.personId} not found`);
     }
@@ -469,6 +522,7 @@ export class NodeAssignmentService {
     const populated = await this.assignmentRepository.findOne({
       where: { id: saved.id },
       relations: ['instanceNode', 'person', 'figureInstance'],
+      select: ASSIGNMENT_DETAIL_SELECT,
     });
 
     const detail = toAssignmentDetail(populated!);
@@ -538,10 +592,18 @@ export class NodeAssignmentService {
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
         relations: ['figureInstance', 'figureInstance.segment', 'instanceNode', 'person'],
+        select: {
+          ...ASSIGNMENT_DETAIL_SELECT,
+          figureInstance: { id: true, segment: { id: true } },
+        },
       }),
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdB },
         relations: ['figureInstance', 'figureInstance.segment', 'instanceNode', 'person'],
+        select: {
+          ...ASSIGNMENT_DETAIL_SELECT,
+          figureInstance: { id: true, segment: { id: true } },
+        },
       }),
     ]);
 
@@ -590,10 +652,12 @@ export class NodeAssignmentService {
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
         relations: ['instanceNode', 'person', 'figureInstance'],
+        select: ASSIGNMENT_DETAIL_SELECT,
       }),
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdB },
         relations: ['instanceNode', 'person', 'figureInstance'],
+        select: ASSIGNMENT_DETAIL_SELECT,
       }),
     ]);
 
@@ -652,10 +716,12 @@ export class NodeAssignmentService {
       this.assignmentRepository.find({
         where: { figureInstance: { id: instanceId } },
         relations: ['instanceNode', 'person'],
+        select: CONFLICT_ASSIGNMENT_SELECT,
       }),
       this.assignmentRepository.find({
         where: { segment: { id: targetSegmentId } },
         relations: ['instanceNode', 'person'],
+        select: CONFLICT_ASSIGNMENT_SELECT,
       }),
     ]);
 
@@ -713,6 +779,7 @@ export class NodeAssignmentService {
     const assignments = await this.assignmentRepository.find({
       where: { segment: { id: segmentId } },
       relations: ['instanceNode', 'person', 'figureInstance', 'figureInstance.figureTemplate'],
+      select: CONFLICT_ASSIGNMENT_SELECT,
     });
 
     const conflicts = this.classifySegmentConflicts(assignments);
@@ -1094,6 +1161,7 @@ export class NodeAssignmentService {
         ? this.assignmentRepository.find({
             where: { segment: { id: In(segmentIds) } },
             relations: ['instanceNode', 'person', 'figureInstance'],
+            select: CONFLICT_ASSIGNMENT_SELECT,
           })
         : Promise.resolve([] as NodeAssignment[]),
     ]);
@@ -1318,6 +1386,32 @@ export class NodeAssignmentService {
         figureInstance: { id: dto.sourceInstanceId },
       },
       relations: ['instanceNode', 'person', 'figureInstance'],
+      select: {
+        ...CONFLICT_ASSIGNMENT_SELECT,
+        person: ASSIGNMENT_PERSON_SELECT,
+        instanceNode: {
+          id: true,
+          sourceNodeId: true,
+          label: true,
+          zone: true,
+          positionType: true,
+          x: true,
+          y: true,
+          z: true,
+          width: true,
+          height: true,
+          rotation: true,
+          color: true,
+          shape: true,
+          sortOrder: true,
+          climbIndicator: true,
+          ringLevel: true,
+          renglaId: true,
+          renglaPosition: true,
+          metadata: true,
+          isAdHoc: true,
+        },
+      },
     });
 
     const created: AssignmentDetail[] = [];
@@ -1446,7 +1540,7 @@ export class NodeAssignmentService {
         sourceAdHoc.zone !== FigureZone.DECORATION
       ) {
         const personId = sourceAssignment.person.id;
-        const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
+        const personAlias = sourceAssignment.person.alias ?? sourceAssignment.person.name;
         try {
           await this.assignWithoutLockCheck(instanceId, {
             nodeId: savedClone.id,

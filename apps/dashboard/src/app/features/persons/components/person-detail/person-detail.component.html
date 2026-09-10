@@ -33,14 +33,16 @@
       }
 
       @if (person() && !editing()) {
-        <lib-button
-          [variant]="person()!.isProvisional ? 'success' : 'warning'"
-          size="sm"
-          [loading]="togglingProvisional()"
-          (clicked)="toggleProvisional()"
-        >
-          {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar provisional' }}
-        </lib-button>
+        @if (!person()!.isProvisional || auth.isAdmin()) {
+          <lib-button
+            [variant]="person()!.isProvisional ? 'success' : 'warning'"
+            size="sm"
+            [loading]="togglingProvisional()"
+            (clicked)="toggleProvisional()"
+          >
+            {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar provisional' }}
+          </lib-button>
+        }
         <lib-button variant="primary" size="sm" (clicked)="startEditing()">Edita</lib-button>
       }
 
@@ -84,36 +86,44 @@
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Nom</dt>
                 <dd class="text-sm text-right">{{ person()!.name }}</dd>
               </div>
-              <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Primer cognom</dt>
-                <dd class="text-sm text-right">{{ person()!.firstSurname }}</dd>
-              </div>
-              @if (person()!.secondSurname) {
+              @if (auth.isAdmin()) {
                 <div class="flex justify-between items-start">
-                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Segon cognom</dt>
-                  <dd class="text-sm text-right">{{ person()!.secondSurname }}</dd>
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Primer cognom</dt>
+                  <dd class="text-sm text-right">{{ person()!.firstSurname }}</dd>
                 </div>
+                @if (person()!.secondSurname) {
+                  <div class="flex justify-between items-start">
+                    <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Segon cognom</dt>
+                    <dd class="text-sm text-right">{{ person()!.secondSurname }}</dd>
+                  </div>
+                }
               }
               <div class="flex justify-between items-start">
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Àlies</dt>
                 <dd class="text-sm text-right font-medium">{{ person()!.alias }}</dd>
               </div>
-              @if (person()!.user; as linkedUser) {
+              @if (auth.isAdmin() && person()!.user; as linkedUser) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Correu</dt>
-                  <dd class="text-sm text-right">{{ linkedUser.isActive ? linkedUser.email : 'Pendent d\'activar' }}</dd>
+                  <dd class="text-sm text-right">{{ linkedUser.state === 'ACTIVE' ? linkedUser.email : 'Pendent d\'activar' }}</dd>
                 </div>
               }
-              @if (person()!.phone) {
+              @if (auth.isAdmin() && person()!.phone) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
                   <dd class="text-sm text-right">{{ person()!.phone }}</dd>
                 </div>
               }
-              @if (person()!.birthDate) {
+              @if (auth.isAdmin() && person()!.birthDate) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Naixement</dt>
-                  <dd class="text-sm text-right">{{ formatDate(person()!.birthDate) }}</dd>
+                  <dd class="text-sm text-right">{{ formatDate(person()!.birthDate!) }}</dd>
+                </div>
+              }
+              @if (auth.isAdmin()) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Gènere</dt>
+                  <dd class="text-sm text-right">{{ getGenderLabel(person()!.gender) }}</dd>
                 </div>
               }
               @if (person()!.shoulderHeight) {
@@ -143,16 +153,18 @@
                 [errorText]="form.get('name')?.invalid && form.get('name')?.touched ? 'El nom és obligatori' : undefined"
               />
 
-              <lib-input
-                label="Primer cognom"
-                required
-                size="xs"
-                formControlName="firstSurname"
-                placeholder="Primer cognom"
-                [errorText]="form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched ? 'El primer cognom és obligatori' : undefined"
-              />
+              @if (auth.isAdmin()) {
+                <lib-input
+                  label="Primer cognom"
+                  required
+                  size="xs"
+                  formControlName="firstSurname"
+                  placeholder="Primer cognom"
+                  [errorText]="form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched ? 'El primer cognom és obligatori' : undefined"
+                />
 
-              <lib-input label="Segon cognom" size="xs" formControlName="secondSurname" placeholder="Segon cognom (opcional)" />
+                <lib-input label="Segon cognom" size="xs" formControlName="secondSurname" placeholder="Segon cognom (opcional)" />
+              }
 
               <lib-input
                 label="Àlies"
@@ -163,9 +175,16 @@
                 [errorText]="form.get('alias')?.invalid && form.get('alias')?.touched ? 'L\'àlies és obligatori' : undefined"
               />
 
-              <lib-input label="Telèfon" type="tel" size="xs" formControlName="phone" placeholder="000 000 000" />
-
-              <lib-input label="Data de naixement" type="date" size="xs" formControlName="birthDate" />
+              @if (auth.isAdmin()) {
+                <lib-input label="Telèfon" type="tel" size="xs" formControlName="phone" placeholder="000 000 000" />
+                <lib-input label="Data de naixement" type="date" size="xs" formControlName="birthDate" />
+                <lib-select label="Gènere" size="xs" formControlName="gender">
+                  <option value="">No indicat</option>
+                  @for (option of genderOptions; track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </lib-select>
+              }
 
               <lib-input
                 label="Alçada espatlles (cm)"
@@ -211,18 +230,18 @@
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Disponibilitat</dt>
                 <dd>
                   <lib-badge size="sm" [variant]="person()!.availability === 'AVAILABLE' ? 'success' : 'warning'">
-                    {{ getAvailabilityLabel(person()!.availability) }}
+                    {{ getAvailabilityLabel(person()!.availability!) }}
                   </lib-badge>
                 </dd>
               </div>
               <div class="flex justify-between items-start">
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Acollida</dt>
-                <dd><lib-badge size="sm" outline>{{ getOnboardingLabel(person()!.onboardingStatus) }}</lib-badge></dd>
+                <dd><lib-badge size="sm" outline>{{ getOnboardingLabel(person()!.onboardingStatus!) }}</lib-badge></dd>
               </div>
               @if (person()!.shirtDate) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Data camisa</dt>
-                  <dd class="text-sm text-right">{{ formatDate(person()!.shirtDate) }}</dd>
+                  <dd class="text-sm text-right">{{ formatDate(person()!.shirtDate!) }}</dd>
                 </div>
               } @else {
                 <div class="flex justify-between items-start">
@@ -314,7 +333,7 @@
                 <span class="loading loading-spinner loading-xs text-primary"></span>
               </div>
             } @else {
-              @if (person()!.user?.isActive) {
+              @if (person()!.accountState === 'ACTIVE' || person()!.user?.state === 'ACTIVE') {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Compte vinculat</dt>
                   <dd class="text-sm text-right">
@@ -345,7 +364,7 @@
                     </lib-button>
                   </div>
                 -->
-              } @else if (person()!.user) {
+              } @else if (person()!.accountState === 'PENDING_ACTIVATION' || person()!.user?.state === 'PENDING_ACTIVATION') {
                 <div class="flex flex-col gap-2">
                   <div class="flex items-center gap-1.5">
                     <dt class="text-xs text-base-content/50 font-medium">Compte vinculat</dt>
@@ -369,7 +388,7 @@
                     @if (primary.user.person; as managerPerson) {
                       <a class="link link-primary" [routerLink]="['/persons', managerPerson.id]">{{ managerPerson.alias }}</a>
                     } @else {
-                      <span>{{ primary.user.email }}</span>
+                      <span>{{ delegateLabel(primary) }}</span>
                     }
                     <span class="text-xs text-base-content/50 ml-1">({{ getDelegateTypeLabel(primary.delegateType) }})</span>
                     @if (editing()) {
@@ -379,7 +398,7 @@
                         size="xs"
                         [loading]="removingDelegateId() === primary.id"
                         (clicked)="askRemoveDelegate(primary)"
-                        [ariaLabel]="'Elimina responsable ' + primary.user.email"
+                        [ariaLabel]="'Elimina responsable ' + delegateLabel(primary)"
                       >✕</lib-button>
                     }
                   </dd>
@@ -429,7 +448,7 @@
                       @if (delegate.user.person; as delegatePerson) {
                         <a class="link link-primary" [routerLink]="['/persons', delegatePerson.id]">{{ delegatePerson.alias }}</a>
                       } @else {
-                        <span>{{ delegate.user.email }}</span>
+                        <span>{{ delegateLabel(delegate) }}</span>
                       }
                       <span class="text-xs text-base-content/50 ml-1">({{ getDelegateTypeLabel(delegate.delegateType) }})</span>
                       @if (editing()) {
@@ -439,7 +458,7 @@
                           size="xs"
                           [loading]="removingDelegateId() === delegate.id"
                           (clicked)="askRemoveDelegate(delegate)"
-                          [ariaLabel]="'Elimina delegat ' + delegate.user.email"
+                          [ariaLabel]="'Elimina delegat ' + delegateLabel(delegate)"
                         >✕</lib-button>
                       }
                       @if (!last) { <span>, </span> }
@@ -542,6 +561,7 @@
     }
 
     <!-- Metadades -->
+    @if (auth.isAdmin()) {
     <div class="collapse collapse-arrow bg-base-100 shadow-raised rounded-box border border-base-300">
       <input type="checkbox" [checked]="metadataExpanded()" (change)="metadataExpanded.set(!metadataExpanded())" />
       <div class="collapse-title text-sm font-medium text-base-content/50 py-3 min-h-0">Metadades</div>
@@ -549,15 +569,16 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
           <div class="flex justify-between">
             <span class="text-xs text-base-content/40">Creat</span>
-            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.createdAt) }}</span>
+            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.createdAt!) }}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-xs text-base-content/40">Actualitzat</span>
-            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.updatedAt) }}</span>
+            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.updatedAt!) }}</span>
           </div>
         </div>
       </div>
     </div>
+    }
   }
 
   @if (delegateModalOpen() && person()) {
@@ -565,7 +586,7 @@
       [personId]="person()!.id"
       [existingDelegateUserIds]="existingDelegateUserIds()"
       [isPrimary]="delegateModalIsPrimary()"
-      [isXicalla]="person()!.isXicalla"
+      [isXicalla]="person()!.isXicalla ?? false"
       (closed)="delegateModalOpen.set(false)"
       (saved)="onDelegateAdded()"
     />
@@ -574,7 +595,7 @@
   <lib-modal [open]="!!confirmingDelegateRemoval()" title="Eliminar delegat" (closed)="cancelRemoveDelegate()">
     <p class="text-sm">
       Esteu segur que voleu eliminar la delegació de
-      <strong>{{ confirmingDelegateRemoval()?.user?.email }}</strong>?
+      <strong>{{ confirmingDelegateRemoval() ? delegateLabel(confirmingDelegateRemoval()!) : '' }}</strong>?
     </p>
     <div modalFooter>
       <lib-button variant="ghost" size="sm" (clicked)="cancelRemoveDelegate()">Cancel·la</lib-button>

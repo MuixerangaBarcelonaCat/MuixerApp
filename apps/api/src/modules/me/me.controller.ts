@@ -28,7 +28,7 @@ import {
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { ProjectionData } from '../event-segment/projection.service';
+import { MemberProjectionData } from '../event-segment/projection.service';
 import { PersonDelegateResponseDto } from '../person-delegate/dto/person-delegate-response.dto';
 import { MeService } from './me.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
@@ -86,7 +86,7 @@ export class MeController {
   findSegmentProjection(
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
-  ): Promise<ProjectionData> {
+  ): Promise<MemberProjectionData> {
     return this.meService.findSegmentProjection(eventId, segmentId);
   }
 

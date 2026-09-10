@@ -1,4 +1,7 @@
-import { AssignmentDetail } from '../models/assignment.model';
+import {
+  ProjectionAssignment,
+  projectionShoulderHeight,
+} from '../models/projection.model';
 
 export type VarianceLevel = 'success' | 'warning' | 'error';
 
@@ -9,14 +12,17 @@ export type VarianceLevel = 'success' | 'warning' | 'error';
  */
 export function floorVariance(
   nodeIds: string[],
-  assignments: AssignmentDetail[],
+  assignments: ProjectionAssignment[],
 ): number | null {
   const heights: number[] = [];
 
   for (const nodeId of nodeIds) {
     const assignment = assignments.find((a) => a.node.id === nodeId);
-    if (assignment?.person.shoulderHeight != null) {
-      heights.push(assignment.person.shoulderHeight);
+    const shoulderHeight = assignment
+      ? projectionShoulderHeight(assignment.person)
+      : null;
+    if (shoulderHeight != null) {
+      heights.push(shoulderHeight);
     }
   }
 

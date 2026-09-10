@@ -143,7 +143,7 @@ export class NodesTabComponent implements OnInit {
     if (!nodeId) return '';
     const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
     if (!assignment) return '';
-    return assignment.person.alias || `${assignment.person.name} ${assignment.person.firstSurname}`;
+    return assignment.person.alias || assignment.person.name;
   });
 
   readonly labelDialogTitle = computed(() =>

@@ -59,7 +59,7 @@
       <ul class="space-y-2">
         @for (item of signedUpItems(); track item.person.id) {
           <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
-            <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
+            <span class="font-medium flex-1 min-w-0 truncate">{{ personLabel(item) }}</span>
             <lib-button-group>
               @for (status of statuses; track status) {
                 <lib-button
@@ -67,7 +67,7 @@
                   size="xs"
                   [variant]="item.status === status ? statusVariant(status) : 'neutral'"
                   [active]="item.status === status"
-                  [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
+                  [ariaLabel]="statusLabel(status) + ' — ' + personLabel(item)"
                   (clicked)="setStatus(item, status)"
                 >{{ statusLabel(status) }}</lib-button>
               }
@@ -83,7 +83,7 @@
         <ul class="space-y-2 opacity-60">
           @for (item of notSignedUpItems(); track item.person.id) {
             <li data-testid="roll-call-row" class="card bg-base-100 shadow-sm p-3 flex flex-row items-center justify-between gap-2">
-              <span class="font-medium flex-1 min-w-0 truncate">{{ item.person.alias }}</span>
+              <span class="font-medium flex-1 min-w-0 truncate">{{ personLabel(item) }}</span>
               <lib-button-group>
                 @for (status of statuses; track status) {
                   <lib-button
@@ -91,7 +91,7 @@
                     size="xs"
                     [variant]="item.status === status ? statusVariant(status) : 'neutral'"
                     [active]="item.status === status"
-                    [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
+                    [ariaLabel]="statusLabel(status) + ' — ' + personLabel(item)"
                     (clicked)="setStatus(item, status)"
                   >{{ statusLabel(status) }}</lib-button>
                 }
@@ -107,7 +107,7 @@
 <lib-modal [open]="!!overridePrompt()" title="Canvi fora de termini" [dismissible]="false" (closed)="cancelOverride()">
   <p class="text-sm">
     Este event ja no es pot editar en condicions normals (ha passat el marge permès). Estàs a punt de
-    forçar un canvi d'assistència passada per a <strong>{{ overridePrompt()?.item?.person?.alias }}</strong>.
+    forçar un canvi d'assistència passada per a <strong>{{ personLabel(overridePrompt()?.item) }}</strong>.
     Esta acció queda registrada.
   </p>
   <div class="flex justify-end gap-2 mt-4">

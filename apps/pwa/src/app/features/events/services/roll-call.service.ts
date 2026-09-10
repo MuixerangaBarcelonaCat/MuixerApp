@@ -11,7 +11,6 @@ export interface AttendanceItem {
     id: string;
     alias: string;
     name: string;
-    firstSurname: string;
   };
 }
 
@@ -24,7 +23,6 @@ export interface ProvisionalPerson {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
 }
 
 @Injectable({ providedIn: 'root' })

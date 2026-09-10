@@ -12,10 +12,8 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { DelegateType, UserRole } from '@muixer/shared';
+import { DelegateType, DelegationCandidate } from '@muixer/shared';
 import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent } from '@muixer/ui';
-import { UserService } from '../../../../config/services/user.service';
-import { UserDto } from '../../../../config/models/user.model';
 import {
   PersonDelegateService,
   PersonDelegateItem,
@@ -29,7 +27,6 @@ import {
   templateUrl: './person-delegate-modal.component.html',
 })
 export class PersonDelegateModalComponent implements OnInit, OnDestroy {
-  private readonly userService = inject(UserService);
   private readonly delegateService = inject(PersonDelegateService);
   private readonly destroy$ = new Subject<void>();
   private readonly search$ = new Subject<string>();
@@ -45,21 +42,12 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
   saved = output<PersonDelegateItem>();
 
   searchTerm = signal('');
-  users = signal<UserDto[]>([]);
+  users = signal<DelegationCandidate[]>([]);
   loadingUsers = signal(false);
-  selectedUser = signal<UserDto | null>(null);
+  selectedUser = signal<DelegationCandidate | null>(null);
   selectedType = signal<DelegateType>(DelegateType.PARENT);
   saving = signal(false);
   error = signal<string | null>(null);
-
-  private readonly roleLabels: Partial<Record<UserRole, string>> = {
-    [UserRole.ADMIN]: 'Administrador',
-    [UserRole.TECHNICAL]: 'Tècnica',
-  };
-
-  roleLabel(role: UserRole): string | null {
-    return this.roleLabels[role] ?? null;
-  }
 
   private readonly allDelegateTypes: { value: DelegateType; label: string }[] = [
     { value: DelegateType.PARENT, label: 'Pare/Mare' },
@@ -100,7 +88,7 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
     this.search$.next(term);
   }
 
-  selectUser(user: UserDto): void {
+  selectUser(user: DelegationCandidate): void {
     this.selectedUser.set(user);
   }
 
@@ -117,7 +105,7 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
 
     this.delegateService
       .createDelegate(this.personId(), {
-        userId: user.id,
+        userId: user.candidateUserId,
         delegateType: this.selectedType(),
         isPrimary: this.isPrimary(),
       })
@@ -137,17 +125,11 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
 
   private loadUsers(): void {
     this.loadingUsers.set(true);
-    this.userService
-      .getAll({
-        search: this.searchTerm() || undefined,
-        limit: 50,
-      })
+    this.delegateService
+      .getCandidates(this.personId(), this.searchTerm() || undefined)
       .subscribe({
-        next: (res) => {
-          const existing = this.existingDelegateUserIds();
-          this.users.set(
-            res.data.filter((u) => !existing.includes(u.id)),
-          );
+        next: (candidates) => {
+          this.users.set(candidates);
           this.loadingUsers.set(false);
         },
         error: () => this.loadingUsers.set(false),

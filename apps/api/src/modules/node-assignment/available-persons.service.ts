@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, In } from 'typeorm';
+import { FindOptionsSelect, Repository, MoreThan, In } from 'typeorm';
 import { Person } from '../person/person.entity';
 import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
@@ -29,7 +29,6 @@ export interface AvailablePersonDto {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
   notes: string | null;
@@ -50,6 +49,23 @@ export interface AvailablePersonsQuery {
   excludeAssigned?: boolean;
   positionId?: string;
 }
+
+const AVAILABLE_ASSIGNMENT_SELECT: FindOptionsSelect<NodeAssignment> = {
+  id: true,
+  person: { id: true },
+  figureInstance: {
+    id: true,
+    figureTemplate: { id: true, name: true },
+  },
+  instanceNode: {
+    id: true,
+    label: true,
+    zone: true,
+    positionType: true,
+    z: true,
+    renglaPosition: true,
+  },
+};
 
 @Injectable()
 export class AvailablePersonsService {
@@ -92,6 +108,21 @@ export class AvailablePersonsService {
     const qb = this.personRepository
       .createQueryBuilder('person')
       .leftJoinAndSelect('person.positions', 'positions')
+      .select([
+        'person.id',
+        'person.alias',
+        'person.name',
+        'person.shoulderHeight',
+        'person.isXicalla',
+        'person.notes',
+        'person.notesEmoji',
+        'positions.id',
+        'positions.name',
+        'positions.slug',
+        'positions.color',
+        'positions.positionTypes',
+        'positions.category',
+      ])
       .where('person.isActive = true');
 
     if (search) {
@@ -176,6 +207,7 @@ export class AvailablePersonsService {
       const currentAttendances = await this.attendanceRepository.find({
         where: { event: { id: eventId }, person: { id: In(personIds) } },
         relations: ['person'],
+        select: { id: true, status: true, person: { id: true } },
       });
       currentAttendances.forEach((a) => {
         currentAttendanceMap.set(a.person.id, a.status);
@@ -190,6 +222,7 @@ export class AvailablePersonsService {
       const segmentAssignments = await this.assignmentRepository.find({
         where: { figureInstance: { segment: { id: segmentId } } },
         relations: ['figureInstance', 'figureInstance.figureTemplate', 'instanceNode', 'person'],
+        select: AVAILABLE_ASSIGNMENT_SELECT,
       });
       segmentAssignments.forEach((assignment) => {
         const zone = assignment.instanceNode?.zone as FigureZone;
@@ -223,6 +256,7 @@ export class AvailablePersonsService {
       const nextAttendances = await this.attendanceRepository.find({
         where: { event: { id: nextPerformance.id } },
         relations: ['person'],
+        select: { id: true, status: true, person: { id: true } },
       });
       nextAttendances.forEach((a) => {
         nextAttendanceMap.set(a.person.id, a.status);
@@ -241,7 +275,6 @@ export class AvailablePersonsService {
         id: person.id,
         alias: person.alias,
         name: person.name,
-        firstSurname: person.firstSurname,
         shoulderHeight: person.shoulderHeight,
         isXicalla: person.isXicalla,
         notes: person.notes,

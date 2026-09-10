@@ -169,7 +169,7 @@ export function troncViewNodesFor(
  * Adapts the segment-distribution API's thin `DistributionAssignment[]` (figureNodeId +
  * personId + personAlias) into the richer `AssignmentDetail[]` `<app-tronc-view>` expects,
  * looking up each node's other fields from `nodes`. Fields `AssignmentDetail` requires but
- * `TroncViewComponent` never reads in `projection` mode (name/firstSurname/notes/ringLevel/...)
+ * `TroncViewComponent` never reads in `projection` mode (name/notes/ringLevel/...)
  * are filled with harmless placeholders.
  */
 export function troncViewAssignmentsFor(
@@ -201,7 +201,6 @@ export function troncViewAssignmentsFor(
         id: a.personId,
         alias: a.personAlias,
         name: a.personAlias,
-        firstSurname: '',
         shoulderHeight: null,
         notes: null,
         notesEmoji: null,

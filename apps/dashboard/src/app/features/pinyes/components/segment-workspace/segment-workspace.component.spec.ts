@@ -610,7 +610,7 @@ describe('SegmentWorkspaceComponent', () => {
           id: 'as-1',
           figureInstanceId: 'inst-a',
           node: { id: 'n1', label: 'n1', zone: 'PINYA', z: 0, positionType: null, sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, sourceNodeId: null },
-          person: { id: 'p-1', alias: 'Alias', name: 'Nom', firstSurname: 'Cognom', shoulderHeight: null, notes: null, notesEmoji: null },
+          person: { id: 'p-1', alias: 'Alias', name: 'Nom', shoulderHeight: null, notes: null, notesEmoji: null },
         },
       ]);
       assignmentService.resetSnapshot.mockReturnValue(of({ removedAssignments: 1, deletedAdHocCount: 0 }));

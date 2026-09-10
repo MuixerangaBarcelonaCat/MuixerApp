@@ -16,6 +16,10 @@ import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, DIRECTION_NODE_PRESETS, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
+import {
+  ProjectionAssignment,
+  projectionShoulderHeight,
+} from '../../models/projection.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
   calculateGhostPosition,
@@ -25,7 +29,10 @@ import {
 import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { BoundsNode, computeFitTransform } from '../../utils/fit-to-bounds.util';
 import { fitFontSize } from '../../utils/fit-font-size.util';
-import { formatAssignedLabel } from '../../utils/assigned-label.util';
+import {
+  formatAssignedLabel,
+  resolveAssignmentPersonLabel,
+} from '../../utils/assigned-label.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor } from '../../utils/figure-palette.util';
 import {
@@ -332,7 +339,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly compositionSlots = input<CompositionSlotWithNodes[]>([]);
   readonly selectedSlotId = input<string | null>(null);
   // Assignment mode inputs
-  readonly assignments = input<AssignmentDetail[]>([]);
+  readonly assignments = input<(AssignmentDetail | ProjectionAssignment)[]>([]);
   readonly heightMode = input<HeightMode>('relative');
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
@@ -1680,7 +1687,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   /** True when this node's assigned person holds >1 placement in the segment (Phase 3). */
-  private isConflictAssignment(assignment: AssignmentDetail | null | undefined): boolean {
+  private isConflictAssignment(
+    assignment: AssignmentDetail | ProjectionAssignment | null | undefined,
+  ): boolean {
     return !!assignment && this.conflictPersonIds().has(assignment.person.id);
   }
 
@@ -1777,11 +1786,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       group.add(shape);
 
       if (assignment) {
-        const alias = assignment.person.alias;
+        const alias = resolveAssignmentPersonLabel(assignment.person);
         const textFill = isDecoration
           ? (node.color ? this.getContrastColor(node.color) : '#000000')
           : this.getContrastColor(fill);
-        const shoulderH = assignment.person.shoulderHeight;
+        const shoulderH = projectionShoulderHeight(assignment.person);
         const hasValidHeight =
           shoulderH !== null && shoulderH !== 0;
         const nextStatus = nextPerformanceMap.get(assignment.person.id);
@@ -2192,11 +2201,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const personVisualStartIndex = group.getChildren().length;
 
     if (assignment) {
-      const alias = formatAssignedLabel(assignment.person.alias, node.climbIndicator);
+      const alias = formatAssignedLabel(
+        resolveAssignmentPersonLabel(assignment.person),
+        node.climbIndicator,
+      );
       const textFill = isDecoration
         ? (node.color ? this.getContrastColor(node.color) : '#000000')
         : this.getContrastColor(fill);
-      const shoulderH = assignment.person.shoulderHeight;
+      const shoulderH = projectionShoulderHeight(assignment.person);
       const hasValidHeight = shoulderH !== null && shoulderH !== 0;
       const nextStatus = nextPerformanceMap.get(assignment.person.id);
 
@@ -2393,7 +2405,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     } else if (isPersonDraggable) {
       const personVisualNodes = group.getChildren().slice(personVisualStartIndex);
       const homePos = { x: node.x, y: node.y };
-      const alias = formatAssignedLabel(assignment!.person.alias, node.climbIndicator);
+      const alias = formatAssignedLabel(
+        resolveAssignmentPersonLabel(assignment!.person),
+        node.climbIndicator,
+      );
 
       group.draggable(true);
       // Pin the node in place — only the floating ghost label moves.
@@ -2508,7 +2523,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         ? (node.color ? this.getContrastColor(node.color) : '#000000')
         : this.getContrastColor(fill);
       const displayText = formatAssignedLabel(
-        assignment ? assignment.person.alias : node.label,
+        assignment ? resolveAssignmentPersonLabel(assignment.person) : node.label,
         node.climbIndicator,
       );
       // Proportional to the node's own height, like readonlyStrokeWidth/badgeRadius above — a

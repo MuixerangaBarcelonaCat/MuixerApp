@@ -5,9 +5,32 @@ import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { Attendance } from '../event/attendance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
-import { AttendanceStatus, FigureMode, SegmentConflict } from '@muixer/shared';
+import {
+  AttendanceStatus,
+  FigureMode,
+  MemberProjectionPerson,
+  SegmentConflict,
+  StaffProjectionPerson,
+} from '@muixer/shared';
 
-interface ProjectionInstanceData {
+export type ProjectionAudience = 'staff' | 'member';
+
+export interface ProjectionOptions {
+  audience: ProjectionAudience;
+  onlyPublished?: boolean;
+}
+
+type ProjectionAssignmentBase = Omit<AssignmentDetail, 'person'>;
+
+export type StaffProjectionAssignment = ProjectionAssignmentBase & {
+  person: StaffProjectionPerson;
+};
+
+export type MemberProjectionAssignment = ProjectionAssignmentBase & {
+  person: MemberProjectionPerson;
+};
+
+interface ProjectionInstanceData<TAssignment> {
   id: string;
   label: string | null;
   sortOrder: number;
@@ -23,10 +46,10 @@ interface ProjectionInstanceData {
   figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeResponse[];
-  assignments: AssignmentDetail[];
+  assignments: TAssignment[];
 }
 
-export interface ProjectionData {
+interface ProjectionDataBase<TAssignment> {
   segment: {
     id: string;
     name: string | null;
@@ -34,7 +57,7 @@ export interface ProjectionData {
     prevSegmentId: string | null;
     nextSegmentId: string | null;
   };
-  instances: ProjectionInstanceData[];
+  instances: ProjectionInstanceData<TAssignment>[];
   /** true if at least one instance has a custom distribution position set */
   hasDistribution: boolean;
   /** personId → AttendanceStatus for all attendances in this event */
@@ -42,6 +65,10 @@ export interface ProjectionData {
   /** Canonical conflicts (D13) for the projected segment — last line of defense during assaig. */
   conflicts: SegmentConflict[];
 }
+
+export type StaffProjectionData = ProjectionDataBase<StaffProjectionAssignment>;
+export type MemberProjectionData = ProjectionDataBase<MemberProjectionAssignment>;
+type ProjectionData = StaffProjectionData | MemberProjectionData;
 
 @Injectable()
 export class ProjectionService {
@@ -58,9 +85,19 @@ export class ProjectionService {
   async getProjection(
     eventId: string,
     segmentId: string,
-    options: { onlyPublished?: boolean } = {},
+    options: ProjectionOptions & { audience: 'staff' },
+  ): Promise<StaffProjectionData>;
+  async getProjection(
+    eventId: string,
+    segmentId: string,
+    options: ProjectionOptions & { audience: 'member' },
+  ): Promise<MemberProjectionData>;
+  async getProjection(
+    eventId: string,
+    segmentId: string,
+    options: ProjectionOptions,
   ): Promise<ProjectionData> {
-    const { onlyPublished = false } = options;
+    const { audience, onlyPublished = false } = options;
 
     const segment = await this.segmentRepository.findOne({
       where: onlyPublished
@@ -89,7 +126,9 @@ export class ProjectionService {
       order: { sortOrder: 'ASC' },
     });
 
-    const projectionInstances: ProjectionInstanceData[] = [];
+    const projectionInstances: ProjectionInstanceData<
+      StaffProjectionAssignment | MemberProjectionAssignment
+    >[] = [];
     for (const instance of instances) {
       let nodes: InstanceNodeResponse[] = [];
       let assignments: AssignmentDetail[] = [];
@@ -128,7 +167,11 @@ export class ProjectionService {
             }
           : null,
         nodes,
-        assignments,
+        assignments: assignments.map((assignment) =>
+          audience === 'staff'
+            ? this.toStaffProjectionAssignment(assignment)
+            : this.toMemberProjectionAssignment(assignment),
+        ),
       });
     }
 
@@ -158,6 +201,35 @@ export class ProjectionService {
       hasDistribution,
       personAttendance,
       conflicts,
+    };
+  }
+
+  private toStaffProjectionAssignment(
+    assignment: AssignmentDetail,
+  ): StaffProjectionAssignment {
+    return {
+      ...assignment,
+      person: {
+        id: assignment.person.id,
+        alias: assignment.person.alias,
+        name: assignment.person.name,
+        shoulderHeight: assignment.person.shoulderHeight,
+        notes: assignment.person.notes,
+        notesEmoji: assignment.person.notesEmoji,
+      },
+    };
+  }
+
+  private toMemberProjectionAssignment(
+    assignment: AssignmentDetail,
+  ): MemberProjectionAssignment {
+    return {
+      ...assignment,
+      person: {
+        id: assignment.person.id,
+        alias: assignment.person.alias,
+        name: assignment.person.name,
+      },
     };
   }
 }

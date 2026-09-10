@@ -53,6 +53,7 @@ const makeSegment = (id = SEGMENT_ID) => ({
 
 // Mock query builder used by personRepository.createQueryBuilder
 const mockPersonQb = {
+  select: jest.fn().mockReturnThis(),
   where: jest.fn().mockReturnThis(),
   andWhere: jest.fn().mockReturnThis(),
   leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -111,6 +112,7 @@ describe('AvailablePersonsService', () => {
     // Reset query builder chains
     mockPersonRepo.createQueryBuilder.mockReturnValue(mockPersonQb);
     mockPersonQb.where.mockReturnThis();
+    mockPersonQb.select.mockReturnThis();
     mockPersonQb.andWhere.mockReturnThis();
     mockPersonQb.leftJoinAndSelect.mockReturnThis();
     mockPersonQb.orderBy.mockReturnThis();
@@ -143,6 +145,45 @@ describe('AvailablePersonsService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].attendanceStatus).toBe(AttendanceStatus.ANIRE);
+      expect(Object.keys(result[0]).sort()).toEqual([
+        'alias',
+        'assignedInPinya',
+        'assignedInTronc',
+        'assignedPlacements',
+        'attendanceStatus',
+        'conflictInSegment',
+        'id',
+        'isXicalla',
+        'name',
+        'nextPerformanceStatus',
+        'notes',
+        'notesEmoji',
+        'positions',
+        'shoulderHeight',
+      ]);
+    });
+
+    it('selects only fields used by the available-person mapper', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
+
+      expect(mockPersonQb.select).toHaveBeenCalledWith([
+        'person.id',
+        'person.alias',
+        'person.name',
+        'person.shoulderHeight',
+        'person.isXicalla',
+        'person.notes',
+        'person.notesEmoji',
+        'positions.id',
+        'positions.name',
+        'positions.slug',
+        'positions.color',
+        'positions.positionTypes',
+        'positions.category',
+      ]);
     });
 
     it('filters by search — uses unaccent+word_similarity for accent-insensitive, prefix and typo-tolerant matching', async () => {
@@ -268,6 +309,14 @@ describe('AvailablePersonsService', () => {
         nodeLabel: 'Node A',
         renglaPosition: 2,
       });
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            id: true,
+            person: { id: true },
+          }),
+        }),
+      );
     });
 
     it('does not collapse multiple placements to an arbitrary last one (§2): keeps them deterministically', async () => {

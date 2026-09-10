@@ -1,6 +1,6 @@
 <lib-modal [open]="true" [title]="attendance().person.alias" (closed)="onClose()">
 
-  <p class="text-sm text-base-content/60 -mt-2 mb-1">{{ attendance().person.name }} {{ attendance().person.firstSurname }}</p>
+  <p class="text-sm text-base-content/60 -mt-2 mb-1">{{ attendance().person.name }}</p>
   <div class="flex gap-1 mb-4 flex-wrap">
     @for (pos of attendance().person.positions; track pos.id) {
       <lib-badge size="xs" [color]="pos.color ?? '#888'">{{ pos.name }}</lib-badge>

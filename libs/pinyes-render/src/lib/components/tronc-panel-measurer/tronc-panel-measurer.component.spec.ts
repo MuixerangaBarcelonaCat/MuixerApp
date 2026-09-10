@@ -64,7 +64,7 @@ const makeAssignment = (nodeId: string, alias: string): AssignmentDetail => ({
   id: `asgn-${nodeId}`,
   figureInstanceId: 'inst-1',
   node: { id: nodeId, label: '', zone: 'DIRECTION', z: 0, positionType: 'direccio-tronc', sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, sourceNodeId: null },
-  person: { id: `p-${nodeId}`, alias, name: alias, firstSurname: '', shoulderHeight: null, notes: null, notesEmoji: null },
+  person: { id: `p-${nodeId}`, alias, name: alias, shoulderHeight: null, notes: null, notesEmoji: null },
 });
 
 const makePanel = (instanceId: string, overrides: Partial<TroncPanelMeasureSpec> = {}): TroncPanelMeasureSpec => ({

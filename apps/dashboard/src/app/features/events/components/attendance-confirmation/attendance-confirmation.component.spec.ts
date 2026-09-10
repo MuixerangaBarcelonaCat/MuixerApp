@@ -13,7 +13,6 @@ const makePerson = (alias = 'Pepet'): AttendanceItem['person'] => ({
   id: 'person-1',
   alias,
   name: 'Pere',
-  firstSurname: 'Garcia',
   isXicalla: false,
   notes: null,
   notesEmoji: null,

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, FindOptionsSelect, Repository } from 'typeorm';
 import { AttendanceStatus, AttendanceSummary, AuditAction, TagCategory } from '@muixer/shared';
 import { isPastLockWindow } from '../../common/utils/lock.util';
 import { AuditService } from '../audit/audit.service';
@@ -10,6 +10,30 @@ import { Person } from '../person/person.entity';
 import { AttendanceFilterDto } from './dto/attendance-filter.dto';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
+
+const ATTENDANCE_OPERATIONAL_SELECT: FindOptionsSelect<Attendance> = {
+  id: true,
+  status: true,
+  respondedAt: true,
+  notes: true,
+  person: {
+    id: true,
+    alias: true,
+    name: true,
+    isXicalla: true,
+    notes: true,
+    notesEmoji: true,
+    positions: {
+      id: true,
+      name: true,
+      color: true,
+      category: true,
+    },
+  },
+};
+
+const ATTENDANCE_PERSON_SELECT: FindOptionsSelect<Person> =
+  ATTENDANCE_OPERATIONAL_SELECT.person as FindOptionsSelect<Person>;
 
 @Injectable()
 export class AttendanceService {
@@ -40,6 +64,22 @@ export class AttendanceService {
       .createQueryBuilder('attendance')
       .leftJoinAndSelect('attendance.person', 'person')
       .leftJoinAndSelect('person.positions', 'position')
+      .select([
+        'attendance.id',
+        'attendance.status',
+        'attendance.respondedAt',
+        'attendance.notes',
+        'person.id',
+        'person.alias',
+        'person.name',
+        'person.isXicalla',
+        'person.notes',
+        'person.notesEmoji',
+        'position.id',
+        'position.name',
+        'position.color',
+        'position.category',
+      ])
       .where('attendance.event = :eventId', { eventId });
 
     if (status) {
@@ -48,7 +88,7 @@ export class AttendanceService {
 
     if (search) {
       qb.andWhere(
-        '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search) OR unaccent(person.firstSurname) ILIKE unaccent(:search))',
+        '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search))',
         { search: `%${search}%` },
       );
     }
@@ -94,6 +134,7 @@ export class AttendanceService {
     const person = await this.personRepository.findOne({
       where: { id: dto.personId },
       relations: ['positions'],
+      select: ATTENDANCE_PERSON_SELECT,
     });
     if (!person) {
       throw new NotFoundException(`Person with ID ${dto.personId} not found`);
@@ -118,6 +159,7 @@ export class AttendanceService {
     const savedWithRelations = await this.attendanceRepository.findOne({
       where: { id: saved.id },
       relations: ['person', 'person.positions'],
+      select: ATTENDANCE_OPERATIONAL_SELECT,
     });
 
     await this.recalculateSummary(eventId);
@@ -141,6 +183,7 @@ export class AttendanceService {
     const attendance = await this.attendanceRepository.findOne({
       where: { id: attendanceId, event: { id: eventId } },
       relations: ['person', 'person.positions'],
+      select: ATTENDANCE_OPERATIONAL_SELECT,
     });
     if (!attendance) {
       throw new NotFoundException(`Attendance with ID ${attendanceId} not found`);
@@ -175,6 +218,7 @@ export class AttendanceService {
     const savedWithRelations = await this.attendanceRepository.findOne({
       where: { id: saved.id },
       relations: ['person', 'person.positions'],
+      select: ATTENDANCE_OPERATIONAL_SELECT,
     });
 
     await this.recalculateSummary(eventId);
@@ -225,6 +269,11 @@ export class AttendanceService {
       const attendances = await manager.find(Attendance, {
         where: { event: { id: eventId } },
         relations: ['person'],
+        select: {
+          id: true,
+          status: true,
+          person: { id: true, isXicalla: true },
+        },
       });
 
       const summary = {
@@ -262,7 +311,6 @@ interface AttendancePersonRef {
   id: string;
   alias: string;
   name: string;
-  firstSurname: string;
   isXicalla: boolean;
   notes: string | null;
   notesEmoji: string | null;
@@ -287,7 +335,6 @@ function toAttendanceItem(a: Attendance): AttendanceItem {
       id: a.person.id,
       alias: a.person.alias,
       name: a.person.name,
-      firstSurname: a.person.firstSurname,
       isXicalla: a.person.isXicalla,
       notes: a.person.notes,
       notesEmoji: a.person.notesEmoji,

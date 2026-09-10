@@ -9,11 +9,14 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { UserRole, JwtPayload } from '@muixer/shared';
+import { AuditAction, UserRole, JwtPayload } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuditService } from '../audit/audit.service';
 import { UserService } from './user.service';
 import { CreateInviteLinkDto } from './dto/create-invite-link.dto';
 import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
@@ -29,9 +32,12 @@ import { GrantUserRoleDto } from './dto/grant-user-role.dto';
 
 @ApiTags('users')
 @Controller('users')
-@Roles(UserRole.ADMIN, UserRole.TECHNICAL)
+@Roles(UserRole.ADMIN)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Crea un usuari TECHNICAL/ADMIN amb contrasenya' })
@@ -46,6 +52,7 @@ export class UserController {
   }
 
   @Post('invite-link')
+  @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
   @ApiOperation({
     summary: "Crea (o regenera) un enllaç d'invitació per activar el compte d'una persona",
   })
@@ -101,10 +108,25 @@ export class UserController {
   @Get()
   @ApiOperation({ summary: 'Llistar usuaris' })
   @ApiResponse({ status: 200, description: "Llista d'usuaris" })
-  findAll(
+  async findAll(
     @Query() filters: UserFilterDto,
+    @CurrentUser() actor: JwtPayload,
+    @Req() req?: Request,
   ): Promise<{ data: UserResponseDto[]; total: number }> {
-    return this.userService.findAll(filters);
+    const result = await this.userService.findAll(filters);
+    await this.auditService.record({
+      actorUserId: actor.sub,
+      action: AuditAction.SENSITIVE_DATA_ACCESS,
+      targetType: 'User',
+      metadata: {
+        role: actor.role,
+        route: '/users',
+        page: filters.page || 1,
+        resultCount: result.data.length,
+      },
+      ipAddress: req?.ip ?? null,
+    });
+    return result;
   }
 
   @Patch(':id/grant-role')

@@ -5,9 +5,15 @@ import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
-import { TagCategory } from '@muixer/shared';
+import { TagCategory, UserRole } from '@muixer/shared';
+import { toOperationalPersonDetail } from './dto/person-response.dto';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -15,6 +21,8 @@ describe('PersonService', () => {
   let positionRepository: Repository<Tag>;
 
   const mockQueryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
     leftJoinAndSelect: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     setParameter: jest.fn().mockReturnThis(),
@@ -88,19 +96,47 @@ describe('PersonService', () => {
       const mockPerson = { id: '123', name: 'Test', alias: 'test', user: null };
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
-      const result = await service.findOne('123');
+      const result = await service.findOne('123', UserRole.ADMIN);
 
       expect(result).toMatchObject(mockPerson);
-      expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
-        where: { id: '123' },
-        relations: ['positions', 'mentor', 'user'],
-      });
+      expect(mockPersonRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '123' },
+          relations: { positions: true, user: true },
+        }),
+      );
     });
 
     it('should throw NotFoundException when person not found', async () => {
       mockPersonRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('999')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('999', UserRole.ADMIN)).rejects.toThrow(NotFoundException);
+    });
+
+    it('selects only operational detail fields for technical staff', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({
+        id: '123',
+        name: 'Test',
+        alias: 'test',
+        positions: [],
+        user: null,
+      });
+
+      await service.findOne('123', UserRole.TECHNICAL);
+
+      const options = mockPersonRepository.findOne.mock.calls[0][0];
+      expect(options.select).toMatchObject({
+        id: true,
+        name: true,
+        alias: true,
+        shoulderHeight: true,
+        notes: true,
+        notesEmoji: true,
+      });
+      expect(options.select).not.toHaveProperty('firstSurname');
+      expect(options.select).not.toHaveProperty('phone');
+      expect(options.select).not.toHaveProperty('birthDate');
+      expect(options.select).not.toHaveProperty('gender');
     });
 
     it('should include gender in the response', async () => {
@@ -113,7 +149,7 @@ describe('PersonService', () => {
       };
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
-      const result = await service.findOne('123');
+      const result = await service.findOne('123', UserRole.ADMIN);
 
       expect(result.gender).toBe('MALE');
     });
@@ -127,7 +163,7 @@ describe('PersonService', () => {
       };
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
-      const result = await service.findOne('123');
+      const result = await service.findOne('123', UserRole.ADMIN);
 
       expect(result.user?.isActive).toBe(true);
     });
@@ -138,9 +174,12 @@ describe('PersonService', () => {
         positions: [{ category: TagCategory.PINYA }, { category: TagCategory.TRONC }],
       } as unknown as Person);
 
-      const result = await service.findOne('p1');
+      const result = await service.findOne('p1', UserRole.ADMIN);
 
-      expect(result.tagCompliance).toEqual({ ok: true, missing: [] });
+      expect(toOperationalPersonDetail(result).tagCompliance).toEqual({
+        ok: true,
+        missing: [],
+      });
     });
 
     it('marca la regla com a incomplida i diu què falta quan només té pinya', async () => {
@@ -149,9 +188,9 @@ describe('PersonService', () => {
         positions: [{ category: TagCategory.PINYA }],
       } as unknown as Person);
 
-      const result = await service.findOne('p1');
+      const result = await service.findOne('p1', UserRole.ADMIN);
 
-      expect(result.tagCompliance).toEqual({
+      expect(toOperationalPersonDetail(result).tagCompliance).toEqual({
         ok: false,
         missing: [TagCategory.TRONC],
       });
@@ -260,7 +299,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(2);
       mockQueryBuilder.getMany.mockResolvedValue(mockPersons);
 
-      const result = await service.findAll({ page: 1, limit: 10 });
+      const result = await service.findAll({ page: 1, limit: 10 }, UserRole.ADMIN);
 
       expect(result.total).toBe(2);
       expect(result.data).toMatchObject(mockPersons);
@@ -274,7 +313,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ page: 1, limit: 10, sortBy: 'name', sortOrder: 'DESC' });
+      await service.findAll({ page: 1, limit: 10, sortBy: 'name', sortOrder: 'DESC' }, UserRole.ADMIN);
 
       expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('person.name', 'DESC');
     });
@@ -283,7 +322,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ page: 1, limit: 10, sortBy: 'shoulderHeight', sortOrder: 'ASC' });
+      await service.findAll({ page: 1, limit: 10, sortBy: 'shoulderHeight', sortOrder: 'ASC' }, UserRole.ADMIN);
 
       expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
         'person.shoulderHeight',
@@ -291,11 +330,59 @@ describe('PersonService', () => {
       );
     });
 
+    it('rejects technical sorting by every field except alias and name', async () => {
+      await expect(
+        service.findAll(
+          { sortBy: 'shoulderHeight', sortOrder: 'ASC' },
+          UserRole.TECHNICAL,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mockQueryBuilder.getMany).not.toHaveBeenCalled();
+    });
+
+    it('limits technical search to alias and name', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll(
+        { search: 'Garcia' },
+        UserRole.TECHNICAL,
+      );
+
+      const searchClause = mockQueryBuilder.andWhere.mock.calls
+        .map(([clause]) => clause)
+        .find((clause) => typeof clause === 'string' && clause.includes('unaccent'));
+      expect(searchClause).toContain('person.alias');
+      expect(searchClause).toContain('person.name');
+      expect(searchClause).not.toContain('firstSurname');
+      expect(searchClause).not.toContain('secondSurname');
+    });
+
+    it('selects only technical directory columns and position fields', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({}, UserRole.TECHNICAL);
+
+      const selected = mockQueryBuilder.select.mock.calls[0][0] as string[];
+      expect(selected).toEqual([
+        'person.id',
+        'person.name',
+        'person.alias',
+        'position.id',
+        'position.name',
+        'position.slug',
+        'position.color',
+        'position.category',
+        'position.positionTypes',
+      ]);
+    });
+
     it('should apply isActive filter', async () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ page: 1, limit: 10, isActive: true });
+      await service.findAll({ page: 1, limit: 10, isActive: true }, UserRole.ADMIN);
 
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'person.isActive = :isActive',
@@ -312,7 +399,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ positionIds: ['pos1'] } as any);
+      await service.findAll({ positionIds: ['pos1'] } as any, UserRole.ADMIN);
 
       expect(functionAndWhereCalls().length).toBe(1);
       expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith('positionIds', ['pos1']);
@@ -327,7 +414,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ tagRuleOk: false } as any);
+      await service.findAll({ tagRuleOk: false } as any, UserRole.ADMIN);
 
       const clause = tagRuleWhereClause();
       expect(clause).toBeDefined();
@@ -341,7 +428,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ tagRuleOk: true } as any);
+      await service.findAll({ tagRuleOk: true } as any, UserRole.ADMIN);
 
       expect(tagRuleWhereClause()).not.toMatch(/^NOT /);
     });
@@ -350,7 +437,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ page: 1, limit: 10 });
+      await service.findAll({ page: 1, limit: 10 }, UserRole.ADMIN);
 
       expect(tagRuleWhereClause()).toBeUndefined();
     });
@@ -363,20 +450,24 @@ describe('PersonService', () => {
       ]);
       mockPersonRepository.query.mockResolvedValue([{ personId: 'b', count: 7 }]);
 
-      const result = await service.findAll({ page: 1, limit: 10 });
+      const result = await service.findAll({ page: 1, limit: 10 }, UserRole.ADMIN);
 
       expect(mockPersonRepository.query).toHaveBeenCalledWith(
         expect.stringContaining("a.status = 'ASSISTIT'"),
         [['a', 'b']],
       );
-      expect(result.data.map((person) => person.attendedCount)).toEqual([0, 7]);
+      expect(
+        result.data.map(
+          (person) => (person as Person & { attendedCount: number }).attendedCount,
+        ),
+      ).toEqual([0, 7]);
     });
 
     it('skips the attendance query entirely when the page is empty', async () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ page: 1, limit: 10 });
+      await service.findAll({ page: 1, limit: 10 }, UserRole.ADMIN);
 
       expect(mockPersonRepository.query).not.toHaveBeenCalled();
     });
@@ -385,7 +476,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ page: 1, limit: 10, sortBy: 'attendedCount', sortOrder: 'DESC' });
+      await service.findAll({ page: 1, limit: 10, sortBy: 'attendedCount', sortOrder: 'DESC' }, UserRole.ADMIN);
 
       expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith(
         expect.stringContaining("a.status = 'ASSISTIT'"),
@@ -398,7 +489,7 @@ describe('PersonService', () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
-      await service.findAll({ page: 1, limit: 10, sortBy: 'alias' });
+      await service.findAll({ page: 1, limit: 10, sortBy: 'alias' }, UserRole.ADMIN);
 
       expect(mockQueryBuilder.addSelect).not.toHaveBeenCalled();
     });
@@ -460,7 +551,7 @@ describe('PersonService', () => {
       expect(result.isActive).toBe(true);
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '123' },
-        relations: ['positions', 'mentor'],
+        relations: ['positions', 'mentor', 'user'],
       });
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({

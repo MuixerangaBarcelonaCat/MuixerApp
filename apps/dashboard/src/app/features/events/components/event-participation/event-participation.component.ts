@@ -319,7 +319,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         key: 'fullName',
         label: 'Nom',
         defaultVisible: false,
-        value: (r) => `${r.name} ${r.firstSurname}`.trim(),
+        value: (r) => r.name,
       },
       {
         key: 'status',
@@ -784,7 +784,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
    */
   private matchRank(row: ParticipationRow, term: string): number | null {
     const alias = this.normalizeForMatch(row.alias);
-    const name = this.normalizeForMatch(`${row.name} ${row.firstSurname}`);
+    const name = this.normalizeForMatch(row.name);
     if (alias.startsWith(term)) return 0;
     if (name.startsWith(term)) return 1;
     if (alias.includes(term)) return 2;

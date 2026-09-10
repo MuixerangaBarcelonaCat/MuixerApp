@@ -69,7 +69,6 @@ const makeAssignment = (id: string, instanceId: string, nodeId: string): Assignm
     id: `p-${id}`,
     alias: `Alias ${id}`,
     name: 'Nom',
-    firstSurname: 'Cognom',
     shoulderHeight: null,
     notes: null,
     notesEmoji: null,

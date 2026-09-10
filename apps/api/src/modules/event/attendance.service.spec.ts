@@ -49,6 +49,7 @@ describe('AttendanceService', () => {
   ) => {
     const attQb = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       setParameter: jest.fn().mockReturnThis(),
@@ -132,6 +133,59 @@ describe('AttendanceService', () => {
       expect(result.total).toBe(1);
     });
 
+    it('returns only the operational attendance person keys', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ASSISTIT)]);
+      service = await buildModule(repos);
+
+      const result = await service.findByEvent('ev-1', {});
+
+      expect(Object.keys(result.data[0].person).sort()).toEqual([
+        'alias',
+        'id',
+        'isXicalla',
+        'name',
+        'notes',
+        'notesEmoji',
+        'positions',
+      ]);
+    });
+
+    it('selects only attendance mapper fields and operational person relations', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ASSISTIT)]);
+      service = await buildModule(repos);
+
+      await service.findByEvent('ev-1', {});
+
+      expect(repos.attendanceRepo.attQb.select).toHaveBeenCalledWith([
+        'attendance.id',
+        'attendance.status',
+        'attendance.respondedAt',
+        'attendance.notes',
+        'person.id',
+        'person.alias',
+        'person.name',
+        'person.isXicalla',
+        'person.notes',
+        'person.notesEmoji',
+        'position.id',
+        'position.name',
+        'position.color',
+        'position.category',
+      ]);
+    });
+
+    it('searches attendance by alias and name without surname', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ASSISTIT)]);
+      service = await buildModule(repos);
+
+      await service.findByEvent('ev-1', { search: 'abreu' });
+
+      const searchClause = repos.attendanceRepo.attQb.andWhere.mock.calls[0][0] as string;
+      expect(searchClause).toContain('person.alias');
+      expect(searchClause).toContain('person.name');
+      expect(searchClause).not.toContain('firstSurname');
+    });
+
     it('filters by status', async () => {
       const repos = makeRepos([makeAttendance(AttendanceStatus.ASSISTIT)]);
       service = await buildModule(repos);
@@ -171,6 +225,34 @@ describe('AttendanceService', () => {
       expect(result).toHaveProperty('summary');
       expect(repos.attendanceRepo.save).toHaveBeenCalled();
       expect(repos.dataSource.manager.update).toHaveBeenCalled();
+    });
+
+    it('selects only operational person fields when loading a person for attendance', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(att);
+      service = await buildModule(repos);
+
+      await service.create('ev-1', {
+        personId: 'p1',
+        status: AttendanceStatus.ANIRE,
+      });
+
+      expect(repos.personRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            id: true,
+            alias: true,
+            name: true,
+            isXicalla: true,
+            notes: true,
+            notesEmoji: true,
+          }),
+        }),
+      );
+      expect(repos.personRepo.findOne.mock.calls[0][0].select).not.toHaveProperty(
+        'phone',
+      );
     });
 
     it('throws NotFoundException when event does not exist', async () => {

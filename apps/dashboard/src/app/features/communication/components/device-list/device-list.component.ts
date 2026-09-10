@@ -49,8 +49,8 @@ export class DeviceListComponent implements OnInit {
     let list = this.summary();
     if (q) {
       list = list.filter((d) => {
-        const name = `${d.person.firstName} ${d.person.lastName}`.toLowerCase();
-        return name.includes(q);
+        const identity = `${d.person.id} ${d.person.alias} ${d.person.name}`.toLowerCase();
+        return identity.includes(q);
       });
     }
     if (this.sortBy() === 'devices') {

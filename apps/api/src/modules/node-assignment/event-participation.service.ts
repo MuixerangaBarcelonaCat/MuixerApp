@@ -42,7 +42,6 @@ interface MatrixRow {
   personId: string;
   alias: string;
   name: string;
-  firstSurname: string;
   shoulderHeight: number | string | null;
   isXicalla: boolean;
   isActive: boolean;
@@ -232,7 +231,6 @@ export class EventParticipationService {
        SELECT p.id                 AS "personId",
               p.alias              AS "alias",
               p.name               AS "name",
-              p."firstSurname"     AS "firstSurname",
               p."shoulderHeight"   AS "shoulderHeight",
               p."isXicalla"        AS "isXicalla",
               p."isActive"         AS "isActive",
@@ -311,7 +309,6 @@ export class EventParticipationService {
           id: row.personId,
           alias: row.alias,
           name: row.name,
-          firstSurname: row.firstSurname,
           shoulderHeight: row.shoulderHeight === null ? null : Number(row.shoulderHeight),
           isXicalla: row.isXicalla,
           isActive: row.isActive,
