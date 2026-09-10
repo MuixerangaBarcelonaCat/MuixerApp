@@ -1,366 +1,538 @@
-# GDPR — Visibilitat de dades personals per rol
+# Person data minimization by audience
 
-> **Data:** 10 de setembre de 2026
-> **Estat:** Disseny aprovat
-> **Prerequisits:** P4.1 (auth layer amb JWT + rols)
+> **Date:** 10 September 2026
+> **Status:** Reviewed design, pending implementation
+> **Baseline:** `develop` at `e4c1127b`
+> **Scope:** Staff access control and response minimization for person/account data
 
----
+## 1. Goal and limits
 
-## 1. Objectiu
+Reduce person and account data exposed to each audience:
 
-Restringir l'accés a les dades personals de les persones del cens: només els usuaris amb rol `ADMIN` les poden veure. Els usuaris `TECHNICAL` treballen amb la informació operativa de la colla (àlies, nom, posicions, disponibilitat, alçada) sense accés a cognoms, telèfon, data de naixement ni observacions.
+- `ADMIN` can read and edit protected registration/contact data.
+- `TECHNICAL` can read and edit only the operational data needed for attendance, staffing
+  figures and member administration.
+- The Dashboard census list shows a `TECHNICAL` only the person's name and alias.
+- A `MEMBER` keeps access to their own account data and a primary guardian keeps the existing
+  access to a dependent's registration data.
+- Shared member-facing views, especially projection, must not carry another person's protected
+  or technical-only data in the network response.
 
-**Principi rector:** minimització de dades (GDPR art. 5.1.c). Si una pantalla no necessita un camp personal per funcionar, el camp no s'envia — ni tan sols amagat al frontend.
+This is a data-minimization and authorization change. It does not by itself make the product
+fully GDPR/LOPDGDD compliant; the wider compliance work and remaining obligations stay in
+`docs/GDPR_COMPLIANCE.md` and `docs/DEBT.md`.
 
-**Capacitats:**
+The API is the security boundary. Hiding a field or disabling a control in Angular is not an
+authorization mechanism.
 
-1. **Serialització per rol** — l'API no envia mai camps personals a un `TECHNICAL`.
-2. **Tancament de canals d'inferència** — ordenació i cerca no permeten deduir camps amagats.
-3. **Minimització transversal** — els mòduls d'assistència, assignacions i projecció deixen d'enviar cognoms a tothom.
-4. **UI coherent** — llistat i detall amaguen els camps protegits i no permeten editar-los.
+## 2. Verified current-state findings
 
----
+The previous version of this specification was based on stale `main` and is discarded. The
+current `develop` branch differs materially:
 
-## 2. Classificació de camps
+1. `Person` has `gender`, `notesEmoji`, `joinDate` and an inverse `user` relation. It has no
+   email column; account email lives on `User`.
+2. `PersonResponseDto` exposes every registration field and nested `user.email` to both
+   `TECHNICAL` and `ADMIN`.
+3. `AuthService.isAdmin` already exists in the Dashboard.
+4. The PWA is implemented. Its member projection currently receives every assigned person's
+   surname, shoulder height, technical notes and notes emoji.
+5. Attendance, node assignments, event participation and push-device summaries expose surnames
+   through response shapes unrelated to `PersonResponseDto`.
+6. Staff and member delegation responses expose delegate email addresses.
+7. The Dashboard delegate picker depends on `GET /users`, searches by email/name and displays
+   email addresses.
+8. `GET /users` and most account mutations currently allow `TECHNICAL`.
+9. `GET /persons` searches surnames and permits sorting by surname, phone and birth date.
+   Attendance search also includes surname. Available-person search already uses only alias/name.
+10. Technical observations (`notes` and `notesEmoji`) are used by attendance, pinya/tronc hover
+    cards and event participation. They are operational data, not ADMIN-only notes.
+11. The only current Dashboard entry point to `/config/users` is the card in `ConfigComponent`;
+    the stale Home-page entry no longer exists.
+12. `GET /persons/:id` writes an audit entry before confirming that the person exists and does so
+    for both roles, while bulk protected reads are not represented.
 
-| Camp | Visibilitat | Notes |
-|------|-------------|-------|
-| `alias` | Tots | Identificador operatiu, únic a BD |
-| `name` | Tots | Nom de fonts, necessari per desambiguar |
-| `firstSurname` | **Només ADMIN** | |
-| `secondSurname` | **Només ADMIN** | |
-| `phone` | **Només ADMIN** | |
-| `birthDate` | **Només ADMIN** | |
-| `notes` | **Només ADMIN** | Observacions sobre la persona |
-| `managedBy.email` | **Només ADMIN** | Correu de l'usuari vinculat |
-| `shoulderHeight` | Tots | Dada operativa imprescindible per a pinyes |
-| `positions`, `availability`, `onboardingStatus` | Tots | |
-| `isActive`, `isMember`, `isXicalla`, `isProvisional`, `shirtDate` | Tots | |
-| `createdAt`, `updatedAt` | Tots | |
-| `gender` | Ningú | Ja no s'exposa avui; es manté així |
+## 3. Audience and field policy
 
----
+All of these values are personal data in the legal sense. The distinction below is purpose and
+audience, not whether a value is personal.
 
-## 3. Decisions de disseny
+### 3.1 Protected registration and account data
 
-| Decisió | Resultat |
-|---------|----------|
-| Mecanisme de serialització | **`@Expose({ groups })` de class-transformer** — els camps protegits es marquen amb el grup `personal`; els no marcats sempre s'exposen. Font de veritat única. |
-| Alternativa descartada (DTO doble) | Un `PersonPublicResponseDto` duplicaria ~20 declaracions de camp i derivaria a la primera columna nova. |
-| Alternativa descartada (interceptor global) | Esborrar claus per nom a totes les respostes és insegur: `name` i `notes` col·lisionen amb `Event.name`, `Attendance.notes` i `FigureTemplate.name`. |
-| Absència vs `null` | Els camps protegits **s'ometen** de la resposta (no s'envien com a `null`), perquè el frontend no pugui confondre "amagat" amb "buit". |
-| Camps personals en altres mòduls | **Minimització per a tothom** en lloc de propagar el rol per quatre serveis més. |
-| Ordenació per camp protegit | **Fallback silenciós a `alias`** per a `TECHNICAL`, no error 400: una vista desada per un admin degrada en lloc de petar. |
-| Camps editables per `TECHNICAL` | `alias`, `name` i `shoulderHeight` **es mantenen editables** — són dades operatives que la comissió tècnica necessita. Els camps `ADMIN`-only no es renderitzen. |
-| Promoció de provisional a membre | **Només `ADMIN`** — `PersonService.update` exigeix `firstSurname` no buit i un usuari vinculat, així que el flux requereix dades personals per definició. |
-| Construcció del payload de desat | **Llista blanca explícita de claus**, no "controls `disabled` + `getRawValue()`" — `getRawValue()` inclou els controls deshabilitats. |
-| Permisos d'escriptura de persones | **Sense canvis** (decisió del producte). Vegeu §6.2. |
-| Gestió d'usuaris (`/config/users`) | **Passa a només `ADMIN`**. |
+Staff access is `ADMIN`-only:
 
----
+- `firstSurname`
+- `secondSurname`
+- `phone`
+- `birthDate`
+- `gender`
+- linked-account email
+- delegate email
+- full account-management fields such as role, invite expiry and account timestamps
 
-## 4. Backend
+Exceptions are identity-bound:
 
-### 4.1 `PersonResponseDto` — grups de serialització
+- an authenticated user may receive their own account/profile values through auth/profile flows;
+- a valid invite token may receive the registration context needed to complete that invitation;
+- an active primary guardian may receive and complete the existing pending-dependent
+  registration data.
 
-**`apps/api/src/modules/person/dto/person-response.dto.ts`**
+These exceptions do not grant directory access to other people.
 
-```typescript
-/** Grup de class-transformer per als camps de dades personals (només ADMIN). */
-export const PERSONAL_DATA_GROUP = 'personal';
+### 3.2 Operational staff data
 
-export class PersonResponseDto {
-  @Expose()
-  id: string;
+`TECHNICAL` and `ADMIN` may receive these values only in workflows that need them:
 
-  @Expose()
-  name: string;
+- `id`, `alias`, `name`
+- `shoulderHeight`
+- `notes`, `notesEmoji`
+- positions/tags and `tagCompliance`
+- `availability`, `onboardingStatus`
+- `isActive`, `isMember`, `isProvisional`, `isXicalla`
+- `shirtDate`
+- attendance status/counts, placements and conflicts
+- a derived account state (`NONE`, `PENDING_ACTIVATION`, `ACTIVE`)
 
-  @Expose({ groups: [PERSONAL_DATA_GROUP] })
-  firstSurname: string;
+`notes` and `notesEmoji` are technical observations. Ordinary `MEMBER` projection responses must
+not contain them.
 
-  @Expose({ groups: [PERSONAL_DATA_GROUP] })
-  secondSurname: string | null;
+### 3.3 Internal-only data
 
-  @Expose()
-  alias: string;
+No new response contract exposes:
 
-  @Expose({ groups: [PERSONAL_DATA_GROUP] })
-  phone: string | null;
+- `legacyId`, `lastSyncedAt`
+- password hashes, invite/reset/refresh tokens or consent internals
+- raw relation entities
+- account IDs outside a command/candidate contract that actually needs one
 
-  @Expose({ groups: [PERSONAL_DATA_GROUP] })
-  birthDate: Date | null;
+`joinDate` and mentor are not exposed or made TECHNICAL-editable by this change because no current
+Dashboard workflow uses them.
 
-  @Expose({ groups: [PERSONAL_DATA_GROUP] })
-  notes: string | null;
+## 4. Approaches considered
 
-  // … resta de camps sense grup (sempre visibles)
+### 4.1 Explicit audience-specific DTOs and mappers — selected
 
-  @Expose({ groups: [PERSONAL_DATA_GROUP] })
-  @Type(() => ManagedByUserDto)
-  managedBy: ManagedByUserDto | null;
-}
+Define narrow response contracts for census, operational staff detail, ADMIN detail, delegation
+candidates and member projection. Map entities explicitly and select only the columns required by
+the audience.
+
+Advantages:
+
+- forbidden keys are visibly absent from the TypeScript and Swagger contracts;
+- list, detail, projection and delegation can have different legitimate shapes;
+- domain methods called by `AuthService` and `MeService` remain independent of an HTTP role;
+- mapper and endpoint tests can assert actual key absence;
+- adding an entity column does not expose it automatically.
+
+This is the simplest secure solution for the current architecture. It uses more declarations than
+one broad DTO, but less hidden machinery and fewer regression paths.
+
+### 4.2 `class-transformer` groups on `PersonResponseDto` — rejected
+
+Groups would reduce declarations, but they are not a sufficient primary boundary here:
+
+- conversions are manual and every call must pass the correct group;
+- nested `user.email` needs independent grouping;
+- `PersonService.update` is also called from auth and dependent-completion flows;
+- attendance, assignments, participation, delegates, projection and device summaries use
+  separate response shapes;
+- groups do not stop protected-field search, sorting or query over-fetching.
+
+### 4.3 Separate ADMIN URLs or a global role-aware interceptor — rejected
+
+Duplicating all person routes under an ADMIN prefix creates parallel services and frontend paths.
+A global interceptor that removes keys by name is too broad: fields such as `name` and `notes`
+have unrelated meanings in other domains. Neither option removes the need for endpoint-specific
+projection and delegation contracts.
+
+## 5. Backend design
+
+### 5.1 Person read contracts
+
+Replace the broad common response with explicit contracts and pure mappers:
+
+- `TechnicalPersonDirectoryItemDto`: `id`, `name`, `alias` and `positions`. The positions are
+  required by the existing technical tag-detail page; the census itself still renders only
+  name/alias.
+- `AdminPersonListItemDto`: all currently supported census fields (`positions`, `tagCompliance`,
+  `attendedCount`, status/availability fields, shoulder height, technical observations,
+  shirt date and created/updated timestamps) plus protected registration data and narrow
+  linked-account details; never internal fields.
+- `OperationalPersonDetailDto`: operational staff data plus derived `accountState`, without a
+  nested `User`.
+- `AdminPersonDetailDto`: operational detail plus protected registration fields and a narrow
+  linked-account reference containing `id`, `email` and state.
+
+`GET /persons` and `GET /persons/:id` receive `@CurrentUser()` at the controller boundary and call
+the appropriate query/mapper. A `TECHNICAL` response must not contain protected keys, including
+keys with `null` values.
+
+The list query for `TECHNICAL` selects only `id`, `name`, `alias` and positions for its result
+rows. It may still apply operational filters server-side. The detail query selects the
+operational contract. The ADMIN variants select the fields their contracts expose.
+
+`GET /persons` remains the shared directory used by the census, person search and tag detail.
+Do not collapse it to three fields unless tag detail is migrated to a separate operational
+endpoint. The selected four-field TECHNICAL contract is the smaller change and preserves the
+current tag workflow.
+
+Business mutations continue to work with entities internally. A domain method must not return a
+role-dependent DTO to `AuthService` or `MeService`.
+
+### 5.2 Search and sort inference
+
+For `TECHNICAL`:
+
+- census search uses only `alias` and `name`;
+- census sort accepts only `alias` and `name`;
+- forcing any other globally valid sort field (including protected fields and hidden operational
+  fields such as height or attendance count) returns `403` rather than silently sorting by a
+  replacement field.
+
+For `ADMIN`, surname search and the existing protected sort fields remain available.
+
+Also remove surname from:
+
+- `AttendanceService.findByEvent` search;
+- client-side event-participation search;
+- PWA technical roll-call search;
+- PWA member projection participant search.
+
+`UserService.findAll` may keep email/surname search because the whole management endpoint becomes
+ADMIN-only.
+
+### 5.3 Person mutations
+
+Authorization is enforced before assigning DTO fields:
+
+- `POST /persons` (full person creation) is ADMIN-only.
+- `POST /persons/provisional` remains `TECHNICAL`/`ADMIN` and accepts only alias.
+- ADMIN may patch every currently supported person field.
+- TECHNICAL may patch only:
+  `name`, `alias`, `shoulderHeight`, `notes`, `notesEmoji`, `isActive`, `isMember`, `isXicalla`,
+  `availability`, `onboardingStatus`, `shirtDate` and `positionIds`.
+- TECHNICAL may set `isProvisional: true`; setting it to `false` is ADMIN-only because manual
+  promotion validates hidden registration/account data. Invite activation and primary-guardian
+  dependent completion keep their existing promotion paths.
+- A request containing any forbidden key fails as a whole with `403`; fields are not silently
+  discarded.
+- `DELETE /persons/:id` and `PATCH /persons/:id/activate` remain operational
+  `TECHNICAL`/`ADMIN` actions.
+
+Use a staff-facing application method or policy function for this check. Keep the internal
+transactional update used by invite registration/dependent completion role-free and unreachable
+as an HTTP bypass.
+
+Every HTTP mutation also returns an audience-safe contract:
+
+- full creation returns `AdminPersonDetailDto`;
+- provisional creation, update and activation return `OperationalPersonDetailDto` to
+  `TECHNICAL` and `AdminPersonDetailDto` to `ADMIN`;
+- deletion remains `204`.
+
+No mutation response may reuse the current broad `PersonResponseDto`.
+
+### 5.4 Account management and invitations
+
+`UserController` management handlers become ADMIN-only:
+
+- list users;
+- create staff accounts;
+- update email/role/state;
+- deactivate accounts (reactivation remains the existing `updateUser` state change);
+- grant roles.
+
+`POST /users/invite-link` remains explicitly `TECHNICAL`/`ADMIN`. It is a focused onboarding
+capability that takes a person ID and does not require the caller to read an email address.
+Nest's existing `getAllAndOverride` role behavior supports this handler-level exception.
+
+Dashboard `/config/users`, its card and direct route are ADMIN-only. `AuthService.isAdmin` is
+reused; no duplicate role signal is added.
+
+### 5.5 Delegations without email disclosure
+
+Do not use `GET /users` from the technical delegate modal.
+
+Add a person-scoped delegation-candidate endpoint for `TECHNICAL`/`ADMIN` that:
+
+- searches only linked-person `alias` and `name`;
+- excludes existing delegates;
+- returns a narrow candidate command reference (`candidateUserId`, `personId`, `alias`, `name`,
+  `accountState`);
+- does not return email, surname or other registration fields.
+
+Technical/member delegate responses contain delegate ID, type/state and linked-person
+`id`/`alias`; they omit email. ADMIN staff responses include the delegate email. Member creation
+by alias remains unchanged.
+
+A user without a linked `Person` cannot be meaningfully identified without email. Such an account
+is not offered to `TECHNICAL` or `MEMBER` as a new candidate; ADMIN repairs or manages it from the
+Users screen. If an existing delegation already references such an account, non-admin UI shows
+«Compte sense perfil» and still permits removal by delegate ID.
+
+### 5.6 Attendance, assignments and participation
+
+Remove `firstSurname` from the following response contracts and all matching UI code:
+
+- `AttendancePersonRef`;
+- `AvailablePersonDto`;
+- `AssignmentDetail.person`;
+- `EventParticipationPerson`;
+- the corresponding `@muixer/pinyes-render`, shared and Dashboard/PWA models.
+
+Keep alias/name and the operational values required by staff: shoulder height, technical
+observations, xicalla state, tags, attendance and placement/conflict data.
+
+Update fallback labels to alias, then name. A missing alias must never reintroduce surname.
+
+### 5.7 Projection audiences
+
+The Dashboard and PWA currently share `ProjectionService`, but their audiences differ. Make the
+projection audience a required `staff | member` option with no default:
+
+- staff projection person: `id`, `alias`, `name`, `shoulderHeight`, `notes`, `notesEmoji`;
+- member projection person: `id`, `alias`, `name`.
+
+`EventSegmentController` requests the staff contract. `MeService.findSegmentProjection` requests
+the member contract and still requires a published segment. Do not infer audience from
+`onlyPublished`.
+
+Protected/technical-only keys must be absent from the member HTTP response, not sent as `null` and
+not merely hidden by the PWA. Renderer adapters/types must accept the smaller member identity
+without restoring fake protected fields.
+
+### 5.8 Push-device summary
+
+`GET /push-subscriptions/summary` remains a staff operational endpoint, but its person reference
+changes from first/last name to `id`, `alias`, `name`. SQL selection, ordering, shared
+`DeviceSummary`, Dashboard display/search and tests change together.
+
+### 5.9 Self and guardian boundaries
+
+Keep these current identity-bound flows:
+
+- `/auth/me` and authenticated account changes for the caller's own account;
+- invite-context/registration for the holder of a valid invite token;
+- pending-dependent registration for an active primary guardian;
+- managed-person profile summary after `assertCanManagePerson`.
+
+This change does not add a new general profile editor. Secondary delegates and unrelated members
+do not gain registration-data access.
+
+### 5.10 Audit behavior
+
+Keep audit records free of names, aliases, emails, phone numbers, notes and field values.
+
+- Record `SENSITIVE_DATA_ACCESS` only after a person detail lookup succeeds. Metadata identifies
+  whether the returned scope was `operational` or `protected`.
+- Record one aggregate access for successful ADMIN census/user-list reads that contain protected
+  data; metadata may contain role, route, page and result count, never query text or returned
+  values.
+- Do not create audit rows for failed/404 lookups.
+
+Wider audit expansion, retention and export auditing remain governed by
+`docs/GDPR_COMPLIANCE.md` and `docs/DEBT.md`.
+
+## 6. Frontend design
+
+### 6.1 Dashboard census
+
+For `TECHNICAL`:
+
+- render exactly two data columns: `Àlies` and `Nom`;
+- keep the row action that opens operational detail;
+- do not render the column toggle;
+- sanitize/ignore previously persisted ADMIN column preferences.
+
+For `ADMIN`, retain the configurable full list. Build allowed columns from `auth.isAdmin()` and
+intersect persisted keys with that set before passing columns to both the table and toggle.
+
+### 6.2 Dashboard person detail
+
+For `TECHNICAL`, render and edit only operational fields. Do not render surnames, phone, birth
+date, gender, linked/delegate emails or controls for them.
+
+For `ADMIN`, render/edit the protected registration fields, including `gender`, which the API
+currently exposes but the Dashboard model/form omits.
+
+Save payloads use explicit allowlists. They are never built by spreading `getRawValue()`:
+disabled Angular controls are included in `getRawValue()` and absent response fields are patched
+as empty strings. The backend check remains authoritative.
+
+Show manual promotion only to ADMIN. A TECHNICAL viewing a regular person may still use
+«Marcar provisional»; a TECHNICAL viewing a provisional person does not see the promotion action.
+TECHNICAL may also create provisional people and use invitation/dependent workflows.
+
+### 6.3 Dashboard accounts and delegations
+
+- Guard `/config/users` with `rolesGuard(UserRole.ADMIN)`.
+- Show the Users config card only when `auth.isAdmin()`.
+- Replace `UserService` in the delegate modal with the narrow candidate endpoint.
+- Display alias/name and account state, never email, to TECHNICAL.
+
+### 6.4 Other Dashboard surfaces
+
+Remove surname display/search/fallback usage from:
+
+- attendance list, attendance confirmation and attendance edit modal;
+- event participation;
+- person search input;
+- pinya/tronc person panels and assignment fallbacks;
+- notification person selection;
+- subscribed-device list.
+
+Technical observations remain available in staff attendance and pinyes UI.
+
+### 6.5 PWA
+
+- Keep self invite registration and primary-dependent completion unchanged.
+- Keep managed profile surname only where the backend has verified self/primary management.
+- Remove co-delegate email fallback; use linked alias or a generic account label.
+- Remove surname from technical roll call.
+- Search member projection participants by alias/name only.
+- Ensure member projection network data contains no surname, height, technical notes or emoji.
+
+Do not remove `firstSurname` from the auth/self-registration contracts globally: those are
+identity-bound and legitimate. Remove it only from directory, staff-operational and shared
+projection/assignment contracts.
+
+## 7. Error behavior
+
+- Unauthorized route: existing role guard behavior (`403` at the API boundary).
+- Forbidden field in a TECHNICAL patch: `403` with a Catalan user-facing message that does not
+  echo values.
+- Unsupported technical sort field: an explicit post-validation role policy returns `403`; the
+  global DTO validation continues to return `400` for values outside the global sort whitelist.
+  There is no silent fallback.
+- Candidate with no linked/eligible account: not returned by candidate search.
+- Missing alias target in member delegation: existing generic `404`; do not reveal whether an
+  email/account exists.
+
+## 8. Test strategy
+
+Implementation follows TDD: each boundary test must fail for the current exposure before the
+production change is written.
+
+### Backend
+
+1. Person list/detail contract tests assert exact keys for TECHNICAL and ADMIN.
+2. Integration tests inspect serialized JSON, not only class instances.
+3. TECHNICAL search cannot match a surname and cannot sort by any field other than alias/name,
+   including hidden operational fields that remain in the global sort whitelist.
+4. Every protected TECHNICAL patch key is rejected, including mixed allowed/forbidden payloads.
+5. Provisional-create, update and activate responses omit protected keys for TECHNICAL.
+6. ADMIN can create/update protected registration data.
+7. Full Users management rejects TECHNICAL; invite-link creation still accepts it.
+8. Candidate/delegate responses omit email for TECHNICAL and MEMBER, including existing delegates
+   whose user has no linked person.
+9. Attendance, assignment, available-person, participation and device-summary responses omit
+   surname.
+10. MEMBER projection omits surname, height, notes and emoji; staff projection retains its
+   operational fields.
+11. Existing self/invite/primary-guardian integration tests remain green; secondary/unrelated
+    access stays forbidden.
+12. Audit tests prove successful protected reads are recorded after lookup and failed lookups are
+    not.
+
+### Dashboard
+
+1. TECHNICAL census renders only alias/name and no column toggle, even with hostile/stale
+   `localStorage`.
+2. ADMIN retains allowed columns and protected values.
+3. TECHNICAL detail has no protected controls and sends only operational keys.
+4. ADMIN detail includes gender and protected fields.
+5. Users route/card are ADMIN-only.
+6. Delegate picker uses alias/name candidates and never renders email.
+7. Attendance, participation, pinyes and device-summary tests no longer rely on surname.
+8. Tag detail still receives positions from the TECHNICAL directory contract.
+9. Shared person search renders and searches alias/name without surname.
+
+### PWA and renderer
+
+1. Member projection participant search uses alias/name only.
+2. The member projection fixture fails if forbidden keys are present in the HTTP contract.
+3. Roll call does not require surname.
+4. Delegate lists do not render email.
+5. Auth and pending-dependent registration tests retain protected self/guardian fields.
+6. Shared renderer tests use the correct staff or member person contract instead of dummy
+   surname/notes fields.
+
+Run the focused tests during each red-green cycle, then:
+
+```bash
+nx test api
+nx test dashboard
+nx test pwa
+nx build api
+nx build dashboard
+nx build pwa
 ```
 
-`ManagedByPersonDto` (dins de `managedBy`) també perd `name`, `firstSurname` i `secondSurname` per coherència: el bloc sencer és `ADMIN`-only, i qui el rep només necessita `id` + `alias` per enllaçar.
-
-**Neteja:** s'elimina `@Expose() email` del DTO. `Person` no té columna `email`; el camp sempre arriba `undefined`.
-
-### 4.2 `PersonService` — helper de serialització
-
-**`apps/api/src/modules/person/person.service.ts`**
-
-```typescript
-private toResponseDto(person: Person, role: UserRole): PersonResponseDto {
-  return plainToInstance(PersonResponseDto, person, {
-    excludeExtraneousValues: true,
-    groups: role === UserRole.ADMIN ? [PERSONAL_DATA_GROUP] : [],
-  });
-}
-```
-
-Els set mètodes que retornen persones (`findAll`, `findOne`, `create`, `createProvisional`, `update`, `activate`, `deactivate`) reben `role: UserRole` i deleguen aquí. `softDelete` no retorna res i no canvia.
-
-### 4.3 `PersonController` — propagació del rol
-
-Cada handler afegeix `@CurrentUser() user: JwtPayload` i passa `user.role` al servei. El decorador ja existeix a `apps/api/src/modules/auth/decorators/current-user.decorator.ts`.
-
-### 4.4 Ordenació — tancar la inferència per ordre
-
-Ordenar per `birthDate` classifica la colla per edat; ordenar per `phone` agrupa números. **`apps/api/src/modules/person/constants/person-sort.constants.ts`**:
-
-```typescript
-/** Camps d'ordenació que revelen dades personals a través de l'ordre dels resultats. */
-export const PERSONAL_SORT_FIELDS: readonly PersonSortByField[] = [
-  'firstSurname',
-  'phone',
-  'birthDate',
-] as const;
-```
-
-`resolveSortColumn(sortBy, role)` retorna `person.alias` si `sortBy` és un camp personal i el rol no és `ADMIN`.
-
-**Neteja:** s'eliminen `'email'` de `PERSON_SORT_BY_FIELDS` i l'entrada `email: 'person.email'` de `PERSON_SORT_COLUMN_MAP`. Aquesta entrada apunta a una columna inexistent, així que `?sortBy=email` provoca un error SQL avui.
-
-### 4.5 Cerca — tancar la inferència per coincidència
-
-Provar "Garcia" en un cercador i llegir qui apareix als resultats permet deduir cognoms sense que el camp surti mai a la resposta. Hi ha **quatre** clàusules `ILIKE` sobre `firstSurname` al backend:
-
-| Fitxer | Endpoint | Acció |
-|--------|----------|-------|
-| `modules/person/person.service.ts:62` | `GET /persons` | Per a `TECHNICAL` la clàusula es redueix a `alias` + `name`; per a `ADMIN` es manté completa (inclou `secondSurname`) |
-| `modules/event/attendance.service.ts:47` | `GET /events/:id/attendance` | S'elimina `firstSurname` de la clàusula **per a tots els rols** (coherent amb §4.6) |
-| `modules/node-assignment/available-persons.service.ts:95` | `GET /events/:eventId/segments/:segmentId/available-persons` | Igual: s'elimina `firstSurname` per a tots els rols |
-| `modules/user/user.service.ts:95` | `GET /users` | **Sense canvis** — l'endpoint passa a `ADMIN`-only a §4.7, així que no hi ha fuita |
-
-### 4.6 Minimització en altres mòduls
-
-Aquests quatre mappers escrits a mà exposen `name` + `firstSurname`. S'elimina `firstSurname` **per a tots els rols**: a aquestes pantalles l'identificador operatiu és l'`alias` (únic), i `name` és suficient per desambiguar.
-
-| Fitxer | Element |
-|--------|---------|
-| `apps/api/src/modules/event/attendance.service.ts` | `AttendancePersonRef` + `toAttendanceItem()` |
-| `apps/api/src/modules/node-assignment/node-assignment.service.ts` | `AssignmentDetail.person` + `toAssignmentDetail()` |
-| `apps/api/src/modules/node-assignment/available-persons.service.ts` | `AvailablePersonDto` |
-| `apps/api/src/modules/event-segment/projection.service.ts` | Hereta el canvi via `AssignmentDetail` — sense edició pròpia |
-
-**Sense canvis:** `AttendanceItem.notes` i les notes de segment són notes d'assistència/segment, no `Person.notes`. Els missatges SSE de `sync` contenen correus i noms però els endpoints ja són `@Roles(ADMIN)`. `/auth/me` retorna dades del propi usuari.
-
-### 4.7 Gestió d'usuaris a només `ADMIN`
-
-`GET /api/users` exposa el correu de cada usuari i els cognoms de la persona vinculada, i avui és accessible per `TECHNICAL`. **`apps/api/src/modules/user/user.controller.ts`**: el `@Roles(UserRole.ADMIN, UserRole.TECHNICAL)` de classe passa a `@Roles(UserRole.ADMIN)`. `UserResponseDto` no canvia.
-
----
-
-## 5. Frontend
-
-### 5.1 `AuthService` — signal `isAdmin`
-
-**`apps/dashboard/src/app/core/auth/services/auth.service.ts`**
-
-```typescript
-readonly isAdmin = computed(() => this.userRole() === UserRole.ADMIN);
-```
-
-`EventDetailComponent` té avui un `isAdmin` local duplicat; passa a consumir el del servei.
-
-### 5.2 Model `Person`
-
-**`apps/dashboard/src/app/features/persons/models/person.model.ts`** — els camps protegits passen a opcionals, perquè l'API els omet per a `TECHNICAL`:
-
-```typescript
-firstSurname?: string;
-secondSurname?: string | null;
-phone?: string | null;
-birthDate?: string | null;
-notes?: string | null;
-managedBy?: User | null;
-```
-
-S'elimina `email` de `Person` i de `UpdatePersonDto` (camp inexistent al backend).
-
-`getFullName()` ja fa `.filter(Boolean)`, per tant amb cognoms absents retorna només el nom. No cal tocar-la.
-
-### 5.3 Llistat de persones
-
-**`apps/dashboard/src/app/shared/models/column-def.model.ts`** — nova propietat opcional:
-
-```typescript
-/** Si és cert, la columna només es mostra a usuaris ADMIN. */
-adminOnly?: boolean;
-```
-
-**`apps/dashboard/src/app/features/persons/components/person-list.component.ts`**
-
-- `phone`, `birthDate` i `notes` es marquen `adminOnly: true`. La columna `email` s'elimina.
-- `availableColumns = computed(() => ALL_COLUMNS.filter(c => !c.adminOnly || auth.isAdmin()))`. Es passa a `app-data-table` **i** a `app-column-toggle`, de manera que un `TECHNICAL` no pot ni activar-les.
-- `loadVisibleColumns()` intersecciona les claus desades a `localStorage` amb les permeses. Sense això, un admin degradat a `TECHNICAL` (o un `localStorage` editat a mà) seguiria demanant columnes protegides.
-- `onSortChangeFromTable` no necessita canvis: les columnes protegides ja no arriben a la taula, i el backend fa fallback si algú força el paràmetre.
-
-### 5.4 Detall de persona
-
-**`person-detail.component.html`** — per a `TECHNICAL`:
-
-- La targeta "Informació personal" conserva `alias`, `name` i `shoulderHeight`, **editables**. Cognoms, telèfon, data de naixement i correu no es renderitzen (ni en lectura ni en edició).
-- `notes` surt de la targeta "Informació de la colla".
-- La resta de la targeta de colla no canvia: posicions, estat, disponibilitat, acollida i data camisa segueixen sent editables.
-- El botó "Promoure a membre" / "Marcar provisional" només es mostra si `auth.isAdmin()` (vegeu §3: la promoció exigeix `firstSurname` i usuari vinculat).
-
-Com que `name` i `alias` segueixen sent editables per a `TECHNICAL`, els seus `Validators.required` no bloquegen mai el desat. `firstSurname` no té validator, així que la seva absència tampoc.
-
-**`person-detail.component.ts` — correcció obligatòria del payload.** `save()` construeix avui el payload amb tots els camps del formulari:
-
-```typescript
-firstSurname: raw.firstSurname ?? undefined,
-```
-
-`patchForm()` inicialitza aquests controls a `''` quan el valor no arriba, i `'' ?? undefined` avalua a `''`, no a `undefined`. Per tant, en el moment que l'API deixi d'enviar `firstSurname`/`phone`/`notes` a un `TECHNICAL`, prémer "Desar" hi escriuria cadenes buides sobre dades reals. Com que els permisos d'escriptura no canvien, el backend ho acceptaria.
-
-**Solució: llista blanca explícita de claus.** `save()` construeix el payload a partir de dos conjunts de claus declarats, no a partir de tot `getRawValue()`:
-
-```typescript
-/** Claus que qualsevol rol amb accés al dashboard pot desar. */
-const OPERATIONAL_KEYS = [
-  'alias', 'name', 'shoulderHeight', 'isActive', 'isMember', 'isXicalla',
-  'availability', 'onboardingStatus', 'shirtDate',
-] as const;
-
-/** Claus que només un ADMIN pot desar. */
-const PERSONAL_KEYS = [
-  'firstSurname', 'secondSurname', 'phone', 'birthDate', 'notes',
-] as const;
-```
-
-El payload s'omple recorrent `OPERATIONAL_KEYS` i, si `auth.isAdmin()`, també `PERSONAL_KEYS`. **No es pot confiar en marcar els controls com a `disabled`**: `form.getRawValue()` inclou els controls deshabilitats, de manera que les cadenes buides tornarien a sortir i el bug reapareixeria.
-
-### 5.5 Altres components — treure `firstSurname`
-
-| Fitxer | Canvi |
-|--------|-------|
-| `features/events/components/event-detail/event-detail.component.html` | Columna "Nom" de la taula d'assistència |
-| `features/events/components/attendance-edit-modal/attendance-edit-modal.component.html` | Subtítol sota l'àlies |
-| `features/pinyes/components/node-popover/node-popover.component.ts` | Línia secundària sota l'àlies |
-| `features/pinyes/components/assignment-canvas/assignment-canvas.component.ts` + `.html` | Fallback de `pendingDeletePersonName()` |
-| `shared/components/forms/person-search-input/person-search-input.component.html` | Desplegable de resultats |
-| `features/persons/components/person-detail/modals/person-link-user-modal.component.html` | Mateix patró que el cercador de persones |
-| `features/events/models/attendance.model.ts` | Treure `firstSurname` de la interfície |
-| `features/pinyes/models/assignment.model.ts` | Treure `firstSurname` de la interfície |
-| `features/pinyes/components/person-panel/person-panel.component.ts` | Treure la referència al camp |
-| `features/pinyes/components/assignment-canvas/services/assignment-operations.service.ts` | Treure la referència al camp |
-
-### 5.6 Ruta de configuració d'usuaris
-
-**`config.routes.ts`** — la ruta filla `users` afegeix `canActivate: [rolesGuard(UserRole.ADMIN)]`. Avui no té cap guard propi i hereta el `rolesGuard(TECHNICAL, ADMIN)` del pare a `app.routes.ts`.
-
-Com que `rolesGuard` redirigeix a `/login` en cas de rol insuficient, **cal amagar també els punts d'entrada** o un `TECHNICAL` que hi cliqui semblarà que ha perdut la sessió:
-
-- `features/config/config.component.ts` — la targeta/enllaç "Usuaris".
-- `features/home/home.component.html` — l'accés directe a `/config/users`.
-
----
-
-## 6. Fora d'abast i riscos residuals
-
-### 6.1 Fora d'abast
-
-- Xifratge en repòs dels camps sensibles i registre d'auditoria d'accessos (previstos a `.cursor/rules/muixer-security.mdc`, no en aquesta iteració).
-- Exportació de dades (GDPR art. 20) i esborrat dur a petició.
-- PWA (`apps/pwa`), encara no implementada. El rol `MEMBER` no té accés al dashboard.
-
-### 6.2 Risc residual acceptat: escriptura
-
-Per decisió de producte els permisos d'escriptura no canvien. Un usuari `TECHNICAL` pot enviar `PATCH /api/persons/:id` amb `phone` o `birthDate` directament contra l'API. La UI no ho ofereix i la correcció de §5.4 evita accidents, però l'endpoint ho accepta. Mitigació futura: validació a `UpdatePersonDto` que rebutgi camps personals si el rol no és `ADMIN`.
-
-### 6.3 Pèrdua funcional acceptada
-
-Els cognoms desapareixen de les pantalles d'assistència i assignació **també per als admins**. És conscient: l'`alias` és únic i és l'identificador que fa servir la colla en aquestes pantalles.
-
-Un `TECHNICAL` deixa de poder promoure persones provisionals a membres regulars i de poder cercar per cognom al cens. Totes dues operacions requereixen dades personals, així que passen a ser feina d'`ADMIN`.
-
----
-
-## 7. Testing
-
-**Backend**
-
-| Fitxer | Casos |
-|--------|-------|
-| `person.service.spec.ts` | `findAll`/`findOne` ometen `firstSurname`, `secondSurname`, `phone`, `birthDate`, `notes`, `managedBy` amb rol `TECHNICAL`; els inclouen amb `ADMIN`. Fallback d'ordenació a `alias` per camp personal + `TECHNICAL`. Clàusula de cerca reduïda per `TECHNICAL`. |
-| `person.controller.spec.ts` | El rol de `@CurrentUser()` arriba al servei a cada handler. |
-| `attendance.service.spec.ts`, `node-assignment.service.spec.ts`, `available-persons.service.spec.ts` | Les respostes no contenen `firstSurname` i la clàusula de cerca no l'inclou. |
-
-**Frontend**
-
-| Fitxer | Casos |
-|--------|-------|
-| `person-list.component.spec.ts` | Columnes `adminOnly` absents de la taula i del toggle per a `TECHNICAL`; claus de `localStorage` no permeses descartades. |
-| `person-detail.component.spec.ts` (nou) | El payload de desat d'un `TECHNICAL` conté només `OPERATIONAL_KEYS`; el d'un `ADMIN` inclou també `PERSONAL_KEYS`. Cas de regressió explícit: amb `firstSurname` absent a la resposta de l'API, el payload d'un `TECHNICAL` **no** hi envia `''`. Botó de promoció ocult per a `TECHNICAL`. |
-| `auth.service.spec.ts` | `isAdmin` cert només amb rol `ADMIN`. |
-
-Llindar de cobertura del projecte: 70% (CI amb `--configuration=ci`).
-
----
-
-## 8. Fitxers afectats
-
-**Backend (8)**
-
-```
-modules/person/dto/person-response.dto.ts        # grups + treure email
-modules/person/person.service.ts                 # toResponseDto + cerca per rol
-modules/person/person.controller.ts              # @CurrentUser
-modules/person/constants/person-sort.constants.ts # PERSONAL_SORT_FIELDS + treure email
-modules/event/attendance.service.ts              # treure firstSurname (mapper + cerca)
-modules/node-assignment/node-assignment.service.ts        # mapper
-modules/node-assignment/available-persons.service.ts      # mapper + cerca
-modules/user/user.controller.ts                  # @Roles(ADMIN)
-```
-
-**Frontend (20)**
-
-```
-core/auth/services/auth.service.ts               # isAdmin
-shared/models/column-def.model.ts                # adminOnly
-shared/components/forms/person-search-input/person-search-input.component.html
-features/persons/models/person.model.ts
-features/persons/components/person-list.component.ts
-features/persons/components/person-detail/person-detail.component.ts
-features/persons/components/person-detail/person-detail.component.html
-features/events/models/attendance.model.ts
-features/events/components/event-detail/event-detail.component.ts   # isAdmin compartit
-features/events/components/event-detail/event-detail.component.html
-features/events/components/attendance-edit-modal/attendance-edit-modal.component.html
-features/pinyes/models/assignment.model.ts
-features/pinyes/components/node-popover/node-popover.component.ts
-features/pinyes/components/assignment-canvas/assignment-canvas.component.ts + .html
-features/pinyes/components/assignment-canvas/services/assignment-operations.service.ts
-features/pinyes/components/person-panel/person-panel.component.ts
-features/persons/components/person-detail/modals/person-link-user-modal.component.html
-features/config/config.routes.ts                 # rolesGuard(ADMIN)
-features/config/config.component.ts              # amagar entrada "Usuaris"
-features/home/home.component.html                # amagar accés directe a /config/users
-```
-
-**Nota sobre `?sortBy=email`:** en treure `'email'` de la llista blanca, la petició passa a retornar 400 en lloc de fer fallback. No afecta ningú: `sortBy` no es persisteix a `localStorage` (només s'hi desen les columnes visibles) i la columna "Correu" desapareix del llistat.
-
-Més els fitxers `.spec.ts` corresponents.
+Run the relevant integration suite for role/serialization boundaries. No database migration is
+expected.
+
+## 9. Implementation slices
+
+Implement in independently verifiable slices:
+
+1. Person read DTOs/mappers, role-aware queries and search/sort restrictions.
+2. Staff mutation authorization and role-specific Dashboard list/detail.
+3. ADMIN Users management while preserving invite-link capability.
+4. Delegation candidate/response minimization.
+5. Attendance, assignment and event-participation surname removal.
+6. Staff/member projection split and PWA cleanup.
+7. Push-device summary minimization.
+8. Audit alignment and full regression verification.
+
+## 10. Expected file groups
+
+Backend:
+
+- `apps/api/src/modules/person/**`
+- `apps/api/src/modules/user/**`
+- `apps/api/src/modules/person-delegate/**`
+- `apps/api/src/modules/event/attendance.service.ts`
+- `apps/api/src/modules/node-assignment/**`
+- `apps/api/src/modules/event-segment/projection.service.ts`
+- `apps/api/src/modules/event-segment/event-segment.controller.ts`
+- `apps/api/src/modules/me/**`
+- `apps/api/src/modules/push-notification/push-subscription.service.ts`
+- related controller/service/integration specifications
+
+Shared/rendering:
+
+- `libs/shared/src/interfaces/me/**`
+- `libs/shared/src/interfaces/pinyes/event-participation.interfaces.ts`
+- `libs/shared/src/interfaces/push-notification.interfaces.ts`
+- `libs/pinyes-render/src/lib/models/assignment.model.ts`
+- renderer fixtures/specifications affected by the narrower person contracts
+
+Dashboard:
+
+- `features/persons/**`
+- `features/config/config.routes.ts`, `config.component.ts` and delegation/user components
+- `features/config/components/tag-detail/**`
+- `features/events/**` person-reference models/components
+- `features/pinyes/**` person-reference consumers
+- `features/communication/**` person/device consumers
+- `shared/components/forms/person-search-input/**`
+- related specifications
+
+PWA:
+
+- member projection, technical roll call, profile delegation and their specifications
+- self-registration/dependent code only for regression typing/tests, not to remove authorized data
+
+End-to-end:
+
+- `apps/dashboard-e2e/src/audit/persons-audit.spec.ts`
+
+## 11. Out of scope
+
+- encryption at rest;
+- hard deletion/anonymization and legacy re-import blocking;
+- audit-log retention;
+- legal-text changes or a claim of full legal compliance;
+- new self-service profile functionality;
+- database schema changes;
+- unrelated UI/refactoring.
