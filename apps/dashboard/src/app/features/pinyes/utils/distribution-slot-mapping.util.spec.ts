@@ -24,6 +24,7 @@ const makeDistributionNode = (
   positionType: null,
   sortOrder: 0,
   climbIndicator: null,
+  isAdHoc: false,
   ...overrides,
 });
 
@@ -181,6 +182,39 @@ describe('mapDistributionItemsToSlots', () => {
     expect(withDecoration.offsetY).toBe(pivotOnly.offsetY);
   });
 
+  it('does not let an ad-hoc PINYA node shift the pivot (same treatment as DECORATION)', () => {
+    const pivotOnlyItems = [
+      {
+        ...itemWithPosition('a', null, null),
+        figureTemplate: {
+          id: 'fig-a',
+          name: 'a',
+          nodes: [makeDistributionNode('p1', 'PINYA', { x: 0, y: 0, width: 200, height: 100 })],
+        },
+      },
+    ];
+    const withAdHocItems = [
+      {
+        ...itemWithPosition('a', null, null),
+        figureTemplate: {
+          id: 'fig-a',
+          name: 'a',
+          nodes: [
+            makeDistributionNode('p1', 'PINYA', { x: 0, y: 0, width: 200, height: 100 }),
+            // Extra node far outside the PINYA bbox — must not move the pivot.
+            makeDistributionNode('extra', 'PINYA', { x: 900, y: 900, width: 100, height: 100, isAdHoc: true }),
+          ],
+        },
+      },
+    ];
+
+    const [pivotOnly] = mapDistributionItemsToSlots(pivotOnlyItems);
+    const [withAdHoc] = mapDistributionItemsToSlots(withAdHocItems);
+
+    expect(withAdHoc.offsetX).toBe(pivotOnly.offsetX);
+    expect(withAdHoc.offsetY).toBe(pivotOnly.offsetY);
+  });
+
   it('ignores TRONC-zone grid coordinates when computing auto-placement extents', () => {
     const items = [
       {
@@ -287,6 +321,30 @@ describe('mapDistributionItemsToSlots', () => {
     ]);
 
     expect(b.offsetX).toBeGreaterThan(400 + 50 + DEFAULT_PLACEMENT_GAP - 1);
+  });
+
+  it('numbers slot labels when two items share the same figure name', () => {
+    const items = [
+      itemWithPosition('a', 0, 0, 0, { figureTemplate: { id: 'fig-1', name: 'Pilar', nodes: [] } }),
+      itemWithPosition('b', 100, 0, 0, { figureTemplate: { id: 'fig-1', name: 'Pilar', nodes: [] } }),
+    ];
+
+    const [a, b] = mapDistributionItemsToSlots(items);
+
+    expect(a.label).toBe('Pilar 1');
+    expect(b.label).toBe('Pilar 2');
+  });
+
+  it('leaves the label bare when only one item carries that figure name', () => {
+    const items = [
+      itemWithPosition('a', 0, 0, 0, { figureTemplate: { id: 'fig-1', name: 'Pilar', nodes: [] } }),
+      itemWithPosition('b', 100, 0, 0, { figureTemplate: { id: 'fig-2', name: 'Vano', nodes: [] } }),
+    ];
+
+    const [a, b] = mapDistributionItemsToSlots(items);
+
+    expect(a.label).toBe('Pilar');
+    expect(b.label).toBe('Vano');
   });
 
   it('passes assignments through to the slot', () => {

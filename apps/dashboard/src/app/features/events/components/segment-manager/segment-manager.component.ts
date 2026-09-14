@@ -16,6 +16,7 @@ import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PIN
 import {
   ICON_OBSERVACIONS,
   computeSegmentDisplayName,
+  computeInstanceDisplayNames,
   getSegmentInstanceLabel,
   formatDirectionNames,
   DIRECCIO_PINYA_POSITION_TYPE,
@@ -528,8 +529,13 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
-  getInstanceLabel(instance: InstanceDetail): string {
-    return getSegmentInstanceLabel(instance);
+  /**
+   * The figure's display name, numbered against its siblings in `segment` when two or more
+   * resolve to the same label («Pilar 1», «Pilar 2») — purely derived, so it stays in sync as
+   * figures are added/removed/renamed without touching `instance.label` in the DB.
+   */
+  getInstanceLabel(instance: InstanceDetail, segment: SegmentDetail): string {
+    return computeInstanceDisplayNames(segment.instances).get(instance.id) ?? getSegmentInstanceLabel(instance);
   }
 
   isComposition(_instance: InstanceDetail): boolean {

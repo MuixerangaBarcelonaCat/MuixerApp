@@ -98,6 +98,12 @@
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Àlies</dt>
                 <dd class="text-sm text-right font-medium">{{ person()!.alias }}</dd>
               </div>
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Gènere</dt>
+                <dd class="text-sm text-right">
+                  {{ person()!.gender ? getGenderLabel(person()!.gender) : 'Sense especificar' }}
+                </dd>
+              </div>
               @if (person()!.user; as linkedUser) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Correu</dt>
@@ -162,6 +168,13 @@
                 placeholder="Àlies"
                 [errorText]="form.get('alias')?.invalid && form.get('alias')?.touched ? 'L\'àlies és obligatori' : undefined"
               />
+
+              <lib-select label="Gènere" size="xs" formControlName="gender">
+                <option value="">Sense especificar</option>
+                @for (g of genders; track g) {
+                  <option [value]="g">{{ genderLabels[g] }}</option>
+                }
+              </lib-select>
 
               <lib-input label="Telèfon" type="tel" size="xs" formControlName="phone" placeholder="000 000 000" />
 

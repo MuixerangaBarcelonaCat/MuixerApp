@@ -206,8 +206,8 @@ export class TagFormModalComponent {
     if (this.isEditMode) {
       const dto: UpdateTagDto = {
         name: raw.name ?? undefined,
-        shortDescription: raw.shortDescription || undefined,
-        longDescription: raw.longDescription || undefined,
+        shortDescription: raw.shortDescription?.trim() ? raw.shortDescription.trim() : null,
+        longDescription: raw.longDescription?.trim() ? raw.longDescription.trim() : null,
         color: raw.color || undefined,
         category: raw.category ?? undefined,
         positionTypes,

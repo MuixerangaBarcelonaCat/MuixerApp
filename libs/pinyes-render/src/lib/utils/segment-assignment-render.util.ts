@@ -80,9 +80,13 @@ export function buildSegmentRenderNodes(
  * projection view). Decoration and other zones are still drawn, but must
  * never shift the pivot, or the figure renders shifted from where placement
  * assumed — misaligning nodes/tronc panels against what's actually drawn.
+ *
+ * Ad-hoc ("extra") nodes are excluded for the same reason: creating one in the
+ * assignment view must not move the figure's centre or reflow the distribution.
+ * Like decoration, they are still drawn — just kept out of the pivot bbox.
  */
-export function pivotNodesFor<T extends { zone: string }>(nodes: T[]): T[] {
-  return nodes.filter((n) => n.zone === 'PINYA' || n.zone === 'BASE');
+export function pivotNodesFor<T extends { zone: string; isAdHoc?: boolean }>(nodes: T[]): T[] {
+  return nodes.filter((n) => (n.zone === 'PINYA' || n.zone === 'BASE') && !n.isAdHoc);
 }
 
 /** Center of the bounding box of a set of nodes (each x/y is its own center). */

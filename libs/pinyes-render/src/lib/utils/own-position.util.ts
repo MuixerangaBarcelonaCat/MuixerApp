@@ -1,4 +1,4 @@
-import { DIRECTION_SLOTS, FigureZone, getSegmentInstanceLabel } from '@muixer/shared';
+import { DIRECTION_SLOTS, FigureZone } from '@muixer/shared';
 import { AssignmentDetail, InstanceNodeItem } from '../models/assignment.model';
 import { ProjectionInstance, ProjectionSegmentData } from '../models/projection.model';
 import { TRONC_FLOOR_ROW_PX, TRONC_HALF_UNIT_PX, TRONC_HEADER_PX, TRONC_LABEL_COL_PX } from './tronc-size.util';
@@ -96,9 +96,14 @@ export type OwnPlacementDescription =
  * (`pinya-projection.component.ts` includes BASE in `getInstanceProjectionNodes`), and that is
  * the position a base member needs to find — their row in the tronc panel is reference only.
  */
-export function describeOwnPlacement(placement: OwnPlacement, instanceCount: number): OwnPlacementDescription {
+/**
+ * `figureName` is the fully-resolved name the caller wants shown for this figure — already
+ * disambiguated («Pilar 2») and already `null` when the segment holds a single figure and there
+ * is nothing to disambiguate. Resolving it needs the whole segment's instance set, which the
+ * caller holds; see `PinyaProjectionComponent.instanceDisplayNames`.
+ */
+export function describeOwnPlacement(placement: OwnPlacement, figureName: string | null): OwnPlacementDescription {
   const { instance, instanceIndex, node } = placement;
-  const figureName = instanceCount > 1 ? getSegmentInstanceLabel(instance) : null;
 
   if (TRONC_ZONES.has(node.zone)) {
     const neighbours = node.zone === FigureZone.TRONC ? findTroncNeighbours(node, instance) : { below: [], above: [] };

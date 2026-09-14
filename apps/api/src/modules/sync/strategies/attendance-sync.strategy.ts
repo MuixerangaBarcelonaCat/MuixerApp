@@ -260,15 +260,14 @@ export class AttendanceSyncStrategy {
   ): AttendanceStatus {
     const normalized = this.normalizeEstat(estat);
 
+    // 'Potser' ('Potser vinc' in the legacy app) is treated as no answer → PENDENT.
     if (eventType === EventType.ASSAIG) {
       if (isPastEvent) {
         if (normalized === 'Vinc') return AttendanceStatus.ASSISTIT;
-        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
         return AttendanceStatus.PENDENT;
       } else {
         if (normalized === 'Vinc') return AttendanceStatus.ANIRE;
-        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
         return AttendanceStatus.PENDENT;
       }
@@ -278,12 +277,10 @@ export class AttendanceSyncStrategy {
       if (isPastEvent) {
         if (normalized === 'Vinc') return AttendanceStatus.ASSISTIT;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
-        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         return AttendanceStatus.PENDENT;
       } else {
         if (normalized === 'Vinc') return AttendanceStatus.ANIRE;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
-        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         return AttendanceStatus.PENDENT;
       }
     }

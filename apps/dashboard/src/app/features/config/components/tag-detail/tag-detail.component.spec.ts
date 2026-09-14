@@ -33,6 +33,7 @@ const mockPerson = (overrides: Partial<Person> = {}): Person => ({
   phone: null,
   birthDate: null,
   shoulderHeight: null,
+  gender: null,
   isXicalla: false,
   isMember: true,
   availability: AvailabilityStatus.AVAILABLE,

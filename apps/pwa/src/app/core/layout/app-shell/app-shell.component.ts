@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { BottomTabBarComponent } from '../../../shared/components/bottom-tab-bar/bottom-tab-bar.component';
 import { NoPersonBannerComponent } from '../../../shared/components/no-person-banner/no-person-banner.component';
@@ -8,6 +8,7 @@ import { PushPermissionBannerComponent } from '../../../shared/components/push-p
 import { InstallPromptService } from '../../../shared/services/install-prompt.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { LayoutService } from '../../services/layout.service';
+import { PushSubscriptionService } from '../../services/push-subscription.service';
 
 @Component({
   selector: 'app-shell',
@@ -59,8 +60,13 @@ import { LayoutService } from '../../services/layout.service';
     }
   `,
 })
-export class AppShellComponent {
+export class AppShellComponent implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly layout = inject(LayoutService);
   protected readonly installPrompt = inject(InstallPromptService);
+  private readonly push = inject(PushSubscriptionService);
+
+  ngOnInit(): void {
+    void this.push.syncOnStartup();
+  }
 }

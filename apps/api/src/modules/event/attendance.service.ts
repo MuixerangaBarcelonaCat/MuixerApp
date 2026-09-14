@@ -11,6 +11,13 @@ import { AttendanceFilterDto } from './dto/attendance-filter.dto';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 
+/**
+ * Sort key for the attendance list: case-insensitive and with the provisional
+ * "~" alias prefix stripped, so provisional persons interleave alphabetically
+ * instead of collapsing to the end of the last page.
+ */
+const NORMALIZED_ALIAS_EXPR = "lower(regexp_replace(person.alias, '^~', ''))";
+
 @Injectable()
 export class AttendanceService {
   constructor(
@@ -69,8 +76,13 @@ export class AttendanceService {
 
     const total = await qb.getCount();
 
+    // Sort case-insensitively and ignore the provisional "~" prefix, so a
+    // provisional person sorts next to a regular one with the same name instead
+    // of being pushed to the very end of the list (and off the last page).
     const attendances = await qb
-      .orderBy('person.alias', 'ASC')
+      .addSelect(NORMALIZED_ALIAS_EXPR, 'normalized_alias')
+      .orderBy('normalized_alias', 'ASC')
+      .addOrderBy('person.alias', 'ASC')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
@@ -264,6 +276,7 @@ interface AttendancePersonRef {
   name: string;
   firstSurname: string;
   isXicalla: boolean;
+  isProvisional: boolean;
   notes: string | null;
   notesEmoji: string | null;
   positions: { id: string; name: string; color: string | null; category: TagCategory }[];
@@ -289,6 +302,7 @@ function toAttendanceItem(a: Attendance): AttendanceItem {
       name: a.person.name,
       firstSurname: a.person.firstSurname,
       isXicalla: a.person.isXicalla,
+      isProvisional: a.person.isProvisional,
       notes: a.person.notes,
       notesEmoji: a.person.notesEmoji,
       positions: (a.person.positions ?? []).map((p) => ({
