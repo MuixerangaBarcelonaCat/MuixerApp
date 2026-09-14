@@ -45,6 +45,11 @@ COPY --from=build /app/dist/apps/api/migrations-compiled/modules ./modules
 # Copy production node_modules (includes native bindings like bcrypt, pg, typeorm CLI)
 COPY --from=prod-deps /app/node_modules ./node_modules
 
+# Migrations are compiled with plain tsc (not webpack), so '@muixer/shared' stays
+# an external require at runtime — provide it as a resolvable node module.
+COPY --from=build /app/dist/libs/shared/src ./node_modules/@muixer/shared/src
+RUN printf '{"name":"@muixer/shared","version":"0.0.1","main":"./src/index.js","types":"./src/index.d.ts"}' > ./node_modules/@muixer/shared/package.json
+
 # Copy entrypoint script
 COPY scripts/docker-entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
