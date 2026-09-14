@@ -31,8 +31,13 @@
           [icon]="Mail"
           placeholder="nom@exemple.com"
           formControlName="email"
-          autocomplete="email"
-          [errorText]="form.get('email')?.invalid && form.get('email')?.touched ? 'Correu electrònic no vàlid' : undefined"
+          autocomplete="username"
+          name="username"
+          [errorText]="
+            form.get('email')?.invalid && form.get('email')?.touched
+              ? 'Correu electrònic no vàlid'
+              : undefined
+          "
         />
 
         <lib-input
@@ -43,6 +48,7 @@
           placeholder="••••••••"
           formControlName="password"
           autocomplete="current-password"
+          name="password"
         />
 
         @if (errorMessage()) {

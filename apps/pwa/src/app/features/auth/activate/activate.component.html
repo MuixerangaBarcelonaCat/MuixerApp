@@ -20,6 +20,11 @@
       } @else if (loading()) {
         <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
       } @else {
+        <p class="text-sm text-base-content/60">
+          Hola{{ context()?.person?.name ? ', ' + context()?.person?.name : '' }}! Revisa les dades que ja tenim,
+          completa el que falte i tria una contrasenya.
+        </p>
+
         <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
           <lib-input
             label="Correu electrònic"
@@ -27,7 +32,14 @@
             inputMode="email"
             size="md"
             formControlName="email"
-            autocomplete="email"
+            autocomplete="username"
+            name="username"
+            [readonly]="!!context()?.email"
+            [hint]="
+              context()?.email
+                ? 'Este és el correu que la colla té registrat. Si no és correcte, demana-li a un tècnic que el canvie.'
+                : undefined
+            "
           />
 
           <lib-input
@@ -36,7 +48,12 @@
             size="md"
             formControlName="password"
             autocomplete="new-password"
-            [errorText]="form.get('password')?.hasError('minlength') && form.get('password')?.touched ? 'La contrasenya ha de tindre almenys 8 caràcters' : undefined"
+            name="new-password"
+            [errorText]="
+              form.get('password')?.hasError('minlength') && form.get('password')?.touched
+                ? 'La contrasenya ha de tindre almenys 8 caràcters'
+                : undefined
+            "
           />
 
           <lib-input
@@ -45,7 +62,12 @@
             size="md"
             formControlName="confirmPassword"
             autocomplete="new-password"
-            [errorText]="form.hasError('passwordMismatch') && form.get('confirmPassword')?.touched ? 'Les contrasenyes no coincideixen' : undefined"
+            name="confirm-new-password"
+            [errorText]="
+              form.hasError('passwordMismatch') && form.get('confirmPassword')?.touched
+                ? 'Les contrasenyes no coincideixen'
+                : undefined
+            "
           />
 
           <div class="divider text-xs text-base-content/40">Dades personals</div>

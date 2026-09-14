@@ -16,6 +16,7 @@
     },
     "baseUrl": "."
   },
+  "exclude": ["src/migrations/**/*.spec.ts"],
   "include": [
     "src/data-source.ts",
     "src/migrations/**/*.ts",

@@ -116,6 +116,8 @@ export class PersonDetailComponent implements OnInit {
   selectedPositionIds = signal<string[]>([]);
 
   creatingInviteLink = signal(false);
+  // DESACTIVAT amb l'enllaç de recuperació (vegeu createRecoveryLink més avall).
+  // creatingRecoveryLink = signal(false);
   delegateModalOpen = signal(false);
   delegateModalIsPrimary = signal(false);
 
@@ -355,6 +357,45 @@ export class PersonDetailComponent implements OnInit {
       },
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // DESACTIVAT: botó «Crea enllaç de recuperació» del detall de persona.
+  //
+  // L'enllaç és un token portador: qui el reba entra al compte, sense comprovar que siga
+  // realment el seu propietari. Com que el tècnic el reenviava a mà per WhatsApp, no teníem cap
+  // manera d'evitar que arribés a una altra persona. De moment els membres que no recorden la
+  // contrasenya han d'usar «Heu oblidat la contrasenya?» del login, que envia el token al seu
+  // correu. L'endpoint del backend també està comentat.
+  //
+  // Motiu ampliat i mitigacions per si algun dia cal rehabilitar-ho (TTL curt, avís al
+  // propietari, segon factor): docs/AUTH_FLOW.md §8.1.
+  // ---------------------------------------------------------------------------
+  // /**
+  //  * Enllaç de contrasenya nova per a un compte ja actiu, quan el membre no recorda la
+  //  * contrasenya i tampoc pot arribar al seu correu (que és el cas habitual): el tècnic el genera
+  //  * i el reenvia a mà, igual que fa amb l'enllaç d'invitació.
+  //  */
+  // createRecoveryLink() {
+  //   const p = this.person();
+  //   if (!p || this.creatingRecoveryLink()) return;
+  //
+  //   this.creatingRecoveryLink.set(true);
+  //   this.personService.createRecoveryLink(p.id).subscribe({
+  //     next: async ({ recoveryUrl }) => {
+  //       this.creatingRecoveryLink.set(false);
+  //       const copied = await this.copyToClipboard(recoveryUrl);
+  //       this.toast.success(
+  //         copied
+  //           ? 'Enllaç de recuperació copiat al portapapers. Caduca en 24 hores.'
+  //           : `Enllaç de recuperació: ${recoveryUrl}`,
+  //       );
+  //     },
+  //     error: (err) => {
+  //       this.creatingRecoveryLink.set(false);
+  //       this.toast.error(err?.error?.message ?? "Error en crear l'enllaç de recuperació");
+  //     },
+  //   });
+  // }
 
   private async copyToClipboard(text: string): Promise<boolean> {
     if (!navigator.clipboard) return false;

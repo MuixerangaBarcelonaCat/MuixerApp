@@ -124,19 +124,15 @@ describe('SettingsComponent', () => {
       confirmPassword: string = newPassword,
     ): void {
       openSection();
-      // `id` lands on both the `lib-input` host and its inner native `<input>` (the host mirrors
-      // any static attribute it doesn't recognize as a DOM property) — the `input` descendant
-      // combinator picks the real control, not the (display:contents) host.
+      // `id` lands on the native `<input>` only — `lib-input` strips its own reflected copy so an
+      // external `<label for="…">` focuses the field, not the (display:contents) host.
       setInputValue(
-        fixture.nativeElement.querySelector('#password-current-password input'),
+        fixture.nativeElement.querySelector('#password-current-password'),
         currentPassword,
       );
-      setInputValue(
-        fixture.nativeElement.querySelector('#password-new-password input'),
-        newPassword,
-      );
+      setInputValue(fixture.nativeElement.querySelector('#password-new-password'), newPassword);
       const confirmInput = fixture.nativeElement.querySelector(
-        '#password-confirm-password input',
+        '#password-confirm-password',
       ) as HTMLInputElement;
       setInputValue(confirmInput, confirmPassword);
       confirmInput.dispatchEvent(new Event('blur'));

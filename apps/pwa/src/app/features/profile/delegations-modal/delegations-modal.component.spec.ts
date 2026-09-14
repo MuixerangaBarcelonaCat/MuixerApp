@@ -159,7 +159,7 @@ describe('DelegationsModalComponent', () => {
     });
 
     function fillForm(alias: string, delegateType: DelegateType): void {
-      setInputValue(fixture.nativeElement.querySelector('#delegate-alias input'), alias);
+      setInputValue(fixture.nativeElement.querySelector('#delegate-alias'), alias);
       (fixture.nativeElement.querySelector('#delegate-type select') as HTMLSelectElement).value =
         delegateType;
       fixture.nativeElement
@@ -186,7 +186,7 @@ describe('DelegationsModalComponent', () => {
     });
 
     it('disables submit until a relationship type is selected', () => {
-      setInputValue(fixture.nativeElement.querySelector('#delegate-alias input'), 'Oncle');
+      setInputValue(fixture.nativeElement.querySelector('#delegate-alias'), 'Oncle');
       fixture.detectChanges();
 
       const submitButton = fixture.nativeElement.querySelector(
@@ -209,7 +209,7 @@ describe('DelegationsModalComponent', () => {
       expect(toastService.success).not.toHaveBeenCalled();
       expect(profileService.listDelegates).toHaveBeenCalledTimes(2);
       expect(
-        (fixture.nativeElement.querySelector('#delegate-alias input') as HTMLInputElement).value,
+        (fixture.nativeElement.querySelector('#delegate-alias') as HTMLInputElement).value,
       ).toBe('');
     });
 

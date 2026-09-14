@@ -41,6 +41,19 @@ describe('LoginComponent', () => {
     expect(component.form.invalid).toBe(true);
   });
 
+  it('tags the credentials so the browser password manager can save and refill them', () => {
+    const el = fixture.nativeElement;
+    const emailInput = el.querySelector('input[type="email"]') as HTMLInputElement;
+    const passwordInput = el.querySelector('input[type="password"]') as HTMLInputElement;
+
+    // `username`, no `email`: `email` és el token d'un camp d'adreça de contacte. El gestor de
+    // contrasenyes emparella `username` amb `current-password`, i usa el `name` com a reserva.
+    expect(emailInput.getAttribute('autocomplete')).toBe('username');
+    expect(emailInput.getAttribute('name')).toBe('username');
+    expect(passwordInput.getAttribute('autocomplete')).toBe('current-password');
+    expect(passwordInput.getAttribute('name')).toBe('password');
+  });
+
   it('form is valid with correct data', () => {
     component.form.setValue({ email: 'user@test.cat', password: 'password123' });
     expect(component.form.valid).toBe(true);

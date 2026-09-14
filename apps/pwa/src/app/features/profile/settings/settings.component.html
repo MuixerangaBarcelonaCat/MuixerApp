@@ -34,6 +34,7 @@
               type="password"
               formControlName="currentPassword"
               autocomplete="current-password"
+              name="password"
             />
 
             <lib-input
@@ -42,6 +43,7 @@
               type="password"
               formControlName="newPassword"
               autocomplete="new-password"
+              name="new-password"
             />
 
             <lib-input
@@ -50,7 +52,12 @@
               type="password"
               formControlName="confirmPassword"
               autocomplete="new-password"
-              [errorText]="passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched ? 'Les contrasenyes no coincideixen' : undefined"
+              name="confirm-new-password"
+              [errorText]="
+                passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched
+                  ? 'Les contrasenyes no coincideixen'
+                  : undefined
+              "
             />
 
             @if (passwordError()) {
