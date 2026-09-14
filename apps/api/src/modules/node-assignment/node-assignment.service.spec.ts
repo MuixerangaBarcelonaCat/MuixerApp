@@ -8,7 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
-import { NodeAssignmentService, AssignConflictException } from './node-assignment.service';
+import { NodeAssignmentService, AssignConflictException, hiddenZonesForFigureModeChange } from './node-assignment.service';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
@@ -3392,6 +3392,73 @@ describe('NodeAssignmentService', () => {
 
       expect(mockAssignmentRepo.count).not.toHaveBeenCalled();
       expect(result).toBe(0);
+    });
+  });
+
+  describe('previewFigureModeChange', () => {
+    it('counts PINYA and BASE assignments for REMAT, without removing them', async () => {
+      const pinyaNode = makeInstanceNode({ id: 'inode-pinya', zone: FigureZone.PINYA });
+      const baseNode = makeInstanceNode({ id: 'inode-base', zone: FigureZone.BASE });
+      const troncNode = makeInstanceNode({ id: 'inode-tronc', zone: FigureZone.TRONC });
+      mockInstanceNodeRepo.find.mockResolvedValue([pinyaNode, baseNode, troncNode]);
+      mockAssignmentRepo.count.mockResolvedValue(2);
+
+      const result = await service.previewFigureModeChange(INSTANCE_ID, FigureMode.REMAT);
+
+      expect(mockAssignmentRepo.count).toHaveBeenCalledWith({
+        where: { figureInstance: { id: INSTANCE_ID }, instanceNode: { id: In(['inode-pinya', 'inode-base']) } },
+      });
+      expect(result).toBe(2);
+    });
+
+    it('counts only PINYA assignments for NETA, excluding BASE', async () => {
+      const pinyaNode = makeInstanceNode({ id: 'inode-pinya', zone: FigureZone.PINYA });
+      const baseNode = makeInstanceNode({ id: 'inode-base', zone: FigureZone.BASE });
+      mockInstanceNodeRepo.find.mockResolvedValue([pinyaNode, baseNode]);
+      mockAssignmentRepo.count.mockResolvedValue(1);
+
+      const result = await service.previewFigureModeChange(INSTANCE_ID, FigureMode.NETA);
+
+      expect(mockAssignmentRepo.count).toHaveBeenCalledWith({
+        where: { figureInstance: { id: INSTANCE_ID }, instanceNode: { id: In(['inode-pinya']) } },
+      });
+      expect(result).toBe(1);
+    });
+
+    it('returns 0 without querying assignments for COMPLETA/PEU', async () => {
+      const result = await service.previewFigureModeChange(INSTANCE_ID, FigureMode.COMPLETA);
+
+      expect(mockInstanceNodeRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.count).not.toHaveBeenCalled();
+      expect(result).toBe(0);
+    });
+
+    it('returns 0 without querying assignments when there are no hidden-zone nodes', async () => {
+      const troncNode = makeInstanceNode({ id: 'inode-tronc', zone: FigureZone.TRONC });
+      mockInstanceNodeRepo.find.mockResolvedValue([troncNode]);
+
+      const result = await service.previewFigureModeChange(INSTANCE_ID, FigureMode.NETA);
+
+      expect(mockAssignmentRepo.count).not.toHaveBeenCalled();
+      expect(result).toBe(0);
+    });
+  });
+
+  describe('hiddenZonesForFigureModeChange', () => {
+    it('hides PINYA and BASE for REMAT', () => {
+      expect(hiddenZonesForFigureModeChange(FigureMode.REMAT)).toEqual([FigureZone.PINYA, FigureZone.BASE]);
+    });
+
+    it('hides only PINYA for NETA, keeping BASE', () => {
+      expect(hiddenZonesForFigureModeChange(FigureMode.NETA)).toEqual([FigureZone.PINYA]);
+    });
+
+    it('hides nothing for COMPLETA', () => {
+      expect(hiddenZonesForFigureModeChange(FigureMode.COMPLETA)).toEqual([]);
+    });
+
+    it('hides nothing for PEU', () => {
+      expect(hiddenZonesForFigureModeChange(FigureMode.PEU)).toEqual([]);
     });
   });
 });

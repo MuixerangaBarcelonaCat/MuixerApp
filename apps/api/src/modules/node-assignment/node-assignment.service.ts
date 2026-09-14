@@ -1532,6 +1532,28 @@ export class NodeAssignmentService {
     });
   }
 
+  /**
+   * Read-only counterpart to `FigureInstanceService`'s mode-change deletion: how many
+   * assignments switching to `figureMode` WOULD remove, without removing them. Both go
+   * through `hiddenZonesForFigureModeChange` so the count shown to the user and what
+   * actually gets deleted on apply can never diverge (unlike the pre-existing
+   * `pinyaAssignedCount`, which is PINYA+BASE always and over-counts for NETA).
+   */
+  async previewFigureModeChange(instanceId: string, figureMode: FigureMode): Promise<number> {
+    const hiddenZones = hiddenZonesForFigureModeChange(figureMode);
+    if (hiddenZones.length === 0) return 0;
+
+    const nodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const hiddenNodeIds = nodes.filter((n) => hiddenZones.includes(n.zone)).map((n) => n.id);
+    if (hiddenNodeIds.length === 0) return 0;
+
+    return this.assignmentRepository.count({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(hiddenNodeIds) } },
+    });
+  }
+
   private async hiddenNodeIdsBeyondCordons(instanceId: string, numberOfCordons: number): Promise<string[]> {
     const nodes = await this.instanceNodeRepository.find({
       where: { figureInstance: { id: instanceId } },
@@ -1899,4 +1921,21 @@ export class NodeAssignmentService {
       return manager.save(InstanceNode, instanceNodes);
     });
   }
+}
+
+/**
+ * Single source of truth for "which zones get their assignments wiped when a figure switches
+ * to this mode" (REMAT strips PINYA+BASE, NETA strips PINYA only, COMPLETA/PEU strip nothing).
+ * Both the actual deletion (`FigureInstanceService.update`) and the impact preview above
+ * (`previewFigureModeChange`) go through here so the count shown to the user and what
+ * actually gets removed can never diverge.
+ *
+ * Deliberately separate from `isNodeVisibleByCordons` (`@muixer/shared`): that one is about
+ * live node visibility (never hides BASE, since BASE stays drawn/countable in REMAT for other
+ * purposes), this one is about the one-time destructive removal a mode *change* triggers.
+ */
+export function hiddenZonesForFigureModeChange(figureMode: FigureMode | string): FigureZone[] {
+  if (figureMode === FigureMode.REMAT) return [FigureZone.PINYA, FigureZone.BASE];
+  if (figureMode === FigureMode.NETA) return [FigureZone.PINYA];
+  return [];
 }

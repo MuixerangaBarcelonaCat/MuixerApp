@@ -1,4 +1,4 @@
-import { AssignmentDetail, AvailablePerson, AvailablePersonsQuery, BulkImportPayload, BulkImportResult, CordonsResponse, CreateAdHocNodePayload, CreateAssignmentPayload, EventAssignmentSummary, FigureHistoryEntry, HistoryMeta, HistoryQuery, InstanceNodeItem, PersonAssignmentHistory, SegmentConflictsResponse, SwapAssignmentsPayload, TroncChangeImpact, UpdateAdHocNodePayload, UpdateInstanceCordonsPayload } from '@muixer/pinyes-render';
+import { AssignmentDetail, AvailablePerson, AvailablePersonsQuery, BulkImportPayload, BulkImportResult, CordonsResponse, CreateAdHocNodePayload, CreateAssignmentPayload, EventAssignmentSummary, FigureHistoryEntry, FigureMode, HistoryMeta, HistoryQuery, InstanceNodeItem, PersonAssignmentHistory, SegmentConflictsResponse, SwapAssignmentsPayload, TroncChangeImpact, UpdateAdHocNodePayload, UpdateInstanceCordonsPayload } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
@@ -72,6 +72,12 @@ export class NodeAssignmentService extends ApiService {
   previewCordonsImpact(instanceId: string, numberOfCordons: number): Observable<{ affectedCount: number }> {
     const params = buildHttpParams({ numberOfCordons });
     return this.get<{ affectedCount: number }>(`/figure-instances/${instanceId}/cordons/impact`, { params });
+  }
+
+  /** Read-only: how many assignments switching to `figureMode` would remove, without applying it. */
+  previewFigureModeImpact(instanceId: string, figureMode: FigureMode): Observable<{ affectedCount: number }> {
+    const params = buildHttpParams({ figureMode });
+    return this.get<{ affectedCount: number }>(`/figure-instances/${instanceId}/figure-mode/impact`, { params });
   }
 
   getAvailablePersons(
