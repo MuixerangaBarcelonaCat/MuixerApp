@@ -38,6 +38,27 @@
       },
       "defaultConfiguration": "production"
     },
+    "build-migrations": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "dependsOn": ["^build"],
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/apps/api/migrations-compiled",
+        "main": "apps/api/src/data-source.ts",
+        "tsConfig": "apps/api/tsconfig.app.json",
+        "webpackConfig": "apps/api/webpack.migrations.config.js"
+      },
+      "configurations": {
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "inspect": false
+        }
+      },
+      "defaultConfiguration": "production"
+    },
     "serve": {
       "executor": "@nx/js:node",
       "options": {

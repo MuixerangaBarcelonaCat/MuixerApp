@@ -17,9 +17,8 @@ ENV NX_SKIP_NX_CACHE=true
 # Build shared lib first (api depends on it), then the API
 # Use local nx binary to avoid npx downloading a different version
 RUN ./node_modules/.bin/nx build shared --configuration=production && \
-    ./node_modules/.bin/nx build api --configuration=production
-# Compile migrations and data-source separately (not bundled by webpack)
-RUN ./node_modules/.bin/tsc -p apps/api/tsconfig.migrations.json
+    ./node_modules/.bin/nx build api --configuration=production && \
+    ./node_modules/.bin/nx run api:build-migrations --configuration=production
 
 # Stage 3: Install only production dependencies for the final image
 FROM node:22-alpine AS prod-deps
@@ -37,18 +36,12 @@ ENV NODE_ENV=production
 # Copy the built application
 COPY --from=build /app/dist/apps/api ./
 
-# Copy compiled migrations, data-source and its dependencies
+# Copy the bundled data-source (entities + migrations + @muixer/shared all
+# inlined by webpack, same as main.js — no separate node_modules entry needed)
 COPY --from=build /app/dist/apps/api/migrations-compiled/data-source.js ./data-source.js
-COPY --from=build /app/dist/apps/api/migrations-compiled/migrations ./migrations
-COPY --from=build /app/dist/apps/api/migrations-compiled/modules ./modules
 
 # Copy production node_modules (includes native bindings like bcrypt, pg, typeorm CLI)
 COPY --from=prod-deps /app/node_modules ./node_modules
-
-# Migrations are compiled with plain tsc (not webpack), so '@muixer/shared' stays
-# an external require at runtime — provide it as a resolvable node module.
-COPY --from=build /app/dist/libs/shared/src ./node_modules/@muixer/shared/src
-RUN printf '{"name":"@muixer/shared","version":"0.0.1","main":"./src/index.js","types":"./src/index.d.ts"}' > ./node_modules/@muixer/shared/package.json
 
 # Copy entrypoint script
 COPY scripts/docker-entrypoint.sh ./entrypoint.sh
