@@ -98,6 +98,7 @@ import {
   SegmentMoveConflictResolution,
   TroncChangeImpact,
 } from '@muixer/shared';
+import { hiddenZonesForFigureModeChange } from '../node-assignment/node-assignment.service';
 
 export interface MoveInstanceResult {
   sourceSegment: SegmentWithInstances;
@@ -177,15 +178,12 @@ export class FigureInstanceService {
       instance.figureMode = dto.figureMode;
     }
 
-    if (dto.figureMode === FigureMode.REMAT || dto.figureMode === FigureMode.NETA) {
+    const hiddenZones = dto.figureMode !== undefined ? hiddenZonesForFigureModeChange(dto.figureMode) : [];
+    if (hiddenZones.length > 0) {
       // Deletion + save must commit or roll back together: otherwise a failed save after
       // the delete would leave assignments gone but figureMode unchanged (see BUG-13).
       await this.dataSource.transaction(async (manager) => {
-        if (dto.figureMode === FigureMode.REMAT) {
-          await this.deletePinyaAssignments(instanceId, manager);
-        } else {
-          await this.deletePinyaOnlyAssignments(instanceId, manager);
-        }
+        await this.deleteAssignmentsInZones(instanceId, hiddenZones, manager);
         await manager.save(FigureInstance, instance);
       });
     } else {
@@ -609,25 +607,14 @@ export class FigureInstanceService {
     };
   }
 
-  private async deletePinyaAssignments(instanceId: string, manager: EntityManager): Promise<void> {
+  private async deleteAssignmentsInZones(instanceId: string, zones: FigureZone[], manager: EntityManager): Promise<void> {
     await manager.query(
       `DELETE FROM node_assignments
        WHERE "figureInstanceId" = $1
        AND "instanceNodeId" IN (
-         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone IN ('PINYA', 'BASE')
+         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone = ANY($2)
        )`,
-      [instanceId],
-    );
-  }
-
-  private async deletePinyaOnlyAssignments(instanceId: string, manager: EntityManager): Promise<void> {
-    await manager.query(
-      `DELETE FROM node_assignments
-       WHERE "figureInstanceId" = $1
-       AND "instanceNodeId" IN (
-         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone = 'PINYA'
-       )`,
-      [instanceId],
+      [instanceId, zones],
     );
   }
 

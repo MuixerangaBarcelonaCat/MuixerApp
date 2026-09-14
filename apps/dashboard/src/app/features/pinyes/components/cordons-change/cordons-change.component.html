@@ -1,0 +1,16 @@
+<lib-modal [open]="!!pending()" title="Redueix els cordons" (closed)="cancel()">
+  @if (pending(); as p) {
+    <p class="text-sm text-base-content/70">
+      Esta acció eliminarà
+      <strong class="text-error">{{ p.affectedCount }} {{ p.affectedCount === 1 ? 'assignació' : 'assignacions' }}</strong>
+      dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
+    </p>
+    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+  }
+  <div modalFooter class="flex justify-end gap-2 w-full">
+    <lib-button variant="ghost" size="sm" [disabled]="saving()" (clicked)="cancel()">Cancel·la</lib-button>
+    <lib-button variant="error" size="sm" [disabled]="saving()" [loading]="saving()" (clicked)="confirm()">
+      Elimina-les
+    </lib-button>
+  </div>
+</lib-modal>

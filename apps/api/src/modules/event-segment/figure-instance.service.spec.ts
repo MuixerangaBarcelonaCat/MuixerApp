@@ -203,7 +203,7 @@ describe('FigureInstanceService', () => {
         (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
       );
       expect(deleteCalls.length).toBeGreaterThan(0);
-      expect(deleteCalls[0][1]).toEqual([INSTANCE_ID]);
+      expect(deleteCalls[0][1]).toEqual([INSTANCE_ID, [FigureZone.PINYA, FigureZone.BASE]]);
       expect(txManager.save).toHaveBeenCalledWith(
         FigureInstance,
         expect.objectContaining({ id: INSTANCE_ID, figureMode: FigureMode.REMAT }),

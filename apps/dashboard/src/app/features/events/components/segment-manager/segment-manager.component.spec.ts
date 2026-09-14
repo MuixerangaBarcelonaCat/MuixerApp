@@ -1,5 +1,6 @@
 import { SegmentDetail, InstanceDetail, EventAssignmentSummary, EventFigureSummary, SegmentPeopleCounters } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { vi, afterEach } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
@@ -7,6 +8,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentManagerComponent } from './segment-manager.component';
+import { CordonsChangeComponent } from '../../../pinyes/components/cordons-change/cordons-change.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
@@ -101,6 +103,7 @@ describe('SegmentManagerComponent', () => {
     getEventAssignmentSummary: ReturnType<typeof vi.fn>;
     updateCordons: ReturnType<typeof vi.fn>;
     previewCordonsImpact: ReturnType<typeof vi.fn>;
+    previewFigureModeImpact: ReturnType<typeof vi.fn>;
   };
   let toastService: {
     success: ReturnType<typeof vi.fn>;
@@ -137,6 +140,7 @@ describe('SegmentManagerComponent', () => {
       getEventAssignmentSummary: vi.fn().mockReturnValue(of({ segments: [] } satisfies EventAssignmentSummary)),
       updateCordons: vi.fn(),
       previewCordonsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
+      previewFigureModeImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
     };
 
     toastService = {
@@ -1363,11 +1367,11 @@ describe('SegmentManagerComponent', () => {
 
       component.updateFigureMode(seg, inst, 'PEU');
 
+      expect(nodeAssignmentService.previewFigureModeImpact).not.toHaveBeenCalled();
       expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, inst.id, { figureMode: 'PEU' });
-      expect(component.pendingModeChange()).toBeNull();
     });
 
-    it('calls service directly for REMAT when pinyaAssignedCount is 0', () => {
+    it('calls service directly for REMAT when the backend preview reports no affected assignments', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 0 })] });
       const inst = seg.instances[0];
       const updated = makeInstance({ figureMode: 'REMAT' as const });
@@ -1376,72 +1380,36 @@ describe('SegmentManagerComponent', () => {
 
       component.updateFigureMode(seg, inst, 'REMAT');
 
+      expect(nodeAssignmentService.previewFigureModeImpact).toHaveBeenCalledWith(inst.id, 'REMAT');
       expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, inst.id, { figureMode: 'REMAT' });
-      expect(component.pendingModeChange()).toBeNull();
     });
 
-    it('opens confirmation dialog when switching to REMAT with pinya assignments', () => {
+    it('opens the confirmation dialog when the backend preview reports affected assignments, without applying directly', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 3 })] });
       const inst = seg.instances[0];
+      (nodeAssignmentService.previewFigureModeImpact as ReturnType<typeof vi.fn>).mockReturnValue(of({ affectedCount: 3 }));
       component.segments.set([seg]);
 
       component.updateFigureMode(seg, inst, 'REMAT');
 
       expect(instanceService.update).not.toHaveBeenCalled();
-      expect(component.pendingModeChange()).toEqual({ segment: seg, instance: inst, mode: 'REMAT' });
-    });
-
-    it('shows the REMAT confirmation dialog in the DOM', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 2 })] });
-      const inst = seg.instances[0];
-      component.segments.set([seg]);
-      component.updateFigureMode(seg, inst, 'REMAT');
       fixture.detectChanges();
-
-      const dialog = fixture.nativeElement.querySelector('[aria-labelledby="remat-confirm-title"]');
+      const dialog = fixture.nativeElement.querySelector('dialog[open]');
       expect(dialog).toBeTruthy();
     });
-  });
 
-  describe('confirmModeChange()', () => {
-    it('calls service with pending mode and clears dialog on success', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 3 })] });
+    it('updates the right segment in the local list once the shared component applies the change', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-a', pinyaAssignedCount: 3 })] });
       const inst = seg.instances[0];
-      const updated = makeInstance({ figureMode: 'REMAT' as const, pinyaAssignedCount: 0 });
+      const updated = makeInstance({ id: 'inst-a', figureMode: 'REMAT' as const, pinyaAssignedCount: 0 });
       (instanceService.update as ReturnType<typeof vi.fn>).mockReturnValue(of(updated));
+      (nodeAssignmentService.previewFigureModeImpact as ReturnType<typeof vi.fn>).mockReturnValue(of({ affectedCount: 3 }));
       component.segments.set([seg]);
-      component.pendingModeChange.set({ segment: seg, instance: inst, mode: 'REMAT' });
+      component.updateFigureMode(seg, inst, 'REMAT');
 
-      component.confirmModeChange();
+      component.onFigureModeChangeApplied(updated);
 
-      expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, inst.id, { figureMode: 'REMAT' });
-      expect(component.pendingModeChange()).toBeNull();
-    });
-
-    it('clears dialog and shows toast on API error', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 1 })] });
-      const inst = seg.instances[0];
-      (instanceService.update as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => new Error()));
-      component.segments.set([seg]);
-      component.pendingModeChange.set({ segment: seg, instance: inst, mode: 'REMAT' });
-
-      component.confirmModeChange();
-
-      expect(toastService.error).toHaveBeenCalled();
-      expect(component.pendingModeChange()).toBeNull();
-      expect(component.savingModeChange()).toBe(false);
-    });
-  });
-
-  describe('cancelModeChange()', () => {
-    it('clears pendingModeChange', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance()] });
-      const inst = seg.instances[0];
-      component.pendingModeChange.set({ segment: seg, instance: inst, mode: 'REMAT' });
-
-      component.cancelModeChange();
-
-      expect(component.pendingModeChange()).toBeNull();
+      expect(component.segments()[0].instances[0]).toEqual(updated);
     });
   });
 
@@ -1477,14 +1445,15 @@ describe('SegmentManagerComponent', () => {
   });
 
   describe('onCordonsIncrement() / onCordonsDecrement()', () => {
-    it('increments by one', () => {
+    it('delegates increments to the shared CordonsChangeComponent, applying once the (harmless) preview resolves', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 1, totalCordons: 4 })] });
       const inst = seg.instances[0];
       nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 2, cordonsObertsEnabled: true, removedAssignments: 0 }));
       component.segments.set([seg]);
 
-      component.onCordonsIncrement(seg, inst);
+      component.onCordonsIncrement(inst);
 
+      expect(nodeAssignmentService.previewCordonsImpact).toHaveBeenCalledWith(inst.id, 2);
       expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith(inst.id, { numberOfCordons: 2 });
     });
 
@@ -1494,7 +1463,7 @@ describe('SegmentManagerComponent', () => {
       nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: null, cordonsObertsEnabled: true, removedAssignments: 0 }));
       component.segments.set([seg]);
 
-      component.onCordonsIncrement(seg, inst);
+      component.onCordonsIncrement(inst);
 
       expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith(inst.id, { numberOfCordons: null });
     });
@@ -1504,33 +1473,21 @@ describe('SegmentManagerComponent', () => {
       const inst = seg.instances[0];
       component.segments.set([seg]);
 
-      component.onCordonsIncrement(seg, inst);
+      component.onCordonsIncrement(inst);
 
       expect(nodeAssignmentService.updateCordons).not.toHaveBeenCalled();
     });
 
-    it('decrements from "Tots" to totalCordons (previewed first, applied when nothing is affected)', () => {
+    it('delegates decrements to the shared component, asking the real backend for the impact', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: null, totalCordons: 4 })] });
       const inst = seg.instances[0];
       nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 3, cordonsObertsEnabled: true, removedAssignments: 0 }));
       component.segments.set([seg]);
 
-      component.onCordonsDecrement(seg, inst);
+      component.onCordonsDecrement(inst);
 
       expect(nodeAssignmentService.previewCordonsImpact).toHaveBeenCalledWith(inst.id, 3);
       expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith(inst.id, { numberOfCordons: 3 });
-    });
-
-    it('decrements by one when the preview reports no affected assignments', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 2, cordonsObertsEnabled: true, removedAssignments: 0 }));
-      component.segments.set([seg]);
-
-      component.onCordonsDecrement(seg, inst);
-
-      expect(nodeAssignmentService.previewCordonsImpact).toHaveBeenCalledWith(inst.id, 2);
-      expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith(inst.id, { numberOfCordons: 2 });
     });
 
     it('is a no-op once at 1', () => {
@@ -1538,7 +1495,7 @@ describe('SegmentManagerComponent', () => {
       const inst = seg.instances[0];
       component.segments.set([seg]);
 
-      component.onCordonsDecrement(seg, inst);
+      component.onCordonsDecrement(inst);
 
       expect(nodeAssignmentService.previewCordonsImpact).not.toHaveBeenCalled();
       expect(nodeAssignmentService.updateCordons).not.toHaveBeenCalled();
@@ -1550,10 +1507,12 @@ describe('SegmentManagerComponent', () => {
       nodeAssignmentService.previewCordonsImpact.mockReturnValue(of({ affectedCount: 2 }));
       component.segments.set([seg]);
 
-      component.onCordonsDecrement(seg, inst);
+      component.onCordonsDecrement(inst);
 
       expect(nodeAssignmentService.updateCordons).not.toHaveBeenCalled();
-      expect(component.pendingCordonsChange()).toEqual({ segment: seg, instance: inst, value: 2, affectedCount: 2 });
+      const cordonsChange = fixture.debugElement.query(By.directive(CordonsChangeComponent))
+        .componentInstance as CordonsChangeComponent;
+      expect(cordonsChange.pending()).toEqual({ instanceId: inst.id, numberOfCordons: 2, affectedCount: 2 });
     });
 
     it('shows an error toast when the preview request fails', () => {
@@ -1562,111 +1521,18 @@ describe('SegmentManagerComponent', () => {
       nodeAssignmentService.previewCordonsImpact.mockReturnValue(throwError(() => new Error()));
       component.segments.set([seg]);
 
-      component.onCordonsDecrement(seg, inst);
+      component.onCordonsDecrement(inst);
 
       expect(toastService.error).toHaveBeenCalled();
-      expect(nodeAssignmentService.updateCordons).not.toHaveBeenCalled();
-      expect(component.pendingCordonsChange()).toBeNull();
-    });
-  });
-
-  describe('confirmCordonsChange() / cancelCordonsChange()', () => {
-    it('applies the previewed value and clears the dialog on success', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 1, cordonsObertsEnabled: true, removedAssignments: 2 }));
-      component.segments.set([seg]);
-      component.pendingCordonsChange.set({ segment: seg, instance: inst, value: 1, affectedCount: 2 });
-
-      component.confirmCordonsChange();
-
-      expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith(inst.id, { numberOfCordons: 1 });
-      expect(component.pendingCordonsChange()).toBeNull();
-      expect(component.savingCordonsChange()).toBe(false);
-    });
-
-    it('shows an error toast and clears the dialog on API failure', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(throwError(() => new Error()));
-      component.segments.set([seg]);
-      component.pendingCordonsChange.set({ segment: seg, instance: inst, value: 1, affectedCount: 2 });
-
-      component.confirmCordonsChange();
-
-      expect(toastService.error).toHaveBeenCalled();
-      expect(component.pendingCordonsChange()).toBeNull();
-      expect(component.savingCordonsChange()).toBe(false);
-    });
-
-    it('cancelCordonsChange clears the dialog without applying anything', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4 })] });
-      const inst = seg.instances[0];
-      component.pendingCordonsChange.set({ segment: seg, instance: inst, value: 1, affectedCount: 2 });
-
-      component.cancelCordonsChange();
-
-      expect(component.pendingCordonsChange()).toBeNull();
       expect(nodeAssignmentService.updateCordons).not.toHaveBeenCalled();
     });
   });
 
-  describe('updateNumberOfCordons()', () => {
-    it('applies immediately, with no confirmation step', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4, pinyaAssignedCount: 5 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 1, cordonsObertsEnabled: true, removedAssignments: 0 }));
-      component.segments.set([seg]);
+  describe('onCordonsChangeApplied()', () => {
+    it('refreshes the segments list and the assignment summary', () => {
+      component.onCordonsChangeApplied();
 
-      component.updateNumberOfCordons(seg, inst, 1);
-
-      expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith(inst.id, { numberOfCordons: 1 });
-      expect(toastService.warning).not.toHaveBeenCalled();
-    });
-
-    it('warns only when the backend actually removed assignments', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4, pinyaAssignedCount: 5 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 1, cordonsObertsEnabled: true, removedAssignments: 2 }));
-      component.segments.set([seg]);
-
-      component.updateNumberOfCordons(seg, inst, 1);
-
-      expect(toastService.warning).toHaveBeenCalledWith("S'han desassignat 2 persones que quedaven fora dels cordons.");
-    });
-
-    it('uses singular phrasing for exactly one removed assignment', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4, pinyaAssignedCount: 5 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 1, cordonsObertsEnabled: true, removedAssignments: 1 }));
-      component.segments.set([seg]);
-
-      component.updateNumberOfCordons(seg, inst, 1);
-
-      expect(toastService.warning).toHaveBeenCalledWith("S'ha desassignat 1 persona que quedava fora dels cordons.");
-    });
-
-    it('does not warn when reducing cordons removes no assignments', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4, pinyaAssignedCount: 0 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 1, cordonsObertsEnabled: true, removedAssignments: 0 }));
-      component.segments.set([seg]);
-
-      component.updateNumberOfCordons(seg, inst, 1);
-
-      expect(toastService.warning).not.toHaveBeenCalled();
-    });
-
-    it('reverts the optimistic update and shows an error toast on failure', () => {
-      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ numberOfCordons: 3, totalCordons: 4 })] });
-      const inst = seg.instances[0];
-      nodeAssignmentService.updateCordons.mockReturnValue(throwError(() => new Error()));
-      component.segments.set([seg]);
-
-      component.updateNumberOfCordons(seg, inst, 1);
-
-      expect(toastService.error).toHaveBeenCalled();
-      expect(component.segments()[0].instances[0].numberOfCordons).toBe(3);
+      expect(segmentService.getByEvent).toHaveBeenCalledWith(EVENT_ID);
     });
   });
 

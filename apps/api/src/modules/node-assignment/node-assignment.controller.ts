@@ -11,10 +11,11 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   ParseIntPipe,
+  ParseEnumPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@muixer/shared';
+import { UserRole, FigureMode } from '@muixer/shared';
 import { JwtPayload } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { NodeAssignmentService } from './node-assignment.service';
@@ -119,6 +120,15 @@ export class NodeAssignmentController {
     @Query('numberOfCordons', ParseIntPipe) numberOfCordons: number,
   ) {
     return { affectedCount: await this.assignmentService.previewCordonsReduction(instanceId, numberOfCordons) };
+  }
+
+  @ApiOperation({ summary: 'Preview how many assignments switching to a figureMode would remove, without applying it' })
+  @Get('figure-instances/:instanceId/figure-mode/impact')
+  async previewFigureModeImpact(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Query('figureMode', new ParseEnumPipe(FigureMode)) figureMode: FigureMode,
+  ) {
+    return { affectedCount: await this.assignmentService.previewFigureModeChange(instanceId, figureMode) };
   }
 
   @ApiOperation({ summary: 'Reset snapshot: remove all assignments and instance nodes, revert to live template' })
