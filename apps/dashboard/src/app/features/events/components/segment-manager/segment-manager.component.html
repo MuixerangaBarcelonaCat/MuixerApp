@@ -14,16 +14,16 @@
             [variant]="anySegmentPublished() ? 'success' : 'neutral'"
             ghost
             size="xs"
-            [ariaLabel]="anySegmentPublished() ? 'Figures publicades — cliqueu per ocultar-les totes als membres' : 'Cap figura publicada — cliqueu per publicar-les totes'"
+            [ariaLabel]="anySegmentPublished() ? 'Segments publicats — cliqueu per ocultar-los tots als membres' : 'Cap segment publicat — cliqueu per publicar-los tots'"
             [ariaPressed]="anySegmentPublished()"
             (clicked)="toggleAllVisibility()"
           >
             @if (anySegmentPublished()) {
               <lucide-icon name="Eye" [size]="13" />
-              Publicades
+              Publicat
             } @else {
               <lucide-icon name="EyeOff" [size]="13" />
-              No publicades
+              No publicat
             }
           </lib-button>
         }
