@@ -12,7 +12,7 @@
     "sourceMap": false,
     "skipLibCheck": true,
     "paths": {
-      "@muixer/shared": ["../../dist/libs/shared/src/index.d.ts"]
+      "@muixer/shared": ["../../libs/shared/src/index.ts"]
     },
     "baseUrl": "."
   },
