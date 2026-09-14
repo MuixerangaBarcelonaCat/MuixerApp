@@ -199,6 +199,14 @@ describe('SegmentProjectionComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1']);
   });
 
+  it('routes back to the event when the browser back button is pressed', async () => {
+    fixture = await setup();
+
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    expect(router.navigate).toHaveBeenCalledWith(['/events', 'ev-1']);
+  });
+
   describe('fullscreen chrome', () => {
     it('requests fullscreen on init, so the bottom tab bar is hidden while viewing the figure', async () => {
       fixture = await setup();
@@ -264,7 +272,9 @@ describe('SegmentProjectionComponent', () => {
     const searchButton = (f: ComponentFixture<TestHostComponent>): HTMLButtonElement | null =>
       f.nativeElement.querySelector('[aria-label="Cerca una persona"]');
     const filterInput = (f: ComponentFixture<TestHostComponent>): HTMLInputElement | null =>
-      f.nativeElement.querySelector('[data-testid="participant-filter"]');
+      // `data-testid` (an unrecognized static attribute) lands on `lib-input`'s own
+      // `display:contents` host, not the real native control — scope past it.
+      f.nativeElement.querySelector('[data-testid="participant-filter"] input');
     const participantRows = (f: ComponentFixture<TestHostComponent>): HTMLElement[] =>
       Array.from(f.nativeElement.querySelectorAll('[data-testid="participant-row"]'));
 

@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, effect, inject, signal, E
 import { NgClass } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ButtonComponent, CardComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, CardComponent } from '@muixer/ui';
 import { SyncEvent } from '../../models/person.model';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { environment } from '../../../../../environments/environment';
@@ -12,7 +12,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 @Component({
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterModule, LucideAngularModule, NgClass, ButtonComponent, CardComponent],
+  imports: [RouterModule, LucideAngularModule, NgClass, AlertComponent, ButtonComponent, CardComponent],
   templateUrl: './person-sync.component.html',
 })
 export class PersonSyncComponent implements AfterViewInit, OnDestroy {

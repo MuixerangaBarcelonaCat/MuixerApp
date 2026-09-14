@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { Location } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { MobileHeaderComponent } from './mobile-header.component';
@@ -56,6 +57,28 @@ describe('MobileHeaderComponent', () => {
     backButton.click();
 
     expect(navigateSpy).toHaveBeenCalledWith(['/home']);
+  });
+
+  it('always navigates to fallbackRoute when alwaysFallback is set, ignoring browser history', () => {
+    fixture.componentRef.setInput('title', 'Detall');
+    fixture.componentRef.setInput('showBack', true);
+    fixture.componentRef.setInput('fallbackRoute', '/events');
+    fixture.componentRef.setInput('alwaysFallback', true);
+    fixture.detectChanges();
+
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const locationBackSpy = vi.spyOn(TestBed.inject(Location), 'back');
+    // Plenty of real browser history — the point is alwaysFallback ignores it entirely.
+    vi.spyOn(window.history, 'length', 'get').mockReturnValue(5);
+
+    const backButton = fixture.nativeElement.querySelector(
+      'button[aria-label="Torna enrere"]',
+    ) as HTMLButtonElement;
+    backButton.click();
+
+    expect(navigateSpy).toHaveBeenCalledWith(['/events']);
+    expect(locationBackSpy).not.toHaveBeenCalled();
   });
 });
 

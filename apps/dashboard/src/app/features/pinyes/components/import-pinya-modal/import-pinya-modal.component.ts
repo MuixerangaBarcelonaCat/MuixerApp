@@ -21,7 +21,7 @@ import {
 import { SlicePipe } from '@angular/common';
 import { LucideAngularModule, Import } from 'lucide-angular';
 import { FigureZone, ImportScope, zonesForScope } from '@muixer/shared';
-import { ButtonComponent, ModalComponent, BadgeComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, ModalComponent, BadgeComponent } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { ProjectionService } from '../../services/projection.service';
@@ -33,6 +33,7 @@ import { ProjectionService } from '../../services/projection.service';
   imports: [
     LucideAngularModule,
     SlicePipe,
+    AlertComponent,
     ButtonComponent,
     ModalComponent,
     BadgeComponent,

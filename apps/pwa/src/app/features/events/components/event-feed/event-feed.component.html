@@ -3,13 +3,13 @@
     @if (isLoading()) {
       <app-skeleton-card [count]="4" />
     } @else if (hasError()) {
-      <app-empty-state
+      <lib-empty-state
         message="S'ha produït un error en carregar els assajos i les actuacions. Torneu-ho a provar."
         actionLabel="Torna-ho a provar"
-        (action)="onRefresh()"
+        (clicked)="onRefresh()"
       />
     } @else if (events().length === 0) {
-      <app-empty-state [message]="emptyMessage()" />
+      <lib-empty-state [message]="emptyMessage()" />
     } @else {
       @for (event of events(); track event.id) {
         <app-event-card

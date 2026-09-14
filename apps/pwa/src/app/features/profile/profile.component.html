@@ -1,12 +1,14 @@
 <app-mobile-header title="Perfil">
-  <a
+  <lib-button
     trailing
     routerLink="/profile/settings"
-    class="btn btn-ghost btn-circle btn-sm"
-    aria-label="Configuració"
+    variant="ghost"
+    shape="circle"
+    size="sm"
+    ariaLabel="Configuració"
   >
     <lucide-icon [img]="SettingsIcon" [size]="20" />
-  </a>
+  </lib-button>
 </app-mobile-header>
 
 <section class="py-2 flex flex-col gap-6">
@@ -28,31 +30,31 @@
       >
         <lucide-icon [img]="UserIcon" [size]="32" />
       </div>
-      <h2 class="text-2xl font-bold">{{ personSummary.alias }}</h2>
+      <h2 class="text-2xl font-serif font-bold">{{ personSummary.alias }}</h2>
       <p class="text-base-content/60">{{ personSummary.name }} {{ personSummary.firstSurname }}</p>
     </div>
 
     <div class="grid grid-cols-3 gap-2">
       <!-- Placeholder tiles — real stats are deferred (see implementation plan §5). -->
       @for (label of statPlaceholders; track label) {
-        <div class="card bg-base-100 shadow-sm" data-testid="profile-stat-placeholder">
-          <div class="card-body items-center p-3">
+        <lib-card data-testid="profile-stat-placeholder">
+          <div class="flex flex-col items-center gap-1">
             <span class="text-lg font-semibold text-base-content/40">—</span>
             <span class="text-xs text-base-content/60">{{ label }}</span>
           </div>
-        </div>
+        </lib-card>
       }
     </div>
 
     <div class="flex justify-center">
-      <app-pill-badge
-        [label]="delegationLabel(personSummary.delegationCount)"
-        [icon]="UsersIcon"
-        (clicked)="openDelegationsModal()"
-      />
+      <lib-button variant="ghost" (clicked)="openDelegationsModal()">
+        <lucide-icon [img]="UsersIcon" [size]="14" />
+        {{ delegationLabel(personSummary.delegationCount) }}
+        <lucide-icon [img]="ChevronRight" [size]="14" />
+      </lib-button>
     </div>
   } @else {
-    <app-empty-state message="No s'ha pogut carregar el perfil." />
+    <lib-empty-state message="No s'ha pogut carregar el perfil." />
   }
 
   @if (delegationsModalOpen() && selectedPersonId(); as delegationsPersonId) {

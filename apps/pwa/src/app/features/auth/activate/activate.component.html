@@ -6,17 +6,14 @@
   "
 >
   <div class="text-center my-8">
-    <h1 class="text-2xl font-bold text-base-content">MuixerApp</h1>
+    <h1 class="text-2xl font-serif font-bold text-base-content">MuixerApp</h1>
     <p class="text-sm text-base-content/50 mt-1">Activa el teu compte</p>
   </div>
 
-  <div class="card bg-base-100 shadow-lg w-full max-w-md">
+  <div class="card bg-base-100 shadow-modal w-full max-w-md">
     <div class="card-body gap-5">
       @if (invalidLink()) {
-        <div class="alert alert-error text-sm py-2" role="alert">
-          <lucide-icon [img]="AlertCircle" [size]="16" />
-          <span>Este enllaç d'invitació no és vàlid o ha caducat.</span>
-        </div>
+        <lib-alert variant="error" dense>Este enllaç d'invitació no és vàlid o ha caducat.</lib-alert>
         <a routerLink="/login" class="link link-hover text-sm text-center text-base-content/60">
           Torna a l'inici de sessió
         </a>
@@ -28,10 +25,11 @@
           completa el que falte i tria una contrasenya.
         </p>
 
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
           <lib-input
             label="Correu electrònic"
             type="email"
+            inputMode="email"
             size="md"
             formControlName="email"
             autocomplete="username"
@@ -80,30 +78,27 @@
 
           <div class="max-h-40 overflow-y-auto rounded-box bg-base-200 p-3 text-sm whitespace-pre-wrap">{{ context()?.legalDocument?.content }}</div>
 
-          <label class="label cursor-pointer justify-start gap-3">
-            <input type="checkbox" class="checkbox checkbox-sm" formControlName="legalAccepted" />
-            <span class="label-text">He llegit i accepte la política de privacitat</span>
-          </label>
+          <lib-checkbox size="sm" formControlName="legalAccepted">
+            He llegit i accepte la política de privacitat
+          </lib-checkbox>
 
           @if (errorMessage()) {
-            <div class="alert alert-error text-sm py-2" role="alert">
-              <lucide-icon [img]="AlertCircle" [size]="16" />
-              <span>{{ errorMessage() }}</span>
-            </div>
+            <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
           }
 
-          <button
+          <lib-button
             type="submit"
-            class="btn btn-primary w-full h-12 text-base"
-            [disabled]="form.invalid || isSubmitting()"
+            variant="primary"
+            fullWidth
+            [disabled]="form.invalid"
+            [loading]="isSubmitting()"
           >
             @if (isSubmitting()) {
-              <span class="loading loading-spinner loading-sm"></span>
               S'està activant el compte...
             } @else {
               Activa el compte
             }
-          </button>
+          </lib-button>
         </form>
       }
     </div>

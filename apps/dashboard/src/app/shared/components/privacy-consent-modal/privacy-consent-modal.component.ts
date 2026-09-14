@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@a
 import { LegalDocumentType } from '@muixer/shared';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
-import { ToastService } from '@muixer/ui';
+import { AlertComponent, ToastService } from '@muixer/ui';
 
 /**
  * Blocking click-wrap consent gate. Rendered by the app shell whenever the authenticated user
@@ -13,6 +13,7 @@ import { ToastService } from '@muixer/ui';
   selector: 'app-privacy-consent-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [AlertComponent],
   template: `
     <dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="privacy-consent-title">
       <div class="modal-box max-w-2xl">
@@ -30,7 +31,9 @@ import { ToastService } from '@muixer/ui';
         } @else if (content()) {
           <div class="max-h-[50vh] overflow-y-auto rounded-box bg-base-200 p-4 text-sm whitespace-pre-wrap mb-4">{{ content() }}</div>
         } @else {
-          <div class="alert alert-error mb-4"><span>No s'ha pogut carregar la política de privacitat.</span></div>
+          <div class="mb-4">
+            <lib-alert variant="error" dense>No s'ha pogut carregar la política de privacitat.</lib-alert>
+          </div>
         }
 
         <div class="modal-action">

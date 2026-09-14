@@ -1,5 +1,3 @@
-<app-mobile-header title="Inici" />
-
 <section class="py-2">
   <div class="flex items-center gap-3 mb-5">
     @if (avatarInitial(); as initial) {
@@ -17,23 +15,23 @@
         <lucide-icon [img]="UserIcon" [size]="20" />
       </div>
     }
-    <h2 class="text-xl font-semibold">{{ greeting() }}</h2>
+    <h2 class="text-xl font-serif font-semibold">{{ greeting() }}</h2>
   </div>
 
   @if (pendingDependents().length > 0) {
-    <div class="alert alert-info shadow-sm mb-4" data-testid="pending-dependents-banner" role="alert">
-      <div>
+    <div class="mb-4">
+      <lib-alert variant="info" data-testid="pending-dependents-banner">
         @if (pendingDependents().length === 1) {
           <p class="text-sm">
-            Tens <strong>{{ pendingDependents()[0].alias }}</strong> pendent de completar el registre.
+            Encara no heu completat el registre de <strong>{{ pendingDependents()[0].alias }}</strong>.
           </p>
         } @else {
           <p class="text-sm">
-            Tens <strong>{{ pendingDependents().length }}</strong> membres de la xicalla pendents de completar el registre.
+            Encara no heu completat el registre de <strong>{{ pendingDependents().length }}</strong> membres de la xicalla.
           </p>
         }
-      </div>
-      <a routerLink="/pending-dependents" class="btn btn-sm btn-ghost">Completa</a>
+        <lib-button actions routerLink="/pending-dependents" variant="ghost" size="sm">Completa</lib-button>
+      </lib-alert>
     </div>
   }
 
@@ -43,13 +41,13 @@
         <app-skeleton-card [count]="2" />
       </div>
     } @else if (hasError()) {
-      <app-empty-state
+      <lib-empty-state
         message="No s'han pogut carregar els assajos i les actuacions. Torneu-ho a provar."
         actionLabel="Torna-ho a provar"
-        (action)="reload()"
+        (clicked)="reload()"
       />
     } @else if (!hasEvents()) {
-      <app-empty-state message="No hi ha assajos ni actuacions propers programats." />
+      <lib-empty-state [icon]="CalendarOff" message="No hi ha assajos ni actuacions propers programats." />
     } @else {
       <div class="flex flex-col gap-6" aria-live="polite">
         @if (nextRehearsal(); as rehearsal) {
@@ -86,18 +84,12 @@
       </h3>
       <div class="flex flex-col gap-2">
         @for (item of news(); track item.id) {
-          <a
-            [routerLink]="['/news', item.id]"
-            data-testid="news-item"
-            class="card bg-base-100 shadow-sm"
-          >
-            <div class="card-body p-4">
-              <p class="font-medium">{{ item.title }}</p>
-              <p class="text-sm text-base-content/60" data-testid="news-item-excerpt">
-                {{ item.excerpt }}
-              </p>
-            </div>
-          </a>
+          <lib-card [routerLink]="['/news', item.id]" data-testid="news-item">
+            <p class="font-medium">{{ item.title }}</p>
+            <p class="text-sm text-base-content/60" data-testid="news-item-excerpt">
+              {{ item.excerpt }}
+            </p>
+          </lib-card>
         }
       </div>
     </div>

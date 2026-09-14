@@ -76,16 +76,29 @@ const DOC_HINTS = {
   home: ['DASHBOARD_UI'],
 };
 
-const hints = (name) => (DOC_HINTS[name] ?? []).map((d) => `[[${d}]]`).join(' · ') || '—';
+// PWA feature folders that happen to share a name with a dashboard one (events, home) would
+// otherwise resolve through DOC_HINTS above and wrongly point at DASHBOARD_UI — this overrides
+// the hint for the PWA section only (see `section`'s `hintOverrides` param), everything else
+// (auth, etc.) still falls through to the shared DOC_HINTS above.
+const PWA_DOC_HINTS = {
+  events: ['PWA_UI'],
+  home: ['PWA_UI'],
+  profile: ['PWA_UI'],
+  dependents: ['PWA_UI'],
+  news: ['PWA_UI'],
+};
+
+const hints = (name, hintOverrides = {}) =>
+  (hintOverrides[name] ?? DOC_HINTS[name] ?? []).map((d) => `[[${d}]]`).join(' · ') || '—';
 
 function table(rows) {
   return ['| Element | Fitxers | Línies | Docs |', '|---------|--------:|-------:|------|', ...rows].join('\n');
 }
 
-function section(title, base, names) {
+function section(title, base, names, hintOverrides = {}) {
   const rows = names.map((name) => {
     const { count, lines } = measure(join(base, name));
-    return `| ${link(join(base, name), `\`${name}\``)} | ${count} | ${lines} | ${hints(name)} |`;
+    return `| ${link(join(base, name), `\`${name}\``)} | ${count} | ${lines} | ${hints(name, hintOverrides)} |`;
   });
   return `### ${title}\n\n${table(rows)}\n`;
 }
@@ -129,7 +142,7 @@ const generated = [
   `Migracions TypeORM: **${migrations}** a ${link(join(ROOT, 'apps/api/src/migrations'), '`apps/api/src/migrations`')}.`,
   '',
   section('Features del dashboard (`apps/dashboard/src/app/features`)', dashFeatures, dirs(dashFeatures)),
-  section('Features de la PWA (`apps/pwa/src/app/features`)', pwaFeatures, dirs(pwaFeatures)),
+  section('Features de la PWA (`apps/pwa/src/app/features`)', pwaFeatures, dirs(pwaFeatures), PWA_DOC_HINTS),
   `### Codi compartit (\`libs/shared/src\`)\n\n${table(sharedRows)}\n`,
   '### Fitxers més grans (candidats a dividir)\n',
   '| Fitxer | Línies |',

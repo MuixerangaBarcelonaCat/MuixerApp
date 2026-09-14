@@ -1,7 +1,7 @@
 <lib-modal [open]="true" [title]="modalTitle()" (closed)="onClose()">
   @if (errorMessage()) {
-    <div class="alert alert-error shadow-raised mb-4" role="alert">
-      <span>{{ errorMessage() }}</span>
+    <div class="mb-4">
+      <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
     </div>
   }
 

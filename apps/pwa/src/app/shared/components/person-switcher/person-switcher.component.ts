@@ -1,14 +1,14 @@
 import { Component, ChangeDetectionStrategy, computed, input, output } from '@angular/core';
 import { LucideAngularModule, ChevronDown } from 'lucide-angular';
 import { ManagedPerson } from '@muixer/shared';
+import { ButtonComponent } from '@muixer/ui';
 
 @Component({
   selector: 'app-person-switcher',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent],
   templateUrl: './person-switcher.component.html',
-  styleUrls: ['./person-switcher.component.scss'],
 })
 export class PersonSwitcherComponent {
   items = input.required<ManagedPerson[]>();

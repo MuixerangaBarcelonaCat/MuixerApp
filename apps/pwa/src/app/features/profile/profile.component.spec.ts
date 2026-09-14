@@ -127,7 +127,7 @@ describe('ProfileComponent', () => {
     });
 
     it('opens the delegations modal for the selected person when the pill is clicked', async () => {
-      (fixture.nativeElement.querySelector('app-pill-badge button') as HTMLButtonElement).click();
+      (fixture.nativeElement.querySelector('lib-button button') as HTMLButtonElement).click();
       await stableFixture(fixture);
 
       expect(fixture.nativeElement.querySelector('app-delegations-modal')).toBeTruthy();
@@ -135,7 +135,7 @@ describe('ProfileComponent', () => {
     });
 
     it('closes the delegations modal when it emits closed', async () => {
-      (fixture.nativeElement.querySelector('app-pill-badge button') as HTMLButtonElement).click();
+      (fixture.nativeElement.querySelector('lib-button button') as HTMLButtonElement).click();
       await stableFixture(fixture);
       expect(fixture.nativeElement.querySelector('app-delegations-modal')).toBeTruthy();
 
@@ -186,7 +186,7 @@ describe('ProfileComponent', () => {
     });
 
     it('shows an empty state instead of crashing', () => {
-      expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('lib-empty-state')).toBeTruthy();
     });
   });
 });

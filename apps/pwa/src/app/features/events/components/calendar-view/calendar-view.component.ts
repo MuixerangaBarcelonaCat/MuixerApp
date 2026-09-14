@@ -12,7 +12,8 @@ import {
   NgZone,
 } from '@angular/core';
 import { EventType, AttendanceStatus, MeEvent } from '@muixer/shared';
-import { LucideAngularModule, ChevronLeft, ChevronRight } from 'lucide-angular';
+import { LucideAngularModule, ChevronLeft, ChevronRight, Star } from 'lucide-angular';
+import { ButtonComponent } from '@muixer/ui';
 import { parseLocalDate } from '../../../../shared/pipes/format-event-date.pipe';
 
 export interface CalendarDay {
@@ -61,28 +62,32 @@ const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.ASSISTIT]: 'He assistit',
 };
 
-const DOT_CLASSES: Record<AttendanceStatus, Record<EventType, string>> = {
-  [AttendanceStatus.ANIRE]: {
-    [EventType.ASSAIG]: 'bg-secondary',
-    [EventType.ACTUACIO]: 'bg-primary',
-  },
-  [AttendanceStatus.NO_VAIG]: {
-    [EventType.ASSAIG]: 'bg-error',
-    [EventType.ACTUACIO]: 'bg-error',
-  },
-  [AttendanceStatus.PENDENT]: {
-    [EventType.ASSAIG]: 'border border-secondary',
-    [EventType.ACTUACIO]: 'border border-primary',
-  },
-  [AttendanceStatus.ASSISTIT]: {
-    [EventType.ASSAIG]: 'bg-info',
-    [EventType.ACTUACIO]: 'bg-info',
-  },
+// Color now depends only on the attendance answer, not the event type — a will-attend/attended
+// event reads as "good" (success), a declined one as "gone" (error), and an unanswered one is
+// left empty/outline in the neutral primary hue. Shape is what carries the event type instead
+// (circle for assaig, star for actuació — see `dotClasses`/`starClasses` below).
+type AttendanceBucket = 'positive' | 'negative' | 'pending';
+
+const BUCKET_BY_STATUS: Record<AttendanceStatus, AttendanceBucket> = {
+  [AttendanceStatus.ANIRE]: 'positive',
+  [AttendanceStatus.ASSISTIT]: 'positive',
+  [AttendanceStatus.NO_VAIG]: 'negative',
+  [AttendanceStatus.PENDENT]: 'pending',
 };
 
-const NULL_DOT_CLASSES: Record<EventType, string> = {
-  [EventType.ASSAIG]: 'border border-secondary',
-  [EventType.ACTUACIO]: 'border border-primary',
+const DOT_CLASSES: Record<AttendanceBucket, string> = {
+  positive: 'bg-success',
+  negative: 'bg-error',
+  pending: 'border border-primary',
+};
+
+// `fill-*`/`text-*` land on the icon's own generated <svg> (see LucideAngularComponent's `class`
+// input), overriding its hardcoded `fill="none"` presentation attribute — a plain CSS class binds
+// with normal cascade precedence, which beats a presentation attribute regardless of DOM order.
+const STAR_CLASSES: Record<AttendanceBucket, string> = {
+  positive: 'text-success fill-success',
+  negative: 'text-error fill-error',
+  pending: 'text-primary',
 };
 
 const SWIPE_THRESHOLD = 50;
@@ -91,7 +96,7 @@ const SWIPE_THRESHOLD = 50;
   selector: 'app-calendar-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent],
   templateUrl: './calendar-view.component.html',
 })
 export class CalendarViewComponent implements AfterViewInit, OnDestroy {
@@ -101,6 +106,8 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
 
   protected readonly ChevronLeft = ChevronLeft;
   protected readonly ChevronRight = ChevronRight;
+  protected readonly Star = Star;
+  protected readonly EventType = EventType;
   protected readonly dayHeaders = DAY_HEADERS;
 
   private readonly el = inject(ElementRef<HTMLElement>);
@@ -179,11 +186,16 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
     this.selectedDateChange.emit(newDate);
   }
 
+  private bucketFor(ev: CalendarDayEvent): AttendanceBucket {
+    return ev.attendanceStatus == null ? 'pending' : BUCKET_BY_STATUS[ev.attendanceStatus];
+  }
+
   dotClasses(ev: CalendarDayEvent): string {
-    if (ev.attendanceStatus == null) {
-      return NULL_DOT_CLASSES[ev.eventType];
-    }
-    return DOT_CLASSES[ev.attendanceStatus][ev.eventType];
+    return DOT_CLASSES[this.bucketFor(ev)];
+  }
+
+  starClasses(ev: CalendarDayEvent): string {
+    return STAR_CLASSES[this.bucketFor(ev)];
   }
 
   onDayKeydown(event: KeyboardEvent, day: CalendarDay): void {

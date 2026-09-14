@@ -12,7 +12,7 @@ import { marked } from 'marked';
 import { MeNewsItem } from '@muixer/shared';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { CardComponent, EmptyStateComponent } from '@muixer/ui';
 import { formatEventDate } from '../../../shared/pipes/format-event-date.pipe';
 import { NewsService } from '../services/news.service';
 
@@ -33,7 +33,7 @@ marked.use({ renderer });
   selector: 'app-news-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MobileHeaderComponent, SkeletonCardComponent, EmptyStateComponent],
+  imports: [MobileHeaderComponent, SkeletonCardComponent, EmptyStateComponent, CardComponent],
   templateUrl: './news-detail.component.html',
 })
 export class NewsDetailComponent {

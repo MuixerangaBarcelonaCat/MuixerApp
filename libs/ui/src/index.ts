@@ -10,6 +10,7 @@ export * from './lib/tokens/theme';
 
 export * from './lib/components/button/button.component';
 export * from './lib/components/button-group/button-group.component';
+export * from './lib/components/alert/alert.component';
 export * from './lib/components/badge/badge.component';
 export * from './lib/components/card/card.component';
 export * from './lib/components/tabs/tabs.component';

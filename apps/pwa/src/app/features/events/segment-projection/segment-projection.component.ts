@@ -1,7 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
-  ElementRef,
+  HostListener,
   Injector,
   OnInit,
   OnDestroy,
@@ -12,13 +12,13 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-angular';
 import { computeSegmentDisplayName, matchesSearch } from '@muixer/shared';
 import { AssignmentPersonDetail, ProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-render';
-import { ModalComponent } from '@muixer/ui';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { EmptyStateComponent, InputComponent, ModalComponent } from '@muixer/ui';
 import { ProjectionService } from '../services/projection.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
@@ -27,7 +27,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
   selector: 'app-segment-projection',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, PinyaProjectionComponent, EmptyStateComponent, ModalComponent],
+  imports: [FormsModule, LucideAngularModule, PinyaProjectionComponent, EmptyStateComponent, InputComponent, ModalComponent],
   templateUrl: './segment-projection.component.html',
 })
 export class SegmentProjectionComponent implements OnInit, OnDestroy {
@@ -48,8 +48,6 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
   /** The rendered `lib-pinya-projection` — used to re-trigger its flight animation whenever the
    *  looked-up person changes (see `flyToHighlighted`), same way its own Troba'm button does. */
   private readonly projection = viewChild<{ onTroba(): void }>('projection');
-  /** The picker's filter box — autofocused via `focusFilterInput` whenever the picker opens. */
-  private readonly filterInputRef = viewChild<ElementRef<HTMLInputElement>>('filterInput');
 
   /** The viewer's own linked Person, if any — enables the "you are here" banner. */
   private readonly ownPersonId = computed(() => this.authService.currentUser()?.person?.id ?? null);
@@ -118,6 +116,17 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     this.router.navigate(['/events', this.eventId()]);
   }
 
+  /** The physical/browser back button leaves the projection the same deterministic way the HUD
+   *  arrow does — whatever segment(s) were browsed via prev/next along the way already collapse
+   *  into one history entry (see the `replaceUrl` note on `navigateSegment`), but a direct/reload
+   *  entry into this screen has no such guarantee, so this makes the destination explicit either
+   *  way rather than trusting the raw history stack. Same pattern as the dashboard's own
+   *  `ProjectionViewComponent.onPopState`. */
+  @HostListener('window:popstate')
+  onPopState(): void {
+    this.goBack();
+  }
+
   navigateSegment(direction: 'prev' | 'next'): void {
     const data = this.data();
     if (!data) return;
@@ -130,11 +139,9 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
 
   openPicker(): void {
     this.pickerOpen.set(true);
-    // The filter box only enters the DOM once `pickerOpen()` flips true (it's behind an `@if`),
-    // so it can't be focused synchronously here — `afterNextRender` runs once the upcoming
-    // render (this one) has committed, by which point the input exists and `lib-modal`'s own
-    // `showModal()` (which steals focus to the dialog itself) has already run.
-    afterNextRender(() => this.filterInputRef()?.nativeElement.focus(), { injector: this.injector });
+    // No manual focus dance needed: the filter box is a fresh `lib-input [autofocus]="true"`
+    // each time it mounts (it's behind its own `@if`), and that input's own `autofocus` already
+    // focuses the real native control once its view is ready — see its doc comment.
   }
 
   closePicker(): void {

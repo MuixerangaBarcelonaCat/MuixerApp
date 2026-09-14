@@ -106,7 +106,7 @@ describe('CalendarViewComponent', () => {
     expect(dots.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should apply secondary color dot for assaig event with ANIRE', () => {
+  it('should apply a filled success dot for an assaig event marked ANIRE', () => {
     host.events.set([
       makeEvent({
         date: '2026-07-16',
@@ -117,21 +117,100 @@ describe('CalendarViewComponent', () => {
     fixture.detectChanges();
 
     const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
-    const dot = Array.from(dots).find((d: any) =>
-      d.classList.contains('bg-secondary'),
-    );
+    const dot = Array.from(dots).find((d: any) => d.classList.contains('bg-success'));
     expect(dot).toBeTruthy();
   });
 
-  it('should apply border-only dot for pendent event', () => {
+  it('should apply a filled success dot for an assaig event marked ASSISTIT too', () => {
+    host.events.set([
+      makeEvent({
+        date: '2026-07-16',
+        eventType: EventType.ASSAIG,
+        myAttendance: { id: 'a1', status: AttendanceStatus.ASSISTIT, respondedAt: null },
+      }),
+    ]);
+    fixture.detectChanges();
+
+    const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
+    const dot = Array.from(dots).find((d: any) => d.classList.contains('bg-success'));
+    expect(dot).toBeTruthy();
+  });
+
+  it('should apply a filled error dot for an assaig event marked NO_VAIG', () => {
+    host.events.set([
+      makeEvent({
+        date: '2026-07-16',
+        eventType: EventType.ASSAIG,
+        myAttendance: { id: 'a1', status: AttendanceStatus.NO_VAIG, respondedAt: null },
+      }),
+    ]);
+    fixture.detectChanges();
+
+    const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
+    const dot = Array.from(dots).find((d: any) => d.classList.contains('bg-error'));
+    expect(dot).toBeTruthy();
+  });
+
+  it('should apply an empty primary-colored dot for an assaig event with no answer yet', () => {
     host.events.set([makeEvent({ date: '2026-07-16', myAttendance: null })]);
     fixture.detectChanges();
 
     const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
-    const dot = Array.from(dots).find((d: any) =>
-      d.classList.contains('border-secondary') || d.classList.contains('border'),
-    );
+    const dot: any = Array.from(dots).find((d: any) => d.classList.contains('border-primary'));
     expect(dot).toBeTruthy();
+    expect(dot.classList.contains('bg-success')).toBe(false);
+    expect(dot.classList.contains('bg-error')).toBe(false);
+  });
+
+  it('should render a star instead of a dot for an actuació event', () => {
+    host.events.set([makeEvent({ date: '2026-07-16', eventType: EventType.ACTUACIO })]);
+    fixture.detectChanges();
+
+    const cell = fixture.nativeElement.querySelector('[data-date="2026-07-16"]');
+    expect(cell.querySelector('.rounded-full')).toBeNull();
+    expect(cell.querySelector('[data-testid="calendar-actuacio-star"] svg')).toBeTruthy();
+  });
+
+  it('should fill the star success-colored for an actuació event marked ANIRE', () => {
+    host.events.set([
+      makeEvent({
+        date: '2026-07-16',
+        eventType: EventType.ACTUACIO,
+        myAttendance: { id: 'a1', status: AttendanceStatus.ANIRE, respondedAt: null },
+      }),
+    ]);
+    fixture.detectChanges();
+
+    const star = fixture.nativeElement.querySelector('[role="gridcell"] [data-testid="calendar-actuacio-star"] svg');
+    expect(star.classList.contains('fill-success')).toBe(true);
+    expect(star.classList.contains('text-success')).toBe(true);
+  });
+
+  it('should fill the star error-colored for an actuació event marked NO_VAIG', () => {
+    host.events.set([
+      makeEvent({
+        date: '2026-07-16',
+        eventType: EventType.ACTUACIO,
+        myAttendance: { id: 'a1', status: AttendanceStatus.NO_VAIG, respondedAt: null },
+      }),
+    ]);
+    fixture.detectChanges();
+
+    const star = fixture.nativeElement.querySelector('[role="gridcell"] [data-testid="calendar-actuacio-star"] svg');
+    expect(star.classList.contains('fill-error')).toBe(true);
+    expect(star.classList.contains('text-error')).toBe(true);
+  });
+
+  it('should leave the star unfilled (empty), primary-colored, for an actuació event with no answer yet', () => {
+    host.events.set([
+      makeEvent({ date: '2026-07-16', eventType: EventType.ACTUACIO, myAttendance: null }),
+    ]);
+    fixture.detectChanges();
+
+    const star = fixture.nativeElement.querySelector('[role="gridcell"] [data-testid="calendar-actuacio-star"] svg');
+    expect(star.classList.contains('text-primary')).toBe(true);
+    expect(star.classList.contains('fill-success')).toBe(false);
+    expect(star.classList.contains('fill-error')).toBe(false);
   });
 
   it('should emit selectedDateChange when tapping a day', () => {

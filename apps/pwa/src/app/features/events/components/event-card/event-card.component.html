@@ -1,56 +1,75 @@
 <div
-  class="card bg-base-100 shadow-sm border-l-4 cursor-pointer"
-  [class]="accentClass()"
+  [class.cursor-pointer]="clickable()"
   role="article"
-  tabindex="0"
-  [attr.aria-label]="cardTitle() + ', ' + cardSubtitle()"
+  [attr.tabindex]="clickable() ? 0 : null"
+  [attr.aria-label]="ariaLabel()"
   (click)="navigateToDetail()"
   (keydown.enter)="navigateToDetail()"
 >
-  <div class="card-body p-4">
-    <h3 class="card-title text-base mb-0">{{ cardTitle() }}</h3>
+  <lib-card sash="thin" [tone]="cardTone()">
+    <div class="p-4">
+      <h3 class="card-title text-base -mt-0.5 mb-1 relative">
+        @if (!isAssaig()) {
+          <lucide-icon [img]="Star" [size]="15" data-testid="actuacio-star-icon" class="absolute right-full top-1/2 -translate-y-1/2 mr-1 text-primary" aria-hidden="true" />
+        }
+        {{ cardTitle() }}
+      </h3>
 
-    <div class="flex items-stretch justify-between gap-2">
-      <div class="min-w-0 flex-1 flex flex-col justify-end gap-1">
-        <p class="text-sm text-base-content/60">{{ cardSubtitle() }}</p>
-
-        <div class="flex flex-col gap-0.5 text-xs text-base-content/50">
-          @if (event().startTime) {
-            <span class="flex items-center gap-1">
-              <lucide-icon [img]="Clock" [size]="14" aria-hidden="true" />
-              {{ event().startTime | slice:0:5 }}
-            </span>
+      <div class="flex items-stretch justify-between gap-2">
+        <div class="min-w-0 flex-1 flex flex-col justify-end gap-1">
+          @if (cardSubtitle(); as subtitle) {
+            <p class="text-sm text-base-content/60">{{ subtitle }}</p>
           }
-          @if (event().location) {
-            <span class="flex items-center gap-1 min-w-0">
-              <lucide-icon [img]="MapPin" [size]="14" class="shrink-0" aria-hidden="true" />
-              <span class="truncate">{{ event().location }}</span>
-            </span>
-          }
-        </div>
-      </div>
 
-      <div class="flex flex-col items-end gap-2 shrink-0">
-        @for (row of event().managedAttendances; track row.personId) {
-          <div class="flex items-center gap-2">
-            @if (event().managedAttendances.length > 1) {
-              <span class="managed-person-name text-xs font-medium text-base-content/70 truncate">
-                {{ row.displayName }}
+          <div class="flex flex-col gap-0.5 text-xs text-base-content/50">
+            @if (event().startTime) {
+              <span class="flex items-center gap-1">
+                <lucide-icon [img]="Clock" [size]="14" aria-hidden="true" />
+                {{ event().startTime | slice:0:5 }}
               </span>
             }
-            <app-attendance-button
-              [eventId]="event().id"
-              [personId]="row.personId"
-              [status]="row.attendance?.status ?? null"
-              [disabled]="isPast()"
-              [ariaContext]="event().managedAttendances.length > 1 ? cardTitle() + ' — ' + row.displayName : ''"
-              (statusChanged)="onAttendanceChanged(row.personId, $event)"
-              (click)="$event.stopPropagation()"
-              (keydown.enter)="$event.stopPropagation()"
-            />
+            @if (event().location) {
+              <span class="flex items-center gap-1 min-w-0">
+                <lucide-icon [img]="MapPin" [size]="14" class="shrink-0" aria-hidden="true" />
+                @if (locationUrl()) {
+                  <a
+                    [href]="locationUrl()"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="link link-primary inline-flex items-center min-h-6 truncate"
+                  >{{ event().location }}</a>
+                } @else {
+                  <span class="truncate">{{ event().location }}</span>
+                }
+              </span>
+            }
+          </div>
+        </div>
+
+        @if (showAttendance()) {
+          <div class="flex flex-col items-end gap-2 shrink-0">
+            @for (row of event().managedAttendances; track row.personId) {
+              <div class="flex items-center gap-2">
+                @if (event().managedAttendances.length > 1) {
+                  <span class="managed-person-name text-xs font-medium text-base-content/70 truncate">
+                    {{ row.displayName }}
+                  </span>
+                }
+                <app-attendance-button
+                  [eventId]="event().id"
+                  [personId]="row.personId"
+                  [status]="row.attendance?.status ?? null"
+                  [disabled]="isPast()"
+                  [ariaContext]="event().managedAttendances.length > 1 ? cardTitle() + ' — ' + row.displayName : ''"
+                  (statusChanged)="onAttendanceChanged(row.personId, $event)"
+                  (click)="$event.stopPropagation()"
+                  (keydown.enter)="$event.stopPropagation()"
+                />
+              </div>
+            }
           </div>
         }
       </div>
     </div>
-  </div>
+  </lib-card>
 </div>

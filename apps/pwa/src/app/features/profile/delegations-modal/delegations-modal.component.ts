@@ -11,10 +11,18 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DelegateType } from '@muixer/shared';
-import { LucideAngularModule, X, Users } from 'lucide-angular';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { LucideAngularModule, Users } from 'lucide-angular';
 import { ProfileDelegate, ProfileService } from '../services/profile.service';
-import { ToastService } from '@muixer/ui';
+import {
+  AlertComponent,
+  BadgeComponent,
+  ButtonComponent,
+  EmptyStateComponent,
+  InputComponent,
+  ModalComponent,
+  SelectComponent,
+  ToastService,
+} from '@muixer/ui';
 
 const DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
   [DelegateType.PARENT]: 'Pare/Mare',
@@ -27,9 +35,18 @@ const DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
   selector: 'app-delegations-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, ReactiveFormsModule, EmptyStateComponent],
+  imports: [
+    LucideAngularModule,
+    ReactiveFormsModule,
+    AlertComponent,
+    BadgeComponent,
+    ButtonComponent,
+    EmptyStateComponent,
+    InputComponent,
+    ModalComponent,
+    SelectComponent,
+  ],
   templateUrl: './delegations-modal.component.html',
-  styleUrls: ['./delegations-modal.component.scss'],
 })
 export class DelegationsModalComponent {
   private readonly profileService = inject(ProfileService);
@@ -39,7 +56,6 @@ export class DelegationsModalComponent {
   personId = input.required<string>();
   closed = output<void>();
 
-  protected readonly X = X;
   protected readonly Users = Users;
   protected readonly delegateTypes = Object.values(DelegateType);
 
@@ -67,10 +83,6 @@ export class DelegationsModalComponent {
 
   protected close(): void {
     this.closed.emit();
-  }
-
-  protected onBackdropClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) this.close();
   }
 
   protected submitAdd(): void {

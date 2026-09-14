@@ -152,8 +152,8 @@ describe('LoginComponent', () => {
     it('gives the email and password inputs their own >=24px height instead of just the wrapper', () => {
       const emailInput = fixture.nativeElement.querySelector('input[type="email"]') as HTMLElement;
       const passwordInput = fixture.nativeElement.querySelector('input[type="password"]') as HTMLElement;
-      expect(emailInput.className).toContain('h-6');
-      expect(passwordInput.className).toContain('h-6');
+      expect(emailInput.className).toContain('min-h-6');
+      expect(passwordInput.className).toContain('min-h-6');
     });
   });
 });

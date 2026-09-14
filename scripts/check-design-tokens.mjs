@@ -4,9 +4,13 @@
  *
  *   pnpm run lint:tokens
  *
- * Reports raw hex color literals and color-related Tailwind arbitrary-value syntax
- * (bg-[...], text-[...], etc.) found outside libs/ui/src/lib/tokens/ — see DESIGN_SYSTEM.md's
- * usage rules #2/#3. Warn-only by design (like `pnpm run lint:dead` / knip): Tier 3 restyling
+ * Reports raw hex color literals, raw CSS color-function literals (oklch(62% .18 220), rgba(0,0,0,.5),
+ * etc. — a hardcoded color in a different syntax is still a hardcoded color, not a token, so this
+ * catches it same as hex; a color FUNCTION wrapping a token reference, e.g. DaisyUI v4's own
+ * `oklch(var(--p))` convention, is explicitly not a finding — that *is* the correct consume-a-token
+ * pattern), and color-related Tailwind arbitrary-value syntax (bg-[...], text-[...], etc.) found
+ * outside libs/ui/src/lib/tokens/ — see DESIGN_SYSTEM.md's usage rules #2/#3. Warn-only by design
+ * (like `pnpm run lint:dead` / knip): Tier 3 restyling
  * (~25 existing components, per the plan's Phase 1 audit) hasn't happened yet, so a hard fail
  * right now would block unrelated PRs on pre-existing drift, not new regressions. Always exits 0.
  * Keep this dumb on purpose: it's a regex scan, not a real CSS/TS parser — false positives (a CSS
@@ -30,6 +34,13 @@ const EXCLUDE_PATH_SEGMENT = 'libs/ui/src/lib/tokens/';
 // on global regexes reused across many .test() calls, a classic footgun for a loop like this one.
 const HEX_PATTERN = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/;
 
+// A CSS color function whose first argument is a literal number/percent, not a token reference —
+// `oklch(62% 0.18 220.71)`/`rgba(0,0,0,.5)` are exactly as hardcoded as a hex literal and belong
+// in the same "raw color" bucket. The negative lookahead is what keeps this from also flagging
+// DaisyUI v4's own `oklch(var(--p))`/`hsl(var(--su) / 10%)` convention — that's a real token
+// reference wrapped in the function CSS requires to consume it, not a literal.
+const COLOR_FUNCTION_PATTERN = /\b(?:oklch|oklab|lab|lch|rgba?|hsla?)\(\s*(?!var\()[\d.]/;
+
 // Color-related Tailwind utility prefixes only — arbitrary values for layout/sizing
 // (max-h-[85vh], w-[...]) aren't a token violation, so they're deliberately not flagged here.
 const ARBITRARY_TAILWIND_PATTERN =
@@ -47,7 +58,7 @@ function* walk(dir) {
   }
 }
 
-/** @type {Map<string, {line: number, snippet: string, kind: 'hex' | 'arbitrary'}[]>} */
+/** @type {Map<string, {line: number, snippet: string, kind: 'hex' | 'color-fn' | 'arbitrary'}[]>} */
 const findings = new Map();
 
 for (const root of SCAN_ROOTS) {
@@ -62,6 +73,7 @@ for (const root of SCAN_ROOTS) {
     lines.forEach((line, i) => {
       // One flag per line/kind is enough for a human-skimmed report — not counting every match.
       if (HEX_PATTERN.test(line)) add(relPath, i + 1, line.trim(), 'hex');
+      if (COLOR_FUNCTION_PATTERN.test(line)) add(relPath, i + 1, line.trim(), 'color-fn');
       if (ARBITRARY_TAILWIND_PATTERN.test(line)) add(relPath, i + 1, line.trim(), 'arbitrary');
     });
   }
@@ -77,17 +89,17 @@ const files = [...findings.keys()].sort();
 const total = files.reduce((sum, f) => sum + findings.get(f).length, 0);
 
 if (total === 0) {
-  console.log('[design-tokens] No raw hex colors or color-related Tailwind arbitrary values found outside libs/ui/src/lib/tokens/.');
+  console.log('[design-tokens] No raw hex colors, raw CSS color-function literals, or color-related Tailwind arbitrary values found outside libs/ui/src/lib/tokens/.');
   process.exit(0);
 }
 
-console.log(`[design-tokens] ${total} finding(s) across ${files.length} file(s) — raw hex / arbitrary color values outside token files.`);
+console.log(`[design-tokens] ${total} finding(s) across ${files.length} file(s) — raw hex / color-function / arbitrary color values outside token files.`);
 console.log('[design-tokens] Warn-only (Phase 6.1): does not fail CI. See docs/DESIGN_SYSTEM.md usage rules #2/#3.\n');
 
 for (const file of files) {
   console.log(file);
   for (const { line, snippet, kind } of findings.get(file)) {
-    console.log(`  ${line}:${kind === 'hex' ? 'hex' : 'arbitrary'}  ${snippet}`);
+    console.log(`  ${line}:${kind}  ${snippet}`);
   }
 }
 
