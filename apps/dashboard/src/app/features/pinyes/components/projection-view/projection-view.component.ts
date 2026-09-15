@@ -79,7 +79,9 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     if (!this.embedded()) {
       this.liveChanges = this.segmentChanges
         .watch(this.eventId, () => this.segmentId)
-        .subscribe(() => this.loadSegment());
+        // silent: the segment already has data on screen — a full-screen spinner would
+        // interrupt viewing it for no reason the viewer asked for.
+        .subscribe(() => this.loadSegment({ silent: true }));
     }
   }
 
@@ -159,8 +161,10 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  private loadSegment(): void {
-    this.loading.set(true);
+  private loadSegment(options: { silent?: boolean } = {}): void {
+    if (!options.silent) {
+      this.loading.set(true);
+    }
     this.projectionService.getProjection(this.eventId, this.segmentId).subscribe({
       next: (data) => {
         this.segmentData.set(data);

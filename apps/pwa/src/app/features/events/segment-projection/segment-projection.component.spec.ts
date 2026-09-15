@@ -1,7 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ApplicationRef, Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { of, throwError, NEVER } from 'rxjs';
+import { of, throwError, NEVER, Subject, Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import {
   AssignmentDetail,
@@ -12,6 +12,7 @@ import {
 } from '@muixer/pinyes-render';
 import { SegmentProjectionComponent } from './segment-projection.component';
 import { ProjectionService } from '../services/projection.service';
+import { SegmentChangesService } from '../services/segment-changes.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
@@ -114,6 +115,10 @@ describe('SegmentProjectionComponent', () => {
         { provide: Router, useValue: router },
         { provide: LayoutService, useValue: layoutService },
         { provide: AuthService, useValue: makeAuthService(personId) },
+        // Not under test in most specs — a never-firing stream keeps the real
+        // EventSource-backed service (and its AuthService.getAccessToken() call)
+        // out of the picture entirely.
+        { provide: SegmentChangesService, useValue: { watch: vi.fn().mockReturnValue(NEVER) } },
       ],
     })
       .overrideComponent(SegmentProjectionComponent, {
@@ -171,6 +176,7 @@ describe('SegmentProjectionComponent', () => {
         { provide: Router, useValue: router },
         { provide: LayoutService, useValue: layoutService },
         { provide: AuthService, useValue: makeAuthService('p1') },
+        { provide: SegmentChangesService, useValue: { watch: vi.fn().mockReturnValue(NEVER) } },
       ],
     })
       .overrideComponent(SegmentProjectionComponent, {
@@ -188,6 +194,81 @@ describe('SegmentProjectionComponent', () => {
   it('shows an error state when the fetch fails', async () => {
     fixture = await setup(throwError(() => new Error('fail')));
     expect(fixture.nativeElement.textContent).toContain("No s'ha pogut carregar");
+  });
+
+  describe('live changes', () => {
+    // changes$/refetch$ are Subjects that never complete, so the component's live
+    // subscription stays open past the test unless the fixture is explicitly torn
+    // down — otherwise it lingers into the next test against an already-destroyed
+    // ApplicationRef (NG0406).
+    let liveFixture: ComponentFixture<TestHostComponent> | null = null;
+
+    afterEach(() => {
+      liveFixture?.destroy();
+      liveFixture = null;
+    });
+
+    /** @param secondResponse what the live-triggered reload's `getProjection()` call returns. */
+    async function setupLive(secondResponse: Observable<ProjectionSegmentData>) {
+      const changes$ = new Subject<void>();
+      const segmentChanges = { watch: vi.fn().mockReturnValue(changes$.asObservable()) };
+      const projService = {
+        getProjection: vi
+          .fn()
+          .mockReturnValueOnce(of(makeData({ instances: [makeInstance([])] })))
+          .mockReturnValue(secondResponse),
+      };
+
+      await TestBed.configureTestingModule({
+        imports: [TestHostComponent],
+        providers: [
+          { provide: ProjectionService, useValue: projService },
+          { provide: Router, useValue: { navigate: vi.fn() } },
+          { provide: LayoutService, useValue: { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() } },
+          { provide: AuthService, useValue: makeAuthService('p1') },
+          { provide: SegmentChangesService, useValue: segmentChanges },
+        ],
+      })
+        .overrideComponent(SegmentProjectionComponent, {
+          remove: { imports: [PinyaProjectionComponent] },
+          add: { imports: [PinyaProjectionStub] },
+        })
+        .compileComponents();
+
+      const f = TestBed.createComponent(TestHostComponent);
+      liveFixture = f;
+      f.detectChanges();
+      await TestBed.inject(ApplicationRef).whenStable();
+      f.detectChanges();
+
+      return { fixture: f, changes$ };
+    }
+
+    it('keeps the current projection visible while a live-triggered refetch is in flight, instead of flashing the full-screen spinner', async () => {
+      // NEVER: the reload never settles, so this observes the "still in flight" DOM
+      // state indefinitely rather than racing an eventual resolution.
+      const { fixture: f, changes$ } = await setupLive(NEVER);
+
+      changes$.next();
+      f.detectChanges();
+
+      expect(f.nativeElement.querySelector('[role="status"]')).toBeNull();
+      expect(f.debugElement.query(By.directive(PinyaProjectionStub))).toBeTruthy();
+    });
+
+    it('renders the refreshed data once the live-triggered refetch resolves', async () => {
+      const { fixture: f, changes$ } = await setupLive(
+        of(makeData({ instances: [makeInstance([makeAssignment(makePerson())])] })),
+      );
+
+      changes$.next();
+      f.detectChanges();
+      await TestBed.inject(ApplicationRef).whenStable();
+      f.detectChanges();
+
+      const stub = f.debugElement.query(By.directive(PinyaProjectionStub));
+      expect(stub.componentInstance.data().instances[0].assignments).toHaveLength(1);
+    });
   });
 
   it('routes back to the event when the back button is pressed', async () => {

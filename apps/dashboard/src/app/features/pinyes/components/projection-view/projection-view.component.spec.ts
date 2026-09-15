@@ -3,7 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Component, input } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { of, Subject, Observable, NEVER } from 'rxjs';
+import { By } from '@angular/platform-browser';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ProjectionViewComponent } from './projection-view.component';
 import { ProjectionService } from '../../services/projection.service';
@@ -223,7 +224,8 @@ describe('ProjectionViewComponent', () => {
   });
 
   describe('live changes', () => {
-    async function createWith(embedded: boolean) {
+    /** @param secondResponse what the live-triggered reload's `getProjection()` call returns. */
+    async function createWith(embedded: boolean, secondResponse: Observable<unknown> = of(emptySegment())) {
       const watchedSegmentIds: string[] = [];
       const changes$ = new Subject<void>();
       const segmentChanges = {
@@ -232,7 +234,9 @@ describe('ProjectionViewComponent', () => {
           return changes$.asObservable();
         }),
       };
-      const projectionService = { getProjection: vi.fn().mockReturnValue(of(emptySegment())) };
+      const projectionService = {
+        getProjection: vi.fn().mockReturnValueOnce(of(emptySegment())).mockReturnValue(secondResponse),
+      };
 
       TestBed.resetTestingModule();
       await TestBed.configureTestingModule({
@@ -290,6 +294,18 @@ describe('ProjectionViewComponent', () => {
       f.destroy();
 
       expect(changes$.observed).toBe(false);
+    });
+
+    it('keeps the current projection visible while a live-triggered refetch is in flight, instead of flashing the full-screen spinner', async () => {
+      // NEVER: the reload never settles, so this observes the "still in flight" DOM
+      // state indefinitely rather than racing an eventual resolution.
+      const { fixture: f, changes$ } = await createWith(false, NEVER);
+
+      changes$.next();
+      f.detectChanges();
+
+      expect(f.nativeElement.querySelector('[role="status"]')).toBeNull();
+      expect(f.debugElement.query(By.directive(PinyaProjectionStub))).toBeTruthy();
     });
   });
 });
