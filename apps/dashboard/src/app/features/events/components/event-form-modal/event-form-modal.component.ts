@@ -156,7 +156,7 @@ export class EventFormModalComponent implements OnInit, OnChanges {
 
     const ev = this.event();
     const request$ = ev
-      ? this.eventService.updateFull(ev.id, payload as UpdateEventPayload)
+      ? this.eventService.updateFull(ev.id, this.buildUpdatePayload(raw))
       : this.eventService.create(payload);
 
     request$.subscribe({
@@ -170,6 +170,25 @@ export class EventFormModalComponent implements OnInit, OnChanges {
         this.errorMessage.set(Array.isArray(message) ? message.join(', ') : message);
       },
     });
+  }
+
+  private buildUpdatePayload(raw: ReturnType<typeof this.form.getRawValue>): UpdateEventPayload {
+    const orNull = (value: string | null | undefined): string | null => {
+      const trimmed = (value ?? '').trim();
+      return trimmed.length > 0 ? trimmed : null;
+    };
+    return {
+      title: raw.title!,
+      eventType: raw.eventType as EventType,
+      date: raw.date!,
+      startTime: orNull(raw.startTime),
+      location: orNull(raw.location),
+      locationUrl: orNull(raw.locationUrl),
+      description: orNull(raw.description),
+      information: orNull(raw.information),
+      countsForStatistics: raw.countsForStatistics ?? true,
+      seasonId: orNull(raw.seasonId),
+    };
   }
 
   onClose() {

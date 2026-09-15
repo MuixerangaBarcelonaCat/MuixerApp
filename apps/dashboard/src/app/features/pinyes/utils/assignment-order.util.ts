@@ -139,6 +139,34 @@ export function buildTroncBuckets(
  *
  * `justAssignedId` is always skipped regardless of `assignedIds` state.
  */
+/**
+ * Given the priority buckets, returns the node immediately before or after
+ * `currentId` in bucket order, considering only visible nodes and wrapping
+ * around at both ends. Unlike {@link pickNextAssignableNode}, this stops on
+ * every node regardless of assignment state.
+ *
+ * When `currentId` is null or not visible, returns the first visible node for
+ * `direction === 1` and the last visible node for `direction === -1`.
+ * Returns null when no node is visible.
+ */
+export function pickAdjacentNode(
+  buckets: AssignmentOrderNode[][],
+  currentId: string | null,
+  direction: 1 | -1,
+  visibleIds: ReadonlySet<string>,
+): AssignmentOrderNode | null {
+  const ring = buckets.flat().filter((n) => visibleIds.has(n.id));
+  if (ring.length === 0) return null;
+
+  const currentIndex = currentId === null ? -1 : ring.findIndex((n) => n.id === currentId);
+  if (currentIndex === -1) {
+    return direction === 1 ? ring[0] : ring[ring.length - 1];
+  }
+
+  const nextIndex = (currentIndex + direction + ring.length) % ring.length;
+  return ring[nextIndex];
+}
+
 export function pickNextAssignableNode(
   buckets: AssignmentOrderNode[][],
   justAssignedId: string,

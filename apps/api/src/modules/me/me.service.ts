@@ -20,6 +20,7 @@ import {
   PendingDependent,
   PersonProfileSummary,
   MeNewsItem,
+  computeInstanceDisplayNames,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -202,6 +203,21 @@ export class MeService {
     });
 
     const instanceCountBySegment = new Map(segments.map((s) => [s.id, s.instances.length]));
+    const displayNamesBySegment = new Map(
+      segments.map((s) => [
+        s.id,
+        computeInstanceDisplayNames(
+          s.instances.map((i) => ({
+            id: i.id,
+            label: i.label,
+            figureMode: i.figureMode,
+            figureTemplate: i.figureTemplate
+              ? { name: i.figureTemplate.name, hasPinya: i.figureTemplate.hasPinya }
+              : null,
+          })),
+        ),
+      ]),
+    );
 
     for (const assignment of assignments) {
       const segmentId = assignment.segment.id;
@@ -209,7 +225,10 @@ export class MeService {
       const node = assignment.instanceNode;
       const figureName =
         (instanceCountBySegment.get(segmentId) ?? 0) > 1
-          ? instance.label ?? instance.figureTemplate?.name ?? null
+          ? displayNamesBySegment.get(segmentId)?.get(instance.id) ??
+            instance.label ??
+            instance.figureTemplate?.name ??
+            null
           : null;
 
       const placement: MeSegmentPlacement = {

@@ -58,6 +58,8 @@ class StubPersonPanel {
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
+  readonly navigateNode = output<-1 | 1>();
+  focusSearch = vi.fn();
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -656,6 +658,99 @@ describe('TroncsTabComponent', () => {
       component.performUndo();
 
       expect(undoSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Tab / Shift+Tab node navigation', () => {
+    const navSetup = () =>
+      setup({
+        nodesByInstance: {
+          [INST_A]: [
+            makeNode('base1', 'BASE'),
+            makeNode('t1', 'TRONC', { z: 1, x: 0 }),
+            makeNode('t2', 'TRONC', { z: 1, x: 1 }),
+            makeNode('dir1', 'DIRECTION', { positionType: 'direccio-tronc' }),
+          ],
+        },
+      });
+
+    it('Tab moves to the next node in the established tronc order', async () => {
+      await navSetup();
+      component.onTroncNodeSelected(INST_A, 'base1');
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 't1' });
+    });
+
+    it('Shift+Tab moves to the previous node in the established tronc order', async () => {
+      await navSetup();
+      component.onTroncNodeSelected(INST_A, 't2');
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true }));
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 't1' });
+    });
+
+    it('Tab wraps from the last node back to the first', async () => {
+      await navSetup();
+      component.onTroncNodeSelected(INST_A, 'dir1');
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'base1' });
+    });
+
+    it('the person panel navigateNode output drives node navigation', async () => {
+      await navSetup();
+      component.onTroncNodeSelected(INST_A, 'base1');
+
+      const panel = fixture.debugElement.query((n) => n.componentInstance instanceof StubPersonPanel)
+        .componentInstance as StubPersonPanel;
+      panel.navigateNode.emit(1);
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 't1' });
+    });
+  });
+
+  describe('background click keeps the search input focused', () => {
+    const panelStub = () =>
+      fixture.debugElement.query((n) => n.componentInstance instanceof StubPersonPanel)
+        .componentInstance as StubPersonPanel;
+
+    it('clicking the tronc background clears the selection and refocuses the search input', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })] } });
+      component.onTroncNodeSelected(INST_A, 'n1');
+      expect(component.selectedRef()).not.toBeNull();
+
+      const pane: HTMLElement = fixture.nativeElement.querySelector('.overflow-y-auto');
+      pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.selectedRef()).toBeNull();
+      expect(panelStub().focusSearch).toHaveBeenCalled();
+    });
+
+    it('clicking inside a tronc view does not clear the selection', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })] } });
+      component.onTroncNodeSelected(INST_A, 'n1');
+
+      const troncView: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+      troncView.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+    });
+
+    it('clicking an undo/redo button does not clear the selection', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })] } });
+      component.onTroncNodeSelected(INST_A, 'n1');
+
+      const button: HTMLElement = fixture.nativeElement.querySelector('button');
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
     });
   });
 

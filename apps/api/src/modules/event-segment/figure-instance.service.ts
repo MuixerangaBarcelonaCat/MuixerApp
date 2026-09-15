@@ -32,6 +32,7 @@ export interface DistributionNodeItem {
   positionType: string | null;
   sortOrder: number;
   climbIndicator: string | null;
+  isAdHoc: boolean;
 }
 
 export interface DistributionAssignment {
@@ -40,8 +41,9 @@ export interface DistributionAssignment {
   personAlias: string;
 }
 
-/** Common shape of `FigureNode` and `InstanceNode` — either can back a `DistributionNodeItem`. */
-type DistributionSourceNode = DistributionNodeItem;
+/** Common shape of `FigureNode` and `InstanceNode` — either can back a `DistributionNodeItem`.
+ *  `isAdHoc` is optional here: only `InstanceNode` carries it, a `FigureNode` never does. */
+type DistributionSourceNode = Omit<DistributionNodeItem, 'isAdHoc'> & { isAdHoc?: boolean };
 
 function toDistributionNodeItem(n: DistributionSourceNode): DistributionNodeItem {
   return {
@@ -61,6 +63,8 @@ function toDistributionNodeItem(n: DistributionSourceNode): DistributionNodeItem
     positionType: n.positionType,
     sortOrder: n.sortOrder,
     climbIndicator: n.climbIndicator,
+    // FigureNodes have no isAdHoc; only a snapshotted InstanceNode can be ad-hoc.
+    isAdHoc: (n as { isAdHoc?: boolean }).isAdHoc ?? false,
   };
 }
 

@@ -464,6 +464,43 @@ describe('PersonPanelComponent', () => {
       expect(component.showXicalla()).toBe(true);
     });
 
+    it('focuses the search input on init even when no node is selected', () => {
+      vi.useFakeTimers();
+      try {
+        const fresh = TestBed.createComponent(PersonPanelComponent);
+        fresh.componentRef.setInput('eventId', EVENT_ID);
+        fresh.componentRef.setInput('segmentId', SEGMENT_ID);
+        fresh.detectChanges();
+        vi.advanceTimersByTime(1);
+
+        const searchInput = fresh.nativeElement.querySelector('input[type="search"]');
+        expect(document.activeElement).toBe(searchInput);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('re-focuses the search input when the node is deselected', () => {
+      vi.useFakeTimers();
+      try {
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1);
+
+        const searchInput: HTMLInputElement = fixture.nativeElement.querySelector('input[type="search"]');
+        searchInput.blur();
+        expect(document.activeElement).not.toBe(searchInput);
+
+        fixture.componentRef.setInput('selectedNodeId', null);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1);
+
+        expect(document.activeElement).toBe(searchInput);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('does not steal focus from the height input when a node gets selected mid-typing', () => {
       vi.useFakeTimers();
       try {
@@ -733,6 +770,91 @@ describe('PersonPanelComponent', () => {
       fixture.detectChanges();
       component.onSearchKeyDown(makeKeyEvent('Enter'));
       expect(personSelectedSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('node navigation from the search input', () => {
+    const makeKeyEvent = (key: string, shiftKey = false) =>
+      ({ key, shiftKey, preventDefault: vi.fn() }) as unknown as KeyboardEvent;
+
+    let navigateNodeSpy: Mock;
+
+    beforeEach(() => {
+      navigateNodeSpy = vi.fn();
+      component.navigateNode.subscribe((d) => navigateNodeSpy(d));
+    });
+
+    it('Tab with no search results emits navigateNode forward', () => {
+      component.search.set('');
+      fixture.detectChanges();
+      const event = makeKeyEvent('Tab');
+      component.onSearchKeyDown(event);
+      expect(navigateNodeSpy).toHaveBeenCalledWith(1);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('Shift+Tab with no search results emits navigateNode backward', () => {
+      component.search.set('');
+      fixture.detectChanges();
+      component.onSearchKeyDown(makeKeyEvent('Tab', true));
+      expect(navigateNodeSpy).toHaveBeenCalledWith(-1);
+    });
+
+    it('Tab does not emit navigateNode while there are search results', () => {
+      component.persons.set([makeAvailablePerson('p1', 'ANIRE', { alias: 'Marc1' })]);
+      component.search.set('marc');
+      fixture.detectChanges();
+      component.onSearchKeyDown(makeKeyEvent('Tab'));
+      expect(navigateNodeSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unassign via keyboard from the empty search input', () => {
+    const makeKeyEvent = (key: string) =>
+      ({
+        key,
+        shiftKey: false,
+        preventDefault: vi.fn(),
+        target: { value: '' } as HTMLInputElement,
+      }) as unknown as KeyboardEvent;
+
+    const makeAssignment = (personId: string) => ({
+      id: `assignment-${personId}`,
+      figureInstanceId: 'instance-1',
+      node: {
+        id: 'node-1',
+        label: 'Base 1',
+        zone: 'BASE',
+        z: 0,
+        positionType: null,
+        sortOrder: 0,
+        climbIndicator: null,
+        ringLevel: null,
+        originNodeId: null,
+        sourceNodeId: null,
+      },
+      person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: null },
+    });
+
+    let unassignSpy: Mock;
+
+    beforeEach(() => {
+      unassignSpy = vi.fn();
+      component.unassignRequested.subscribe((a) => unassignSpy(a));
+      component.search.set('');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.componentRef.setInput('assignments', [makeAssignment('p1')]);
+      fixture.detectChanges();
+    });
+
+    it('Backspace unassigns the person on the selected node', () => {
+      component.onSearchKeyDown(makeKeyEvent('Backspace'));
+      expect(unassignSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'assignment-p1' }));
+    });
+
+    it('Delete unassigns the person on the selected node, like Backspace', () => {
+      component.onSearchKeyDown(makeKeyEvent('Delete'));
+      expect(unassignSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'assignment-p1' }));
     });
   });
 

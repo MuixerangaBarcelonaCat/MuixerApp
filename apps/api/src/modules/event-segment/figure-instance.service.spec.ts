@@ -945,6 +945,33 @@ describe('FigureInstanceService', () => {
       ]);
     });
 
+    it('flags each node with isAdHoc so the client can keep ad-hoc nodes out of the placement pivot', async () => {
+      const inst = { ...makeInstanceWithNodes(), snapshotted: true };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        {
+          id: 'real-pinya', label: 'MANS', zone: 'PINYA', positionType: 'mans',
+          x: 0, y: 0, z: 0, width: 80, height: 40, rotation: 0, color: null, shape: 'RECTANGLE',
+          renglaId: null, renglaPosition: null, sortOrder: 0, climbIndicator: null,
+          sourceNodeId: 'fn-1', isAdHoc: false, figureInstance: { id: INSTANCE_ID },
+        },
+        {
+          id: 'extra-pinya', label: 'Comodí', zone: 'PINYA', positionType: 'comodin',
+          x: 500, y: 500, z: 0, width: 80, height: 40, rotation: 0, color: null, shape: 'RECTANGLE',
+          renglaId: null, renglaPosition: null, sortOrder: 1, climbIndicator: null,
+          sourceNodeId: null, isAdHoc: true, figureInstance: { id: INSTANCE_ID },
+        },
+      ]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      const nodes = result.items[0].figureTemplate.nodes;
+      expect(nodes.find((n) => n.id === 'real-pinya')?.isAdHoc).toBe(false);
+      expect(nodes.find((n) => n.id === 'extra-pinya')?.isAdHoc).toBe(true);
+    });
+
     it('matches an assignment to an ad-hoc (snapshotted-only) node by its own id', async () => {
       const inst = { ...makeInstanceWithNodes(), snapshotted: true };
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());

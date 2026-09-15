@@ -3,6 +3,7 @@ import {
   AssignmentOrderNode,
   buildPinyaBuckets,
   buildTroncBuckets,
+  pickAdjacentNode,
   pickNextAssignableNode,
 } from './assignment-order.util';
 
@@ -340,5 +341,75 @@ describe('pickNextAssignableNode', () => {
       new Set(['a', 'full', 'c']),
     );
     expect(result?.id).toBe('c');
+  });
+});
+
+// ── pickAdjacentNode ─────────────────────────────────────────────────────────
+
+describe('pickAdjacentNode', () => {
+  const a = n('a', FigureZone.BASE, null, null);
+  const b = n('b', FigureZone.PINYA, 'mans', 1);
+  const c = n('c', FigureZone.PINYA, 'vents', 1);
+  const buckets = [[a], [b, c]];
+
+  it('returns null when the visible ring is empty', () => {
+    expect(pickAdjacentNode(buckets, 'a', 1, new Set())).toBeNull();
+    expect(pickAdjacentNode([], null, 1, new Set())).toBeNull();
+  });
+
+  it('steps forward to the next node in bucket order', () => {
+    const result = pickAdjacentNode(buckets, 'a', 1, new Set(['a', 'b', 'c']));
+    expect(result?.id).toBe('b');
+  });
+
+  it('steps backward to the previous node in bucket order', () => {
+    const result = pickAdjacentNode(buckets, 'b', -1, new Set(['a', 'b', 'c']));
+    expect(result?.id).toBe('a');
+  });
+
+  it('stops on already-assigned nodes (does not skip them)', () => {
+    // "assigned" state is irrelevant — helper only knows visibility
+    const result = pickAdjacentNode(buckets, 'b', 1, new Set(['a', 'b', 'c']));
+    expect(result?.id).toBe('c');
+  });
+
+  it('wraps forward from the last node to the first', () => {
+    const result = pickAdjacentNode(buckets, 'c', 1, new Set(['a', 'b', 'c']));
+    expect(result?.id).toBe('a');
+  });
+
+  it('wraps backward from the first node to the last', () => {
+    const result = pickAdjacentNode(buckets, 'a', -1, new Set(['a', 'b', 'c']));
+    expect(result?.id).toBe('c');
+  });
+
+  it('skips nodes that are not visible', () => {
+    const result = pickAdjacentNode(buckets, 'a', 1, new Set(['a', 'c']));
+    expect(result?.id).toBe('c');
+  });
+
+  it('returns the first visible node when current is null (forward)', () => {
+    const result = pickAdjacentNode(buckets, null, 1, new Set(['a', 'b', 'c']));
+    expect(result?.id).toBe('a');
+  });
+
+  it('returns the last visible node when current is null (backward)', () => {
+    const result = pickAdjacentNode(buckets, null, -1, new Set(['a', 'b', 'c']));
+    expect(result?.id).toBe('c');
+  });
+
+  it('returns the first visible node when current is not in the visible ring (forward)', () => {
+    const result = pickAdjacentNode(buckets, 'b', 1, new Set(['a', 'c']));
+    expect(result?.id).toBe('a');
+  });
+
+  it('returns the last visible node when current is not in the visible ring (backward)', () => {
+    const result = pickAdjacentNode(buckets, 'b', -1, new Set(['a', 'c']));
+    expect(result?.id).toBe('c');
+  });
+
+  it('returns the same node when it is the only visible one', () => {
+    const result = pickAdjacentNode(buckets, 'b', 1, new Set(['b']));
+    expect(result?.id).toBe('b');
   });
 });

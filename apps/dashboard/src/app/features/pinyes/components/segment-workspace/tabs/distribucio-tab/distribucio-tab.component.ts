@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
+import { computeInstanceDisplayNames } from '@muixer/shared';
 import {
   FigurePropertiesPanelComponent,
   FigurePropertiesEntry,
@@ -83,14 +84,23 @@ export class DistribucioTabComponent implements OnInit {
    * `TroncPanelMeasurerComponent`). `onSizesReady` also completes a pending auto-layout when
    * one is waiting (`pendingPlacementItems`).
    */
-  readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() =>
-    this.items().map((item) => ({
+  readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() => {
+    const items = this.items();
+    const displayNames = computeInstanceDisplayNames(
+      items.map((item) => ({
+        id: item.instanceId,
+        label: item.label,
+        figureMode: item.figureMode,
+        figureTemplate: { name: item.figureTemplate.name, hasPinya: true },
+      })),
+    );
+    return items.map((item) => ({
       instanceId: item.instanceId,
       ...troncViewNodesFor(item.figureTemplate.nodes, item.figureMode),
       assignments: troncViewAssignmentsFor(item.assignments, item.figureTemplate.nodes),
-      figureName: computeSlotLabel(item),
-    })),
-  );
+      figureName: displayNames.get(item.instanceId) ?? computeSlotLabel(item),
+    }));
+  });
 
   /** Each instance's real, DOM-measured tronc panel size — see `measurePanels`/`onSizesReady`. */
   private readonly measuredTroncSizes = signal<Map<string, { width: number; height: number }>>(new Map());

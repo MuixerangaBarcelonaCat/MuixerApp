@@ -274,6 +274,71 @@ describe('RenglaOverlayComponent', () => {
 
       expect(createdSpy).toHaveBeenCalledTimes(1);
     });
+
+    it('Ctrl+Z removes the last picked node while creating a rengla', () => {
+      const nodes = [makeNode({ id: 'n1' }), makeNode({ id: 'n2' }), makeNode({ id: 'n3' })];
+      setInputs(nodes);
+      component.startCreating();
+      component.onNodeClick('n1');
+      component.onNodeClick('n2');
+      component.onNodeClick('n3');
+
+      const event = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true });
+      vi.spyOn(event, 'preventDefault');
+      component.onKeyDown(event);
+
+      expect(component.pendingNodeIds()).toEqual(['n1', 'n2']);
+      expect(component.creatingRengla()).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('Cmd+Z (macOS) also removes the last picked node', () => {
+      const nodes = [makeNode({ id: 'n1' }), makeNode({ id: 'n2' })];
+      setInputs(nodes);
+      component.startCreating();
+      component.onNodeClick('n1');
+      component.onNodeClick('n2');
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'z', metaKey: true }));
+
+      expect(component.pendingNodeIds()).toEqual(['n1']);
+    });
+
+    it('Ctrl+Z is a no-op while creating with no picked nodes yet', () => {
+      setInputs([makeNode({ id: 'n1' })]);
+      component.startCreating();
+
+      const event = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true });
+      vi.spyOn(event, 'preventDefault');
+      component.onKeyDown(event);
+
+      expect(component.pendingNodeIds()).toEqual([]);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Z does nothing when not creating a rengla', () => {
+      setInputs([makeNode({ id: 'n1' })]);
+
+      const event = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true });
+      vi.spyOn(event, 'preventDefault');
+      component.onKeyDown(event);
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Shift+Z (redo) does not drop picked nodes', () => {
+      const nodes = [makeNode({ id: 'n1' }), makeNode({ id: 'n2' })];
+      setInputs(nodes);
+      component.startCreating();
+      component.onNodeClick('n1');
+      component.onNodeClick('n2');
+
+      component.onKeyDown(
+        new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true }),
+      );
+
+      expect(component.pendingNodeIds()).toEqual(['n1', 'n2']);
+    });
   });
 
   describe('color assignment', () => {

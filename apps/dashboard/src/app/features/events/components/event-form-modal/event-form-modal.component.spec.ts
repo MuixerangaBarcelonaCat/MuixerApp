@@ -151,5 +151,54 @@ describe('EventFormModalComponent', () => {
       const fixture = await buildFixture({ event: existingEvent });
       expect(fixture.componentInstance.modalTitle()).toBe('Editar esdeveniment');
     });
+
+    it('sends null for a field that is cleared', async () => {
+      const eventService = makeEventService();
+      const seasonService = makeSeasonService();
+      await TestBed.configureTestingModule({
+        imports: [EventFormModalComponent],
+        providers: [
+          { provide: EventService, useValue: eventService },
+          { provide: SeasonService, useValue: seasonService },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(EventFormModalComponent);
+      fixture.componentRef.setInput('event', {
+        ...existingEvent,
+        locationUrl: 'https://maps.example/x',
+        description: 'Text previ',
+      } as unknown as EventDetail);
+      fixture.detectChanges();
+
+      fixture.componentInstance.form.patchValue({ location: '', locationUrl: '', description: '' });
+      fixture.componentInstance.onSubmit();
+
+      expect(eventService.updateFull).toHaveBeenCalledWith('ev-1', expect.objectContaining({
+        location: null,
+        locationUrl: null,
+        description: null,
+      }));
+    });
+
+    it('keeps a field value that is still filled', async () => {
+      const eventService = makeEventService();
+      const seasonService = makeSeasonService();
+      await TestBed.configureTestingModule({
+        imports: [EventFormModalComponent],
+        providers: [
+          { provide: EventService, useValue: eventService },
+          { provide: SeasonService, useValue: seasonService },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(EventFormModalComponent);
+      fixture.componentRef.setInput('event', existingEvent);
+      fixture.detectChanges();
+
+      fixture.componentInstance.onSubmit();
+
+      expect(eventService.updateFull).toHaveBeenCalledWith('ev-1', expect.objectContaining({
+        location: 'Local',
+      }));
+    });
   });
 });

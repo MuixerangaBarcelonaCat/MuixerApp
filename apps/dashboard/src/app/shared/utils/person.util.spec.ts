@@ -19,6 +19,7 @@ describe('person.util', () => {
     phone: null,
     birthDate: null,
     shoulderHeight: 150,
+    gender: null,
     isXicalla: false,
     isMember: true,
     availability: AvailabilityStatus.AVAILABLE,

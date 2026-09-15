@@ -219,6 +219,31 @@ describe('SegmentManagerComponent', () => {
     });
   });
 
+  describe('getInstanceLabel()', () => {
+    it('numbers figures that share a name within the same segment', () => {
+      const seg = makeSegment({
+        instances: [
+          makeInstance({ id: 'i1', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } }),
+          makeInstance({ id: 'i2', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } }),
+        ],
+      });
+
+      expect(component.getInstanceLabel(seg.instances[0], seg)).toBe('Pilar 1');
+      expect(component.getInstanceLabel(seg.instances[1], seg)).toBe('Pilar 2');
+    });
+
+    it('leaves the label bare when it is the only figure with that name in the segment', () => {
+      const seg = makeSegment({
+        instances: [
+          makeInstance({ id: 'i1', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } }),
+          makeInstance({ id: 'i2', figureTemplate: { id: 'f2', name: 'Vano', hasPinya: true } }),
+        ],
+      });
+
+      expect(component.getInstanceLabel(seg.instances[0], seg)).toBe('Pilar');
+    });
+  });
+
   describe('createSegment()', () => {
     it('calls service and adds segment to list', () => {
       const seg = makeSegment();
@@ -1720,7 +1745,7 @@ describe('SegmentManagerComponent', () => {
 
     it('hides delete-instance', () => {
       const seg = setLockedWithSegment();
-      const label = component.getInstanceLabel(seg.instances[0]);
+      const label = component.getInstanceLabel(seg.instances[0], seg);
 
       const btn = fixture.nativeElement.querySelector(`[aria-label="Treure ${label} del segment"]`);
       expect(btn).toBeNull();
@@ -1737,7 +1762,7 @@ describe('SegmentManagerComponent', () => {
 
     it('hides copy-to-segment', () => {
       const seg = setLockedWithSegment();
-      const label = component.getInstanceLabel(seg.instances[0]);
+      const label = component.getInstanceLabel(seg.instances[0], seg);
 
       const copyBtn = fixture.nativeElement.querySelector(
         `[aria-label="Copia ${label} a un altre segment"]`,
@@ -1750,7 +1775,7 @@ describe('SegmentManagerComponent', () => {
       component.segments.set([seg]);
       fixture.componentRef.setInput('isLocked', false);
       fixture.detectChanges();
-      const label = component.getInstanceLabel(seg.instances[0]);
+      const label = component.getInstanceLabel(seg.instances[0], seg);
 
       const copyBtn = fixture.nativeElement.querySelector(
         `[aria-label="Copia ${label} a un altre segment"]`,

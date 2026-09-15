@@ -1,4 +1,5 @@
 import { CompositionSlotWithNodes, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, repositionCordoObertNodes, computeTroncNaturalSize, TroncNodeItem, AssignmentDetail } from '@muixer/pinyes-render';
+import { computeInstanceDisplayNames } from '@muixer/shared';
 import { DistributionItem, DistributionNodeItem, DistributionAssignment } from '../models/distribution.model';
 import { filterNodesByFigureMode } from './figure-mode-filter.util';
 
@@ -68,6 +69,15 @@ export function mapDistributionItemsToSlots(
     optimizedByInstance = new Map(placeFigures(specs).map((p) => [p.instanceId, p]));
   }
 
+  const displayNames = computeInstanceDisplayNames(
+    items.map((item) => ({
+      id: item.instanceId,
+      label: item.label,
+      figureMode: item.figureMode,
+      figureTemplate: { name: item.figureTemplate.name, hasPinya: true },
+    })),
+  );
+
   return items.map((item, index) => {
     const positionedNodes = nodesByInstance.get(item.instanceId) ?? [];
     const extent = figureExtentFromNodes(item.instanceId, pinyaBaseNodes(positionedNodes));
@@ -98,7 +108,7 @@ export function mapDistributionItemsToSlots(
 
     return {
       slotId: item.instanceId,
-      label: computeSlotLabel(item),
+      label: displayNames.get(item.instanceId) ?? computeSlotLabel(item),
       offsetX,
       offsetY,
       sortOrder: index,
@@ -126,11 +136,16 @@ export function mapDistributionItemsToSlots(
  * shifted from where placement assumed — misaligning the tronc panel against
  * real nodes (including its own BASE row).
  */
-function pinyaBaseNodes<T extends { zone: string }>(nodes: T[]): T[] {
-  return nodes.filter((n) => n.zone === 'PINYA' || n.zone === 'BASE');
+function pinyaBaseNodes<T extends { zone: string; isAdHoc?: boolean }>(nodes: T[]): T[] {
+  return nodes.filter((n) => (n.zone === 'PINYA' || n.zone === 'BASE') && !n.isAdHoc);
 }
 
-/** Nodes actually rendered on the pinya canvas — used only to block tronc placement. */
+/**
+ * Nodes actually rendered on the pinya canvas — used only to block tronc
+ * placement. Includes DECORATION and ad-hoc ("extra") nodes: they are drawn,
+ * so a tronc panel must avoid them, but (like DECORATION) they never move the
+ * pivot — see `pinyaBaseNodes`.
+ */
 function pinyaCanvasNodes<T extends { zone: string }>(nodes: T[]): T[] {
   return nodes.filter((n) => n.zone === 'PINYA' || n.zone === 'BASE' || n.zone === 'DECORATION');
 }
