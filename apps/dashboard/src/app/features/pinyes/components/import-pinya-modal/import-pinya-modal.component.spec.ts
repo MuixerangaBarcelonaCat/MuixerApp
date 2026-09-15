@@ -271,6 +271,25 @@ describe('ImportPinyaModalComponent', () => {
     it('baseNodesFor returns the BASE-zoned nodes', () => {
       expect(component.baseNodesFor().map((n) => n.id)).toEqual(['b1']);
     });
+
+    it('baseNodesFor excludes BASE nodes for a REMAT instance (its base is hidden in that mode)', () => {
+      const REMAT_SOURCE_ID = 'source-uuid-remat';
+      projectionService.getProjection.mockReturnValue(
+        of({
+          instances: [
+            {
+              id: REMAT_SOURCE_ID,
+              figureMode: 'REMAT',
+              nodes: [makeNode('t1', FigureZone.TRONC), makeNode('b1', FigureZone.BASE)],
+              assignments: [],
+            },
+          ],
+        } as unknown as ProjectionSegmentData),
+      );
+      component.selectEntry(makeHistoryEntry(REMAT_SOURCE_ID));
+
+      expect(component.baseNodesFor().map((n) => n.id)).toEqual([]);
+    });
   });
 
   // ── results ────────────────────────────────────────────────────────────────

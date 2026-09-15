@@ -551,7 +551,7 @@ export class FigureInstanceService {
 
     const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
 
-    const [countResult, pinyaResult, pinyaAssignedResult, cordonsResult] = await Promise.all([
+    const [countResult, pinyaResult, pinyaAssignedResult, totalCordonsMap] = await Promise.all([
       this.dataSource.query(
         `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
         [id],
@@ -569,22 +569,15 @@ export class FigureInstanceService {
         [id],
       ),
       hasPinyaFigure && instance.figureTemplate
-        ? this.dataSource.query(
-            // Highest rengla position actually used by a PINYA node (cordo-obert exempt) — not a
-            // count of "rengles" rows, which is the template's rengla *catalog* and can differ
-            // from how many of them a given figure's nodes actually reach.
-            `SELECT MAX("renglaPosition") as total FROM figure_nodes
-             WHERE "templateId" = $1 AND zone = 'PINYA' AND "positionType" IS DISTINCT FROM 'cordo-obert'
-               AND "renglaPosition" IS NOT NULL`,
-            [instance.figureTemplate.id],
-          )
-        : Promise.resolve([{ total: '0' }]),
+        ? this.segmentService.loadTotalCordons([instance.figureTemplate.id])
+        : Promise.resolve(new Map<string, number>()),
     ]);
 
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
     const hasPinya = parseInt(pinyaResult[0]?.count ?? '0', 10) > 0;
     const pinyaAssignedCount = parseInt(pinyaAssignedResult[0]?.count ?? '0', 10);
-    const totalCordons = hasPinyaFigure ? parseInt(cordonsResult[0]?.total ?? '0', 10) : null;
+    const totalCordons =
+      hasPinyaFigure && instance.figureTemplate ? (totalCordonsMap.get(instance.figureTemplate.id) ?? 0) : null;
 
     return {
       id: instance.id,

@@ -316,6 +316,19 @@ describe('TroncsTabComponent', () => {
       expect(stub.baseNodes().map((n) => n.id)).toEqual(['b1']);
       expect(stub.directionNodes().map((n) => n.id)).toEqual(['d1']);
     });
+
+    it('excludes BASE nodes for a REMAT figure (its base is hidden in that mode)', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: {
+          [INST_A]: [makeNode('t1', 'TRONC'), makeNode('b1', 'BASE')],
+        },
+      });
+
+      const stub = troncStubs()[0];
+      expect(stub.troncNodes().map((n) => n.id)).toEqual(['t1']);
+      expect(stub.baseNodes().map((n) => n.id)).toEqual([]);
+    });
   });
 
   describe('node selection', () => {

@@ -1,3 +1,5 @@
+import { isNodeVisibleByModeAndCordons } from '@muixer/shared';
+
 export interface FigureModeFilterableNode {
   zone: string;
   renglaId: string | null;
@@ -5,25 +7,19 @@ export interface FigureModeFilterableNode {
   positionType?: string | null;
 }
 
-export interface FilterNodesByFigureModeOptions {
-  /** Keep cordo-obert PINYA nodes even when their renglaPosition exceeds numberOfCordons. */
-  keepCordoObert?: boolean;
-}
-
+/**
+ * Which nodes stay visible when packing/repositioning a figure for a given mode + cordons.
+ * A thin wrapper around the shared `isNodeVisibleByModeAndCordons` — cordo-obert nodes are
+ * always kept here regardless of the cap (`cordonsObertsEnabled: true`) since callers still
+ * need them present to reposition (`repositionCordoObertNodes`) before applying the instance's
+ * real `cordonsObertsEnabled` as a separate, later filter step.
+ */
 export function filterNodesByFigureMode<T extends FigureModeFilterableNode>(
   nodes: T[],
   figureMode: string,
   numberOfCordons: number | null,
-  options: FilterNodesByFigureModeOptions = {},
 ): T[] {
-  const isRematOrNeta = figureMode === 'REMAT' || figureMode === 'NETA';
-  return nodes.filter((n) => {
-    if (n.zone === 'PINYA' && isRematOrNeta) return false;
-    if (n.zone !== 'PINYA') return true;
-    if (numberOfCordons === null) return true;
-    if (options.keepCordoObert && n.positionType === 'cordo-obert') return true;
-    return !n.renglaId || n.renglaPosition === null || n.renglaPosition <= numberOfCordons;
-  });
+  return nodes.filter((n) => isNodeVisibleByModeAndCordons(n, { figureMode, numberOfCordons, cordonsObertsEnabled: true }));
 }
 
 export interface CordonsCountableNode {
