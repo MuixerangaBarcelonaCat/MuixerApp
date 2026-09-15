@@ -25,6 +25,7 @@ import {
   PersonProfileSummary,
   UserRole,
   MeNewsItem,
+  EventAttendanceStats,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -62,6 +63,15 @@ export class MeController {
     return this.meService.findEventDetail(user, id);
   }
 
+  @Get('events/:id/attendance-stats')
+  @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
+  @ApiOperation({ summary: "Desglossament d'assistència per estat, adults vs xicalla" })
+  getEventAttendanceStats(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<EventAttendanceStats> {
+    return this.meService.getEventAttendanceStats(id);
+  }
+
   @Put('events/:id/attendance')
   @ApiOperation({ summary: 'Upsert attendance for authenticated member' })
   upsertAttendance(
@@ -88,6 +98,16 @@ export class MeController {
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
   ): Promise<ProjectionData> {
     return this.meService.findSegmentProjection(eventId, segmentId);
+  }
+
+  @Get('events/:eventId/segments/:segmentId/projection/version')
+  @ApiOperation({
+    summary: 'Cheap poll target: latest assignment change timestamp for a segment',
+  })
+  getSegmentProjectionVersion(
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ): Promise<{ updatedAt: string | null }> {
+    return this.meService.getSegmentProjectionVersion(segmentId);
   }
 
   @Get('persons')

@@ -5,4 +5,11 @@ export interface PersonProfileSummary {
   name: string;
   firstSurname: string;
   delegationCount: number;
+  /** Assistència de la temporada actual, comptant només events ja passats. */
+  seasonAttendance: {
+    assajosAttended: number;
+    assajosTotal: number;
+    actuacionsAttended: number;
+    actuacionsTotal: number;
+  };
 }
