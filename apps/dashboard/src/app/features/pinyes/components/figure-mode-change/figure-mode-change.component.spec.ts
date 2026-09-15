@@ -104,6 +104,28 @@ describe('FigureModeChangeComponent', () => {
     expect(component.pending()).toBeNull();
   });
 
+  it('emits cancelled with the pending instanceId so callers can resync their own UI', async () => {
+    await setup();
+    nodeAssignmentService.previewFigureModeImpact.mockReturnValue(of({ affectedCount: 1 }));
+    let emitted: string | undefined;
+    component.cancelled.subscribe((id) => (emitted = id));
+
+    component.request(EVENT_ID, SEGMENT_ID, INSTANCE_ID, 'Pilar 1', 'REMAT');
+    component.cancel();
+
+    expect(emitted).toBe(INSTANCE_ID);
+  });
+
+  it('does not emit cancelled when there is nothing pending', async () => {
+    await setup();
+    let emitted = false;
+    component.cancelled.subscribe(() => (emitted = true));
+
+    component.cancel();
+
+    expect(emitted).toBe(false);
+  });
+
   it('shows an error toast and does not apply when the preview call fails', async () => {
     await setup();
     nodeAssignmentService.previewFigureModeImpact.mockReturnValue(throwError(() => new Error('boom')));

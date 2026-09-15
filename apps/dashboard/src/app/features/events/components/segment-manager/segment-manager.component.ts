@@ -548,6 +548,27 @@ export class SegmentManagerComponent implements OnInit {
     this.figureModeChange.request(this.eventId(), segment.id, instance.id, this.getInstanceLabel(instance, segment), mode);
   }
 
+  /** A cancelled change never touches `instance.figureMode`, so the value bound to the <select>
+   *  never changes and it wouldn't otherwise resync — but the native element already advanced
+   *  to the user's (rejected) pick. This override briefly swaps the bound value out and back so
+   *  the ngModel binding sees a genuine change and re-writes the control. */
+  private readonly figureModeOverride = signal<Map<string, string>>(new Map());
+
+  displayedFigureMode(instance: InstanceDetail): string {
+    return this.figureModeOverride().get(instance.id) ?? instance.figureMode;
+  }
+
+  onFigureModeChangeCancelled(instanceId: string): void {
+    this.figureModeOverride.update((m) => new Map(m).set(instanceId, ''));
+    Promise.resolve().then(() => {
+      this.figureModeOverride.update((m) => {
+        const next = new Map(m);
+        next.delete(instanceId);
+        return next;
+      });
+    });
+  }
+
   /** The updated instance's own segment isn't known here (the shared component is segment-agnostic),
    *  so find whichever segment currently holds this instance id — always exactly one. */
   onFigureModeChangeApplied(updated: InstanceDetail): void {

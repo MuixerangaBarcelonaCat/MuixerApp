@@ -478,7 +478,7 @@
                           <lib-select
                             size="xs"
                             [ariaLabel]="'Mode de ' + getInstanceLabel(instance, segment)"
-                            [ngModel]="instance.figureMode"
+                            [ngModel]="displayedFigureMode(instance)"
                             [disabled]="isLocked()"
                             (ngModelChange)="updateFigureMode(segment, instance, $event)"
                           >
@@ -672,7 +672,7 @@
 }
 
 <!-- REMAT / NETA mode change confirmation (shared with the Distribució tab) -->
-<app-figure-mode-change (changed)="onFigureModeChangeApplied($event)" />
+<app-figure-mode-change (changed)="onFigureModeChangeApplied($event)" (cancelled)="onFigureModeChangeCancelled($event)" />
 
 <!-- Cordons reduction confirmation (shared with the Distribució tab) -->
 <app-cordons-change (changed)="onCordonsChangeApplied()" />

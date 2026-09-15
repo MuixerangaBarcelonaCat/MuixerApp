@@ -9,6 +9,7 @@ import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { CordonsChangeComponent } from '../../../pinyes/components/cordons-change/cordons-change.component';
+import { FigureModeChangeComponent } from '../../../pinyes/components/figure-mode-change/figure-mode-change.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
@@ -1410,6 +1411,48 @@ describe('SegmentManagerComponent', () => {
       component.onFigureModeChangeApplied(updated);
 
       expect(component.segments()[0].instances[0]).toEqual(updated);
+    });
+  });
+
+  describe('figure mode select DOM — cancelling the confirmation', () => {
+    it('resyncs the native select back to the real figureMode once the change is cancelled', async () => {
+      const seg = makeSegment({
+        id: 'seg-1',
+        instances: [makeInstance({ id: 'inst-1', figureMode: 'COMPLETA', pinyaAssignedCount: 3 })],
+      });
+      (nodeAssignmentService.previewFigureModeImpact as ReturnType<typeof vi.fn>).mockReturnValue(of({ affectedCount: 3 }));
+      component.segments.set([seg]);
+      component.setViewMode('troncs');
+      fixture.detectChanges();
+      // NgModel defers its initial value write through a resolved-promise microtask — flush it
+      // now so it can't be mistaken later for a resync triggered by the cancel flow.
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      const select: HTMLSelectElement | null = fixture.nativeElement.querySelector('[data-testid="lib-select-native"]');
+      expect(select).toBeTruthy();
+      expect(select!.value).toBe('COMPLETA');
+
+      select!.value = 'REMAT';
+      select!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      expect(select!.value).toBe('REMAT');
+
+      const figureModeChange = fixture.debugElement.query(By.directive(FigureModeChangeComponent))
+        .componentInstance as FigureModeChangeComponent;
+      expect(figureModeChange.pending()).toBeTruthy();
+
+      figureModeChange.cancel();
+      // The reset round-trips the bound value twice (real value -> '' -> real value again) to
+      // force NgModel to resync, and NgModel itself defers each write through a resolved-promise
+      // microtask — so flush a few rounds of microtask + change detection to let it settle.
+      for (let i = 0; i < 5; i++) {
+        fixture.detectChanges();
+        await Promise.resolve();
+      }
+      fixture.detectChanges();
+
+      expect(select!.value).toBe('COMPLETA');
     });
   });
 
