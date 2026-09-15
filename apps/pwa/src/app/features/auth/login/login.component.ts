@@ -2,14 +2,15 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, Mail, Lock, AlertCircle } from 'lucide-angular';
+import { Mail, Lock } from 'lucide-angular';
+import { AlertComponent, ButtonComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule],
+  imports: [ReactiveFormsModule, RouterLink, AlertComponent, ButtonComponent, InputComponent],
   templateUrl: './login.component.html',
 })
 export class LoginComponent {
@@ -20,7 +21,6 @@ export class LoginComponent {
 
   protected readonly Mail = Mail;
   protected readonly Lock = Lock;
-  protected readonly AlertCircle = AlertCircle;
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],

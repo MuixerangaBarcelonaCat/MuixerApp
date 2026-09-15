@@ -41,6 +41,19 @@ describe('LoginComponent', () => {
     expect(el.querySelector('input[type="password"]')).toBeTruthy();
   });
 
+  it('tags the credentials so the browser password manager can save and refill them', () => {
+    const el = fixture.nativeElement;
+    const emailInput = el.querySelector('input[type="email"]') as HTMLInputElement;
+    const passwordInput = el.querySelector('input[type="password"]') as HTMLInputElement;
+
+    // `username`, no `email`: `email` és el token d'un camp d'adreça de contacte. El gestor de
+    // contrasenyes emparella `username` amb `current-password`, i usa el `name` com a reserva.
+    expect(emailInput.getAttribute('autocomplete')).toBe('username');
+    expect(emailInput.getAttribute('name')).toBe('username');
+    expect(passwordInput.getAttribute('autocomplete')).toBe('current-password');
+    expect(passwordInput.getAttribute('name')).toBe('password');
+  });
+
   it('submit button disabled when form invalid', () => {
     const btn = fixture.nativeElement.querySelector(
       'button[type="submit"]',
@@ -139,8 +152,8 @@ describe('LoginComponent', () => {
     it('gives the email and password inputs their own >=24px height instead of just the wrapper', () => {
       const emailInput = fixture.nativeElement.querySelector('input[type="email"]') as HTMLElement;
       const passwordInput = fixture.nativeElement.querySelector('input[type="password"]') as HTMLElement;
-      expect(emailInput.className).toContain('h-6');
-      expect(passwordInput.className).toContain('h-6');
+      expect(emailInput.className).toContain('min-h-6');
+      expect(passwordInput.className).toContain('min-h-6');
     });
   });
 });

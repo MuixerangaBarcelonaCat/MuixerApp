@@ -1,6 +1,6 @@
-<div class="p-4 space-y-4">
+<div class="p-4 flex flex-col gap-4">
   <div>
-    <h1 class="text-xl font-bold">Completa les dades de la xicalla</h1>
+    <h1 class="text-xl font-serif font-bold">Completeu les dades de la xicalla</h1>
     @if (current()) {
       <p class="text-sm text-base-content/60 mt-1">
         Completant dades: {{ position() }} de {{ initialTotal() }}
@@ -11,27 +11,26 @@
   @if (loading()) {
     <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
   } @else if (current(); as dependent) {
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
       <app-person-data-fields [formGroup]="form" [heading]="dependent.alias" />
 
       @if (errorMessage()) {
-        <div class="alert alert-error text-sm py-2" role="alert">
-          <span>{{ errorMessage() }}</span>
-        </div>
+        <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
       }
 
-      <button
+      <lib-button
         type="submit"
-        class="btn btn-primary w-full h-12 text-base"
-        [disabled]="form.invalid || isSubmitting()"
+        variant="primary"
+        fullWidth
+        [disabled]="form.invalid"
+        [loading]="isSubmitting()"
       >
         @if (isSubmitting()) {
-          <span class="loading loading-spinner loading-sm"></span>
           S'està desant...
         } @else {
           Desa i continua
         }
-      </button>
+      </lib-button>
     </form>
   }
 </div>

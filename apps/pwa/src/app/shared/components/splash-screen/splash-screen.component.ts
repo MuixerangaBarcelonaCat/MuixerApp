@@ -6,7 +6,7 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
-      class="fixed inset-0 flex items-center justify-center bg-base-200 z-[9999]"
+      class="fixed inset-0 flex items-center justify-center bg-base-200 z-system"
       role="status"
       aria-label="S'està carregant l'aplicació"
     >

@@ -8,7 +8,11 @@ import { AuthModule } from '../auth/auth.module';
 import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Person]), AuthModule, PersonDelegateModule],
+  imports: [
+    TypeOrmModule.forFeature([User, Person]),
+    AuthModule,
+    PersonDelegateModule,
+  ],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],

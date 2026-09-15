@@ -11,8 +11,8 @@
   </div>
 
   @if (errorMessage()) {
-    <div class="alert alert-error text-sm mb-4">
-      <span>{{ errorMessage() }}</span>
+    <div class="mb-4">
+      <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
     </div>
   }
 
@@ -34,9 +34,10 @@
 
   <!-- Warning for past event stats change -->
   @if (showWarning()) {
-    <div class="alert alert-warning text-sm mb-4">
-      <lucide-icon [img]="TriangleAlert" [size]="16" class="shrink-0" aria-hidden="true" />
-      <span>Esteu modificant l'assistència d'un event passat. Afectarà les estadístiques.</span>
+    <div class="mb-4">
+      <lib-alert variant="warning" dense>
+        Esteu modificant l'assistència d'un event passat. Afectarà les estadístiques.
+      </lib-alert>
     </div>
   }
 

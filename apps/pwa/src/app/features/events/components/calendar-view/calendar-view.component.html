@@ -1,22 +1,12 @@
 <div class="mb-4">
   <div class="flex items-center justify-between mb-3">
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm btn-circle"
-      aria-label="Mes anterior"
-      (click)="previousMonth()"
-    >
+    <lib-button variant="ghost" size="sm" shape="circle" ariaLabel="Mes anterior" (clicked)="previousMonth()">
       <lucide-icon [img]="ChevronLeft" [size]="20" />
-    </button>
+    </lib-button>
     <h3 class="text-sm font-semibold">{{ monthLabel() }}</h3>
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm btn-circle"
-      aria-label="Mes següent"
-      (click)="nextMonth()"
-    >
+    <lib-button variant="ghost" size="sm" shape="circle" ariaLabel="Mes següent" (clicked)="nextMonth()">
       <lucide-icon [img]="ChevronRight" [size]="20" />
-    </button>
+    </lib-button>
   </div>
 
   <div role="grid" aria-label="Calendari mensual">
@@ -36,7 +26,7 @@
         @for (day of week; track day.date) {
           <button
             type="button"
-            class="flex flex-col items-center justify-start py-1.5 min-h-[3rem] rounded-lg transition-colors"
+            class="flex flex-col items-center justify-start py-1.5 min-h-12 rounded-lg transition-colors duration-fast ease-ds"
             [class.text-base-content/30]="!day.isCurrentMonth"
             [class.pointer-events-none]="!day.isCurrentMonth"
             [class.ring-2]="day.isToday && selectedDate() !== day.date"
@@ -53,13 +43,23 @@
           >
             <span class="text-sm leading-tight">{{ day.dayNumber }}</span>
             @if (day.events.length > 0) {
-              <div class="flex gap-0.5 mt-0.5">
+              <div class="flex items-center gap-0.5 mt-0.5">
                 @for (ev of day.events; track ev.id) {
-                  <span
-                    class="w-2 h-2 rounded-full"
-                    [class]="dotClasses(ev)"
-                    aria-hidden="true"
-                  ></span>
+                  @if (ev.eventType === EventType.ASSAIG) {
+                    <span
+                      class="w-2 h-2 rounded-full"
+                      [class]="dotClasses(ev)"
+                      aria-hidden="true"
+                    ></span>
+                  } @else {
+                    <lucide-icon
+                      [img]="Star"
+                      [size]="9"
+                      [class]="starClasses(ev)"
+                      data-testid="calendar-actuacio-star"
+                      aria-hidden="true"
+                    />
+                  }
                 }
               </div>
             }

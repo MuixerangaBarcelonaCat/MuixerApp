@@ -65,7 +65,7 @@ FONT_FAMILY.legible // Atkinson Hyperlegible Next — canvas figure/node name la
 FONT_FAMILY.mono    // Atkinson Hyperlegible Mono — aliases, typed/search fields, other short fixed-width IDs
 ```
 
-All four are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`/`font-mono`). **`serif` first applied in Phase 7** — the dashboard `/home` greeting (`<h1>`) is the first real usage, setting the precedent for other page-level `<h1>` headings as their turn comes in the rollout, not yet applied retroactively to already-shipped pages. **`legible` is not yet applied anywhere** — its intended use (canvas labels) waits on the Tier 5 canvas token bridge. **`mono` overrides Tailwind's own generic system-monospace default** — every existing (and future) `font-mono` usage across both apps picks up the real font automatically, no per-call-site change needed; same Atkinson Hyperlegible family as `legible`, in its monospace cut, chosen for the same legibility-first reasoning.
+All four are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`/`font-mono`). **`serif` first applied in Phase 7** — the dashboard `/home` greeting (`<h1>`) was the first real usage, setting the precedent every later page-level `<h1>` across both apps' rollouts (7.2 dashboard, 7.3 PWA) followed. **`legible` is not yet applied anywhere** — its intended use (canvas labels) waits on the Tier 5 canvas token bridge. **`mono` overrides Tailwind's own generic system-monospace default** — every existing (and future) `font-mono` usage across both apps picks up the real font automatically, no per-call-site change needed; same Atkinson Hyperlegible family as `legible`, in its monospace cut, chosen for the same legibility-first reasoning.
 
 ### Radius
 
@@ -125,7 +125,7 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 ## Component library
 
-Seven components shipped so far, all in `libs/ui/src/lib/components/`, none rolled out to real app code yet (that's Phase 7). Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
+All shipped components live in `libs/ui/src/lib/components/`. Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
 
 ### `lib-button`
 
@@ -297,9 +297,12 @@ The label/required-marker/hint/error chrome shared by `lib-input` and `lib-selec
 | `ariaLabel` | `string` | — | For a compact, label-less field (no visible `label`) that still needs an accessible name — `label` always renders visible text via `lib-form-field`, which isn't the right call for e.g. an inline rename field in a toolbar row |
 | `icon` | `LucideIconData` | — | Optional prefix icon inside the box |
 | `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg`. Watch for this specifically when migrating a page whose raw markup used unmodified `.input input-bordered` (no size class, i.e. DaisyUI's implicit `md`, 48px) — swapping in `lib-input` with no `size` set silently shrinks it to `sm` (32px). Pass `size="md"` explicitly to preserve the original height (hit on the auth pages) |
-| `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically. `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types |
+| `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically; a passed `id` lands on the native `<input>` only (the host strips its own reflected copy, so an external `<label for="…">` focuses the field, not the wrapper). `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types, and `'password'` brings its own reveal toggle — see below |
+| `inputMode` | `'none'\|'text'\|'decimal'\|'numeric'\|'tel'\|'search'\|'email'\|'url'` | — | Mobile virtual-keyboard hint, independent of `type` (a PIN field is `type="text" inputMode="numeric"`; also belt-and-suspenders with `type="email"`/`"tel"`). Added during the PWA auth rollout — matters most there |
 | `min`, `max` | `string \| number` | — | Passed straight through to the native `min`/`max` attributes — meaningful for `type="number"`/`"date"`, browsers already validate/constrain against them |
 | `maxLength` | `number` | — | Passed straight through to the native `maxlength` attribute |
+| `name` | `string` | — | Passed straight through to the native `name` attribute. Only needed for credential fields: the browser's password manager keys off `autocomplete` first and falls back to `name` (most third-party managers — Bitwarden, 1Password — read `name` directly), and the auto-generated `id` is useless to them. See the credential-field recipe below |
+| `readonly` | `boolean` | `false` | Native `readOnly`: visible, focusable, **submitted with the form**, not editable. Reach for this over `disabled` whenever the value is real data the browser should be able to read — a `disabled` field is excluded from submission and ignored by password managers entirely. Hides the `type="password"` reveal toggle (nothing to type, and the value isn't the user's to unmask) |
 | `autofocus` | `boolean` | `false` | Imperative (a constructor `effect()` + `viewChild` calling `.focus()`), not the native HTML `autofocus` attribute — this field is almost always toggled into existence by an `@if` (an inline rename row appearing), and the native attribute's own "focus on insertion" behavior is inconsistent across browsers for that case in a way a direct call isn't |
 
 | Output | Payload | Notes |
@@ -310,9 +313,32 @@ The native `<input>` itself always carries `min-h-6` — a >=24px tap target ind
 
 Border weight and the focus-swap-in-place treatment come from the shared `_fields.scss` partial — see above.
 
+**`type="password"` renders a reveal toggle** (eye / crossed-out eye) at the trailing edge of the box, with no opt-in flag: a masked field nobody can read back is the same usability problem on every screen, so the affordance is part of the type rather than a per-caller decision. It's a `type="button"` (never submits the surrounding form), carries `aria-pressed` + a Catalan `aria-label` that flips with the state, is disabled together with the field, and only flips the *rendered* type — the `type` input the caller passed is never mutated, so switching a field away from `password` while revealed can't leave it showing plain text. This is the reason every password field in both apps goes through `lib-input`.
+
 ```html
 <lib-input formControlName="email" label="Correu electrònic" [icon]="Mail" type="email" required />
+<lib-input formControlName="password" label="Contrasenya" type="password" autocomplete="current-password" />
 <lib-input formControlName="shoulderHeight" label="Alçada espatlles (cm)" type="number" [min]="0" [max]="250" />
+```
+
+**Credential fields — the recipe.** For the browser (and any external password manager) to offer to save the credentials and refill them later, a login/activation/reset form needs all of this, not just `type="password"`:
+
+- A real `<form>` with a `type="submit"` button. An `(ngSubmit)` handler is enough — the manager listens for the submit event, it doesn't need a page navigation.
+- The identifier field tagged `autocomplete="username"` **and** `name="username"`. Not `autocomplete="email"`: that token is for a contact-address field, and it doesn't pair the field with the password. This applies to the "forgot password" screens too, where the email *is* the identifier.
+- The password tagged `autocomplete="current-password"` (sign-in) or `new-password` (activation, reset, change-password), plus a matching `name`. A change-password form that carries both tokens gets an *update* prompt instead of a second saved entry.
+- On a screen where the identifier is already known and locked (the invite activation, whose email comes from the server), the field must be **`readonly`, never `disabled`** — otherwise the browser saves the new password with no username attached and can't refill the email at the next login. This is exactly the screen where the save matters most, since it's the user's very first password.
+- Deliberate exception: an admin creating *someone else's* account (`user-form-modal`) uses `autocomplete="off"` + `new-password` — we don't want the admin's browser storing it as their own credential.
+
+Requires a secure origin: on plain HTTP (other than `localhost`) Chrome flags the form and iOS restricts keychain AutoFill.
+
+```html
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+  <lib-input formControlName="email" label="Correu electrònic" type="email"
+             autocomplete="username" name="username" [readonly]="emailIsLocked()" />
+  <lib-input formControlName="password" label="Contrasenya" type="password"
+             autocomplete="current-password" name="password" />
+  <lib-button type="submit" variant="primary">Entra</lib-button>
+</form>
 ```
 
 `textarea` has its own component — see `lib-textarea` below — sharing the same `ControlValueAccessor`/`lib-form-field` contract rather than being folded into `lib-input` itself (a multi-line control needs `rows`/`resize`, neither meaningful for a single-line input).
@@ -446,6 +472,33 @@ inject(ToastService).info('...');
 
 `dismiss(id)` removes one; every toast auto-dismisses after a flat 4000ms regardless of type. Icons are per-type (`CheckCircle`/`AlertCircle`/`AlertTriangle`/`Info`) — information isn't conveyed by color alone. `<lib-toast-container />` is mounted once per app shell; it's responsive by viewport width (full-width top banner with safe-area support below `sm`, DaisyUI's corner-stacking `toast-top toast-end` at `sm` and up) rather than taking a `position` input — one component, no per-app configuration.
 
+### `lib-alert`
+
+An inline contextual notice — a form-feedback strip or a page-level banner. Not for transient
+notifications (that's `ToastService`) or floating anchored notifications (raw markup — see the
+PWA's `push-permission-banner`).
+
+| Input | Type | Default | Notes |
+|-------|------|---------|-------|
+| `variant` | `'info' \| 'success' \| 'warning' \| 'error'` | `'info'` | Sets the DaisyUI `alert-*` colour **and** the paired Lucide icon (`Info`/`CheckCircle`/`AlertTriangle`/`AlertCircle`) — same "never colour alone" rule as `lib-toast` (WCAG 1.4.1) |
+| `dense` | `boolean` | `false` | Compact inline strip (`text-sm`, tight padding, no elevation) vs. the default banner (`shadow-raised`) |
+| `title` | `string` | — | Optional bold lead line above the projected body |
+| `dismissible` | `boolean` | `false` | Renders a `Tancar`-labelled ✕ `lib-button`; emits `dismissed` |
+| `icon` | `LucideIconData` | — | Overrides the per-variant icon (e.g. a platform-specific glyph) |
+| `assertive` | `boolean` | per-variant | `error`/`warning` announce assertively (`role="alert"`), `info`/`success` politely (`role="status"`); set to force either way |
+
+Output: `dismissed`. Body is `<ng-content>`; a trailing action goes in the `[actions]` slot
+(`<span actions>…</span>`). Host is `display: contents` — put margin/positioning on a wrapper,
+per the Component conventions gotcha.
+
+```html
+<lib-alert variant="warning" title="Compte no vinculat">
+  <p class="text-sm">El compte no està vinculat a cap membre.</p>
+</lib-alert>
+
+<lib-alert variant="error" dense><p>El correu electrònic ja està en ús.</p></lib-alert>
+```
+
 ### `lib-empty-state`
 
 | Input | Type | Default | Notes |
@@ -514,15 +567,14 @@ Runtime switch: `document.documentElement.setAttribute('data-theme', 'colla-nova
 
 ## Guardrails
 
-`pnpm run lint:tokens` (`scripts/check-design-tokens.mjs`) scans both apps + `libs/pinyes-render` + `libs/ui` for raw hex literals and color-related Tailwind arbitrary values (`bg-[...]`, `text-[...]`, etc.) outside `libs/ui/src/lib/tokens/`, and runs as its own step in CI. **Warn-only for now** — Tier 3/5 below haven't landed, so it reports drift without failing the build; it'll ratchet to a hard fail once that backlog clears.
+`pnpm run lint:tokens` (`scripts/check-design-tokens.mjs`) scans both apps + `libs/pinyes-render` + `libs/ui` for raw hex literals, raw CSS color-function literals (`oklch(62% .18 220)`, `rgba(0,0,0,.5)`, etc. — a hardcoded color in a different syntax is still hardcoded, not a token; a color function wrapping a real token reference, e.g. DaisyUI v4's own `oklch(var(--p))` convention, is correctly not flagged), and color-related Tailwind arbitrary values (`bg-[...]`, `text-[...]`, etc.) outside `libs/ui/src/lib/tokens/`, and runs as its own step in CI. **Warn-only for now** — Tier 3/5 below haven't landed, so it reports drift without failing the build; it'll ratchet to a hard fail once that backlog clears.
 
 ## What's next
 
-This doc covers what's actually shipped (tokens + the 7 Tier 1/2 components above, the live style guide, the drift check). Not yet built, and not documented here until they land:
+This doc covers what's shipped: tokens, the `libs/ui` component library (14 components as of writing — `alert`, `badge`, `button`, `button-group`, `card`, `checkbox`, `empty-state`, `form-field`, `input`, `modal`, `select`, `tabs`, `textarea`, `toast`), the live style guide, and the drift check. **Phase 7's page-by-page rollout onto this library is complete for both apps** (7.2 dashboard, 7.3 PWA) — every hand-rolled `.btn`/`.card`/`.badge`/`.modal`/etc. across `apps/dashboard` and `apps/pwa` has had its turn through the per-page checklist (Tier 1/2 primitive swap, Tier 3 restyle, hardcoded-value hunt, typography review, component-API gap flagging); genuine gaps found along the way stayed raw on purpose and are named where they live, not hidden. Not yet built, and not documented here until it lands:
 
-- **Tier 3** — restyling ~25 existing single-app components (`data-table`, `filter-bar`, `color-picker`, `bottom-tab-bar`, etc.) to consume these tokens/primitives in place, folded into Phase 7's page-by-page rollout rather than a standalone pass.
-- **Tier 5** — pointing the Konva canvas (`libs/pinyes-render`) at these same tokens instead of its own literal values (colors, categorical palette, motion) — `lint:tokens`' single biggest source of findings today (`figure-canvas.component.ts` alone).
-- **Phase 7** — the actual rollout replacing real hand-rolled markup in both apps with these components, page by page; also when `lint:tokens` ratchets from warn-only to a real failing check.
+- **Tier 5 (7.3.5)** — pointing the Konva canvas (`libs/pinyes-render`) at these same tokens instead of its own literal values (colors, categorical palette, motion) — `lint:tokens`' single biggest remaining source of findings (`figure-canvas.component.ts` alone). Its own phase, scheduled after the full PWA rollout rather than folded into it.
+- **7.4** — ratcheting `lint:tokens` from warn-only to a real failing check, gated on 7.3.5 clearing the canvas findings above.
 
 Full detail on all of the above, plus the reasoning behind every decision already made — [docs/superpowers/specs/2026-08-16-design-system-plan-design.md](superpowers/specs/2026-08-16-design-system-plan-design.md).
 

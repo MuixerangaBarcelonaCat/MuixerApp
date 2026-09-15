@@ -7,11 +7,15 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, AlertCircle } from 'lucide-angular';
 import { InviteRegistrationContext, RegisterViaInviteRequest } from '@muixer/shared';
+import { AlertComponent, ButtonComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { PersonDataFieldsComponent } from '../../../shared/components/person-data-fields/person-data-fields.component';
-import { buildPersonDataFormGroup, combinePhoneNumber } from '../../../shared/utils/person-data-form.util';
+import {
+  buildPersonDataFormGroup,
+  combinePhoneNumber,
+  splitPhoneNumber,
+} from '../../../shared/utils/person-data-form.util';
 
 function passwordsMatchValidator(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
@@ -23,7 +27,15 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   selector: 'app-activate',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, PersonDataFieldsComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    AlertComponent,
+    ButtonComponent,
+    CheckboxComponent,
+    InputComponent,
+    PersonDataFieldsComponent,
+  ],
   templateUrl: './activate.component.html',
 })
 export class ActivateComponent {
@@ -31,8 +43,6 @@ export class ActivateComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
-
-  protected readonly AlertCircle = AlertCircle;
 
   private readonly token = this.route.snapshot.queryParamMap.get('token');
 
@@ -59,11 +69,22 @@ export class ActivateComponent {
     this.authService.getInviteContext(this.token).subscribe({
       next: (context) => {
         this.context.set(context);
+
+        // L'email només el pot escriure qui encara no en té cap registrat: si la colla ja el
+        // coneix, el camp queda bloquejat i el canvi de correu passa per un tècnic.
+        if (context.email) {
+          this.form.controls.email.setValue(context.email);
+        }
+
+        const { country, phoneNumber } = splitPhoneNumber(context.person.phone);
         this.form.controls.personalData.patchValue({
           name: context.person.name,
           firstSurname: context.person.firstSurname,
           secondSurname: context.person.secondSurname ?? '',
           gender: context.person.gender ?? '',
+          country,
+          phoneNumber,
+          birthDate: context.person.birthDate ?? '',
         });
         this.loading.set(false);
       },

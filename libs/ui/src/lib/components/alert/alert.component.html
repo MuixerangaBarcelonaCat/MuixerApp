@@ -1,0 +1,20 @@
+<div [class]="alertClass()" [attr.role]="role()" [attr.aria-live]="ariaLive()">
+  <lucide-icon [img]="effectiveIcon()" [size]="dense() ? 16 : 20" class="shrink-0" aria-hidden="true" />
+
+  <div class="min-w-0 flex-1">
+    @if (title()) {
+      <p class="font-medium" data-testid="lib-alert-title">{{ title() }}</p>
+    }
+    <ng-content />
+  </div>
+
+  <ng-content select="[actions]" />
+
+  @if (dismissible()) {
+    <span class="shrink-0">
+      <lib-button variant="ghost" size="xs" shape="square" ariaLabel="Tancar" (clicked)="dismissed.emit()">
+        <lucide-icon [img]="X" [size]="14" />
+      </lib-button>
+    </span>
+  }
+</div>

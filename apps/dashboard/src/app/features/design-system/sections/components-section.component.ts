@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { Search, Star, Users } from 'lucide-angular';
 import {
+  AlertComponent,
   ButtonComponent,
   ButtonGroupComponent,
   BadgeComponent,
@@ -53,6 +54,7 @@ const DEMO_TABS: TabDef[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
+    AlertComponent,
     ButtonComponent,
     ButtonGroupComponent,
     BadgeComponent,

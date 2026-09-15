@@ -7,12 +7,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
 import { AttendanceStatus, MeEvent } from '@muixer/shared';
-import { LucideAngularModule, User } from 'lucide-angular';
-import { MobileHeaderComponent } from '../../shared/components/mobile-header/mobile-header.component';
+import { LucideAngularModule, User, CalendarOff } from 'lucide-angular';
 import { SkeletonCardComponent } from '../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
+import { AlertComponent, ButtonComponent, CardComponent, EmptyStateComponent } from '@muixer/ui';
 import { EventCardComponent } from '../events/components/event-card/event-card.component';
 import { PullToRefreshComponent } from '../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { AuthService } from '../../core/auth/services/auth.service';
@@ -28,9 +26,10 @@ const NEWS_EXCERPT_LENGTH = 300;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
     LucideAngularModule,
-    MobileHeaderComponent,
+    AlertComponent,
+    ButtonComponent,
+    CardComponent,
     SkeletonCardComponent,
     EmptyStateComponent,
     EventCardComponent,
@@ -45,6 +44,7 @@ export class HomeComponent {
 
   protected readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
   protected readonly UserIcon = User;
+  protected readonly CalendarOff = CalendarOff;
 
   protected readonly homeResource = rxResource({
     stream: () => this.homeService.loadHomeData(),

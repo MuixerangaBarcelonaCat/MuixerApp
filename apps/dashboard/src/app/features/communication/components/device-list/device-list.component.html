@@ -47,10 +47,7 @@
     <span class="loading loading-spinner loading-lg"></span>
   </div>
 } @else if (error()) {
-  <div role="alert" class="alert alert-error">
-    <lucide-icon name="AlertCircle" [size]="18" />
-    <span>Error en carregar els dispositius. Torna-ho a intentar.</span>
-  </div>
+  <lib-alert variant="error">Error en carregar els dispositius. Torna-ho a intentar.</lib-alert>
 } @else if (filtered().length === 0 && summary().length === 0) {
   <lib-empty-state
     [icon]="ICON_SMARTPHONE"

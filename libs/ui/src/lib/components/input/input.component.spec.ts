@@ -65,6 +65,52 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('date');
   });
 
+  describe('inputMode', () => {
+    it('sets no inputmode attribute by default', () => {
+      expect(nativeInput().getAttribute('inputmode')).toBeNull();
+    });
+
+    it('forwards inputMode to the native input (mobile keyboard hint)', () => {
+      fixture.componentRef.setInput('inputMode', 'email');
+      fixture.detectChanges();
+      expect(nativeInput().getAttribute('inputmode')).toBe('email');
+    });
+  });
+
+  describe('name — perquè els gestors de contrasenyes reconeguen el camp', () => {
+    it('sets no name attribute by default', () => {
+      expect(nativeInput().hasAttribute('name')).toBe(false);
+    });
+
+    it('forwards name to the native input', () => {
+      fixture.componentRef.setInput('name', 'password');
+      fixture.detectChanges();
+      expect(nativeInput().getAttribute('name')).toBe('password');
+    });
+  });
+
+  describe('readonly — camp visible i enviable, però no editable', () => {
+    it('is not readonly by default', () => {
+      expect(nativeInput().readOnly).toBe(false);
+    });
+
+    it('forwards readonly to the native input without disabling it', () => {
+      fixture.componentRef.setInput('readonly', true);
+      fixture.detectChanges();
+      // A diferència de `disabled`, un camp readonly s'envia amb el formulari i el gestor de
+      // contrasenyes del navegador el veu — d'ací que l'email prellenat de l'activació l'use.
+      expect(nativeInput().readOnly).toBe(true);
+      expect(nativeInput().disabled).toBe(false);
+    });
+
+    it('hides the password reveal button while readonly, as there is nothing to type', () => {
+      fixture.componentRef.setInput('type', 'password');
+      fixture.componentRef.setInput('readonly', true);
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css('[data-testid="lib-input-reveal"]'))).toBeNull();
+    });
+  });
+
   describe('maxLength', () => {
     it('sets no maxlength attribute by default', () => {
       expect(nativeInput().hasAttribute('maxlength')).toBe(false);
@@ -135,6 +181,15 @@ describe('InputComponent', () => {
       expect(nativeInput().id).toBe('custom-email-id');
     });
 
+    // A static `id="…"` written on <lib-input> is also reflected onto the host element by the
+    // template compiler, which would leave two elements sharing the id — and an external
+    // <label for="…"> pointing at the wrapper instead of the field.
+    it('keeps the id off the host element, so it identifies the native input only', () => {
+      fixture.componentRef.setInput('id', 'custom-email-id');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.hasAttribute('id')).toBe(false);
+    });
+
     it('appends a required marker to the label text when required is set', () => {
       fixture.componentRef.setInput('label', 'Correu electrònic');
       fixture.componentRef.setInput('required', true);
@@ -182,6 +237,72 @@ describe('InputComponent', () => {
 
     it('sets no aria-describedby when there is neither hint nor error', () => {
       expect(nativeInput().getAttribute('aria-describedby')).toBeNull();
+    });
+  });
+
+  describe('password reveal toggle', () => {
+    const toggleEl = () => fixture.debugElement.query(By.css('[data-testid="lib-input-reveal"]'));
+    const setPasswordType = () => {
+      fixture.componentRef.setInput('type', 'password');
+      fixture.detectChanges();
+    };
+
+    it('renders no toggle for a non-password input', () => {
+      expect(toggleEl()).toBeNull();
+    });
+
+    it('renders the toggle for a password input, hidden by default', () => {
+      setPasswordType();
+      expect(toggleEl()).toBeTruthy();
+      expect(nativeInput().type).toBe('password');
+      expect(toggleEl().nativeElement.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('reveals the value on click and hides it again on a second click', () => {
+      setPasswordType();
+
+      toggleEl().nativeElement.click();
+      fixture.detectChanges();
+      expect(nativeInput().type).toBe('text');
+      expect(toggleEl().nativeElement.getAttribute('aria-pressed')).toBe('true');
+
+      toggleEl().nativeElement.click();
+      fixture.detectChanges();
+      expect(nativeInput().type).toBe('password');
+      expect(toggleEl().nativeElement.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('is a plain button so it never submits the surrounding form', () => {
+      setPasswordType();
+      expect(toggleEl().nativeElement.getAttribute('type')).toBe('button');
+    });
+
+    it('names the action for screen readers and flips the label once revealed', () => {
+      setPasswordType();
+      expect(toggleEl().nativeElement.getAttribute('aria-label')).toBe('Mostra la contrasenya');
+
+      toggleEl().nativeElement.click();
+      fixture.detectChanges();
+      expect(toggleEl().nativeElement.getAttribute('aria-label')).toBe('Amaga la contrasenya');
+    });
+
+    it('is disabled together with the field', () => {
+      setPasswordType();
+      fixture.componentRef.setInput('disabled', true);
+      fixture.detectChanges();
+      expect(toggleEl().nativeElement.disabled).toBe(true);
+    });
+
+    it('falls back to the masked type when the caller switches away from password while revealed', () => {
+      setPasswordType();
+      toggleEl().nativeElement.click();
+      fixture.detectChanges();
+
+      fixture.componentRef.setInput('type', 'email');
+      fixture.detectChanges();
+
+      expect(nativeInput().type).toBe('email');
+      expect(toggleEl()).toBeNull();
     });
   });
 

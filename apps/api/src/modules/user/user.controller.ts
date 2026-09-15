@@ -98,5 +98,4 @@ export class UserController {
   ): Promise<UserResponseDto> {
     return this.userService.updateUser(id, dto, actor.role, actor.sub);
   }
-
 }

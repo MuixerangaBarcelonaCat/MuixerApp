@@ -135,9 +135,9 @@
             <div class="flex flex-col gap-3">
 
               @if (transparencyClause()) {
-                <div class="alert alert-info text-xs" role="note">
-                  <span class="whitespace-pre-wrap">{{ transparencyClause() }}</span>
-                </div>
+                <lib-alert variant="info" dense>
+                  <span class="whitespace-pre-wrap text-xs">{{ transparencyClause() }}</span>
+                </lib-alert>
               }
 
               <lib-input

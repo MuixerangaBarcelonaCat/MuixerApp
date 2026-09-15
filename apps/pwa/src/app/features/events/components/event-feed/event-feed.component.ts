@@ -12,7 +12,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { AttendanceStatus, MeEvent, PaginatedResponse } from '@muixer/shared';
 import { SkeletonCardComponent } from '../../../../shared/components/skeleton-card/skeleton-card.component';
-import { EmptyStateComponent } from '../../../../shared/components/empty-state/empty-state.component';
+import { EmptyStateComponent } from '@muixer/ui';
 import { PullToRefreshComponent } from '../../../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { InfiniteScrollDirective } from '../../../../shared/directives/infinite-scroll.directive';
 import { EventCardComponent } from '../event-card/event-card.component';

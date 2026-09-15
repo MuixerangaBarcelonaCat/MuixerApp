@@ -124,6 +124,8 @@ describe('SettingsComponent', () => {
       confirmPassword: string = newPassword,
     ): void {
       openSection();
+      // `id` lands on the native `<input>` only — `lib-input` strips its own reflected copy so an
+      // external `<label for="…">` focuses the field, not the (display:contents) host.
       setInputValue(
         fixture.nativeElement.querySelector('#password-current-password'),
         currentPassword,

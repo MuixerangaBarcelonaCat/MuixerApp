@@ -26,6 +26,11 @@ export interface RegisterViaInviteRequest extends PersonRegistrationData {
 
 /** Resposta de GET /auth/invite/:token. */
 export interface InviteRegistrationContext {
+  /**
+   * Email que la colla ja té registrat per a aquesta persona, o `null` si encara no en tenim cap.
+   * Quan té valor, el formulari el mostra bloquejat i el backend ignora el que arribi al cos.
+   */
+  email: string | null;
   person: {
     name: string;
     firstSurname: string;

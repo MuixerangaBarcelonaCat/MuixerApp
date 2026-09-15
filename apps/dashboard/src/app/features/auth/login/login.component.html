@@ -24,7 +24,8 @@
           [icon]="MailIcon"
           placeholder="nom@exemple.com"
           formControlName="email"
-          autocomplete="email"
+          autocomplete="username"
+          name="username"
           [errorText]="form.get('email')?.invalid && form.get('email')?.touched ? 'Correu electrònic no vàlid' : undefined"
         />
 
@@ -42,15 +43,13 @@
             placeholder="••••••••"
             formControlName="password"
             autocomplete="current-password"
+            name="password"
           />
         </div>
 
         <!-- Error general -->
         @if (errorMessage()) {
-          <div class="alert alert-error text-sm py-2">
-            <lucide-icon name="AlertCircle" [size]="16" />
-            <span>{{ errorMessage() }}</span>
-          </div>
+          <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
         }
 
         <lib-button type="submit" variant="primary" fullWidth [disabled]="form.invalid" [loading]="isLoading()">

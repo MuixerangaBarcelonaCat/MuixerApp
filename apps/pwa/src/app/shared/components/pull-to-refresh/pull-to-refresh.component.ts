@@ -17,7 +17,7 @@ import {
   template: `
     @if (isPulling() || isRefreshing()) {
       <div
-        class="flex justify-center py-2 transition-opacity"
+        class="flex justify-center py-2 transition-opacity duration-fast ease-ds"
         [class.opacity-50]="isPulling() && !isRefreshing()"
         role="status"
         aria-live="polite"

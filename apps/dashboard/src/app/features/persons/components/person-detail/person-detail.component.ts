@@ -13,6 +13,7 @@ import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import {
   ToastService,
+  AlertComponent,
   BadgeComponent,
   ButtonComponent,
   CardComponent,
@@ -63,6 +64,7 @@ const GENDER_LABELS: Record<Gender, string> = {
   imports: [
     ReactiveFormsModule,
     RouterModule,
+    AlertComponent,
     BadgeComponent,
     ButtonComponent,
     CardComponent,

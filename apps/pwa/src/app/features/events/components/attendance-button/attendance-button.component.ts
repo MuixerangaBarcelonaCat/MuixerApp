@@ -13,20 +13,23 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { LucideAngularModule, Check } from 'lucide-angular';
 import { AttendanceStatus } from '@muixer/shared';
+import { LucideAngularModule, Check } from 'lucide-angular';
 import { EventService } from '../../services/event.service';
-import { ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui';
 
 @Component({
   selector: 'app-attendance-button',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, ButtonGroupComponent, LucideAngularModule],
+  imports: [LucideAngularModule, BadgeComponent, ButtonComponent, ButtonGroupComponent],
   template: `
     @if (isLockedBadgeOnly()) {
-      <span class="badge badge-info badge-sm gap-1 py-3">
-        <lucide-angular [img]="Check" class="size-3" />
-        He assistit
-      </span>
+      <lib-badge variant="info" size="sm">
+        <span class="inline-flex items-center gap-1">
+          <lucide-icon [img]="Check" [size]="12" aria-hidden="true" />
+          He assistit
+        </span>
+      </lib-badge>
     } @else {
       <div class="flex items-center gap-2">
       <lib-button-group>

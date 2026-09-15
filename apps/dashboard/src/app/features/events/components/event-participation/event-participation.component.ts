@@ -13,7 +13,7 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { ButtonComponent, EmptyStateComponent, InputComponent, SelectComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, EmptyStateComponent, InputComponent, SelectComponent } from '@muixer/ui';
 import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
 import { FilterBarComponent } from '../../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent, ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
@@ -100,6 +100,7 @@ type AreaFilter = 'TRONC' | 'PINYA' | null;
   imports: [
     FormsModule,
     LucideAngularModule,
+    AlertComponent,
     ButtonComponent,
     InputComponent,
     SelectComponent,

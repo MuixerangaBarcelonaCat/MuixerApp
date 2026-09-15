@@ -33,7 +33,9 @@ describe('PersonSwitcherComponent', () => {
     fixture.componentRef.setInput('selectedId', 'p-2');
     fixture.detectChanges();
 
-    const trigger = fixture.nativeElement.querySelector('[role="button"]') as HTMLElement;
+    const trigger = fixture.nativeElement.querySelector(
+      '[data-testid="person-switcher-trigger"]',
+    ) as HTMLElement;
     expect(trigger.textContent).toContain('JoanP');
   });
 
