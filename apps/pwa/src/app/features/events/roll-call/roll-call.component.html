@@ -67,14 +67,13 @@
         @for (item of signedUpItems(); track item.person.id) {
           <li data-testid="roll-call-row">
             <lib-card>
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <span class="font-medium truncate">{{ item.person.alias }}</span>
-                <lib-button-group class="w-full sm:w-auto">
+              <div class="flex flex-row items-center justify-between gap-2">
+                <span class="font-medium min-w-0 break-words">{{ item.person.alias }}</span>
+                <lib-button-group class="shrink-0">
                   @for (status of statuses; track status) {
                     <lib-button
                       joinItem
                       size="xs"
-                      class="flex-1 sm:flex-none"
                       [variant]="item.status === status ? statusVariant(status) : 'neutral'"
                       [active]="item.status === status"
                       [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
@@ -96,14 +95,13 @@
           @for (item of notSignedUpItems(); track item.person.id) {
             <li data-testid="roll-call-row">
               <lib-card>
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <span class="font-medium truncate">{{ item.person.alias }}</span>
-                  <lib-button-group class="w-full sm:w-auto">
+                <div class="flex flex-row items-center justify-between gap-2">
+                  <span class="font-medium min-w-0 break-words">{{ item.person.alias }}</span>
+                  <lib-button-group class="shrink-0">
                     @for (status of statuses; track status) {
                       <lib-button
                         joinItem
                         size="xs"
-                        class="flex-1 sm:flex-none"
                         [variant]="item.status === status ? statusVariant(status) : 'neutral'"
                         [active]="item.status === status"
                         [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
