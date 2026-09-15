@@ -6,6 +6,7 @@ import { FormFieldComponent } from '../form-field/form-field.component';
 
 export type InputSize = 'xs' | 'sm' | 'md' | 'lg';
 export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search' | 'date';
+export type InputMode = 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
 
 const SIZE_CLASSES: Record<InputSize, string> = {
   xs: 'input-xs',
@@ -48,6 +49,9 @@ export class InputComponent implements ControlValueAccessor {
   disabled = input(false, { transform: booleanAttribute });
   required = input(false, { transform: booleanAttribute });
   autocomplete = input<string>();
+  // Mobile virtual-keyboard hint, independent of `type` (e.g. type="text" + inputMode="numeric"
+  // for a PIN, or belt-and-suspenders with type="email"/"tel"). Matters most in the PWA.
+  inputMode = input<InputMode>();
   // El gestor de contrasenyes del navegador identifica els camps per `autocomplete` i, com a
   // reserva (i en la majoria de gestors externs), pel `name`. L'`id` no serveix: és generat.
   name = input<string>();

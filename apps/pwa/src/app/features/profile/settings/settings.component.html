@@ -1,7 +1,7 @@
 <app-mobile-header title="Configuració" [showBack]="true" fallbackRoute="/profile" />
 
 <section class="py-2 flex flex-col gap-6">
-  <div class="card bg-base-100 shadow-sm">
+  <div class="card bg-base-100 shadow-raised">
     <div class="card-body p-0 divide-y divide-base-200">
       <div class="p-4">
         <button
@@ -26,9 +26,10 @@
             id="password-form"
             [formGroup]="passwordForm"
             (ngSubmit)="submitPasswordChange()"
-            class="space-y-3 mt-3"
+            class="flex flex-col gap-3 mt-3"
           >
             <lib-input
+              id="password-current-password"
               label="Contrasenya actual"
               type="password"
               formControlName="currentPassword"
@@ -37,6 +38,7 @@
             />
 
             <lib-input
+              id="password-new-password"
               label="Contrasenya nova (mínim 8 caràcters)"
               type="password"
               formControlName="newPassword"
@@ -45,6 +47,7 @@
             />
 
             <lib-input
+              id="password-confirm-password"
               label="Confirmeu la contrasenya nova"
               type="password"
               formControlName="confirmPassword"
@@ -58,21 +61,17 @@
             />
 
             @if (passwordError()) {
-              <div class="alert alert-error text-sm py-2" role="alert">
-                <span>{{ passwordError() }}</span>
-              </div>
+              <lib-alert variant="error" dense>{{ passwordError() }}</lib-alert>
             }
 
-            <button
+            <lib-button
               type="submit"
-              class="btn btn-primary btn-sm"
+              size="sm"
               [disabled]="passwordForm.invalid || passwordSubmitting()"
+              [loading]="passwordSubmitting()"
             >
-              @if (passwordSubmitting()) {
-                <span class="loading loading-spinner loading-xs"></span>
-              }
               Actualitza la contrasenya
-            </button>
+            </lib-button>
           </form>
         }
       </div>
@@ -80,7 +79,7 @@
     </div>
   </div>
 
-  <div class="card bg-base-100 shadow-sm">
+  <div class="card bg-base-100 shadow-raised">
     <div class="card-body p-0 divide-y divide-base-200">
       <app-push-settings data-testid="notifications-row" />
       <div class="p-4">

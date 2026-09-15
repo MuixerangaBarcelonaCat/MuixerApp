@@ -1,0 +1,6 @@
+// No wrapper chrome by design — the alert box IS the rendered root; the consumer places it in
+// its own layout (a form column, a page banner slot, a floating fixed wrapper). Same
+// `display: contents` host convention as every other lib-* component.
+:host {
+  display: contents;
+}

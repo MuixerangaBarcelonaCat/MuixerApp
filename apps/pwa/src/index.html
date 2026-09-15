@@ -5,7 +5,13 @@
     <title>MuixerApp</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#6d1a36" />
+    <!-- Matches the placeholder colla's generated `primary` token (see the shirt color passed to
+         generateCollaTheme(...) in tailwind.config.ts) — expressed as the same oklch() this whole
+         token system already uses, not a hex snapshot, so it isn't raw-hex drift for lint:tokens
+         to flag. Static HTML can't read the live theme, so this can still silently go stale if
+         the colla config in tailwind.config.ts ever changes — see DEBT.md F12. Keep
+         manifest.webmanifest's theme_color in sync with this value. -->
+    <meta name="theme-color" content="oklch(62% 0.18 220.71)" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" type="image/png" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />

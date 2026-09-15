@@ -7,8 +7,8 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { AlertCircle, CheckCircle, Lock, LucideAngularModule } from 'lucide-angular';
-import { InputComponent } from '@muixer/ui';
+import { Lock } from 'lucide-angular';
+import { AlertComponent, ButtonComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 function passwordsMatchValidator(group: AbstractControl): ValidationErrors | null {
@@ -27,7 +27,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   selector: 'app-reset-password',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, InputComponent],
+  imports: [ReactiveFormsModule, RouterLink, AlertComponent, ButtonComponent, InputComponent],
   templateUrl: './reset-password.component.html',
 })
 export class ResetPasswordComponent {
@@ -35,8 +35,6 @@ export class ResetPasswordComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
 
-  protected readonly AlertCircle = AlertCircle;
-  protected readonly CheckCircle = CheckCircle;
   protected readonly Lock = Lock;
 
   private readonly token = this.route.snapshot.queryParamMap.get('token');

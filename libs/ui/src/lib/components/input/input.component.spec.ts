@@ -65,6 +65,18 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('date');
   });
 
+  describe('inputMode', () => {
+    it('sets no inputmode attribute by default', () => {
+      expect(nativeInput().getAttribute('inputmode')).toBeNull();
+    });
+
+    it('forwards inputMode to the native input (mobile keyboard hint)', () => {
+      fixture.componentRef.setInput('inputMode', 'email');
+      fixture.detectChanges();
+      expect(nativeInput().getAttribute('inputmode')).toBe('email');
+    });
+  });
+
   describe('name — perquè els gestors de contrasenyes reconeguen el camp', () => {
     it('sets no name attribute by default', () => {
       expect(nativeInput().hasAttribute('name')).toBe(false);

@@ -65,7 +65,7 @@ FONT_FAMILY.legible // Atkinson Hyperlegible Next — canvas figure/node name la
 FONT_FAMILY.mono    // Atkinson Hyperlegible Mono — aliases, typed/search fields, other short fixed-width IDs
 ```
 
-All four are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`/`font-mono`). **`serif` first applied in Phase 7** — the dashboard `/home` greeting (`<h1>`) is the first real usage, setting the precedent for other page-level `<h1>` headings as their turn comes in the rollout, not yet applied retroactively to already-shipped pages. **`legible` is not yet applied anywhere** — its intended use (canvas labels) waits on the Tier 5 canvas token bridge. **`mono` overrides Tailwind's own generic system-monospace default** — every existing (and future) `font-mono` usage across both apps picks up the real font automatically, no per-call-site change needed; same Atkinson Hyperlegible family as `legible`, in its monospace cut, chosen for the same legibility-first reasoning.
+All four are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`/`font-mono`). **`serif` first applied in Phase 7** — the dashboard `/home` greeting (`<h1>`) was the first real usage, setting the precedent every later page-level `<h1>` across both apps' rollouts (7.2 dashboard, 7.3 PWA) followed. **`legible` is not yet applied anywhere** — its intended use (canvas labels) waits on the Tier 5 canvas token bridge. **`mono` overrides Tailwind's own generic system-monospace default** — every existing (and future) `font-mono` usage across both apps picks up the real font automatically, no per-call-site change needed; same Atkinson Hyperlegible family as `legible`, in its monospace cut, chosen for the same legibility-first reasoning.
 
 ### Radius
 
@@ -125,7 +125,7 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 ## Component library
 
-Seven components shipped so far, all in `libs/ui/src/lib/components/`, none rolled out to real app code yet (that's Phase 7). Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
+All shipped components live in `libs/ui/src/lib/components/`. Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
 
 ### `lib-button`
 
@@ -298,6 +298,7 @@ The label/required-marker/hint/error chrome shared by `lib-input` and `lib-selec
 | `icon` | `LucideIconData` | — | Optional prefix icon inside the box |
 | `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg`. Watch for this specifically when migrating a page whose raw markup used unmodified `.input input-bordered` (no size class, i.e. DaisyUI's implicit `md`, 48px) — swapping in `lib-input` with no `size` set silently shrinks it to `sm` (32px). Pass `size="md"` explicitly to preserve the original height (hit on the auth pages) |
 | `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically; a passed `id` lands on the native `<input>` only (the host strips its own reflected copy, so an external `<label for="…">` focuses the field, not the wrapper). `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types, and `'password'` brings its own reveal toggle — see below |
+| `inputMode` | `'none'\|'text'\|'decimal'\|'numeric'\|'tel'\|'search'\|'email'\|'url'` | — | Mobile virtual-keyboard hint, independent of `type` (a PIN field is `type="text" inputMode="numeric"`; also belt-and-suspenders with `type="email"`/`"tel"`). Added during the PWA auth rollout — matters most there |
 | `min`, `max` | `string \| number` | — | Passed straight through to the native `min`/`max` attributes — meaningful for `type="number"`/`"date"`, browsers already validate/constrain against them |
 | `maxLength` | `number` | — | Passed straight through to the native `maxlength` attribute |
 | `name` | `string` | — | Passed straight through to the native `name` attribute. Only needed for credential fields: the browser's password manager keys off `autocomplete` first and falls back to `name` (most third-party managers — Bitwarden, 1Password — read `name` directly), and the auto-generated `id` is useless to them. See the credential-field recipe below |
@@ -471,6 +472,33 @@ inject(ToastService).info('...');
 
 `dismiss(id)` removes one; every toast auto-dismisses after a flat 4000ms regardless of type. Icons are per-type (`CheckCircle`/`AlertCircle`/`AlertTriangle`/`Info`) — information isn't conveyed by color alone. `<lib-toast-container />` is mounted once per app shell; it's responsive by viewport width (full-width top banner with safe-area support below `sm`, DaisyUI's corner-stacking `toast-top toast-end` at `sm` and up) rather than taking a `position` input — one component, no per-app configuration.
 
+### `lib-alert`
+
+An inline contextual notice — a form-feedback strip or a page-level banner. Not for transient
+notifications (that's `ToastService`) or floating anchored notifications (raw markup — see the
+PWA's `push-permission-banner`).
+
+| Input | Type | Default | Notes |
+|-------|------|---------|-------|
+| `variant` | `'info' \| 'success' \| 'warning' \| 'error'` | `'info'` | Sets the DaisyUI `alert-*` colour **and** the paired Lucide icon (`Info`/`CheckCircle`/`AlertTriangle`/`AlertCircle`) — same "never colour alone" rule as `lib-toast` (WCAG 1.4.1) |
+| `dense` | `boolean` | `false` | Compact inline strip (`text-sm`, tight padding, no elevation) vs. the default banner (`shadow-raised`) |
+| `title` | `string` | — | Optional bold lead line above the projected body |
+| `dismissible` | `boolean` | `false` | Renders a `Tancar`-labelled ✕ `lib-button`; emits `dismissed` |
+| `icon` | `LucideIconData` | — | Overrides the per-variant icon (e.g. a platform-specific glyph) |
+| `assertive` | `boolean` | per-variant | `error`/`warning` announce assertively (`role="alert"`), `info`/`success` politely (`role="status"`); set to force either way |
+
+Output: `dismissed`. Body is `<ng-content>`; a trailing action goes in the `[actions]` slot
+(`<span actions>…</span>`). Host is `display: contents` — put margin/positioning on a wrapper,
+per the Component conventions gotcha.
+
+```html
+<lib-alert variant="warning" title="Compte no vinculat">
+  <p class="text-sm">El compte no està vinculat a cap membre.</p>
+</lib-alert>
+
+<lib-alert variant="error" dense><p>El correu electrònic ja està en ús.</p></lib-alert>
+```
+
 ### `lib-empty-state`
 
 | Input | Type | Default | Notes |
@@ -539,15 +567,14 @@ Runtime switch: `document.documentElement.setAttribute('data-theme', 'colla-nova
 
 ## Guardrails
 
-`pnpm run lint:tokens` (`scripts/check-design-tokens.mjs`) scans both apps + `libs/pinyes-render` + `libs/ui` for raw hex literals and color-related Tailwind arbitrary values (`bg-[...]`, `text-[...]`, etc.) outside `libs/ui/src/lib/tokens/`, and runs as its own step in CI. **Warn-only for now** — Tier 3/5 below haven't landed, so it reports drift without failing the build; it'll ratchet to a hard fail once that backlog clears.
+`pnpm run lint:tokens` (`scripts/check-design-tokens.mjs`) scans both apps + `libs/pinyes-render` + `libs/ui` for raw hex literals, raw CSS color-function literals (`oklch(62% .18 220)`, `rgba(0,0,0,.5)`, etc. — a hardcoded color in a different syntax is still hardcoded, not a token; a color function wrapping a real token reference, e.g. DaisyUI v4's own `oklch(var(--p))` convention, is correctly not flagged), and color-related Tailwind arbitrary values (`bg-[...]`, `text-[...]`, etc.) outside `libs/ui/src/lib/tokens/`, and runs as its own step in CI. **Warn-only for now** — Tier 3/5 below haven't landed, so it reports drift without failing the build; it'll ratchet to a hard fail once that backlog clears.
 
 ## What's next
 
-This doc covers what's actually shipped (tokens + the 7 Tier 1/2 components above, the live style guide, the drift check). Not yet built, and not documented here until they land:
+This doc covers what's shipped: tokens, the `libs/ui` component library (14 components as of writing — `alert`, `badge`, `button`, `button-group`, `card`, `checkbox`, `empty-state`, `form-field`, `input`, `modal`, `select`, `tabs`, `textarea`, `toast`), the live style guide, and the drift check. **Phase 7's page-by-page rollout onto this library is complete for both apps** (7.2 dashboard, 7.3 PWA) — every hand-rolled `.btn`/`.card`/`.badge`/`.modal`/etc. across `apps/dashboard` and `apps/pwa` has had its turn through the per-page checklist (Tier 1/2 primitive swap, Tier 3 restyle, hardcoded-value hunt, typography review, component-API gap flagging); genuine gaps found along the way stayed raw on purpose and are named where they live, not hidden. Not yet built, and not documented here until it lands:
 
-- **Tier 3** — restyling ~25 existing single-app components (`data-table`, `filter-bar`, `color-picker`, `bottom-tab-bar`, etc.) to consume these tokens/primitives in place, folded into Phase 7's page-by-page rollout rather than a standalone pass.
-- **Tier 5** — pointing the Konva canvas (`libs/pinyes-render`) at these same tokens instead of its own literal values (colors, categorical palette, motion) — `lint:tokens`' single biggest source of findings today (`figure-canvas.component.ts` alone).
-- **Phase 7** — the actual rollout replacing real hand-rolled markup in both apps with these components, page by page; also when `lint:tokens` ratchets from warn-only to a real failing check.
+- **Tier 5 (7.3.5)** — pointing the Konva canvas (`libs/pinyes-render`) at these same tokens instead of its own literal values (colors, categorical palette, motion) — `lint:tokens`' single biggest remaining source of findings (`figure-canvas.component.ts` alone). Its own phase, scheduled after the full PWA rollout rather than folded into it.
+- **7.4** — ratcheting `lint:tokens` from warn-only to a real failing check, gated on 7.3.5 clearing the canvas findings above.
 
 Full detail on all of the above, plus the reasoning behind every decision already made — [docs/superpowers/specs/2026-08-16-design-system-plan-design.md](superpowers/specs/2026-08-16-design-system-plan-design.md).
 

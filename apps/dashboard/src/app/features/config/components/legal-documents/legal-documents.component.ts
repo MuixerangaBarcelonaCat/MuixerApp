@@ -4,7 +4,7 @@ import {
   LegalDocumentService,
   PublishLegalDocumentDto,
 } from '../../../../core/services/legal-document.service';
-import { BadgeComponent, ButtonComponent, CardComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, BadgeComponent, ButtonComponent, CardComponent, ModalComponent, ToastService } from '@muixer/ui';
 
 interface EditableType {
   type: LegalDocumentType;
@@ -27,7 +27,7 @@ type VersionRow = LegalDocument;
   selector: 'app-legal-documents',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, ButtonComponent, CardComponent, ModalComponent],
+  imports: [AlertComponent, BadgeComponent, ButtonComponent, CardComponent, ModalComponent],
   template: `
     <div class="flex flex-col gap-4 max-w-3xl mx-auto">
       <div>
@@ -149,12 +149,12 @@ type VersionRow = LegalDocument;
     >
       @if (pendingPublish(); as pending) {
         @if (pending.requiresConsent) {
-          <div class="alert alert-warning text-sm">
+          <lib-alert variant="warning" dense>
             <span>
               <strong>Tots els usuaris</strong> hauran de tornar a acceptar la
               {{ pending.label }} la propera vegada que entren a l'aplicació.
             </span>
-          </div>
+          </lib-alert>
         } @else {
           <p class="text-sm text-base-content/70">
             Es publica com a correcció del text de {{ pending.label }}: ningú tornarà a haver

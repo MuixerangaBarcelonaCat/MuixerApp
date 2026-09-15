@@ -6,8 +6,8 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, Mail, Lock } from 'lucide-angular';
-import { ButtonComponent, InputComponent } from '@muixer/ui';
+import { Mail, Lock } from 'lucide-angular';
+import { AlertComponent, ButtonComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { environment } from '../../../../environments/environment';
 
@@ -15,7 +15,7 @@ import { environment } from '../../../../environments/environment';
   selector: 'app-login',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, ButtonComponent, InputComponent],
+  imports: [ReactiveFormsModule, RouterLink, AlertComponent, ButtonComponent, InputComponent],
   templateUrl: './login.component.html',
 })
 export class LoginComponent {

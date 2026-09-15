@@ -109,7 +109,7 @@ describe('EventFeedComponent', () => {
     fixture.componentInstance.timeFilter.set('past');
     await stable();
 
-    expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lib-empty-state')).toBeTruthy();
   });
 
   it('should show error state on error', async () => {
@@ -117,7 +117,7 @@ describe('EventFeedComponent', () => {
     fixture.componentInstance.timeFilter.set('past');
     await stable();
 
-    expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lib-empty-state')).toBeTruthy();
   });
 
   it('should re-fetch when timeFilter changes and reset accumulated pages', async () => {

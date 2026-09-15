@@ -8,20 +8,16 @@
 </app-page-header>
 <p class="text-sm text-base-content/50 mb-6">Envia una notificació als membres</p>
 
-<div class="space-y-6">
+<div class="flex flex-col gap-6">
 
   @if (state() === 'success') {
-    <div role="alert" class="alert alert-success">
-      <lucide-icon name="CheckCircle" [size]="20" />
-      <div>
-        <p class="font-semibold">Notificació acceptada</p>
-        <p class="text-sm">L'enviament s'ha processat correctament.</p>
-      </div>
-      <lib-button variant="ghost" size="sm" (clicked)="reset()">Nova notificació</lib-button>
-    </div>
+    <lib-alert variant="success" title="Notificació acceptada">
+      <p class="text-sm">L'enviament s'ha processat correctament.</p>
+      <lib-button actions variant="ghost" size="sm" (clicked)="reset()">Nova notificació</lib-button>
+    </lib-alert>
   } @else {
 
-    <form (ngSubmit)="send()" class="space-y-5">
+    <form (ngSubmit)="send()" class="flex flex-col gap-5">
 
       <!-- Títol i cos: raw fields, not lib-input — lib-input has no maxlength/character-counter
            support and there's no lib-textarea yet, so all three stay raw for one consistent
@@ -182,10 +178,7 @@
       </fieldset>
 
       @if (state() === 'error') {
-        <div role="alert" class="alert alert-error">
-          <lucide-icon name="AlertCircle" [size]="18" />
-          <span>{{ errorMessage() }}</span>
-        </div>
+        <lib-alert variant="error">{{ errorMessage() }}</lib-alert>
       }
 
       <div class="flex gap-3">

@@ -1,26 +1,26 @@
 <app-mobile-header title="Agenda" />
 
 <div class="flex items-center justify-end gap-4 mb-4">
-  <a
-    routerLink="/events/past"
-    class="flex items-center gap-0.5 text-sm text-base-content/60 hover:text-base-content/80"
-  >
-    Passats
-    <lucide-icon [img]="ChevronRightIcon" [size]="16" aria-hidden="true" />
-  </a>
+  @if (viewMode() === 'list') {
+    <lib-button variant="ghost" size="sm" routerLink="/events/past">
+      Passats
+      <lucide-icon [img]="ChevronRightIcon" [size]="16" aria-hidden="true" />
+    </lib-button>
+  }
 
-  <button
-    type="button"
-    class="btn btn-ghost btn-sm btn-square"
-    [attr.aria-label]="viewMode() === 'list' ? 'Mostra el calendari' : 'Mostra la llista'"
-    (click)="toggleView()"
+  <lib-button
+    variant="ghost"
+    size="sm"
+    shape="square"
+    [ariaLabel]="viewMode() === 'list' ? 'Mostra el calendari' : 'Mostra la llista'"
+    (clicked)="toggleView()"
   >
     @if (viewMode() === 'list') {
       <lucide-icon [img]="CalendarIcon" [size]="20" />
     } @else {
       <lucide-icon [img]="ListIcon" [size]="20" />
     }
-  </button>
+  </lib-button>
 </div>
 
 @if (viewMode() === 'list') {
@@ -42,10 +42,10 @@
           </div>
         </div>
       } @else if (hasCalendarError()) {
-        <app-empty-state
+        <lib-empty-state
           message="No s'ha pogut carregar el calendari. Torneu-ho a provar."
           actionLabel="Torna-ho a provar"
-          (action)="loadCalendarEvents()"
+          (clicked)="loadCalendarEvents()"
         />
       } @else {
         <app-calendar-view
@@ -62,9 +62,6 @@
 
         @if (selectedDate() && selectedDayEvents().length > 0) {
           <section class="flex flex-col gap-3 pt-2 pb-4">
-            <h3 class="text-sm font-medium text-base-content/60">
-              {{ selectedDayHeading() }} {{ selectedDateLabel() }}
-            </h3>
             @for (ev of selectedDayEvents(); track ev.id) {
               <app-event-card
                 [event]="ev"

@@ -4,8 +4,8 @@
   (closed)="close()"
 >
   @if (error()) {
-    <div class="alert alert-error text-sm mb-4" role="alert">
-      <span>{{ error() }}</span>
+    <div class="mb-4">
+      <lib-alert variant="error" dense>{{ error() }}</lib-alert>
     </div>
   }
 

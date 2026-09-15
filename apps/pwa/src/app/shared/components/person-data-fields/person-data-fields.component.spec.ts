@@ -22,13 +22,13 @@ describe('PersonDataFieldsComponent', () => {
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('input[formControlName="name"]')).toBeTruthy();
-    expect(el.querySelector('input[formControlName="firstSurname"]')).toBeTruthy();
-    expect(el.querySelector('input[formControlName="secondSurname"]')).toBeTruthy();
-    expect(el.querySelector('select[formControlName="gender"]')).toBeTruthy();
-    expect(el.querySelector('select[formControlName="country"]')).toBeTruthy();
-    expect(el.querySelector('input[formControlName="phoneNumber"]')).toBeTruthy();
-    expect(el.querySelector('input[formControlName="birthDate"]')).toBeTruthy();
+    expect(el.querySelector('lib-input[formControlName="name"] input')).toBeTruthy();
+    expect(el.querySelector('lib-input[formControlName="firstSurname"] input')).toBeTruthy();
+    expect(el.querySelector('lib-input[formControlName="secondSurname"] input')).toBeTruthy();
+    expect(el.querySelector('lib-select[formControlName="gender"] select')).toBeTruthy();
+    expect(el.querySelector('lib-select[formControlName="country"] select')).toBeTruthy();
+    expect(el.querySelector('lib-input[formControlName="phoneNumber"] input')).toBeTruthy();
+    expect(el.querySelector('lib-input[formControlName="birthDate"] input')).toBeTruthy();
   });
 
   it('renders the optional heading when provided', () => {
@@ -39,10 +39,12 @@ describe('PersonDataFieldsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Dades de la xicalla');
   });
 
-  it('does not render a heading when omitted', () => {
+  it('does not render its own section heading when omitted', () => {
     fixture.componentRef.setInput('formGroup', createGroup());
     fixture.detectChanges();
 
+    // scope to direct-child headings — lib-form-field renders <label>s, not <h*>, so any h2/h3
+    // here would be this component's own optional `heading`
     const heading = fixture.nativeElement.querySelector('h2, h3');
     expect(heading).toBeFalsy();
   });
@@ -52,7 +54,7 @@ describe('PersonDataFieldsComponent', () => {
     fixture.detectChanges();
 
     const options = Array.from(
-      fixture.nativeElement.querySelectorAll('select[formControlName="country"] option'),
+      fixture.nativeElement.querySelectorAll('lib-select[formControlName="country"] option'),
     ) as HTMLOptionElement[];
     expect(options.length).toBeGreaterThan(100);
     const spain = options.find((o) => o.value === 'ES');
@@ -76,7 +78,7 @@ describe('PersonDataFieldsComponent', () => {
     fixture.detectChanges();
 
     const nameInput = fixture.nativeElement.querySelector(
-      'input[formControlName="name"]',
+      'lib-input[formControlName="name"] input',
     ) as HTMLInputElement;
     expect(nameInput.value).toBe('Joan');
   });

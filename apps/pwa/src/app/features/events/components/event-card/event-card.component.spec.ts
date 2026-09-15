@@ -62,16 +62,42 @@ describe('EventCardComponent', () => {
     expect(title.textContent).toContain('Festa Major');
   });
 
-  it('should have secondary border for assaig', () => {
+  it('should use the default (base-100) tone for assaig', () => {
     const fixture = createCard(MOCK_ASSAIG);
     const card = fixture.nativeElement.querySelector('.card');
-    expect(card.classList.contains('border-secondary')).toBe(true);
+    expect(card.classList.contains('bg-base-100')).toBe(true);
   });
 
-  it('should have primary border for actuacio', () => {
+  it('should use the primary tone for actuacio', () => {
     const fixture = createCard(MOCK_ACTUACIO);
     const card = fixture.nativeElement.querySelector('.card');
-    expect(card.classList.contains('border-primary')).toBe(true);
+    expect(card.classList.contains('bg-primary/10')).toBe(true);
+  });
+
+  it('should show a primary-colored star icon before the title for actuacio', () => {
+    const fixture = createCard(MOCK_ACTUACIO);
+    const star = fixture.nativeElement.querySelector('[data-testid="actuacio-star-icon"]');
+    expect(star).not.toBeNull();
+    expect(star.classList.contains('text-primary')).toBe(true);
+  });
+
+  it('should not show a star icon for assaig', () => {
+    const fixture = createCard(MOCK_ASSAIG);
+    expect(fixture.nativeElement.querySelector('[data-testid="actuacio-star-icon"]')).toBeNull();
+  });
+
+  it('should display the rehearsal name as subtitle below the date for assaig', () => {
+    const fixture = createCard({ ...MOCK_ASSAIG, title: 'Assaig general' });
+    const subtitle = fixture.nativeElement.querySelector('p.text-sm');
+    expect(subtitle.textContent.trim()).toBe('Assaig general');
+  });
+
+  it('should display the date as subtitle for actuacio, with no type label text', () => {
+    const fixture = createCard(MOCK_ACTUACIO);
+    const subtitle = fixture.nativeElement.querySelector('p.text-sm');
+    expect(subtitle.textContent).toContain('23');
+    expect(fixture.nativeElement.textContent).not.toContain('Assaig');
+    expect(fixture.nativeElement.textContent).not.toContain('Actuació');
   });
 
   it('should navigate to detail on click', () => {
@@ -120,5 +146,57 @@ describe('EventCardComponent', () => {
     component.onAttendanceChanged('p-1', AttendanceStatus.ANIRE);
 
     expect(emitted).toEqual([{ eventId: 'ev-1', personId: 'p-1', status: AttendanceStatus.ANIRE }]);
+  });
+
+  describe('showAttendance', () => {
+    it('hides the attendance buttons when set to false', () => {
+      const fixture = createCard(MOCK_ASSAIG);
+      fixture.componentRef.setInput('showAttendance', false);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('app-attendance-button')).toBeNull();
+    });
+  });
+
+  describe('clickable', () => {
+    it('does not navigate on click when set to false', () => {
+      const fixture = createCard(MOCK_ASSAIG);
+      fixture.componentRef.setInput('clickable', false);
+      fixture.detectChanges();
+
+      const card = fixture.nativeElement.querySelector('.card');
+      card.click();
+
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('drops the tabindex/cursor-pointer affordance when set to false', () => {
+      const fixture = createCard(MOCK_ASSAIG);
+      fixture.componentRef.setInput('clickable', false);
+      fixture.detectChanges();
+
+      const wrapper = fixture.nativeElement.querySelector('[role="article"]');
+      expect(wrapper.hasAttribute('tabindex')).toBe(false);
+      expect(wrapper.className).not.toContain('cursor-pointer');
+    });
+  });
+
+  describe('locationUrl', () => {
+    it('renders the location as a link when set', () => {
+      const fixture = createCard(MOCK_ASSAIG);
+      fixture.componentRef.setInput('locationUrl', 'https://maps.example/local');
+      fixture.detectChanges();
+
+      const link: HTMLAnchorElement = fixture.nativeElement.querySelector('a.link');
+      expect(link).not.toBeNull();
+      expect(link.getAttribute('href')).toBe('https://maps.example/local');
+      expect(link.textContent).toContain('Local');
+    });
+
+    it('renders the location as plain text when not set', () => {
+      const fixture = createCard(MOCK_ASSAIG);
+      expect(fixture.nativeElement.querySelector('a.link')).toBeNull();
+      expect(fixture.nativeElement.textContent).toContain('Local');
+    });
   });
 });

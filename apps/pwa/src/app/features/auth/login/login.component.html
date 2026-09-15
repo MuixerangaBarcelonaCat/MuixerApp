@@ -15,17 +15,18 @@
         (error)="logoError.set(true)"
       />
     }
-    <h1 class="text-2xl font-bold text-base-content">MuixerApp</h1>
+    <h1 class="text-2xl font-serif font-bold text-base-content">MuixerApp</h1>
     <p class="text-sm text-base-content/50 mt-1">Muixeranga de Barcelona</p>
   </div>
 
   <!-- Login card -->
-  <div class="card bg-base-100 shadow-lg w-full max-w-sm">
+  <div class="card bg-base-100 shadow-modal w-full max-w-sm">
     <div class="card-body gap-5">
-      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
         <lib-input
           label="Correu electrònic"
           type="email"
+          inputMode="email"
           size="md"
           [icon]="Mail"
           placeholder="nom@exemple.com"
@@ -51,24 +52,22 @@
         />
 
         @if (errorMessage()) {
-          <div class="alert alert-error text-sm py-2" role="alert">
-            <lucide-icon [img]="AlertCircle" [size]="16" />
-            <span>{{ errorMessage() }}</span>
-          </div>
+          <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
         }
 
-        <button
+        <lib-button
           type="submit"
-          class="btn btn-primary w-full h-12 text-base"
-          [disabled]="form.invalid || isLoading()"
+          variant="primary"
+          fullWidth
+          [disabled]="form.invalid"
+          [loading]="isLoading()"
         >
           @if (isLoading()) {
-            <span class="loading loading-spinner loading-sm"></span>
             S'està iniciant la sessió...
           } @else {
             Entra
           }
-        </button>
+        </lib-button>
       </form>
 
       <p class="text-xs text-center text-base-content/40 mt-2">

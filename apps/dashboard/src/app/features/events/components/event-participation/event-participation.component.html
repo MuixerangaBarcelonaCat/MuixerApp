@@ -119,10 +119,10 @@
   }
 
   @if (loadError()) {
-    <div class="alert alert-error text-sm">
-      <span>No s'ha pogut carregar la participació.</span>
-      <lib-button variant="ghost" size="xs" (clicked)="load()">Torna-ho a provar</lib-button>
-    </div>
+    <lib-alert variant="error" dense>
+      No s'ha pogut carregar la participació.
+      <lib-button actions variant="ghost" size="xs" (clicked)="load()">Torna-ho a provar</lib-button>
+    </lib-alert>
   } @else if (!loading() && totalRows() === 0) {
     <lib-empty-state
       [icon]="DOMAIN_ICONS.FIGURA"

@@ -314,6 +314,24 @@
   </div>
 
   <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-alert</h3>
+    <div class="flex flex-col gap-3">
+      <lib-alert variant="info" title="Sessió a punt de caducar">
+        <p class="text-sm">Desa els canvis abans de 5 minuts per no perdre res.</p>
+      </lib-alert>
+      <lib-alert variant="success">
+        <p class="text-sm">S'han importat 42 persones correctament.</p>
+      </lib-alert>
+      <lib-alert variant="warning" title="Cordons oberts" dismissible>
+        <p class="text-sm">Aquesta figura té cordons sense tancar.</p>
+      </lib-alert>
+      <lib-alert variant="error" dense>
+        <p>El correu electrònic ja està en ús.</p>
+      </lib-alert>
+    </div>
+  </div>
+
+  <div>
     <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-empty-state</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="border border-base-300 rounded-box p-4">

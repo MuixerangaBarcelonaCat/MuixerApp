@@ -12,22 +12,23 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
+import { LucideAngularModule, Check } from 'lucide-angular';
 import { EventService } from '../../services/event.service';
-import { ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui';
 
 @Component({
   selector: 'app-attendance-button',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, ButtonGroupComponent],
+  imports: [LucideAngularModule, BadgeComponent, ButtonComponent, ButtonGroupComponent],
   template: `
     @if (isLocked()) {
-      <span class="badge badge-info badge-sm gap-1 py-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-        </svg>
-        He assistit
-      </span>
+      <lib-badge variant="info" size="sm">
+        <span class="inline-flex items-center gap-1">
+          <lucide-icon [img]="Check" [size]="12" aria-hidden="true" />
+          He assistit
+        </span>
+      </lib-badge>
     } @else {
       <lib-button-group>
         <lib-button
@@ -66,6 +67,7 @@ export class AttendanceButtonComponent {
 
   protected readonly ANIRE = AttendanceStatus.ANIRE;
   protected readonly NO_VAIG = AttendanceStatus.NO_VAIG;
+  protected readonly Check = Check;
 
   private readonly eventService = inject(EventService);
   private readonly toast = inject(ToastService);

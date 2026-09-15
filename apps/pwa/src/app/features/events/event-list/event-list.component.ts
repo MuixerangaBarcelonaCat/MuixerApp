@@ -8,18 +8,15 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
 import { AttendanceStatus, MeEvent, PaginatedResponse } from '@muixer/shared';
 import { LucideAngularModule, CalendarDays, List, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { ButtonComponent, EmptyStateComponent } from '@muixer/ui';
 import { PullToRefreshComponent } from '../../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { EventCardComponent } from '../components/event-card/event-card.component';
 import { CalendarViewComponent } from '../components/calendar-view/calendar-view.component';
 import { EventFeedComponent } from '../components/event-feed/event-feed.component';
 import { EventService } from '../services/event.service';
-import { formatEventDate } from '../../../shared/pipes/format-event-date.pipe';
-import { selectedDayHeading as computeDayHeading } from '../../../shared/utils/event-type-labels';
 
 type ViewMode = 'list' | 'calendar';
 
@@ -29,7 +26,7 @@ type ViewMode = 'list' | 'calendar';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LucideAngularModule,
-    RouterLink,
+    ButtonComponent,
     MobileHeaderComponent,
     EmptyStateComponent,
     PullToRefreshComponent,
@@ -72,14 +69,6 @@ export class EventListComponent {
     if (!date) return [];
     return this.allEvents().filter((e) => e.date === date);
   });
-
-  protected readonly selectedDateLabel = computed(() =>
-    formatEventDate(this.selectedDate()),
-  );
-
-  protected readonly selectedDayHeading = computed(() =>
-    `${computeDayHeading(this.selectedDayEvents())} del`,
-  );
 
   constructor() {
     effect(() => {
