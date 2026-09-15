@@ -2,9 +2,11 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SegmentChangeSource, FigureDataChangedEvent } from '@muixer/shared';
 import { SegmentChangeEmitter } from './segment-change.emitter';
 import { FIGURE_DATA_CHANGED } from './segment-events.service';
+import { RequestContextService } from '../../common/request-context/request-context.service';
 
 describe('SegmentChangeEmitter', () => {
   let eventEmitter: jest.Mocked<EventEmitter2>;
+  let requestContext: jest.Mocked<RequestContextService>;
   let emitter: SegmentChangeEmitter;
 
   const emittedPayload = (): FigureDataChangedEvent =>
@@ -12,7 +14,8 @@ describe('SegmentChangeEmitter', () => {
 
   beforeEach(() => {
     eventEmitter = { emit: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
-    emitter = new SegmentChangeEmitter(eventEmitter);
+    requestContext = { get: jest.fn().mockReturnValue(undefined) } as unknown as jest.Mocked<RequestContextService>;
+    emitter = new SegmentChangeEmitter(eventEmitter, requestContext);
   });
 
   it('publishes the change on the figure-data bus', () => {
@@ -49,5 +52,21 @@ describe('SegmentChangeEmitter', () => {
     emitter.emitChange(undefined, ['segment-1'], SegmentChangeSource.ASSIGNMENT);
 
     expect(eventEmitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("stamps the change with the request's client id, so the originating tab can recognize its own echo", () => {
+    requestContext.get.mockReturnValue({ clientId: 'tab-1' });
+
+    emitter.emitChange('event-1', ['segment-1'], SegmentChangeSource.ASSIGNMENT);
+
+    expect(emittedPayload().originClientId).toBe('tab-1');
+  });
+
+  it('stamps null when no request context is available (e.g. a cron job, not a tab)', () => {
+    requestContext.get.mockReturnValue(undefined);
+
+    emitter.emitChange('event-1', ['segment-1'], SegmentChangeSource.ASSIGNMENT);
+
+    expect(emittedPayload().originClientId).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, Subject, debounceTime, filter, map, merge } from 'rxjs';
+import { Observable, Subject, debounceTime, filter, merge } from 'rxjs';
 import { FigureDataChangedEvent } from '@muixer/shared';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { environment } from '../../../../environments/environment';
@@ -15,13 +15,15 @@ export class SegmentChangesService {
   private readonly auth = inject(AuthService);
 
   /**
-   * Emits whenever the given segment's data should be refetched.
+   * Emits whenever the given segment's data should be refetched — the actual change
+   * event when one caused it, or `null` for a reconnect-triggered resync (there is no
+   * specific change to attribute in that case).
    *
    * Resolves the segment id lazily so segment navigation within the workspace reuses
    * the same connection — the stream is keyed by event, not by segment.
    */
-  watch(eventId: string, currentSegmentId: () => string): Observable<void> {
-    return new Observable<void>((subscriber) => {
+  watch(eventId: string, currentSegmentId: () => string): Observable<FigureDataChangedEvent | null> {
+    return new Observable<FigureDataChangedEvent | null>((subscriber) => {
       const token = this.auth.getAccessToken();
       if (!token) return;
 
@@ -31,14 +33,14 @@ export class SegmentChangesService {
       );
 
       const changes = new Subject<FigureDataChangedEvent>();
-      const reconnects = new Subject<void>();
+      const reconnects = new Subject<null>();
       let connected = false;
 
       source.onopen = () => {
         // Anything pushed while the connection was down is gone for good — the server
         // keeps no backlog — so a reopened connection has to resync rather than trust
         // what's on screen. The first open is skipped: the caller just loaded.
-        if (connected) reconnects.next();
+        if (connected) reconnects.next(null);
         connected = true;
       };
 
@@ -46,14 +48,11 @@ export class SegmentChangesService {
         changes.next(JSON.parse(message.data) as FigureDataChangedEvent);
       };
 
-      const relevant = changes.pipe(
-        filter((change) => this.touches(change, currentSegmentId())),
-        map(() => undefined),
-      );
+      const relevant = changes.pipe(filter((change) => this.touches(change, currentSegmentId())));
 
       const inner = merge(relevant, reconnects)
         .pipe(debounceTime(REFETCH_DEBOUNCE_MS + Math.random() * MAX_REFETCH_JITTER_MS))
-        .subscribe(() => subscriber.next());
+        .subscribe((event) => subscriber.next(event));
 
       return () => {
         inner.unsubscribe();

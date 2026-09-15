@@ -57,6 +57,7 @@
       (canvasClicked)="onCanvasClicked($event)"
       (segmentAdHocNodeMoved)="onSegmentAdHocNodeMoved($event)"
       (segmentAdHocNodeTransformed)="onSegmentAdHocNodeTransformed($event)"
+      (interactionActive)="ws.localInteractionActive.set($event)"
     />
 
     @if (state.isPlacementMode()) {

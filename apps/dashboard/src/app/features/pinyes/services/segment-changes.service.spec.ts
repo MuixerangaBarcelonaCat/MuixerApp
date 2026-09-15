@@ -66,11 +66,16 @@ describe('SegmentChangesService', () => {
 
   const watch = (segmentId: string) => {
     let refetches = 0;
-    subscription = service.watch('event-1', () => segmentId).subscribe(() => (refetches += 1));
+    const received: (FigureDataChangedEvent | null)[] = [];
+    subscription = service.watch('event-1', () => segmentId).subscribe((event) => {
+      refetches += 1;
+      received.push(event);
+    });
     return {
       get count() {
         return refetches;
       },
+      received,
       source: () => MockEventSource.instances[0],
     };
   };
@@ -108,6 +113,26 @@ describe('SegmentChangesService', () => {
     vi.advanceTimersByTime(2000);
 
     expect(watcher.count).toBe(1);
+  });
+
+  it('passes the actual change event through, so a caller can inspect its originClientId', () => {
+    const watcher = watch('segment-1');
+    const theChange = change(['segment-1']);
+
+    watcher.source().push(theChange);
+    vi.advanceTimersByTime(2000);
+
+    expect(watcher.received[0]).toMatchObject(theChange);
+  });
+
+  it('emits null for a reconnect-triggered resync, since there is no specific change to attribute', () => {
+    const watcher = watch('segment-1');
+    watcher.source().open(); // initial connect
+
+    watcher.source().open(); // reconnect
+    vi.advanceTimersByTime(2000);
+
+    expect(watcher.received[0]).toBeNull();
   });
 
   it('closes the connection when the caller unsubscribes', () => {

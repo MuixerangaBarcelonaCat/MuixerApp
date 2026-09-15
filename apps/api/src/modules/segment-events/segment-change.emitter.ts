@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FigureDataChangedEvent, SegmentChangeSource } from '@muixer/shared';
 import { FIGURE_DATA_CHANGED } from './segment-events.service';
+import { RequestContextService } from '../../common/request-context/request-context.service';
 
 /**
  * The single place figure-data mutations announce themselves. Services call
@@ -11,7 +12,10 @@ import { FIGURE_DATA_CHANGED } from './segment-events.service';
  */
 @Injectable()
 export class SegmentChangeEmitter {
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly eventEmitter: EventEmitter2,
+    private readonly requestContext: RequestContextService,
+  ) {}
 
   /**
    * @param segmentIds affected segments; empty means event-wide.
@@ -29,7 +33,7 @@ export class SegmentChangeEmitter {
       eventId,
       segmentIds: [...new Set(segmentIds.filter((id): id is string => !!id))],
       source,
-      originClientId: null,
+      originClientId: this.requestContext.get()?.clientId ?? null,
       occurredAt: new Date().toISOString(),
     };
 
