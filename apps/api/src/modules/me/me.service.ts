@@ -21,6 +21,7 @@ import {
   PersonProfileSummary,
   MeNewsItem,
   computeInstanceDisplayNames,
+  FigureDataChangedEvent,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -248,6 +249,25 @@ export class MeService {
 
   findSegmentProjection(eventId: string, segmentId: string): Promise<ProjectionData> {
     return this.projectionService.getProjection(eventId, segmentId, { onlyPublished: true });
+  }
+
+  /**
+   * Trims a live figure-data change to the segments a member is allowed to know about,
+   * mirroring the `onlyPublished` scope of the projection endpoint — otherwise the
+   * stream would leak the ids of unpublished segments. Returns null to withhold the
+   * change entirely.
+   */
+  async narrowSegmentChangeForMember(
+    change: FigureDataChangedEvent,
+  ): Promise<FigureDataChangedEvent | null> {
+    // Event-wide changes (attendance) carry no segment ids to leak.
+    if (change.segmentIds.length === 0) return change;
+
+    const segments = await this.eventSegmentService.findAllByEvent(change.eventId);
+    const publishedIds = new Set(segments.filter((s) => s.isPublished).map((s) => s.id));
+    const visible = change.segmentIds.filter((id) => publishedIds.has(id));
+
+    return visible.length > 0 ? { ...change, segmentIds: visible } : null;
   }
 
   private async fetchAttendancesByEvent(

@@ -81,7 +81,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-09-14 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-09-15 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **21 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -130,6 +130,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `ARROW_LEFT` · `ARROW_UP` · `ARROW_DOWN` · `DOUBLE_ARROW` · `TRIANGLE` · `STAR` · `CIRCLE` |
 | `NotificationTargetType` | `ALL` · `EVENT_ATTENDANCE` · `PERSON` |
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
+| `SegmentChangeSource` | `ASSIGNMENT` · `AD_HOC_NODE` · `CORDONS` · `INSTANCE` · `SEGMENT_UPDATE` · `ATTENDANCE` |
 | `SegmentConflictKind` | `TRONC_TRONC` · `TRONC_PINYA` · `PINYA_PINYA` |
 | `SegmentMoveConflictResolution` | `KEEP_TARGET` · `KEEP_MOVED` · `KEEP_BOTH` |
 | `TagCategory` | `TRONC` · `PINYA` · `XICALLA` · `ALTRES` |

@@ -25,6 +25,7 @@ import { MeModule } from '../modules/me/me.module';
 import { MailModule } from '../modules/mail/mail.module';
 import { NewsModule } from '../modules/news/news.module';
 import { PushNotificationModule } from '../modules/push-notification/push-notification.module';
+import { SegmentEventsModule } from '../modules/segment-events/segment-events.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -57,6 +58,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     MailModule,
     NewsModule,
     PushNotificationModule,
+    SegmentEventsModule,
   ],
   controllers: [AppController],
   providers: [

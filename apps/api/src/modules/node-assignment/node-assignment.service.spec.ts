@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
 import { NodeAssignmentService, AssignConflictException, hiddenZonesForFigureModeChange } from './node-assignment.service';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
@@ -26,6 +27,7 @@ import {
   SegmentConflictKind,
   ImportScope,
   FigureMode,
+  SegmentChangeSource,
 } from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -196,6 +198,7 @@ const mockDataSource = {
   transaction: jest.fn(),
   query: jest.fn().mockResolvedValue([]),
 };
+const mockChangeEmitter = { emitChange: jest.fn() };
 
 // ─── Suite ────────────────────────────────────────────────────────────────
 
@@ -225,6 +228,7 @@ describe('NodeAssignmentService', () => {
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: SegmentChangeEmitter, useValue: mockChangeEmitter },
       ],
     }).compile();
 
@@ -2041,10 +2045,13 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 
-      expect(assignSpy).toHaveBeenCalledWith(INSTANCE_ID, {
-        nodeId: targetINode.id,
-        personId: PERSON_ID,
-      });
+      expect(assignSpy).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        { nodeId: targetINode.id, personId: PERSON_ID },
+        false,
+        // announce=false: the import announces itself once, not once per row.
+        false,
+      );
       // B4: bulkImport no longer duplicates assign()'s own conflict checks.
       expect(mockAssignmentRepo.findOne).not.toHaveBeenCalled();
       expect(mockAssignmentRepo.createQueryBuilder).not.toHaveBeenCalled();
@@ -3441,6 +3448,128 @@ describe('NodeAssignmentService', () => {
 
       expect(mockAssignmentRepo.count).not.toHaveBeenCalled();
       expect(result).toBe(0);
+    });
+  });
+
+  // ── Live change notifications ──────────────────────────────────────────
+
+  describe('live change notifications', () => {
+    const EVENT_ID = 'event-uuid-1';
+
+    beforeEach(() => {
+      // clearAllMocks() leaves queued mockResolvedValueOnce() implementations behind,
+      // so earlier tests in this file would otherwise feed these lookups.
+      mockInstanceRepo.findOne.mockReset();
+      mockInstanceNodeRepo.findOne.mockReset();
+      mockAssignmentRepo.findOne.mockReset();
+      mockPersonRepo.findOne.mockReset();
+    });
+
+    it('announces the segment after a person is assigned', async () => {
+      const inode = makeInstanceNode();
+      const a = makeAssignment();
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+
+      await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.ASSIGNMENT,
+      );
+    });
+
+    it('announces the segment after a person is unassigned', async () => {
+      mockAssignmentRepo.findOne.mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.remove.mockResolvedValue(undefined);
+
+      await service.unassign(INSTANCE_ID, ASSIGNMENT_ID);
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.ASSIGNMENT,
+      );
+    });
+
+    it('announces the segment after two assignments are swapped', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2' }) as any,
+        person: makePerson('person-uuid-2') as any,
+      });
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+      mockDataSource.transaction.mockImplementation((cb: any) =>
+        cb({
+          delete: jest.fn().mockResolvedValue(undefined),
+          create: jest.fn().mockImplementation((_e: any, data: any) => data),
+          save: jest.fn().mockResolvedValue(undefined),
+        }),
+      );
+
+      await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.ASSIGNMENT,
+      );
+    });
+
+    it('announces a bulk import once, not once per imported row', async () => {
+      const targetNodeA = makeInstanceNode({ id: 'target-a', renglaId: 'r1', renglaPosition: 1 });
+      const targetNodeB = makeInstanceNode({ id: 'target-b', renglaId: 'r1', renglaPosition: 2 });
+      const sourceNodeA = makeInstanceNode({ id: 'src-a', renglaId: 'r1', renglaPosition: 1 });
+      const sourceNodeB = makeInstanceNode({ id: 'src-b', renglaId: 'r1', renglaPosition: 2 });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [targetNodeA, targetNodeB] });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [sourceNodeA, sourceNodeB],
+      });
+
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({ instanceNode: sourceNodeA as any, person: makePerson('p-a') as any }),
+        makeAssignment({ instanceNode: sourceNodeB as any, person: makePerson('p-b') as any }),
+      ]);
+      jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockResolvedValue({ id: 'new-assignment' } as any);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.created).toHaveLength(2);
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledTimes(1);
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.ASSIGNMENT,
+      );
+    });
+
+    it('stays silent when an assignment fails', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockChangeEmitter.emitChange).not.toHaveBeenCalled();
     });
   });
 

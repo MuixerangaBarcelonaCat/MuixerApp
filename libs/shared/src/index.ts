@@ -14,6 +14,7 @@ export * from './enums/delegate-type.enum';
 export * from './enums/legal-document-type.enum';
 export * from './enums/audit-action.enum';
 export * from './enums/segment-move-conflict-resolution.enum';
+export * from './enums/segment-change-source.enum';
 export * from './enums/news-status.enum';
 export * from './enums/notification-target-type.enum';
 export * from './enums/tag-category.enum';

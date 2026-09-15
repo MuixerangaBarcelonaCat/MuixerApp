@@ -19,6 +19,7 @@ import { ProjectionService } from '../event-segment/projection.service';
 import { EventSegmentService } from '../event-segment/event-segment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { NewsService } from '../news/news.service';
+import { FigureDataChangedEvent, SegmentChangeSource } from '@muixer/shared';
 import { News } from '../news/news.entity';
 
 const mockUser: JwtPayload = {
@@ -1098,6 +1099,44 @@ describe('MeService', () => {
     it('propagates NotFoundException for a draft/scheduled/missing news', async () => {
       newsService.findPublishedOne.mockRejectedValue(new NotFoundException());
       await expect(service.findNewsDetail('bad-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('narrowSegmentChangeForMember', () => {
+    const change = (segmentIds: string[]): FigureDataChangedEvent => ({
+      eventId: 'event-1',
+      segmentIds,
+      source: SegmentChangeSource.ASSIGNMENT,
+      originClientId: null,
+      occurredAt: '2026-09-15T10:00:00.000Z',
+    });
+
+    it('hides segments the member cannot see', async () => {
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        { id: 'published-1', isPublished: true },
+        { id: 'draft-1', isPublished: false },
+      ] as never);
+
+      const result = await service.narrowSegmentChangeForMember(change(['published-1', 'draft-1']));
+
+      expect(result?.segmentIds).toEqual(['published-1']);
+    });
+
+    it('withholds a change that only touches segments the member cannot see', async () => {
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        { id: 'draft-1', isPublished: false },
+      ] as never);
+
+      const result = await service.narrowSegmentChangeForMember(change(['draft-1']));
+
+      expect(result).toBeNull();
+    });
+
+    it('lets an event-wide change through untouched', async () => {
+      const result = await service.narrowSegmentChangeForMember(change([]));
+
+      expect(result?.segmentIds).toEqual([]);
+      expect(eventSegmentService.findAllByEvent).not.toHaveBeenCalled();
     });
   });
 });
