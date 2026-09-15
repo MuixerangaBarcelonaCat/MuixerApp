@@ -1,8 +1,9 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { AttendanceStatus, DelegateType, EventType, MeEvent } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, MeEvent, UserRole } from '@muixer/shared';
 import { EventCardComponent } from './event-card.component';
 import { EventService } from '../../services/event.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { ToastService } from '@muixer/ui';
 
 const MOCK_ASSAIG: MeEvent = {
@@ -36,6 +37,7 @@ describe('EventCardComponent', () => {
         provideRouter([]),
         { provide: EventService, useValue: { updateAttendance: vi.fn() } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
+        { provide: AuthService, useValue: { userRole: () => UserRole.MEMBER } },
       ],
     }).compileComponents();
 
@@ -197,6 +199,46 @@ describe('EventCardComponent', () => {
       const fixture = createCard(MOCK_ASSAIG);
       expect(fixture.nativeElement.querySelector('a.link')).toBeNull();
       expect(fixture.nativeElement.textContent).toContain('Local');
+    });
+  });
+
+  describe('coming count (staff only)', () => {
+    const eventWithAttendance: MeEvent = {
+      ...MOCK_ASSAIG,
+      attendanceSummary: {
+        confirmed: 10,
+        declined: 1,
+        pending: 2,
+        attended: 0,
+        lateCancel: 0,
+        children: 3,
+        childrenAttended: 0,
+        total: 13,
+      },
+    };
+
+    it('is hidden for a MEMBER account', () => {
+      const fixture = createCard(eventWithAttendance);
+      expect(fixture.nativeElement.querySelector('[data-testid="event-card-coming"]')).toBeNull();
+    });
+
+    it('shows the confirmed total split adults/xicalla for TECHNICAL/ADMIN', async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [EventCardComponent],
+        providers: [
+          provideRouter([]),
+          { provide: EventService, useValue: { updateAttendance: vi.fn() } },
+          { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
+          { provide: AuthService, useValue: { userRole: () => UserRole.TECHNICAL } },
+        ],
+      }).compileComponents();
+
+      const fixture = createCard(eventWithAttendance);
+      const badge = fixture.nativeElement.querySelector('[data-testid="event-card-coming"]');
+      expect(badge).not.toBeNull();
+      expect(badge.textContent).toContain('10');
+      expect(badge.textContent).toContain('3 xicalla');
     });
   });
 });

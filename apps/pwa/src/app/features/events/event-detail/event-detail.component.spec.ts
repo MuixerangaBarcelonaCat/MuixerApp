@@ -2,7 +2,15 @@ import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ApplicationRef } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
-import { AttendanceStatus, DelegateType, EventType, MeEventDetail, MeSegment, UserRole } from '@muixer/shared';
+import {
+  AttendanceStatus,
+  DelegateType,
+  EventAttendanceStats,
+  EventType,
+  MeEventDetail,
+  MeSegment,
+  UserRole,
+} from '@muixer/shared';
 import { EventDetailComponent } from './event-detail.component';
 import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
 import { EventService } from '../services/event.service';
@@ -41,20 +49,33 @@ describe('EventDetailComponent', () => {
     findOne: ReturnType<typeof vi.fn>;
     updateAttendance: ReturnType<typeof vi.fn>;
     findSegments: ReturnType<typeof vi.fn>;
+    getAttendanceStats: ReturnType<typeof vi.fn>;
   };
   let authService: {
     userRole: ReturnType<typeof vi.fn>;
+  };
+
+  const MOCK_ATTENDANCE_STATS: EventAttendanceStats = {
+    byStatus: {
+      PENDENT: { adults: 3, xicalla: 1 },
+      ANIRE: { adults: 5, xicalla: 2 },
+      NO_VAIG: { adults: 1, xicalla: 0 },
+      ASSISTIT: { adults: 0, xicalla: 0 },
+    },
+    coming: { adults: 5, xicalla: 2 },
   };
 
   async function setup(
     findOneReturn = of(MOCK_DETAIL),
     findSegmentsReturn = of<MeSegment[]>([]),
     userRole = UserRole.MEMBER,
+    attendanceStatsReturn = of(MOCK_ATTENDANCE_STATS),
   ) {
     eventService = {
       findOne: vi.fn().mockReturnValue(findOneReturn),
       updateAttendance: vi.fn(),
       findSegments: vi.fn().mockReturnValue(findSegmentsReturn),
+      getAttendanceStats: vi.fn().mockReturnValue(attendanceStatsReturn),
     };
     authService = {
       userRole: vi.fn().mockReturnValue(userRole),
@@ -257,29 +278,68 @@ describe('EventDetailComponent', () => {
 
     it('shows it for TECHNICAL on the day of the event', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: TODAY }), of([]), UserRole.TECHNICAL);
-      const link = fixture.nativeElement.querySelector('a[href*="roll-call"]');
+      const link = fixture.nativeElement.querySelector('[data-testid="roll-call-link"] a');
       expect(link).toBeTruthy();
       expect(link.textContent).toContain('Passa llista');
     });
 
     it('shows it for ADMIN on the day of the event', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: TODAY }), of([]), UserRole.ADMIN);
-      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="roll-call-link"] a')).toBeTruthy();
     });
 
     it('hides it for MEMBER even on the day of the event', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: TODAY }), of([]), UserRole.MEMBER);
-      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('[data-testid="roll-call-link"] a')).toBeFalsy();
     });
 
-    it('hides it for TECHNICAL on a future event', async () => {
+    // ponytail: the day-of-only restriction is temporarily disabled (see
+    // `ENFORCE_ROLL_CALL_DATE_RESTRICTION` in the component) for real-time-refresh testing —
+    // these two now assert the (temporary) always-shown behavior instead of the hidden one.
+    it('still shows it for TECHNICAL on a future event while the date restriction is disabled', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: '2099-01-01' }), of([]), UserRole.TECHNICAL);
-      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('[data-testid="roll-call-link"] a')).toBeTruthy();
     });
 
-    it('hides it for TECHNICAL on a past event', async () => {
+    it('still shows it for TECHNICAL on a past event while the date restriction is disabled', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: '2020-01-01' }), of([]), UserRole.TECHNICAL);
-      expect(fixture.nativeElement.querySelector('a[href*="roll-call"]')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('[data-testid="roll-call-link"] a')).toBeTruthy();
+    });
+  });
+
+  describe('attendance stats box (staff only)', () => {
+    it('is hidden for a MEMBER account', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.MEMBER);
+      expect(eventService.getAttendanceStats).not.toHaveBeenCalled();
+      expect(fixture.nativeElement.querySelector('[data-testid="attendance-stats-box"]')).toBeNull();
+    });
+
+    it('fetches and renders the breakdown for TECHNICAL, hiding "Assistit" for an actuació', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.TECHNICAL);
+      expect(eventService.getAttendanceStats).toHaveBeenCalledWith('ev-1');
+      const box = fixture.nativeElement.querySelector('[data-testid="attendance-stats-box"]');
+      expect(box).toBeTruthy();
+      expect(box.textContent).toContain('Vindran');
+      expect(box.textContent).toContain('No vindran');
+      expect(box.textContent).toContain('Pendents');
+      expect(box.textContent).not.toContain('Assistit');
+      expect(box.textContent).toContain('2 xicalla');
+    });
+
+    it('links each tile to the filtered roll-call for that status', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.TECHNICAL);
+      const link = fixture.nativeElement.querySelector('a[href*="roll-call"][href*="status=ANIRE"]') as HTMLAnchorElement;
+      expect(link).toBeTruthy();
+    });
+
+    it('shows "Assistit" for an assaig', async () => {
+      fixture = await setup(
+        of({ ...MOCK_DETAIL, eventType: EventType.ASSAIG }),
+        of([]),
+        UserRole.ADMIN,
+      );
+      const box = fixture.nativeElement.querySelector('[data-testid="attendance-stats-box"]');
+      expect(box.textContent).toContain('Assistit');
     });
   });
 

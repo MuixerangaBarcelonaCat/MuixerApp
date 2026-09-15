@@ -9,11 +9,14 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
+import { of } from 'rxjs';
 import {
   MeEventDetail,
   MeSegment,
   EventType,
   UserRole,
+  AttendanceStatus,
+  EventAttendanceStats,
   computeSegmentDisplayName,
   formatOwnPositionSummary,
   OwnPositionSummary,
@@ -27,6 +30,8 @@ import { AttendanceButtonComponent } from '../components/attendance-button/atten
 import { EventCardComponent } from '../components/event-card/event-card.component';
 import { EventService } from '../services/event.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { pollTick } from '../../../shared/utils/poll-tick.util';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-event-detail',
@@ -60,9 +65,12 @@ export class EventDetailComponent {
     return role === UserRole.TECHNICAL || role === UserRole.ADMIN;
   });
 
-  protected readonly eventResource = rxResource<MeEventDetail, string>({
-    params: () => this.id(),
-    stream: ({ params: id }) => this.eventService.findOne(id),
+  /** Refetches attendance-facing data periodically so staff marking arrivals ("Passa llista") is reflected without a manual reload. */
+  private readonly attendancePoll = pollTick(environment.attendancePollIntervalMs);
+
+  protected readonly eventResource = rxResource<MeEventDetail, { id: string; tick: number }>({
+    params: () => ({ id: this.id(), tick: this.attendancePoll() }),
+    stream: ({ params }) => this.eventService.findOne(params.id),
   });
 
   protected readonly event = computed((): MeEventDetail | undefined =>
@@ -85,17 +93,64 @@ export class EventDetailComponent {
   });
 
   /**
+   * ponytail: temporarily disabled for testing (2026-09) — flip back to `true` to restore the
+   * day-of-only restriction once the real-time refresh/attendance-stats work is verified live.
+   */
+  private static readonly ENFORCE_ROLL_CALL_DATE_RESTRICTION = false;
+
+  /**
    * Roll-call ("Passa llista") is a day-of tool for marking who physically showed up — only
    * relevant the day it applies to, so it's hidden any other day rather than cluttering every
    * future/past event screen for TECHNICAL/ADMIN accounts.
    */
   protected readonly isToday = computed(() => this.event()?.date === new Date().toISOString().slice(0, 10));
-  protected readonly showRollCallLink = computed(() => this.isStaff() && this.isToday());
+  protected readonly showRollCallLink = computed(
+    () =>
+      this.isStaff() &&
+      (this.isToday() || !EventDetailComponent.ENFORCE_ROLL_CALL_DATE_RESTRICTION),
+  );
 
-  protected readonly segmentsResource = rxResource<MeSegment[], string>({
-    params: () => this.id(),
-    stream: ({ params: id }) => this.eventService.findSegments(id),
+  protected readonly segmentsResource = rxResource<MeSegment[], { id: string; tick: number }>({
+    params: () => ({ id: this.id(), tick: this.attendancePoll() }),
+    stream: ({ params }) => this.eventService.findSegments(params.id),
   });
+
+  protected readonly attendanceStatsResource = rxResource<
+    EventAttendanceStats | null,
+    { id: string; tick: number } | undefined
+  >({
+    params: () => (this.isStaff() ? { id: this.id(), tick: this.attendancePoll() } : undefined),
+    stream: ({ params }) => (params ? this.eventService.getAttendanceStats(params.id) : of(null)),
+  });
+
+  protected readonly attendanceStats = computed(() => this.attendanceStatsResource.value());
+
+  private static readonly STATUS_LABELS: Record<AttendanceStatus, string> = {
+    [AttendanceStatus.ASSISTIT]: 'Assistit',
+    [AttendanceStatus.ANIRE]: 'Vindran',
+    [AttendanceStatus.NO_VAIG]: 'No vindran',
+    [AttendanceStatus.PENDENT]: 'Pendents',
+  };
+
+  /** Assaig shows all 4 statuses (incl. "Assistit", from Passa llista); actuació has no roll-call flow. */
+  protected attendanceStatusTiles(
+    stats: EventAttendanceStats,
+  ): { status: AttendanceStatus; label: string; adults: number; xicalla: number }[] {
+    const statuses =
+      this.event()?.eventType === EventType.ASSAIG
+        ? [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]
+        : [AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT];
+
+    return statuses.map((status) => {
+      const count = stats.byStatus[status];
+      return {
+        status,
+        label: EventDetailComponent.STATUS_LABELS[status],
+        adults: count.adults,
+        xicalla: count.xicalla,
+      };
+    });
+  }
 
   protected readonly segments = computed(() => this.segmentsResource.value() ?? []);
 

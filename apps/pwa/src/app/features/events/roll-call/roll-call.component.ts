@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
 import { Search } from 'lucide-angular';
@@ -59,9 +60,22 @@ export class RollCallComponent {
     AttendanceStatus.ANIRE,
     AttendanceStatus.NO_VAIG,
   ];
+  protected readonly statusFilterOptions = [
+    AttendanceStatus.PENDENT,
+    AttendanceStatus.ANIRE,
+    AttendanceStatus.NO_VAIG,
+    AttendanceStatus.ASSISTIT,
+  ];
 
   private readonly rollCallService = inject(RollCallService);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+
+  protected readonly eventTitle = this.route.snapshot.queryParamMap.get('title') ?? '';
+  protected readonly statusFilter = signal<AttendanceStatus | null>(
+    (this.route.snapshot.queryParamMap.get('status') as AttendanceStatus | null) ?? null,
+  );
+  protected readonly xicallaOnly = signal(false);
 
   protected readonly searchTerm = signal('');
   protected readonly items = signal<AttendanceItem[]>([]);
@@ -81,11 +95,18 @@ export class RollCallComponent {
       .includes(term);
   };
 
+  private readonly matchesFilters = (item: AttendanceItem): boolean => {
+    const status = this.statusFilter();
+    if (status && item.status !== status) return false;
+    if (this.xicallaOnly() && !item.person.isXicalla) return false;
+    return this.matchesSearch(item);
+  };
+
   protected readonly signedUpItems = computed(() =>
-    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.matchesFilters(item)),
   );
   protected readonly notSignedUpItems = computed(() =>
-    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.matchesFilters(item)),
   );
   protected readonly hasNoResults = computed(
     () => this.signedUpItems().length === 0 && this.notSignedUpItems().length === 0,
@@ -114,6 +135,14 @@ export class RollCallComponent {
 
   protected statusLabel(status: AttendanceStatus): string {
     return STATUS_LABELS[status];
+  }
+
+  protected setStatusFilter(status: AttendanceStatus | null): void {
+    this.statusFilter.set(status);
+  }
+
+  protected toggleXicallaOnly(): void {
+    this.xicallaOnly.update((v) => !v);
   }
 
   protected statusVariant(status: AttendanceStatus): 'success' | 'error' | 'warning' | 'neutral' {

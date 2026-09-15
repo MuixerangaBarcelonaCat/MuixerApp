@@ -8,11 +8,12 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { SlicePipe } from '@angular/common';
-import { AttendanceStatus, EventType, MeEvent } from '@muixer/shared';
-import { LucideAngularModule, MapPin, Clock, Star } from 'lucide-angular';
+import { AttendanceStatus, EventType, MeEvent, UserRole } from '@muixer/shared';
+import { LucideAngularModule, MapPin, Clock, Star, Users } from 'lucide-angular';
 import { CardComponent, CardTone } from '@muixer/ui';
 import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
 import { formatEventDate } from '../../../../shared/pipes/format-event-date.pipe';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-event-card',
@@ -38,8 +39,23 @@ export class EventCardComponent {
   protected readonly MapPin = MapPin;
   protected readonly Clock = Clock;
   protected readonly Star = Star;
+  protected readonly Users = Users;
 
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
+
+  protected readonly isStaff = computed(() => {
+    const role = this.authService.userRole();
+    return role === UserRole.TECHNICAL || role === UserRole.ADMIN;
+  });
+
+  /** Confirmed to attend (ANIRE + ASSISTIT), split adults/xicalla — derived from the already-loaded `attendanceSummary`, no extra request. */
+  protected readonly coming = computed(() => {
+    const summary = this.event().attendanceSummary;
+    const xicalla = summary.children;
+    const adults = summary.confirmed + summary.attended - xicalla;
+    return { adults, xicalla, total: adults + xicalla };
+  });
 
   protected readonly isAssaig = computed(
     () => this.event().eventType === EventType.ASSAIG,

@@ -43,6 +43,15 @@
                 }
               </span>
             }
+            @if (isStaff()) {
+              <span class="flex items-center gap-1" data-testid="event-card-coming">
+                <lucide-icon [img]="Users" [size]="14" aria-hidden="true" />
+                {{ coming().total }}
+                @if (coming().xicalla > 0) {
+                  <span>({{ coming().xicalla }} xicalla)</span>
+                }
+              </span>
+            }
           </div>
         </div>
 

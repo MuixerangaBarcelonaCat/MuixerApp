@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { AttendanceStatus } from '@muixer/shared';
@@ -20,16 +21,16 @@ describe('RollCallComponent', () => {
     {
       id: 'att-1',
       status: AttendanceStatus.PENDENT,
-      person: { id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig' },
+      person: { id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig', isXicalla: false },
     },
     {
       id: 'att-2',
       status: AttendanceStatus.ANIRE,
-      person: { id: 'person-2', alias: 'Jordi', name: 'Jordi', firstSurname: 'Ferrer' },
+      person: { id: 'person-2', alias: 'Jordi', name: 'Jordi', firstSurname: 'Ferrer', isXicalla: true },
     },
   ];
 
-  beforeEach(async () => {
+  function setup(queryParams: Record<string, string> = {}): void {
     rollCallService = {
       getAttendance: vi.fn().mockReturnValue(
         of({ data: attendanceItems, meta: { total: 2, page: 1, limit: 100 } }),
@@ -40,18 +41,24 @@ describe('RollCallComponent', () => {
     };
     toastService = { error: vi.fn() };
 
-    await TestBed.configureTestingModule({
+    TestBed.configureTestingModule({
       imports: [RollCallComponent],
       providers: [
         { provide: RollCallService, useValue: rollCallService },
         { provide: ToastService, useValue: toastService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap(queryParams) } },
+        },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(RollCallComponent);
     fixture.componentRef.setInput('id', 'event-1');
     fixture.detectChanges();
-  });
+  }
+
+  beforeEach(() => setup());
 
   it('labels the add-person button "+ Persona nova"', () => {
     const addBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
@@ -156,7 +163,7 @@ describe('RollCallComponent', () => {
   });
 
   it('creates a provisional person and marks them ASSISTIT', () => {
-    const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu', firstSurname: '' };
+    const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu', firstSurname: '', isXicalla: false };
     rollCallService.createProvisionalPerson.mockReturnValue(of(newPerson));
     rollCallService.createAttendance.mockReturnValue(
       of({ attendance: { id: 'att-3', status: AttendanceStatus.ASSISTIT }, summary: {} }),
@@ -183,5 +190,34 @@ describe('RollCallComponent', () => {
 
     expect(toastService.error).toHaveBeenCalledWith('Ja existeix una persona provisional amb l\'àlies "Pepelu"');
     expect(rollCallService.createAttendance).not.toHaveBeenCalled();
+  });
+
+  it('wraps name and status buttons onto separate lines so long names are not truncated away', () => {
+    const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
+    expect(row.querySelector('div.flex').className).toContain('flex-col');
+  });
+
+  describe('filters', () => {
+    it('shows the event title in the header when provided', () => {
+      TestBed.resetTestingModule();
+      setup({ title: 'Assaig setmanal' });
+      const header = fixture.nativeElement.textContent;
+      expect(header).toContain('Assaig setmanal');
+    });
+
+    it('preselects the status filter from the query param', () => {
+      TestBed.resetTestingModule();
+      setup({ status: AttendanceStatus.PENDENT });
+      expect(fixture.componentInstance['statusFilter']()).toBe(AttendanceStatus.PENDENT);
+      const rows = fixture.nativeElement.querySelectorAll('[data-testid="roll-call-row"]');
+      expect(rows.length).toBe(1);
+    });
+
+    it('filters to xicalla only', () => {
+      fixture.componentInstance['toggleXicallaOnly']();
+      fixture.detectChanges();
+      expect(fixture.componentInstance['signedUpItems']()).toEqual([attendanceItems[1]]);
+      expect(fixture.componentInstance['notSignedUpItems']()).toEqual([]);
+    });
   });
 });
