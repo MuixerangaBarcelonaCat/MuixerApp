@@ -33,6 +33,9 @@ interface PendingFigureModeChange {
 export class FigureModeChangeComponent {
   /** Emits the updated instance once a mode change has actually been applied. */
   readonly changed = output<InstanceDetail>();
+  /** Emits the instanceId when a pending change is cancelled, so callers can resync any
+   *  optimistic UI (e.g. a <select> whose native DOM already advanced to the rejected value). */
+  readonly cancelled = output<string>();
 
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -70,7 +73,9 @@ export class FigureModeChangeComponent {
   }
 
   cancel(): void {
+    const pending = this.pending();
     this.pending.set(null);
+    if (pending) this.cancelled.emit(pending.instanceId);
   }
 
   private apply(eventId: string, segmentId: string, instanceId: string, mode: FigureMode, onDone?: () => void): void {
