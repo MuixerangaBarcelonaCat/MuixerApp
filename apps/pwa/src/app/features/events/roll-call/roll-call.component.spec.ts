@@ -192,12 +192,11 @@ describe('RollCallComponent', () => {
     expect(rollCallService.createAttendance).not.toHaveBeenCalled();
   });
 
-  it('wraps long names onto multiple lines instead of truncating them, staying in one compact row', () => {
+  it('never truncates the name; the status buttons wrap onto their own line when it does not fit', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const nameEl = row.querySelector('span.font-medium');
-    expect(nameEl.className).toContain('break-words');
     expect(nameEl.className).not.toContain('truncate');
-    expect(row.querySelector('div.flex').className).toContain('flex-row');
+    expect(row.querySelector('div.flex').className).toContain('flex-wrap');
   });
 
   describe('filters', () => {
