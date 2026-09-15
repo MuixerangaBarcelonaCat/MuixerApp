@@ -22,6 +22,7 @@ const SUMMARY_SELF: PersonProfileSummary = {
   name: 'Joan',
   firstSurname: 'Garcia',
   delegationCount: 1,
+  seasonAttendance: { assajosAttended: 7, assajosTotal: 10, actuacionsAttended: 2, actuacionsTotal: 2 },
 };
 const SUMMARY_CHILD: PersonProfileSummary = {
   personId: 'p-2',
@@ -29,6 +30,7 @@ const SUMMARY_CHILD: PersonProfileSummary = {
   name: 'Xicalla',
   firstSurname: 'Petita',
   delegationCount: 0,
+  seasonAttendance: { assajosAttended: 0, assajosTotal: 0, actuacionsAttended: 0, actuacionsTotal: 0 },
 };
 
 function createTestBed(
@@ -107,9 +109,13 @@ describe('ProfileComponent', () => {
       expect((fixture.nativeElement.textContent as string)).toContain('1 delegació');
     });
 
-    it('renders 3 placeholder stat tiles', () => {
-      const tiles = fixture.nativeElement.querySelectorAll('[data-testid="profile-stat-placeholder"]');
+    it('renders 3 stat tiles with season attendance values', () => {
+      const tiles = fixture.nativeElement.querySelectorAll('[data-testid="profile-stat-tile"]');
       expect(tiles.length).toBe(3);
+      const text = fixture.nativeElement.textContent as string;
+      expect(text).toContain('7/10');
+      expect(text).toContain('2/2');
+      expect(text).toContain('75%');
     });
 
     it('does not render an edit button', () => {
