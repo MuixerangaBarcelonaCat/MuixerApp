@@ -17,24 +17,13 @@
     </span>
   </div>
 
-  <div class="flex items-center gap-2 overflow-x-auto" data-testid="roll-call-filters">
-    <lib-button-group>
-      <lib-button joinItem size="xs" [active]="statusFilter() === null" (clicked)="setStatusFilter(null)">Tots</lib-button>
-      @for (status of statusFilterOptions; track status) {
-        <lib-button joinItem size="xs" [active]="statusFilter() === status" (clicked)="setStatusFilter(status)">
-          {{ statusLabel(status) }}
-        </lib-button>
-      }
-    </lib-button-group>
-    <lib-button
-      size="xs"
-      variant="ghost"
-      [active]="xicallaOnly()"
-      ariaLabel="Mostra només xicalla"
-      (clicked)="toggleXicallaOnly()"
-    >
-      Xicalla
-    </lib-button>
+  <div data-testid="roll-call-filters">
+    <lib-tabs
+      [tabs]="filterTabs"
+      [activeId]="activeFilterTab()"
+      (activeIdChange)="setActiveFilterTab($event)"
+      ariaLabel="Filtra per estat d'assistència"
+    />
   </div>
 
   @if (showAddProvisional()) {

@@ -332,6 +332,16 @@ describe('EventDetailComponent', () => {
       expect(link).toBeTruthy();
     });
 
+    it('mutes the Pendents tile and links it without a status filter', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([]), UserRole.TECHNICAL);
+      const links: HTMLAnchorElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('[data-testid="attendance-stats-box"] a'),
+      );
+      const pendentLink = links.find((l) => l.textContent?.includes('Pendents'));
+      expect(pendentLink?.className).toContain('opacity-50');
+      expect(pendentLink?.getAttribute('href')).not.toContain('status=');
+    });
+
     it('shows "Assistit" for an assaig', async () => {
       fixture = await setup(
         of({ ...MOCK_DETAIL, eventType: EventType.ASSAIG }),

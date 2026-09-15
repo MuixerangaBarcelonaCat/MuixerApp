@@ -11,6 +11,8 @@ import {
   EmptyStateComponent,
   InputComponent,
   ModalComponent,
+  TabsComponent,
+  TabDef,
   ToastService,
 } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
@@ -45,6 +47,7 @@ function errorMessage(err: unknown, fallback: string): string {
     CardComponent,
     InputComponent,
     ModalComponent,
+    TabsComponent,
     MobileHeaderComponent,
     SkeletonCardComponent,
     EmptyStateComponent,
@@ -55,16 +58,17 @@ export class RollCallComponent {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
+  /** Real-world order: sign up, decline, physically arrive — not alphabetical or enum order. */
   protected readonly statuses = [
-    AttendanceStatus.ASSISTIT,
     AttendanceStatus.ANIRE,
     AttendanceStatus.NO_VAIG,
+    AttendanceStatus.ASSISTIT,
   ];
-  protected readonly statusFilterOptions = [
-    AttendanceStatus.PENDENT,
-    AttendanceStatus.ANIRE,
-    AttendanceStatus.NO_VAIG,
-    AttendanceStatus.ASSISTIT,
+
+  private static readonly ALL_TAB_ID = 'all';
+  protected readonly filterTabs: TabDef[] = [
+    { id: RollCallComponent.ALL_TAB_ID, label: 'Tots' },
+    ...this.statuses.map((status) => ({ id: status, label: STATUS_LABELS[status] })),
   ];
 
   private readonly rollCallService = inject(RollCallService);
@@ -72,10 +76,13 @@ export class RollCallComponent {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly eventTitle = this.route.snapshot.queryParamMap.get('title') ?? '';
+  private readonly initialStatus = this.route.snapshot.queryParamMap.get('status');
   protected readonly statusFilter = signal<AttendanceStatus | null>(
-    (this.route.snapshot.queryParamMap.get('status') as AttendanceStatus | null) ?? null,
+    this.statuses.includes(this.initialStatus as AttendanceStatus)
+      ? (this.initialStatus as AttendanceStatus)
+      : null,
   );
-  protected readonly xicallaOnly = signal(false);
+  protected readonly activeFilterTab = computed(() => this.statusFilter() ?? RollCallComponent.ALL_TAB_ID);
 
   protected readonly searchTerm = signal('');
   protected readonly items = signal<AttendanceItem[]>([]);
@@ -98,7 +105,6 @@ export class RollCallComponent {
   private readonly matchesFilters = (item: AttendanceItem): boolean => {
     const status = this.statusFilter();
     if (status && item.status !== status) return false;
-    if (this.xicallaOnly() && !item.person.isXicalla) return false;
     return this.matchesSearch(item);
   };
 
@@ -137,12 +143,8 @@ export class RollCallComponent {
     return STATUS_LABELS[status];
   }
 
-  protected setStatusFilter(status: AttendanceStatus | null): void {
-    this.statusFilter.set(status);
-  }
-
-  protected toggleXicallaOnly(): void {
-    this.xicallaOnly.update((v) => !v);
+  protected setActiveFilterTab(id: string): void {
+    this.statusFilter.set(id === RollCallComponent.ALL_TAB_ID ? null : (id as AttendanceStatus));
   }
 
   protected statusVariant(status: AttendanceStatus): 'success' | 'error' | 'warning' | 'neutral' {

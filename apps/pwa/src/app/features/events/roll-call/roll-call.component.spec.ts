@@ -74,12 +74,12 @@ describe('RollCallComponent', () => {
     expect(addBtnWrap.className).toContain('shrink-0');
   });
 
-  it('renders the status buttons as Ha vingut / Vindrà / No vindrà, in that order', () => {
+  it('renders the status buttons as Vindrà / No vindrà / Ha vingut, in that real-world order', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const labels = Array.from(row.querySelectorAll('lib-button-group button')).map(
       (b) => (b as HTMLElement).textContent?.trim(),
     );
-    expect(labels).toEqual(['Ha vingut', 'Vindrà', 'No vindrà']);
+    expect(labels).toEqual(['Vindrà', 'No vindrà', 'Ha vingut']);
   });
 
   it('calls setStatus when a status button is clicked', () => {
@@ -88,7 +88,7 @@ describe('RollCallComponent', () => {
     );
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const buttons: HTMLButtonElement[] = row.querySelectorAll('lib-button-group button');
-    buttons[0].click(); // "Ha vingut" is first now
+    buttons[2].click(); // "Ha vingut" is last now
 
     expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-2', {
       status: AttendanceStatus.ASSISTIT,
@@ -207,14 +207,20 @@ describe('RollCallComponent', () => {
 
     it('preselects the status filter from the query param', () => {
       TestBed.resetTestingModule();
-      setup({ status: AttendanceStatus.PENDENT });
-      expect(fixture.componentInstance['statusFilter']()).toBe(AttendanceStatus.PENDENT);
+      setup({ status: AttendanceStatus.ANIRE });
+      expect(fixture.componentInstance['statusFilter']()).toBe(AttendanceStatus.ANIRE);
       const rows = fixture.nativeElement.querySelectorAll('[data-testid="roll-call-row"]');
       expect(rows.length).toBe(1);
     });
 
-    it('filters to xicalla only', () => {
-      fixture.componentInstance['toggleXicallaOnly']();
+    it('ignores PENDENT as a query-param filter (not a selectable tab, already its own muted section)', () => {
+      TestBed.resetTestingModule();
+      setup({ status: AttendanceStatus.PENDENT });
+      expect(fixture.componentInstance['statusFilter']()).toBeNull();
+    });
+
+    it('switches the filter tab via setActiveFilterTab', () => {
+      fixture.componentInstance['setActiveFilterTab'](AttendanceStatus.ANIRE);
       fixture.detectChanges();
       expect(fixture.componentInstance['signedUpItems']()).toEqual([attendanceItems[1]]);
       expect(fixture.componentInstance['notSignedUpItems']()).toEqual([]);

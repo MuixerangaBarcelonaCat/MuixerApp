@@ -55,6 +55,7 @@ export class EventDetailComponent {
 
   protected readonly Info = Info;
   protected readonly ChevronRight = ChevronRight;
+  protected readonly AttendanceStatus = AttendanceStatus;
 
   private readonly eventService = inject(EventService);
   private readonly titleService = inject(Title);
@@ -132,13 +133,17 @@ export class EventDetailComponent {
     [AttendanceStatus.PENDENT]: 'Pendents',
   };
 
-  /** Assaig shows all 4 statuses (incl. "Assistit", from Passa llista); actuació has no roll-call flow. */
+  /**
+   * Real-world order: sign up, decline, physically arrive (assaig only, via Passa llista) — then
+   * PENDENT last and muted, matching the roll-call screen's "no s'han apuntat" section, since
+   * someone who hasn't bothered to answer isn't as relevant as someone who did.
+   */
   protected attendanceStatusTiles(
     stats: EventAttendanceStats,
   ): { status: AttendanceStatus; label: string; adults: number; xicalla: number }[] {
     const statuses =
       this.event()?.eventType === EventType.ASSAIG
-        ? [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]
+        ? [AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG, AttendanceStatus.ASSISTIT, AttendanceStatus.PENDENT]
         : [AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT];
 
     return statuses.map((status) => {
