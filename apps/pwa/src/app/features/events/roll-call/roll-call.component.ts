@@ -58,11 +58,11 @@ export class RollCallComponent {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
-  /** Real-world order: sign up, decline, physically arrive — not alphabetical or enum order. */
+  /** Real-world order: sign up, physically arrive, decline last — not alphabetical or enum order. */
   protected readonly statuses = [
     AttendanceStatus.ANIRE,
-    AttendanceStatus.NO_VAIG,
     AttendanceStatus.ASSISTIT,
+    AttendanceStatus.NO_VAIG,
   ];
 
   private static readonly ALL_TAB_ID = 'all';

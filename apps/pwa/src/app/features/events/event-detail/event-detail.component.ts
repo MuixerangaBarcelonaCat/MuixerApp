@@ -134,7 +134,7 @@ export class EventDetailComponent {
   };
 
   /**
-   * Real-world order: sign up, decline, physically arrive (assaig only, via Passa llista) — then
+   * Real-world order: sign up, physically arrive (assaig only, via Passa llista), decline — then
    * PENDENT last and muted, matching the roll-call screen's "no s'han apuntat" section, since
    * someone who hasn't bothered to answer isn't as relevant as someone who did.
    */
@@ -143,7 +143,7 @@ export class EventDetailComponent {
   ): { status: AttendanceStatus; label: string; adults: number; xicalla: number }[] {
     const statuses =
       this.event()?.eventType === EventType.ASSAIG
-        ? [AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG, AttendanceStatus.ASSISTIT, AttendanceStatus.PENDENT]
+        ? [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]
         : [AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT];
 
     return statuses.map((status) => {

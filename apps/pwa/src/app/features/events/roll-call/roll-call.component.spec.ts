@@ -74,12 +74,12 @@ describe('RollCallComponent', () => {
     expect(addBtnWrap.className).toContain('shrink-0');
   });
 
-  it('renders the status buttons as Vindrà / No vindrà / Ha vingut, in that real-world order', () => {
+  it('renders the status buttons as Vindrà / Ha vingut / No vindrà, in that real-world order', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const labels = Array.from(row.querySelectorAll('lib-button-group button')).map(
       (b) => (b as HTMLElement).textContent?.trim(),
     );
-    expect(labels).toEqual(['Vindrà', 'No vindrà', 'Ha vingut']);
+    expect(labels).toEqual(['Vindrà', 'Ha vingut', 'No vindrà']);
   });
 
   it('calls setStatus when a status button is clicked', () => {
@@ -88,7 +88,7 @@ describe('RollCallComponent', () => {
     );
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const buttons: HTMLButtonElement[] = row.querySelectorAll('lib-button-group button');
-    buttons[2].click(); // "Ha vingut" is last now
+    buttons[1].click(); // "Ha vingut" is now second
 
     expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-2', {
       status: AttendanceStatus.ASSISTIT,
