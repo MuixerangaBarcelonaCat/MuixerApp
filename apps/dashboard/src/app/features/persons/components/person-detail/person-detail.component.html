@@ -321,30 +321,6 @@
                     <lib-badge variant="success" size="sm">Compte actiu</lib-badge>
                   </dd>
                 </div>
-                <!--
-                  DESACTIVAT: botó «Crea enllaç de recuperació».
-
-                  Generava un enllaç per triar una contrasenya nova, pensat per al membre que no
-                  la recorda i tampoc pot arribar al seu correu. Està desactivat perquè l'enllaç
-                  dona accés al compte a qui el tinga, sense comprovar la seua identitat, i el
-                  reenviàvem a mà per WhatsApp. Ara mateix eixe cas es resol amb «Heu oblidat la
-                  contrasenya?» del login. Motiu ampliat: docs/AUTH_FLOW.md §8.1.
-
-                  Per rehabilitar-ho, descomenteu també `createRecoveryLink` al component i al
-                  PersonService, i l'endpoint POST /users/recovery-link del backend.
-
-                  <div class="tooltip tooltip-right" data-tip="Genera un enllaç per triar una contrasenya nova, per si esta persona no la recorda i no pot accedir al seu correu. Passa-li l'enllaç a mà (WhatsApp) i caduca en 24 hores. Comprova primer que qui te'l demana és realment esta persona.">
-                    <lib-button
-                      variant="primary"
-                      size="sm"
-                      outline
-                      [loading]="creatingRecoveryLink()"
-                      (clicked)="createRecoveryLink()"
-                    >
-                      Crea enllaç de recuperació
-                    </lib-button>
-                  </div>
-                -->
               } @else if (person()!.user) {
                 <div class="flex flex-col gap-2">
                   <div class="flex items-center gap-1.5">
