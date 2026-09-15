@@ -17,6 +17,7 @@ import {
   Tablet,
 } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { normalizeForSearch } from '@muixer/shared';
 
 const STORAGE_KEY = 'muixer_template_editor_help_dismissed';
 const TAB_STORAGE_KEY = 'muixer_help_last_tab';
@@ -306,7 +307,7 @@ export class TemplateEditorHelpModalComponent implements OnInit {
   readonly expandedItems = signal<Set<string>>(new Set());
 
   readonly filteredSections = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
+    const query = normalizeForSearch(this.searchQuery());
     if (!query) return this.sections;
 
     return this.sections
@@ -314,8 +315,8 @@ export class TemplateEditorHelpModalComponent implements OnInit {
         ...section,
         items: section.items.filter(
           (item) =>
-            item.question.toLowerCase().includes(query) ||
-            item.answer.toLowerCase().includes(query),
+            normalizeForSearch(item.question).includes(query) ||
+            normalizeForSearch(item.answer).includes(query),
         ),
       }))
       .filter((section) => section.items.length > 0);

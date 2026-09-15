@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AttendanceStatus } from '@muixer/shared';
+import { AttendanceStatus, matchesSearch } from '@muixer/shared';
 import { Search } from 'lucide-angular';
 import {
   ButtonComponent,
@@ -73,19 +73,17 @@ export class RollCallComponent {
   protected readonly isCreatingProvisional = signal(false);
   protected readonly overridePrompt = signal<{ item: AttendanceItem; status: AttendanceStatus } | null>(null);
 
-  private readonly matchesSearch = (item: AttendanceItem): boolean => {
-    const term = this.searchTerm().trim().toLowerCase();
-    if (!term) return true;
-    return `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`
-      .toLowerCase()
-      .includes(term);
-  };
+  private readonly itemMatchesSearch = (item: AttendanceItem): boolean =>
+    matchesSearch(
+      `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`,
+      this.searchTerm(),
+    );
 
   protected readonly signedUpItems = computed(() =>
-    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.itemMatchesSearch(item)),
   );
   protected readonly notSignedUpItems = computed(() =>
-    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.itemMatchesSearch(item)),
   );
   protected readonly hasNoResults = computed(
     () => this.signedUpItems().length === 0 && this.notSignedUpItems().length === 0,

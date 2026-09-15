@@ -154,7 +154,7 @@ export class AvailablePersonsService {
         qb.addOrderBy(`ABS(COALESCE(person.shoulderHeight, 0) - :height)`, 'ASC');
         qb.setParameter('height', height);
       } else {
-        qb.addOrderBy('person.alias', 'ASC');
+        qb.addOrderBy('unaccent(lower(person.alias))', 'ASC');
       }
     } else if (height !== undefined) {
       qb.orderBy(
@@ -164,7 +164,7 @@ export class AvailablePersonsService {
       qb.addOrderBy(`ABS(COALESCE(person.shoulderHeight, 0) - :height)`, 'ASC');
       qb.setParameter('height', height);
     } else {
-      qb.orderBy('person.alias', 'ASC');
+      qb.orderBy('unaccent(lower(person.alias))', 'ASC');
     }
 
     const persons = await qb.getMany();

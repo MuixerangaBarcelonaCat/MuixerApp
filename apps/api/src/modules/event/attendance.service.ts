@@ -12,11 +12,11 @@ import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 
 /**
- * Sort key for the attendance list: case-insensitive and with the provisional
+ * Sort key for the attendance list: accent/case-insensitive and with the provisional
  * "~" alias prefix stripped, so provisional persons interleave alphabetically
  * instead of collapsing to the end of the last page.
  */
-const NORMALIZED_ALIAS_EXPR = "lower(regexp_replace(person.alias, '^~', ''))";
+const NORMALIZED_ALIAS_EXPR = "unaccent(lower(regexp_replace(person.alias, '^~', '')))";
 
 @Injectable()
 export class AttendanceService {

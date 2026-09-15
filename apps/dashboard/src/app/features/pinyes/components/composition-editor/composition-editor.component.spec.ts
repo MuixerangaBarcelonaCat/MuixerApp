@@ -187,6 +187,17 @@ describe('CompositionEditorComponent', () => {
     expect(component.compositionSlots()[0].slotId).toBe('entry-1');
   });
 
+  it('filters the figure template list ignoring accents and case', async () => {
+    figureTemplateService.getAll.mockReturnValue(
+      of({ data: [{ ...template, name: 'Àguila' }], meta: { total: 1, page: 1, limit: 200 } }),
+    );
+    const { component } = await setup(null);
+
+    component.search.set('aguila');
+
+    expect(component.filteredTemplates().map((t) => t.name)).toEqual(['Àguila']);
+  });
+
   it('centers the viewport on the loaded content after data arrives', async () => {
     vi.useFakeTimers();
     const { canvasStub } = await setup(COMPOSITION_ID);

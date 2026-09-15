@@ -203,12 +203,12 @@ describe('EventService', () => {
 
     it('respects sortBy whitelist — title ASC', async () => {
       await service.findAll({ sortBy: 'title', sortOrder: 'ASC' });
-      expect(eventQb.orderBy).toHaveBeenCalledWith('event.title', 'ASC');
+      expect(eventQb.orderBy).toHaveBeenCalledWith('unaccent(lower(event.title))', 'ASC');
     });
 
     it('respects sortBy location', async () => {
       await service.findAll({ sortBy: 'location', sortOrder: 'DESC' });
-      expect(eventQb.orderBy).toHaveBeenCalledWith('event.location', 'DESC');
+      expect(eventQb.orderBy).toHaveBeenCalledWith('unaccent(lower(event.location))', 'DESC');
     });
 
     it('applies timeFilter=upcoming', async () => {
