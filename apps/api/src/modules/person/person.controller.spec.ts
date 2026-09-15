@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuditAction, JwtPayload, UserRole } from '@muixer/shared';
+import { AuditAction, Gender, JwtPayload, UserRole } from '@muixer/shared';
 import { Request } from 'express';
 import { PersonController } from './person.controller';
 import { PersonService } from './person.service';
@@ -90,7 +90,7 @@ describe('PersonController', () => {
       expect(personService.findAll).toHaveBeenCalledWith(filters, UserRole.TECHNICAL);
     });
 
-    it('returns exactly the technical directory contract', async () => {
+    it('returns exactly the technical directory contract without phone', async () => {
       personService.findAll.mockResolvedValue({ data: [person], total: 1 });
 
       const result = await controller.findAll(
@@ -101,6 +101,7 @@ describe('PersonController', () => {
       expect(Object.keys(result.data[0]).sort()).toEqual(
         ['alias', 'id', 'name', 'positions'].sort(),
       );
+      expect(result.data[0]).not.toHaveProperty('phone');
       expect(result.data[0].positions).toEqual(person.positions);
     });
 
@@ -235,16 +236,18 @@ describe('PersonController', () => {
         name: 'Joana',
         alias: 'JoanaG',
         shoulderHeight: 142,
+        gender: 'FEMALE',
+        phone: '600000000',
+        isXicalla: false,
         notes: 'Baixa',
         notesEmoji: '⬇️',
         accountState: 'ACTIVE',
       });
       expect(result).not.toHaveProperty('firstSurname');
-      expect(result).not.toHaveProperty('phone');
       expect(result).not.toHaveProperty('birthDate');
-      expect(result).not.toHaveProperty('gender');
       expect(result).not.toHaveProperty('user');
     });
+
 
     it('returns protected registration data to admins', async () => {
       personService.findOne.mockResolvedValue(person);
@@ -279,7 +282,7 @@ describe('PersonController', () => {
       await expect(
         controller.update(
           'person-1',
-          { name: 'Joana', phone: '611111111' },
+          { name: 'Joana', birthDate: '1990-01-01' },
           technicalUser,
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
@@ -289,7 +292,6 @@ describe('PersonController', () => {
     it('allows a transformed technical alias patch with undefined protected properties', async () => {
       const dto = plainToInstance(UpdatePersonDto, { alias: 'JoanaNova' });
       Object.assign(dto, {
-        phone: undefined,
         firstSurname: undefined,
         birthDate: undefined,
       });
@@ -301,10 +303,10 @@ describe('PersonController', () => {
       expect(personService.update).toHaveBeenCalledWith('person-1', dto);
     });
 
-    it('rejects a transformed technical patch mixing alias and a defined phone', async () => {
+    it('rejects a transformed technical patch mixing alias and a defined birthDate', async () => {
       const dto = plainToInstance(UpdatePersonDto, {
         alias: 'JoanaNova',
-        phone: '611111111',
+        birthDate: '1990-01-01',
       });
 
       await expect(
@@ -313,15 +315,46 @@ describe('PersonController', () => {
       expect(personService.update).not.toHaveBeenCalled();
     });
 
+    it('allows technical staff to update gender', async () => {
+      personService.update.mockResolvedValue({ ...person, gender: Gender.MALE });
+
+      const result = await controller.update(
+        'person-1',
+        { gender: Gender.MALE },
+        technicalUser,
+      );
+
+      expect(personService.update).toHaveBeenCalledWith('person-1', {
+        gender: Gender.MALE,
+      });
+      expect(result).toMatchObject({ gender: Gender.MALE });
+      expect(result).not.toHaveProperty('birthDate');
+    });
+
+    it('allows technical staff to update phone for contact', async () => {
+      personService.update.mockResolvedValue({ ...person, phone: '611111111' });
+
+      const result = await controller.update(
+        'person-1',
+        { phone: '611111111' },
+        technicalUser,
+      );
+
+      expect(personService.update).toHaveBeenCalledWith('person-1', {
+        phone: '611111111',
+      });
+      expect(result).toMatchObject({ phone: '611111111' });
+      expect(result).not.toHaveProperty('birthDate');
+    });
+
     it.each([
       ['firstSurname', 'Garcia'],
       ['secondSurname', 'Serra'],
-      ['phone', '611111111'],
       ['birthDate', '1990-01-01'],
-      ['gender', 'FEMALE'],
       ['joinDate', '2026-01-01'],
       ['mentorId', '00000000-0000-4000-8000-000000000001'],
     ])('rejects technical updates to %s', async (field, value) => {
+
       await expect(
         controller.update(
           'person-1',
@@ -361,7 +394,7 @@ describe('PersonController', () => {
       });
       expect(result).toMatchObject({ alias: '~JoanaG', isProvisional: true });
       expect(result).not.toHaveProperty('firstSurname');
-      expect(result).not.toHaveProperty('phone');
+      expect(result).not.toHaveProperty('birthDate');
       expect(result).not.toHaveProperty('user');
     });
 
@@ -405,7 +438,7 @@ describe('PersonController', () => {
         isProvisional: true,
       });
       expect(result).not.toHaveProperty('firstSurname');
-      expect(result).not.toHaveProperty('phone');
+      expect(result).not.toHaveProperty('birthDate');
       expect(result).not.toHaveProperty('user');
     });
 
@@ -414,9 +447,9 @@ describe('PersonController', () => {
 
       const result = await controller.activate('person-1', technicalUser);
 
-      expect(result).toMatchObject({ id: 'person-1', isActive: true });
+      expect(result).toMatchObject({ id: 'person-1', isActive: true, phone: '600000000' });
       expect(result).not.toHaveProperty('firstSurname');
-      expect(result).not.toHaveProperty('phone');
+      expect(result).not.toHaveProperty('birthDate');
       expect(result).not.toHaveProperty('user');
     });
   });

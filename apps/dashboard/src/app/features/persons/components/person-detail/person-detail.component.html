@@ -108,7 +108,7 @@
                   <dd class="text-sm text-right">{{ linkedUser.state === 'ACTIVE' ? linkedUser.email : 'Pendent d\'activar' }}</dd>
                 </div>
               }
-              @if (auth.isAdmin() && person()!.phone) {
+              @if (person()!.phone) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
                   <dd class="text-sm text-right">{{ person()!.phone }}</dd>
@@ -120,12 +120,14 @@
                   <dd class="text-sm text-right">{{ formatDate(person()!.birthDate!) }}</dd>
                 </div>
               }
-              @if (auth.isAdmin()) {
-                <div class="flex justify-between items-start">
-                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Gènere</dt>
-                  <dd class="text-sm text-right">{{ getGenderLabel(person()!.gender) }}</dd>
-                </div>
-              }
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Gènere</dt>
+                <dd class="text-sm text-right">{{ getGenderLabel(person()!.gender) }}</dd>
+              </div>
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Xicalla</dt>
+                <dd class="text-sm text-right">{{ person()!.isXicalla ? 'Menor de 16' : 'No' }}</dd>
+              </div>
               @if (person()!.shoulderHeight) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Alçada espatlles</dt>
@@ -176,15 +178,17 @@
               />
 
               @if (auth.isAdmin()) {
-                <lib-input label="Telèfon" type="tel" size="xs" formControlName="phone" placeholder="000 000 000" />
                 <lib-input label="Data de naixement" type="date" size="xs" formControlName="birthDate" />
-                <lib-select label="Gènere" size="xs" formControlName="gender">
-                  <option value="">No indicat</option>
-                  @for (option of genderOptions; track option.value) {
-                    <option [value]="option.value">{{ option.label }}</option>
-                  }
-                </lib-select>
               }
+
+              <lib-input label="Telèfon" type="tel" size="xs" formControlName="phone" placeholder="000 000 000" />
+
+              <lib-select label="Gènere" size="xs" formControlName="gender">
+                <option value="">No indicat</option>
+                @for (option of genderOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </lib-select>
 
               <lib-input
                 label="Alçada espatlles (cm)"

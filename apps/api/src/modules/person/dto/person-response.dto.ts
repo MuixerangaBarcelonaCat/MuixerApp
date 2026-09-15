@@ -33,6 +33,8 @@ export class OperationalPersonDetailDto {
   name: string;
   alias: string;
   shoulderHeight: number | null;
+  gender: Gender | null;
+  phone: string | null;
   isXicalla: boolean;
   isMember: boolean;
   isProvisional: boolean;
@@ -50,9 +52,7 @@ export class OperationalPersonDetailDto {
 export class AdminPersonListItemDto extends OperationalPersonDetailDto {
   firstSurname: string;
   secondSurname: string | null;
-  phone: string | null;
   birthDate: Date | null;
-  gender: Gender | null;
   attendedCount: number;
   user: AdminPersonUserDto | null;
   createdAt: Date;
@@ -68,9 +68,7 @@ export class AdminPersonUserDto {
 export class AdminPersonDetailDto extends OperationalPersonDetailDto {
   firstSurname: string;
   secondSurname: string | null;
-  phone: string | null;
   birthDate: Date | null;
-  gender: Gender | null;
   user: AdminPersonUserDto | null;
   createdAt: Date;
   updatedAt: Date;
@@ -105,6 +103,8 @@ function toOperationalFields(person: Person): OperationalPersonDetailDto {
     name: person.name,
     alias: person.alias,
     shoulderHeight: person.shoulderHeight,
+    gender: person.gender,
+    phone: person.phone,
     isXicalla: person.isXicalla,
     isMember: person.isMember,
     isProvisional: person.isProvisional,
@@ -149,9 +149,7 @@ export function toAdminPersonListItem(person: PersonWithListData): AdminPersonLi
     ...toOperationalFields(person),
     firstSurname: person.firstSurname,
     secondSurname: person.secondSurname,
-    phone: person.phone,
     birthDate: person.birthDate,
-    gender: person.gender,
     attendedCount: person.attendedCount ?? 0,
     user: toAdminUser(person.user as User | null),
     createdAt: person.createdAt,
@@ -164,9 +162,7 @@ export function toAdminPersonDetail(person: Person): AdminPersonDetailDto {
     ...toOperationalFields(person),
     firstSurname: person.firstSurname,
     secondSurname: person.secondSurname,
-    phone: person.phone,
     birthDate: person.birthDate,
-    gender: person.gender,
     user: toAdminUser(person.user as User | null),
     createdAt: person.createdAt,
     updatedAt: person.updatedAt,

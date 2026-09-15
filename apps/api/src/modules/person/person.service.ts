@@ -70,6 +70,8 @@ const OPERATIONAL_DETAIL_SELECT: FindOptionsSelect<Person> = {
   name: true,
   alias: true,
   shoulderHeight: true,
+  gender: true,
+  phone: true,
   isXicalla: true,
   isActive: true,
   isMember: true,
@@ -96,9 +98,7 @@ const ADMIN_DETAIL_SELECT: FindOptionsSelect<Person> = {
   ...OPERATIONAL_DETAIL_SELECT,
   firstSurname: true,
   secondSurname: true,
-  phone: true,
   birthDate: true,
-  gender: true,
   createdAt: true,
   updatedAt: true,
   user: {

@@ -252,6 +252,8 @@ export class PersonDetailComponent implements OnInit {
       name: raw.name ?? undefined,
       alias: raw.alias ?? undefined,
       shoulderHeight: raw.shoulderHeight || null,
+      gender: raw.gender ?? null,
+      phone: raw.phone || null,
       notes: raw.notes ?? undefined,
       notesEmoji: raw.notesEmoji ?? null,
       isActive: raw.isActive ?? undefined,
@@ -268,9 +270,7 @@ export class PersonDetailComponent implements OnInit {
           ...operationalPayload,
           firstSurname: raw.firstSurname ?? undefined,
           secondSurname: raw.secondSurname || null,
-          phone: raw.phone || null,
           birthDate: raw.birthDate || null,
-          gender: raw.gender ?? null,
         }
       : operationalPayload;
 

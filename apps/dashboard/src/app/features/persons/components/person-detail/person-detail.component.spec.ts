@@ -152,22 +152,38 @@ describe('PersonDetailComponent', () => {
         firstSurname: 'Secret',
         phone: '600000000',
         birthDate: '2000-01-01',
-      }));
+        gender: 'FEMALE',
+        isXicalla: true,
+      } as Partial<Person>));
       fixture.detectChanges();
 
       const text = fixture.nativeElement.textContent;
       expect(text).not.toContain('Primer cognom');
       expect(text).not.toContain('Segon cognom');
-      expect(text).not.toContain('Telèfon');
+      expect(text).toContain('Telèfon');
+      expect(text).toContain('600000000');
       expect(text).not.toContain('Naixement');
-      expect(text).not.toContain('Gènere');
+      expect(text).toContain('Gènere');
+      expect(text).toContain('Menor de 16');
       expect(text).not.toContain('Secret');
-      expect(text).not.toContain('600000000');
+      expect(text).not.toContain('2000');
+    });
+
+    it('lets TECHNICAL edit gender and phone but not birth date', () => {
+      isAdmin.set(false);
+      component.person.set(makePerson({ gender: 'FEMALE', phone: '600000000' } as Partial<Person>));
+      component.editing.set(true);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[formControlName="gender"]')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[formControlName="phone"]')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[formControlName="birthDate"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[formControlName="isXicalla"]')).not.toBeNull();
     });
 
     it('sends only operational fields when a TECHNICAL saves', () => {
       isAdmin.set(false);
-      const person = makePerson();
+      const person = makePerson({ gender: 'FEMALE', phone: '600000000' } as Partial<Person>);
       component.person.set(person);
       (component as unknown as { patchForm(person: Person): void }).patchForm(person);
       component.save();
@@ -176,6 +192,7 @@ describe('PersonDetailComponent', () => {
       expect(Object.keys(payload).sort()).toEqual([
         'alias',
         'availability',
+        'gender',
         'isActive',
         'isMember',
         'isXicalla',
@@ -183,20 +200,24 @@ describe('PersonDetailComponent', () => {
         'notes',
         'notesEmoji',
         'onboardingStatus',
+        'phone',
         'positionIds',
         'shirtDate',
         'shoulderHeight',
       ].sort());
+      expect(payload).not.toHaveProperty('birthDate');
     });
 
-    it('renders protected fields including gender for an ADMIN', () => {
+    it('renders protected fields including birth date for an ADMIN', () => {
       isAdmin.set(true);
-      component.person.set(makePerson({ gender: 'FEMALE' } as Partial<Person>));
+      component.person.set(makePerson({ gender: 'FEMALE', birthDate: '2000-01-01' } as Partial<Person>));
       fixture.detectChanges();
 
       expect(fixture.nativeElement.textContent).toContain('Primer cognom');
+      expect(fixture.nativeElement.textContent).toContain('Naixement');
       component.editing.set(true);
       fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[formControlName="birthDate"]')).not.toBeNull();
       expect(fixture.nativeElement.querySelector('[formControlName="gender"]')).not.toBeNull();
     });
 

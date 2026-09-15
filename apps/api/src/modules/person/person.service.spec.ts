@@ -130,26 +130,28 @@ describe('PersonService', () => {
         name: true,
         alias: true,
         shoulderHeight: true,
+        gender: true,
+        phone: true,
+        isXicalla: true,
         notes: true,
         notesEmoji: true,
       });
       expect(options.select).not.toHaveProperty('firstSurname');
-      expect(options.select).not.toHaveProperty('phone');
       expect(options.select).not.toHaveProperty('birthDate');
-      expect(options.select).not.toHaveProperty('gender');
     });
 
-    it('should include gender in the response', async () => {
+    it('should include gender in the technical response', async () => {
       const mockPerson = {
         id: '123',
         name: 'Test',
         alias: 'test',
         gender: 'MALE',
+        isXicalla: false,
         user: null,
       };
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
-      const result = await service.findOne('123', UserRole.ADMIN);
+      const result = await service.findOne('123', UserRole.TECHNICAL);
 
       expect(result.gender).toBe('MALE');
     });

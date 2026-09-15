@@ -4,6 +4,8 @@ const TECHNICAL_UPDATE_FIELDS = new Set<keyof UpdatePersonDto>([
   'name',
   'alias',
   'shoulderHeight',
+  'gender',
+  'phone',
   'notes',
   'notesEmoji',
   'isActive',

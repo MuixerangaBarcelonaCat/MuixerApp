@@ -63,12 +63,16 @@ Staff access is `ADMIN`-only:
 
 - `firstSurname`
 - `secondSurname`
-- `phone`
 - `birthDate`
-- `gender`
 - linked-account email
 - delegate email
 - full account-management fields such as role, invite expiry and account timestamps
+
+`birthDate` is never exposed to `TECHNICAL`. Age-class staffing uses the operational
+`isXicalla` flag instead (everyone under 16 is xicalla).
+
+`phone` is operational on person detail (staff need it to contact), but it is not part of the
+`TECHNICAL` census list contract.
 
 Exceptions are identity-bound:
 
@@ -85,6 +89,8 @@ These exceptions do not grant directory access to other people.
 
 - `id`, `alias`, `name`
 - `shoulderHeight`
+- `gender`
+- `phone` (detail/workflows that need contact; not the TECHNICAL census list)
 - `notes`, `notesEmoji`
 - positions/tags and `tagCompliance`
 - `availability`, `onboardingStatus`
@@ -93,6 +99,7 @@ These exceptions do not grant directory access to other people.
 - attendance status/counts, placements and conflicts
 - a derived account state (`NONE`, `PENDING_ACTIVATION`, `ACTIVE`)
 
+`isXicalla` is the staffing substitute for exact birth date: everyone under 16 is xicalla.
 `notes` and `notesEmoji` are technical observations. Ordinary `MEMBER` projection responses must
 not contain them.
 
@@ -209,8 +216,8 @@ Authorization is enforced before assigning DTO fields:
 - `POST /persons/provisional` remains `TECHNICAL`/`ADMIN` and accepts only alias.
 - ADMIN may patch every currently supported person field.
 - TECHNICAL may patch only:
-  `name`, `alias`, `shoulderHeight`, `notes`, `notesEmoji`, `isActive`, `isMember`, `isXicalla`,
-  `availability`, `onboardingStatus`, `shirtDate` and `positionIds`.
+  `name`, `alias`, `shoulderHeight`, `gender`, `phone`, `notes`, `notesEmoji`, `isActive`,
+  `isMember`, `isXicalla`, `availability`, `onboardingStatus`, `shirtDate` and `positionIds`.
 - TECHNICAL may set `isProvisional: true`; setting it to `false` is ADMIN-only because manual
   promotion validates hidden registration/account data. Invite activation and primary-guardian
   dependent completion keep their existing promotion paths.
@@ -349,11 +356,13 @@ intersect persisted keys with that set before passing columns to both the table 
 
 ### 6.2 Dashboard person detail
 
-For `TECHNICAL`, render and edit only operational fields. Do not render surnames, phone, birth
-date, gender, linked/delegate emails or controls for them.
+For `TECHNICAL`, render and edit only operational fields. Do not render surnames, birth
+date, linked/delegate emails or controls for them. Do render/edit `gender`, `phone` and
+`isXicalla` (`isXicalla` replaces birth-date visibility for staffing; `phone` is for contact on
+the person page only, not the census list).
 
-For `ADMIN`, render/edit the protected registration fields, including `gender`, which the API
-currently exposes but the Dashboard model/form omits.
+For `ADMIN`, render/edit the protected registration fields, including exact `birthDate`.
+ADMIN may also show `phone` as an optional census column; TECHNICAL census stays alias/name.
 
 Save payloads use explicit allowlists. They are never built by spreading `getRawValue()`:
 disabled Angular controls are included in `getRawValue()` and absent response fields are patched
@@ -440,7 +449,9 @@ production change is written.
    `localStorage`.
 2. ADMIN retains allowed columns and protected values.
 3. TECHNICAL detail has no protected controls and sends only operational keys.
-4. ADMIN detail includes gender and protected fields.
+4. ADMIN detail includes birth date and other protected fields; TECHNICAL detail includes
+   gender, phone and isXicalla but not birth date or surnames. TECHNICAL census still omits
+   phone.
 5. Users route/card are ADMIN-only.
 6. Delegate picker uses alias/name candidates and never renders email.
 7. Attendance, participation, pinyes and device-summary tests no longer rely on surname.
