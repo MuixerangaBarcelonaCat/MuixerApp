@@ -1,7 +1,13 @@
 import { FigureZone } from '../enums/figure-zone.enum';
+import { FigureMode } from '../enums/figure-mode.enum';
 import { AssignmentArea } from '../enums/assignment-area.enum';
 import { SegmentConflictKind } from '../enums/segment-conflict.enum';
-import { areaForZone, classifyPlacementKind, conflictRelevantPlacements } from './assignment-area.constants';
+import {
+  areaForZone,
+  classifyPlacementKind,
+  conflictRelevantPlacements,
+  isNodeVisibleByModeAndCordons,
+} from './assignment-area.constants';
 
 describe('areaForZone', () => {
   it('maps TRONC to the TRONC area', () => {
@@ -98,5 +104,52 @@ describe('conflictRelevantPlacements', () => {
   it('does not excuse a direcció tronc placement', () => {
     const list = [p('dt', DIRECTION, 'f1', 'direccio-tronc'), p('pinya', PINYA, 'f1')];
     expect(run(list)).toEqual(['dt', 'pinya']);
+  });
+});
+
+describe('isNodeVisibleByModeAndCordons', () => {
+  const opts = (overrides: Partial<Parameters<typeof isNodeVisibleByModeAndCordons>[1]> = {}) => ({
+    figureMode: FigureMode.COMPLETA,
+    numberOfCordons: null,
+    cordonsObertsEnabled: true,
+    ...overrides,
+  });
+
+  it('hides a BASE node when figureMode is REMAT', () => {
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.BASE }, opts({ figureMode: FigureMode.REMAT }))).toBe(false);
+  });
+
+  it('keeps a BASE node visible when figureMode is NETA (only PINYA strips on NETA)', () => {
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.BASE }, opts({ figureMode: FigureMode.NETA }))).toBe(true);
+  });
+
+  it('keeps a BASE node visible for COMPLETA/PEU regardless of cordons', () => {
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.BASE }, opts({ figureMode: FigureMode.COMPLETA, numberOfCordons: 1 }))).toBe(true);
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.BASE }, opts({ figureMode: FigureMode.PEU, numberOfCordons: 1 }))).toBe(true);
+  });
+
+  it('always keeps TRONC and DIRECTION nodes visible regardless of mode', () => {
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.TRONC }, opts({ figureMode: FigureMode.REMAT }))).toBe(true);
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.DIRECTION }, opts({ figureMode: FigureMode.REMAT }))).toBe(true);
+  });
+
+  it('hides a PINYA node entirely in REMAT/NETA', () => {
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.PINYA }, opts({ figureMode: FigureMode.REMAT }))).toBe(false);
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.PINYA }, opts({ figureMode: FigureMode.NETA }))).toBe(false);
+  });
+
+  it('gates a cordo-obert PINYA node purely on cordonsObertsEnabled, ignoring renglaPosition', () => {
+    const node = { zone: FigureZone.PINYA, positionType: 'cordo-obert', renglaPosition: 99 };
+    expect(isNodeVisibleByModeAndCordons(node, opts({ numberOfCordons: 1, cordonsObertsEnabled: true }))).toBe(true);
+    expect(isNodeVisibleByModeAndCordons(node, opts({ numberOfCordons: 1, cordonsObertsEnabled: false }))).toBe(false);
+  });
+
+  it('caps a regular PINYA node by numberOfCordons', () => {
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.PINYA, renglaPosition: 2 }, opts({ numberOfCordons: 1 }))).toBe(false);
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.PINYA, renglaPosition: 1 }, opts({ numberOfCordons: 1 }))).toBe(true);
+  });
+
+  it('keeps a PINYA node with no renglaPosition visible regardless of numberOfCordons', () => {
+    expect(isNodeVisibleByModeAndCordons({ zone: FigureZone.PINYA, renglaPosition: null }, opts({ numberOfCordons: 1 }))).toBe(true);
   });
 });

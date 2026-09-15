@@ -22,7 +22,7 @@ import {
   areaForZone,
   classifyPlacementKind,
   conflictRelevantPlacements,
-  isNodeVisibleByCordons,
+  isNodeVisibleByModeAndCordons,
   ConflictPlacement,
   SegmentConflict,
   SegmentConflictsResponse,
@@ -521,7 +521,7 @@ export class NodeAssignmentService {
         (n) =>
           areaForZone(n.zone as FigureZone) === AssignmentArea.PINYA &&
           !occupied.has(n.id) &&
-          isNodeVisibleByCordons(n, cordonsOpts),
+          isNodeVisibleByModeAndCordons(n, cordonsOpts),
       )
       .map((n) => n.id);
   }
@@ -1207,9 +1207,9 @@ export class NodeAssignmentService {
     const cordonsOpts = { figureMode, numberOfCordons, cordonsObertsEnabled };
 
     const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean =>
-      n.zone === FigureZone.PINYA && isNodeVisibleByCordons(n, cordonsOpts);
+      n.zone === FigureZone.PINYA && isNodeVisibleByModeAndCordons(n, cordonsOpts);
     const isTronc = (n: { zone: string }): boolean =>
-      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
+      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, cordonsOpts));
     const isDirection = (n: { zone: string }): boolean =>
       n.zone === FigureZone.DIRECTION;
 
@@ -1930,9 +1930,10 @@ export class NodeAssignmentService {
  * (`previewFigureModeChange`) go through here so the count shown to the user and what
  * actually gets removed can never diverge.
  *
- * Deliberately separate from `isNodeVisibleByCordons` (`@muixer/shared`): that one is about
- * live node visibility (never hides BASE, since BASE stays drawn/countable in REMAT for other
- * purposes), this one is about the one-time destructive removal a mode *change* triggers.
+ * Deliberately separate from `isNodeVisibleByModeAndCordons` (`@muixer/shared`) even though they
+ * now agree on which zones REMAT/NETA affect: that one is a per-node, always-current visibility
+ * check (also gated by cordons/cordonsObertsEnabled), this one is the one-time zone-level wipe a
+ * mode *change* triggers.
  */
 export function hiddenZonesForFigureModeChange(figureMode: FigureMode | string): FigureZone[] {
   if (figureMode === FigureMode.REMAT) return [FigureZone.PINYA, FigureZone.BASE];

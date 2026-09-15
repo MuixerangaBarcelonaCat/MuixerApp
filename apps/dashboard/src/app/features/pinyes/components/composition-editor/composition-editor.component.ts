@@ -152,7 +152,6 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       entry.figureTemplate.nodes,
       entry.figureMode,
       entry.numberOfCordons,
-      { keepCordoObert: true },
     );
     const positionedNodes = repositionCordoObertNodes(
       entry.figureTemplate.nodes,
