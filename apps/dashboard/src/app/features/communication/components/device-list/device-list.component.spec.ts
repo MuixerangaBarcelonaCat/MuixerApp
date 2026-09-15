@@ -76,6 +76,14 @@ describe('DeviceListComponent', () => {
     expect(first.lastPushAt).not.toBeNull();
   });
 
+  it('matches the search term regardless of accents and case', async () => {
+    await setup([
+      { person: { id: 'p1', firstName: 'Àngela', lastName: 'Roig' }, activeDevices: 1, lastPushAt: null },
+    ]);
+    component.search.set('angela');
+    expect(component.filtered().length).toBe(1);
+  });
+
   it('returns empty filtered list when search does not match', async () => {
     await setup();
     component.search.set('xyznotfound');

@@ -276,7 +276,7 @@ export class EventParticipationService {
        FROM person_positions pp
        JOIN positions t ON t.id = pp."positionsId"
        WHERE pp."personsId" = ANY($1::uuid[])
-       ORDER BY t.name ASC`,
+       ORDER BY unaccent(lower(t.name)) ASC`,
       [personIds],
     );
 

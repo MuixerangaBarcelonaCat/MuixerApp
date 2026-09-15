@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { conflictRelevantPlacements, DIRECTION_NODE_PRESETS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { conflictRelevantPlacements, DIRECTION_NODE_PRESETS, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -193,7 +193,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     const status = this.statusFilter();
     const position = this.positionFilter();
     const conflictsOnly = this.onlyConflicts();
-    const term = this.normalizeForMatch(this.search());
+    const term = normalizeForSearch(this.search());
 
     let rows = this.persons();
     if (status) rows = rows.filter((r) => r.attendanceStatus === status);
@@ -206,7 +206,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   /** A search term supplies its own relevance order, so it wins over the column sort. */
   readonly sortedRows = computed<ParticipationRow[]>(() => {
     const rows = this.filteredRows();
-    if (this.normalizeForMatch(this.search())) return rows;
+    if (normalizeForSearch(this.search())) return rows;
 
     const order = this.sortOrder();
     if (!order) return rows;
@@ -768,14 +768,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   // ── Search ranking ───────────────────────────────────────────────────────────
 
-  private normalizeForMatch(value: string): string {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .toLowerCase();
-  }
-
   /**
    * alias-prefix > name-prefix > alias-substring > name-substring > what they do.
    *
@@ -784,8 +776,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
    * so an alias match always wins.
    */
   private matchRank(row: ParticipationRow, term: string): number | null {
-    const alias = this.normalizeForMatch(row.alias);
-    const name = this.normalizeForMatch(`${row.name} ${row.firstSurname}`);
+    const alias = normalizeForSearch(row.alias);
+    const name = normalizeForSearch(`${row.name} ${row.firstSurname}`);
     if (alias.startsWith(term)) return 0;
     if (name.startsWith(term)) return 1;
     if (alias.includes(term)) return 2;
@@ -797,8 +789,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   private matchesPlacement(row: ParticipationRow, term: string): boolean {
     return Object.values(row.placements).some((placements) =>
       placements.some((placement) => {
-        const figure = this.normalizeForMatch(placement.figureName);
-        const position = this.normalizeForMatch(
+        const figure = normalizeForSearch(placement.figureName);
+        const position = normalizeForSearch(
           formatNodeCordonLabel(placement.nodeLabel, placement.renglaPosition),
         );
         return figure.includes(term) || position.includes(term);

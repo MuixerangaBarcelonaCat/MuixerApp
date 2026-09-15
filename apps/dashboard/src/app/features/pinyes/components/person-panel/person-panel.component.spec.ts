@@ -533,6 +533,16 @@ describe('PersonPanelComponent', () => {
 
       expect(component.filteredTags().map((t) => t.id)).toEqual(['t1']);
     });
+
+    it('ignores accents and case in the tag dropdown filter', () => {
+      component.tags.set([
+        { id: 't1', name: 'Àguila', slug: 'aguila', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.TRONC, positionTypes: [], personCount: 0 },
+      ]);
+      component.onTagSearchChange('AGUILA');
+      fixture.detectChanges();
+
+      expect(component.filteredTags().map((t) => t.id)).toEqual(['t1']);
+    });
   });
 
   // ── blocks ─────────────────────────────────────────────────────────────────

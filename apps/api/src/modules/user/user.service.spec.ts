@@ -183,7 +183,7 @@ describe('UserService', () => {
 
     it('sorts by email ASC', async () => {
       await service.findAll({ sortBy: 'email', sortOrder: 'ASC' });
-      expect(userQb.orderBy).toHaveBeenCalledWith('user.email', 'ASC');
+      expect(userQb.orderBy).toHaveBeenCalledWith('unaccent(lower(user.email))', 'ASC');
     });
 
     it('sorts by role DESC', async () => {
@@ -203,7 +203,7 @@ describe('UserService', () => {
 
     it('sorts by alias using the person join alias, not a three-segment path', async () => {
       await service.findAll({ sortBy: 'alias', sortOrder: 'ASC' });
-      expect(userQb.orderBy).toHaveBeenCalledWith('person.alias', 'ASC');
+      expect(userQb.orderBy).toHaveBeenCalledWith('unaccent(lower(person.alias))', 'ASC');
     });
 
     it('applies pagination — skip and take', async () => {
