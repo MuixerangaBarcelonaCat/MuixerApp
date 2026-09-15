@@ -17,10 +17,6 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserService } from './user.service';
 import { CreateInviteLinkDto } from './dto/create-invite-link.dto';
 import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
-// DESACTIVAT — enllaç de recuperació generat per un tècnic. Vegeu el bloc comentat
-// de `recovery-link` més avall i docs/AUTH_FLOW.md §8.1.
-// import { CreateRecoveryLinkDto } from './dto/create-recovery-link.dto';
-// import { RecoveryLinkResponseDto } from './dto/recovery-link-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
@@ -54,49 +50,6 @@ export class UserController {
   createInviteLink(@Body() dto: CreateInviteLinkDto): Promise<InviteLinkResponseDto> {
     return this.userService.createOrRefreshInviteLink(dto.personId);
   }
-
-  // ---------------------------------------------------------------------------
-  // DESACTIVAT: POST /users/recovery-link
-  //
-  // Aquest endpoint permetia que un ADMIN/TECHNICAL generés un enllaç per triar una
-  // contrasenya nova d'un compte ja actiu, i el reenviés a mà (WhatsApp) al membre que no
-  // recorda la contrasenya i no pot arribar al seu correu.
-  //
-  // Per què està desactivat: l'enllaç és un token portador («bearer»). Qui el tinga entra al
-  // compte, sense cap comprovació d'identitat. Si el tècnic l'envia al número equivocat, o el
-  // receptor el reenvia a un grup, qualsevol pot ocupar el compte d'un altre membre. De moment
-  // ens quedem només amb «Heu oblidat la contrasenya?» del login, que envia el token al correu
-  // del propietari del compte i per tant no depèn del criteri de qui el reenvia.
-  //
-  // Per tornar-lo a habilitar cal descomentar, en aquest ordre:
-  //   1. `UserService.createRecoveryLink` i les seues dependències (user.service.ts)
-  //   2. `AuditModule` a user.module.ts
-  //   3. `RECOVERY_LINK_TTL_HOURS` a auth/constants/auth.constants.ts
-  //   4. `RecoveryLinkResponse` a libs/shared/src/interfaces/invite.interfaces.ts
-  //   5. `RECOVERY_LINK_CREATED` a libs/shared/src/enums/audit-action.enum.ts
-  //   6. Aquest bloc i els seus dos imports
-  //   7. `PersonService.createRecoveryLink` i el botó del detall de persona (dashboard)
-  // Abans de fer-ho, llegiu les mitigacions proposades a docs/AUTH_FLOW.md §8.1: TTL curt,
-  // auditoria del consum i avís al propietari. Els tests corresponents estan al commit e2f5e96.
-  // ---------------------------------------------------------------------------
-  // @Post('recovery-link')
-  // @ApiOperation({
-  //   summary: "Crea un enllaç per triar una contrasenya nova, per a un compte ja actiu",
-  //   description:
-  //     "Alternativa a «Heu oblidat la contrasenya?» quan el membre no té accés al seu correu: " +
-  //     "l'enllaç el genera un ADMIN/TECHNICAL i el reenvia a mà. Queda auditat.",
-  // })
-  // @ApiResponse({ status: 201, description: 'Enllaç de recuperació generat' })
-  // @ApiResponse({
-  //   status: 400,
-  //   description: "La persona no existeix, no té compte, o el compte encara no s'ha activat",
-  // })
-  // createRecoveryLink(
-  //   @Body() dto: CreateRecoveryLinkDto,
-  //   @CurrentUser() actor: JwtPayload,
-  // ): Promise<RecoveryLinkResponseDto> {
-  //   return this.userService.createRecoveryLink(dto.personId, actor.sub);
-  // }
 
   @Get()
   @ApiOperation({ summary: 'Llistar usuaris' })
@@ -145,5 +98,4 @@ export class UserController {
   ): Promise<UserResponseDto> {
     return this.userService.updateUser(id, dto, actor.role, actor.sub);
   }
-
 }
