@@ -3571,6 +3571,100 @@ describe('NodeAssignmentService', () => {
 
       expect(mockChangeEmitter.emitChange).not.toHaveBeenCalled();
     });
+
+    it('announces the segment after cordons are changed', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ numberOfCordons: null, cordonsObertsEnabled: true }),
+      );
+      mockAssignmentRepo.find.mockResolvedValue([]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 2 });
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.CORDONS,
+      );
+    });
+
+    it('announces the segment after an ad-hoc node is created', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 1 });
+      mockDataSource.transaction.mockImplementation((cb: any) =>
+        cb({
+          createQueryBuilder: jest.fn().mockReturnValue(mockInstanceNodeQb),
+          create: jest.fn((_e: any, data: any) => data),
+          save: jest.fn().mockImplementation((node: any) => Promise.resolve(node)),
+        }),
+      );
+
+      await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.PINYA, positionType: 'mans', label: 'Extra', x: 0, y: 0 } as any,
+        'user-1',
+      );
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.AD_HOC_NODE,
+      );
+    });
+
+    it('announces the segment after an ad-hoc node is moved', async () => {
+      const adHocNode = makeInstanceNode({
+        id: 'adhoc-1',
+        isAdHoc: true,
+        figureInstance: makeInstance() as any,
+      });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(adHocNode);
+      mockInstanceNodeRepo.save.mockResolvedValue({ ...adHocNode, x: 300 });
+
+      await service.updateAdHocNode(INSTANCE_ID, 'adhoc-1', { x: 300 });
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.AD_HOC_NODE,
+      );
+    });
+
+    it('announces the segment after an ad-hoc node is deleted', async () => {
+      const adHocNode = makeInstanceNode({
+        id: 'adhoc-1',
+        isAdHoc: true,
+        figureInstance: makeInstance() as any,
+      });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(adHocNode);
+      mockDataSource.transaction.mockImplementation((cb: any) =>
+        cb({ delete: jest.fn().mockResolvedValue({}) }),
+      );
+
+      await service.deleteAdHocNode(INSTANCE_ID, 'adhoc-1');
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.AD_HOC_NODE,
+      );
+    });
+
+    it('announces the segment after a snapshot is reset', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockAssignmentRepo.count.mockResolvedValue(0);
+      mockInstanceNodeRepo.count.mockResolvedValue(0);
+      mockDataSource.transaction.mockImplementation((cb: any) =>
+        cb({ delete: jest.fn().mockResolvedValue({}), update: jest.fn().mockResolvedValue({}) }),
+      );
+
+      await service.resetSnapshot(INSTANCE_ID);
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.ASSIGNMENT,
+      );
+    });
   });
 
   describe('hiddenZonesForFigureModeChange', () => {

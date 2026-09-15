@@ -11,7 +11,8 @@ import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
-import { FigureMode, SegmentPeopleCounters } from '@muixer/shared';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
+import { FigureMode, SegmentPeopleCounters, SegmentChangeSource } from '@muixer/shared';
 
 export interface InstanceRef {
   id: string;
@@ -59,6 +60,7 @@ export class EventSegmentService {
     private readonly eventRepository: Repository<Event>,
     private readonly dataSource: DataSource,
     private readonly nodeAssignmentService: NodeAssignmentService,
+    private readonly segmentChanges: SegmentChangeEmitter,
   ) {}
 
   async findAllByEvent(eventId: string): Promise<SegmentWithInstances[]> {
@@ -130,6 +132,9 @@ export class EventSegmentService {
     if (dto.isPublished !== undefined) segment.isPublished = dto.isPublished;
 
     await this.segmentRepository.save(segment);
+
+    this.segmentChanges.emitChange(eventId, [segmentId], SegmentChangeSource.SEGMENT_UPDATE);
+
     return this.findOneById(segment.id);
   }
 

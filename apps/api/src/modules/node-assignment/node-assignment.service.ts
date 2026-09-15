@@ -903,7 +903,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate'],
+      relations: ['figureTemplate', 'segment', 'segment.event'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -927,6 +927,12 @@ export class NodeAssignmentService {
         snapshotted: false,
       });
     });
+
+    this.segmentChanges.emitChange(
+      instance.segment?.event?.id,
+      [instance.segment?.id],
+      SegmentChangeSource.ASSIGNMENT,
+    );
 
     return { removedAssignments: assignmentCount, deletedAdHocCount: adHocCount };
   }
@@ -1534,6 +1540,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
+      relations: ['segment', 'segment.event'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -1557,6 +1564,12 @@ export class NodeAssignmentService {
     if (disablingCordonsOberts) {
       removedAssignments += await this.removeCordoObertAssignments(instanceId);
     }
+
+    this.segmentChanges.emitChange(
+      instance.segment?.event?.id,
+      [instance.segment?.id],
+      SegmentChangeSource.CORDONS,
+    );
 
     return {
       numberOfCordons: instance.numberOfCordons,
@@ -1757,7 +1770,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'segment'],
+      relations: ['figureTemplate', 'segment', 'segment.event'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -1815,6 +1828,12 @@ export class NodeAssignmentService {
       return manager.save(node);
     });
 
+    this.segmentChanges.emitChange(
+      instance.segment?.event?.id,
+      [instance.segment?.id],
+      SegmentChangeSource.AD_HOC_NODE,
+    );
+
     return instanceNodeToResponse(saved as InstanceNode);
   }
 
@@ -1827,6 +1846,7 @@ export class NodeAssignmentService {
 
     const node = await this.instanceNodeRepository.findOne({
       where: { id: nodeId, figureInstance: { id: instanceId } },
+      relations: ['figureInstance', 'figureInstance.segment', 'figureInstance.segment.event'],
     });
     if (!node) {
       throw new NotFoundException(`InstanceNode with ID ${nodeId} not found in this instance`);
@@ -1845,6 +1865,13 @@ export class NodeAssignmentService {
     if (dto.shape !== undefined) node.shape = dto.shape;
 
     const updated = await this.instanceNodeRepository.save(node);
+
+    this.segmentChanges.emitChange(
+      node.figureInstance?.segment?.event?.id,
+      [node.figureInstance?.segment?.id],
+      SegmentChangeSource.AD_HOC_NODE,
+    );
+
     return instanceNodeToResponse(updated);
   }
 
@@ -1853,6 +1880,7 @@ export class NodeAssignmentService {
 
     const node = await this.instanceNodeRepository.findOne({
       where: { id: nodeId, figureInstance: { id: instanceId } },
+      relations: ['figureInstance', 'figureInstance.segment', 'figureInstance.segment.event'],
     });
     if (!node) {
       throw new NotFoundException(`InstanceNode with ID ${nodeId} not found in this instance`);
@@ -1865,6 +1893,12 @@ export class NodeAssignmentService {
       await manager.delete(NodeAssignment, { instanceNode: { id: nodeId } });
       await manager.delete(InstanceNode, { id: nodeId });
     });
+
+    this.segmentChanges.emitChange(
+      node.figureInstance?.segment?.event?.id,
+      [node.figureInstance?.segment?.id],
+      SegmentChangeSource.AD_HOC_NODE,
+    );
   }
 
   private assertNotComposition(_instance: FigureInstance): void {

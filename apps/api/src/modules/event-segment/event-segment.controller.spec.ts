@@ -3,6 +3,7 @@ import { EventSegmentController } from './event-segment.controller';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
+import { SegmentEventsService } from '../segment-events/segment-events.service';
 import { SegmentWithInstances } from './event-segment.service';
 import { SegmentMoveConflictResolution } from '@muixer/shared';
 
@@ -67,6 +68,8 @@ const mockProjectionService: Partial<ProjectionService> = {
   getProjection: jest.fn().mockResolvedValue(mockProjectionData),
 };
 
+const mockSegmentEvents = { stream: jest.fn() };
+
 describe('EventSegmentController', () => {
   let controller: EventSegmentController;
 
@@ -77,6 +80,7 @@ describe('EventSegmentController', () => {
         { provide: EventSegmentService, useValue: mockSegmentService },
         { provide: FigureInstanceService, useValue: mockInstanceService },
         { provide: ProjectionService, useValue: mockProjectionService },
+        { provide: SegmentEventsService, useValue: mockSegmentEvents },
       ],
     }).compile();
 
@@ -210,6 +214,18 @@ describe('getProjection', () => {
       const result = await controller.getProjection(EVENT_ID, SEGMENT_ID);
       expect(result.segment.prevSegmentId).toBeNull();
       expect(result.segment.nextSegmentId).toBe('seg-next');
+    });
+  });
+
+  describe('streamEventChanges', () => {
+    it('delegates to the segment events service for the given event, unfiltered', () => {
+      const stream = {} as any;
+      mockSegmentEvents.stream.mockReturnValue(stream);
+
+      const result = controller.streamEventChanges(EVENT_ID);
+
+      expect(mockSegmentEvents.stream).toHaveBeenCalledWith(EVENT_ID);
+      expect(result).toBe(stream);
     });
   });
 });

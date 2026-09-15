@@ -21,12 +21,15 @@ import { NodeAssignment } from '../node-assignment/entities/node-assignment.enti
 import { NewsService } from '../news/news.service';
 import { FigureDataChangedEvent, SegmentChangeSource } from '@muixer/shared';
 import { News } from '../news/news.entity';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 
 const mockUser: JwtPayload = {
   sub: 'user-1',
   email: 'test@test.com',
   role: UserRole.MEMBER,
 };
+
+const changeEmitter = { emitChange: jest.fn() };
 
 const mockEvent: Partial<Event> = {
   id: 'event-1',
@@ -125,6 +128,10 @@ describe('MeService', () => {
         {
           provide: NewsService,
           useValue: { findPublished: jest.fn(), findPublishedOne: jest.fn() },
+        },
+        {
+          provide: SegmentChangeEmitter,
+          useValue: changeEmitter,
         },
       ],
     }).compile();
@@ -835,6 +842,22 @@ describe('MeService', () => {
       });
 
       expect(result.status).toBe(AttendanceStatus.NO_VAIG);
+    });
+
+    it('announces the event after the member confirms their own attendance', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      eventRepo.findOne.mockResolvedValue({ ...mockEvent, date: new Date('2026-12-01') } as Event);
+      attendanceRepo.upsert.mockResolvedValue(undefined as never);
+      attendanceRepo.findOneOrFail.mockResolvedValue({
+        id: 'att-1',
+        status: AttendanceStatus.ANIRE,
+        respondedAt: new Date(),
+      } as never);
+      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+
+      await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE });
+
+      expect(changeEmitter.emitChange).toHaveBeenCalledWith('event-1', [], SegmentChangeSource.ATTENDANCE);
     });
 
     it('should throw ForbiddenException when user has no person', async () => {

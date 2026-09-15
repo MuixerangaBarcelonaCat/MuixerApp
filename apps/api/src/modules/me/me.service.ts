@@ -22,6 +22,7 @@ import {
   MeNewsItem,
   computeInstanceDisplayNames,
   FigureDataChangedEvent,
+  SegmentChangeSource,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -32,6 +33,7 @@ import { EventSegmentService, SegmentWithInstances } from '../event-segment/even
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
 import { AttendanceService } from '../event/attendance.service';
@@ -66,6 +68,7 @@ export class MeService {
     private readonly projectionService: ProjectionService,
     private readonly eventSegmentService: EventSegmentService,
     private readonly newsService: NewsService,
+    private readonly segmentChanges: SegmentChangeEmitter,
   ) {}
 
   async resolveManagedPersons(
@@ -352,6 +355,8 @@ export class MeService {
     });
 
     await this.attendanceService.recalculateSummary(eventId);
+
+    this.segmentChanges.emitChange(eventId, [], SegmentChangeSource.ATTENDANCE);
 
     return {
       id: attendance.id,

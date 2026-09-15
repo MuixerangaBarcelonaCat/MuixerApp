@@ -5,6 +5,8 @@ import {
   Put,
   Patch,
   Delete,
+  Sse,
+  MessageEvent,
   Body,
   Param,
   Query,
@@ -12,9 +14,12 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@muixer/shared';
+import { SseAuth } from '../auth/decorators/sse-auth.decorator';
+import { SegmentEventsService } from '../segment-events/segment-events.service';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
@@ -39,7 +44,19 @@ export class EventSegmentController {
     private readonly segmentService: EventSegmentService,
     private readonly instanceService: FigureInstanceService,
     private readonly projectionService: ProjectionService,
+    private readonly segmentEvents: SegmentEventsService,
   ) {}
+
+  /**
+   * Live figure-data changes for one event, so an open tab refetches instead of waiting
+   * for a manual reload. Unfiltered — TECHNICAL/ADMIN see every segment already.
+   */
+  @Sse('changes')
+  @SseAuth()
+  @ApiOperation({ summary: 'Stream live figure-data changes for an event' })
+  streamEventChanges(@Param('eventId', ParseUUIDPipe) eventId: string): Observable<MessageEvent> {
+    return this.segmentEvents.stream(eventId);
+  }
 
   @ApiOperation({ summary: 'List segments for an event, ordered by sortOrder, with instances' })
   @Get()

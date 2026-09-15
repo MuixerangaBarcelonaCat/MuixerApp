@@ -3,12 +3,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Component, input } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ProjectionViewComponent } from './projection-view.component';
 import { ProjectionService } from '../../services/projection.service';
 import { ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { SegmentChangesService } from '../../services/segment-changes.service';
 
 @Component({ selector: 'lib-pinya-projection', standalone: true, template: '' })
 class PinyaProjectionStub {
@@ -218,6 +219,77 @@ describe('ProjectionViewComponent', () => {
       window.dispatchEvent(new PopStateEvent('popstate'));
 
       expect(navigateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('live changes', () => {
+    async function createWith(embedded: boolean) {
+      const watchedSegmentIds: string[] = [];
+      const changes$ = new Subject<void>();
+      const segmentChanges = {
+        watch: vi.fn((_eventId: string, currentSegmentId: () => string) => {
+          watchedSegmentIds.push(currentSegmentId());
+          return changes$.asObservable();
+        }),
+      };
+      const projectionService = { getProjection: vi.fn().mockReturnValue(of(emptySegment())) };
+
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [ProjectionViewComponent],
+        providers: [
+          { provide: ProjectionService, useValue: projectionService },
+          { provide: ToastService, useValue: { error: vi.fn() } },
+          { provide: Router, useValue: { navigate: vi.fn() } },
+          { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1' } } } },
+          { provide: SegmentChangesService, useValue: segmentChanges },
+          allLucideIconsProvider,
+        ],
+      })
+        .overrideComponent(ProjectionViewComponent, {
+          remove: { imports: [PinyaProjectionComponent] },
+          add: { imports: [PinyaProjectionStub] },
+        })
+        .compileComponents();
+
+      const f = TestBed.createComponent(ProjectionViewComponent);
+      f.componentRef.setInput('embedded', embedded);
+      f.detectChanges();
+      return { fixture: f, segmentChanges, projectionService, changes$ };
+    }
+
+    it('reloads the segment when a live change arrives', async () => {
+      const { projectionService, changes$ } = await createWith(false);
+      projectionService.getProjection.mockClear();
+
+      changes$.next();
+
+      expect(projectionService.getProjection).toHaveBeenCalledWith('e1', 's1');
+    });
+
+    it('watches the current segment id, not a stale one captured at subscribe time', async () => {
+      const { fixture: f, segmentChanges } = await createWith(false);
+      const [, currentSegmentId] = segmentChanges.watch.mock.calls[0];
+
+      // navigateSegment() reassigns this field directly (see its implementation) —
+      // the closure passed to watch() must read it live, not close over 's1' forever.
+      f.componentInstance.segmentId = 's2';
+
+      expect(currentSegmentId()).toBe('s2');
+    });
+
+    it('does not open a live connection when embedded — the workspace owns that instead', async () => {
+      const { segmentChanges } = await createWith(true);
+
+      expect(segmentChanges.watch).not.toHaveBeenCalled();
+    });
+
+    it('closes the live connection on destroy', async () => {
+      const { fixture: f, changes$ } = await createWith(false);
+
+      f.destroy();
+
+      expect(changes$.observed).toBe(false);
     });
   });
 });
