@@ -17,6 +17,8 @@ import { PullToRefreshComponent } from '../../../../shared/components/pull-to-re
 import { InfiniteScrollDirective } from '../../../../shared/directives/infinite-scroll.directive';
 import { EventCardComponent } from '../event-card/event-card.component';
 import { EventService } from '../../services/event.service';
+import { pollTick } from '../../../../shared/utils/poll-tick.util';
+import { environment } from '../../../../../environments/environment';
 
 const PAGE_SIZE = 50;
 
@@ -56,9 +58,13 @@ export class EventFeedComponent {
   protected readonly isLoadingMore = signal(false);
   private generation = 0;
 
+  /** Refetches page 1 periodically so attendance confirmations made elsewhere show up without a manual reload. */
+  private readonly attendancePoll = pollTick(environment.attendancePollIntervalMs);
+
   protected readonly listResource = rxResource({
-    params: () => ({ timeFilter: this.timeFilter() }),
-    stream: ({ params }) => this.eventService.findAll({ ...params, page: 1, limit: PAGE_SIZE }),
+    params: () => ({ timeFilter: this.timeFilter(), tick: this.attendancePoll() }),
+    stream: ({ params }) =>
+      this.eventService.findAll({ timeFilter: params.timeFilter, page: 1, limit: PAGE_SIZE }),
   });
 
   protected readonly events = computed(() => {

@@ -98,12 +98,18 @@ const makeData = (overrides: Partial<ProjectionSegmentData> = {}): ProjectionSeg
 
 describe('SegmentProjectionComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
-  let projectionService: { getProjection: ReturnType<typeof vi.fn> };
+  let projectionService: {
+    getProjection: ReturnType<typeof vi.fn>;
+    getProjectionVersion: ReturnType<typeof vi.fn>;
+  };
   let router: { navigate: ReturnType<typeof vi.fn> };
   let layoutService: { requestFullscreen: ReturnType<typeof vi.fn>; exitFullscreen: ReturnType<typeof vi.fn> };
 
   async function setup(getProjectionReturn = of(makeData()), personId: string | null = 'p1') {
-    projectionService = { getProjection: vi.fn().mockReturnValue(getProjectionReturn) };
+    projectionService = {
+      getProjection: vi.fn().mockReturnValue(getProjectionReturn),
+      getProjectionVersion: vi.fn().mockReturnValue(of({ updatedAt: null })),
+    };
     router = { navigate: vi.fn() };
     layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
 
@@ -160,7 +166,10 @@ describe('SegmentProjectionComponent', () => {
   });
 
   it('shows a loading state before the projection resolves', async () => {
-    projectionService = { getProjection: vi.fn().mockReturnValue(NEVER) };
+    projectionService = {
+      getProjection: vi.fn().mockReturnValue(NEVER),
+      getProjectionVersion: vi.fn().mockReturnValue(of({ updatedAt: null })),
+    };
     router = { navigate: vi.fn() };
     layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
 

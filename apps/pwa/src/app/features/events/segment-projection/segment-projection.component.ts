@@ -7,6 +7,7 @@ import {
   OnDestroy,
   afterNextRender,
   computed,
+  effect,
   inject,
   input,
   signal,
@@ -22,6 +23,8 @@ import { EmptyStateComponent, InputComponent, ModalComponent } from '@muixer/ui'
 import { ProjectionService } from '../services/projection.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { pollTick } from '../../../shared/utils/poll-tick.util';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-segment-projection',
@@ -92,11 +95,48 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     this.layoutService.exitFullscreen();
   }
 
+  /**
+   * The full projection is expensive to refetch at scale (100+ viewers), so instead of polling it
+   * directly we poll the cheap `/projection/version` endpoint and only bump `refreshTick` — which
+   * triggers the real refetch below — when the segment's latest assignment change actually moves.
+   */
+  private readonly projectionPoll = pollTick(environment.projectionPollIntervalMs);
+  private readonly refreshTick = signal(0);
+  private lastSeenSegmentKey: string | null = null;
+  private lastSeenVersion: string | null = null;
+
+  private readonly versionResource = rxResource<
+    { updatedAt: string | null },
+    { eventId: string; segmentId: string; tick: number }
+  >({
+    params: () => ({ eventId: this.eventId(), segmentId: this.segmentId(), tick: this.projectionPoll() }),
+    stream: ({ params }) =>
+      this.projectionService.getProjectionVersion(params.eventId, params.segmentId),
+  });
+
+  constructor() {
+    effect(() => {
+      const version = this.versionResource.value();
+      if (version === undefined) return;
+
+      const key = `${this.eventId()}:${this.segmentId()}`;
+      if (key !== this.lastSeenSegmentKey) {
+        this.lastSeenSegmentKey = key;
+        this.lastSeenVersion = version.updatedAt;
+        return;
+      }
+      if (version.updatedAt !== this.lastSeenVersion) {
+        this.lastSeenVersion = version.updatedAt;
+        this.refreshTick.update((n) => n + 1);
+      }
+    });
+  }
+
   protected readonly projectionResource = rxResource<
     ProjectionSegmentData,
-    { eventId: string; segmentId: string }
+    { eventId: string; segmentId: string; tick: number }
   >({
-    params: () => ({ eventId: this.eventId(), segmentId: this.segmentId() }),
+    params: () => ({ eventId: this.eventId(), segmentId: this.segmentId(), tick: this.refreshTick() }),
     stream: ({ params }) => this.projectionService.getProjection(params.eventId, params.segmentId),
   });
 

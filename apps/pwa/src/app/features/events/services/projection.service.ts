@@ -14,4 +14,11 @@ export class ProjectionService {
       `${this.baseUrl}/${eventId}/segments/${segmentId}/projection`,
     );
   }
+
+  /** Cheap poll target: fetches only the segment's latest assignment-change timestamp. */
+  getProjectionVersion(eventId: string, segmentId: string): Observable<{ updatedAt: string | null }> {
+    return this.http.get<{ updatedAt: string | null }>(
+      `${this.baseUrl}/${eventId}/segments/${segmentId}/projection/version`,
+    );
+  }
 }
