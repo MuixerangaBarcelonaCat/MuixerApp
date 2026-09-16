@@ -78,8 +78,8 @@
         @for (item of signedUpItems(); track item.person.id) {
           <li data-testid="roll-call-row">
             <lib-card>
-              <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                <span class="font-medium">{{ item.person.alias }}</span>
+              <div class="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
+                <span class="font-medium min-w-0 break-words">{{ item.person.alias }}</span>
                 <lib-button-group>
                   @for (status of statuses; track status) {
                     <lib-button
@@ -106,8 +106,8 @@
           @for (item of notSignedUpItems(); track item.person.id) {
             <li data-testid="roll-call-row">
               <lib-card>
-                <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                  <span class="font-medium">{{ item.person.alias }}</span>
+                <div class="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
+                  <span class="font-medium min-w-0 break-words">{{ item.person.alias }}</span>
                   <lib-button-group>
                     @for (status of statuses; track status) {
                       <lib-button
