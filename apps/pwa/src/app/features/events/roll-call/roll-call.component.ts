@@ -1,8 +1,9 @@
 import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AttendanceStatus } from '@muixer/shared';
+import { AttendanceStatus, MeEventDetail } from '@muixer/shared';
 import { LucideAngularModule, Search, Check, Clock, X, type LucideIconData } from 'lucide-angular';
 import { formatEventDate } from '../../../shared/pipes/format-event-date.pipe';
 import {
@@ -18,6 +19,7 @@ import {
 } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
+import { EventService } from '../services/event.service';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
 
 const SIGNED_UP_STATUSES = [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT];
@@ -86,12 +88,25 @@ export class RollCallComponent {
   ];
 
   private readonly rollCallService = inject(RollCallService);
+  private readonly eventService = inject(EventService);
   private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly eventTitle = this.route.snapshot.queryParamMap.get('title') ?? '';
-  private readonly eventDateParam = this.route.snapshot.queryParamMap.get('date');
-  protected readonly eventDate = this.eventDateParam ? formatEventDate(this.eventDateParam) : '';
+  /**
+   * Fetched directly rather than trusting `title`/`date` query params passed by the caller —
+   * those are only set when arriving from event-detail, so a direct URL or a future entry point
+   * would silently show nothing.
+   */
+  private readonly eventResource = rxResource<MeEventDetail, string>({
+    params: () => this.id(),
+    stream: ({ params }) => this.eventService.findOne(params),
+  });
+  protected readonly eventTitle = computed(() => this.eventResource.value()?.title ?? '');
+  protected readonly eventDate = computed(() => {
+    const date = this.eventResource.value()?.date;
+    return date ? formatEventDate(date) : '';
+  });
+
   private readonly initialStatus = this.route.snapshot.queryParamMap.get('status');
   protected readonly statusFilter = signal<AttendanceStatus | null>(
     this.statuses.includes(this.initialStatus as AttendanceStatus)

@@ -6,6 +6,7 @@ import { AttendanceStatus } from '@muixer/shared';
 import { ToastService } from '@muixer/ui';
 import { RollCallComponent } from './roll-call.component';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
+import { EventService } from '../services/event.service';
 
 describe('RollCallComponent', () => {
   let fixture: ComponentFixture<RollCallComponent>;
@@ -15,6 +16,7 @@ describe('RollCallComponent', () => {
     createAttendance: ReturnType<typeof vi.fn>;
     createProvisionalPerson: ReturnType<typeof vi.fn>;
   };
+  let eventService: { findOne: ReturnType<typeof vi.fn> };
   let toastService: { error: ReturnType<typeof vi.fn> };
 
   const attendanceItems: AttendanceItem[] = [
@@ -30,7 +32,10 @@ describe('RollCallComponent', () => {
     },
   ];
 
-  function setup(queryParams: Record<string, string> = {}): void {
+  function setup(
+    queryParams: Record<string, string> = {},
+    event: { title?: string; date?: string } = { title: 'Assaig setmanal', date: '2026-09-17' },
+  ): void {
     rollCallService = {
       getAttendance: vi.fn().mockReturnValue(
         of({ data: attendanceItems, meta: { total: 2, page: 1, limit: 100 } }),
@@ -39,12 +44,14 @@ describe('RollCallComponent', () => {
       createAttendance: vi.fn(),
       createProvisionalPerson: vi.fn(),
     };
+    eventService = { findOne: vi.fn().mockReturnValue(of(event)) };
     toastService = { error: vi.fn() };
 
     TestBed.configureTestingModule({
       imports: [RollCallComponent],
       providers: [
         { provide: RollCallService, useValue: rollCallService },
+        { provide: EventService, useValue: eventService },
         { provide: ToastService, useValue: toastService },
         {
           provide: ActivatedRoute,
@@ -204,11 +211,14 @@ describe('RollCallComponent', () => {
   });
 
   describe('filters', () => {
-    it('shows the event title and date on the page when provided', () => {
+    it('shows the event title and date on the page, fetched directly (not from query params)', async () => {
       TestBed.resetTestingModule();
-      setup({ title: 'Assaig setmanal', date: '2026-09-17' });
+      setup({}, { title: 'Assaig setmanal', date: '2026-09-17' });
+      await fixture.whenStable();
+      fixture.detectChanges();
       const info = fixture.nativeElement.querySelector('[data-testid="roll-call-event-info"]');
       expect(info.textContent).toContain('Assaig setmanal');
+      expect(eventService.findOne).toHaveBeenCalledWith('event-1');
     });
 
     it('preselects the status filter from the query param', () => {
