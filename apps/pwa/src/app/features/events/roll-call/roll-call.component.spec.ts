@@ -76,10 +76,14 @@ describe('RollCallComponent', () => {
 
   it('renders the status buttons as Ha vingut / Vindrà / No vindrà, in that real-world order', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
-    const labels = Array.from(row.querySelectorAll('lib-button-group button')).map(
-      (b) => (b as HTMLElement).textContent?.trim(),
+    const labels = Array.from(row.querySelectorAll('lib-button-group button')).map((b) =>
+      (b as HTMLElement).getAttribute('aria-label'),
     );
-    expect(labels).toEqual(['Ha vingut', 'Vindrà', 'No vindrà']);
+    expect(labels).toEqual([
+      expect.stringContaining('Ha vingut'),
+      expect.stringContaining('Vindrà'),
+      expect.stringContaining('No vindrà'),
+    ]);
   });
 
   it('calls setStatus when a status button is clicked', () => {
@@ -192,11 +196,11 @@ describe('RollCallComponent', () => {
     expect(rollCallService.createAttendance).not.toHaveBeenCalled();
   });
 
-  it('never truncates the name; the status buttons wrap onto their own line when it does not fit', () => {
+  it('never truncates the name; status buttons are icon-only so the row stays compact', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const nameEl = row.querySelector('span.font-medium');
     expect(nameEl.className).not.toContain('truncate');
-    expect(row.querySelector('div.flex').className).toContain('flex-wrap');
+    expect(row.querySelectorAll('lib-button-group lucide-icon').length).toBe(3);
   });
 
   describe('filters', () => {

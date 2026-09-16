@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
-import { Search } from 'lucide-angular';
+import { LucideAngularModule, Search, Check, Clock, X, type LucideIconData } from 'lucide-angular';
 import { formatEventDate } from '../../../shared/pipes/format-event-date.pipe';
 import {
   ButtonComponent,
@@ -29,6 +29,18 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.ASSISTIT]: 'Ha vingut',
 };
 
+/**
+ * Row action buttons show icons, not text — full labels (filter tabs, aria-label) made
+ * the button group too wide to fit next to a long alias on one line, breaking the
+ * compact look. Icon-only keeps the row compact at any name length.
+ */
+const STATUS_ICONS: Record<AttendanceStatus, LucideIconData> = {
+  [AttendanceStatus.PENDENT]: Clock,
+  [AttendanceStatus.ANIRE]: Clock,
+  [AttendanceStatus.NO_VAIG]: X,
+  [AttendanceStatus.ASSISTIT]: Check,
+};
+
 /** The API always returns a human Catalan message in the body for 4xx errors; fall back only for network/5xx failures. */
 function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof HttpErrorResponse && typeof err.error?.message === 'string') {
@@ -43,6 +55,7 @@ function errorMessage(err: unknown, fallback: string): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
+    LucideAngularModule,
     ButtonComponent,
     ButtonGroupComponent,
     CardComponent,
@@ -144,6 +157,10 @@ export class RollCallComponent {
 
   protected statusLabel(status: AttendanceStatus): string {
     return STATUS_LABELS[status];
+  }
+
+  protected statusIcon(status: AttendanceStatus): LucideIconData {
+    return STATUS_ICONS[status];
   }
 
   protected setActiveFilterTab(id: string): void {
