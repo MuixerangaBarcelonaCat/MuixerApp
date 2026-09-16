@@ -1,6 +1,6 @@
 <app-mobile-header title="Passa llista" [showBack]="true" [fallbackRoute]="'/events/' + id()" />
 
-<div class="p-4 space-y-3">
+<div class="py-4 space-y-3">
   @if (eventTitle() || eventDate()) {
     <div data-testid="roll-call-event-info" class="-mt-1">
       @if (eventTitle()) {
