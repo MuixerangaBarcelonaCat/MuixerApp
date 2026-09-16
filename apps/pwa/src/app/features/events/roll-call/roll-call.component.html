@@ -79,18 +79,18 @@
           <li data-testid="roll-call-row">
             <lib-card>
               <div class="flex items-center justify-between gap-2">
-                <span class="font-medium break-words">{{ item.person.alias }}</span>
+                <span class="font-medium truncate min-w-0 flex-1">{{ item.person.alias }}</span>
                 <lib-button-group>
                   @for (status of statuses; track status) {
                     <lib-button
                       joinItem
-                      size="xs"
+                      size="sm"
                       shape="square"
                       [variant]="item.status === status ? statusVariant(status) : 'neutral'"
                       [active]="item.status === status"
                       [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
                       (clicked)="setStatus(item, status)"
-                    ><lucide-icon [img]="statusIcon(status)" [size]="14" aria-hidden="true" /></lib-button>
+                    ><lucide-icon [img]="statusIcon(status)" [size]="16" aria-hidden="true" /></lib-button>
                   }
                 </lib-button-group>
               </div>
@@ -108,18 +108,18 @@
             <li data-testid="roll-call-row">
               <lib-card>
                 <div class="flex items-center justify-between gap-2">
-                  <span class="font-medium break-words">{{ item.person.alias }}</span>
+                  <span class="font-medium truncate min-w-0 flex-1">{{ item.person.alias }}</span>
                   <lib-button-group>
                     @for (status of statuses; track status) {
                       <lib-button
                         joinItem
-                        size="xs"
+                        size="sm"
                         shape="square"
                         [variant]="item.status === status ? statusVariant(status) : 'neutral'"
                         [active]="item.status === status"
                         [ariaLabel]="statusLabel(status) + ' — ' + item.person.alias"
                         (clicked)="setStatus(item, status)"
-                      ><lucide-icon [img]="statusIcon(status)" [size]="14" aria-hidden="true" /></lib-button>
+                      ><lucide-icon [img]="statusIcon(status)" [size]="16" aria-hidden="true" /></lib-button>
                     }
                   </lib-button-group>
                 </div>

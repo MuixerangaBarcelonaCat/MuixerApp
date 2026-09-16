@@ -196,10 +196,10 @@ describe('RollCallComponent', () => {
     expect(rollCallService.createAttendance).not.toHaveBeenCalled();
   });
 
-  it('never truncates the name; status buttons are icon-only so the row stays compact', () => {
+  it('truncates a name too long to fit, keeping the icon-only status buttons compact', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const nameEl = row.querySelector('span.font-medium');
-    expect(nameEl.className).not.toContain('truncate');
+    expect(nameEl.className).toContain('truncate');
     expect(row.querySelectorAll('lib-button-group lucide-icon').length).toBe(3);
   });
 
