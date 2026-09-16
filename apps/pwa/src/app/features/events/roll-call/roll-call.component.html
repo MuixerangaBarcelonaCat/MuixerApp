@@ -1,6 +1,17 @@
-<app-mobile-header [title]="eventTitle ? 'Passa llista — ' + eventTitle : 'Passa llista'" [showBack]="true" [fallbackRoute]="'/events/' + id()" />
+<app-mobile-header title="Passa llista" [showBack]="true" [fallbackRoute]="'/events/' + id()" />
 
 <div class="p-4 space-y-3">
+  @if (eventTitle || eventDate) {
+    <div data-testid="roll-call-event-info" class="-mt-1">
+      @if (eventTitle) {
+        <p class="font-medium leading-tight">{{ eventTitle }}</p>
+      }
+      @if (eventDate) {
+        <p class="text-xs text-base-content/60">{{ eventDate }}</p>
+      }
+    </div>
+  }
+
   <div class="flex items-center gap-2">
     <div class="flex-1 min-w-0" data-testid="roll-call-search">
       <lib-input [icon]="Search" placeholder="Cerca persona..." [(ngModel)]="searchTerm" />

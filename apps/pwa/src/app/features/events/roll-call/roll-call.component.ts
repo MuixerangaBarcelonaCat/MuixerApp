@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
 import { Search } from 'lucide-angular';
+import { formatEventDate } from '../../../shared/pipes/format-event-date.pipe';
 import {
   ButtonComponent,
   ButtonGroupComponent,
@@ -58,10 +59,10 @@ export class RollCallComponent {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
-  /** Real-world order: sign up, physically arrive, decline last — not alphabetical or enum order. */
+  /** Real-world order requested by user: physically arrived, signed up, declined last. */
   protected readonly statuses = [
-    AttendanceStatus.ANIRE,
     AttendanceStatus.ASSISTIT,
+    AttendanceStatus.ANIRE,
     AttendanceStatus.NO_VAIG,
   ];
 
@@ -76,6 +77,8 @@ export class RollCallComponent {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly eventTitle = this.route.snapshot.queryParamMap.get('title') ?? '';
+  private readonly eventDateParam = this.route.snapshot.queryParamMap.get('date');
+  protected readonly eventDate = this.eventDateParam ? formatEventDate(this.eventDateParam) : '';
   private readonly initialStatus = this.route.snapshot.queryParamMap.get('status');
   protected readonly statusFilter = signal<AttendanceStatus | null>(
     this.statuses.includes(this.initialStatus as AttendanceStatus)

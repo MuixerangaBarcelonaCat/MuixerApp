@@ -74,12 +74,12 @@ describe('RollCallComponent', () => {
     expect(addBtnWrap.className).toContain('shrink-0');
   });
 
-  it('renders the status buttons as Vindrà / Ha vingut / No vindrà, in that real-world order', () => {
+  it('renders the status buttons as Ha vingut / Vindrà / No vindrà, in that real-world order', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const labels = Array.from(row.querySelectorAll('lib-button-group button')).map(
       (b) => (b as HTMLElement).textContent?.trim(),
     );
-    expect(labels).toEqual(['Vindrà', 'Ha vingut', 'No vindrà']);
+    expect(labels).toEqual(['Ha vingut', 'Vindrà', 'No vindrà']);
   });
 
   it('calls setStatus when a status button is clicked', () => {
@@ -88,7 +88,7 @@ describe('RollCallComponent', () => {
     );
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const buttons: HTMLButtonElement[] = row.querySelectorAll('lib-button-group button');
-    buttons[1].click(); // "Ha vingut" is now second
+    buttons[0].click(); // "Ha vingut" is now first
 
     expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-2', {
       status: AttendanceStatus.ASSISTIT,
@@ -200,11 +200,11 @@ describe('RollCallComponent', () => {
   });
 
   describe('filters', () => {
-    it('shows the event title in the header when provided', () => {
+    it('shows the event title and date on the page when provided', () => {
       TestBed.resetTestingModule();
-      setup({ title: 'Assaig setmanal' });
-      const header = fixture.nativeElement.textContent;
-      expect(header).toContain('Assaig setmanal');
+      setup({ title: 'Assaig setmanal', date: '2026-09-17' });
+      const info = fixture.nativeElement.querySelector('[data-testid="roll-call-event-info"]');
+      expect(info.textContent).toContain('Assaig setmanal');
     });
 
     it('preselects the status filter from the query param', () => {
