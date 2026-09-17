@@ -110,8 +110,8 @@ describe('RollCallComponent', () => {
     expect(rollCallService.getAttendance).toHaveBeenCalledWith('event-1', undefined);
     const rows = fixture.nativeElement.querySelectorAll('[data-testid="roll-call-row"]');
     expect(rows.length).toBe(2);
-    expect(fixture.componentInstance['signedUpItems']()).toEqual([attendanceItems[1]]);
-    expect(fixture.componentInstance['notSignedUpItems']()).toEqual([attendanceItems[0]]);
+    expect(fixture.componentInstance['signedUpItems']()).toEqual([{ ...attendanceItems[1], signedUpGroup: true }]);
+    expect(fixture.componentInstance['notSignedUpItems']()).toEqual([{ ...attendanceItems[0], signedUpGroup: false }]);
   });
 
   it('updates an existing attendance record', () => {
@@ -203,10 +203,10 @@ describe('RollCallComponent', () => {
     expect(rollCallService.createAttendance).not.toHaveBeenCalled();
   });
 
-  it('truncates a name too long to fit, keeping the status buttons compact', () => {
+  it('wraps a name too long to fit onto a second line, keeping the status buttons compact', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const nameEl = row.querySelector('span.font-medium');
-    expect(nameEl.className).toContain('truncate');
+    expect(nameEl.className).toContain('line-clamp-2');
     expect(row.querySelectorAll('lib-button-group lib-button').length).toBe(3);
   });
 
@@ -238,7 +238,7 @@ describe('RollCallComponent', () => {
     it('switches the filter tab via setActiveFilterTab', () => {
       fixture.componentInstance['setActiveFilterTab'](AttendanceStatus.ANIRE);
       fixture.detectChanges();
-      expect(fixture.componentInstance['signedUpItems']()).toEqual([attendanceItems[1]]);
+      expect(fixture.componentInstance['signedUpItems']()).toEqual([{ ...attendanceItems[1], signedUpGroup: true }]);
       expect(fixture.componentInstance['notSignedUpItems']()).toEqual([]);
     });
   });

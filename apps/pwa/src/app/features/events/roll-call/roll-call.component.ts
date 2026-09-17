@@ -24,6 +24,10 @@ import { RollCallService, AttendanceItem } from '../services/roll-call.service';
 
 const SIGNED_UP_STATUSES = [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT];
 
+// ponytail: group membership frozen at load so changing status mid-session doesn't visually
+// yank the row to the other list (feels like an error); recomputed on next `load()` (page revisit)
+type RollCallRow = AttendanceItem & { signedUpGroup: boolean };
+
 const STATUS_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.PENDENT]: 'Pendent',
   [AttendanceStatus.ANIRE]: 'Vindrà',
@@ -103,7 +107,7 @@ export class RollCallComponent {
   protected readonly activeFilterTab = computed(() => this.statusFilter() ?? RollCallComponent.ALL_TAB_ID);
 
   protected readonly searchTerm = signal('');
-  protected readonly items = signal<AttendanceItem[]>([]);
+  protected readonly items = signal<RollCallRow[]>([]);
   protected readonly isLoading = signal(true);
   protected readonly hasError = signal(false);
 
@@ -127,10 +131,10 @@ export class RollCallComponent {
   };
 
   protected readonly signedUpItems = computed(() =>
-    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.matchesFilters(item)),
+    this.items().filter((item) => item.signedUpGroup && this.matchesFilters(item)),
   );
   protected readonly notSignedUpItems = computed(() =>
-    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.matchesFilters(item)),
+    this.items().filter((item) => !item.signedUpGroup && this.matchesFilters(item)),
   );
   protected readonly hasNoResults = computed(
     () => this.signedUpItems().length === 0 && this.notSignedUpItems().length === 0,
@@ -147,7 +151,9 @@ export class RollCallComponent {
     this.hasError.set(false);
     this.rollCallService.getAttendance(this.id(), undefined).subscribe({
       next: (response) => {
-        this.items.set(response.data);
+        this.items.set(
+          response.data.map((item) => ({ ...item, signedUpGroup: SIGNED_UP_STATUSES.includes(item.status) })),
+        );
         this.isLoading.set(false);
       },
       error: () => {
@@ -226,7 +232,7 @@ export class RollCallComponent {
           next: (response) => {
             this.items.update((current) => [
               ...current,
-              { id: response.attendance.id, status: response.attendance.status, person },
+              { id: response.attendance.id, status: response.attendance.status, person, signedUpGroup: true },
             ]);
             this.isCreatingProvisional.set(false);
             this.showAddProvisional.set(false);
