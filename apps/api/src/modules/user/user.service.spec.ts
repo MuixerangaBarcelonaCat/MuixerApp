@@ -66,6 +66,7 @@ describe('UserService', () => {
     userQb = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -183,7 +184,8 @@ describe('UserService', () => {
 
     it('sorts by email ASC', async () => {
       await service.findAll({ sortBy: 'email', sortOrder: 'ASC' });
-      expect(userQb.orderBy).toHaveBeenCalledWith('unaccent(lower(user.email))', 'ASC');
+      expect(userQb.addSelect).toHaveBeenCalledWith('unaccent(lower(user.email))', 'sort_column');
+      expect(userQb.orderBy).toHaveBeenCalledWith('sort_column', 'ASC');
     });
 
     it('sorts by role DESC', async () => {
@@ -203,7 +205,8 @@ describe('UserService', () => {
 
     it('sorts by alias using the person join alias, not a three-segment path', async () => {
       await service.findAll({ sortBy: 'alias', sortOrder: 'ASC' });
-      expect(userQb.orderBy).toHaveBeenCalledWith('unaccent(lower(person.alias))', 'ASC');
+      expect(userQb.addSelect).toHaveBeenCalledWith('unaccent(lower(person.alias))', 'sort_column');
+      expect(userQb.orderBy).toHaveBeenCalledWith('sort_column', 'ASC');
     });
 
     it('applies pagination — skip and take', async () => {

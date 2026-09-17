@@ -144,8 +144,18 @@ export class PersonService {
       queryBuilder.addSelect(ATTENDED_COUNT_EXPRESSION, 'attended_count');
     }
 
+    // Un `orderBy` amb una expressió crua (p. ex. `unaccent(lower(...))`) conté parèntesis:
+    // TypeORM, en combinar-lo amb el `SELECT` de paginació (skip/take + joins), l'interpreta
+    // com "alias.columna" i trenca. Seleccionar-lo com a columna amb àlies i ordenar per
+    // l'àlies evita el problema (mateix truc que `attendedCount` un poc més amunt).
+    let orderByTarget = orderColumn;
+    if (orderColumn.includes('(')) {
+      orderByTarget = 'sort_column';
+      queryBuilder.addSelect(orderColumn, orderByTarget);
+    }
+
     const data = await queryBuilder
-      .orderBy(orderColumn, orderDirection)
+      .orderBy(orderByTarget, orderDirection)
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();

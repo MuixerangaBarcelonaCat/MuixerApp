@@ -86,7 +86,8 @@ export class CompositionService {
       .leftJoinAndSelect('composition.entries', 'entries')
       .leftJoin('entries.figureTemplate', 'entryTemplate')
       .addSelect(['entryTemplate.id'])
-      .orderBy('unaccent(lower(composition.name))', 'ASC')
+      .addSelect('unaccent(lower(composition.name))', 'sort_column')
+      .orderBy('sort_column', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
 
