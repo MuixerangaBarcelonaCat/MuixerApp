@@ -1,10 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { AttendanceStatus } from '@muixer/shared';
 import { ToastService } from '@muixer/ui';
 import { RollCallComponent } from './roll-call.component';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
+import { EventService } from '../services/event.service';
 
 describe('RollCallComponent', () => {
   let fixture: ComponentFixture<RollCallComponent>;
@@ -14,22 +16,26 @@ describe('RollCallComponent', () => {
     createAttendance: ReturnType<typeof vi.fn>;
     createProvisionalPerson: ReturnType<typeof vi.fn>;
   };
+  let eventService: { findOne: ReturnType<typeof vi.fn> };
   let toastService: { error: ReturnType<typeof vi.fn> };
 
   const attendanceItems: AttendanceItem[] = [
     {
       id: 'att-1',
       status: AttendanceStatus.PENDENT,
-      person: { id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig' },
+      person: { id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig', isXicalla: false },
     },
     {
       id: 'att-2',
       status: AttendanceStatus.ANIRE,
-      person: { id: 'person-2', alias: 'Jordi', name: 'Jordi', firstSurname: 'Ferrer' },
+      person: { id: 'person-2', alias: 'Jordi', name: 'Jordi', firstSurname: 'Ferrer', isXicalla: true },
     },
   ];
 
-  beforeEach(async () => {
+  function setup(
+    queryParams: Record<string, string> = {},
+    event: { title?: string; date?: string } = { title: 'Assaig setmanal', date: '2026-09-17' },
+  ): void {
     rollCallService = {
       getAttendance: vi.fn().mockReturnValue(
         of({ data: attendanceItems, meta: { total: 2, page: 1, limit: 100 } }),
@@ -38,20 +44,28 @@ describe('RollCallComponent', () => {
       createAttendance: vi.fn(),
       createProvisionalPerson: vi.fn(),
     };
+    eventService = { findOne: vi.fn().mockReturnValue(of(event)) };
     toastService = { error: vi.fn() };
 
-    await TestBed.configureTestingModule({
+    TestBed.configureTestingModule({
       imports: [RollCallComponent],
       providers: [
         { provide: RollCallService, useValue: rollCallService },
+        { provide: EventService, useValue: eventService },
         { provide: ToastService, useValue: toastService },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap(queryParams) } },
+        },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(RollCallComponent);
     fixture.componentRef.setInput('id', 'event-1');
     fixture.detectChanges();
-  });
+  }
+
+  beforeEach(() => setup());
 
   it('labels the add-person button "+ Persona nova"', () => {
     const addBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
@@ -67,12 +81,16 @@ describe('RollCallComponent', () => {
     expect(addBtnWrap.className).toContain('shrink-0');
   });
 
-  it('renders the status buttons as Ha vingut / Vindrà / No vindrà, in that order', () => {
+  it('renders the status buttons as Ha vingut / Vindrà / No vindrà, in that real-world order', () => {
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
-    const labels = Array.from(row.querySelectorAll('lib-button-group button')).map(
-      (b) => (b as HTMLElement).textContent?.trim(),
+    const labels = Array.from(row.querySelectorAll('lib-button-group button')).map((b) =>
+      (b as HTMLElement).getAttribute('aria-label'),
     );
-    expect(labels).toEqual(['Ha vingut', 'Vindrà', 'No vindrà']);
+    expect(labels).toEqual([
+      expect.stringContaining('Ha vingut'),
+      expect.stringContaining('Vindrà'),
+      expect.stringContaining('No vindrà'),
+    ]);
   });
 
   it('calls setStatus when a status button is clicked', () => {
@@ -81,7 +99,7 @@ describe('RollCallComponent', () => {
     );
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const buttons: HTMLButtonElement[] = row.querySelectorAll('lib-button-group button');
-    buttons[0].click(); // "Ha vingut" is first now
+    buttons[0].click(); // "Ha vingut" is now first
 
     expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-2', {
       status: AttendanceStatus.ASSISTIT,
@@ -156,7 +174,7 @@ describe('RollCallComponent', () => {
   });
 
   it('creates a provisional person and marks them ASSISTIT', () => {
-    const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu', firstSurname: '' };
+    const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu', firstSurname: '', isXicalla: false };
     rollCallService.createProvisionalPerson.mockReturnValue(of(newPerson));
     rollCallService.createAttendance.mockReturnValue(
       of({ attendance: { id: 'att-3', status: AttendanceStatus.ASSISTIT }, summary: {} }),
@@ -183,5 +201,45 @@ describe('RollCallComponent', () => {
 
     expect(toastService.error).toHaveBeenCalledWith('Ja existeix una persona provisional amb l\'àlies "Pepelu"');
     expect(rollCallService.createAttendance).not.toHaveBeenCalled();
+  });
+
+  it('truncates a name too long to fit, keeping the status buttons compact', () => {
+    const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
+    const nameEl = row.querySelector('span.font-medium');
+    expect(nameEl.className).toContain('truncate');
+    expect(row.querySelectorAll('lib-button-group lib-button').length).toBe(3);
+  });
+
+  describe('filters', () => {
+    it('shows the event title and date on the page, fetched directly (not from query params)', async () => {
+      TestBed.resetTestingModule();
+      setup({}, { title: 'Assaig setmanal', date: '2026-09-17' });
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const info = fixture.nativeElement.querySelector('[data-testid="roll-call-event-info"]');
+      expect(info.textContent).toContain('Assaig setmanal');
+      expect(eventService.findOne).toHaveBeenCalledWith('event-1');
+    });
+
+    it('preselects the status filter from the query param', () => {
+      TestBed.resetTestingModule();
+      setup({ status: AttendanceStatus.ANIRE });
+      expect(fixture.componentInstance['statusFilter']()).toBe(AttendanceStatus.ANIRE);
+      const rows = fixture.nativeElement.querySelectorAll('[data-testid="roll-call-row"]');
+      expect(rows.length).toBe(1);
+    });
+
+    it('ignores PENDENT as a query-param filter (not a selectable tab, already its own muted section)', () => {
+      TestBed.resetTestingModule();
+      setup({ status: AttendanceStatus.PENDENT });
+      expect(fixture.componentInstance['statusFilter']()).toBeNull();
+    });
+
+    it('switches the filter tab via setActiveFilterTab', () => {
+      fixture.componentInstance['setActiveFilterTab'](AttendanceStatus.ANIRE);
+      fixture.detectChanges();
+      expect(fixture.componentInstance['signedUpItems']()).toEqual([attendanceItems[1]]);
+      expect(fixture.componentInstance['notSignedUpItems']()).toEqual([]);
+    });
   });
 });

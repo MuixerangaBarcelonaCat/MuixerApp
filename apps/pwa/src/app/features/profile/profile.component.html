@@ -35,12 +35,11 @@
     </div>
 
     <div class="grid grid-cols-3 gap-2">
-      <!-- Placeholder tiles — real stats are deferred (see implementation plan §5). -->
-      @for (label of statPlaceholders; track label) {
-        <lib-card data-testid="profile-stat-placeholder">
+      @for (tile of statTiles(personSummary); track tile.label) {
+        <lib-card data-testid="profile-stat-tile">
           <div class="flex flex-col items-center gap-1">
-            <span class="text-lg font-semibold text-base-content/40">—</span>
-            <span class="text-xs text-base-content/60">{{ label }}</span>
+            <span class="text-lg font-semibold">{{ tile.value }}</span>
+            <span class="text-xs text-base-content/60">{{ tile.label }}</span>
           </div>
         </lib-card>
       }

@@ -12,6 +12,7 @@ export interface AttendanceItem {
     alias: string;
     name: string;
     firstSurname: string;
+    isXicalla: boolean;
   };
 }
 
@@ -25,6 +26,7 @@ export interface ProvisionalPerson {
   alias: string;
   name: string;
   firstSurname: string;
+  isXicalla: boolean;
 }
 
 @Injectable({ providedIn: 'root' })

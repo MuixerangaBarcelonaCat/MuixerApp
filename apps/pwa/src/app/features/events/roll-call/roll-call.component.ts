@@ -1,8 +1,11 @@
 import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AttendanceStatus } from '@muixer/shared';
+import { AttendanceStatus, MeEventDetail } from '@muixer/shared';
 import { Search } from 'lucide-angular';
+import { formatEventDate } from '../../../shared/pipes/format-event-date.pipe';
 import {
   ButtonComponent,
   ButtonGroupComponent,
@@ -10,10 +13,13 @@ import {
   EmptyStateComponent,
   InputComponent,
   ModalComponent,
+  TabsComponent,
+  TabDef,
   ToastService,
 } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
+import { EventService } from '../services/event.service';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
 
 const SIGNED_UP_STATUSES = [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT];
@@ -44,6 +50,7 @@ function errorMessage(err: unknown, fallback: string): string {
     CardComponent,
     InputComponent,
     ModalComponent,
+    TabsComponent,
     MobileHeaderComponent,
     SkeletonCardComponent,
     EmptyStateComponent,
@@ -54,14 +61,46 @@ export class RollCallComponent {
   readonly id = input.required<string>();
 
   protected readonly Search = Search;
+  /** Real-world order requested by user: physically arrived, signed up, declined last. */
   protected readonly statuses = [
     AttendanceStatus.ASSISTIT,
     AttendanceStatus.ANIRE,
     AttendanceStatus.NO_VAIG,
   ];
 
+  private static readonly ALL_TAB_ID = 'all';
+  protected readonly filterTabs: TabDef[] = [
+    { id: RollCallComponent.ALL_TAB_ID, label: 'Tots' },
+    ...this.statuses.map((status) => ({ id: status, label: STATUS_LABELS[status] })),
+  ];
+
   private readonly rollCallService = inject(RollCallService);
+  private readonly eventService = inject(EventService);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+
+  /**
+   * Fetched directly rather than trusting `title`/`date` query params passed by the caller —
+   * those are only set when arriving from event-detail, so a direct URL or a future entry point
+   * would silently show nothing.
+   */
+  private readonly eventResource = rxResource<MeEventDetail, string>({
+    params: () => this.id(),
+    stream: ({ params }) => this.eventService.findOne(params),
+  });
+  protected readonly eventTitle = computed(() => this.eventResource.value()?.title ?? '');
+  protected readonly eventDate = computed(() => {
+    const date = this.eventResource.value()?.date;
+    return date ? formatEventDate(date) : '';
+  });
+
+  private readonly initialStatus = this.route.snapshot.queryParamMap.get('status');
+  protected readonly statusFilter = signal<AttendanceStatus | null>(
+    this.statuses.includes(this.initialStatus as AttendanceStatus)
+      ? (this.initialStatus as AttendanceStatus)
+      : null,
+  );
+  protected readonly activeFilterTab = computed(() => this.statusFilter() ?? RollCallComponent.ALL_TAB_ID);
 
   protected readonly searchTerm = signal('');
   protected readonly items = signal<AttendanceItem[]>([]);
@@ -81,11 +120,17 @@ export class RollCallComponent {
       .includes(term);
   };
 
+  private readonly matchesFilters = (item: AttendanceItem): boolean => {
+    const status = this.statusFilter();
+    if (status && item.status !== status) return false;
+    return this.matchesSearch(item);
+  };
+
   protected readonly signedUpItems = computed(() =>
-    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+    this.items().filter((item) => SIGNED_UP_STATUSES.includes(item.status) && this.matchesFilters(item)),
   );
   protected readonly notSignedUpItems = computed(() =>
-    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.matchesSearch(item)),
+    this.items().filter((item) => !SIGNED_UP_STATUSES.includes(item.status) && this.matchesFilters(item)),
   );
   protected readonly hasNoResults = computed(
     () => this.signedUpItems().length === 0 && this.notSignedUpItems().length === 0,
@@ -114,6 +159,10 @@ export class RollCallComponent {
 
   protected statusLabel(status: AttendanceStatus): string {
     return STATUS_LABELS[status];
+  }
+
+  protected setActiveFilterTab(id: string): void {
+    this.statusFilter.set(id === RollCallComponent.ALL_TAB_ID ? null : (id as AttendanceStatus));
   }
 
   protected statusVariant(status: AttendanceStatus): 'success' | 'error' | 'warning' | 'neutral' {
