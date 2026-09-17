@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { DataSource } from 'typeorm';
 import { EventType, AttendanceStatus } from '@muixer/shared';
 import { AttendanceService } from './attendance.service';
@@ -31,6 +32,7 @@ describe('AttendanceService summary race (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: SegmentChangeEmitter, useValue: { emitChange: jest.fn() } },
         AttendanceService,
         ...realRepositoryProviders(db.dataSource, [Attendance, Event, Person]),
         { provide: DataSource, useValue: db.dataSource },

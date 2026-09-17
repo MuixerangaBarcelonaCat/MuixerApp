@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { BadRequestException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { DelegateType, UserRole } from '@muixer/shared';
@@ -45,6 +46,7 @@ describe('MeService pending dependents (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: SegmentChangeEmitter, useValue: { emitChange: jest.fn() } },
         MeService,
         SeasonService,
         AttendanceService,

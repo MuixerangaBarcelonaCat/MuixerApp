@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { DataSource } from 'typeorm';
 import { EventType, FigureZone, NodeShape } from '@muixer/shared';
 import { FigureInstanceService } from './figure-instance.service';
@@ -41,6 +42,7 @@ describe('Distribució ↔ Previsualitza node-set equivalence (integration)', ()
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: SegmentChangeEmitter, useValue: { emitChange: jest.fn() } },
         FigureInstanceService,
         EventSegmentService,
         NodeAssignmentService,
