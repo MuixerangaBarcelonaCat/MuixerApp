@@ -2,31 +2,25 @@
 
 <div class="flex items-center justify-between gap-2 mb-4">
   @if (viewMode() === 'list') {
-    <div class="min-w-0" data-testid="event-list-type-filters">
-      <lib-button-group>
-        <lib-button
-          joinItem
-          size="xs"
-          variant="primary"
-          [active]="showActuacions()"
-          [ariaPressed]="showActuacions()"
-          ariaLabel="Mostra actuacions"
-          (clicked)="toggleActuacions()"
-        >
-          Actuacions
-        </lib-button>
-        <lib-button
-          joinItem
-          size="xs"
-          variant="primary"
-          [active]="showAssajos()"
-          [ariaPressed]="showAssajos()"
-          ariaLabel="Mostra assajos"
-          (clicked)="toggleAssajos()"
-        >
-          Assajos
-        </lib-button>
-      </lib-button-group>
+    <div class="flex items-center gap-1.5 min-w-0" data-testid="event-list-type-filters">
+      <lib-button
+        size="xs"
+        [variant]="showActuacions() ? 'primary' : 'neutral'"
+        [ariaPressed]="showActuacions()"
+        ariaLabel="Mostra actuacions"
+        (clicked)="toggleActuacions()"
+      >
+        Actuacions
+      </lib-button>
+      <lib-button
+        size="xs"
+        [variant]="showAssajos() ? 'primary' : 'neutral'"
+        [ariaPressed]="showAssajos()"
+        ariaLabel="Mostra assajos"
+        (clicked)="toggleAssajos()"
+      >
+        Assajos
+      </lib-button>
     </div>
   }
 
