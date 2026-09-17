@@ -122,17 +122,27 @@ describe('EventListComponent', () => {
     expect(link.textContent).toContain('Passats');
   });
 
-  it('offers Tots/Actuacions/Assajos type-filter tabs, defaulting to Tots', () => {
-    const tabs: HTMLElement[] = fixture.nativeElement.querySelectorAll('[role="tab"]');
-    expect(Array.from(tabs).map((t) => t.textContent?.trim())).toEqual(['Tots', 'Actuacions', 'Assajos']);
-    expect(fixture.nativeElement.querySelector('[aria-selected="true"]').textContent.trim()).toBe('Tots');
+  it('offers Actuacions/Assajos toggle chips, both on by default (no filter)', () => {
+    const wrap = fixture.nativeElement.querySelector('[data-testid="event-list-type-filters"]');
+    const labels = Array.from<HTMLElement>(wrap.querySelectorAll('button')).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(['Actuacions', 'Assajos']);
+    const feed = fixture.debugElement.query(By.css('app-event-feed'));
+    expect(feed.componentInstance.eventType()).toBeNull();
   });
 
-  it('switches the feed eventType when a type tab is picked', () => {
-    component['setActiveTypeTab'](EventType.ACTUACIO);
+  it('filters the feed to one type when only that chip is left on', () => {
+    component['toggleAssajos'](); // turn off Assajos, leaving only Actuacions on
     fixture.detectChanges();
     const feed = fixture.debugElement.query(By.css('app-event-feed'));
     expect(feed.componentInstance.eventType()).toBe(EventType.ACTUACIO);
+  });
+
+  it('shows everything again when both chips are toggled off', () => {
+    component['toggleActuacions']();
+    component['toggleAssajos']();
+    fixture.detectChanges();
+    const feed = fixture.debugElement.query(By.css('app-event-feed'));
+    expect(feed.componentInstance.eventType()).toBeNull();
   });
 
   it('should hide the Passats link in calendar view — those events are already visible there', async () => {

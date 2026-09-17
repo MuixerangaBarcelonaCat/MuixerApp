@@ -11,7 +11,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { AttendanceStatus, EventType, MeEvent, PaginatedResponse } from '@muixer/shared';
 import { LucideAngularModule, CalendarDays, List, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
-import { ButtonComponent, EmptyStateComponent, TabsComponent, TabDef } from '@muixer/ui';
+import { ButtonComponent, EmptyStateComponent } from '@muixer/ui';
 import { PullToRefreshComponent } from '../../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { EventCardComponent } from '../components/event-card/event-card.component';
 import { CalendarViewComponent } from '../components/calendar-view/calendar-view.component';
@@ -33,7 +33,6 @@ type ViewMode = 'list' | 'calendar';
     EventCardComponent,
     CalendarViewComponent,
     EventFeedComponent,
-    TabsComponent,
   ],
   templateUrl: './event-list.component.html',
 })
@@ -45,14 +44,22 @@ export class EventListComponent {
   protected readonly ListIcon = List;
   protected readonly ChevronRightIcon = ChevronRight;
 
-  private static readonly ALL_TAB_ID = 'all';
-  protected readonly typeFilterTabs: TabDef[] = [
-    { id: EventListComponent.ALL_TAB_ID, label: 'Tots' },
-    { id: EventType.ACTUACIO, label: 'Actuacions' },
-    { id: EventType.ASSAIG, label: 'Assajos' },
-  ];
-  protected readonly typeFilter = signal<EventType | null>(null);
-  protected readonly activeTypeTab = computed(() => this.typeFilter() ?? EventListComponent.ALL_TAB_ID);
+  // Both on (or both off) means no filter — showing everything either way is the same result,
+  // so there's no separate "Tots" chip to keep in sync.
+  protected readonly showActuacions = signal(true);
+  protected readonly showAssajos = signal(true);
+  protected readonly typeFilter = computed<EventType | null>(() => {
+    if (this.showActuacions() === this.showAssajos()) return null;
+    return this.showActuacions() ? EventType.ACTUACIO : EventType.ASSAIG;
+  });
+
+  toggleActuacions(): void {
+    this.showActuacions.update((v) => !v);
+  }
+
+  toggleAssajos(): void {
+    this.showAssajos.update((v) => !v);
+  }
 
   protected readonly viewMode = signal<ViewMode>('list');
   protected readonly selectedDate = signal<string | null>(null);
@@ -86,10 +93,6 @@ export class EventListComponent {
         this.calendarPullToRefresh()?.complete();
       }
     });
-  }
-
-  setActiveTypeTab(id: string): void {
-    this.typeFilter.set(id === EventListComponent.ALL_TAB_ID ? null : (id as EventType));
   }
 
   toggleView(): void {
