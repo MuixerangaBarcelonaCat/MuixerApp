@@ -46,8 +46,8 @@ export class EventListComponent {
 
   // Both on (or both off) means no filter — showing everything either way is the same result,
   // so there's no separate "Tots" chip to keep in sync.
-  protected readonly showActuacions = signal(true);
-  protected readonly showAssajos = signal(true);
+  protected readonly showActuacions = signal(false);
+  protected readonly showAssajos = signal(false);
   protected readonly typeFilter = computed<EventType | null>(() => {
     if (this.showActuacions() === this.showAssajos()) return null;
     return this.showActuacions() ? EventType.ACTUACIO : EventType.ASSAIG;

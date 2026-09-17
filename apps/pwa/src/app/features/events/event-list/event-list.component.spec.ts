@@ -122,7 +122,7 @@ describe('EventListComponent', () => {
     expect(link.textContent).toContain('Passats');
   });
 
-  it('offers Actuacions/Assajos toggle chips, both on by default (no filter)', () => {
+  it('offers Actuacions/Assajos toggle chips, both off by default (no filter)', () => {
     const wrap = fixture.nativeElement.querySelector('[data-testid="event-list-type-filters"]');
     const labels = Array.from<HTMLElement>(wrap.querySelectorAll('button')).map((b) => b.textContent?.trim());
     expect(labels).toEqual(['Actuacions', 'Assajos']);
@@ -130,14 +130,14 @@ describe('EventListComponent', () => {
     expect(feed.componentInstance.eventType()).toBeNull();
   });
 
-  it('filters the feed to one type when only that chip is left on', () => {
-    component['toggleAssajos'](); // turn off Assajos, leaving only Actuacions on
+  it('filters the feed to one type when only that chip is turned on', () => {
+    component['toggleActuacions'](); // turn on Actuacions, leaving Assajos off
     fixture.detectChanges();
     const feed = fixture.debugElement.query(By.css('app-event-feed'));
     expect(feed.componentInstance.eventType()).toBe(EventType.ACTUACIO);
   });
 
-  it('shows everything again when both chips are toggled off', () => {
+  it('shows everything again when both chips are toggled on', () => {
     component['toggleActuacions']();
     component['toggleAssajos']();
     fixture.detectChanges();
