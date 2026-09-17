@@ -56,10 +56,12 @@ import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } f
         >No vinc</lib-button>
       </lib-button-group>
       @if (displayStatus() === ASSISTIT) {
-        <span class="badge badge-info badge-sm gap-1 py-3">
-          <lucide-angular [img]="Check" class="size-3" />
-          He assistit
-        </span>
+        <lib-badge variant="info" size="sm">
+          <span class="inline-flex items-center gap-1">
+            <lucide-icon [img]="Check" [size]="12" aria-hidden="true" />
+            He assistit
+          </span>
+        </lib-badge>
       }
       </div>
     }

@@ -410,6 +410,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     targetPosition: { x: number; y: number };
   }>();
   readonly canvasClicked = output<{ x: number; y: number }>();
+  /**
+   * Whether anything on this canvas is currently mid-drag — a node, a slot, a
+   * tronc panel, or any other draggable shape added later, since this is one
+   * stage-level listener rather than one per node type (touching each of the
+   * ~7 `dragstart`/`dragend` handler pairs elsewhere in this file would be more
+   * churn and silently incomplete for the next one added). A host uses this to
+   * defer a disruptive UI action (e.g. a live-update refresh) until the user's
+   * in-progress drag is no longer at risk of being clobbered.
+   */
+  readonly interactionActive = output<boolean>();
   readonly adHocNodeMoved = output<{
     nodeId: string;
     x: number;
@@ -822,6 +832,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private setupStageInteraction(): void {
+    // A single stage-level listener catches every draggable shape's drag lifecycle
+    // (node, slot, tronc panel, ...) via Konva's normal event bubbling, rather than
+    // one handler per shape type.
+    this.stage.on('dragstart', () => this.interactionActive.emit(true));
+    this.stage.on('dragend', () => this.interactionActive.emit(false));
+
     // Pan with middle mouse button or left click when no node selected
     let isPanning = false;
     let panStart = { x: 0, y: 0 };

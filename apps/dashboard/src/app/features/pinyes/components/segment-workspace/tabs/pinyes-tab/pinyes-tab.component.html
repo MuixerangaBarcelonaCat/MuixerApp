@@ -57,6 +57,7 @@
       [isPast]="isPast()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
       (segmentNodeDropped)="onNodeDropped($event.source, $event.target)"
+      (interactionActive)="ws.localInteractionActive.set($event)"
     />
   </div>
 

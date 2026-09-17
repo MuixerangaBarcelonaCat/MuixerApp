@@ -1,8 +1,10 @@
 import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Subscription } from 'rxjs';
 import {
   FigureZone,
-  isNodeVisibleByCordons,
+  FigureDataChangedEvent,
+  isNodeVisibleByModeAndCordons,
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
 } from '@muixer/shared';
@@ -10,8 +12,15 @@ import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService, LockStatus } from './node-assignment.service';
+import { SegmentChangesService } from './segment-changes.service';
+import { PendingMutationsService } from './pending-mutations.service';
+import { ClientIdService } from '../../../core/services/client-id.service';
 import { ToastService } from '@muixer/ui';
 import { DistributionItem } from '../models/distribution.model';
+
+/** Grace delay after local interaction/mutations clear before a deferred remote change is
+ *  auto-applied — long enough that two quick consecutive drags don't each trigger a refetch. */
+const AUTO_APPLY_GRACE_MS = 800;
 
 export interface WorkspaceInstance {
   instanceId: string;
@@ -35,12 +44,29 @@ export interface WorkspaceInstance {
  * Provided by SegmentWorkspaceComponent — one instance per workspace.
  */
 @Injectable()
-export class SegmentWorkspaceStateService {
+export class SegmentWorkspaceStateService implements OnDestroy {
   private readonly segmentService = inject(EventSegmentService);
   private readonly distributionService = inject(SegmentDistributionService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
+  private readonly segmentChanges = inject(SegmentChangesService);
+  private readonly pendingMutationsService = inject(PendingMutationsService);
+  private readonly clientId = inject(ClientIdService);
   readonly state = inject(AssignmentStateService);
+
+  /** True while anything on the canvas (a node, slot, tronc panel, ...) is mid-drag — set by
+   *  whichever tab currently embeds `<app-figure-canvas>`. Gates a live-push refresh so it
+   *  never clobbers an in-progress gesture. */
+  readonly localInteractionActive = signal(false);
+  /** How many pinyes-mutation requests this tab has in flight (tracked app-wide by
+   *  `pendingMutationsInterceptor`) — the other half of the same gating decision. */
+  readonly pendingMutations = this.pendingMutationsService.count;
+  /** A remote change arrived while busy and was deferred — surfaced as a banner
+   *  (`applyPendingRemoteChange()` on click) rather than silently dropped. */
+  readonly pendingRemoteChange = signal(false);
+
+  private liveChanges: Subscription | null = null;
+  private liveChangesEventId: string | null = null;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -225,7 +251,69 @@ export class SegmentWorkspaceStateService {
     return value;
   }
 
+  constructor() {
+    // Auto-applies a deferred remote change once the user is no longer busy — re-running
+    // whenever localInteractionActive/pendingMutations/pendingRemoteChange changes. Angular
+    // calls the previous cleanup before each re-run, so resuming interaction before the grace
+    // delay elapses cancels the pending auto-apply for free.
+    effect((onCleanup) => {
+      const busy = this.localInteractionActive() || this.pendingMutations() > 0;
+      if (busy || !this.pendingRemoteChange()) return;
+
+      const timer = setTimeout(() => this.applyPendingRemoteChange(), AUTO_APPLY_GRACE_MS);
+      onCleanup(() => clearTimeout(timer));
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.disconnectLive();
+  }
+
+  /** Idempotent per event: a segment switch within the same event (the common case — `load()`
+   *  is re-invoked on every route param change) reuses the existing connection, since
+   *  `SegmentChangesService.watch()` already reads `segmentId()` live via a closure. */
+  private connectLive(eventId: string): void {
+    if (this.liveChangesEventId === eventId && this.liveChanges) return;
+    this.disconnectLive();
+    this.liveChangesEventId = eventId;
+    this.liveChanges = this.segmentChanges
+      .watch(eventId, () => this.segmentId())
+      .subscribe((event) => this.handleLiveChange(event));
+  }
+
+  private disconnectLive(): void {
+    this.liveChanges?.unsubscribe();
+    this.liveChanges = null;
+    this.liveChangesEventId = null;
+  }
+
+  private handleLiveChange(event: FigureDataChangedEvent | null): void {
+    const isOwnEcho = event?.originClientId === this.clientId.id;
+    const busy = this.localInteractionActive() || this.pendingMutations() > 0;
+
+    if (!isOwnEcho && busy) {
+      this.pendingRemoteChange.set(true);
+      return;
+    }
+
+    this.applyRemoteChange();
+  }
+
+  private applyRemoteChange(): void {
+    this.pendingRemoteChange.set(false);
+    this.refresh();
+    for (const instance of this.instances()) {
+      this.refreshInstance(instance.instanceId);
+    }
+  }
+
+  /** Bound to the live-update banner's "Actualitza" button. */
+  applyPendingRemoteChange(): void {
+    this.applyRemoteChange();
+  }
+
   load(eventId: string, segmentId: string): void {
+    this.connectLive(eventId);
     this.eventId.set(eventId);
     this.segmentId.set(segmentId);
     this.loading.set(true);
@@ -367,7 +455,7 @@ export class SegmentWorkspaceStateService {
             const totalCount = resp.data.filter(
               (n) =>
                 n.zone !== FigureZone.DECORATION &&
-                isNodeVisibleByCordons(n, {
+                isNodeVisibleByModeAndCordons(n, {
                   figureMode: i.figureMode,
                   numberOfCordons: i.numberOfCordons,
                   cordonsObertsEnabled: i.cordonsObertsEnabled,
@@ -439,13 +527,15 @@ export class SegmentWorkspaceStateService {
 
   /** PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas. */
   private pinyaCanvasNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
-    const hidePinya = instance.figureMode === 'REMAT' || instance.figureMode === 'NETA';
-    const hideBase = instance.figureMode === 'REMAT';
+    const opts = {
+      figureMode: instance.figureMode,
+      numberOfCordons: instance.numberOfCordons,
+      cordonsObertsEnabled: instance.cordonsObertsEnabled,
+    };
     return this.visibleNodesFor(instance).filter(
       (n) =>
-        (!hidePinya && n.zone === FigureZone.PINYA) ||
-        (!hideBase && n.zone === FigureZone.BASE) ||
-        n.zone === FigureZone.DECORATION,
+        (n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE || n.zone === FigureZone.DECORATION) &&
+        isNodeVisibleByModeAndCordons(n, opts),
     );
   }
 

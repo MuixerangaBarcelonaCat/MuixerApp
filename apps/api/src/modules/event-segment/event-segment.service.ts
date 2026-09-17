@@ -11,7 +11,8 @@ import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
-import { FigureMode, SegmentPeopleCounters } from '@muixer/shared';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
+import { FigureMode, SegmentPeopleCounters, SegmentChangeSource } from '@muixer/shared';
 
 export interface InstanceRef {
   id: string;
@@ -59,6 +60,7 @@ export class EventSegmentService {
     private readonly eventRepository: Repository<Event>,
     private readonly dataSource: DataSource,
     private readonly nodeAssignmentService: NodeAssignmentService,
+    private readonly segmentChanges: SegmentChangeEmitter,
   ) {}
 
   async findAllByEvent(eventId: string): Promise<SegmentWithInstances[]> {
@@ -130,6 +132,9 @@ export class EventSegmentService {
     if (dto.isPublished !== undefined) segment.isPublished = dto.isPublished;
 
     await this.segmentRepository.save(segment);
+
+    this.segmentChanges.emitChange(eventId, [segmentId], SegmentChangeSource.SEGMENT_UPDATE);
+
     return this.findOneById(segment.id);
   }
 
@@ -271,7 +276,10 @@ export class EventSegmentService {
     return map;
   }
 
-  private async loadTotalCordons(templateIds: string[]): Promise<Map<string, number>> {
+  /** Highest PINYA rengla position per template (cordo-obert exempt) — how many cordons each
+   *  figure has. Batched so both the segment list and a single instance's `findOneById`
+   *  (`FigureInstanceService`) share the exact same query instead of two copies drifting apart. */
+  async loadTotalCordons(templateIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>();
     if (templateIds.length === 0) return map;
     // Highest rengla position actually used by a PINYA node (cordo-obert exempt), matching

@@ -19,7 +19,9 @@ import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Search } fro
 import { computeSegmentDisplayName, matchesSearch } from '@muixer/shared';
 import { AssignmentPersonDetail, ProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-render';
 import { EmptyStateComponent, InputComponent, ModalComponent } from '@muixer/ui';
+import { Subscription } from 'rxjs';
 import { ProjectionService } from '../services/projection.service';
+import { SegmentChangesService } from '../services/segment-changes.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
@@ -44,6 +46,7 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService);
   private readonly authService = inject(AuthService);
   private readonly injector = inject(Injector);
+  private readonly segmentChanges = inject(SegmentChangesService);
 
   /** The rendered `lib-pinya-projection` — used to re-trigger its flight animation whenever the
    *  looked-up person changes (see `flyToHighlighted`), same way its own Troba'm button does. */
@@ -84,12 +87,21 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     );
   });
 
+  /** Live updates for this event, so a change by the tecnica lands without a manual reload. */
+  private liveChanges: Subscription | null = null;
+
   ngOnInit(): void {
     this.layoutService.requestFullscreen();
+
+    // Keyed by event, not segment, so prev/next navigation keeps the same connection.
+    this.liveChanges = this.segmentChanges
+      .watch(this.eventId(), () => this.segmentId())
+      .subscribe(() => this.projectionResource.reload());
   }
 
   ngOnDestroy(): void {
     this.layoutService.exitFullscreen();
+    this.liveChanges?.unsubscribe();
   }
 
   protected readonly projectionResource = rxResource<

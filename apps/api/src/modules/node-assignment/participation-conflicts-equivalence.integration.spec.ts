@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { DataSource } from 'typeorm';
 import {
   AttendanceStatus,
@@ -50,6 +51,7 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: SegmentChangeEmitter, useValue: { emitChange: jest.fn() } },
         EventParticipationService,
         NodeAssignmentService,
         ...realRepositoryProviders(db.dataSource, [

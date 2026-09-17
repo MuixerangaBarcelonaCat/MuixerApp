@@ -6,6 +6,8 @@ import { EventSegmentService } from './event-segment.service';
 import { EventSegment } from './entities/event-segment.entity';
 import { Event } from '../event/event.entity';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
+import { SegmentChangeSource } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -66,6 +68,8 @@ const DEFAULT_CONFLICTS_META = {
   conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
 };
 
+const mockChangeEmitter = { emitChange: jest.fn() };
+
 const mockNodeAssignmentService = {
   checkEventLockByEventId: jest.fn(),
   getSegmentConflicts: jest.fn(),
@@ -82,6 +86,7 @@ describe('EventSegmentService', () => {
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
         { provide: DataSource, useValue: mockDataSource },
         { provide: NodeAssignmentService, useValue: mockNodeAssignmentService },
+        { provide: SegmentChangeEmitter, useValue: mockChangeEmitter },
       ],
     }).compile();
 
@@ -198,6 +203,19 @@ describe('EventSegmentService', () => {
       await service.update(EVENT_ID, SEGMENT_ID, { isPublished: true });
 
       expect(mockNodeAssignmentService.checkEventLockByEventId).not.toHaveBeenCalled();
+    });
+
+    it('announces the segment after it is published', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockSegmentRepo.save.mockResolvedValue(makeSegment());
+
+      await service.update(EVENT_ID, SEGMENT_ID, { isPublished: true });
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.SEGMENT_UPDATE,
+      );
     });
   });
 

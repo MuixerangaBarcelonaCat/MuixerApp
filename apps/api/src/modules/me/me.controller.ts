@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Sse,
+  MessageEvent,
   Post,
   Put,
   Delete,
@@ -30,6 +32,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ProjectionData } from '../event-segment/projection.service';
 import { PersonDelegateResponseDto } from '../person-delegate/dto/person-delegate-response.dto';
+import { Observable } from 'rxjs';
+import { SseAuth } from '../auth/decorators/sse-auth.decorator';
+import { SegmentEventsService } from '../segment-events/segment-events.service';
 import { MeService } from './me.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
@@ -42,7 +47,10 @@ import { CreateMemberDelegateDto } from './dto/create-member-delegate.dto';
 @Controller('me')
 @Roles(UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN)
 export class MeController {
-  constructor(private readonly meService: MeService) {}
+  constructor(
+    private readonly meService: MeService,
+    private readonly segmentEvents: SegmentEventsService,
+  ) {}
 
   @Get('events')
   @ApiOperation({ summary: 'List events for authenticated member' })
@@ -88,6 +96,22 @@ export class MeController {
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
   ): Promise<ProjectionData> {
     return this.meService.findSegmentProjection(eventId, segmentId);
+  }
+
+  /**
+   * Live figure-data changes for one event, so an open projection refetches instead of
+   * waiting for a manual reload. Narrowed per message to published segments only — the
+   * same scope the projection endpoint enforces.
+   */
+  @Sse('events/:eventId/changes')
+  @SseAuth()
+  @ApiOperation({ summary: 'Stream live figure-data changes for an event (published segments only)' })
+  streamEventChanges(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+  ): Observable<MessageEvent> {
+    return this.segmentEvents.stream(eventId, (change) =>
+      this.meService.narrowSegmentChangeForMember(change),
+    );
   }
 
   @Get('persons')

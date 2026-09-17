@@ -8,6 +8,8 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { appRoutes } from './app.routes';
 import { authInterceptor } from './core/auth/interceptors/auth.interceptor';
+import { clientIdInterceptor } from './core/services/client-id.interceptor';
+import { pendingMutationsInterceptor } from './features/pinyes/services/pending-mutations.interceptor';
 import { AuthService } from './core/auth/services/auth.service';
 import {
   LUCIDE_ICONS,
@@ -96,7 +98,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(appRoutes),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, clientIdInterceptor, pendingMutationsInterceptor])),
     provideAppInitializer(() => inject(AuthService).init()),
     {
       provide: LUCIDE_ICONS,

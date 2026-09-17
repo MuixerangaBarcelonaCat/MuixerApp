@@ -32,6 +32,7 @@ import { NodesTabComponent } from './tabs/nodes-tab/nodes-tab.component';
 import { PrevisualitzaTabComponent } from './tabs/previsualitza-tab/previsualitza-tab.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { SegmentConflictPanelComponent } from '../segment-conflict-panel/segment-conflict-panel.component';
+import { LiveUpdateBannerComponent } from '../live-update-banner/live-update-banner.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
@@ -58,6 +59,7 @@ const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
     PrevisualitzaTabComponent,
     TemplateEditorHelpModalComponent,
     SegmentConflictPanelComponent,
+    LiveUpdateBannerComponent,
     ImportPinyaModalComponent,
   ],
   templateUrl: './segment-workspace.component.html',

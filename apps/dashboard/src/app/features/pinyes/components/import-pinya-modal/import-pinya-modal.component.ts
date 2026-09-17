@@ -20,7 +20,7 @@ import {
 } from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { LucideAngularModule, Import } from 'lucide-angular';
-import { FigureZone, ImportScope, zonesForScope } from '@muixer/shared';
+import { FigureZone, ImportScope, isNodeVisibleByModeAndCordons, zonesForScope } from '@muixer/shared';
 import { AlertComponent, ButtonComponent, ModalComponent, BadgeComponent } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -244,7 +244,12 @@ export class ImportPinyaModalComponent implements OnChanges {
 
   baseNodesFor(): TroncNodeItem[] {
     const inst = this.previewInstance();
-    return inst ? (inst.nodes.filter((n) => n.zone === FigureZone.BASE) as TroncNodeItem[]) : [];
+    if (!inst) return [];
+    // `cordonsObertsEnabled` isn't on ProjectionInstance, but the BASE branch never reads it.
+    const opts = { figureMode: inst.figureMode, numberOfCordons: inst.numberOfCordons, cordonsObertsEnabled: true };
+    return inst.nodes.filter(
+      (n) => n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, opts),
+    ) as TroncNodeItem[];
   }
 
   directionNodesFor(): TroncNodeItem[] {

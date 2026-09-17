@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import {
   EventType,
   FigureMode,
@@ -22,10 +23,11 @@ import {
   areaForZone,
   classifyPlacementKind,
   conflictRelevantPlacements,
-  isNodeVisibleByCordons,
+  isNodeVisibleByModeAndCordons,
   ConflictPlacement,
   SegmentConflict,
   SegmentConflictsResponse,
+  SegmentChangeSource,
   SegmentPeopleCounters,
   TroncChangeImpact,
   EventAssignmentSummary,
@@ -315,6 +317,7 @@ export class NodeAssignmentService {
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
     private readonly dataSource: DataSource,
+    private readonly segmentChanges: SegmentChangeEmitter,
   ) {}
 
   // ── B.4 — Instance nodes (live template or snapshot) ──────────────────────
@@ -389,10 +392,13 @@ export class NodeAssignmentService {
     instanceId: string,
     dto: { nodeId: string; personId: string },
     computeImpact = false,
+    announce = true,
   ): Promise<AssignmentDetail & { impact?: TroncChangeImpact }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'segment'],
+      // segment.event is joined only so the change can be announced on the event's
+      // live stream; it costs one more join on a row already being fetched.
+      relations: ['figureTemplate', 'segment', 'segment.event'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -471,6 +477,14 @@ export class NodeAssignmentService {
       relations: ['instanceNode', 'person', 'figureInstance'],
     });
 
+    if (announce) {
+      this.segmentChanges.emitChange(
+        instance.segment?.event?.id,
+        [instance.segment?.id],
+        SegmentChangeSource.ASSIGNMENT,
+      );
+    }
+
     const detail = toAssignmentDetail(populated!);
     if (computeImpact && areaForZone(instanceNode.zone as FigureZone) === AssignmentArea.TRONC) {
       return { ...detail, impact: await this.computeTroncChangeImpact(instance.segment.id, instanceId) };
@@ -521,7 +535,7 @@ export class NodeAssignmentService {
         (n) =>
           areaForZone(n.zone as FigureZone) === AssignmentArea.PINYA &&
           !occupied.has(n.id) &&
-          isNodeVisibleByCordons(n, cordonsOpts),
+          isNodeVisibleByModeAndCordons(n, cordonsOpts),
       )
       .map((n) => n.id);
   }
@@ -537,7 +551,13 @@ export class NodeAssignmentService {
     const [assignmentA, assignmentB] = await Promise.all([
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
-        relations: ['figureInstance', 'figureInstance.segment', 'instanceNode', 'person'],
+        relations: [
+          'figureInstance',
+          'figureInstance.segment',
+          'figureInstance.segment.event',
+          'instanceNode',
+          'person',
+        ],
       }),
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdB },
@@ -601,6 +621,12 @@ export class NodeAssignmentService {
       throw new NotFoundException('Failed to reload assignments after swap');
     }
 
+    this.segmentChanges.emitChange(
+      assignmentA.figureInstance.segment?.event?.id,
+      [assignmentA.figureInstance.segment?.id],
+      SegmentChangeSource.ASSIGNMENT,
+    );
+
     const result = { a: toAssignmentDetail(updatedA), b: toAssignmentDetail(updatedB) };
     const touchesTronc = [assignmentA, assignmentB].some(
       (x) => areaForZone(x.instanceNode.zone as FigureZone) === AssignmentArea.TRONC,
@@ -622,7 +648,12 @@ export class NodeAssignmentService {
 
     const assignment = await this.assignmentRepository.findOne({
       where: { id: assignmentId },
-      relations: ['figureInstance', 'figureInstance.segment', 'instanceNode'],
+      relations: [
+        'figureInstance',
+        'figureInstance.segment',
+        'figureInstance.segment.event',
+        'instanceNode',
+      ],
     });
 
     if (!assignment) {
@@ -635,6 +666,12 @@ export class NodeAssignmentService {
 
     const touchesTronc = areaForZone(assignment.instanceNode.zone as FigureZone) === AssignmentArea.TRONC;
     await this.assignmentRepository.remove(assignment);
+
+    this.segmentChanges.emitChange(
+      assignment.figureInstance.segment?.event?.id,
+      [assignment.figureInstance.segment?.id],
+      SegmentChangeSource.ASSIGNMENT,
+    );
 
     if (touchesTronc) {
       return { impact: await this.computeTroncChangeImpact(assignment.figureInstance.segment.id, instanceId) };
@@ -866,7 +903,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate'],
+      relations: ['figureTemplate', 'segment', 'segment.event'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -890,6 +927,12 @@ export class NodeAssignmentService {
         snapshotted: false,
       });
     });
+
+    this.segmentChanges.emitChange(
+      instance.segment?.event?.id,
+      [instance.segment?.id],
+      SegmentChangeSource.ASSIGNMENT,
+    );
 
     return { removedAssignments: assignmentCount, deletedAdHocCount: adHocCount };
   }
@@ -1207,9 +1250,9 @@ export class NodeAssignmentService {
     const cordonsOpts = { figureMode, numberOfCordons, cordonsObertsEnabled };
 
     const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean =>
-      n.zone === FigureZone.PINYA && isNodeVisibleByCordons(n, cordonsOpts);
+      n.zone === FigureZone.PINYA && isNodeVisibleByModeAndCordons(n, cordonsOpts);
     const isTronc = (n: { zone: string }): boolean =>
-      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
+      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, cordonsOpts));
     const isDirection = (n: { zone: string }): boolean =>
       n.zone === FigureZone.DIRECTION;
 
@@ -1282,7 +1325,7 @@ export class NodeAssignmentService {
 
     const targetInstance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'segment', 'instanceNodes'],
+      relations: ['figureTemplate', 'segment', 'segment.event', 'instanceNodes'],
     });
     if (!targetInstance) {
       throw new NotFoundException(`Target FigureInstance with ID ${instanceId} not found`);
@@ -1360,10 +1403,12 @@ export class NodeAssignmentService {
       // already performs them (and has the DB-level backstop via toAssignConflictError).
       // Uses assignWithoutLockCheck: the lock was already checked once above.
       try {
-        const detail = await this.assignWithoutLockCheck(instanceId, {
-          nodeId: targetNode.id,
-          personId,
-        });
+        const detail = await this.assignWithoutLockCheck(
+          instanceId,
+          { nodeId: targetNode.id, personId },
+          false,
+          false,
+        );
         created.push(detail);
       } catch (err) {
         const reason = this.describeBulkImportError(err);
@@ -1448,10 +1493,12 @@ export class NodeAssignmentService {
         const personId = sourceAssignment.person.id;
         const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
         try {
-          await this.assignWithoutLockCheck(instanceId, {
-            nodeId: savedClone.id,
-            personId,
-          });
+          await this.assignWithoutLockCheck(
+            instanceId,
+            { nodeId: savedClone.id, personId },
+            false,
+            false,
+          );
         } catch (err) {
           const reason = this.describeBulkImportError(err);
           if (reason === null) {
@@ -1473,6 +1520,12 @@ export class NodeAssignmentService {
     }
 
     const { meta } = await this.getSegmentConflicts(targetInstance.segment.id);
+    this.segmentChanges.emitChange(
+      targetInstance.segment?.event?.id,
+      [targetInstance.segment?.id],
+      SegmentChangeSource.ASSIGNMENT,
+    );
+
     return { created, conflicts, clonedAdHocNodes, conflictsByKind: meta.conflictsByKind };
   }
 
@@ -1487,6 +1540,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
+      relations: ['segment', 'segment.event'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -1511,6 +1565,12 @@ export class NodeAssignmentService {
       removedAssignments += await this.removeCordoObertAssignments(instanceId);
     }
 
+    this.segmentChanges.emitChange(
+      instance.segment?.event?.id,
+      [instance.segment?.id],
+      SegmentChangeSource.CORDONS,
+    );
+
     return {
       numberOfCordons: instance.numberOfCordons,
       cordonsObertsEnabled: instance.cordonsObertsEnabled,
@@ -1525,6 +1585,28 @@ export class NodeAssignmentService {
    */
   async previewCordonsReduction(instanceId: string, numberOfCordons: number): Promise<number> {
     const hiddenNodeIds = await this.hiddenNodeIdsBeyondCordons(instanceId, numberOfCordons);
+    if (hiddenNodeIds.length === 0) return 0;
+
+    return this.assignmentRepository.count({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(hiddenNodeIds) } },
+    });
+  }
+
+  /**
+   * Read-only counterpart to `FigureInstanceService`'s mode-change deletion: how many
+   * assignments switching to `figureMode` WOULD remove, without removing them. Both go
+   * through `hiddenZonesForFigureModeChange` so the count shown to the user and what
+   * actually gets deleted on apply can never diverge (unlike the pre-existing
+   * `pinyaAssignedCount`, which is PINYA+BASE always and over-counts for NETA).
+   */
+  async previewFigureModeChange(instanceId: string, figureMode: FigureMode): Promise<number> {
+    const hiddenZones = hiddenZonesForFigureModeChange(figureMode);
+    if (hiddenZones.length === 0) return 0;
+
+    const nodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const hiddenNodeIds = nodes.filter((n) => hiddenZones.includes(n.zone)).map((n) => n.id);
     if (hiddenNodeIds.length === 0) return 0;
 
     return this.assignmentRepository.count({
@@ -1688,7 +1770,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'segment'],
+      relations: ['figureTemplate', 'segment', 'segment.event'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -1746,6 +1828,12 @@ export class NodeAssignmentService {
       return manager.save(node);
     });
 
+    this.segmentChanges.emitChange(
+      instance.segment?.event?.id,
+      [instance.segment?.id],
+      SegmentChangeSource.AD_HOC_NODE,
+    );
+
     return instanceNodeToResponse(saved as InstanceNode);
   }
 
@@ -1758,6 +1846,7 @@ export class NodeAssignmentService {
 
     const node = await this.instanceNodeRepository.findOne({
       where: { id: nodeId, figureInstance: { id: instanceId } },
+      relations: ['figureInstance', 'figureInstance.segment', 'figureInstance.segment.event'],
     });
     if (!node) {
       throw new NotFoundException(`InstanceNode with ID ${nodeId} not found in this instance`);
@@ -1776,6 +1865,13 @@ export class NodeAssignmentService {
     if (dto.shape !== undefined) node.shape = dto.shape;
 
     const updated = await this.instanceNodeRepository.save(node);
+
+    this.segmentChanges.emitChange(
+      node.figureInstance?.segment?.event?.id,
+      [node.figureInstance?.segment?.id],
+      SegmentChangeSource.AD_HOC_NODE,
+    );
+
     return instanceNodeToResponse(updated);
   }
 
@@ -1784,6 +1880,7 @@ export class NodeAssignmentService {
 
     const node = await this.instanceNodeRepository.findOne({
       where: { id: nodeId, figureInstance: { id: instanceId } },
+      relations: ['figureInstance', 'figureInstance.segment', 'figureInstance.segment.event'],
     });
     if (!node) {
       throw new NotFoundException(`InstanceNode with ID ${nodeId} not found in this instance`);
@@ -1796,6 +1893,12 @@ export class NodeAssignmentService {
       await manager.delete(NodeAssignment, { instanceNode: { id: nodeId } });
       await manager.delete(InstanceNode, { id: nodeId });
     });
+
+    this.segmentChanges.emitChange(
+      node.figureInstance?.segment?.event?.id,
+      [node.figureInstance?.segment?.id],
+      SegmentChangeSource.AD_HOC_NODE,
+    );
   }
 
   private assertNotComposition(_instance: FigureInstance): void {
@@ -1899,4 +2002,22 @@ export class NodeAssignmentService {
       return manager.save(InstanceNode, instanceNodes);
     });
   }
+}
+
+/**
+ * Single source of truth for "which zones get their assignments wiped when a figure switches
+ * to this mode" (REMAT strips PINYA+BASE, NETA strips PINYA only, COMPLETA/PEU strip nothing).
+ * Both the actual deletion (`FigureInstanceService.update`) and the impact preview above
+ * (`previewFigureModeChange`) go through here so the count shown to the user and what
+ * actually gets removed can never diverge.
+ *
+ * Deliberately separate from `isNodeVisibleByModeAndCordons` (`@muixer/shared`) even though they
+ * now agree on which zones REMAT/NETA affect: that one is a per-node, always-current visibility
+ * check (also gated by cordons/cordonsObertsEnabled), this one is the one-time zone-level wipe a
+ * mode *change* triggers.
+ */
+export function hiddenZonesForFigureModeChange(figureMode: FigureMode | string): FigureZone[] {
+  if (figureMode === FigureMode.REMAT) return [FigureZone.PINYA, FigureZone.BASE];
+  if (figureMode === FigureMode.NETA) return [FigureZone.PINYA];
+  return [];
 }

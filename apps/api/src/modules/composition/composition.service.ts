@@ -86,12 +86,13 @@ export class CompositionService {
       .leftJoinAndSelect('composition.entries', 'entries')
       .leftJoin('entries.figureTemplate', 'entryTemplate')
       .addSelect(['entryTemplate.id'])
-      .orderBy('composition.name', 'ASC')
+      .addSelect('unaccent(lower(composition.name))', 'sort_column')
+      .orderBy('sort_column', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
 
     if (filter.search) {
-      qb.andWhere('composition.name ILIKE :search', { search: `%${filter.search}%` });
+      qb.andWhere('unaccent(composition.name) ILIKE unaccent(:search)', { search: `%${filter.search}%` });
     }
 
     const [compositions, total] = await Promise.all([qb.getMany(), qb.getCount()]);

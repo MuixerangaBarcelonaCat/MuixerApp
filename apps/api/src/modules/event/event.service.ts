@@ -264,7 +264,11 @@ export class EventService {
     }
 
     const column = EVENT_SORT_COLUMN_MAP[sortBy] ?? 'event.date';
-    qb.orderBy(column, direction);
+    if (column.includes('(')) {
+      qb.addSelect(column, 'sort_column').orderBy('sort_column', direction);
+    } else {
+      qb.orderBy(column, direction);
+    }
   }
 }
 

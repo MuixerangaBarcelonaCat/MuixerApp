@@ -8,6 +8,8 @@ import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
 import { AttendanceStatus } from '@muixer/shared';
 import { AuditService } from '../audit/audit.service';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
+import { SegmentChangeSource } from '@muixer/shared';
 
 const makePerson = (overrides: Partial<Person> = {}): Person =>
   ({ id: 'p1', alias: 'ADRI', name: 'Adrian', firstSurname: 'Abreu', isXicalla: false, positions: [], ...overrides } as Person);
@@ -103,6 +105,7 @@ describe('AttendanceService', () => {
   };
 
   const auditService = { record: jest.fn().mockResolvedValue(undefined) };
+  const changeEmitter = { emitChange: jest.fn() };
 
   const buildModule = async (repos: ReturnType<typeof makeRepos>) => {
     const module: TestingModule = await Test.createTestingModule({
@@ -113,6 +116,7 @@ describe('AttendanceService', () => {
         { provide: getRepositoryToken(Person), useValue: repos.personRepo },
         { provide: DataSource, useValue: repos.dataSource },
         { provide: AuditService, useValue: auditService },
+        { provide: SegmentChangeEmitter, useValue: changeEmitter },
       ],
     }).compile();
     return module.get<AttendanceService>(AttendanceService);
@@ -139,7 +143,7 @@ describe('AttendanceService', () => {
       service = await buildModule(repos);
       await service.findByEvent('ev-1', {});
       expect(repos.attendanceRepo.attQb.addSelect).toHaveBeenCalledWith(
-        "lower(regexp_replace(person.alias, '^~', ''))",
+        "unaccent(lower(regexp_replace(person.alias, '^~', '')))",
         'normalized_alias',
       );
       expect(repos.attendanceRepo.attQb.orderBy).toHaveBeenCalledWith('normalized_alias', 'ASC');
@@ -226,6 +230,17 @@ describe('AttendanceService', () => {
       service = await buildModule(repos);
       await expect(service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE }))
         .rejects.toThrow(ForbiddenException);
+    });
+
+    it('announces the event after attendance is recorded', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(att);
+      service = await buildModule(repos);
+
+      await service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE });
+
+      expect(changeEmitter.emitChange).toHaveBeenCalledWith('ev-1', [], SegmentChangeSource.ATTENDANCE);
     });
   });
 
@@ -343,6 +358,17 @@ describe('AttendanceService', () => {
       await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
       expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
+
+    it('announces the event after attendance is updated', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+
+      expect(changeEmitter.emitChange).toHaveBeenCalledWith('ev-1', [], SegmentChangeSource.ATTENDANCE);
+    });
   });
 
   // --- remove ---
@@ -379,6 +405,17 @@ describe('AttendanceService', () => {
 
       await service.remove('ev-1', 'att-1');
       expect(repos.dataSource.manager.update).toHaveBeenCalled();
+    });
+
+    it('announces the event after attendance is removed', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.remove('ev-1', 'att-1');
+
+      expect(changeEmitter.emitChange).toHaveBeenCalledWith('ev-1', [], SegmentChangeSource.ATTENDANCE);
     });
   });
 

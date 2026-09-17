@@ -9,7 +9,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { DeviceSummary } from '@muixer/shared';
+import { DeviceSummary, normalizeForSearch } from '@muixer/shared';
 import { AlertComponent, BadgeComponent, ButtonComponent, ButtonGroupComponent, EmptyStateComponent, InputComponent } from '@muixer/ui';
 import { NotificationService } from '../../services/notification.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
@@ -46,11 +46,11 @@ export class DeviceListComponent implements OnInit {
   sortBy = signal<'devices' | 'lastUse'>('devices');
 
   readonly filtered = computed(() => {
-    const q = this.search().toLowerCase().trim();
+    const q = normalizeForSearch(this.search());
     let list = this.summary();
     if (q) {
       list = list.filter((d) => {
-        const name = `${d.person.firstName} ${d.person.lastName}`.toLowerCase();
+        const name = normalizeForSearch(`${d.person.firstName} ${d.person.lastName}`);
         return name.includes(q);
       });
     }

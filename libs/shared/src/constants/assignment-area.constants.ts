@@ -85,17 +85,18 @@ export function conflictRelevantPlacements<T>(
 }
 
 /**
- * Single source of truth for "is this node visible given the instance's cordons/mode setup"
- * (R9). Only PINYA nodes are ever hidden this way — TRONC/BASE/direction nodes are always
- * visible regardless of cordons. A PINYA node is hidden entirely in REMAT/NETA mode; a
- * `cordo-obert` node's visibility follows `cordonsObertsEnabled` instead of `renglaPosition`;
- * everything else with no rengla or within `numberOfCordons` is visible.
+ * Single source of truth for "is this node visible given the instance's figureMode/cordons
+ * setup" (R9). TRONC/direction nodes are always visible. BASE is hidden in REMAT (its
+ * assignments are wiped on switching to REMAT — see `hiddenZonesForFigureModeChange`) and
+ * visible otherwise. A PINYA node is hidden entirely in REMAT/NETA mode; a `cordo-obert` node's
+ * visibility follows `cordonsObertsEnabled` instead of `renglaPosition`; everything else with no
+ * rengla or within `numberOfCordons` is visible.
  *
  * Backend (`computeInstanceAreaSummary`, `computeFreedPinyaNodeIds`) and dashboard
  * (`SegmentWorkspaceStateService.refreshInstance`) both go through here so a node's visibility
  * can never diverge between the completeness counters and the "review" banners.
  */
-export function isNodeVisibleByCordons(
+export function isNodeVisibleByModeAndCordons(
   node: {
     zone: FigureZone | string;
     positionType?: string | null;
@@ -107,6 +108,7 @@ export function isNodeVisibleByCordons(
     cordonsObertsEnabled: boolean;
   },
 ): boolean {
+  if (node.zone === FigureZone.BASE) return opts.figureMode !== FigureMode.REMAT;
   if (node.zone !== FigureZone.PINYA) return true;
   if (opts.figureMode === FigureMode.REMAT || opts.figureMode === FigureMode.NETA) return false;
   if (node.positionType === 'cordo-obert') return opts.cordonsObertsEnabled;

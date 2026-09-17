@@ -4,3 +4,4 @@ export * from './assignment.interfaces';
 export * from './event-segment.interfaces';
 export * from './event-participation.interfaces';
 export * from './segment-conflict.interfaces';
+export * from './segment-change-event.interfaces';

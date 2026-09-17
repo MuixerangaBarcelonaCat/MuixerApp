@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { AttendanceStatus, AttendanceSummary, AuditAction, TagCategory } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary, AuditAction, TagCategory, SegmentChangeSource } from '@muixer/shared';
 import { isPastLockWindow } from '../../common/utils/lock.util';
 import { AuditService } from '../audit/audit.service';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
@@ -12,11 +13,11 @@ import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 
 /**
- * Sort key for the attendance list: case-insensitive and with the provisional
+ * Sort key for the attendance list: accent/case-insensitive and with the provisional
  * "~" alias prefix stripped, so provisional persons interleave alphabetically
  * instead of collapsing to the end of the last page.
  */
-const NORMALIZED_ALIAS_EXPR = "lower(regexp_replace(person.alias, '^~', ''))";
+const NORMALIZED_ALIAS_EXPR = "unaccent(lower(regexp_replace(person.alias, '^~', '')))";
 
 @Injectable()
 export class AttendanceService {
@@ -29,6 +30,7 @@ export class AttendanceService {
     private readonly personRepository: Repository<Person>,
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly segmentChanges: SegmentChangeEmitter,
   ) {}
 
   /** Retorna una llista paginada d'assistències per a un event concret amb filtres per estat i cerca de persona. */
@@ -135,6 +137,8 @@ export class AttendanceService {
     await this.recalculateSummary(eventId);
     const summary = await this.fetchSummary(eventId);
 
+    this.segmentChanges.emitChange(eventId, [], SegmentChangeSource.ATTENDANCE);
+
     return { attendance: toAttendanceItem(savedWithRelations!), summary };
   }
 
@@ -192,6 +196,8 @@ export class AttendanceService {
     await this.recalculateSummary(eventId);
     const summary = await this.fetchSummary(eventId);
 
+    this.segmentChanges.emitChange(eventId, [], SegmentChangeSource.ATTENDANCE);
+
     return { attendance: toAttendanceItem(savedWithRelations!), summary };
   }
 
@@ -215,6 +221,8 @@ export class AttendanceService {
     await this.attendanceRepository.remove(attendance);
     await this.recalculateSummary(eventId);
     const summary = await this.fetchSummary(eventId);
+
+    this.segmentChanges.emitChange(eventId, [], SegmentChangeSource.ATTENDANCE);
 
     return { summary };
   }

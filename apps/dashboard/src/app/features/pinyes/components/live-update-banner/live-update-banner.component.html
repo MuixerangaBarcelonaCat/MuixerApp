@@ -1,0 +1,9 @@
+@if (ws.pendingRemoteChange()) {
+  <div class="flex items-center gap-2 px-4 py-1.5 bg-info/10 border-b border-info/30 text-sm shrink-0">
+    <lucide-icon [img]="RefreshCw" [size]="14" class="text-info shrink-0" aria-hidden="true" />
+    <span>Algú ha fet canvis en este segment. Actualitzeu per veure'ls.</span>
+    <span class="ml-auto">
+      <lib-button variant="info" outline size="xs" (clicked)="apply()">Actualitza</lib-button>
+    </span>
+  </div>
+}

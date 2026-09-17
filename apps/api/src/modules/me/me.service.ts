@@ -21,6 +21,8 @@ import {
   PersonProfileSummary,
   MeNewsItem,
   computeInstanceDisplayNames,
+  FigureDataChangedEvent,
+  SegmentChangeSource,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -31,6 +33,7 @@ import { EventSegmentService, SegmentWithInstances } from '../event-segment/even
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
 import { AttendanceService } from '../event/attendance.service';
@@ -65,6 +68,7 @@ export class MeService {
     private readonly projectionService: ProjectionService,
     private readonly eventSegmentService: EventSegmentService,
     private readonly newsService: NewsService,
+    private readonly segmentChanges: SegmentChangeEmitter,
   ) {}
 
   async resolveManagedPersons(
@@ -250,6 +254,25 @@ export class MeService {
     return this.projectionService.getProjection(eventId, segmentId, { onlyPublished: true });
   }
 
+  /**
+   * Trims a live figure-data change to the segments a member is allowed to know about,
+   * mirroring the `onlyPublished` scope of the projection endpoint — otherwise the
+   * stream would leak the ids of unpublished segments. Returns null to withhold the
+   * change entirely.
+   */
+  async narrowSegmentChangeForMember(
+    change: FigureDataChangedEvent,
+  ): Promise<FigureDataChangedEvent | null> {
+    // Event-wide changes (attendance) carry no segment ids to leak.
+    if (change.segmentIds.length === 0) return change;
+
+    const segments = await this.eventSegmentService.findAllByEvent(change.eventId);
+    const publishedIds = new Set(segments.filter((s) => s.isPublished).map((s) => s.id));
+    const visible = change.segmentIds.filter((id) => publishedIds.has(id));
+
+    return visible.length > 0 ? { ...change, segmentIds: visible } : null;
+  }
+
   private async fetchAttendancesByEvent(
     eventIds: string[],
     managedPersons: ManagedPerson[],
@@ -332,6 +355,8 @@ export class MeService {
     });
 
     await this.attendanceService.recalculateSummary(eventId);
+
+    this.segmentChanges.emitChange(eventId, [], SegmentChangeSource.ATTENDANCE);
 
     return {
       id: attendance.id,

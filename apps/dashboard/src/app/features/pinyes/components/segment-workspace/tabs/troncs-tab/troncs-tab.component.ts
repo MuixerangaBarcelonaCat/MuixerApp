@@ -14,7 +14,7 @@ import {
   pickAdjacentNode,
   pickNextAssignableNode,
 } from '../../../../utils/assignment-order.util';
-import { DIRECTION_NODE_PRESETS, FigureZone, areaForZone, conflictRelevantPlacements } from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, FigureZone, areaForZone, conflictRelevantPlacements, isNodeVisibleByModeAndCordons } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 
 interface TroncFigure {
@@ -226,7 +226,9 @@ export class TroncsTabComponent implements OnInit {
         return {
           instance,
           troncNodes: visible.filter((n) => n.zone === FigureZone.TRONC) as unknown as TroncNodeItem[],
-          baseNodes: visible.filter((n) => n.zone === FigureZone.BASE) as unknown as TroncNodeItem[],
+          baseNodes: visible.filter(
+            (n) => n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, instance),
+          ) as unknown as TroncNodeItem[],
           directionNodes: visible.filter(
             (n) => n.zone === FigureZone.DIRECTION,
           ) as unknown as TroncNodeItem[],

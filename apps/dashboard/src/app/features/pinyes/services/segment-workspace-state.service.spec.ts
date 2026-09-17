@@ -1,12 +1,17 @@
 import { SegmentDetail, InstanceDetail, AssignmentDetail, AvailablePerson, InstanceNodeItem, SegmentConflict } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
-import { describe, it, expect, vi } from 'vitest';
+import { signal } from '@angular/core';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { FigureDataChangedEvent, SegmentChangeSource } from '@muixer/shared';
 import { SegmentWorkspaceStateService } from './segment-workspace-state.service';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService } from './node-assignment.service';
+import { SegmentChangesService } from './segment-changes.service';
+import { PendingMutationsService } from './pending-mutations.service';
+import { ClientIdService } from '../../../core/services/client-id.service';
 import { ToastService } from '@muixer/ui';
 import { SegmentDistributionData } from '../models/distribution.model';
 
@@ -149,6 +154,9 @@ describe('SegmentWorkspaceStateService', () => {
     getSegmentConflicts: ReturnType<typeof vi.fn>;
   };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+  let segmentChanges: { watch: ReturnType<typeof vi.fn> };
+  let pendingMutationsCount: ReturnType<typeof signal<number>>;
+  let changes$: Subject<FigureDataChangedEvent | null>;
 
   const configure = (opts: {
     segment?: SegmentDetail;
@@ -157,6 +165,7 @@ describe('SegmentWorkspaceStateService', () => {
     assignmentsByInstance?: Record<string, AssignmentDetail[]>;
     persons?: AvailablePerson[];
     conflicts?: SegmentConflict[];
+    clientId?: string;
   } = {}) => {
     const segment = opts.segment ?? makeSegment([makeInstance('inst-a')]);
     const distribution = opts.distribution ?? {
@@ -191,6 +200,10 @@ describe('SegmentWorkspaceStateService', () => {
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 
+    changes$ = new Subject<FigureDataChangedEvent | null>();
+    segmentChanges = { watch: vi.fn().mockReturnValue(changes$.asObservable()) };
+    pendingMutationsCount = signal(0);
+
     TestBed.configureTestingModule({
       providers: [
         SegmentWorkspaceStateService,
@@ -199,6 +212,9 @@ describe('SegmentWorkspaceStateService', () => {
         { provide: SegmentDistributionService, useValue: distributionService },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
+        { provide: SegmentChangesService, useValue: segmentChanges },
+        { provide: PendingMutationsService, useValue: { count: pendingMutationsCount } },
+        { provide: ClientIdService, useValue: { id: opts.clientId ?? 'tab-1' } },
       ],
     });
     service = TestBed.inject(SegmentWorkspaceStateService);
@@ -825,6 +841,148 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.previousSegmentId()).toBeNull();
       expect(service.nextSegmentId()).toBeNull();
       expect(service.segmentPosition()).toEqual({ current: 1, total: 1 });
+    });
+  });
+
+  describe('live changes', () => {
+    const makeChange = (overrides: Partial<FigureDataChangedEvent> = {}): FigureDataChangedEvent => ({
+      eventId: EVENT_ID,
+      segmentIds: [SEGMENT_ID],
+      source: SegmentChangeSource.ASSIGNMENT,
+      originClientId: null,
+      occurredAt: '2026-09-15T10:00:00.000Z',
+      ...overrides,
+    });
+
+    it('opens a live connection for the event on load', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(segmentChanges.watch).toHaveBeenCalledWith(EVENT_ID, expect.any(Function));
+    });
+
+    it('does not reconnect when only the segment changes within the same event', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.load(EVENT_ID, 'seg-2');
+
+      expect(segmentChanges.watch).toHaveBeenCalledTimes(1);
+    });
+
+    it('reconnects when the event changes', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.load('event-2', 'seg-2');
+
+      expect(segmentChanges.watch).toHaveBeenCalledTimes(2);
+    });
+
+    it('refreshes the segment and its instances when a live change arrives and nothing local is in progress', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      segmentService.getByEvent.mockClear();
+      assignmentService.getInstanceNodes.mockClear();
+
+      changes$.next(makeChange());
+
+      expect(segmentService.getByEvent).toHaveBeenCalled();
+      expect(assignmentService.getInstanceNodes).toHaveBeenCalledWith('inst-a');
+    });
+
+    it('defers the refresh while the user is mid-drag on the canvas, and flags a pending remote change', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.localInteractionActive.set(true);
+      segmentService.getByEvent.mockClear();
+
+      changes$.next(makeChange());
+
+      expect(segmentService.getByEvent).not.toHaveBeenCalled();
+      expect(service.pendingRemoteChange()).toBe(true);
+    });
+
+    it('defers the refresh while a mutation is in flight', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      pendingMutationsCount.set(1);
+      segmentService.getByEvent.mockClear();
+
+      changes$.next(makeChange());
+
+      expect(segmentService.getByEvent).not.toHaveBeenCalled();
+      expect(service.pendingRemoteChange()).toBe(true);
+    });
+
+    it('refreshes immediately for its own echoed change even while mid-drag — refetching your own change cannot clobber it', () => {
+      configure({ clientId: 'tab-1' });
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.localInteractionActive.set(true);
+      segmentService.getByEvent.mockClear();
+
+      changes$.next(makeChange({ originClientId: 'tab-1' }));
+
+      expect(segmentService.getByEvent).toHaveBeenCalled();
+      expect(service.pendingRemoteChange()).toBe(false);
+    });
+
+    it('applyPendingRemoteChange() performs the deferred refresh and clears the flag', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.localInteractionActive.set(true);
+      changes$.next(makeChange());
+      segmentService.getByEvent.mockClear();
+
+      service.applyPendingRemoteChange();
+
+      expect(segmentService.getByEvent).toHaveBeenCalled();
+      expect(service.pendingRemoteChange()).toBe(false);
+    });
+
+    it('auto-applies a pending remote change shortly after the user stops interacting', () => {
+      vi.useFakeTimers();
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.localInteractionActive.set(true);
+      changes$.next(makeChange());
+      TestBed.tick();
+      segmentService.getByEvent.mockClear();
+
+      service.localInteractionActive.set(false);
+      TestBed.tick();
+      vi.advanceTimersByTime(1000);
+
+      expect(segmentService.getByEvent).toHaveBeenCalled();
+      expect(service.pendingRemoteChange()).toBe(false);
+      vi.useRealTimers();
+    });
+
+    it('cancels the auto-apply if interaction resumes before the grace delay elapses', () => {
+      vi.useFakeTimers();
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.localInteractionActive.set(true);
+      changes$.next(makeChange());
+      TestBed.tick();
+      service.localInteractionActive.set(false);
+      TestBed.tick();
+
+      vi.advanceTimersByTime(200);
+      service.localInteractionActive.set(true); // dragging again before the grace delay elapsed
+      TestBed.tick();
+      segmentService.getByEvent.mockClear();
+      vi.advanceTimersByTime(1000);
+
+      expect(segmentService.getByEvent).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('closes the live connection on destroy', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      service.ngOnDestroy();
+
+      expect(changes$.observed).toBe(false);
     });
   });
 });
