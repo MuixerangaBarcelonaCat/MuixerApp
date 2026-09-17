@@ -65,6 +65,7 @@ const MOCK_EVENTS: MeEvent[] = [
 })
 class EventFeedStub {
   readonly timeFilter = input.required<'upcoming' | 'past'>();
+  readonly eventType = input<EventType | null>(null);
   readonly emptyMessage = input.required<string>();
   readonly attendanceChanged = output<{ eventId: string; personId: string; status: AttendanceStatus }>();
 }
@@ -121,8 +122,17 @@ describe('EventListComponent', () => {
     expect(link.textContent).toContain('Passats');
   });
 
-  it('should not offer Propers/Passats tabs any more', () => {
-    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(0);
+  it('offers Tots/Actuacions/Assajos type-filter tabs, defaulting to Tots', () => {
+    const tabs: HTMLElement[] = fixture.nativeElement.querySelectorAll('[role="tab"]');
+    expect(Array.from(tabs).map((t) => t.textContent?.trim())).toEqual(['Tots', 'Actuacions', 'Assajos']);
+    expect(fixture.nativeElement.querySelector('[aria-selected="true"]').textContent.trim()).toBe('Tots');
+  });
+
+  it('switches the feed eventType when a type tab is picked', () => {
+    component['setActiveTypeTab'](EventType.ACTUACIO);
+    fixture.detectChanges();
+    const feed = fixture.debugElement.query(By.css('app-event-feed'));
+    expect(feed.componentInstance.eventType()).toBe(EventType.ACTUACIO);
   });
 
   it('should hide the Passats link in calendar view — those events are already visible there', async () => {
