@@ -11,9 +11,9 @@ tags: [domini]
 > §6.0 afegida setembre 2026: regla d'accés (només s'entra si ja existeix la `Person`),
 > els dos estats d'entrada segons si ja tenim el correu, i comparació d'emails
 > insensible a majúscules.
-> §8.1 afegida setembre 2026 i **desactivada immediatament**: l'enllaç de recuperació
-> generat per un tècnic està implementat però comentat al codi. La secció explica per què
-> i què caldria abans de rehabilitar-lo.
+> §8.1 afegida setembre 2026: l'enllaç de recuperació generat per un tècnic es va implementar
+> i **desactivar el mateix dia**; el codi es va retirar del tot poc després. La secció es
+> manté com a registre de per què no es va tirar avant i què caldria abans de reintentar-ho.
 
 ---
 
@@ -55,7 +55,7 @@ Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense co
 
 **Important — què fer si un membre encara no ha activat mai el compte i ha "oblidat" la contrasenya:** no aplica "Heu oblidat la contrasenya?" (el seu compte encara no en té cap). Cal tornar al pas de dalt: l'admin li genera un **enllaç d'invitació** nou des de la fitxa.
 
-**Si un membre no recorda la contrasenya i ara mateix no pot entrar al seu correu:** de moment **l'única via és el correu**. Ha de recuperar l'accés a la seua bústia (des del mòbil sol ser només obrir l'app de correu) i seguir els passos de dalt. No hi ha cap manera que un tècnic li done accés directament: es va implementar un enllaç de recuperació generat pel tècnic i **es va desactivar a propòsit** perquè qualsevol que reba eixe enllaç pot entrar al compte, i reenviant-lo per WhatsApp no podem comprovar que arribe a la persona correcta (§8.1).
+**Si un membre no recorda la contrasenya i ara mateix no pot entrar al seu correu:** de moment **l'única via és el correu**. Ha de recuperar l'accés a la seua bústia (des del mòbil sol ser només obrir l'app de correu) i seguir els passos de dalt. No hi ha cap manera que un tècnic li done accés directament: es va provar un enllaç de recuperació generat pel tècnic i **es va descartar a propòsit** perquè qualsevol que reba eixe enllaç pot entrar al compte, i reenviant-lo per WhatsApp no podem comprovar que arribe a la persona correcta (§8.1).
 
 Què **sí** pot fer un tècnic per ajudar-lo:
 - Dir-li **quin correu** té guardat al compte (el pot consultar a la seua fitxa) — moltes vegades el problema és només que prova amb un correu equivocat.
@@ -320,13 +320,14 @@ POST /auth/reset-password           →     AuthController.resetPassword()
 
 `SITE_ADDRESS` (Dashboard) és una variable diferent de `PWA_SITE_ADDRESS` (§6, enllaç d'invitació) — no confondre-les.
 
-### 8.1 Enllaç de recuperació generat per un tècnic — implementat i DESACTIVAT
+### 8.1 Enllaç de recuperació generat per un tècnic — provat i RETIRAT
 
-> **Estat: desactivat a propòsit.** El codi existeix però està comentat a
-> `user.controller.ts`, `user.service.ts`, `user.module.ts`, `auth.constants.ts`,
-> `invite.interfaces.ts`, `audit-action.enum.ts`, `person.service.ts` i
-> `person-detail.component.{ts,html}`. Els tests corresponents es van retirar; són al commit
-> `e2f5e96`. **No el rehabiliteu sense llegir «Què caldria abans» d'aquesta secció.**
+> **Estat: retirat del codi.** Es va implementar, desactivar el mateix dia i, poc després,
+> eliminar del tot (era a `user.controller.ts`, `user.service.ts`, `user.module.ts`,
+> `auth.constants.ts`, `invite.interfaces.ts`, `audit-action.enum.ts`, `person.service.ts`
+> i `person-detail.component.{ts,html}`). El codi i els seus tests són al commit `e2f5e96`
+> del git log, si algun dia cal recuperar-lo com a punt de partida. **No el reimplementeu
+> sense llegir «Què caldria abans» d'aquesta secció.**
 
 #### Quin problema volia resoldre
 
@@ -354,7 +355,7 @@ Reutilitzava **el mateix `resetToken`** que el flux per correu, així que consum
 `POST /auth/reset-password` sense cap camí nou: revocava totes les sessions obertes i esborrava
 el token.
 
-#### Per què està desactivat
+#### Per què es va descartar
 
 L'enllaç és un **token portador** («bearer token»): l'única credencial és conéixer la URL. Qui la
 tinga pot triar una contrasenya nova i entrar al compte, i el sistema **no comprova en cap moment
@@ -376,10 +377,10 @@ altra persona durant 24 hores. L'únic senyal que quedava era que el propietari 
 desconnectat de sobte, sense saber per què.
 
 Amb una colla d'unes desenes de persones que es coneixen entre elles el risc pràctic és baix, però
-el cost de tenir-ho desactivat també: qui no recorda la contrasenya obre l'app de correu del
+el cost de no tenir-ho també: qui no recorda la contrasenya obre l'app de correu del
 mòbil. Preferim la via que no depén del criteri de qui reenvia.
 
-#### Què caldria abans de rehabilitar-ho
+#### Què caldria abans de reintentar-ho
 
 En ordre de cost/benefici. Els tres primers punts són barats i canvien el pitjor cas de «24 hores
 per suplantar en silenci» a «minuts, i el propietari rep un avís»:
@@ -402,15 +403,16 @@ per suplantar en silenci» a «minuts, i el propietari rep un avís»:
 **El que NO cal fer:** lligar el token a una IP o a un dispositiu. Amb mòbils en 4G/5G canviant
 d'IP contínuament generaria més incidències de suport que atacs evitats.
 
-#### Detalls d'implementació que es mantenen al codi comentat
+#### Detalls d'implementació, per si cal partir d'ací
 
 El botó **"Crea enllaç de recuperació"** només es mostrava a la branca de compte actiu de
 `person-detail` (per a un compte pendent l'acció correcta és l'enllaç d'invitació, i el backend
 també ho refusava). L'enllaç apuntava a la **PWA** (`PWA_SITE_ADDRESS`), no al Dashboard, perquè
-el destinatari és un membre; per això la PWA té la seua pròpia ruta `/reset-password`
-(`app.routes.ts`), bessona de la del Dashboard. **Eixa ruta i el seu component es mantenen
-actius**: ara mateix no hi aterra ningú (el correu de §8 usa `SITE_ADDRESS`), però és el destí
-natural del correu d'un membre si algun dia el volem apuntar a la PWA.
+el destinatari és un membre. La PWA manté, independentment d'això, la seua pròpia ruta
+`/reset-password` (`app.routes.ts`), bessona de la del Dashboard: **eixa ruta i el seu component
+segueixen actius**, sense relació amb aquest mecanisme retirat — ara mateix no hi aterra ningú
+(el correu de §8 usa `SITE_ADDRESS`), però és el destí natural del correu d'un membre si algun
+dia el volem apuntar a la PWA.
 
 ---
 
