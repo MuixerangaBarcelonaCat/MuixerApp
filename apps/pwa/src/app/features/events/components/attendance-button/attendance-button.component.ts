@@ -12,7 +12,6 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
-import { LucideAngularModule, Check } from 'lucide-angular';
 import { EventService } from '../../services/event.service';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } from '@muixer/ui';
 
