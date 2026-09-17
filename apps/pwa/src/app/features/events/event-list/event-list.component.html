@@ -2,25 +2,32 @@
 
 <div class="flex items-center justify-between gap-2 mb-4">
   @if (viewMode() === 'list') {
-    <div class="flex items-center gap-1.5 min-w-0" data-testid="event-list-type-filters">
-      <lib-button
-        size="xs"
-        [variant]="showActuacions() ? 'primary' : 'neutral'"
-        [ariaPressed]="showActuacions()"
-        ariaLabel="Mostra actuacions"
-        (clicked)="toggleActuacions()"
+    <div
+      role="tablist"
+      class="tabs tabs-boxed flex-nowrap overflow-x-auto min-w-0"
+      aria-label="Filtra per tipus d'event"
+      data-testid="event-list-type-filters"
+    >
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5 whitespace-nowrap"
+        [class.tab-active]="showActuacions()"
+        [attr.aria-selected]="showActuacions()"
+        (click)="toggleActuacions()"
       >
         Actuacions
-      </lib-button>
-      <lib-button
-        size="xs"
-        [variant]="showAssajos() ? 'primary' : 'neutral'"
-        [ariaPressed]="showAssajos()"
-        ariaLabel="Mostra assajos"
-        (clicked)="toggleAssajos()"
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5 whitespace-nowrap"
+        [class.tab-active]="showAssajos()"
+        [attr.aria-selected]="showAssajos()"
+        (click)="toggleAssajos()"
       >
         Assajos
-      </lib-button>
+      </button>
     </div>
   }
 
