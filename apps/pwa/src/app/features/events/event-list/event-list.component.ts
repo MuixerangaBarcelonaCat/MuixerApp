@@ -11,7 +11,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { AttendanceStatus, EventType, MeEvent, PaginatedResponse } from '@muixer/shared';
 import { LucideAngularModule, CalendarDays, List, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
-import { ButtonComponent, EmptyStateComponent } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent } from '@muixer/ui';
 import { PullToRefreshComponent } from '../../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { EventCardComponent } from '../components/event-card/event-card.component';
 import { CalendarViewComponent } from '../components/calendar-view/calendar-view.component';
@@ -27,6 +27,7 @@ type ViewMode = 'list' | 'calendar';
   imports: [
     LucideAngularModule,
     ButtonComponent,
+    ButtonGroupComponent,
     MobileHeaderComponent,
     EmptyStateComponent,
     PullToRefreshComponent,
