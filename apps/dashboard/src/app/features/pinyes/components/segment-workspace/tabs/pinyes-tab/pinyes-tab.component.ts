@@ -23,7 +23,11 @@ import { ToastService, ButtonComponent } from '@muixer/ui';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
 import { FigureZone, areaForZone, conflictRelevantPlacements } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
-import { buildPinyaBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
+import {
+  buildPinyaBuckets,
+  pickAdjacentNode,
+  pickNextAssignableNode,
+} from '../../../../utils/assignment-order.util';
 
 /**
  * Pinyes tab of the segment workspace: every figure of the segment on one
@@ -202,7 +206,7 @@ export class PinyesTabComponent implements OnInit {
 
     if (event.key === 'Tab') {
       event.preventDefault();
-      this.advanceFromCurrent();
+      this.navigateAdjacent(event.shiftKey ? -1 : 1);
     }
   }
 
@@ -897,32 +901,29 @@ export class PinyesTabComponent implements OnInit {
     }
   }
 
-  private advanceFromCurrent(): void {
+  /**
+   * Steps the selection to the node immediately before (`-1`) or after (`1`)
+   * the current one, following the established pinya order and stopping on
+   * every visible node (assigned nodes included). Wraps around at both ends.
+   */
+  navigateAdjacent(direction: 1 | -1): void {
     const ref = this.selectedRef();
     const instanceId = ref?.slotId ?? this.ws.selectedInstanceId() ?? this.ws.instances()[0]?.instanceId;
     if (!instanceId) return;
     const instance = this.instanceFor(instanceId);
     if (!instance) return;
 
-    const nodes = this.ws
-      .visibleNodesFor(instance)
-      .filter((n) => n.zone !== FigureZone.DECORATION && n.zone !== FigureZone.TRONC);
-    if (nodes.length === 0) return;
-
-    const assignedIds = new Set(
-      this.state
-        .assignments()
-        .filter((a) => a.figureInstanceId === instanceId)
-        .map((a) => a.node.id),
+    const visibleIds = new Set(
+      this.ws
+        .visibleNodesFor(instance)
+        .filter((n) => n.zone !== FigureZone.DECORATION && n.zone !== FigureZone.TRONC)
+        .map((n) => n.id),
     );
-
-    const startIndex = ref ? nodes.findIndex((n) => n.id === ref.nodeId) : -1;
-    for (let i = 1; i <= nodes.length; i++) {
-      const idx = (startIndex + i) % nodes.length;
-      if (!assignedIds.has(nodes[idx].id)) {
-        this.select({ slotId: instanceId, nodeId: nodes[idx].id });
-        return;
-      }
+    const buckets = buildPinyaBuckets(instance.nodes);
+    const currentId = ref?.slotId === instanceId ? ref.nodeId : null;
+    const next = pickAdjacentNode(buckets, currentId, direction, visibleIds);
+    if (next) {
+      this.select({ slotId: instanceId, nodeId: next.id });
     }
   }
 }

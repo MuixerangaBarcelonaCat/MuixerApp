@@ -62,6 +62,8 @@ export class PersonPanelComponent {
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
+  /** Emitted when the user presses Tab / Shift+Tab in the search box with no results, to step to the next/previous node. */
+  readonly navigateNode = output<-1 | 1>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly state = inject(AssignmentStateService);
@@ -328,13 +330,18 @@ export class PersonPanelComponent {
 
     effect((onCleanup) => {
       const nodeId = this.selectedNodeId();
+
+      // Keep the search box focused at all times: with no node selected it
+      // searches for someone, with a node selected it fills that node. The
+      // height-filter guard still wins so we never yank focus mid-typing.
+      const focusTimer = setTimeout(() => {
+        if (this.heightFocused()) return;
+        this.focusSearch();
+      }, 0);
+      onCleanup(() => clearTimeout(focusTimer));
+
       if (nodeId !== null) {
         this.hasTypedSinceNodeSelected = false;
-        const focusTimer = setTimeout(() => {
-          if (this.heightFocused()) return;
-          this.focusSearch();
-        }, 0);
-        onCleanup(() => clearTimeout(focusTimer));
         // Auto-toggle the Xicalla filter to match the selected node's zone.
         // Left untouched when a node is deselected (nodeId === null).
         // Goes through onXicallaChange (not a direct signal set) so the person
@@ -480,14 +487,25 @@ export class PersonPanelComponent {
   onSearchKeyDown(event: KeyboardEvent): void {
     const resultsCount = this.searchResults().length;
 
-    if (event.key === 'ArrowDown' || (event.key === 'Tab' && !event.shiftKey)) {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      if (resultsCount > 0) {
+        this.highlightedIndex.update((i) =>
+          event.shiftKey ? Math.max(i - 1, 0) : Math.min(i + 1, resultsCount - 1),
+        );
+      } else {
+        this.navigateNode.emit(event.shiftKey ? -1 : 1);
+      }
+      return;
+    }
+    if (event.key === 'ArrowDown') {
       if (resultsCount > 0) {
         event.preventDefault();
         this.highlightedIndex.update((i) => Math.min(i + 1, resultsCount - 1));
       }
       return;
     }
-    if (event.key === 'ArrowUp' || (event.key === 'Tab' && event.shiftKey)) {
+    if (event.key === 'ArrowUp') {
       if (resultsCount > 0) {
         event.preventDefault();
         this.highlightedIndex.update((i) => Math.max(i - 1, 0));
@@ -506,7 +524,7 @@ export class PersonPanelComponent {
       }
       return;
     }
-    if (event.key === 'Backspace') {
+    if (event.key === 'Backspace' || event.key === 'Delete') {
       const input = event.target as HTMLInputElement;
       if (input.value === '' && !this.hasTypedSinceNodeSelected) {
         const assignment = this.selectedAssignment();

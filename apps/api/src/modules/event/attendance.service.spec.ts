@@ -52,7 +52,9 @@ describe('AttendanceService', () => {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       setParameter: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getCount: jest.fn().mockResolvedValue(attendances.length),
@@ -130,6 +132,27 @@ describe('AttendanceService', () => {
       const result = await service.findByEvent('ev-1', {});
       expect(result.data.length).toBe(1);
       expect(result.total).toBe(1);
+    });
+
+    it('orders by a case-insensitive alias with the provisional "~" prefix stripped', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
+      service = await buildModule(repos);
+      await service.findByEvent('ev-1', {});
+      expect(repos.attendanceRepo.attQb.addSelect).toHaveBeenCalledWith(
+        "lower(regexp_replace(person.alias, '^~', ''))",
+        'normalized_alias',
+      );
+      expect(repos.attendanceRepo.attQb.orderBy).toHaveBeenCalledWith('normalized_alias', 'ASC');
+      expect(repos.attendanceRepo.attQb.addOrderBy).toHaveBeenCalledWith('person.alias', 'ASC');
+    });
+
+    it('maps isProvisional onto the person ref', async () => {
+      const repos = makeRepos([
+        { ...makeAttendance(AttendanceStatus.ASSISTIT), person: makePerson({ isProvisional: true }) },
+      ]);
+      service = await buildModule(repos);
+      const result = await service.findByEvent('ev-1', {});
+      expect(result.data[0].person.isProvisional).toBe(true);
     });
 
     it('filters by status', async () => {

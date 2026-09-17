@@ -124,5 +124,22 @@ describe('TagFormModalComponent', () => {
         expect.objectContaining({ category: TagCategory.ALTRES }),
       );
     });
+
+    it('sends null descriptions when they are cleared in edit mode', () => {
+      fixture.componentRef.setInput('position', {
+        ...mockTag,
+        shortDescription: 'curt',
+        longDescription: 'llarg',
+      } as TagWithCount);
+      fixture.detectChanges();
+
+      component.form.patchValue({ shortDescription: '', longDescription: '' });
+      component.onSave();
+
+      expect(tagService.update).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({ shortDescription: null, longDescription: null }),
+      );
+    });
   });
 });

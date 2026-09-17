@@ -159,7 +159,7 @@ export class NodesTabComponent implements OnInit {
     'arrow-down': 'Fletxa avall',
     'double-arrow': 'Fletxa doble',
     triangle: 'Triangle',
-    star: 'Estrella',
+    star: 'Estrela',
     circle: 'Cercle',
   };
 

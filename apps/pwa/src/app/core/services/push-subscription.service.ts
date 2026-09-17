@@ -5,6 +5,8 @@ import { PushSubscriptionStatus } from '@muixer/shared';
 
 const PUSH_DISMISSED_KEY = 'muixer_push_dismissed_at';
 const PUSH_DISMISS_DAYS = 7;
+/** Set when the user explicitly turns notifications off in settings — blocks silent startup re-subscribe. */
+const PUSH_OPTED_OUT_KEY = 'muixer_push_opted_out';
 
 @Injectable({ providedIn: 'root' })
 export class PushSubscriptionService {
@@ -43,6 +45,25 @@ export class PushSubscriptionService {
     }
   }
 
+  /**
+   * Called on app startup. Refreshes status and, if the browser permission is
+   * already granted but this device isn't subscribed, re-subscribes silently
+   * (no native prompt). When the permission is still `default`, does nothing —
+   * the banner drives the first opt-in.
+   */
+  async syncOnStartup(): Promise<void> {
+    if (!this.isPushSupported()) return;
+    if (this.getItem(PUSH_OPTED_OUT_KEY) === 'true') return;
+    await this.checkStatus();
+    if (this.readPermission() !== 'granted') return;
+
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    if (!existing || !this._isSubscribed()) {
+      await this.subscribeAndRegister();
+    }
+  }
+
   async requestPermissionAndSubscribe(): Promise<boolean> {
     if (!this.isPushSupported()) return false;
 
@@ -54,6 +75,7 @@ export class PushSubscriptionService {
   }
 
   async unsubscribe(): Promise<void> {
+    this.setItem(PUSH_OPTED_OUT_KEY, 'true');
     const registration = await navigator.serviceWorker.ready;
     const existing = await registration.pushManager.getSubscription();
     if (!existing) {
@@ -107,6 +129,7 @@ export class PushSubscriptionService {
         }),
       );
 
+      this.removeItem(PUSH_OPTED_OUT_KEY);
       this._isSubscribed.set(true);
       this._deviceCount.update((n) => n + 1);
       return true;
@@ -169,6 +192,14 @@ export class PushSubscriptionService {
       localStorage.setItem(key, value);
     } catch {
       // localStorage unavailable (private mode) — dismiss state just won't persist.
+    }
+  }
+
+  private removeItem(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // localStorage unavailable — nothing to clear.
     }
   }
 }

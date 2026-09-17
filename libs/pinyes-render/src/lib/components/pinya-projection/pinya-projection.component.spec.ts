@@ -443,6 +443,29 @@ describe('PinyaProjectionComponent', () => {
       expect(positions.get('b')!.x).toBeLessThan(500);
     });
 
+    it('excludes ad-hoc nodes from the pivot bbox — an extra node must not move the figure', () => {
+      const pinyaOnly = () =>
+        makeInstance([makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 200, height: 100 })], ['p1'], {
+          id: 'a',
+          projectionX: null,
+        });
+      setData(makeSegmentData([pinyaOnly()]));
+      const withoutAdHoc = component.effectivePositions().get('a')!;
+
+      const withAdHoc = makeInstance(
+        [
+          makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 200, height: 100 }),
+          makeNode({ id: 'extra', zone: FigureZone.PINYA, x: 900, y: 900, width: 100, height: 100, isAdHoc: true }),
+        ],
+        ['p1'],
+        { id: 'a', projectionX: null },
+      );
+      setData(makeSegmentData([withAdHoc]));
+      const withAdHocPos = component.effectivePositions().get('a')!;
+
+      expect(withAdHocPos).toEqual(withoutAdHoc);
+    });
+
     it('always includes BASE nodes in the pivot bbox, even when unassigned', () => {
       const a = makeInstance(
         [makeNode({ id: 'base', zone: FigureZone.BASE, x: 1000, y: 1000, width: 1800, height: 1800 })],
@@ -614,6 +637,69 @@ describe('PinyaProjectionComponent', () => {
       expect(outlines.length).toBe(1);
       expect(outlines.some((o) => o.width === 111 || o.height === 222)).toBe(false);
     });
+
+    it('excludes ad-hoc nodes — same treatment as DECORATION, no figure glow behind them', () => {
+      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0 });
+      const extra = makeNode({ id: 'extra', zone: FigureZone.PINYA, x: 50, y: 50, isAdHoc: true });
+      setData(makeSegmentData([makeInstance([pinya, extra], ['n1', 'extra'], { projectionX: 0, projectionY: 0 })]));
+
+      const outlines = component.distributionNodeOutlines();
+
+      expect(outlines.length).toBe(1);
+    });
+
+    it('centers the glow on the same pivot as the nodes themselves, even with an ad-hoc node present', () => {
+      // The ad-hoc node sits far outside the real pinya bbox — if it leaked into this
+      // glow's own pivot calculation (unlike distributionNodes(), which already excludes
+      // it), the glow would render offset from the node it is supposed to sit behind.
+      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0, width: 200, height: 100 });
+      const extra = makeNode({
+        id: 'extra', zone: FigureZone.PINYA, x: 900, y: 900, width: 100, height: 100, isAdHoc: true,
+      });
+      setData(makeSegmentData([makeInstance([pinya, extra], ['n1'], { projectionX: 0, projectionY: 0 })]));
+
+      const drawnNode = component.distributionNodes().find((n) => n.id === 'n1')!;
+      const outline = component.distributionNodeOutlines()[0];
+
+      expect(outline.x).toBeCloseTo(drawnNode.x);
+      expect(outline.y).toBeCloseTo(drawnNode.y);
+    });
+  });
+
+  // ── distributionTroncPanels / distributionFitBounds ───────────────────────────
+
+  describe('linked tronc panel position (distributionTroncPanels / distributionFitBounds)', () => {
+    it('does not let an ad-hoc node inflate the figure half-height used to float the tronc panel above it', () => {
+      const withoutAdHoc = () =>
+        makeInstance(
+          [
+            makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 200, height: 100 }),
+            makeNode({ id: 't1', zone: FigureZone.TRONC, z: 0, x: 0, width: 1 }),
+          ],
+          ['p1'],
+          { id: 'a', projectionX: 0, projectionY: 0 },
+        );
+      setData(makeSegmentData([withoutAdHoc()]));
+      const baselinePanel = component.distributionTroncPanels()[0];
+      const baselineBounds = component.distributionFitBounds()[0];
+
+      const withAdHoc = makeInstance(
+        [
+          makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 200, height: 100 }),
+          // Far below the real pinya — must not push the (linked) tronc panel further up.
+          makeNode({ id: 'extra', zone: FigureZone.PINYA, x: 0, y: 900, width: 100, height: 100, isAdHoc: true }),
+          makeNode({ id: 't1', zone: FigureZone.TRONC, z: 0, x: 0, width: 1 }),
+        ],
+        ['p1'],
+        { id: 'a', projectionX: 0, projectionY: 0 },
+      );
+      setData(makeSegmentData([withAdHoc]));
+      const panelWithAdHoc = component.distributionTroncPanels()[0];
+      const boundsWithAdHoc = component.distributionFitBounds()[0];
+
+      expect(panelWithAdHoc.screenY).toBeCloseTo(baselinePanel.screenY);
+      expect(boundsWithAdHoc.y).toBeCloseTo(baselineBounds.y);
+    });
   });
 
   // ── distributionAssignments ──────────────────────────────────────────────────
@@ -698,6 +784,18 @@ describe('PinyaProjectionComponent', () => {
       expect(marker.componentInstance.subject()).toEqual({ kind: 'other', alias: 'Marta' });
     });
 
+    it('feeds the banner the numbered figure name when two figures share a name', () => {
+      const node = makeNode({ id: 'n1', label: 'Lateral' });
+      const a = makeInstance([], [], { id: 'a', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      const b = makeInstance([node], ['n1'], { id: 'b', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      setData(makeSegmentData([a, b]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      expect(banner.componentInstance.state().figureName).toBe('Pilar 2');
+    });
+
     it('re-emits backToSelf when the banner emits back', () => {
       const inst = makeInstance([makeNode({ id: 'n1' })], [], { id: 'i1' });
       setData(makeSegmentData([inst]));
@@ -711,6 +809,26 @@ describe('PinyaProjectionComponent', () => {
       banner.componentInstance.back.emit();
 
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── getInstanceName ─────────────────────────────────────────────────────────
+
+  describe('getInstanceName', () => {
+    it('leaves the name bare when it is the only figure with that name', () => {
+      const a = makeInstance([], [], { id: 'a', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      const b = makeInstance([], [], { id: 'b', figureTemplate: { id: 'f2', name: 'Vano', hasPinya: true } });
+      setData(makeSegmentData([a, b]));
+
+      expect(component.getInstanceName(a)).toBe('Pilar');
+    });
+
+    it('numbers figures that share a name, in order', () => {
+      const a = makeInstance([], [], { id: 'a', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      const b = makeInstance([], [], { id: 'b', figureTemplate: { id: 'f1', name: 'Pilar', hasPinya: true } });
+      setData(makeSegmentData([a, b]));
+
+      expect([component.getInstanceName(a), component.getInstanceName(b)]).toEqual(['Pilar 1', 'Pilar 2']);
     });
   });
 

@@ -125,6 +125,17 @@ describe('SeasonFormModalComponent', () => {
       expect(seasonService.update).toHaveBeenCalledWith('s1', expect.objectContaining({ name: 'Updated' }));
       expect(toast.success).toHaveBeenCalled();
     });
+
+    it('sends null description when the field is cleared', () => {
+      component.form.patchValue({ description: '' });
+      component.onSave();
+      expect(seasonService.update).toHaveBeenCalledWith('s1', expect.objectContaining({ description: null }));
+    });
+
+    it('keeps the description when it is still filled', () => {
+      component.onSave();
+      expect(seasonService.update).toHaveBeenCalledWith('s1', expect.objectContaining({ description: 'Test description' }));
+    });
   });
 
   describe('cancel', () => {

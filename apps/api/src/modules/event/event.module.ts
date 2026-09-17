@@ -10,6 +10,7 @@ import { AuditModule } from '../audit/audit.module';
 import { EventController } from './event.controller';
 import { EventService } from './event.service';
 import { AttendanceService } from './attendance.service';
+import { AttendanceSweepService } from './attendance-sweep.service';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { AttendanceService } from './attendance.service';
     AuditModule,
   ],
   controllers: [EventController],
-  providers: [EventService, AttendanceService],
+  providers: [EventService, AttendanceService, AttendanceSweepService],
   exports: [EventService, AttendanceService],
 })
 export class EventModule {}

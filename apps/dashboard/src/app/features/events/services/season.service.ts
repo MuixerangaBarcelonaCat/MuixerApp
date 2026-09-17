@@ -10,7 +10,9 @@ export interface CreateSeasonPayload {
   description?: string;
 }
 
-export type UpdateSeasonPayload = Partial<CreateSeasonPayload>;
+export type UpdateSeasonPayload = {
+  [K in keyof CreateSeasonPayload]?: CreateSeasonPayload[K] | null;
+};
 
 @Injectable({
   providedIn: 'root',
