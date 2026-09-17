@@ -1444,8 +1444,12 @@ describe('SegmentManagerComponent', () => {
 
       figureModeChange.cancel();
       // The reset round-trips the bound value twice (real value -> '' -> real value again) to
-      // force NgModel to resync, and NgModel itself defers each write through a resolved-promise
-      // microtask — so flush a few rounds of microtask + change detection to let it settle.
+      // force NgModel to resync. Render the '' leg first, then let the macrotask that schedules
+      // the revert run (the component uses setTimeout, not a microtask — the app is zoneless, so
+      // a microtask would collapse both writes into a single render). NgModel itself defers each
+      // write through a resolved-promise microtask, so flush a few rounds after that to settle.
+      fixture.detectChanges();
+      await new Promise((resolve) => setTimeout(resolve));
       for (let i = 0; i < 5; i++) {
         fixture.detectChanges();
         await Promise.resolve();
@@ -1453,6 +1457,28 @@ describe('SegmentManagerComponent', () => {
       fixture.detectChanges();
 
       expect(select!.value).toBe('COMPLETA');
+    });
+
+    // The DOM test above interleaves detectChanges() by hand, so it passes whether the revert is
+    // scheduled as a microtask or a macrotask. This one pins the scheduling itself: the app is
+    // zoneless, so change detection runs on a setTimeout/rAF race — a microtask revert would land
+    // before that tick, collapse both writes into one render, and never resync the native select.
+    it('defers the override revert to a macrotask, not a microtask', async () => {
+      vi.useFakeTimers();
+      try {
+        const inst = makeInstance({ id: 'inst-1', figureMode: 'COMPLETA' });
+
+        component.onFigureModeChangeCancelled('inst-1');
+        expect(component.displayedFigureMode(inst)).toBe('');
+
+        await Promise.resolve();
+        expect(component.displayedFigureMode(inst)).toBe('');
+
+        vi.runAllTimers();
+        expect(component.displayedFigureMode(inst)).toBe('COMPLETA');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

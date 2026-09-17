@@ -15,6 +15,10 @@ interface PendingCordonsChange {
  * impact (`NodeAssignmentService.previewCordonsImpact`, which shares `hiddenNodeIdsBeyondCordons`
  * with the actual removal on `updateCordons`) so the count shown here can never diverge from
  * what's actually removed. `numberOfCordons: null` ("Tots") is always safe and applies directly.
+ *
+ * The preview is direction-agnostic on purpose: an *increase* can still leave assignments beyond
+ * the new cap (stale `renglaPosition`s from a previous, larger count), and `updateCordons` removes
+ * them either way — so the warning must fire for both directions, and its wording stays neutral.
  */
 @Component({
   selector: 'app-cordons-change',

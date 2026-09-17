@@ -560,7 +560,10 @@ export class SegmentManagerComponent implements OnInit {
 
   onFigureModeChangeCancelled(instanceId: string): void {
     this.figureModeOverride.update((m) => new Map(m).set(instanceId, ''));
-    Promise.resolve().then(() => {
+    // A macrotask, not a microtask: the app is zoneless, so change detection runs on a
+    // setTimeout/rAF race. A microtask would land before that tick and both writes would
+    // collapse into one render, leaving ngModel with nothing to re-write.
+    setTimeout(() => {
       this.figureModeOverride.update((m) => {
         const next = new Map(m);
         next.delete(instanceId);

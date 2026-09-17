@@ -10,9 +10,11 @@
 const COMBINING_MARKS_START = 768;
 const COMBINING_MARKS_END = 879;
 
-/** Lowercased, accent-stripped form of `value`, for comparing free text case/accent-insensitively. */
+/** Lowercased, accent-stripped, trimmed form of `value`, for comparing free text
+ *  case/accent-insensitively. Trimming matters on the query side: callers use a falsy result as
+ *  the "nothing typed yet" signal, so a lone space must normalize to `''` and not act as a filter. */
 export function normalizeForSearch(value: string): string {
-  return Array.from(value.normalize('NFD'))
+  return Array.from(value.trim().normalize('NFD'))
     .filter((ch) => {
       const code = ch.codePointAt(0) ?? 0;
       return code < COMBINING_MARKS_START || code > COMBINING_MARKS_END;
