@@ -9,10 +9,12 @@ export const EVENT_SORT_BY_FIELDS = [
 
 export type EventSortByField = (typeof EVENT_SORT_BY_FIELDS)[number];
 
+/** Text columns are wrapped in `unaccent(lower(...))` so sorting is accent/case-insensitive,
+ *  matching every free-text search in the codebase. */
 export const EVENT_SORT_COLUMN_MAP: Partial<Record<EventSortByField, string>> = {
   date: 'event.date',
-  title: 'event.title',
-  location: 'event.location',
+  title: 'unaccent(lower(event.title))',
+  location: 'unaccent(lower(event.location))',
   startTime: 'event.startTime',
   createdAt: 'event.createdAt',
   // 'chronological' is handled separately in the service with a CASE expression

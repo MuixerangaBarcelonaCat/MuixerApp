@@ -1,5 +1,5 @@
 import { CompositionSlotWithNodes, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, repositionCordoObertNodes, computeTroncNaturalSize, TroncNodeItem, AssignmentDetail } from '@muixer/pinyes-render';
-import { computeInstanceDisplayNames } from '@muixer/shared';
+import { computeInstanceDisplayNames, isNodeVisibleByModeAndCordons } from '@muixer/shared';
 import { DistributionItem, DistributionNodeItem, DistributionAssignment } from '../models/distribution.model';
 import { filterNodesByFigureMode } from './figure-mode-filter.util';
 
@@ -31,7 +31,6 @@ export function mapDistributionItemsToSlots(
         item.figureTemplate.nodes,
         item.figureMode,
         item.numberOfCordons,
-        { keepCordoObert: true },
       );
       const positionedNodes = repositionCordoObertNodes(
         item.figureTemplate.nodes,
@@ -153,13 +152,14 @@ function pinyaCanvasNodes<T extends { zone: string }>(nodes: T[]): T[] {
 /**
  * Backend troncGridRows excludes the base row; the projected TroncView panel
  * adds one row when the (mode-filtered) figure still shows BASE nodes, so
- * placeholders and placement must reserve it too.
+ * placeholders and placement must reserve it too. `modeFilteredNodes` already
+ * excludes BASE for REMAT (via `filterNodesByFigureMode`), so no extra mode check is needed here.
  */
 function effectiveTroncGridRows(
   item: DistributionItem,
   modeFilteredNodes: { zone: string }[],
 ): number {
-  const showsBase = item.figureMode !== 'REMAT' && modeFilteredNodes.some((n) => n.zone === 'BASE');
+  const showsBase = modeFilteredNodes.some((n) => n.zone === 'BASE');
   return item.troncGridRows + (showsBase ? 1 : 0);
 }
 
@@ -173,9 +173,11 @@ export function troncViewNodesFor(
   nodes: DistributionNodeItem[],
   figureMode: string,
 ): { troncNodes: TroncNodeItem[]; baseNodes: TroncNodeItem[]; directionNodes: TroncNodeItem[] } {
+  // `numberOfCordons`/`cordonsObertsEnabled` aren't in scope here, but the BASE branch never reads them.
+  const opts = { figureMode, numberOfCordons: null, cordonsObertsEnabled: true };
   return {
     troncNodes: nodes.filter((n) => n.zone === 'TRONC'),
-    baseNodes: figureMode === 'REMAT' ? [] : nodes.filter((n) => n.zone === 'BASE'),
+    baseNodes: nodes.filter((n) => n.zone === 'BASE' && isNodeVisibleByModeAndCordons(n, opts)),
     directionNodes: nodes.filter((n) => n.zone === 'DIRECTION'),
   };
 }

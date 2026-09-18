@@ -110,10 +110,16 @@ export class UserService {
 
     const total = await qb.getCount();
 
-    if (sortBy && USER_SORT_COLUMN_MAP[sortBy]) {
-      qb.orderBy(USER_SORT_COLUMN_MAP[sortBy]!, sortOrder);
+    const orderColumn = sortBy && USER_SORT_COLUMN_MAP[sortBy] ? USER_SORT_COLUMN_MAP[sortBy]! : 'user.createdAt';
+    const orderDirection = sortBy && USER_SORT_COLUMN_MAP[sortBy] ? sortOrder : 'DESC';
+
+    // Vegeu la mateixa nota a `PersonService.findAll`: una expressió crua com `unaccent(lower(...))`
+    // trenca la combinació orderBy+select de TypeORM en paginar amb joins si no es referencia
+    // per àlies seleccionat.
+    if (orderColumn.includes('(')) {
+      qb.addSelect(orderColumn, 'sort_column').orderBy('sort_column', orderDirection);
     } else {
-      qb.orderBy('user.createdAt', 'DESC');
+      qb.orderBy(orderColumn, orderDirection);
     }
 
     const users = await qb

@@ -76,6 +76,7 @@ const mockCompositionRepo = {
 
 const mockSegmentService = {
   getOne: jest.fn(),
+  loadTotalCordons: jest.fn().mockResolvedValue(new Map()),
 };
 
 const mockNodeAssignmentService = {
@@ -203,7 +204,7 @@ describe('FigureInstanceService', () => {
         (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
       );
       expect(deleteCalls.length).toBeGreaterThan(0);
-      expect(deleteCalls[0][1]).toEqual([INSTANCE_ID]);
+      expect(deleteCalls[0][1]).toEqual([INSTANCE_ID, [FigureZone.PINYA, FigureZone.BASE]]);
       expect(txManager.save).toHaveBeenCalledWith(
         FigureInstance,
         expect.objectContaining({ id: INSTANCE_ID, figureMode: FigureMode.REMAT }),
@@ -260,6 +261,33 @@ describe('FigureInstanceService', () => {
 
       expect(result.pinyaAssignedCount).toBe(2);
       expect(result.assignedCount).toBe(3);
+    });
+
+    it('returns totalCordons from segmentService.loadTotalCordons (shared with the segment list)', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.COMPLETA }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+      mockSegmentService.loadTotalCordons.mockResolvedValueOnce(new Map([[FIGURE_ID, 4]]));
+
+      const result = await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      expect(mockSegmentService.loadTotalCordons).toHaveBeenCalledWith([FIGURE_ID]);
+      expect(result.totalCordons).toBe(4);
+    });
+
+    it('does not call loadTotalCordons and returns totalCordons null for REMAT/NETA instances', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.REMAT }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      const result = await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      expect(mockSegmentService.loadTotalCordons).not.toHaveBeenCalled();
+      expect(result.totalCordons).toBeNull();
     });
 
     it('throws 404 if instance does not belong to segment', async () => {

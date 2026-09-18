@@ -269,6 +269,51 @@ describe('PinyaProjectionComponent', () => {
 
       expect(result.map((n) => n.id)).toEqual(['dec1', 'p1']);
     });
+
+    it('excludes BASE nodes for REMAT instances', () => {
+      const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
+      const deco = makeNode({ id: 'dec1', zone: FigureZone.DECORATION });
+      const instance = makeInstance([base, deco], [], { figureMode: 'REMAT' });
+
+      const result = component.getInstanceProjectionNodes(instance);
+
+      expect(result.map((n) => n.id)).toEqual(['dec1']);
+    });
+
+    it('keeps BASE nodes for NETA instances (only PINYA strips on NETA)', () => {
+      const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
+      const instance = makeInstance([base], [], { figureMode: 'NETA' });
+
+      const result = component.getInstanceProjectionNodes(instance);
+
+      expect(result.map((n) => n.id)).toEqual(['b1']);
+    });
+  });
+
+  // ── getInstanceBaseNodes (tronc panel's base row) ────────────────────────────
+
+  describe('getInstanceBaseNodes', () => {
+    it('returns BASE-zoned nodes', () => {
+      const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
+      const tronc = makeNode({ id: 't1', zone: FigureZone.TRONC });
+      const instance = makeInstance([base, tronc], []);
+
+      expect(component.getInstanceBaseNodes(instance).map((n) => n.id)).toEqual(['b1']);
+    });
+
+    it('excludes BASE nodes for REMAT instances', () => {
+      const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
+      const instance = makeInstance([base], [], { figureMode: 'REMAT' });
+
+      expect(component.getInstanceBaseNodes(instance)).toEqual([]);
+    });
+
+    it('keeps BASE nodes for NETA instances (only PINYA strips on NETA)', () => {
+      const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
+      const instance = makeInstance([base], [], { figureMode: 'NETA' });
+
+      expect(component.getInstanceBaseNodes(instance).map((n) => n.id)).toEqual(['b1']);
+    });
   });
 
   // ── getInstanceDirectionNodes ───────────────────────────────────────────────

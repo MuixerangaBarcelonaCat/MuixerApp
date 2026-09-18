@@ -19,6 +19,7 @@ import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FigurePropertiesPanelComponent, FigurePropertiesEntry } from '../figure-properties-panel/figure-properties-panel.component';
 import { computeMaxCordons, filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
+import { normalizeForSearch } from '@muixer/shared';
 import {
   CompositionDetail,
   CompositionEntryItem,
@@ -96,10 +97,10 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   });
 
   readonly filteredTemplates = computed<FigureTemplateListItem[]>(() => {
-    const q = this.search().toLowerCase();
+    const q = normalizeForSearch(this.search());
     const all = this.figureTemplates();
     if (!q) return all;
-    return all.filter((t) => t.name.toLowerCase().includes(q));
+    return all.filter((t) => normalizeForSearch(t.name).includes(q));
   });
 
   // Queried by template ref (not by type) so tests can substitute a stub component for FigureCanvasComponent.
@@ -152,7 +153,6 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       entry.figureTemplate.nodes,
       entry.figureMode,
       entry.numberOfCordons,
-      { keepCordoObert: true },
     );
     const positionedNodes = repositionCordoObertNodes(
       entry.figureTemplate.nodes,

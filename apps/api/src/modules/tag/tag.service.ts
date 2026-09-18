@@ -28,7 +28,7 @@ export class TagService {
       qb.andWhere('tag.category IN (:...categories)', { categories: filter.category });
     }
 
-    const result = await qb.groupBy('tag.id').orderBy('tag.name', 'ASC').getRawAndEntities();
+    const result = await qb.groupBy('tag.id').orderBy('unaccent(lower(tag.name))', 'ASC').getRawAndEntities();
 
     return result.entities.map((entity, index) => ({
       ...entity,

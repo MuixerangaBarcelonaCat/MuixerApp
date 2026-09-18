@@ -15,6 +15,7 @@ import {
   ImportScope,
   computeInstanceDisplayNames,
   getSegmentInstanceLabel,
+  isNodeVisibleByModeAndCordons,
   OwnPositionSubject,
 } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
@@ -695,7 +696,9 @@ export class PinyaProjectionComponent {
 
   /** Nodes to render on the Konva canvas: PINYA + BASE + DECORATION (spatial x,y nodes).
    *  Excludes TRONC/DIRECTION (shown in tronc header) and unassigned PINYA nodes.
-   *  BASE nodes are excluded for REMAT and NETA modes.
+   *  BASE nodes are excluded for REMAT (kept for NETA — only PINYA strips there), via the
+   *  shared `isNodeVisibleByModeAndCordons`; `cordonsObertsEnabled` isn't in `ProjectionInstance`
+   *  but that's fine, the BASE check never reads it.
    *  PINYA nodes beyond numberOfCordons are excluded even if (stale-)assigned —
    *  reducing cordons does not auto-unassign anyone server-side, but the
    *  structure physically doesn't have that cordon anymore. cordo-obert nodes
@@ -703,7 +706,12 @@ export class PinyaProjectionComponent {
    *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
   getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
-    const hideBase = instance.figureMode === 'REMAT';
+    const isBaseVisible = (n: InstanceNodeItem) =>
+      isNodeVisibleByModeAndCordons(n, {
+        figureMode: instance.figureMode,
+        numberOfCordons: instance.numberOfCordons,
+        cordonsObertsEnabled: true,
+      });
     const cordons = instance.numberOfCordons;
     const withinCordons = (n: InstanceNodeItem) =>
       cordons === null ||
@@ -721,7 +729,7 @@ export class PinyaProjectionComponent {
 
     return instance.nodes
       .filter((n) =>
-        (n.zone === FigureZone.PINYA || (!hideBase && n.zone === FigureZone.BASE) || n.zone === FigureZone.DECORATION) &&
+        (n.zone === FigureZone.PINYA || (n.zone === FigureZone.BASE && isBaseVisible(n)) || n.zone === FigureZone.DECORATION) &&
         !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)) &&
         (n.zone !== FigureZone.PINYA || withinCordons(n)),
       )
@@ -736,8 +744,11 @@ export class PinyaProjectionComponent {
   }
 
   getInstanceBaseNodes(instance: ProjectionInstance): TroncNodeItem[] {
-    if (instance.figureMode === 'REMAT') return [];
-    return instance.nodes.filter((n) => n.zone === FigureZone.BASE) as TroncNodeItem[];
+    // `cordonsObertsEnabled` isn't on ProjectionInstance, but the BASE branch never reads it.
+    const opts = { figureMode: instance.figureMode, numberOfCordons: instance.numberOfCordons, cordonsObertsEnabled: true };
+    return instance.nodes.filter(
+      (n) => n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, opts),
+    ) as TroncNodeItem[];
   }
 
   getInstanceDirectionNodes(instance: ProjectionInstance): TroncNodeItem[] {

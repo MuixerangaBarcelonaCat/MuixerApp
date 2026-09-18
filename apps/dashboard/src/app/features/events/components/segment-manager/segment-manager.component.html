@@ -478,7 +478,7 @@
                           <lib-select
                             size="xs"
                             [ariaLabel]="'Mode de ' + getInstanceLabel(instance, segment)"
-                            [ngModel]="instance.figureMode"
+                            [ngModel]="displayedFigureMode(instance)"
                             [disabled]="isLocked()"
                             (ngModelChange)="updateFigureMode(segment, instance, $event)"
                           >
@@ -514,7 +514,7 @@
                             shape="square"
                             [disabled]="isLocked() || instance.numberOfCordons === 1"
                             ariaLabel="Redueix els cordons"
-                            (clicked)="onCordonsDecrement(segment, instance)"
+                            (clicked)="onCordonsDecrement(instance)"
                           >
                             <lucide-icon name="Minus" [size]="12" aria-hidden="true" />
                           </lib-button>
@@ -528,7 +528,7 @@
                             shape="square"
                             [disabled]="isLocked() || instance.numberOfCordons === null"
                             ariaLabel="Augmenta els cordons"
-                            (clicked)="onCordonsIncrement(segment, instance)"
+                            (clicked)="onCordonsIncrement(instance)"
                           >
                             <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
                           </lib-button>
@@ -671,56 +671,8 @@
   </dialog>
 }
 
-<!-- REMAT / NETA mode change confirmation modal — same alertdialog/aria-describedby reasoning as above -->
-@if (pendingModeChange()) {
-  <dialog
-    class="modal modal-open"
-    role="alertdialog"
-    aria-labelledby="remat-confirm-title"
-    aria-describedby="remat-confirm-desc"
-    aria-modal="true"
-  >
-    <div class="modal-box max-w-sm">
-      <h3 id="remat-confirm-title" class="text-lg font-bold mb-3">
-        {{ pendingModeChange()!.mode === 'NETA' ? 'Canviar a Figura neta' : 'Canviar a Remat' }}
-      </h3>
-      <p id="remat-confirm-desc" class="text-sm text-base-content/70">
-        Canviar <strong>{{ getInstanceLabel(pendingModeChange()!.instance, pendingModeChange()!.segment) }}</strong> a
-        <strong>{{ pendingModeChange()!.mode === 'NETA' ? 'Figura neta' : 'Remat' }}</strong> desassignarà
-        <strong>{{ pendingModeChange()!.instance.pinyaAssignedCount }}
-          {{ pendingModeChange()!.instance.pinyaAssignedCount === 1 ? 'persona' : 'persones' }}
-        </strong>
-        {{ pendingModeChange()!.mode === 'NETA' ? 'de la pinya.' : 'de la pinya i la base.' }}
-      </p>
-      <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
-      <div class="modal-action">
-        <lib-button variant="ghost" size="sm" [disabled]="savingModeChange()" (clicked)="cancelModeChange()">Cancel·la</lib-button>
-        <lib-button variant="warning" size="sm" [disabled]="savingModeChange()" [loading]="savingModeChange()" (clicked)="confirmModeChange()">
-          {{ pendingModeChange()!.mode === 'NETA' ? 'Canvia a Figura neta' : 'Canvia a Remat' }}
-        </lib-button>
-      </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="cancelModeChange()" aria-label="Tancar"></button>
-  </dialog>
-}
+<!-- REMAT / NETA mode change confirmation (shared with the Distribució tab) -->
+<app-figure-mode-change (changed)="onFigureModeChangeApplied($event)" (cancelled)="onFigureModeChangeCancelled($event)" />
 
-<!-- Cordons reduction confirmation modal — mirrors the Distribució tab's own (figure-properties-panel /
-     distribucio-tab.component.html), same wording and lib-modal/lib-button pattern. The affected count is
-     exact (previewed against the backend), so it only appears when the reduction would actually unassign
-     someone. -->
-<lib-modal [open]="!!pendingCordonsChange()" title="Redueix els cordons" (closed)="cancelCordonsChange()">
-  @if (pendingCordonsChange(); as pending) {
-    <p class="text-sm text-base-content/70">
-      Esta acció eliminarà
-      <strong class="text-error">{{ pending.affectedCount }} {{ pending.affectedCount === 1 ? 'assignació' : 'assignacions' }}</strong>
-      dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
-    </p>
-    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
-  }
-  <div modalFooter class="flex justify-end gap-2 w-full">
-    <lib-button variant="ghost" size="sm" [disabled]="savingCordonsChange()" (clicked)="cancelCordonsChange()">Cancel·la</lib-button>
-    <lib-button variant="error" size="sm" [disabled]="savingCordonsChange()" [loading]="savingCordonsChange()" (clicked)="confirmCordonsChange()">
-      Elimina-les
-    </lib-button>
-  </div>
-</lib-modal>
+<!-- Cordons reduction confirmation (shared with the Distribució tab) -->
+<app-cordons-change (changed)="onCordonsChangeApplied()" />

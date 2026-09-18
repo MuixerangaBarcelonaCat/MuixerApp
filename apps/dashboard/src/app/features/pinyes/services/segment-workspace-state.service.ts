@@ -2,7 +2,7 @@ import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   FigureZone,
-  isNodeVisibleByCordons,
+  isNodeVisibleByModeAndCordons,
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
 } from '@muixer/shared';
@@ -367,7 +367,7 @@ export class SegmentWorkspaceStateService {
             const totalCount = resp.data.filter(
               (n) =>
                 n.zone !== FigureZone.DECORATION &&
-                isNodeVisibleByCordons(n, {
+                isNodeVisibleByModeAndCordons(n, {
                   figureMode: i.figureMode,
                   numberOfCordons: i.numberOfCordons,
                   cordonsObertsEnabled: i.cordonsObertsEnabled,
@@ -439,13 +439,15 @@ export class SegmentWorkspaceStateService {
 
   /** PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas. */
   private pinyaCanvasNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
-    const hidePinya = instance.figureMode === 'REMAT' || instance.figureMode === 'NETA';
-    const hideBase = instance.figureMode === 'REMAT';
+    const opts = {
+      figureMode: instance.figureMode,
+      numberOfCordons: instance.numberOfCordons,
+      cordonsObertsEnabled: instance.cordonsObertsEnabled,
+    };
     return this.visibleNodesFor(instance).filter(
       (n) =>
-        (!hidePinya && n.zone === FigureZone.PINYA) ||
-        (!hideBase && n.zone === FigureZone.BASE) ||
-        n.zone === FigureZone.DECORATION,
+        (n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE || n.zone === FigureZone.DECORATION) &&
+        isNodeVisibleByModeAndCordons(n, opts),
     );
   }
 

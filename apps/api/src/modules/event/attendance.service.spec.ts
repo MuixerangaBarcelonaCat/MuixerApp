@@ -139,7 +139,7 @@ describe('AttendanceService', () => {
       service = await buildModule(repos);
       await service.findByEvent('ev-1', {});
       expect(repos.attendanceRepo.attQb.addSelect).toHaveBeenCalledWith(
-        "lower(regexp_replace(person.alias, '^~', ''))",
+        "unaccent(lower(regexp_replace(person.alias, '^~', '')))",
         'normalized_alias',
       );
       expect(repos.attendanceRepo.attQb.orderBy).toHaveBeenCalledWith('normalized_alias', 'ASC');

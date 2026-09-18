@@ -125,7 +125,7 @@ export class TagsListComponent {
   sortedTags(tags: TagWithCount[]): TagWithCount[] {
     return [...tags].sort((a, b) => {
       const catDiff = CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category];
-      return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name);
+      return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name, 'ca');
     });
   }
 

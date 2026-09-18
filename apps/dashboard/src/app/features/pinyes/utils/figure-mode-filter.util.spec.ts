@@ -40,9 +40,9 @@ describe('filterNodesByFigureMode', () => {
   });
 
   it('removes all PINYA nodes when figureMode is REMAT', () => {
-    const nodes = [node('n1', 'PINYA'), node('b1', 'BASE')];
+    const nodes = [node('n1', 'PINYA'), node('t1', 'TRONC')];
     const result = filterNodesByFigureMode(nodes, 'REMAT', null);
-    expect(result.map((n) => n.id)).toEqual(['b1']);
+    expect(result.map((n) => n.id)).toEqual(['t1']);
   });
 
   it('removes all PINYA nodes when figureMode is NETA', () => {
@@ -51,22 +51,25 @@ describe('filterNodesByFigureMode', () => {
     expect(result.map((n) => n.id)).toEqual(['b1']);
   });
 
-  it('keeps a cordo-obert PINYA node beyond numberOfCordons when keepCordoObert is set', () => {
-    const nodes = [
-      node('n1', 'PINYA', 'r1', 1),
-      node('n2', 'PINYA', 'r1', 3, 'cordo-obert'),
-    ];
-    const result = filterNodesByFigureMode(nodes, 'COMPLETA', 1, { keepCordoObert: true });
-    expect(result.map((n) => n.id)).toEqual(['n1', 'n2']);
-  });
-
-  it('still removes a cordo-obert PINYA node beyond numberOfCordons when keepCordoObert is not set', () => {
+  it('keeps a cordo-obert PINYA node beyond numberOfCordons regardless of the cap', () => {
     const nodes = [
       node('n1', 'PINYA', 'r1', 1),
       node('n2', 'PINYA', 'r1', 3, 'cordo-obert'),
     ];
     const result = filterNodesByFigureMode(nodes, 'COMPLETA', 1);
-    expect(result.map((n) => n.id)).toEqual(['n1']);
+    expect(result.map((n) => n.id)).toEqual(['n1', 'n2']);
+  });
+
+  it('removes BASE nodes when figureMode is REMAT (matches isNodeVisibleByModeAndCordons)', () => {
+    const nodes = [node('n1', 'PINYA'), node('b1', 'BASE'), node('t1', 'TRONC')];
+    const result = filterNodesByFigureMode(nodes, 'REMAT', null);
+    expect(result.map((n) => n.id)).toEqual(['t1']);
+  });
+
+  it('keeps BASE nodes when figureMode is NETA (only PINYA strips on NETA)', () => {
+    const nodes = [node('n1', 'PINYA'), node('b1', 'BASE')];
+    const result = filterNodesByFigureMode(nodes, 'NETA', null);
+    expect(result.map((n) => n.id)).toEqual(['b1']);
   });
 });
 

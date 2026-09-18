@@ -271,7 +271,10 @@ export class EventSegmentService {
     return map;
   }
 
-  private async loadTotalCordons(templateIds: string[]): Promise<Map<string, number>> {
+  /** Highest PINYA rengla position per template (cordo-obert exempt) — how many cordons each
+   *  figure has. Batched so both the segment list and a single instance's `findOneById`
+   *  (`FigureInstanceService`) share the exact same query instead of two copies drifting apart. */
+  async loadTotalCordons(templateIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>();
     if (templateIds.length === 0) return map;
     // Highest rengla position actually used by a PINYA node (cordo-obert exempt), matching

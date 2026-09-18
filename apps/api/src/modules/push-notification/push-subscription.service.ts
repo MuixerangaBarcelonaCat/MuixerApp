@@ -122,8 +122,8 @@ export class PushSubscriptionService {
       .addSelect('MAX(sub.lastUsedAt)', 'lastPushAt')
       .where('sub.isActive = true')
       .groupBy('person.id, person.name, person.firstSurname')
-      .orderBy('person.firstSurname', 'ASC')
-      .addOrderBy('person.name', 'ASC')
+      .orderBy('unaccent(lower(person.firstSurname))', 'ASC')
+      .addOrderBy('unaccent(lower(person.name))', 'ASC')
       .getRawMany<{ personId: string; name: string; firstSurname: string; activeDevices: string; lastPushAt: string | null }>();
 
     return rows.map((r) => ({

@@ -121,7 +121,7 @@ export class FigureTemplateService {
     const total = await qb.getCount();
 
     const templates = await qb
-      .orderBy('template.name', 'ASC')
+      .orderBy('unaccent(lower(template.name))', 'ASC')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();

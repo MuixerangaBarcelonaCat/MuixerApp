@@ -17,6 +17,11 @@ describe('normalizeForSearch', () => {
     expect(normalizeForSearch('Joan Pere')).toBe('joan pere');
   });
 
+  it('trims, so a whitespace-only query normalizes to the empty "nothing typed" value', () => {
+    expect(normalizeForSearch('   ')).toBe('');
+    expect(normalizeForSearch(' Joan ')).toBe('joan');
+  });
+
   it('handles every valencià/català accented vowel, plus ç and ñ', () => {
     expect(normalizeForSearch('àáèéêíïòóôúüçñ')).toBe('aaeeeiiooouucn');
   });
