@@ -1,0 +1,34 @@
+<div class="print:hidden flex items-center justify-between gap-4 p-4">
+  <lib-button variant="ghost" size="sm" (clicked)="goBack()">
+    <lucide-icon name="ArrowLeft" [size]="18" /> Tornar
+  </lib-button>
+  <h1 class="text-xl font-bold font-serif">{{ eventTitle() }} — {{ eventDate() }}</h1>
+  <lib-button variant="primary" size="sm" (clicked)="print()">
+    <lucide-icon name="Printer" [size]="16" /> Imprimeix
+  </lib-button>
+</div>
+
+@if (loading()) {
+  <p class="print:hidden p-4">Carregant...</p>
+} @else {
+  <div class="grid grid-cols-2 gap-4 p-4">
+    @for (segment of segments(); track segment.id) {
+      <section class="border border-base-content/20 rounded-lg p-3 break-inside-avoid">
+        <h2 class="font-bold mb-2">{{ segment.number }}. {{ segment.title }}</h2>
+        <div class="flex flex-wrap gap-2">
+          @for (instance of segment.instances; track instance.id) {
+            <app-tronc-view
+              mode="projection"
+              [troncNodes]="instance.troncNodes"
+              [baseNodes]="instance.baseNodes"
+              [directionNodes]="instance.directionNodes"
+              [assignments]="instance.assignments"
+              [panelColor]="instance.color"
+              [figureName]="instance.name"
+            />
+          }
+        </div>
+      </section>
+    }
+  </div>
+}

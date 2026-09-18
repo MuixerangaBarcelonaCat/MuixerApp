@@ -48,6 +48,9 @@
             <lucide-icon name="ClipboardCheck" [size]="14" /> Confirmació
           </lib-button>
         }
+        <lib-button variant="primary" outline size="sm" (clicked)="goToPrint()">
+          <lucide-icon name="Printer" [size]="14" /> Imprimeix
+        </lib-button>
         <lib-button variant="primary" outline size="sm" (clicked)="showEditModal.set(true)">Edita</lib-button>
         <lib-button variant="error" outline size="sm" [loading]="deleting()" (clicked)="deleteEvent()">Elimina</lib-button>
       </div>

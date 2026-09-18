@@ -27,6 +27,21 @@
   }
 }
 
+// The app shell clips content to the viewport (`h-screen overflow-hidden` on the root,
+// `overflow-y-auto` on <main>) so the SPA never scrolls the whole page — but that same
+// clipping cuts printing off after one page, since print renders in that same overflow
+// box instead of flowing across pages. Printing any route needs these reset.
+@media print {
+  body > div.h-screen {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main.overflow-y-auto {
+    overflow: visible !important;
+  }
+}
+
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;
