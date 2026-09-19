@@ -116,7 +116,7 @@ MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupame
 | `docker-compose.prod.yml` | Producció | Stack complet: API + PostgreSQL |
 | `apps/api/Dockerfile` | PRE / Prod | Build multi-stage de l'API NestJS |
 | `apps/dashboard/Dockerfile` | PRE | Build multi-stage del Dashboard Angular + Caddy |
-| `apps/dashboard/Caddyfile` | PRE | Caddy: SPA routing + proxy `/api` → API + HTTPS automàtic |
+| `apps/dashboard/Caddyfile` | PRE | Caddy: SPA routing + proxy `/api` → API + rate limit + HTTPS automàtic |
 | `apps/dashboard/nginx.conf` | — | ⚠️ Obsolet — substituït per `Caddyfile` |
 | `.dockerignore` | Build | Exclou fitxers innecessaris del context de build |
 | `docker/postgres/init.sql` | Dev | Inicialitza extensions PG en dev |
@@ -132,22 +132,22 @@ MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupame
 El Dockerfile del Dashboard utilitza 3 stages:
 
 ```
-┌──────────────┐   ┌──────────────────────────┐   ┌──────────────────┐
-│  Stage 1     │   │  Stage 2                 │   │  Stage 3         │
-│  deps        │──▶│  build                   │──▶│  runner          │
-│              │   │                          │   │                  │
-│ pnpm install │   │ nx build shared + dash   │   │ caddy:alpine     │
-│ (all deps)   │   │ --configuration=pre      │   │ static files     │
-│              │   │                          │   │ + Caddyfile      │
-└──────────────┘   └──────────────────────────┘   └──────────────────┘
+┌──────────────┐   ┌──────────────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│  Stage 1     │   │  Stage 2                 │   │  Stage 3         │──▶│  Stage 4         │
+│  deps        │──▶│  build                   │   │  caddy-builder   │   │  runner          │
+│              │   │                          │   │                  │   │                  │
+│ pnpm install │   │ nx build shared + dash   │   │ xcaddy +         │   │ custom caddy     │
+│ (all deps)   │   │ --configuration=pre      │   │ caddy-ratelimit  │   │ static + Caddyfile│
+└──────────────┘   └──────────────────────────┘   └──────────────────┘   └──────────────────┘
 ```
 
 **Per què Caddy?**
 - Serveix els estàtics amb gzip automàtic (Angular usa hashes als noms)
 - Proxeja `/api/*` al contenidor `api` per la xarxa Docker interna
+- Rate limit a l'edge: `/api/auth*` 10 req/min, `/api/*` 100 req/min (plugin `caddy-ratelimit`)
 - SPA fallback: totes les rutes retornen `index.html` per al router Angular
 - **HTTPS automàtic via Let's Encrypt**: canviant `:80` per un domini al `Caddyfile`, Caddy gestiona els certificats sol
-- Configuració mínima (6 línies vs ~50 de nginx)
+- Configuració mínima (vs nginx)
 
 ---
 

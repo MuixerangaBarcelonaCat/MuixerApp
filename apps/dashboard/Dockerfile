@@ -18,8 +18,14 @@ ENV NX_SKIP_NX_CACHE=true
 RUN ./node_modules/.bin/nx build shared --configuration=production && \
     ./node_modules/.bin/nx build dashboard --configuration=pre
 
-# Stage 3: Serve static files with Caddy
+# Stage 3: Caddy with rate_limit plugin (not in stock caddy:alpine)
+FROM caddy:builder-alpine AS caddy-builder
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit
+
+# Stage 4: Serve static files with Caddy
 FROM caddy:alpine AS runner
+
+COPY --from=caddy-builder /usr/bin/caddy /usr/bin/caddy
 
 # Site addresses; override at build (--build-arg) or runtime (env)
 ARG SITE_ADDRESS=:80

@@ -68,7 +68,7 @@ docs/              → Topic documentation (see docs/MAP.md)
 
 ### Backend (`apps/api/src`)
 
-Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard` + `ThrottlerGuard`. Mark public endpoints with `@Public()`, role-restricted ones with `@Roles()`.
+Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard`. Mark public endpoints with `@Public()`, role-restricted ones with `@Roles()`. Rate limiting is enforced at the Caddy reverse proxy (see `apps/dashboard/Caddyfile`): `/api/auth*` 10 req/min per IP, `/api/*` 100 req/min per IP.
 
 Modules under `src/modules/`:
 
@@ -177,7 +177,7 @@ Core entities: User, Person, PersonDelegate, Tag, Season, Event, Attendance, Ref
 
 ## Authentication
 
-Login (email+password) → 15min JWT access token (in memory/signal) + 7d refresh token (httpOnly cookie with rotation and reuse detection). On 401 the interceptor refreshes and retries. `logout` revokes the token, `logout-all` revokes them all. `/auth` throttle: 10 req/60s. A cron job cleans expired refresh tokens. **Invites do not send email yet** (`user.service` only logs the token) — but `auth.service` does use `MailService` for password reset. Password recovery is email-only: «Heu oblidat la contrasenya?» → `/auth/forgot-password` → emailed `/reset-password` link. An admin-generated recovery link (a technician forwarding a reset link by hand) was built and then removed because it's a bearer token with no identity check — see [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) §8.1 for the rationale and mitigations before attempting it again.
+Login (email+password) → 15min JWT access token (in memory/signal) + 7d refresh token (httpOnly cookie with rotation and reuse detection). On 401 the interceptor refreshes and retries. `logout` revokes the token, `logout-all` revokes them all. `/api/auth` is rate-limited at Caddy (10 req/60s per IP). A cron job cleans expired refresh tokens. **Invites do not send email yet** (`user.service` only logs the token) — but `auth.service` does use `MailService` for password reset. Password recovery is email-only: «Heu oblidat la contrasenya?» → `/auth/forgot-password` → emailed `/reset-password` link. An admin-generated recovery link (a technician forwarding a reset link by hand) was built and then removed because it's a bearer token with no identity check — see [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) §8.1 for the rationale and mitigations before attempting it again.
 
 Frontend: `AuthService` (signals `currentUser`, `isAuthenticated`, `userRole`, `hasLinkedPerson`), `authGuard`, `rolesGuard(...)`, `AuthInterceptor`. Bootstrap silent refresh is gated by the `muixer_has_session` localStorage hint (avoids the console 401 on the login screen).
 

@@ -3,7 +3,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { envValidationSchema } from '../config/env.validation';
 import { DatabaseModule } from '../modules/database/database.module';
@@ -37,7 +36,6 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
-    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60000, limit: 100 }] }),
     DatabaseModule,
     TagModule,
     UserModule,
@@ -60,7 +58,6 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
   ],
   controllers: [AppController],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
