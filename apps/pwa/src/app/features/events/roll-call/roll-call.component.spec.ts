@@ -196,7 +196,8 @@ describe('RollCallComponent', () => {
       {
         id: 'att-4',
         status: AttendanceStatus.PENDENT,
-        person: { id: 'person-4', alias: 'Àngela', name: 'Àngela', firstSurname: 'Roig' },
+        person: { id: 'person-4', alias: 'Àngela', name: 'Àngela', firstSurname: 'Roig', isXicalla: false },
+        signedUpGroup: false,
       },
     ]);
     fixture.componentInstance['searchTerm'].set('angela');

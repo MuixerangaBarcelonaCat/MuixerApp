@@ -980,18 +980,12 @@ describe('PinyaProjectionComponent', () => {
   // ── flight (Troba'm motion) ──────────────────────────────────────────────────
 
   describe('flight', () => {
-    const arrive = () => {
-      component.onStageTransformChanged({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
-      fixture.detectChanges();
-    };
-
-    it('flies to the node, tight, for a PINYA placement on arrival', () => {
+    it("flies to the node, tight, for a PINYA placement via Troba'm", () => {
       const node = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 100, y: 50 });
       const inst = makeInstance([node], ['n1'], { id: 'i1' });
       setData(makeSegmentData([inst]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
 
       const distNode = component.distributionNodes().find((n) => n.id === 'n1')!;
       const { scale: distScale } = computeDistributionTransform(
@@ -1000,6 +994,10 @@ describe('PinyaProjectionComponent', () => {
         component.containerHeight(),
       );
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      banner.componentInstance.troba.emit();
+      fixture.detectChanges();
+
       expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledTimes(1);
       expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledWith(
         [{ x: distNode.x, y: distNode.y, width: distNode.width, height: distNode.height }],
@@ -1017,7 +1015,9 @@ describe('PinyaProjectionComponent', () => {
       setData(makeSegmentData([smallInst]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
+      let banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      banner.componentInstance.troba.emit();
+      fixture.detectChanges();
       const smallMaxScale = (canvas.componentInstance.flyToBounds as jest.Mock).mock.calls[0][1].maxScale;
       const { scale: smallDistScale } = computeDistributionTransform(
         component.effectiveInstances(),
@@ -1033,7 +1033,9 @@ describe('PinyaProjectionComponent', () => {
       setData(makeSegmentData([bigInst, farInst]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
+      banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      banner.componentInstance.troba.emit();
+      fixture.detectChanges();
       const bigMaxScale = (canvas.componentInstance.flyToBounds as jest.Mock).mock.calls[0][1].maxScale;
       const { scale: bigDistScale } = computeDistributionTransform(
         component.effectiveInstances(),
@@ -1045,17 +1047,19 @@ describe('PinyaProjectionComponent', () => {
       expect(smallMaxScale * smallDistScale).toBeCloseTo(bigMaxScale * bigDistScale, 5);
     });
 
-    it('flies to the whole panel — not the cell — for a TRONC placement on arrival', () => {
+    it("flies to the whole panel — not the cell — for a TRONC placement via Troba'm", () => {
       const node = makeNode({ id: 'n1', zone: FigureZone.TRONC, z: 1, x: 0, width: 1 });
       const inst = makeInstance([node], ['n1'], { id: 'i1' });
       setData(makeSegmentData([inst]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
 
       const idx = component.effectiveInstances().findIndex((i) => i.id === 'i1');
       const panelBounds = component.distributionFitBounds()[idx];
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      banner.componentInstance.troba.emit();
+      fixture.detectChanges();
       expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledWith([panelBounds], expect.any(Object));
     });
 
@@ -1067,25 +1071,9 @@ describe('PinyaProjectionComponent', () => {
       setData(makeSegmentData([inst1, inst2]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
 
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
       expect(canvas.componentInstance.flyToBounds).not.toHaveBeenCalled();
-    });
-
-    it('flies only once on arrival, not again on every later stage-transform tick', () => {
-      const node = makeNode({ id: 'n1', zone: FigureZone.PINYA });
-      const inst = makeInstance([node], ['n1'], { id: 'i1' });
-      setData(makeSegmentData([inst]));
-      fixture.componentRef.setInput('highlightPersonId', 'p1');
-      fixture.detectChanges();
-      arrive();
-      arrive();
-      component.onStageTransformChanged({ x: 5, y: 5, scaleX: 1.2, scaleY: 1.2 });
-      fixture.detectChanges();
-
-      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
-      expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledTimes(1);
     });
 
     it("flies again when the banner's Troba'm button is clicked", () => {
@@ -1094,10 +1082,8 @@ describe('PinyaProjectionComponent', () => {
       setData(makeSegmentData([inst]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
 
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
-      canvas.componentInstance.flyToBounds.mockClear();
 
       const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
       banner.componentInstance.troba.emit();
@@ -1112,10 +1098,8 @@ describe('PinyaProjectionComponent', () => {
       setData(makeSegmentData([inst]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
 
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
-      canvas.componentInstance.flyToBounds.mockClear();
 
       const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
       marker.componentInstance.troba.emit();
@@ -1130,7 +1114,6 @@ describe('PinyaProjectionComponent', () => {
       setData(makeSegmentData([inst]));
       fixture.componentRef.setInput('highlightPersonId', 'p1');
       fixture.detectChanges();
-      arrive();
 
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
       const before = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent)).componentInstance.arrivedTick();
