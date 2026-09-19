@@ -69,6 +69,10 @@ playwright/.cache/
 
 # -- PRE ────────────────────────────────────────────────
 scripts/tunnel-pre.sh
+scripts/migrate-pre-to-dev.sh
+
+# -- Handoff notes ─────────────────────────────────────────
+HANDOFF.md
 
 # -- Claude ──────────────────────────────────────────────
 .claude
