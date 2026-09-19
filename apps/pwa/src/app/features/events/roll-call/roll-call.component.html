@@ -1,5 +1,6 @@
 <app-mobile-header title="Passa llista" [showBack]="true" [fallbackRoute]="'/events/' + id()" />
 
+<app-pull-to-refresh #pullRef (refresh)="onRefresh()">
 <div class="py-4 space-y-3">
   @if (eventTitle() || eventDate()) {
     <div data-testid="roll-call-event-info" class="-mt-1">
@@ -129,6 +130,7 @@
     }
   }
 </div>
+</app-pull-to-refresh>
 
 <lib-modal [open]="!!overridePrompt()" title="Canvi fora de termini" [dismissible]="false" (closed)="cancelOverride()">
   <p class="text-sm">

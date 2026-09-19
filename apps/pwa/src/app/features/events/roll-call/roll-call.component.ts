@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, input, signal, computed, effect, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -19,6 +19,7 @@ import {
 } from '@muixer/ui';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
+import { PullToRefreshComponent } from '../../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { EventService } from '../services/event.service';
 import { RollCallService, AttendanceItem } from '../services/roll-call.service';
 
@@ -58,6 +59,7 @@ function errorMessage(err: unknown, fallback: string): string {
     MobileHeaderComponent,
     SkeletonCardComponent,
     EmptyStateComponent,
+    PullToRefreshComponent,
   ],
   templateUrl: './roll-call.component.html',
 })
@@ -140,6 +142,8 @@ export class RollCallComponent {
     () => this.signedUpItems().length === 0 && this.notSignedUpItems().length === 0,
   );
 
+  private readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
+
   constructor() {
     // Required input isn't available synchronously in the constructor (e.g. in TestBed with
     // setInput called after createComponent) — defer the initial load to an effect instead.
@@ -155,12 +159,19 @@ export class RollCallComponent {
           response.data.map((item) => ({ ...item, signedUpGroup: SIGNED_UP_STATUSES.includes(item.status) })),
         );
         this.isLoading.set(false);
+        this.pullToRefresh()?.complete();
       },
       error: () => {
         this.hasError.set(true);
         this.isLoading.set(false);
+        this.pullToRefresh()?.complete();
       },
     });
+  }
+
+  protected onRefresh(): void {
+    this.eventResource.reload();
+    this.load();
   }
 
   protected statusLabel(status: AttendanceStatus): string {

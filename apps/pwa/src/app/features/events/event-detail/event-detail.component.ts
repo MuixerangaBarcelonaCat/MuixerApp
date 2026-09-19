@@ -5,6 +5,7 @@ import {
   computed,
   input,
   effect,
+  viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
@@ -30,6 +31,7 @@ import { AttendanceButtonComponent } from '../components/attendance-button/atten
 import { EventCardComponent } from '../components/event-card/event-card.component';
 import { EventService } from '../services/event.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { PullToRefreshComponent } from '../../../shared/components/pull-to-refresh/pull-to-refresh.component';
 
 @Component({
   selector: 'app-event-detail',
@@ -45,6 +47,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
     EmptyStateComponent,
     AttendanceButtonComponent,
     EventCardComponent,
+    PullToRefreshComponent,
   ],
   templateUrl: './event-detail.component.html',
 })
@@ -155,6 +158,8 @@ export class EventDetailComponent {
     return formatOwnPositionSummary(segment.myPlacements[0]);
   }
 
+  private readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
+
   constructor() {
     effect(() => {
       const ev = this.event();
@@ -162,5 +167,17 @@ export class EventDetailComponent {
         this.titleService.setTitle(`${ev.title || this.headerTitle()} — MuixerApp`);
       }
     });
+
+    effect(() => {
+      if (!this.isLoading()) {
+        this.pullToRefresh()?.complete();
+      }
+    });
+  }
+
+  protected onRefresh(): void {
+    this.eventResource.reload();
+    this.segmentsResource.reload();
+    this.attendanceStatsResource.reload();
   }
 }
