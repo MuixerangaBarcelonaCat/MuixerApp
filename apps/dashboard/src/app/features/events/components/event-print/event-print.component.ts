@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { LucideAngularModule } from 'lucide-angular';
@@ -33,6 +44,10 @@ interface PrintSegment {
   instances: PrintInstance[];
 }
 
+// A4 portrait content area at 96dpi, minus the 8mm @page margin (styles.scss).
+const PRINT_PAGE_HEIGHT_PX = ((297 - 16) / 25.4) * 96;
+const PRINT_PAGE_WIDTH_PX = ((210 - 16) / 25.4) * 96;
+
 @Component({
   selector: 'app-event-print',
   standalone: true,
@@ -40,17 +55,66 @@ interface PrintSegment {
   imports: [LucideAngularModule, ButtonComponent, TroncViewComponent],
   templateUrl: './event-print.component.html',
 })
-export class EventPrintComponent implements OnInit {
+export class EventPrintComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly eventService = inject(EventService);
   private readonly eventSegmentService = inject(EventSegmentService);
   private readonly projectionService = inject(ProjectionService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  readonly printArea = viewChild<ElementRef<HTMLElement>>('printArea');
 
   readonly loading = signal(true);
   readonly eventTitle = signal('');
   readonly eventDate = signal('');
   readonly segments = signal<PrintSegment[]>([]);
+  readonly printScale = signal(1);
+
+  private readonly onBeforePrint = (): void => this.fitToOnePage();
+  private readonly onAfterPrint = (): void => {
+    this.printScale.set(1);
+    this.cdr.detectChanges();
+  };
+
+  ngAfterViewInit(): void {
+    window.addEventListener('beforeprint', this.onBeforePrint);
+    window.addEventListener('afterprint', this.onAfterPrint);
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('beforeprint', this.onBeforePrint);
+    window.removeEventListener('afterprint', this.onAfterPrint);
+  }
+
+  /**
+   * Shrinks the whole grid down so a busy assaig still prints on a single A4 sheet.
+   * Uses CSS `zoom`, not `transform: scale` — a transform is paint-only and doesn't
+   * change the element's layout box, so Chromium's print pagination still measures
+   * the pre-scale height and keeps splitting into extra pages. `zoom` actually
+   * resizes the layout box, so pagination recomputes against the shrunk height.
+   *
+   * Checks width too: a wide figure (many tronc columns) can force its grid cell
+   * wider than the page — a "grid blowout" — which silently clips off the page
+   * edge instead of wrapping, since a printed page can't scroll horizontally.
+   */
+  private fitToOnePage(): void {
+    const el = this.printArea()?.nativeElement;
+    if (!el) return;
+
+    this.printScale.set(1);
+    this.cdr.detectChanges();
+
+    const contentHeight = el.scrollHeight;
+    const contentWidth = el.scrollWidth;
+    const scale = Math.max(
+      0.3,
+      Math.min(1, PRINT_PAGE_HEIGHT_PX / contentHeight, PRINT_PAGE_WIDTH_PX / contentWidth),
+    );
+
+    this.printScale.set(scale);
+    this.cdr.detectChanges();
+  }
 
   ngOnInit(): void {
     const eventId = this.route.snapshot.paramMap.get('id');

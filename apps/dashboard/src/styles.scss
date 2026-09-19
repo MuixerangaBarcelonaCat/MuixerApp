@@ -46,6 +46,45 @@
   app-tab-nav {
     display: none !important;
   }
+
+  // Only the event-print route uses @page — safe to scope globally since
+  // it's the only print consumer in the app right now.
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  // Tighter than the on-screen "projection-mode" compaction — this is the
+  // print-only pass squeezing every assaig onto a single sheet.
+  app-event-print .tronc-view.projection-mode {
+    .floor-row {
+      min-height: 1.1rem;
+      gap: 0.15rem;
+    }
+
+    .tronc-node {
+      min-height: 1.1rem;
+      padding: 0.05rem 0.2rem;
+    }
+
+    .pis-code {
+      font-size: 0.55rem;
+    }
+
+    .position-type-label,
+    .progress-badge {
+      display: none;
+    }
+
+    .node-label,
+    .person-alias {
+      font-size: 0.55rem;
+    }
+
+    .height-badge {
+      font-size: 0.5rem;
+    }
+  }
 }
 
 @layer utilities {
