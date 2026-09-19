@@ -1,8 +1,9 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { AttendanceStatus, DelegateType, EventType, MeEvent } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, MeEvent, UserRole } from '@muixer/shared';
 import { EventCardComponent } from './event-card.component';
 import { EventService } from '../../services/event.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { ToastService } from '@muixer/ui';
 
 const MOCK_ASSAIG: MeEvent = {
@@ -28,14 +29,17 @@ const MOCK_ACTUACIO: MeEvent = {
 
 describe('EventCardComponent', () => {
   let router: Router;
+  let mockRole: UserRole;
 
   beforeEach(async () => {
+    mockRole = UserRole.MEMBER;
     await TestBed.configureTestingModule({
       imports: [EventCardComponent],
       providers: [
         provideRouter([]),
         { provide: EventService, useValue: { updateAttendance: vi.fn() } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
+        { provide: AuthService, useValue: { userRole: () => mockRole } },
       ],
     }).compileComponents();
 
@@ -197,6 +201,27 @@ describe('EventCardComponent', () => {
       const fixture = createCard(MOCK_ASSAIG);
       expect(fixture.nativeElement.querySelector('a.link')).toBeNull();
       expect(fixture.nativeElement.textContent).toContain('Local');
+    });
+  });
+
+  describe('attendance count', () => {
+    const eventWithSummary: MeEvent = {
+      ...MOCK_ASSAIG,
+      attendanceSummary: { confirmed: 4, declined: 1, pending: 2, attended: 3, lateCancel: 0, children: 2, childrenAttended: 1, total: 10 },
+    };
+
+    it('shows the coming total and xicalla count for TECHNICAL/ADMIN', () => {
+      mockRole = UserRole.TECHNICAL;
+      const fixture = createCard(eventWithSummary);
+      const el = fixture.nativeElement.querySelector('[data-testid="event-card-attendance-count"]');
+      expect(el.textContent).toContain('7');
+      expect(el.textContent).toContain('2 xicalla');
+    });
+
+    it('hides the attendance count for MEMBER', () => {
+      mockRole = UserRole.MEMBER;
+      const fixture = createCard(eventWithSummary);
+      expect(fixture.nativeElement.querySelector('[data-testid="event-card-attendance-count"]')).toBeNull();
     });
   });
 });

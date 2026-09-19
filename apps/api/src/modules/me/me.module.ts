@@ -10,6 +10,7 @@ import { EventSegmentModule } from '../event-segment/event-segment.module';
 import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
 import { PersonModule } from '../person/person.module';
 import { NewsModule } from '../news/news.module';
+import { SeasonModule } from '../season/season.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
 
@@ -21,6 +22,7 @@ import { MeService } from './me.service';
     PersonDelegateModule,
     PersonModule,
     NewsModule,
+    SeasonModule,
   ],
   controllers: [MeController],
   providers: [MeService],

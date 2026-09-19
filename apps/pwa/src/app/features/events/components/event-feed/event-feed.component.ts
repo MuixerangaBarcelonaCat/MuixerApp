@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { AttendanceStatus, MeEvent, PaginatedResponse } from '@muixer/shared';
+import { AttendanceStatus, EventType, MeEvent, PaginatedResponse } from '@muixer/shared';
 import { SkeletonCardComponent } from '../../../../shared/components/skeleton-card/skeleton-card.component';
 import { EmptyStateComponent } from '@muixer/ui';
 import { PullToRefreshComponent } from '../../../../shared/components/pull-to-refresh/pull-to-refresh.component';
@@ -42,6 +42,7 @@ const PAGE_SIZE = 50;
 })
 export class EventFeedComponent {
   readonly timeFilter = input.required<'upcoming' | 'past'>();
+  readonly eventType = input<EventType | null>(null);
   readonly emptyMessage = input.required<string>();
   readonly attendanceChanged = output<{ eventId: string; personId: string; status: AttendanceStatus }>();
 
@@ -57,7 +58,7 @@ export class EventFeedComponent {
   private generation = 0;
 
   protected readonly listResource = rxResource({
-    params: () => ({ timeFilter: this.timeFilter() }),
+    params: () => ({ timeFilter: this.timeFilter(), type: this.eventType() ?? undefined }),
     stream: ({ params }) => this.eventService.findAll({ ...params, page: 1, limit: PAGE_SIZE }),
   });
 
@@ -82,6 +83,7 @@ export class EventFeedComponent {
 
     effect(() => {
       this.timeFilter();
+      this.eventType();
       this.resetPaging();
     });
   }
@@ -99,7 +101,12 @@ export class EventFeedComponent {
     this.isLoadingMore.set(true);
 
     this.eventService
-      .findAll({ timeFilter: this.timeFilter(), page: nextPage, limit: PAGE_SIZE })
+      .findAll({
+        timeFilter: this.timeFilter(),
+        type: this.eventType() ?? undefined,
+        page: nextPage,
+        limit: PAGE_SIZE,
+      })
       .subscribe({
         next: (res) => {
           if (generation !== this.generation) return;

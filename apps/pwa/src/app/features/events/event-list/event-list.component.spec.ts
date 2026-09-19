@@ -65,6 +65,7 @@ const MOCK_EVENTS: MeEvent[] = [
 })
 class EventFeedStub {
   readonly timeFilter = input.required<'upcoming' | 'past'>();
+  readonly eventType = input<EventType | null>(null);
   readonly emptyMessage = input.required<string>();
   readonly attendanceChanged = output<{ eventId: string; personId: string; status: AttendanceStatus }>();
 }
@@ -121,8 +122,27 @@ describe('EventListComponent', () => {
     expect(link.textContent).toContain('Passats');
   });
 
-  it('should not offer Propers/Passats tabs any more', () => {
-    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(0);
+  it('offers Actuacions/Assajos toggle chips, both off by default (no filter)', () => {
+    const wrap = fixture.nativeElement.querySelector('[data-testid="event-list-type-filters"]');
+    const labels = Array.from<HTMLElement>(wrap.querySelectorAll('button')).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(['Actuacions', 'Assajos']);
+    const feed = fixture.debugElement.query(By.css('app-event-feed'));
+    expect(feed.componentInstance.eventType()).toBeNull();
+  });
+
+  it('filters the feed to one type when only that chip is turned on', () => {
+    component['toggleActuacions'](); // turn on Actuacions, leaving Assajos off
+    fixture.detectChanges();
+    const feed = fixture.debugElement.query(By.css('app-event-feed'));
+    expect(feed.componentInstance.eventType()).toBe(EventType.ACTUACIO);
+  });
+
+  it('shows everything again when both chips are toggled on', () => {
+    component['toggleActuacions']();
+    component['toggleAssajos']();
+    fixture.detectChanges();
+    const feed = fixture.debugElement.query(By.css('app-event-feed'));
+    expect(feed.componentInstance.eventType()).toBeNull();
   });
 
   it('should hide the Passats link in calendar view — those events are already visible there', async () => {
