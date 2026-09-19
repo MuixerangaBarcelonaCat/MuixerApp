@@ -31,11 +31,6 @@
         </lib-button-group>
       </div>
 
-      <lib-checkbox
-        [ngModel]="confirmedFilterActive()"
-        (ngModelChange)="toggleConfirmedFilter()"
-      ><span class="text-sm">{{ isPast() ? 'Assistits' : 'Confirmats' }}</span></lib-checkbox>
-
       <div class="w-36">
         <lib-select [ngModel]="attendanceStatusFilter() ?? ''" (ngModelChange)="onAttendanceStatusFilter($event)">
           <option value="">Tots</option>

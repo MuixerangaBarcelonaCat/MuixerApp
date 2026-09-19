@@ -22,7 +22,7 @@ import {
   areaForZone,
   classifyPlacementKind,
   conflictRelevantPlacements,
-  isNodeVisibleByCordons,
+  isNodeVisibleByModeAndCordons,
   ConflictPlacement,
   SegmentConflict,
   SegmentConflictsResponse,
@@ -521,7 +521,7 @@ export class NodeAssignmentService {
         (n) =>
           areaForZone(n.zone as FigureZone) === AssignmentArea.PINYA &&
           !occupied.has(n.id) &&
-          isNodeVisibleByCordons(n, cordonsOpts),
+          isNodeVisibleByModeAndCordons(n, cordonsOpts),
       )
       .map((n) => n.id);
   }
@@ -1207,9 +1207,9 @@ export class NodeAssignmentService {
     const cordonsOpts = { figureMode, numberOfCordons, cordonsObertsEnabled };
 
     const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean =>
-      n.zone === FigureZone.PINYA && isNodeVisibleByCordons(n, cordonsOpts);
+      n.zone === FigureZone.PINYA && isNodeVisibleByModeAndCordons(n, cordonsOpts);
     const isTronc = (n: { zone: string }): boolean =>
-      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
+      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, cordonsOpts));
     const isDirection = (n: { zone: string }): boolean =>
       n.zone === FigureZone.DIRECTION;
 
@@ -1525,6 +1525,28 @@ export class NodeAssignmentService {
    */
   async previewCordonsReduction(instanceId: string, numberOfCordons: number): Promise<number> {
     const hiddenNodeIds = await this.hiddenNodeIdsBeyondCordons(instanceId, numberOfCordons);
+    if (hiddenNodeIds.length === 0) return 0;
+
+    return this.assignmentRepository.count({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(hiddenNodeIds) } },
+    });
+  }
+
+  /**
+   * Read-only counterpart to `FigureInstanceService`'s mode-change deletion: how many
+   * assignments switching to `figureMode` WOULD remove, without removing them. Both go
+   * through `hiddenZonesForFigureModeChange` so the count shown to the user and what
+   * actually gets deleted on apply can never diverge (unlike the pre-existing
+   * `pinyaAssignedCount`, which is PINYA+BASE always and over-counts for NETA).
+   */
+  async previewFigureModeChange(instanceId: string, figureMode: FigureMode): Promise<number> {
+    const hiddenZones = hiddenZonesForFigureModeChange(figureMode);
+    if (hiddenZones.length === 0) return 0;
+
+    const nodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const hiddenNodeIds = nodes.filter((n) => hiddenZones.includes(n.zone)).map((n) => n.id);
     if (hiddenNodeIds.length === 0) return 0;
 
     return this.assignmentRepository.count({
@@ -1899,4 +1921,22 @@ export class NodeAssignmentService {
       return manager.save(InstanceNode, instanceNodes);
     });
   }
+}
+
+/**
+ * Single source of truth for "which zones get their assignments wiped when a figure switches
+ * to this mode" (REMAT strips PINYA+BASE, NETA strips PINYA only, COMPLETA/PEU strip nothing).
+ * Both the actual deletion (`FigureInstanceService.update`) and the impact preview above
+ * (`previewFigureModeChange`) go through here so the count shown to the user and what
+ * actually gets removed can never diverge.
+ *
+ * Deliberately separate from `isNodeVisibleByModeAndCordons` (`@muixer/shared`) even though they
+ * now agree on which zones REMAT/NETA affect: that one is a per-node, always-current visibility
+ * check (also gated by cordons/cordonsObertsEnabled), this one is the one-time zone-level wipe a
+ * mode *change* triggers.
+ */
+export function hiddenZonesForFigureModeChange(figureMode: FigureMode | string): FigureZone[] {
+  if (figureMode === FigureMode.REMAT) return [FigureZone.PINYA, FigureZone.BASE];
+  if (figureMode === FigureMode.NETA) return [FigureZone.PINYA];
+  return [];
 }

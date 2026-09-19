@@ -191,6 +191,19 @@ describe('RollCallComponent', () => {
     expect(fixture.componentInstance['showAddProvisional']()).toBe(false);
   });
 
+  it('matches the search term regardless of accents', () => {
+    fixture.componentInstance['items'].set([
+      {
+        id: 'att-4',
+        status: AttendanceStatus.PENDENT,
+        person: { id: 'person-4', alias: 'Àngela', name: 'Àngela', firstSurname: 'Roig' },
+      },
+    ]);
+    fixture.componentInstance['searchTerm'].set('angela');
+
+    expect(fixture.componentInstance['notSignedUpItems']().map((i) => i.person.alias)).toEqual(['Àngela']);
+  });
+
   it('surfaces the server error message when the alias is already taken', () => {
     rollCallService.createProvisionalPerson.mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Ja existeix una persona provisional amb l\'àlies "Pepelu"' } })),

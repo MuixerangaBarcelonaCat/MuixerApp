@@ -17,6 +17,7 @@ import {
   Tablet,
 } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { normalizeForSearch } from '@muixer/shared';
 
 const STORAGE_KEY = 'muixer_template_editor_help_dismissed';
 const TAB_STORAGE_KEY = 'muixer_help_last_tab';
@@ -64,6 +65,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     title: 'Editor de rengles',
     shortcuts: [
       { keys: 'Clic sobre nodes', action: 'Afegir a la rengla en curs' },
+      { keys: 'Ctrl/Cmd + Z', action: 'Traure l\'últim node afegit a la rengla en curs' },
       { keys: 'Enter', action: 'Confirmar i desar la rengla' },
       { keys: 'Escape', action: 'Cancel·lar rengla / tancar diàleg' },
     ],
@@ -245,7 +247,7 @@ const HELP_SECTIONS: HelpSection[] = [
       },
       {
         question: 'Dreceres de l\'editor de rengles',
-        answer: 'Clic sobre nodes: afegir-los a la rengla en curs. Enter: confirmar i desar la rengla. Escape: cancel·lar la rengla en curs o tancar el diàleg.',
+        answer: 'Clic sobre nodes: afegir-los a la rengla en curs. Ctrl/Cmd + Z: traure l\'últim node afegit. Enter: confirmar i desar la rengla. Escape: cancel·lar la rengla en curs o tancar el diàleg.',
       },
       {
         question: 'Dreceres del canvas d\'assignació',
@@ -305,7 +307,7 @@ export class TemplateEditorHelpModalComponent implements OnInit {
   readonly expandedItems = signal<Set<string>>(new Set());
 
   readonly filteredSections = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
+    const query = normalizeForSearch(this.searchQuery());
     if (!query) return this.sections;
 
     return this.sections
@@ -313,8 +315,8 @@ export class TemplateEditorHelpModalComponent implements OnInit {
         ...section,
         items: section.items.filter(
           (item) =>
-            item.question.toLowerCase().includes(query) ||
-            item.answer.toLowerCase().includes(query),
+            normalizeForSearch(item.question).includes(query) ||
+            normalizeForSearch(item.answer).includes(query),
         ),
       }))
       .filter((section) => section.items.length > 0);

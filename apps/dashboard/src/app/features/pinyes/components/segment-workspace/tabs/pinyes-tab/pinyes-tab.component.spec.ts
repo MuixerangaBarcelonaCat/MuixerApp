@@ -52,6 +52,7 @@ class StubPersonPanel {
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
+  readonly navigateNode = output<-1 | 1>();
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -844,6 +845,71 @@ describe('PinyesTabComponent', () => {
 
       expect(component.selectedRef()).toBeNull();
       expect(state.selectedPersonId()).toBeNull();
+    });
+  });
+
+  describe('Tab / Shift+Tab node navigation', () => {
+    const navSetup = () =>
+      setup({
+        nodesByInstance: {
+          [INST_A]: [
+            makeNode('base1', 'BASE'),
+            makeNode('ag1', 'PINYA', { positionType: 'agulla' }),
+            makeNode('m1', 'PINYA', { positionType: 'mans', renglaPosition: 1 }),
+          ],
+        },
+      });
+
+    it('Tab moves to the next node in the established pinya order', async () => {
+      await navSetup();
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'base1' });
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'ag1' });
+    });
+
+    it('Shift+Tab moves to the previous node in the established pinya order', async () => {
+      await navSetup();
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'ag1' });
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true }));
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'base1' });
+    });
+
+    it('Tab wraps from the last node back to the first', async () => {
+      await navSetup();
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'm1' });
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'base1' });
+    });
+
+    it('Tab stops on already-assigned nodes', async () => {
+      await setup({
+        nodesByInstance: {
+          [INST_A]: [makeNode('base1', 'BASE'), makeNode('ag1', 'PINYA', { positionType: 'agulla' })],
+        },
+        assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'ag1', 'p-1')] },
+      });
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'base1' });
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'Tab' }));
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'ag1' });
+    });
+
+    it('the person panel navigateNode output drives node navigation', async () => {
+      await navSetup();
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'base1' });
+
+      const panel = fixture.debugElement.query((n) => n.componentInstance instanceof StubPersonPanel)
+        .componentInstance as StubPersonPanel;
+      panel.navigateNode.emit(1);
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'ag1' });
     });
   });
 

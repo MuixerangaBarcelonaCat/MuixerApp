@@ -15,7 +15,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
-import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
@@ -62,6 +62,8 @@ export class PersonPanelComponent {
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
+  /** Emitted when the user presses Tab / Shift+Tab in the search box with no results, to step to the next/previous node. */
+  readonly navigateNode = output<-1 | 1>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly state = inject(AssignmentStateService);
@@ -88,8 +90,8 @@ export class PersonPanelComponent {
   );
 
   readonly filteredTags = computed(() => {
-    const term = this.normalizeForMatch(this.tagSearch());
-    return this.tags().filter((t) => !term || this.normalizeForMatch(t.name).includes(term));
+    const term = normalizeForSearch(this.tagSearch());
+    return this.tags().filter((t) => !term || normalizeForSearch(t.name).includes(term));
   });
   readonly altresExpanded = signal(false);
   readonly pinyaAssignedExpanded = signal(true);
@@ -269,13 +271,13 @@ export class PersonPanelComponent {
    * name prefix > alias substring > name substring) within each attendance/assignment bucket.
    */
   readonly searchResults = computed<PersonSearchResult[]>(() => {
-    const term = this.normalizeForMatch(this.search());
+    const term = normalizeForSearch(this.search());
     if (!term) return [];
 
     const results: PersonSearchResult[] = [];
     const seen = new Set<string>();
 
-    const exact = this.persons().find((p) => this.normalizeForMatch(p.alias) === term);
+    const exact = this.persons().find((p) => normalizeForSearch(p.alias) === term);
     if (exact) {
       results.push({ person: exact, isAssigned: exact.assignedPlacements.length > 0 });
       seen.add(exact.id);
@@ -305,8 +307,8 @@ export class PersonPanelComponent {
 
   /** alias-prefix > name-prefix > alias-substring > name-substring; no fuzzy fallback. */
   private matchType(person: AvailablePerson, term: string): number | null {
-    const alias = this.normalizeForMatch(person.alias);
-    const name = this.normalizeForMatch(person.name);
+    const alias = normalizeForSearch(person.alias);
+    const name = normalizeForSearch(person.name);
     if (alias.startsWith(term)) return 0;
     if (name.startsWith(term)) return 1;
     if (alias.includes(term)) return 2;
@@ -319,7 +321,7 @@ export class PersonPanelComponent {
       .filter((p) => !exclude.has(p.id))
       .map((p) => ({ person: p, rank: this.matchType(p, term) }))
       .filter((entry): entry is { person: AvailablePerson; rank: number } => entry.rank !== null)
-      .sort((a, b) => a.rank - b.rank || a.person.alias.localeCompare(b.person.alias))
+      .sort((a, b) => a.rank - b.rank || a.person.alias.localeCompare(b.person.alias, 'ca'))
       .map((entry) => entry.person);
   }
 
@@ -328,13 +330,18 @@ export class PersonPanelComponent {
 
     effect((onCleanup) => {
       const nodeId = this.selectedNodeId();
+
+      // Keep the search box focused at all times: with no node selected it
+      // searches for someone, with a node selected it fills that node. The
+      // height-filter guard still wins so we never yank focus mid-typing.
+      const focusTimer = setTimeout(() => {
+        if (this.heightFocused()) return;
+        this.focusSearch();
+      }, 0);
+      onCleanup(() => clearTimeout(focusTimer));
+
       if (nodeId !== null) {
         this.hasTypedSinceNodeSelected = false;
-        const focusTimer = setTimeout(() => {
-          if (this.heightFocused()) return;
-          this.focusSearch();
-        }, 0);
-        onCleanup(() => clearTimeout(focusTimer));
         // Auto-toggle the Xicalla filter to match the selected node's zone.
         // Left untouched when a node is deselected (nodeId === null).
         // Goes through onXicallaChange (not a direct signal set) so the person
@@ -463,14 +470,6 @@ export class PersonPanelComponent {
     if (first) this.selectPerson(first);
   }
 
-  private normalizeForMatch(value: string): string {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .toLowerCase();
-  }
-
   requestUnassign(): void {
     const assignment = this.selectedAssignment();
     if (!assignment) return;
@@ -480,14 +479,25 @@ export class PersonPanelComponent {
   onSearchKeyDown(event: KeyboardEvent): void {
     const resultsCount = this.searchResults().length;
 
-    if (event.key === 'ArrowDown' || (event.key === 'Tab' && !event.shiftKey)) {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      if (resultsCount > 0) {
+        this.highlightedIndex.update((i) =>
+          event.shiftKey ? Math.max(i - 1, 0) : Math.min(i + 1, resultsCount - 1),
+        );
+      } else {
+        this.navigateNode.emit(event.shiftKey ? -1 : 1);
+      }
+      return;
+    }
+    if (event.key === 'ArrowDown') {
       if (resultsCount > 0) {
         event.preventDefault();
         this.highlightedIndex.update((i) => Math.min(i + 1, resultsCount - 1));
       }
       return;
     }
-    if (event.key === 'ArrowUp' || (event.key === 'Tab' && event.shiftKey)) {
+    if (event.key === 'ArrowUp') {
       if (resultsCount > 0) {
         event.preventDefault();
         this.highlightedIndex.update((i) => Math.max(i - 1, 0));
@@ -506,7 +516,7 @@ export class PersonPanelComponent {
       }
       return;
     }
-    if (event.key === 'Backspace') {
+    if (event.key === 'Backspace' || event.key === 'Delete') {
       const input = event.target as HTMLInputElement;
       if (input.value === '' && !this.hasTypedSinceNodeSelected) {
         const assignment = this.selectedAssignment();

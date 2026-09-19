@@ -82,6 +82,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   // reasoning as figureCanvas below.
   readonly helpModal = viewChild.required<TemplateEditorHelpModalComponent>('helpModalRef');
   readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvasRef');
+  readonly renglaOverlay = viewChild<RenglaOverlayComponent>('renglaOverlayRef');
 
   /**
    * True below the `lg` breakpoint (< 1024px, tablet/phone) — same breakpoint the
@@ -557,6 +558,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
     if (isMod && event.key === 'z' && !event.shiftKey) {
       event.preventDefault();
+      // While picking nodes for a new rengla, Ctrl+Z is the overlay's business
+      // (it drops the last picked node) — don't undo the last saved rengla.
+      if (this.renglaOverlay()?.creatingRengla()) return;
       this.performUndo();
       return;
     }

@@ -12,6 +12,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, ou
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { normalizeForSearch } from '@muixer/shared';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CompositionService } from '../../services/composition.service';
 import { CompositionListItem } from '../../models/composition.model';
@@ -78,19 +79,19 @@ export class FigurePickerModalComponent implements OnInit {
   readonly canApplyComposition = computed(() => this.selectedComposition() !== null);
 
   readonly filteredFigures = computed<FigureTemplateListItem[]>(() => {
-    const q = this.normalizeForMatch(this.search());
+    const q = normalizeForSearch(this.search());
     const all = this.figures();
     if (!q) return all;
-    return all.filter((f) => this.normalizeForMatch(f.name).includes(q));
+    return all.filter((f) => normalizeForSearch(f.name).includes(q));
   });
 
   readonly hasAnyFigure = computed(() => this.filteredFigures().length > 0);
 
   readonly filteredCompositions = computed<CompositionListItem[]>(() => {
-    const q = this.normalizeForMatch(this.search());
+    const q = normalizeForSearch(this.search());
     const all = this.compositions();
     if (!q) return all;
-    return all.filter((c) => this.normalizeForMatch(c.name).includes(q));
+    return all.filter((c) => normalizeForSearch(c.name).includes(q));
   });
 
   readonly hasAnyComposition = computed(() => this.filteredCompositions().length > 0);
@@ -128,14 +129,6 @@ export class FigurePickerModalComponent implements OnInit {
 
   isCompositionSelected(composition: CompositionListItem): boolean {
     return this.selectedComposition()?.id === composition.id;
-  }
-
-  private normalizeForMatch(value: string): string {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .toLowerCase();
   }
 
   applyComposition(): void {

@@ -49,7 +49,14 @@ import {
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
-import { DelegateType, LegalDocumentType } from '@muixer/shared';
+import { DelegateType, Gender, LegalDocumentType } from '@muixer/shared';
+
+/** Same options and labels as the PWA onboarding form (person-data-fields). */
+const GENDER_LABELS: Record<Gender, string> = {
+  [Gender.FEMALE]: 'Dona',
+  [Gender.MALE]: 'Home',
+  [Gender.OTHER]: 'Altre / Preferisc no dir-ho',
+};
 
 @Component({
   standalone: true,
@@ -145,6 +152,7 @@ export class PersonDetailComponent implements OnInit {
     phone: [''],
     birthDate: [''],
     shoulderHeight: [null as number | null],
+    gender: ['' as Gender | ''],
     notes: [''],
     notesEmoji: [null as string | null],
     isActive: [true],
@@ -154,6 +162,12 @@ export class PersonDetailComponent implements OnInit {
     onboardingStatus: ['IN_PROGRESS'],
     shirtDate: [''],
   });
+
+  protected readonly genders = [Gender.FEMALE, Gender.MALE, Gender.OTHER];
+  protected readonly genderLabels = GENDER_LABELS;
+  getGenderLabel(gender: Gender | null): string {
+    return gender ? GENDER_LABELS[gender] : '';
+  }
 
   readonly getAvailabilityLabel = getAvailabilityLabel;
   readonly getOnboardingLabel = getOnboardingLabel;
@@ -242,6 +256,7 @@ export class PersonDetailComponent implements OnInit {
       phone: raw.phone ?? undefined,
       birthDate: raw.birthDate || undefined,
       shoulderHeight: raw.shoulderHeight || null,
+      gender: (raw.gender as Gender) || null,
       notes: raw.notes ?? undefined,
       notesEmoji: raw.notesEmoji ?? null,
       isActive: raw.isActive ?? undefined,
@@ -321,6 +336,7 @@ export class PersonDetailComponent implements OnInit {
       phone: person.phone ?? '',
       birthDate: person.birthDate ?? '',
       shoulderHeight: person.shoulderHeight || null,
+      gender: person.gender ?? '',
       notes: person.notes ?? '',
       notesEmoji: person.notesEmoji ?? null,
       isActive: person.isActive,

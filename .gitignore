@@ -80,3 +80,7 @@ HANDOFF.md
 # -- Gemini ──────────────────────────────────────────────
 .gem/
 .angular
+
+# -- Local scratch (no pujar) ────────────────────────────
+HANDOFF.md
+scripts/migrate-pre-to-dev.sh

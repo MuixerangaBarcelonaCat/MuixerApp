@@ -53,4 +53,11 @@ describe('TemplateEditorHelpModalComponent', () => {
 
     expect(component.filteredSections().some((s) => s.id === 'tactil')).toBe(true);
   });
+
+  it('searching without the accent still finds the same section', () => {
+    component.searchQuery.set('pinca');
+    fixture.detectChanges();
+
+    expect(component.filteredSections().some((s) => s.id === 'tactil')).toBe(true);
+  });
 });

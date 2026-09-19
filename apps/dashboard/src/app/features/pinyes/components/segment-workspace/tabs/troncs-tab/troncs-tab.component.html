@@ -135,6 +135,7 @@
 
   <!-- Person panel -->
   <app-person-panel
+    #personPanel
     class="w-80 shrink-0 border-l border-base-300 h-full min-h-0"
     area="TRONC"
     [eventId]="ws.eventId()"
@@ -148,6 +149,7 @@
     (personSelected)="onPersonSelected($event)"
     (assignedPersonSelected)="onAssignedPersonSelected($event)"
     (unassignRequested)="onUnassign($event)"
+    (navigateNode)="navigateAdjacent($event)"
   />
 </div>
 }

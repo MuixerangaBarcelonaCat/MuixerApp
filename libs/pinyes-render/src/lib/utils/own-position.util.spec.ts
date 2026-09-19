@@ -289,7 +289,7 @@ describe('describeOwnPlacement', () => {
     const node = makeNode({ zone: FigureZone.PINYA, label: 'Lateral' });
     const instance = makeInstance({ nodes: [node], assignments: [makeAssignment(node, 'me', 'Marta')] });
 
-    const description = describeOwnPlacement(toPlacement(instance, node), 1);
+    const description = describeOwnPlacement(toPlacement(instance, node), null);
 
     expect(description.kind).toBe('PINYA');
   });
@@ -298,7 +298,7 @@ describe('describeOwnPlacement', () => {
     const node = makeNode({ zone: FigureZone.BASE, label: 'Base' });
     const instance = makeInstance({ nodes: [node], assignments: [makeAssignment(node, 'me', 'Marta')] });
 
-    const description = describeOwnPlacement(toPlacement(instance, node), 1);
+    const description = describeOwnPlacement(toPlacement(instance, node), null);
 
     expect(description.kind).toBe('PINYA');
   });
@@ -307,7 +307,7 @@ describe('describeOwnPlacement', () => {
     const node = makeNode({ zone: FigureZone.TRONC, label: 'Segons', z: 1 });
     const instance = makeInstance({ nodes: [node], assignments: [makeAssignment(node, 'me', 'Marta')] });
 
-    const description = describeOwnPlacement(toPlacement(instance, node), 1);
+    const description = describeOwnPlacement(toPlacement(instance, node), null);
 
     expect(description.kind).toBe('TRONC');
   });
@@ -318,7 +318,7 @@ describe('describeOwnPlacement', () => {
       const node = makeNode({ zone: FigureZone.DIRECTION, positionType, label: 'Cap' });
       const instance = makeInstance({ nodes: [node], assignments: [makeAssignment(node, 'me', 'Marta')] });
 
-      const description = describeOwnPlacement(toPlacement(instance, node), 1);
+      const description = describeOwnPlacement(toPlacement(instance, node), null);
 
       expect(description).toMatchObject({ kind: 'TRONC', below: [], above: [] });
     },
@@ -333,7 +333,7 @@ describe('describeOwnPlacement', () => {
       assignments: [makeAssignment(node, 'me', 'Marta')],
     });
 
-    const description = describeOwnPlacement(toPlacement(instance, node), 2);
+    const description = describeOwnPlacement(toPlacement(instance, node), 'Roscana');
 
     expect(description.figureName).toBe('Roscana');
   });
@@ -346,7 +346,7 @@ describe('describeOwnPlacement', () => {
       assignments: [makeAssignment(node, 'me', 'Marta')],
     });
 
-    const description = describeOwnPlacement(toPlacement(instance, node), 1);
+    const description = describeOwnPlacement(toPlacement(instance, node), null);
 
     expect(description.figureName).toBeNull();
   });
@@ -359,7 +359,7 @@ describe('describeOwnPlacement', () => {
       assignments: [makeAssignment(predecessor, 'other', 'Anna'), makeAssignment(node, 'me', 'Marta')],
     });
 
-    const description = describeOwnPlacement(toPlacement(instance, node), 1);
+    const description = describeOwnPlacement(toPlacement(instance, node), null);
 
     expect(description).toMatchObject({ kind: 'PINYA', cordon: 2, behind: 'Anna' });
   });
@@ -372,7 +372,7 @@ describe('describeOwnPlacement', () => {
       assignments: [makeAssignment(below, 'other', 'Joan'), makeAssignment(node, 'me', 'Marta')],
     });
 
-    const description = describeOwnPlacement(toPlacement(instance, node), 1);
+    const description = describeOwnPlacement(toPlacement(instance, node), null);
 
     expect(description).toMatchObject({ kind: 'TRONC', below: ['Joan'], above: [] });
   });

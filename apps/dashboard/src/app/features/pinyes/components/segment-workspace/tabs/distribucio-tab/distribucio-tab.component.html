@@ -82,21 +82,8 @@
   }
 </div>
 
-<!-- Cordons reduction confirmation modal -->
-<lib-modal [open]="!!pendingCordonsChange()" title="Redueix els cordons" (closed)="cancelCordonsChange()">
-  @if (pendingCordonsChange(); as pending) {
-    <p class="text-sm text-base-content/70">
-      Esta acció eliminarà
-      <strong class="text-error">{{ pending.affectedCount }} assignacions</strong>
-      dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
-    </p>
-    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
-  }
-  <div modalFooter class="flex justify-end gap-2 w-full">
-    <lib-button variant="ghost" size="sm" (clicked)="cancelCordonsChange()">Cancel·la</lib-button>
-    <lib-button variant="error" size="sm" (clicked)="confirmCordonsChange()">Elimina-les</lib-button>
-  </div>
-</lib-modal>
+<!-- Cordons reduction confirmation (shared with the segment list) -->
+<app-cordons-change (changed)="onCordonsChangeApplied()" />
 
 <!-- Cordons oberts disable confirmation modal -->
 <lib-modal [open]="!!pendingCordonsObertsChange()" title="Desactiva els cordons oberts" (closed)="cancelCordonsObertsChange()">
@@ -113,3 +100,6 @@
     <lib-button variant="error" size="sm" (clicked)="confirmCordonsObertsChange()">Elimina-les</lib-button>
   </div>
 </lib-modal>
+
+<!-- Figure mode change confirmation (shared with the segment list) -->
+<app-figure-mode-change (changed)="onFigureModeChangeApplied()" />

@@ -177,6 +177,16 @@ describe('pivotNodesFor', () => {
 
     expect(pivotNodesFor(nodes)).toEqual([]);
   });
+
+  it('excludes ad-hoc nodes — an extra node must not shift the figure pivot', () => {
+    const nodes = [
+      makeSlotNode('p1', { zone: 'PINYA' }),
+      makeSlotNode('b1', { zone: 'BASE' }),
+      makeSlotNode('extra', { zone: 'PINYA', isAdHoc: true }),
+    ];
+
+    expect(pivotNodesFor(nodes).map((n) => n.id).sort()).toEqual(['b1', 'p1']);
+  });
 });
 
 describe('stageToSlotLocal', () => {

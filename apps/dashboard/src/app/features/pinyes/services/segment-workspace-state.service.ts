@@ -1,6 +1,11 @@
 import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { FigureZone, isNodeVisibleByCordons, computeSegmentDisplayName } from '@muixer/shared';
+import {
+  FigureZone,
+  isNodeVisibleByModeAndCordons,
+  computeSegmentDisplayName,
+  computeInstanceDisplayNames,
+} from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
@@ -240,15 +245,13 @@ export class SegmentWorkspaceStateService {
           return;
         }
         this.segment.set(seg);
+        const displayNames = this.computeInstanceLabels(seg.instances);
         this.instances.set(
           seg.instances
             .filter((i) => !!i.figureTemplate)
             .map((instance) => ({
               instanceId: instance.id,
-              label: this.computeInstanceLabel(
-                instance.label ?? instance.figureTemplate?.name ?? '?',
-                instance.figureMode ?? 'COMPLETA',
-              ),
+              label: displayNames.get(instance.id) ?? instance.figureTemplate?.name ?? '?',
               figureTemplateId: instance.figureTemplate?.id ?? null,
               figureTemplateName: instance.figureTemplate?.name ?? '?',
               hasPinya: instance.figureTemplate?.hasPinya ?? true,
@@ -326,16 +329,14 @@ export class SegmentWorkspaceStateService {
         const seg = resp.data.find((s) => s.id === segmentId);
         if (!seg) return;
         this.segment.set(seg);
+        const displayNames = this.computeInstanceLabels(seg.instances);
         this.instances.update((list) =>
           list.map((existing) => {
             const fresh = seg.instances.find((i) => i.id === existing.instanceId);
             if (!fresh) return existing;
             return {
               ...existing,
-              label: this.computeInstanceLabel(
-                fresh.label ?? fresh.figureTemplate?.name ?? '?',
-                fresh.figureMode ?? 'COMPLETA',
-              ),
+              label: displayNames.get(fresh.id) ?? fresh.figureTemplate?.name ?? '?',
               figureMode: fresh.figureMode ?? 'COMPLETA',
               numberOfCordons: fresh.numberOfCordons ?? null,
               cordonsObertsEnabled: fresh.cordonsObertsEnabled,
@@ -366,7 +367,7 @@ export class SegmentWorkspaceStateService {
             const totalCount = resp.data.filter(
               (n) =>
                 n.zone !== FigureZone.DECORATION &&
-                isNodeVisibleByCordons(n, {
+                isNodeVisibleByModeAndCordons(n, {
                   figureMode: i.figureMode,
                   numberOfCordons: i.numberOfCordons,
                   cordonsObertsEnabled: i.cordonsObertsEnabled,
@@ -438,25 +439,41 @@ export class SegmentWorkspaceStateService {
 
   /** PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas. */
   private pinyaCanvasNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
-    const hidePinya = instance.figureMode === 'REMAT' || instance.figureMode === 'NETA';
-    const hideBase = instance.figureMode === 'REMAT';
+    const opts = {
+      figureMode: instance.figureMode,
+      numberOfCordons: instance.numberOfCordons,
+      cordonsObertsEnabled: instance.cordonsObertsEnabled,
+    };
     return this.visibleNodesFor(instance).filter(
       (n) =>
-        (!hidePinya && n.zone === FigureZone.PINYA) ||
-        (!hideBase && n.zone === FigureZone.BASE) ||
-        n.zone === FigureZone.DECORATION,
+        (n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE || n.zone === FigureZone.DECORATION) &&
+        isNodeVisibleByModeAndCordons(n, opts),
     );
   }
 
-  private computeInstanceLabel(base: string, figureMode: string): string {
-    if (figureMode === 'PEU') return `Peu de ${base}`;
-    if (figureMode === 'REMAT') return `Remat de ${base}`;
-    if (figureMode === 'NETA') {
-      const firstWord = base.trim().split(/\s+/)[0] ?? '';
-      const suffix = firstWord.endsWith('a') ? 'neta' : 'net';
-      return `${base} ${suffix}`;
-    }
-    return base;
+  /**
+   * Per-instance display names for the segment: mode-derived label («Peu de …») plus a trailing
+   * ordinal when several figures share it («Pilar 1», «Pilar 2»). Recomputed over the whole set
+   * on every load/refresh, so removing figures until one remains drops the number again.
+   */
+  private computeInstanceLabels(
+    instances: readonly {
+      id: string;
+      label: string | null;
+      figureMode?: string | null;
+      figureTemplate: { name: string; hasPinya: boolean } | null;
+    }[],
+  ): Map<string, string> {
+    return computeInstanceDisplayNames(
+      instances
+        .filter((i) => !!i.figureTemplate)
+        .map((i) => ({
+          id: i.id,
+          label: i.label,
+          figureMode: i.figureMode ?? 'COMPLETA',
+          figureTemplate: i.figureTemplate,
+        })),
+    );
   }
 
   private loadConfirmedPersons(eventId: string, segmentId: string): void {

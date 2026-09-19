@@ -7,6 +7,7 @@ import {
   input,
   OnInit,
   signal,
+  ViewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -16,6 +17,7 @@ import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PIN
 import {
   ICON_OBSERVACIONS,
   computeSegmentDisplayName,
+  computeInstanceDisplayNames,
   getSegmentInstanceLabel,
   formatDirectionNames,
   DIRECCIO_PINYA_POSITION_TYPE,
@@ -31,6 +33,8 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
+import { FigureModeChangeComponent } from '../../../pinyes/components/figure-mode-change/figure-mode-change.component';
+import { CordonsChangeComponent } from '../../../pinyes/components/cordons-change/cordons-change.component';
 import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 export type ViewMode = FiguresViewMode;
@@ -40,18 +44,7 @@ interface PendingInstanceRemoval {
   instance: InstanceDetail;
 }
 
-interface PendingModeChange {
-  segment: SegmentDetail;
-  instance: InstanceDetail;
-  mode: FigureMode;
-}
 
-interface PendingCordonsChange {
-  segment: SegmentDetail;
-  instance: InstanceDetail;
-  value: number;
-  affectedCount: number;
-}
 
 @Component({
   selector: 'app-segment-manager',
@@ -70,6 +63,8 @@ interface PendingCordonsChange {
     InputComponent,
     SelectComponent,
     FigurePickerModalComponent,
+    FigureModeChangeComponent,
+    CordonsChangeComponent,
   ],
   templateUrl: './segment-manager.component.html',
 })
@@ -110,12 +105,6 @@ export class SegmentManagerComponent implements OnInit {
 
   pendingInstanceRemoval = signal<PendingInstanceRemoval | null>(null);
   removingInstance = signal(false);
-
-  pendingModeChange = signal<PendingModeChange | null>(null);
-  savingModeChange = signal(false);
-
-  pendingCordonsChange = signal<PendingCordonsChange | null>(null);
-  savingCordonsChange = signal(false);
 
   viewMode = this.viewModeService.mode;
   troncData = signal<Map<string, TroncFloorData[]>>(new Map());
@@ -529,8 +518,13 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
-  getInstanceLabel(instance: InstanceDetail): string {
-    return getSegmentInstanceLabel(instance);
+  /**
+   * The figure's display name, numbered against its siblings in `segment` when two or more
+   * resolve to the same label («Pilar 1», «Pilar 2») — purely derived, so it stays in sync as
+   * figures are added/removed/renamed without touching `instance.label` in the DB.
+   */
+  getInstanceLabel(instance: InstanceDetail, segment: SegmentDetail): string {
+    return computeInstanceDisplayNames(segment.instances).get(instance.id) ?? getSegmentInstanceLabel(instance);
   }
 
   isComposition(_instance: InstanceDetail): boolean {
@@ -548,54 +542,43 @@ export class SegmentManagerComponent implements OnInit {
     ];
   }
 
+  @ViewChild(FigureModeChangeComponent) private figureModeChange!: FigureModeChangeComponent;
+
   updateFigureMode(segment: SegmentDetail, instance: InstanceDetail, mode: FigureMode): void {
-    if ((mode === 'REMAT' || mode === 'NETA') && instance.pinyaAssignedCount > 0) {
-      this.pendingModeChange.set({ segment, instance, mode });
-      // Optimistically reflect the selection so Angular controls the DOM value
-      this.setInstanceMode(segment.id, instance.id, mode);
-      return;
-    }
-    this.applyModeChange(segment, instance, mode);
+    this.figureModeChange.request(this.eventId(), segment.id, instance.id, this.getInstanceLabel(instance, segment), mode);
   }
 
-  confirmModeChange(): void {
-    const pending = this.pendingModeChange();
-    if (!pending) return;
-    this.savingModeChange.set(true);
-    this.instanceService.update(this.eventId(), pending.segment.id, pending.instance.id, { figureMode: pending.mode }).subscribe({
-      next: (updated) => {
-        this.segments.update((list) =>
-          list.map((s) =>
-            s.id === pending.segment.id
-              ? { ...s, instances: s.instances.map((i) => (i.id === updated.id ? updated : i)) }
-              : s,
-          ),
-        );
-        this.savingModeChange.set(false);
-        this.pendingModeChange.set(null);
-      },
-      error: () => {
-        this.setInstanceMode(pending.segment.id, pending.instance.id, pending.instance.figureMode);
-        this.toast.error('Error en actualitzar el mode de la figura.');
-        this.savingModeChange.set(false);
-        this.pendingModeChange.set(null);
-      },
+  /** A cancelled change never touches `instance.figureMode`, so the value bound to the <select>
+   *  never changes and it wouldn't otherwise resync — but the native element already advanced
+   *  to the user's (rejected) pick. This override briefly swaps the bound value out and back so
+   *  the ngModel binding sees a genuine change and re-writes the control. */
+  private readonly figureModeOverride = signal<Map<string, string>>(new Map());
+
+  displayedFigureMode(instance: InstanceDetail): string {
+    return this.figureModeOverride().get(instance.id) ?? instance.figureMode;
+  }
+
+  onFigureModeChangeCancelled(instanceId: string): void {
+    this.figureModeOverride.update((m) => new Map(m).set(instanceId, ''));
+    // A macrotask, not a microtask: the app is zoneless, so change detection runs on a
+    // setTimeout/rAF race. A microtask would land before that tick and both writes would
+    // collapse into one render, leaving ngModel with nothing to re-write.
+    setTimeout(() => {
+      this.figureModeOverride.update((m) => {
+        const next = new Map(m);
+        next.delete(instanceId);
+        return next;
+      });
     });
   }
 
-  cancelModeChange(): void {
-    const pending = this.pendingModeChange();
-    if (!pending) return;
-    // Revert the optimistic update so the dropdown resets to the original value
-    this.setInstanceMode(pending.segment.id, pending.instance.id, pending.instance.figureMode);
-    this.pendingModeChange.set(null);
-  }
-
-  private setInstanceMode(segmentId: string, instanceId: string, mode: FigureMode): void {
+  /** The updated instance's own segment isn't known here (the shared component is segment-agnostic),
+   *  so find whichever segment currently holds this instance id — always exactly one. */
+  onFigureModeChangeApplied(updated: InstanceDetail): void {
     this.segments.update((list) =>
       list.map((s) =>
-        s.id === segmentId
-          ? { ...s, instances: s.instances.map((i) => (i.id === instanceId ? { ...i, figureMode: mode } : i)) }
+        s.instances.some((i) => i.id === updated.id)
+          ? { ...s, instances: s.instances.map((i) => (i.id === updated.id ? updated : i)) }
           : s,
       ),
     );
@@ -629,121 +612,34 @@ export class SegmentManagerComponent implements OnInit {
     return 'Sense rengles';
   }
 
+  @ViewChild(CordonsChangeComponent) private cordonsChange!: CordonsChangeComponent;
+
   /** 1 → 2 → … → totalCordons → Tots (null). No-op once at Tots. */
-  onCordonsIncrement(segment: SegmentDetail, instance: InstanceDetail): void {
+  onCordonsIncrement(instance: InstanceDetail): void {
     if (instance.numberOfCordons === null || instance.totalCordons === null) return;
     const next = instance.numberOfCordons >= instance.totalCordons ? null : instance.numberOfCordons + 1;
-    this.updateNumberOfCordons(segment, instance, next);
+    this.cordonsChange.request(instance.id, next);
   }
 
-  /**
-   * Tots (null) → totalCordons → … → 1. No-op once at 1. Unlike incrementing, this can hide
-   * nodes and unassign whoever is on them — previewed first so the confirmation only appears
-   * when the reduction would actually remove someone, not on every click of the stepper.
-   */
-  onCordonsDecrement(segment: SegmentDetail, instance: InstanceDetail): void {
+  /** Tots (null) → totalCordons → … → 1. No-op once at 1. */
+  onCordonsDecrement(instance: InstanceDetail): void {
     if (instance.numberOfCordons === 1) return;
     const next = (instance.numberOfCordons ?? instance.totalCordons ?? 1) - 1;
-
-    this.nodeAssignmentService.previewCordonsImpact(instance.id, next).subscribe({
-      next: ({ affectedCount }) => {
-        if (affectedCount > 0) {
-          this.pendingCordonsChange.set({ segment, instance, value: next, affectedCount });
-        } else {
-          this.updateNumberOfCordons(segment, instance, next);
-        }
-      },
-      error: () => this.toast.error("Error en comprovar l'impacte de reduir els cordons."),
-    });
+    this.cordonsChange.request(instance.id, next);
   }
 
-  confirmCordonsChange(): void {
-    const pending = this.pendingCordonsChange();
-    if (!pending) return;
-    this.savingCordonsChange.set(true);
-    this.updateNumberOfCordons(pending.segment, pending.instance, pending.value, () => {
-      this.savingCordonsChange.set(false);
-      this.pendingCordonsChange.set(null);
-    });
-  }
-
-  cancelCordonsChange(): void {
-    this.pendingCordonsChange.set(null);
-  }
-
-  /** Applies a cordons change — always safe to call directly for increments (never hides anyone). */
-  updateNumberOfCordons(
-    segment: SegmentDetail,
-    instance: InstanceDetail,
-    value: number | null,
-    onDone?: () => void,
-  ): void {
-    const previous = instance.numberOfCordons;
-    this.setInstanceCordons(segment.id, instance.id, value);
-
-    this.nodeAssignmentService.updateCordons(instance.id, { numberOfCordons: value }).subscribe({
-      next: (result) => {
-        this.setInstanceCordons(segment.id, instance.id, result.numberOfCordons);
-        if (result.removedAssignments > 0) {
-          this.toast.warning(
-            result.removedAssignments === 1
-              ? "S'ha desassignat 1 persona que quedava fora dels cordons."
-              : `S'han desassignat ${result.removedAssignments} persones que quedaven fora dels cordons.`,
-          );
-        }
-        // assignedCount/pinyaAssignedCount/totalCordons and the per-figure "needed people"
-        // label all depend on which nodes the new cordon count keeps visible — refresh both
-        // without touching `loading` (a full loadSegments() would flash the whole list away).
-        this.refreshSegmentsSilently();
-        this.loadAssignmentSummary();
-        onDone?.();
-      },
-      error: () => {
-        this.setInstanceCordons(segment.id, instance.id, previous);
-        this.toast.error('Error en actualitzar els cordons.');
-        onDone?.();
-      },
-    });
+  onCordonsChangeApplied(): void {
+    // assignedCount/pinyaAssignedCount/totalCordons and the per-figure "needed people" label
+    // all depend on which nodes the new cordon count keeps visible — refresh both without
+    // touching `loading` (a full loadSegments() would flash the whole list away).
+    this.refreshSegmentsSilently();
+    this.loadAssignmentSummary();
   }
 
   private refreshSegmentsSilently(): void {
     this.segmentService.getByEvent(this.eventId()).subscribe({
       next: (resp) => this.segments.set(resp.data),
       error: () => undefined,
-    });
-  }
-
-  private setInstanceCordons(segmentId: string, instanceId: string, numberOfCordons: number | null): void {
-    this.segments.update((list) =>
-      list.map((s) =>
-        s.id === segmentId
-          ? { ...s, instances: s.instances.map((i) => (i.id === instanceId ? { ...i, numberOfCordons } : i)) }
-          : s,
-      ),
-    );
-  }
-
-  private applyModeChange(
-    segment: SegmentDetail,
-    instance: InstanceDetail,
-    mode: FigureMode,
-    onDone?: () => void,
-  ): void {
-    this.instanceService.update(this.eventId(), segment.id, instance.id, { figureMode: mode }).subscribe({
-      next: (updated) => {
-        this.segments.update((list) =>
-          list.map((s) =>
-            s.id === segment.id
-              ? { ...s, instances: s.instances.map((i) => (i.id === updated.id ? updated : i)) }
-              : s,
-          ),
-        );
-        onDone?.();
-      },
-      error: () => {
-        this.toast.error('Error en actualitzar el mode de la figura.');
-        onDone?.();
-      },
     });
   }
 

@@ -10,7 +10,7 @@ import { loginViaUi } from './login-helper';
  * One test per device. The device logs in ONCE and then walks every route via
  * client-side (SPA) navigation, so the in-memory access token survives and no
  * per-route server refresh is triggered. This keeps auth requests well under the
- * backend throttle (10 req / 60 s on /api/auth) — reloading each route would
+ * Caddy rate limit in pre/prod (10 req / 60 s on /api/auth) — reloading each route would
  * blow past it and get 429s.
  *
  * For every route × device it records objective metrics (horizontal overflow,

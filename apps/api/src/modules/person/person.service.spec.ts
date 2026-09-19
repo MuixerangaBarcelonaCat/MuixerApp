@@ -267,7 +267,8 @@ describe('PersonService', () => {
       expect(mockPersonRepository.createQueryBuilder).toHaveBeenCalledWith('person');
       expect(mockQueryBuilder.getCount).toHaveBeenCalled();
       expect(mockQueryBuilder.getMany).toHaveBeenCalled();
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('person.alias', 'ASC');
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('unaccent(lower(person.alias))', 'sort_column');
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('sort_column', 'ASC');
     });
 
     it('should order by name DESC when sort params provided', async () => {
@@ -276,7 +277,8 @@ describe('PersonService', () => {
 
       await service.findAll({ page: 1, limit: 10, sortBy: 'name', sortOrder: 'DESC' });
 
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('person.name', 'DESC');
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('unaccent(lower(person.name))', 'sort_column');
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('sort_column', 'DESC');
     });
 
     it('should order by shoulderHeight ASC', async () => {
@@ -400,7 +402,10 @@ describe('PersonService', () => {
 
       await service.findAll({ page: 1, limit: 10, sortBy: 'alias' });
 
-      expect(mockQueryBuilder.addSelect).not.toHaveBeenCalled();
+      expect(mockQueryBuilder.addSelect).not.toHaveBeenCalledWith(
+        expect.stringContaining('attendances'),
+        'attended_count',
+      );
     });
   });
 

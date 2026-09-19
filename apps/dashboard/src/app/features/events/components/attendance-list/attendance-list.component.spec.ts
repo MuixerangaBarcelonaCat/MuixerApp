@@ -315,6 +315,47 @@ describe('AttendanceListComponent — default status filter', () => {
   });
 });
 
+describe('AttendanceListComponent — provisional persons', () => {
+  it('flags a provisional attendee with a "Prov." badge', async () => {
+    const provisional: AttendanceItem = {
+      id: 'att-p',
+      status: AttendanceStatus.ASSISTIT,
+      respondedAt: null,
+      notes: null,
+      person: {
+        id: 'person-p',
+        alias: '~walkin',
+        name: 'walkin',
+        firstSurname: '',
+        isXicalla: false,
+        isProvisional: true,
+        notes: null,
+        notesEmoji: null,
+        positions: [],
+      },
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [AttendanceListComponent],
+      providers: [
+        provideRouter([]),
+        allLucideIconsProvider,
+        {
+          provide: AttendanceService,
+          useValue: { getByEvent: () => of({ data: [provisional], meta: { total: 1, page: 1, limit: 500 } }) },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AttendanceListComponent);
+    fixture.componentRef.setInput('eventId', 'event-1');
+    fixture.componentRef.setInput('isPast', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Prov.');
+  });
+});
+
 describe('AttendanceListComponent — Pinyes/Troncs tag view', () => {
   const tag = (name: string, category: TagCategory): AttendancePosition =>
     ({ id: name, name, color: null, category });

@@ -385,12 +385,13 @@
                                rename trigger above) -->
                           <button
                             type="button"
-                            class="flex items-center gap-2 text-sm text-left font-medium hover:text-primary flex-1 min-w-0 truncate"
+                            class="flex items-center gap-2 text-sm text-left font-medium hover:text-primary min-w-0 truncate"
+                            [class.flex-1]="viewMode() === 'pinyes'"
                             (click)="navigateToAssignment(segment.id, instance.id)"
-                            [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
+                            [attr.aria-label]="'Assigna ' + getInstanceLabel(instance, segment)"
                             [attr.data-instance-id]="instance.id"
                           >
-                            <span class="truncate">{{ getInstanceLabel(instance) }}</span>
+                            <span class="truncate">{{ getInstanceLabel(instance, segment) }}</span>
 
                             <!-- Pinya mode: assigned/total counts + pinya director -->
                             @if (viewMode() === 'pinyes') {
@@ -402,22 +403,42 @@
                               }
                               @if (pinyaDirectionText(instance); as director) {
                                 <span class="flex items-center gap-0.5 text-xs text-base-content/40 shrink-0 font-normal" [attr.aria-label]="'Direcció pinya: ' + director">
+                                  <span aria-hidden="true">[</span>
                                   <lucide-icon [name]="ICON_DIRECCIO" [size]="11" />
                                   {{ director }}
+                                  <span aria-hidden="true">]</span>
                                 </span>
                               }
                             }
                           </button>
 
-                          @if (!isLocked()) {
-                            <lib-button
-                              variant="ghost"
-                              size="xs"
-                              [ariaLabel]="'Canvia el nom de ' + getInstanceLabel(instance)"
-                              (clicked)="startEditInstance(instance.id, instance.label)"
+                          <!-- Troncs mode: all figure directors, in slot order (tronc · xicalla · pinya),
+                               enclosed in [] and shown right after the figure name. -->
+                          @if (viewMode() === 'troncs' && directionSummaryText(instance); as directors) {
+                            <span
+                              class="flex items-center gap-0.5 ms-1.5 text-xs text-base-content/40 shrink-0 font-normal"
+                              [attr.aria-label]="'Direcció: ' + directors"
                             >
-                              <lucide-icon name="Pencil" [size]="11" />
-                            </lib-button>
+                              <span aria-hidden="true">[</span>
+                              <lucide-icon [name]="ICON_DIRECCIO" [size]="11" aria-hidden="true" />
+                              <span>{{ directors }}</span>
+                              <span aria-hidden="true">]</span>
+                            </span>
+                          }
+
+                          @if (!isLocked()) {
+                            <!-- Wrapper carries ms-auto: lib-button's display:contents host has no
+                                 box of its own for margin to apply to. -->
+                            <span class="ms-auto shrink-0">
+                              <lib-button
+                                variant="ghost"
+                                size="xs"
+                                [ariaLabel]="'Canvia el nom de ' + getInstanceLabel(instance, segment)"
+                                (clicked)="startEditInstance(instance.id, instance.label)"
+                              >
+                                <lucide-icon name="Pencil" [size]="11" />
+                              </lib-button>
+                            </span>
                           }
                         </div>
                       }
@@ -431,7 +452,7 @@
                           tabindex="-1"
                           class="block w-full text-left mt-0.5 hover:text-primary transition-colors"
                           (click)="navigateToAssignment(segment.id, instance.id)"
-                          [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
+                          [attr.aria-label]="'Assigna ' + getInstanceLabel(instance, segment)"
                         >
                           @if (troncLoading()) {
                             <span class="text-xs text-base-content/30 block">S'estan carregant...</span>
@@ -446,14 +467,6 @@
                           } @else {
                             <span class="text-xs text-base-content/30 block">Sense assignacions</span>
                           }
-
-                          <!-- All figure directors, in slot order (tronc · xicalla · pinya) -->
-                          @if (directionSummaryText(instance); as directors) {
-                            <span class="text-xs text-base-content/40 mt-0.5 leading-snug break-words flex items-start gap-1">
-                              <lucide-icon [name]="ICON_DIRECCIO" [size]="11" class="mt-px shrink-0 text-base-content/30" aria-hidden="true" />
-                              <span>{{ directors }}</span>
-                            </span>
-                          }
                         </button>
                       }
                     </div>
@@ -464,8 +477,8 @@
                         <div class="w-24 shrink-0">
                           <lib-select
                             size="xs"
-                            [ariaLabel]="'Mode de ' + getInstanceLabel(instance)"
-                            [ngModel]="instance.figureMode"
+                            [ariaLabel]="'Mode de ' + getInstanceLabel(instance, segment)"
+                            [ngModel]="displayedFigureMode(instance)"
                             [disabled]="isLocked()"
                             (ngModelChange)="updateFigureMode(segment, instance, $event)"
                           >
@@ -492,7 +505,7 @@
                         <div
                           class="w-24 shrink-0 self-center flex items-center justify-center gap-0.5"
                           role="group"
-                          [attr.aria-label]="'Cordons de ' + getInstanceLabel(instance)"
+                          [attr.aria-label]="'Cordons de ' + getInstanceLabel(instance, segment)"
                           title="Nombre de cordons visibles"
                         >
                           <lib-button
@@ -501,7 +514,7 @@
                             shape="square"
                             [disabled]="isLocked() || instance.numberOfCordons === 1"
                             ariaLabel="Redueix els cordons"
-                            (clicked)="onCordonsDecrement(segment, instance)"
+                            (clicked)="onCordonsDecrement(instance)"
                           >
                             <lucide-icon name="Minus" [size]="12" aria-hidden="true" />
                           </lib-button>
@@ -515,7 +528,7 @@
                             shape="square"
                             [disabled]="isLocked() || instance.numberOfCordons === null"
                             ariaLabel="Augmenta els cordons"
-                            (clicked)="onCordonsIncrement(segment, instance)"
+                            (clicked)="onCordonsIncrement(instance)"
                           >
                             <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
                           </lib-button>
@@ -545,7 +558,7 @@
                         <lib-button
                           variant="ghost"
                           size="xs"
-                          [ariaLabel]="'Copia ' + getInstanceLabel(instance) + ' a un altre segment'"
+                          [ariaLabel]="'Copia ' + getInstanceLabel(instance, segment) + ' a un altre segment'"
                           (clicked)="openCopyPicker(segment.id, instance.id)"
                         >
                           <lucide-icon name="Copy" [size]="12" />
@@ -559,7 +572,7 @@
                         <lib-button
                           variant="ghost"
                           size="xs"
-                          [ariaLabel]="'Treure ' + getInstanceLabel(instance) + ' del segment'"
+                          [ariaLabel]="'Treure ' + getInstanceLabel(instance, segment) + ' del segment'"
                           (clicked)="removeInstance(segment, instance)"
                         >
                           <lucide-icon name="X" [size]="12" />
@@ -635,7 +648,7 @@
       <h3 id="remove-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
       <p id="remove-instance-desc" class="text-sm text-base-content/70">
         Voleu eliminar
-        <strong>{{ getInstanceLabel(pendingInstanceRemoval()!.instance) }}</strong>
+        <strong>{{ getInstanceLabel(pendingInstanceRemoval()!.instance, pendingInstanceRemoval()!.segment) }}</strong>
         del segment?
       </p>
       @if (pendingInstanceRemoval()!.instance.assignedCount > 0) {
@@ -658,56 +671,8 @@
   </dialog>
 }
 
-<!-- REMAT / NETA mode change confirmation modal — same alertdialog/aria-describedby reasoning as above -->
-@if (pendingModeChange()) {
-  <dialog
-    class="modal modal-open"
-    role="alertdialog"
-    aria-labelledby="remat-confirm-title"
-    aria-describedby="remat-confirm-desc"
-    aria-modal="true"
-  >
-    <div class="modal-box max-w-sm">
-      <h3 id="remat-confirm-title" class="text-lg font-bold mb-3">
-        {{ pendingModeChange()!.mode === 'NETA' ? 'Canviar a Figura neta' : 'Canviar a Remat' }}
-      </h3>
-      <p id="remat-confirm-desc" class="text-sm text-base-content/70">
-        Canviar <strong>{{ getInstanceLabel(pendingModeChange()!.instance) }}</strong> a
-        <strong>{{ pendingModeChange()!.mode === 'NETA' ? 'Figura neta' : 'Remat' }}</strong> desassignarà
-        <strong>{{ pendingModeChange()!.instance.pinyaAssignedCount }}
-          {{ pendingModeChange()!.instance.pinyaAssignedCount === 1 ? 'persona' : 'persones' }}
-        </strong>
-        {{ pendingModeChange()!.mode === 'NETA' ? 'de la pinya.' : 'de la pinya i la base.' }}
-      </p>
-      <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
-      <div class="modal-action">
-        <lib-button variant="ghost" size="sm" [disabled]="savingModeChange()" (clicked)="cancelModeChange()">Cancel·la</lib-button>
-        <lib-button variant="warning" size="sm" [disabled]="savingModeChange()" [loading]="savingModeChange()" (clicked)="confirmModeChange()">
-          {{ pendingModeChange()!.mode === 'NETA' ? 'Canvia a Figura neta' : 'Canvia a Remat' }}
-        </lib-button>
-      </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="cancelModeChange()" aria-label="Tancar"></button>
-  </dialog>
-}
+<!-- REMAT / NETA mode change confirmation (shared with the Distribució tab) -->
+<app-figure-mode-change (changed)="onFigureModeChangeApplied($event)" (cancelled)="onFigureModeChangeCancelled($event)" />
 
-<!-- Cordons reduction confirmation modal — mirrors the Distribució tab's own (figure-properties-panel /
-     distribucio-tab.component.html), same wording and lib-modal/lib-button pattern. The affected count is
-     exact (previewed against the backend), so it only appears when the reduction would actually unassign
-     someone. -->
-<lib-modal [open]="!!pendingCordonsChange()" title="Redueix els cordons" (closed)="cancelCordonsChange()">
-  @if (pendingCordonsChange(); as pending) {
-    <p class="text-sm text-base-content/70">
-      Esta acció eliminarà
-      <strong class="text-error">{{ pending.affectedCount }} {{ pending.affectedCount === 1 ? 'assignació' : 'assignacions' }}</strong>
-      dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
-    </p>
-    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
-  }
-  <div modalFooter class="flex justify-end gap-2 w-full">
-    <lib-button variant="ghost" size="sm" [disabled]="savingCordonsChange()" (clicked)="cancelCordonsChange()">Cancel·la</lib-button>
-    <lib-button variant="error" size="sm" [disabled]="savingCordonsChange()" [loading]="savingCordonsChange()" (clicked)="confirmCordonsChange()">
-      Elimina-les
-    </lib-button>
-  </div>
-</lib-modal>
+<!-- Cordons reduction confirmation (shared with the Distribució tab) -->
+<app-cordons-change (changed)="onCordonsChangeApplied()" />

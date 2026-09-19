@@ -32,6 +32,7 @@ export interface DistributionNodeItem {
   positionType: string | null;
   sortOrder: number;
   climbIndicator: string | null;
+  isAdHoc: boolean;
 }
 
 export interface DistributionAssignment {
@@ -40,8 +41,9 @@ export interface DistributionAssignment {
   personAlias: string;
 }
 
-/** Common shape of `FigureNode` and `InstanceNode` — either can back a `DistributionNodeItem`. */
-type DistributionSourceNode = DistributionNodeItem;
+/** Common shape of `FigureNode` and `InstanceNode` — either can back a `DistributionNodeItem`.
+ *  `isAdHoc` is optional here: only `InstanceNode` carries it, a `FigureNode` never does. */
+type DistributionSourceNode = Omit<DistributionNodeItem, 'isAdHoc'> & { isAdHoc?: boolean };
 
 function toDistributionNodeItem(n: DistributionSourceNode): DistributionNodeItem {
   return {
@@ -61,6 +63,8 @@ function toDistributionNodeItem(n: DistributionSourceNode): DistributionNodeItem
     positionType: n.positionType,
     sortOrder: n.sortOrder,
     climbIndicator: n.climbIndicator,
+    // FigureNodes have no isAdHoc; only a snapshotted InstanceNode can be ad-hoc.
+    isAdHoc: (n as { isAdHoc?: boolean }).isAdHoc ?? false,
   };
 }
 
@@ -94,6 +98,7 @@ import {
   SegmentMoveConflictResolution,
   TroncChangeImpact,
 } from '@muixer/shared';
+import { hiddenZonesForFigureModeChange } from '../node-assignment/node-assignment.service';
 
 export interface MoveInstanceResult {
   sourceSegment: SegmentWithInstances;
@@ -173,15 +178,12 @@ export class FigureInstanceService {
       instance.figureMode = dto.figureMode;
     }
 
-    if (dto.figureMode === FigureMode.REMAT || dto.figureMode === FigureMode.NETA) {
+    const hiddenZones = dto.figureMode !== undefined ? hiddenZonesForFigureModeChange(dto.figureMode) : [];
+    if (hiddenZones.length > 0) {
       // Deletion + save must commit or roll back together: otherwise a failed save after
       // the delete would leave assignments gone but figureMode unchanged (see BUG-13).
       await this.dataSource.transaction(async (manager) => {
-        if (dto.figureMode === FigureMode.REMAT) {
-          await this.deletePinyaAssignments(instanceId, manager);
-        } else {
-          await this.deletePinyaOnlyAssignments(instanceId, manager);
-        }
+        await this.deleteAssignmentsInZones(instanceId, hiddenZones, manager);
         await manager.save(FigureInstance, instance);
       });
     } else {
@@ -549,7 +551,7 @@ export class FigureInstanceService {
 
     const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
 
-    const [countResult, pinyaResult, pinyaAssignedResult, cordonsResult] = await Promise.all([
+    const [countResult, pinyaResult, pinyaAssignedResult, totalCordonsMap] = await Promise.all([
       this.dataSource.query(
         `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
         [id],
@@ -567,22 +569,15 @@ export class FigureInstanceService {
         [id],
       ),
       hasPinyaFigure && instance.figureTemplate
-        ? this.dataSource.query(
-            // Highest rengla position actually used by a PINYA node (cordo-obert exempt) — not a
-            // count of "rengles" rows, which is the template's rengla *catalog* and can differ
-            // from how many of them a given figure's nodes actually reach.
-            `SELECT MAX("renglaPosition") as total FROM figure_nodes
-             WHERE "templateId" = $1 AND zone = 'PINYA' AND "positionType" IS DISTINCT FROM 'cordo-obert'
-               AND "renglaPosition" IS NOT NULL`,
-            [instance.figureTemplate.id],
-          )
-        : Promise.resolve([{ total: '0' }]),
+        ? this.segmentService.loadTotalCordons([instance.figureTemplate.id])
+        : Promise.resolve(new Map<string, number>()),
     ]);
 
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
     const hasPinya = parseInt(pinyaResult[0]?.count ?? '0', 10) > 0;
     const pinyaAssignedCount = parseInt(pinyaAssignedResult[0]?.count ?? '0', 10);
-    const totalCordons = hasPinyaFigure ? parseInt(cordonsResult[0]?.total ?? '0', 10) : null;
+    const totalCordons =
+      hasPinyaFigure && instance.figureTemplate ? (totalCordonsMap.get(instance.figureTemplate.id) ?? 0) : null;
 
     return {
       id: instance.id,
@@ -605,25 +600,14 @@ export class FigureInstanceService {
     };
   }
 
-  private async deletePinyaAssignments(instanceId: string, manager: EntityManager): Promise<void> {
+  private async deleteAssignmentsInZones(instanceId: string, zones: FigureZone[], manager: EntityManager): Promise<void> {
     await manager.query(
       `DELETE FROM node_assignments
        WHERE "figureInstanceId" = $1
        AND "instanceNodeId" IN (
-         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone IN ('PINYA', 'BASE')
+         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone = ANY($2)
        )`,
-      [instanceId],
-    );
-  }
-
-  private async deletePinyaOnlyAssignments(instanceId: string, manager: EntityManager): Promise<void> {
-    await manager.query(
-      `DELETE FROM node_assignments
-       WHERE "figureInstanceId" = $1
-       AND "instanceNodeId" IN (
-         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone = 'PINYA'
-       )`,
-      [instanceId],
+      [instanceId, zones],
     );
   }
 

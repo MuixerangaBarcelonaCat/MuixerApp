@@ -187,6 +187,17 @@ describe('CompositionEditorComponent', () => {
     expect(component.compositionSlots()[0].slotId).toBe('entry-1');
   });
 
+  it('filters the figure template list ignoring accents and case', async () => {
+    figureTemplateService.getAll.mockReturnValue(
+      of({ data: [{ ...template, name: 'Àguila' }], meta: { total: 1, page: 1, limit: 200 } }),
+    );
+    const { component } = await setup(null);
+
+    component.search.set('aguila');
+
+    expect(component.filteredTemplates().map((t) => t.name)).toEqual(['Àguila']);
+  });
+
   it('centers the viewport on the loaded content after data arrives', async () => {
     vi.useFakeTimers();
     const { canvasStub } = await setup(COMPOSITION_ID);
@@ -237,7 +248,8 @@ describe('CompositionEditorComponent', () => {
 
     const slot = component.compositionSlots().find((s) => s.slotId === 'entry-1');
     expect(slot?.figureTemplate.nodes.some((n) => n.zone === 'PINYA')).toBe(false);
-    expect(slot?.figureTemplate.nodes.some((n) => n.zone === 'BASE')).toBe(true);
+    // REMAT hides BASE too — its assignments are wiped on switching to REMAT (hiddenZonesForFigureModeChange).
+    expect(slot?.figureTemplate.nodes.some((n) => n.zone === 'BASE')).toBe(false);
     expect(component.entries().find((e) => e.id === 'entry-1')?.numberOfCordons).toBeNull();
   });
 

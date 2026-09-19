@@ -1,5 +1,5 @@
 import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
-import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
@@ -9,8 +9,12 @@ import { NodeAssignmentService } from '../../../../services/node-assignment.serv
 import { ButtonComponent, ToastService } from '@muixer/ui';
 import { generateUUID } from '../../../../../../shared/utils/uuid.util';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { buildTroncBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
-import { DIRECTION_NODE_PRESETS, FigureZone, areaForZone, conflictRelevantPlacements } from '@muixer/shared';
+import {
+  buildTroncBuckets,
+  pickAdjacentNode,
+  pickNextAssignableNode,
+} from '../../../../utils/assignment-order.util';
+import { DIRECTION_NODE_PRESETS, FigureZone, areaForZone, conflictRelevantPlacements, isNodeVisibleByModeAndCordons } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 
 interface TroncFigure {
@@ -74,6 +78,25 @@ export class TroncsTabComponent implements OnInit {
     }
   }
 
+  @ViewChild('personPanel') private personPanel?: PersonPanelComponent;
+
+  /**
+   * The tronc view has no full-bleed canvas that swallows background clicks, so
+   * clicks on the empty area around the figures fall through to the tab host.
+   * Mirror the Pinyes canvas: deselect the current node and pull focus back to
+   * the person search box, so the box is never left "orphaned" after an outside
+   * click. Clicks on a tronc view, the person panel, or a control are ignored.
+   */
+  @HostListener('click', ['$event'])
+  onBackgroundClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('app-tronc-view, app-person-panel, button, a, [role="button"], input')) {
+      return;
+    }
+    this.clearSelection();
+    this.personPanel?.focusSearch();
+  }
+
   readonly MapIcon = MapIcon;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
@@ -105,6 +128,37 @@ export class TroncsTabComponent implements OnInit {
       event.preventDefault();
       this.performRedo();
       return;
+    }
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      this.navigateAdjacent(event.shiftKey ? -1 : 1);
+    }
+  }
+
+  /**
+   * Steps the selection to the node immediately before (`-1`) or after (`1`)
+   * the current one, following the established tronc order and stopping on
+   * every visible node (assigned nodes included). Wraps around at both ends.
+   */
+  navigateAdjacent(direction: 1 | -1): void {
+    const ref = this.selectedRef();
+    const instanceId = ref?.slotId ?? this.ws.selectedInstanceId() ?? this.ws.instances()[0]?.instanceId;
+    if (!instanceId) return;
+    const instance = this.instanceFor(instanceId);
+    if (!instance) return;
+
+    const visibleIds = new Set(
+      this.ws
+        .visibleNodesFor(instance)
+        .filter((n) => n.zone !== FigureZone.PINYA && n.zone !== FigureZone.DECORATION)
+        .map((n) => n.id),
+    );
+    const buckets = buildTroncBuckets(instance.nodes);
+    const currentId = ref?.slotId === instanceId ? ref.nodeId : null;
+    const next = pickAdjacentNode(buckets, currentId, direction, visibleIds);
+    if (next) {
+      this.select({ slotId: instanceId, nodeId: next.id });
     }
   }
 
@@ -172,7 +226,9 @@ export class TroncsTabComponent implements OnInit {
         return {
           instance,
           troncNodes: visible.filter((n) => n.zone === FigureZone.TRONC) as unknown as TroncNodeItem[],
-          baseNodes: visible.filter((n) => n.zone === FigureZone.BASE) as unknown as TroncNodeItem[],
+          baseNodes: visible.filter(
+            (n) => n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, instance),
+          ) as unknown as TroncNodeItem[],
           directionNodes: visible.filter(
             (n) => n.zone === FigureZone.DIRECTION,
           ) as unknown as TroncNodeItem[],

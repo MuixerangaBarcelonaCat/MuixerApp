@@ -46,6 +46,38 @@ export function getSegmentInstanceLabel(instance: SegmentTitleInstance): string 
   return base;
 }
 
+/** A `SegmentTitleInstance` carrying its id, so per-instance display names can be keyed back. */
+export type NumberedSegmentInstance = SegmentTitleInstance & { id: string };
+
+/**
+ * Per-instance display names for a segment's figures. When two or more figures resolve to the
+ * same label (`getSegmentInstanceLabel`), each gets a trailing ordinal in the given order —
+ * «Pilar 1», «Pilar 2», … — while a label held by a single figure is left bare («Pilar»).
+ *
+ * Purely derived from the current set: adding a duplicate renumbers the group, removing figures
+ * until one remains drops the number again. Nothing is written back to the instance. `instances`
+ * must already be in the order the numbers should follow (creation / `sortOrder`).
+ */
+export function computeInstanceDisplayNames(instances: NumberedSegmentInstance[]): Map<string, string> {
+  const groups = new Map<string, string[]>();
+  for (const instance of instances) {
+    const label = getSegmentInstanceLabel(instance);
+    const ids = groups.get(label) ?? [];
+    ids.push(instance.id);
+    groups.set(label, ids);
+  }
+
+  const names = new Map<string, string>();
+  for (const [label, ids] of groups) {
+    if (ids.length === 1) {
+      names.set(ids[0], label);
+    } else {
+      ids.forEach((id, index) => names.set(id, `${label} ${index + 1}`));
+    }
+  }
+  return names;
+}
+
 function netaSuffix(name: string): string {
   const firstWord = name.trim().split(/\s+/)[0] ?? '';
   return firstWord.endsWith('a') ? 'neta' : 'net';

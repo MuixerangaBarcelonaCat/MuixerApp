@@ -203,12 +203,14 @@ describe('EventService', () => {
 
     it('respects sortBy whitelist — title ASC', async () => {
       await service.findAll({ sortBy: 'title', sortOrder: 'ASC' });
-      expect(eventQb.orderBy).toHaveBeenCalledWith('event.title', 'ASC');
+      expect(eventQb.addSelect).toHaveBeenCalledWith('unaccent(lower(event.title))', 'sort_column');
+      expect(eventQb.orderBy).toHaveBeenCalledWith('sort_column', 'ASC');
     });
 
     it('respects sortBy location', async () => {
       await service.findAll({ sortBy: 'location', sortOrder: 'DESC' });
-      expect(eventQb.orderBy).toHaveBeenCalledWith('event.location', 'DESC');
+      expect(eventQb.addSelect).toHaveBeenCalledWith('unaccent(lower(event.location))', 'sort_column');
+      expect(eventQb.orderBy).toHaveBeenCalledWith('sort_column', 'DESC');
     });
 
     it('applies timeFilter=upcoming', async () => {

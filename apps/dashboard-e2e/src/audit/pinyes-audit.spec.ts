@@ -8,8 +8,8 @@ import { TARGETS } from './audit-targets';
  * (Konva canvas editors + the per-segment workspace with 5 tabs). Reaches detail
  * routes with sample dev IDs from audit-targets.ts.
  *
- * Navigation is client-side (SPA) to keep the in-memory session alive; the auth
- * controller is throttled to 10 req/60s (login+refresh), so full reloads per
+ * Navigation is client-side (SPA) to keep the in-memory session alive; Caddy
+ * rate-limits /api/auth to 10 req/60s in pre/prod (login+refresh), so full reloads per
  * route are not an option. Workspace tabs are switched by clicking the tab
  * buttons (query-param-only URL changes don't re-trigger the router reliably).
  */

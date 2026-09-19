@@ -76,6 +76,7 @@ const mockCompositionRepo = {
 
 const mockSegmentService = {
   getOne: jest.fn(),
+  loadTotalCordons: jest.fn().mockResolvedValue(new Map()),
 };
 
 const mockNodeAssignmentService = {
@@ -203,7 +204,7 @@ describe('FigureInstanceService', () => {
         (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
       );
       expect(deleteCalls.length).toBeGreaterThan(0);
-      expect(deleteCalls[0][1]).toEqual([INSTANCE_ID]);
+      expect(deleteCalls[0][1]).toEqual([INSTANCE_ID, [FigureZone.PINYA, FigureZone.BASE]]);
       expect(txManager.save).toHaveBeenCalledWith(
         FigureInstance,
         expect.objectContaining({ id: INSTANCE_ID, figureMode: FigureMode.REMAT }),
@@ -260,6 +261,33 @@ describe('FigureInstanceService', () => {
 
       expect(result.pinyaAssignedCount).toBe(2);
       expect(result.assignedCount).toBe(3);
+    });
+
+    it('returns totalCordons from segmentService.loadTotalCordons (shared with the segment list)', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.COMPLETA }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+      mockSegmentService.loadTotalCordons.mockResolvedValueOnce(new Map([[FIGURE_ID, 4]]));
+
+      const result = await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      expect(mockSegmentService.loadTotalCordons).toHaveBeenCalledWith([FIGURE_ID]);
+      expect(result.totalCordons).toBe(4);
+    });
+
+    it('does not call loadTotalCordons and returns totalCordons null for REMAT/NETA instances', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.REMAT }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      const result = await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      expect(mockSegmentService.loadTotalCordons).not.toHaveBeenCalled();
+      expect(result.totalCordons).toBeNull();
     });
 
     it('throws 404 if instance does not belong to segment', async () => {
@@ -943,6 +971,33 @@ describe('FigureInstanceService', () => {
       expect(result.items[0].figureTemplate.nodes).toEqual([
         expect.objectContaining({ id: 'adhoc-dir-1', zone: 'DIRECTION', positionType: 'direccio-pinya' }),
       ]);
+    });
+
+    it('flags each node with isAdHoc so the client can keep ad-hoc nodes out of the placement pivot', async () => {
+      const inst = { ...makeInstanceWithNodes(), snapshotted: true };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        {
+          id: 'real-pinya', label: 'MANS', zone: 'PINYA', positionType: 'mans',
+          x: 0, y: 0, z: 0, width: 80, height: 40, rotation: 0, color: null, shape: 'RECTANGLE',
+          renglaId: null, renglaPosition: null, sortOrder: 0, climbIndicator: null,
+          sourceNodeId: 'fn-1', isAdHoc: false, figureInstance: { id: INSTANCE_ID },
+        },
+        {
+          id: 'extra-pinya', label: 'Comodí', zone: 'PINYA', positionType: 'comodin',
+          x: 500, y: 500, z: 0, width: 80, height: 40, rotation: 0, color: null, shape: 'RECTANGLE',
+          renglaId: null, renglaPosition: null, sortOrder: 1, climbIndicator: null,
+          sourceNodeId: null, isAdHoc: true, figureInstance: { id: INSTANCE_ID },
+        },
+      ]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      const nodes = result.items[0].figureTemplate.nodes;
+      expect(nodes.find((n) => n.id === 'real-pinya')?.isAdHoc).toBe(false);
+      expect(nodes.find((n) => n.id === 'extra-pinya')?.isAdHoc).toBe(true);
     });
 
     it('matches an assignment to an ad-hoc (snapshotted-only) node by its own id', async () => {

@@ -1,0 +1,21 @@
+<lib-modal
+  [open]="!!pending()"
+  [title]="pending()?.mode === 'NETA' ? 'Canviar a Figura neta' : 'Canviar a Remat'"
+  (closed)="cancel()"
+>
+  @if (pending(); as p) {
+    <p class="text-sm text-base-content/70">
+      Canviar <strong>{{ p.label }}</strong> a
+      <strong>{{ p.mode === 'NETA' ? 'Figura neta' : 'Remat' }}</strong> desassignarà
+      <strong>{{ p.affectedCount }} {{ p.affectedCount === 1 ? 'persona' : 'persones' }}</strong>
+      {{ p.mode === 'NETA' ? 'de la pinya.' : 'de la pinya i la base.' }}
+    </p>
+    <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
+  }
+  <div modalFooter class="flex justify-end gap-2 w-full">
+    <lib-button variant="ghost" size="sm" [disabled]="saving()" (clicked)="cancel()">Cancel·la</lib-button>
+    <lib-button variant="warning" size="sm" [disabled]="saving()" [loading]="saving()" (clicked)="confirm()">
+      {{ pending()?.mode === 'NETA' ? 'Canvia a Figura neta' : 'Canvia a Remat' }}
+    </lib-button>
+  </div>
+</lib-modal>

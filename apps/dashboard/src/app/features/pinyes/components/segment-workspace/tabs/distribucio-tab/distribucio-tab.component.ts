@@ -10,10 +10,13 @@ import {
   signal,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
+import { computeInstanceDisplayNames } from '@muixer/shared';
 import {
   FigurePropertiesPanelComponent,
   FigurePropertiesEntry,
 } from '../../../figure-properties-panel/figure-properties-panel.component';
+import { FigureModeChangeComponent } from '../../../figure-mode-change/figure-mode-change.component';
+import { CordonsChangeComponent } from '../../../cordons-change/cordons-change.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { CanvasStateService } from '../../../../services/canvas-state.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
@@ -60,7 +63,7 @@ const INITIAL_ZOOM = 0.75;
   selector: 'app-distribucio-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent],
+  imports: [LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent, FigureModeChangeComponent, CordonsChangeComponent],
   templateUrl: './distribucio-tab.component.html',
 })
 export class DistribucioTabComponent implements OnInit {
@@ -83,14 +86,23 @@ export class DistribucioTabComponent implements OnInit {
    * `TroncPanelMeasurerComponent`). `onSizesReady` also completes a pending auto-layout when
    * one is waiting (`pendingPlacementItems`).
    */
-  readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() =>
-    this.items().map((item) => ({
+  readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() => {
+    const items = this.items();
+    const displayNames = computeInstanceDisplayNames(
+      items.map((item) => ({
+        id: item.instanceId,
+        label: item.label,
+        figureMode: item.figureMode,
+        figureTemplate: { name: item.figureTemplate.name, hasPinya: true },
+      })),
+    );
+    return items.map((item) => ({
       instanceId: item.instanceId,
       ...troncViewNodesFor(item.figureTemplate.nodes, item.figureMode),
       assignments: troncViewAssignmentsFor(item.assignments, item.figureTemplate.nodes),
-      figureName: computeSlotLabel(item),
-    })),
-  );
+      figureName: displayNames.get(item.instanceId) ?? computeSlotLabel(item),
+    }));
+  });
 
   /** Each instance's real, DOM-measured tronc panel size — see `measurePanels`/`onSizesReady`. */
   private readonly measuredTroncSizes = signal<Map<string, { width: number; height: number }>>(new Map());
@@ -255,64 +267,40 @@ export class DistribucioTabComponent implements OnInit {
     });
   }
 
+  @ViewChild(FigureModeChangeComponent) private figureModeChange!: FigureModeChangeComponent;
+
   onFigureModeChanged(event: { id: string; value: FigureMode }): void {
-    this.instanceService
-      .update(this.ws.eventId(), this.ws.segmentId(), event.id, { figureMode: event.value })
-      .subscribe({
-        next: () => this.loadDistribution(),
-        error: () => this.toast.error("No s'ha pogut actualitzar el mode de la figura."),
-      });
+    this.figureModeChange.request(this.ws.eventId(), this.ws.segmentId(), event.id, this.instanceLabel(event.id), event.value);
   }
 
-  readonly pendingCordonsChange = signal<{ id: string; value: number | null; affectedCount: number } | null>(null);
+  onFigureModeChangeApplied(): void {
+    this.loadDistribution();
+  }
+
+  /** Display name for an instance, same derivation used for canvas/tronc-view labels (`measurePanels`). */
+  private instanceLabel(instanceId: string): string {
+    const items = this.items();
+    const item = items.find((i) => i.instanceId === instanceId);
+    if (!item) return '';
+    const displayNames = computeInstanceDisplayNames(
+      items.map((i) => ({
+        id: i.instanceId,
+        label: i.label,
+        figureMode: i.figureMode,
+        figureTemplate: { name: i.figureTemplate.name, hasPinya: true },
+      })),
+    );
+    return displayNames.get(instanceId) ?? computeSlotLabel(item);
+  }
+
+  @ViewChild(CordonsChangeComponent) private cordonsChange!: CordonsChangeComponent;
 
   onNumberOfCordonsChanged(event: { id: string; value: number | null }): void {
-    const affectedCount = this.countAssignmentsBeyondCordons(event.id, event.value);
-    if (affectedCount > 0) {
-      this.pendingCordonsChange.set({ id: event.id, value: event.value, affectedCount });
-      return;
-    }
-    this.applyCordonsChange(event.id, event.value);
+    this.cordonsChange.request(event.id, event.value);
   }
 
-  confirmCordonsChange(): void {
-    const pending = this.pendingCordonsChange();
-    if (!pending) return;
-    this.applyCordonsChange(pending.id, pending.value);
-    this.pendingCordonsChange.set(null);
-  }
-
-  cancelCordonsChange(): void {
-    this.pendingCordonsChange.set(null);
-  }
-
-  private applyCordonsChange(id: string, value: number | null): void {
-    this.assignmentService.updateCordons(id, { numberOfCordons: value }).subscribe({
-      next: () => this.loadDistribution(),
-      error: () => this.toast.error("No s'han pogut actualitzar els cordons."),
-    });
-  }
-
-  /** Number of existing assignments on PINYA nodes that a reduced cordons value would hide (cordo-obert exempt). */
-  private countAssignmentsBeyondCordons(instanceId: string, numberOfCordons: number | null): number {
-    if (numberOfCordons === null) return 0;
-    const item = this.items().find((i) => i.instanceId === instanceId);
-    if (!item) return 0;
-
-    const hiddenNodeIds = new Set(
-      item.figureTemplate.nodes
-        .filter(
-          (n) =>
-            n.zone === 'PINYA' &&
-            n.positionType !== 'cordo-obert' &&
-            n.renglaPosition !== null &&
-            n.renglaPosition > numberOfCordons,
-        )
-        .map((n) => n.id),
-    );
-    if (hiddenNodeIds.size === 0) return 0;
-
-    return item.assignments.filter((a) => hiddenNodeIds.has(a.figureNodeId)).length;
+  onCordonsChangeApplied(): void {
+    this.loadDistribution();
   }
 
   readonly pendingCordonsObertsChange = signal<{ id: string; affectedCount: number } | null>(null);

@@ -24,8 +24,8 @@ export interface CreateTagDto {
 
 export interface UpdateTagDto {
   name?: string;
-  shortDescription?: string;
-  longDescription?: string;
+  shortDescription?: string | null;
+  longDescription?: string | null;
   color?: string;
   category?: TagCategory;
   positionTypes?: string[];

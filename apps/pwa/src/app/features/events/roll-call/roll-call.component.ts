@@ -3,7 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AttendanceStatus, MeEventDetail } from '@muixer/shared';
+import { AttendanceStatus, matchesSearch, MeEventDetail } from '@muixer/shared';
 import { Search } from 'lucide-angular';
 import { formatEventDate } from '../../../shared/pipes/format-event-date.pipe';
 import {
@@ -118,18 +118,16 @@ export class RollCallComponent {
   protected readonly isCreatingProvisional = signal(false);
   protected readonly overridePrompt = signal<{ item: AttendanceItem; status: AttendanceStatus } | null>(null);
 
-  private readonly matchesSearch = (item: AttendanceItem): boolean => {
-    const term = this.searchTerm().trim().toLowerCase();
-    if (!term) return true;
-    return `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`
-      .toLowerCase()
-      .includes(term);
-  };
+  private readonly itemMatchesSearch = (item: AttendanceItem): boolean =>
+    matchesSearch(
+      `${item.person.alias} ${item.person.name} ${item.person.firstSurname}`,
+      this.searchTerm(),
+    );
 
   private readonly matchesFilters = (item: AttendanceItem): boolean => {
     const status = this.statusFilter();
     if (status && item.status !== status) return false;
-    return this.matchesSearch(item);
+    return this.itemMatchesSearch(item);
   };
 
   protected readonly signedUpItems = computed(() =>
