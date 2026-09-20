@@ -197,6 +197,12 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.router.navigate(['/events', ev.id, 'confirmation']);
   }
 
+  goToPrint() {
+    const ev = this.event();
+    if (!ev) return;
+    this.router.navigate(['/events', ev.id, 'print']);
+  }
+
 
   deleteEvent() {
     const ev = this.event();

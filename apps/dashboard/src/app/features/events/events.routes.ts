@@ -61,5 +61,11 @@ const confirmationRoute = {
     ),
 };
 
+const printRoute = {
+  path: ':id/print',
+  loadComponent: () =>
+    import('./components/event-print/event-print.component').then((m) => m.EventPrintComponent),
+};
+
 /** Ruta de detall d'un event sense tipus (/events/:id). */
-export const eventRoutes: Routes = [detailRoute, confirmationRoute];
+export const eventRoutes: Routes = [detailRoute, confirmationRoute, printRoute];
