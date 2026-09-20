@@ -8,7 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { AttendanceStatus, MeEvent, PaginatedResponse } from '@muixer/shared';
+import { AttendanceStatus, EventType, MeEvent, PaginatedResponse } from '@muixer/shared';
 import { LucideAngularModule, CalendarDays, List, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { ButtonComponent, EmptyStateComponent } from '@muixer/ui';
@@ -43,6 +43,23 @@ export class EventListComponent {
   protected readonly CalendarIcon = CalendarDays;
   protected readonly ListIcon = List;
   protected readonly ChevronRightIcon = ChevronRight;
+
+  // Both on (or both off) means no filter — showing everything either way is the same result,
+  // so there's no separate "Tots" chip to keep in sync.
+  protected readonly showActuacions = signal(false);
+  protected readonly showAssajos = signal(false);
+  protected readonly typeFilter = computed<EventType | null>(() => {
+    if (this.showActuacions() === this.showAssajos()) return null;
+    return this.showActuacions() ? EventType.ACTUACIO : EventType.ASSAIG;
+  });
+
+  toggleActuacions(): void {
+    this.showActuacions.update((v) => !v);
+  }
+
+  toggleAssajos(): void {
+    this.showAssajos.update((v) => !v);
+  }
 
   protected readonly viewMode = signal<ViewMode>('list');
   protected readonly selectedDate = signal<string | null>(null);

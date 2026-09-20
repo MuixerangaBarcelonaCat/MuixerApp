@@ -69,6 +69,7 @@ function createTestBed(
             isActive: true,
             person,
           }),
+          userRole: () => UserRole.MEMBER,
         },
       },
       { provide: EventService, useValue: { updateAttendance: vi.fn() } },
