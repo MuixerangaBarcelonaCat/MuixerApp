@@ -44,6 +44,17 @@ const mockEvent: Partial<Event> = {
   },
 };
 
+const EMPTY_SUMMARY = {
+  confirmed: 0,
+  declined: 0,
+  pending: 0,
+  attended: 0,
+  lateCancel: 0,
+  children: 0,
+  childrenAttended: 0,
+  total: 0,
+};
+
 describe('MeService', () => {
   let service: MeService;
   let userRepo: jest.Mocked<Repository<User>>;
@@ -908,7 +919,7 @@ describe('MeService', () => {
         respondedAt: new Date(),
       };
       attendanceRepo.findOneOrFail.mockResolvedValue(persisted as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
         status: AttendanceStatus.ANIRE,
@@ -937,7 +948,7 @@ describe('MeService', () => {
         respondedAt: new Date(),
       };
       attendanceRepo.findOneOrFail.mockResolvedValue(updated as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
         status: AttendanceStatus.NO_VAIG,
@@ -985,7 +996,7 @@ describe('MeService', () => {
 
       const persisted = { id: 'att-new', status: AttendanceStatus.ANIRE, respondedAt: new Date() };
       attendanceRepo.findOneOrFail.mockResolvedValue(persisted as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE });
 
@@ -1007,7 +1018,7 @@ describe('MeService', () => {
         status: AttendanceStatus.ANIRE,
         respondedAt: new Date(),
       } as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
         status: AttendanceStatus.ANIRE,

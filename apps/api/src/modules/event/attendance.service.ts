@@ -127,15 +127,10 @@ export class AttendanceService {
     });
 
     const saved = await this.attendanceRepository.save(attendance);
-    const savedWithRelations = await this.attendanceRepository.findOne({
-      where: { id: saved.id },
-      relations: ['person', 'person.positions'],
-    });
 
-    await this.recalculateSummary(eventId);
-    const summary = await this.fetchSummary(eventId);
+    const summary = await this.recalculateSummary(eventId);
 
-    return { attendance: toAttendanceItem(savedWithRelations!), summary };
+    return { attendance: toAttendanceItem(saved), summary };
   }
 
   /** Actualitza l'estat i/o notes d'un registre d'assistència. Recalcula el summary de l'event. */
@@ -184,15 +179,9 @@ export class AttendanceService {
         metadata: { eventId, personId: attendance.person.id, previousStatus, newStatus: attendance.status },
       });
     }
-    const savedWithRelations = await this.attendanceRepository.findOne({
-      where: { id: saved.id },
-      relations: ['person', 'person.positions'],
-    });
+    const summary = await this.recalculateSummary(eventId);
 
-    await this.recalculateSummary(eventId);
-    const summary = await this.fetchSummary(eventId);
-
-    return { attendance: toAttendanceItem(savedWithRelations!), summary };
+    return { attendance: toAttendanceItem(saved), summary };
   }
 
   /** Elimina un registre d'assistència i recalcula el summary de l'event. */
@@ -213,8 +202,7 @@ export class AttendanceService {
     }
 
     await this.attendanceRepository.remove(attendance);
-    await this.recalculateSummary(eventId);
-    const summary = await this.fetchSummary(eventId);
+    const summary = await this.recalculateSummary(eventId);
 
     return { summary };
   }
@@ -226,48 +214,67 @@ export class AttendanceService {
    * serialitzin — sense això, la segona podria sobreescriure el resultat de la primera amb un
    * recompte desactualitzat (llegit abans que la primera confirmés el seu canvi).
    */
-  async recalculateSummary(eventId: string): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+  async recalculateSummary(eventId: string): Promise<AttendanceSummary> {
+    return this.dataSource.transaction(async (manager) => {
       await manager
         .createQueryBuilder(Event, 'event')
         .setLock('pessimistic_write')
         .where('event.id = :eventId', { eventId })
         .getOne();
 
-      const attendances = await manager.find(Attendance, {
-        where: { event: { id: eventId } },
-        relations: ['person'],
-      });
+      const rows = await manager
+        .createQueryBuilder(Attendance, 'attendance')
+        .innerJoin('attendance.person', 'person')
+        .select('attendance.status', 'status')
+        .addSelect('person."isXicalla"', 'isXicalla')
+        .addSelect('COUNT(*)', 'count')
+        .where('attendance."eventId" = :eventId', { eventId })
+        .groupBy('attendance.status')
+        .addGroupBy('person."isXicalla"')
+        .getRawMany<{ status: AttendanceStatus; isXicalla: boolean; count: string }>();
 
-      const summary = {
-        confirmed: attendances.filter((a) => a.status === AttendanceStatus.ANIRE).length,
-        declined: attendances.filter((a) => a.status === AttendanceStatus.NO_VAIG).length,
-        pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length,
-        attended: attendances.filter((a) => a.status === AttendanceStatus.ASSISTIT).length,
-        lateCancel: 0,
-        children: attendances.filter(
-          (a) =>
-            [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status) &&
-            a.person.isXicalla,
-        ).length,
-        childrenAttended: attendances.filter(
-          (a) => a.status === AttendanceStatus.ASSISTIT && a.person.isXicalla,
-        ).length,
-        total: attendances.length,
-      };
+      const summary = summarizeCounts(rows);
 
       await manager.update(Event, eventId, { attendanceSummary: summary });
+
+      return summary;
     });
+  }
+}
+
+/** Plega les files de `GROUP BY status, isXicalla` en el `attendanceSummary` de l'event. */
+function summarizeCounts(
+  rows: { status: AttendanceStatus; isXicalla: boolean; count: string }[],
+): AttendanceSummary {
+  const summary: AttendanceSummary = {
+    confirmed: 0,
+    declined: 0,
+    pending: 0,
+    attended: 0,
+    lateCancel: 0,
+    children: 0,
+    childrenAttended: 0,
+    total: 0,
+  };
+
+  for (const row of rows) {
+    const count = Number(row.count);
+    summary.total += count;
+
+    if (row.status === AttendanceStatus.ANIRE) summary.confirmed += count;
+    else if (row.status === AttendanceStatus.NO_VAIG) summary.declined += count;
+    else if (row.status === AttendanceStatus.PENDENT) summary.pending += count;
+    else if (row.status === AttendanceStatus.ASSISTIT) summary.attended += count;
+
+    if (row.isXicalla) {
+      if (row.status === AttendanceStatus.ANIRE || row.status === AttendanceStatus.ASSISTIT) {
+        summary.children += count;
+      }
+      if (row.status === AttendanceStatus.ASSISTIT) summary.childrenAttended += count;
+    }
   }
 
-  /** Carrega el `attendanceSummary` actualitzat de la DB per retornar-lo immediatament al client. */
-  private async fetchSummary(eventId: string): Promise<AttendanceSummary> {
-    const event = await this.eventRepository.findOne({
-      where: { id: eventId },
-      select: ['attendanceSummary'],
-    });
-    return event!.attendanceSummary;
-  }
+  return summary;
 }
 
 interface AttendancePersonRef {

@@ -11,7 +11,7 @@ tags: [qa]
 > Regla: si un ítem es resol, s'esborra d'aquí. Res de columnes "✅ Resolt" —
 > per a això ja hi ha el git log.
 
-**Verificat contra el codi:** 3 d'agost de 2026
+**Verificat contra el codi:** 21 de setembre de 2026
 
 ---
 
@@ -73,6 +73,25 @@ tags: [qa]
 | T2 | L'offline de la PWA no s'ha verificat en un desplegament real (el service worker només s'activa en build de producció); el test actual és tou |
 | T3 | Cap troballa d'auditoria s'ha validat amb un usuari **MEMBER** real: tot s'ha provat amb ADMIN |
 | T4 | `apps/dashboard-e2e/src/audit/audit-core.ts` exporta `MIN_TAP_TARGET` i `collectMetrics`, però `responsive-audit.spec.ts` en manté còpies locals idèntiques | 
+
+## Rendiment de la capa de dades
+
+> Auditoria de tota la capa de dades d'`apps/api` (branca `feat/optimize-db-access`). El gruix
+> ja està resolt: índexos de les FKs del camí calent, agregat de `recalculateSummary`, càrrega
+> batch de la projecció, `bulkImport` amb un sol INSERT, comptadors de conflictes per event en
+> una query, índexos trigram de la cerca de persones i batch dels UPDATEs de push. El que queda
+> aquí és el que s'ha decidit **no** fer ara, amb el motiu.
+
+| # | Ítem | On | Notes |
+|---|------|-----|-------|
+| P1 | Les ordenacions `unaccent(lower(col))` amb LIMIT/OFFSET fan un sort complet per pàgina | `persons`, `users`, `events`, `figure_templates`, `compositions`, `tags` | **Ja no està blocat:** `f_unaccent` (IMMUTABLE, migració `AddPersonSearchTrigramIndexes`) permet l'índex d'expressió que abans `unaccent()` STABLE rebutjava. Falta crear els btree `f_unaccent(lower(col))` i alinear-hi els `ORDER BY`. Només val la pena quan una taula creixa prou perquè el sort es note |
+| P2 | La branca `word_similarity(...) > 0.2` de la cerca de persones disponibles no és indexable | `node-assignment/available-persons.service.ts` | Les dues branques `LIKE` sí que usen els índexos trigram, però un `OR` només evita el seq-scan si **totes** les branques en tenen. Accelerar-la demana l'operador `<%`, el llindar del qual és una GUC de sessió i no el 0.2 fixat aquí: canviar-ho canviaria qui apareix al cercador. Deixat igual a consciència |
+| P3 | `getEventAttendanceStats` duplica el que `events.attendanceSummary` ja té desnormalitzat | `me.service.ts` | Només el desglossament adults/xicalla de `NO_VAIG`/`PENDENT` és informació nova. Afegir dos comptadors al jsonb existent donaria l'endpoint sencer amb zero queries. També: `fetchAttendancesByEvent` hidrata `person`+`event` sencers només per llegir ids, i `getEventAttendanceStats` fa un `findOne` complet (jsonb inclòs) només per poder fer 404 (`exist()` o plegar-ho dins l'agregat) |
+| P4 | La pantalla de passa llista carrega tot `MeEventDetail` (4 queries, hidrata persones i events sencers) només per pintar títol i data | `apps/pwa/.../roll-call.component.ts` | El fix demana un endpoint o DTO nou: superfície d'API nova per estalviar 4 queries d'una pantalla d'ús puntual |
+| P5 | `ATTENDED_COUNT_EXPRESSION` és una subquery correlada que s'executa per fila **abans** del LIMIT | `person.service.ts` | Només quan `sortBy=attendedCount` (~300 execucions per una pàgina de 50). Mesurar abans de tocar; el fix seria `LEFT JOIN LATERAL` o una CTE agrupada |
+| P6 | `person-sync.strategy.ts` fa ~1500-2500 queries per execució completa | `sync/strategies/person-sync.strategy.ts` | **Prioritat baixa deliberada**, documentat perquè ningú no ho confonga amb un camí calent: és una acció manual d'admin, amb SSE i progrés per fila. El germà `attendance-sync.strategy.ts` ja fa batch-upsert |
+| P7 | `findOne` per entrada a `syncEntries`; bucles de `manager.update` per fila als reordenaments | `composition.service.ts`, `event-segment.service.ts`, `figure-instance.service.ts` | N petita (2-8). `In()` ho resoldria; ignorable mentre desar la distribució no es queixe |
+| P8 | `audit_logs` té `IDX_audit_logs_actor` + `IDX_audit_logs_created` però `audit.service.ts` només fa `save()`: cap camí de lectura | `audit/` | Cost d'escriptura per zero benefici **avui**. Decisió presa: mantenir-los, perquè hi ha intenció de fer un visor de logs. Nota informativa, no acció |
 
 ## Neteja menor
 

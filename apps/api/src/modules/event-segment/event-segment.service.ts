@@ -221,12 +221,10 @@ export class EventSegmentService {
 
   private async loadSegmentConflictCounters(segmentIds: string[]): Promise<Map<string, SegmentPeopleCounters>> {
     const map = new Map<string, SegmentPeopleCounters>();
-    await Promise.all(
-      segmentIds.map(async (segmentId) => {
-        const { meta } = await this.nodeAssignmentService.getSegmentConflicts(segmentId);
-        map.set(segmentId, meta);
-      }),
-    );
+    const bySegment = await this.nodeAssignmentService.getSegmentConflictsBySegments(segmentIds);
+    for (const [segmentId, { meta }] of bySegment) {
+      map.set(segmentId, meta);
+    }
     return map;
   }
 

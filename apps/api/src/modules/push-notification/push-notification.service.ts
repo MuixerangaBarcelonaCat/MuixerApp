@@ -52,18 +52,28 @@ export class PushNotificationService {
 
     this.logger.log(`Dispatching push to ${subscriptions.length} subscription(s)`);
 
+    // The sends still fan out one per device (that's the web-push protocol), but their
+    // bookkeeping is collected and written as two UPDATEs instead of one per subscription.
+    const usedIds: string[] = [];
+    const goneIds: string[] = [];
+
     await Promise.allSettled(
       subscriptions.map(async (sub) => {
         const result = await this.senderService.send(sub, event.payload);
         if (result.success) {
-          await this.subscriptionService.markUsed(sub.id);
+          usedIds.push(sub.id);
         } else if (result.gone) {
-          await this.subscriptionService.deactivate(sub.id);
+          goneIds.push(sub.id);
         } else if (result.statusCode === 429 || (result.statusCode ?? 0) >= 500) {
           this.logger.warn(`Push rate-limited or server error (${result.statusCode}), no retry`);
         }
       }),
     );
+
+    await Promise.all([
+      this.subscriptionService.markUsedMany(usedIds),
+      this.subscriptionService.deactivateMany(goneIds),
+    ]);
   }
 
   async dispatchToAllUsers(payload: { title: string; body: string; url?: string }): Promise<void> {

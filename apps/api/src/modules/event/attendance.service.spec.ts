@@ -33,6 +33,18 @@ const makeAttendance = (status: AttendanceStatus): Attendance =>
     updatedAt: new Date(),
   } as Attendance);
 
+/** Mirrors what the GROUP BY status, isXicalla aggregate returns for a set of attendances. */
+const toSummaryRows = (attendances: Attendance[]) => {
+  const rows = new Map<string, { status: AttendanceStatus; isXicalla: boolean; count: string }>();
+  for (const a of attendances) {
+    const key = `${a.status}|${a.person.isXicalla}`;
+    const existing = rows.get(key);
+    if (existing) existing.count = String(Number(existing.count) + 1);
+    else rows.set(key, { status: a.status, isXicalla: a.person.isXicalla, count: '1' });
+  }
+  return [...rows.values()];
+};
+
 describe('AttendanceService', () => {
   let service: AttendanceService;
   const originalLockDays = process.env.ASSIGNMENT_LOCK_DAYS;
@@ -69,11 +81,22 @@ describe('AttendanceService', () => {
       getOne: jest.fn().mockResolvedValue(event),
     };
 
+    const aggQb = {
+      innerJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      addGroupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue(toSummaryRows(attendances)),
+    };
+
     const manager = {
-      createQueryBuilder: jest.fn(() => lockQb),
+      createQueryBuilder: jest.fn((entity: unknown) => (entity === Event ? lockQb : aggQb)),
       find: jest.fn().mockResolvedValue(attendances),
       update: jest.fn().mockResolvedValue(undefined),
       lockQb,
+      aggQb,
     };
 
     const dataSource = {
@@ -426,8 +449,8 @@ describe('AttendanceService', () => {
         callOrder.push('lock');
         return makeEvent();
       });
-      repos.dataSource.manager.find.mockImplementation(async () => {
-        callOrder.push('find');
+      repos.dataSource.manager.aggQb.getRawMany.mockImplementation(async () => {
+        callOrder.push('count');
         return [];
       });
 
@@ -435,7 +458,82 @@ describe('AttendanceService', () => {
 
       expect(repos.dataSource.manager.createQueryBuilder).toHaveBeenCalledWith(Event, 'event');
       expect(repos.dataSource.manager.lockQb.setLock).toHaveBeenCalledWith('pessimistic_write');
-      expect(callOrder).toEqual(['lock', 'find']);
+      expect(callOrder).toEqual(['lock', 'count']);
+    });
+
+    it('counts with a grouped aggregate instead of hydrating every attendance row', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
+      service = await buildModule(repos);
+
+      await service.recalculateSummary('ev-1');
+
+      expect(repos.dataSource.manager.aggQb.getRawMany).toHaveBeenCalledTimes(1);
+      expect(repos.dataSource.manager.find).not.toHaveBeenCalled();
+    });
+
+    it('returns the summary it just computed, so callers need no follow-up SELECT', async () => {
+      const repos = makeRepos([
+        makeAttendance(AttendanceStatus.ANIRE),
+        { ...makeAttendance(AttendanceStatus.ASSISTIT), person: makePerson({ isXicalla: true }) } as Attendance,
+      ]);
+      service = await buildModule(repos);
+
+      const summary = await service.recalculateSummary('ev-1');
+
+      expect(summary.confirmed).toBe(1);
+      expect(summary.attended).toBe(1);
+      expect(summary.children).toBe(1);
+      expect(summary.childrenAttended).toBe(1);
+      expect(summary.total).toBe(2);
+    });
+  });
+
+  // --- round trips ---
+  describe('round trips per write', () => {
+    it('update reads the attendance once and the event once', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+
+      expect(repos.attendanceRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(repos.eventRepo.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('update returns the summary without re-reading the event row', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      const result = await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+
+      expect(result.summary.total).toBe(1);
+      expect(result.attendance.person.id).toBe('p1');
+    });
+
+    it('create does not re-read the row it just saved', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
+      service = await buildModule(repos);
+
+      const result = await service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE });
+
+      expect(repos.attendanceRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(result.attendance.person.id).toBe('p1');
+    });
+
+    it('remove reads the attendance once and the event once', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.remove('ev-1', 'att-1');
+
+      expect(repos.attendanceRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(repos.eventRepo.findOne).toHaveBeenCalledTimes(1);
     });
   });
 });
