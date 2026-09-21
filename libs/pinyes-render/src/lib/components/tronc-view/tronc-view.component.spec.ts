@@ -1858,6 +1858,27 @@ describe('TroncViewComponent', () => {
         expect(selected).toEqual([]);
       });
 
+      it('does not pop up the person card either (the emulated mouseenter is not a hover)', () => {
+        const target = document.createElement('button');
+        target.getBoundingClientRect = () => ({ top: 10, right: 20, bottom: 0, left: 0, width: 20, height: 10, x: 0, y: 10, toJSON: () => '' });
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        jest.advanceTimersByTime(500);
+        component.onNodePointerUp(touchEvent());
+
+        component.onNodeHover({ currentTarget: target } as unknown as MouseEvent, 'node-1');
+
+        expect(component.hoveredPerson()).toBeNull();
+      });
+
+      it('still shows the person card on a real mouse hover', () => {
+        const target = document.createElement('button');
+        target.getBoundingClientRect = () => ({ top: 10, right: 20, bottom: 0, left: 0, width: 20, height: 10, x: 0, y: 10, toJSON: () => '' });
+
+        component.onNodeHover({ currentTarget: target } as unknown as MouseEvent, 'node-1');
+
+        expect(component.hoveredPerson()?.info.alias).toBe('Pepet');
+      });
+
       it('is a normal click after a plain tap', () => {
         component.onNodePointerDown(node('node-1'), touchEvent());
         component.onNodePointerUp(touchEvent());

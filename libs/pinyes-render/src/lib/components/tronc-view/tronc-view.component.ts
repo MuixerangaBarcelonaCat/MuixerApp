@@ -614,6 +614,9 @@ export class TroncViewComponent {
   }
 
   onNodeHover(event: MouseEvent, nodeId: string): void {
+    // After a long press the browser still emits mouse events; that is not a hover, and the card
+    // would pop up over the neighbouring node the user is about to tap as the destination.
+    if (this.longPress.swallowsClick()) return;
     const assignment = this.getAssignment(nodeId);
     if (!assignment) {
       this.hoveredPerson.set(null);

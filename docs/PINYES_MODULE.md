@@ -1139,6 +1139,9 @@ Implementació:
   el clic dret. L'arrossegament de persones es desactiva en tàctil amb l'input
   `personDragEnabled` (les pestanyes hi passen `!isTouch()`); en assignació, `tronc-view` també
   desactiva la selecció de text i el callout d'iOS (`.assignment-mode .tronc-node`).
+- **E2E tàctil**: `pnpm e2e:assign-touch` (`apps/dashboard-e2e/src/assign-touch`) prova en un navegador
+  real, amb toc real i l'API simulada, tot el flux d'assignació tàctil de les dues pestanyes (incloent
+  el canvas Konva, que jsdom no pot executar). Veure [[AUDIT_SUITE]].
 - **Guia d'usuari**: `template-editor-help-modal.component.ts` té una secció "Tàctil / tablet"
   (cercable) amb els gestos i la limitació dels 768px dels editors. El modal és accessible des de l'editor de
   templates i del workspace d'assignació (botó "?" a la topbar); la Projecció manté el seu propi
