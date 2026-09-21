@@ -240,6 +240,36 @@ describe('PersonListComponent', () => {
       expect(warningBadge?.querySelector('lucide-icon')).toBeTruthy();
     });
 
+    it('activa el filtre "Falten etiquetes" (i no cap filtre d\'etiqueta) en fer clic a l\'etiqueta', () => {
+      fixture.componentInstance.persons.set([
+        { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
+      ]);
+      fixture.detectChanges();
+
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      const warningBadge = badges.find((b) => b.textContent?.trim() === 'Falten etiquetes');
+      expect(warningBadge?.tagName).toBe('BUTTON');
+
+      warningBadge?.click();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
+      expect(fixture.componentInstance.selectedPositions()).toEqual([]);
+      expect(fixture.componentInstance.activeFilters().positionIds).toBeUndefined();
+    });
+
+    it('desactiva el filtre "Falten etiquetes" en tornar a fer clic a l\'etiqueta', () => {
+      fixture.componentInstance.toggleTagRuleFilter();
+      fixture.componentInstance.persons.set([
+        { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
+      ]);
+      fixture.detectChanges();
+
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      badges.find((b) => b.textContent?.trim() === 'Falten etiquetes')?.click();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBeUndefined();
+    });
+
     it('no mostra cap etiqueta "Falten etiquetes" quan la persona compleix la regla', () => {
       fixture.componentInstance.persons.set([{ ...mockPerson } as never]);
       fixture.detectChanges();

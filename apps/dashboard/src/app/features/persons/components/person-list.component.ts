@@ -457,16 +457,18 @@ export class PersonListComponent {
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
       ...(col.key === 'positions' && {
-        // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag
-        // (no `id`, so onColorBadgeClick's `badge.id` guard naturally leaves it non-clickable),
-        // flagged with a warning icon/color instead of a real tag color.
+        // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag,
+        // flagged with a warning icon/color instead of a real tag color. It carries the
+        // NO_TAG_RULE_OPTION pseudo-id so it is clickable, and onColorBadgeClick routes it to the
+        // tag-rule filter instead of `togglePosition`.
         colorBadges: (person: Person) => [
           ...person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
           ...(person.tagCompliance && !person.tagCompliance.ok
-            ? [{ text: 'Falten etiquetes', color: SEMANTIC.warning, icon: 'AlertTriangle', title: this.missingTagsLabel(person.tagCompliance) }]
+            ? [{ text: 'Falten etiquetes', id: this.NO_TAG_RULE_OPTION, color: SEMANTIC.warning, icon: 'AlertTriangle', title: this.missingTagsLabel(person.tagCompliance) }]
             : []),
         ],
-        onColorBadgeClick: (id: string) => this.togglePosition(id),
+        onColorBadgeClick: (id: string) =>
+          id === this.NO_TAG_RULE_OPTION ? this.toggleTagRuleFilter() : this.togglePosition(id),
       }),
     }))
   );
