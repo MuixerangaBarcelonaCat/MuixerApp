@@ -82,7 +82,7 @@ describe('AttendanceSyncStrategy', () => {
     describe('past ASSAIG', () => {
       it.each([
         ['Vinc', AttendanceStatus.ASSISTIT],
-        ['Potser', AttendanceStatus.PENDENT],
+        ['Potser', AttendanceStatus.ASSISTIT],
         ['No vinc', AttendanceStatus.NO_VAIG],
         [null, AttendanceStatus.PENDENT],
       ])('estat=%s → %s', (estat, expected) => {
@@ -93,7 +93,7 @@ describe('AttendanceSyncStrategy', () => {
     describe('future ASSAIG', () => {
       it.each([
         ['Vinc', AttendanceStatus.ANIRE],
-        ['Potser', AttendanceStatus.PENDENT],
+        ['Potser', AttendanceStatus.ANIRE],
         ['No vinc', AttendanceStatus.NO_VAIG],
         [null, AttendanceStatus.PENDENT],
       ])('estat=%s → %s', (estat, expected) => {
