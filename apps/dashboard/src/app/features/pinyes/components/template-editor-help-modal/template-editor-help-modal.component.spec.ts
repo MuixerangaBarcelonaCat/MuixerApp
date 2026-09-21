@@ -25,9 +25,21 @@ describe('TemplateEditorHelpModalComponent', () => {
     expect(component.sections.some((s) => s.id === 'tactil')).toBe(true);
   });
 
-  it('the touch/tablet section explains the ≥1024px guard on editor/assignment', () => {
-    const section = component.sections.find((s) => s.id === 'tactil')!;
-    expect(section.items.some((i) => i.answer.includes('1024px'))).toBe(true);
+  const tactilAnswers = (): string[] =>
+    (component.sections.find((s) => s.id === 'tactil')?.items ?? []).map((i) => i.answer);
+
+  it('the touch/tablet section explains the 768px guard on the editors', () => {
+    expect(tactilAnswers().some((a) => a.includes('768px'))).toBe(true);
+  });
+
+  it('the touch/tablet section explains that assignment works on touch by tapping a node', () => {
+    const answer = tactilAnswers().find((a) => a.includes('768px')) ?? '';
+    expect(answer).toContain('assignació');
+    expect(answer.toLowerCase()).toContain('toqueu un node');
+  });
+
+  it('the touch/tablet section no longer mentions the old 1024px limit', () => {
+    expect(tactilAnswers().some((a) => a.includes('1024px'))).toBe(false);
   });
 
   it('the touch/tablet section explains projection has no device restriction', () => {

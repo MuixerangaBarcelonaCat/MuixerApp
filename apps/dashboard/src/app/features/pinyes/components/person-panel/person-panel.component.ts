@@ -58,6 +58,13 @@ export class PersonPanelComponent {
   readonly isPast = input<boolean>(false);
   /** Which area this panel instance serves (§5.4) — Pinyes tab passes PINYA, Troncs passes TRONC. */
   readonly area = input<AssignmentArea>('PINYA');
+  /**
+   * Touch layout: the panel is shown in a modal instead of the side column. Hides everything but
+   * the search box (title, counters, height / Xicalla / tag filters, the floating results
+   * dropdown) and lets the search term narrow the lists in place instead — same groups, same
+   * tag-matching-first ordering, ranked by how well the term matches.
+   */
+  readonly searchOnly = input(false);
 
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
@@ -239,8 +246,25 @@ export class PersonPanelComponent {
     });
   }
 
+  /** Normalized search term narrowing the lists — only in `searchOnly` mode, otherwise ''. */
+  private readonly listTerm = computed(() => (this.searchOnly() ? normalizeForSearch(this.search()) : ''));
+
+  /** True while `searchOnly` mode is narrowing the lists with a typed term. */
+  readonly searchActive = computed(() => this.listTerm() !== '');
+
+  /** Keeps only the persons matching the term, best match first. Untouched when no term is active. */
+  private narrowBySearch(persons: AvailablePerson[]): AvailablePerson[] {
+    const term = this.listTerm();
+    return term ? this.rankByMatchType(persons, term, new Set()) : persons;
+  }
+
+  /** Display order of a group in `searchOnly` mode: narrowed by the term, tag-matching persons first. */
+  private visibleInSearchOnly(persons: AvailablePerson[]): AvailablePerson[] {
+    return this.searchOnly() ? this.sortByPosition(this.narrowBySearch(persons)) : persons;
+  }
+
   readonly sortedConfirmedPersons = computed(() =>
-    this.sortByPosition(this.confirmedPersons()),
+    this.sortByPosition(this.narrowBySearch(this.confirmedPersons())),
   );
 
   readonly noShowPersons = computed(() =>
@@ -250,7 +274,7 @@ export class PersonPanelComponent {
   );
 
   readonly sortedNoShowPersons = computed(() =>
-    this.sortByPosition(this.noShowPersons()),
+    this.sortByPosition(this.narrowBySearch(this.noShowPersons())),
   );
 
   readonly pendingPersons = computed(() =>
@@ -264,6 +288,42 @@ export class PersonPanelComponent {
       ? this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG' || p.attendanceStatus === 'PENDENT')
       : this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
   );
+
+  // What each group actually renders. Separate from the base groups above because those also
+  // feed `freePersons` (assigned persons are excluded from it), so narrowing them in place would
+  // wrongly push a non-matching assigned person back into the free list.
+  readonly visiblePinyaAssignedPersons = computed(() => this.visibleInSearchOnly(this.pinyaAssignedPersons()));
+  readonly visibleTroncAssignedPersons = computed(() => this.visibleInSearchOnly(this.troncAssignedPersons()));
+  readonly visiblePendingPersons = computed(() => this.visibleInSearchOnly(this.pendingPersons()));
+  readonly visibleDeclinedPersons = computed(() => this.visibleInSearchOnly(this.declinedPersons()));
+
+  /** "Altres" is opened automatically while a search term is active, so matches inside it are seen. */
+  readonly altresOpen = computed(() => this.altresExpanded() || this.searchActive());
+
+  /** A search term is active and no group has a single match. */
+  readonly noSearchMatches = computed(
+    () =>
+      this.searchActive() &&
+      this.sortedConfirmedPersons().length === 0 &&
+      this.sortedNoShowPersons().length === 0 &&
+      this.visiblePinyaAssignedPersons().length === 0 &&
+      this.visibleTroncAssignedPersons().length === 0 &&
+      this.visiblePendingPersons().length === 0 &&
+      this.visibleDeclinedPersons().length === 0,
+  );
+
+  /** First person in display order for the current term (Enter in `searchOnly` mode). */
+  private firstListedPerson(): AvailablePerson | null {
+    return (
+      this.sortedConfirmedPersons()[0] ??
+      this.sortedNoShowPersons()[0] ??
+      this.visiblePinyaAssignedPersons()[0] ??
+      this.visibleTroncAssignedPersons()[0] ??
+      this.visiblePendingPersons()[0] ??
+      this.visibleDeclinedPersons()[0] ??
+      null
+    );
+  }
 
   /**
    * Up to 5 ranked matches for the typed search term. Group 1 (exact alias match) wins
@@ -510,6 +570,11 @@ export class PersonPanelComponent {
         this.selectFirstFreePerson();
         return;
       }
+      if (this.searchOnly()) {
+        const first = this.firstListedPerson();
+        if (first) this.selectSearchResult({ person: first, isAssigned: first.assignedPlacements.length > 0 });
+        return;
+      }
       const results = this.searchResults();
       if (results.length > 0) {
         this.selectSearchResult(results[this.effectiveHighlightedIndex()]);
@@ -517,8 +582,10 @@ export class PersonPanelComponent {
       return;
     }
     if (event.key === 'Backspace' || event.key === 'Delete') {
+      // Not in `searchOnly` mode: on a phone an accidental Backspace on the empty box would
+      // silently unassign the person the user came to replace.
       const input = event.target as HTMLInputElement;
-      if (input.value === '' && !this.hasTypedSinceNodeSelected) {
+      if (!this.searchOnly() && input.value === '' && !this.hasTypedSinceNodeSelected) {
         const assignment = this.selectedAssignment();
         if (assignment) {
           event.preventDefault();
@@ -564,6 +631,8 @@ export class PersonPanelComponent {
   }
 
   onPersonHover(event: MouseEvent, person: AvailablePerson): void {
+    // Touch has no hover; the emulated mouseenter after a tap would leave a stray card behind.
+    if (this.searchOnly()) return;
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     this.hoveredPerson.set({
       info: this.toHoverInfo(person),

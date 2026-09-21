@@ -1,8 +1,8 @@
 import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   HostListener,
   OnInit,
   ViewChild,
@@ -19,7 +19,8 @@ import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { SegmentAssignmentActionsService } from '../../../../services/segment-assignment-actions.service';
-import { ToastService, ButtonComponent } from '@muixer/ui';
+import { ToastService, ButtonComponent, ModalComponent } from '@muixer/ui';
+import { LayoutService } from '../../../../../../core/services/layout.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { FigureZone } from '@muixer/shared';
 import {
@@ -40,6 +41,8 @@ import {
   imports: [
     LucideAngularModule,
     ButtonComponent,
+    ModalComponent,
+    NgTemplateOutlet,
     FigureCanvasComponent,
     PersonPanelComponent,
     AlreadyAssignedDialogComponent,
@@ -53,6 +56,9 @@ export class PinyesTabComponent implements OnInit {
   private readonly actions = inject(SegmentAssignmentActionsService);
   private readonly toast = inject(ToastService);
   private readonly undoRedo = inject(UndoRedoService);
+
+  /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
+  readonly isTouch = inject(LayoutService).isTouch;
 
   readonly isPast = input(false);
 
@@ -71,29 +77,12 @@ export class PinyesTabComponent implements OnInit {
   @ViewChild('canvas') private canvasRef?: FigureCanvasComponent;
   private initialCenterDone = false;
 
-  /**
-   * Below `sm`, the fixed-width person panel (w-80) leaves the canvas at
-   * ~73px — unusable for drag assignment (P-M2, GE-H3). Shows a guard
-   * message instead until the mobile layout is designed (WI-14/15 gestures
-   * land first). Driven by `matchMedia`; falls back to `false` where
-   * `matchMedia` is unavailable.
-   */
-  readonly mobileUnsupported = signal(false);
-
   constructor() {
     this.actions.attach({
       select: (ref) => this.select(ref),
       clearSelection: () => this.clearSelection(),
       advanceToNextEmptyNode: (instanceId, nodeId) => this.advanceToNextEmptyNode(instanceId, nodeId),
     });
-
-    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      const mql = window.matchMedia('(max-width: 639.98px)');
-      this.mobileUnsupported.set(mql.matches);
-      const listener = (e: MediaQueryListEvent) => this.mobileUnsupported.set(e.matches);
-      mql.addEventListener('change', listener);
-      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
-    }
 
     effect(() => {
       // Wait for every figure's nodes to have loaded — fitting on an early,
@@ -156,6 +145,14 @@ export class PinyesTabComponent implements OnInit {
 
   readonly selectedNodePositionType = computed(() => this.selectedNode()?.positionType ?? null);
   readonly selectedNodeZone = computed(() => this.selectedNode()?.zone ?? null);
+
+  /** Touch: the person list modal, opened by tapping a node. */
+  readonly personPickerOpen = signal(false);
+
+  readonly personPickerTitle = computed(() => {
+    const ref = this.selectedRef();
+    return ref && this.actions.assignmentFor(ref) ? 'Canvia la persona' : 'Assigna una persona';
+  });
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
@@ -220,6 +217,7 @@ export class PinyesTabComponent implements OnInit {
     if (this.ws.isLocked()) return;
 
     if (!ref) {
+      this.personPickerOpen.set(false);
       this.clearSelection();
       return;
     }
@@ -228,6 +226,7 @@ export class PinyesTabComponent implements OnInit {
 
     if (clickedAssignment) {
       this.select(ref);
+      this.openPersonPickerIfTouch();
       return;
     }
 
@@ -235,7 +234,23 @@ export class PinyesTabComponent implements OnInit {
     this.select(ref);
     if (pendingPersonId) {
       this.actions.assign(ref, pendingPersonId);
+      return;
     }
+    this.openPersonPickerIfTouch();
+  }
+
+  /** Touch: the person list modal opens on the tapped node (nobody can be assigned to decoration). */
+  private openPersonPickerIfTouch(): void {
+    if (!this.isTouch()) return;
+    const ref = this.selectedRef();
+    if (!ref || this.nodeFor(ref)?.zone === FigureZone.DECORATION) return;
+    this.personPickerOpen.set(true);
+  }
+
+  /** The modal was dismissed (close button, backdrop, Escape) or closed after a choice. */
+  onPersonPickerClosed(): void {
+    this.personPickerOpen.set(false);
+    this.clearSelection();
   }
 
   /** Drag-and-drop: a person was dragged from `source` and dropped on `target`. */
@@ -245,6 +260,7 @@ export class PinyesTabComponent implements OnInit {
 
   onPersonSelected(person: AvailablePerson): void {
     if (this.ws.isLocked()) return;
+    this.personPickerOpen.set(false);
     const ref = this.selectedRef();
 
     if (!ref) {
@@ -267,6 +283,7 @@ export class PinyesTabComponent implements OnInit {
   }
 
   onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
+    this.personPickerOpen.set(false);
     // Collect every placement of this person in this instance instead of a single
     // arbitrary `.find()` (§2). Today the per-instance unique constraint means at most
     // one, so `[0]` matches the old behaviour; from Fase 4 on the full list is consumed.
@@ -344,6 +361,7 @@ export class PinyesTabComponent implements OnInit {
   }
 
   onUnassign(assignment: AssignmentDetail): void {
+    this.personPickerOpen.set(false);
     this.actions.unassign(assignment);
   }
 
@@ -393,6 +411,11 @@ export class PinyesTabComponent implements OnInit {
   }
 
   private advanceToNextEmptyNode(instanceId: string, justAssignedNodeId: string): void {
+    // Touch has no list to keep filling from: each assignment is its own tap → modal → pick.
+    if (this.isTouch()) {
+      this.clearSelection();
+      return;
+    }
     const instance = this.instanceFor(instanceId);
     if (!instance) return;
 

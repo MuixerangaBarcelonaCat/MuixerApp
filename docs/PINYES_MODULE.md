@@ -1061,12 +1061,27 @@ function isNodeVisible(
 
 ## 20. Gestos tàctils i suport de tablet (P5.12)
 
-Abast real de "tablet" al mòdul de Pinyes: les rutes d'editor de templates, editor de
-composicions i workspace d'assignació porten `desktopOnlyGuard` (`core/guards/desktop-only.guard.ts`),
-que bloqueja **per sota de 1024px** i redirigeix a `/pinyes` amb un toast. Això vol dir que
-només **tablet en horitzontal** (≥1024px) hi arriba — mòbil i tablet en vertical queden fora.
-La **Projecció no té aquest guard**: és l'únic canvas del mòdul que un mòbil o una tablet en
-vertical pot obrir.
+Abast real de "tablet" al mòdul de Pinyes: les rutes d'editor de templates i editor de
+composicions porten `desktopOnlyGuard` (`core/guards/desktop-only.guard.ts`), que bloqueja
+**per sota de 768px** i redirigeix a `/pinyes` amb un toast. La **Projecció** i el **workspace
+d'assignació** no el porten.
+
+### Workspace d'assignació en dispositius tàctils
+
+`LayoutService.isTouch` (`matchMedia('(pointer: coarse)')`: l'entrada *principal* és tàctil, no
+l'amplada) decideix el layout del workspace (`segment-workspace`):
+
+- **Pestanyes:** en tàctil només es mostren Pinyes i Troncs (les altres no estan adaptades); un
+  `?tab=` cap a una pestanya amagada cau a la darrera Pinyes/Troncs recordada.
+- **Llistat de persones:** en tàctil no hi ha la columna lateral. Es toca un node i s'obre un
+  `lib-modal` amb el mateix `PersonPanelComponent` amb `[searchOnly]="true"` (només la cerca,
+  sense filtres; la cerca redueix els grups en lloc del desplegable, i les persones amb una
+  etiqueta que encaixa amb el node continuen anant primer). Triar una persona l'assigna al node
+  i tanca el modal; tancar-lo deselecciona el node. En tàctil no s'avança al següent node buit.
+- **Lògica d'assignació** (assignar/desassignar/moure/intercanviar, amb desfer/refer): compartida
+  entre les dues pestanyes a `SegmentAssignmentActionsService` (proveït per pestanya).
+- **Capçalera:** per sota de `sm` s'amaguen el comptador «n/total», l'ajuda i els botons
+  d'importar/reinicialitzar, i el títol ocupa `w-1/6` fix.
 
 ### Matriu de capacitats
 
@@ -1101,7 +1116,7 @@ Implementació:
   El node destí es resol amb `document.elementFromPoint(...)`, que funciona també entre
   tronc-views germanes (figures diferents al mateix segment).
 - **Guia d'usuari**: `template-editor-help-modal.component.ts` té una secció "Tàctil / tablet"
-  (cercable) amb els gestos i la limitació dels 1024px. El modal és accessible des de l'editor de
+  (cercable) amb els gestos i la limitació dels 768px dels editors. El modal és accessible des de l'editor de
   templates i del workspace d'assignació (botó "?" a la topbar); la Projecció manté el seu propi
   diàleg d'ajuda lleuger (`? / H`), ara també amb les files de pan/pinch.
 

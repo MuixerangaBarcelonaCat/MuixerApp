@@ -1,5 +1,6 @@
 import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
-import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
@@ -7,7 +8,8 @@ import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../ser
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { SegmentAssignmentActionsService } from '../../../../services/segment-assignment-actions.service';
-import { ButtonComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { LayoutService } from '../../../../../../core/services/layout.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import {
   buildTroncBuckets,
@@ -32,7 +34,7 @@ interface TroncFigure {
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent],
+  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -44,18 +46,13 @@ export class TroncsTabComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly undoRedo = inject(UndoRedoService);
 
+  /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
+  readonly isTouch = inject(LayoutService).isTouch;
+
   readonly isPast = input(false);
 
   /** Emitted when "Anar-hi" targets a node that only exists in the Pinyes tab. */
   readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
-
-  /**
-   * Below `sm`, the fixed-width person panel (w-80) leaves the tronc view
-   * unusably narrow (P-M2, GE-H3 — same layout as the Pinyes tab). Shows a
-   * guard message instead until the mobile layout is designed. Driven by
-   * `matchMedia`; falls back to `false` where `matchMedia` is unavailable.
-   */
-  readonly mobileUnsupported = signal(false);
 
   constructor() {
     this.actions.attach({
@@ -63,14 +60,6 @@ export class TroncsTabComponent implements OnInit {
       clearSelection: () => this.clearSelection(),
       advanceToNextEmptyNode: (instanceId, nodeId) => this.advanceToNextEmptyNode(instanceId, nodeId),
     });
-
-    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      const mql = window.matchMedia('(max-width: 639.98px)');
-      this.mobileUnsupported.set(mql.matches);
-      const listener = (e: MediaQueryListEvent) => this.mobileUnsupported.set(e.matches);
-      mql.addEventListener('change', listener);
-      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
-    }
   }
 
   ngOnInit(): void {
@@ -217,6 +206,14 @@ export class TroncsTabComponent implements OnInit {
   readonly selectedNodePositionType = computed(() => this.selectedNode()?.positionType ?? null);
   readonly selectedNodeZone = computed(() => this.selectedNode()?.zone ?? null);
 
+  /** Touch: the person list modal, opened by tapping a node. */
+  readonly personPickerOpen = signal(false);
+
+  readonly personPickerTitle = computed(() => {
+    const ref = this.selectedRef();
+    return ref && this.actions.assignmentFor(ref) ? 'Canvia la persona' : 'Assigna una persona';
+  });
+
   readonly figures = computed<TroncFigure[]>(() =>
     this.ws
       .instances()
@@ -239,7 +236,8 @@ export class TroncsTabComponent implements OnInit {
 
   // ── Minimap ──────────────────────────────────────────────────────────────
 
-  readonly minimapOpen = signal(true);
+  /** Hidden by default on touch: the map would cover a big part of a small screen. */
+  readonly minimapOpen = signal(!this.isTouch());
 
   readonly minimapBoxes = computed<(FigureBoundingBox & { color: string })[]>(() => {
     const colorBySlot = new Map(this.figures().map((f) => [f.instance.instanceId, f.color]));
@@ -269,6 +267,7 @@ export class TroncsTabComponent implements OnInit {
     if (this.ws.isLocked()) return;
 
     if (!nodeId) {
+      this.personPickerOpen.set(false);
       this.clearSelection();
       return;
     }
@@ -278,6 +277,7 @@ export class TroncsTabComponent implements OnInit {
 
     if (clickedAssignment) {
       this.select(ref);
+      this.openPersonPickerIfTouch();
       return;
     }
 
@@ -285,7 +285,20 @@ export class TroncsTabComponent implements OnInit {
     this.select(ref);
     if (pendingPersonId) {
       this.actions.assign(ref, pendingPersonId);
+      return;
     }
+    this.openPersonPickerIfTouch();
+  }
+
+  /** Touch: the person list modal opens on the tapped node. */
+  private openPersonPickerIfTouch(): void {
+    if (this.isTouch() && this.selectedRef()) this.personPickerOpen.set(true);
+  }
+
+  /** The modal was dismissed (close button, backdrop, Escape) or closed after a choice. */
+  onPersonPickerClosed(): void {
+    this.personPickerOpen.set(false);
+    this.clearSelection();
   }
 
   /** Drag-and-drop: a person was dragged from `source` and dropped on `target`. */
@@ -304,6 +317,7 @@ export class TroncsTabComponent implements OnInit {
 
   onPersonSelected(person: AvailablePerson): void {
     if (this.ws.isLocked()) return;
+    this.personPickerOpen.set(false);
     const ref = this.selectedRef();
 
     if (!ref) {
@@ -320,6 +334,7 @@ export class TroncsTabComponent implements OnInit {
   }
 
   onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
+    this.personPickerOpen.set(false);
     // Collect every placement of this person in this instance instead of a single
     // arbitrary `.find()` (§2). Today the per-instance unique constraint means at most
     // one, so `[0]` matches the old behaviour; from Fase 4 on the full list is consumed.
@@ -407,6 +422,7 @@ export class TroncsTabComponent implements OnInit {
   }
 
   onUnassign(assignment: AssignmentDetail): void {
+    this.personPickerOpen.set(false);
     this.actions.unassign(assignment);
   }
 
@@ -433,6 +449,7 @@ export class TroncsTabComponent implements OnInit {
           // Select the fresh node so it's highlighted and the person panel auto-focuses
           // its "Cerca per nom o àlies" input, ready to assign someone straight away.
           this.select({ slotId: instanceId, nodeId: created.id });
+          this.openPersonPickerIfTouch();
         },
         error: () => this.toast.error("No s'ha pogut crear la direcció."),
       });
@@ -484,6 +501,11 @@ export class TroncsTabComponent implements OnInit {
   }
 
   private advanceToNextEmptyNode(instanceId: string, justAssignedNodeId: string): void {
+    // Touch has no list to keep filling from: each assignment is its own tap → modal → pick.
+    if (this.isTouch()) {
+      this.clearSelection();
+      return;
+    }
     const instance = this.instanceFor(instanceId);
     if (!instance) return;
 

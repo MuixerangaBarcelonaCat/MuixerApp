@@ -269,8 +269,8 @@ const HELP_SECTIONS: HelpSection[] = [
         answer: 'Un dit sobre el fons: desplaça el llenç (pan). Dos dits (pinça): zoom. Toc: seleccionar un node. Doble toc: editar l\'etiqueta o obrir el detall. Arrossegar un node o una persona: moure’l. Toc mantingut sobre una persona assignada: mostra la seva fitxa (equivalent al hover del ratolí).',
       },
       {
-        question: 'Puc utilitzar l\'editor de figures o l\'assignació des d\'una tablet?',
-        answer: 'Sí, però només en orientació horitzontal (amplada mínima 1024px). Per sota d\'aquest llindar (mòbil o tablet en vertical) aquestes pantalles requereixen massa espai de llenç i es bloquegen amb un avís — gireu el dispositiu o continueu des d\'un ordinador.',
+        question: 'Puc utilitzar l\'editor de figures o l\'assignació des d\'una tablet o un mòbil?',
+        answer: 'L\'assignació sí: en un dispositiu tàctil només hi ha les pestanyes Pinyes i Troncs, i per assignar una persona toqueu un node i escolliu-la de la llista que s\'obre. Els editors de figures i de composicions necessiten una amplada mínima de 768px; per sota d\'aquest llindar es bloquegen amb un avís — gireu el dispositiu o continueu des d\'un ordinador.',
       },
       {
         question: 'I la Previsualització / Projecció?',

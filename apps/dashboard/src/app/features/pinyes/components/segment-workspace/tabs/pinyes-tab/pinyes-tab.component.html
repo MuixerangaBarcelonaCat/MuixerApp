@@ -1,12 +1,4 @@
 <div class="flex flex-col h-full min-h-0">
-@if (mobileUnsupported()) {
-  <div class="flex-1 flex items-center justify-center p-6 text-center">
-    <div class="max-w-xs">
-      <p class="font-medium text-base-content/70">Encara no optimitzat per a mòbil</p>
-      <p class="text-sm text-base-content/50 mt-1">Esta pestanya està disponible en tablet i escriptori.</p>
-    </div>
-  </div>
-} @else {
 <div class="flex flex-1 min-h-0">
   <!-- Canvas -->
   <div class="relative flex-1 min-w-0">
@@ -60,10 +52,12 @@
     />
   </div>
 
-  <!-- Person panel -->
+  <!-- Person panel: a side column on desktop; on touch it lives in a modal opened by tapping a node -->
+  <ng-template #personPanelTpl>
   <app-person-panel
-    class="w-80 shrink-0 border-l border-base-300 h-full min-h-0"
+    [class]="isTouch() ? 'block h-full min-h-0' : 'w-80 shrink-0 border-l border-base-300 h-full min-h-0'"
     area="PINYA"
+    [searchOnly]="isTouch()"
     [eventId]="ws.eventId()"
     [segmentId]="ws.segmentId()"
     [selectedNodeId]="state.selectedNodeId()"
@@ -77,9 +71,23 @@
     (unassignRequested)="onUnassign($event)"
     (navigateNode)="navigateAdjacent($event)"
   />
-</div>
+  </ng-template>
 
-}
+  @if (isTouch()) {
+    <lib-modal
+      size="sm"
+      [open]="personPickerOpen()"
+      [title]="personPickerTitle()"
+      (closed)="onPersonPickerClosed()"
+    >
+      <div class="h-80">
+        <ng-container [ngTemplateOutlet]="personPanelTpl" />
+      </div>
+    </lib-modal>
+  } @else {
+    <ng-container [ngTemplateOutlet]="personPanelTpl" />
+  }
+</div>
 </div>
 
 @if (reassignDialog(); as dialog) {
