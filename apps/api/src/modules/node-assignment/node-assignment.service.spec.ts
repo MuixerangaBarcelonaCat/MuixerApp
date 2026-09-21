@@ -153,6 +153,7 @@ const mockAssignmentRepo = {
   find: jest.fn(),
   findOne: jest.fn(),
   create: jest.fn(),
+  insert: jest.fn(),
   save: jest.fn(),
   remove: jest.fn(),
   count: jest.fn(),
@@ -212,6 +213,10 @@ describe('NodeAssignmentService', () => {
     mockQb.getOne.mockResolvedValue(null);
     mockDataSource.query.mockResolvedValue([]);
     mockInstanceNodeRepo.find.mockResolvedValue([]);
+    // bulkImport writes its rows with one INSERT; by default every row gets an id back.
+    mockAssignmentRepo.insert.mockImplementation((rows: unknown[]) =>
+      Promise.resolve({ identifiers: rows.map((_, i) => ({ id: `inserted-assignment-${i}` })) }),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1396,6 +1401,82 @@ describe('NodeAssignmentService', () => {
       const pinyaPlacement = result.data[0].placements.find((p) => p.assignmentId === ASSIGNMENT_ID_B);
       expect(pinyaPlacement?.cordon).toBe(4);
     });
+
+    describe('getSegmentConflictsBySegments — batched', () => {
+      const SEGMENT_ID_B = 'segment-uuid-2';
+      const SEGMENT_ID_C = 'segment-uuid-3';
+
+      it('reads every segment with a single query', async () => {
+        mockAssignmentRepo.find.mockResolvedValueOnce([]);
+
+        await service.getSegmentConflictsBySegments([SEGMENT_ID, SEGMENT_ID_B, SEGMENT_ID_C]);
+
+        expect(mockAssignmentRepo.find).toHaveBeenCalledTimes(1);
+      });
+
+      it('makes no query at all for an empty segment list', async () => {
+        const result = await service.getSegmentConflictsBySegments([]);
+
+        expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+        expect(result.size).toBe(0);
+      });
+
+      it('keeps every requested segment in the map, with empty counters for the ones with no assignments', async () => {
+        mockAssignmentRepo.find.mockResolvedValueOnce([]);
+
+        const result = await service.getSegmentConflictsBySegments([SEGMENT_ID, SEGMENT_ID_B]);
+
+        expect([...result.keys()]).toEqual([SEGMENT_ID, SEGMENT_ID_B]);
+        expect(result.get(SEGMENT_ID_B)?.meta.assignmentCount).toBe(0);
+        expect(result.get(SEGMENT_ID_B)?.data).toEqual([]);
+      });
+
+      it("routes each assignment to its own segment's conflicts", async () => {
+        const segmentB = { ...makeSegment(), id: SEGMENT_ID_B };
+        // Segment A: the same person on a tronc node and a pinya node → one TRONC_PINYA conflict.
+        const troncA = makeConflictAssignment({
+          instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+        });
+        const pinyaA = makeConflictAssignment({
+          id: ASSIGNMENT_ID_B,
+          instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA }) as any,
+        });
+        // Segment B: a single placement of another person → no conflict.
+        const loneB = makeConflictAssignment({
+          id: ASSIGNMENT_ID_C,
+          segment: segmentB as any,
+          person: makePerson(OTHER_PERSON_ID) as any,
+          instanceNode: makeInstanceNode({ id: 'inode-uuid-3', zone: FigureZone.PINYA }) as any,
+        });
+        mockAssignmentRepo.find.mockResolvedValueOnce([troncA, pinyaA, loneB]);
+
+        const result = await service.getSegmentConflictsBySegments([SEGMENT_ID, SEGMENT_ID_B]);
+
+        expect(result.get(SEGMENT_ID)?.data).toHaveLength(1);
+        expect(result.get(SEGMENT_ID)?.data[0].kind).toBe(SegmentConflictKind.TRONC_PINYA);
+        expect(result.get(SEGMENT_ID)?.meta.assignmentCount).toBe(2);
+        expect(result.get(SEGMENT_ID_B)?.data).toHaveLength(0);
+        expect(result.get(SEGMENT_ID_B)?.meta.assignmentCount).toBe(1);
+      });
+
+      it('gives the same answer as the per-segment getSegmentConflicts for the same assignments', async () => {
+        const troncAssignment = makeConflictAssignment({
+          instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+        });
+        const pinyaAssignment = makeConflictAssignment({
+          id: ASSIGNMENT_ID_B,
+          instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA }) as any,
+        });
+
+        mockAssignmentRepo.find.mockResolvedValueOnce([troncAssignment, pinyaAssignment]);
+        const single = await service.getSegmentConflicts(SEGMENT_ID);
+
+        mockAssignmentRepo.find.mockResolvedValueOnce([troncAssignment, pinyaAssignment]);
+        const batched = await service.getSegmentConflictsBySegments([SEGMENT_ID]);
+
+        expect(batched.get(SEGMENT_ID)).toEqual(single);
+      });
+    });
   });
 
   // ── resolveSegmentMoveConflicts ─────────────────────────────────────────
@@ -2167,24 +2248,129 @@ describe('NodeAssignmentService', () => {
       return { targetINode, target, source, sourceAssignment };
     };
 
-    it('does not run redundant conflict pre-checks before delegating to assignWithoutLockCheck()', async () => {
+    it('writes every matched row with one INSERT instead of one round trip per node (perf)', async () => {
       const { targetINode, target, source, sourceAssignment } = makeMatchedImportFixtures();
       mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
       mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
-      const assignSpy = jest
-        .spyOn(service as any, 'assignWithoutLockCheck')
-        .mockResolvedValue({ id: 'new-assignment' } as any);
+      const assignSpy = jest.spyOn(service as any, 'assignWithoutLockCheck');
 
       const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 
-      expect(assignSpy).toHaveBeenCalledWith(INSTANCE_ID, {
-        nodeId: targetINode.id,
-        personId: PERSON_ID,
-      });
-      // B4: bulkImport no longer duplicates assign()'s own conflict checks.
+      expect(mockAssignmentRepo.insert).toHaveBeenCalledTimes(1);
+      expect(mockAssignmentRepo.insert).toHaveBeenCalledWith([
+        {
+          figureInstance: { id: INSTANCE_ID },
+          instanceNode: { id: targetINode.id },
+          person: { id: PERSON_ID },
+          segment: { id: SEGMENT_ID },
+        },
+      ]);
+      // The per-row path is now only a race fallback — it must not run on the happy path.
+      expect(assignSpy).not.toHaveBeenCalled();
+      // B4: bulkImport still does not duplicate assign()'s own conflict checks.
       expect(mockAssignmentRepo.findOne).not.toHaveBeenCalled();
       expect(mockAssignmentRepo.createQueryBuilder).not.toHaveBeenCalled();
       expect(result.created).toHaveLength(1);
+      expect(result.created[0].node.id).toBe(targetINode.id);
+      expect(result.created[0].person.id).toBe(PERSON_ID);
+    });
+
+    it('scales to a full pinya with a single INSERT regardless of the number of assignments', async () => {
+      const targetNodes = Array.from({ length: 50 }, (_, i) =>
+        makeInstanceNode({ id: `target-inode-${i}`, sourceNodeId: `fn-${i}` }),
+      );
+      const target = makeInstance({ snapshotted: true, instanceNodes: targetNodes });
+      const source = makeInstance({ id: 'source-uuid', snapshotted: true });
+      const sourceAssignments = targetNodes.map((_, i) =>
+        makeAssignment({
+          id: `src-assignment-${i}`,
+          figureInstance: source as any,
+          person: makePerson(`person-${i}`) as any,
+          instanceNode: makeInstanceNode({ id: `src-inode-${i}`, sourceNodeId: `fn-${i}` }) as any,
+        }),
+      );
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce(sourceAssignments)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.created).toHaveLength(50);
+      expect(result.conflicts).toHaveLength(0);
+      expect(mockAssignmentRepo.insert).toHaveBeenCalledTimes(1);
+      expect(mockAssignmentRepo.insert.mock.calls[0][0]).toHaveLength(50);
+    });
+
+    it('reports a node already taken in the target as a conflict, resolved without querying per row', async () => {
+      const { targetINode, target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([sourceAssignment])
+        // The target node already holds an assignment.
+        .mockResolvedValueOnce([makeAssignment({ id: 'existing', instanceNode: targetINode as any })])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.created).toHaveLength(0);
+      expect(result.conflicts).toEqual([
+        expect.objectContaining({ nodeId: targetINode.id, reason: 'Node already occupied in target instance' }),
+      ]);
+      expect(mockAssignmentRepo.insert).not.toHaveBeenCalled();
+    });
+
+    it('lets only the first of two source placements landing on the same target node through', async () => {
+      const targetINode = makeInstanceNode({ id: 'target-inode', sourceNodeId: FIGURE_NODE_ID });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [targetINode] });
+      const source = makeInstance({ id: 'source-uuid', snapshotted: true });
+      const first = makeAssignment({
+        id: 'src-a',
+        figureInstance: source as any,
+        instanceNode: makeInstanceNode({ id: 'src-1', sourceNodeId: FIGURE_NODE_ID }) as any,
+      });
+      const second = makeAssignment({
+        id: 'src-b',
+        figureInstance: source as any,
+        person: makePerson('person-other') as any,
+        instanceNode: makeInstanceNode({ id: 'src-2', sourceNodeId: FIGURE_NODE_ID }) as any,
+      });
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([first, second])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.created).toHaveLength(1);
+      expect(result.conflicts).toHaveLength(1);
+      expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+      expect(mockAssignmentRepo.insert.mock.calls[0][0]).toHaveLength(1);
+    });
+
+    it('falls back to the per-row path when the batched INSERT loses a race, keeping the rest of the import', async () => {
+      const { targetINode, target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
+      mockAssignmentRepo.insert.mockRejectedValueOnce({ code: '23505' });
+      const assignSpy = jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockResolvedValue({ id: 'new-assignment' } as any);
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      try {
+        const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+        expect(assignSpy).toHaveBeenCalledWith(INSTANCE_ID, {
+          nodeId: targetINode.id,
+          personId: PERSON_ID,
+        });
+        expect(result.created).toHaveLength(1);
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
 
     it('calls checkEventLock only once, not once per node (perf)', async () => {
@@ -2199,10 +2385,11 @@ describe('NodeAssignmentService', () => {
       expect(lockSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('records a specific reason when assignWithoutLockCheck() rejects with a conflict, without throwing', async () => {
+    it('records a specific reason when the fallback path rejects with a conflict, without throwing', async () => {
       const { target, source, sourceAssignment } = makeMatchedImportFixtures();
       mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
       mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
+      mockAssignmentRepo.insert.mockRejectedValueOnce({ code: '23505' });
       jest
         .spyOn(service as any, 'assignWithoutLockCheck')
         .mockRejectedValue(
@@ -2211,12 +2398,17 @@ describe('NodeAssignmentService', () => {
             'NODE_OCCUPIED',
           ),
         );
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
-      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+      try {
+        const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 
-      expect(result.created).toHaveLength(0);
-      expect(result.conflicts).toHaveLength(1);
-      expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+        expect(result.created).toHaveLength(0);
+        expect(result.conflicts).toHaveLength(1);
+        expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
 
     it('reports conflictsByKind from the target segment after importing (D5, Fase 5)', async () => {
@@ -2234,8 +2426,8 @@ describe('NodeAssignmentService', () => {
       });
       mockAssignmentRepo.find
         .mockResolvedValueOnce([sourceAssignment]) // source assignments to import
+        .mockResolvedValueOnce([]) // occupancy of the target instance
         .mockResolvedValueOnce([troncA, troncB]); // getSegmentConflicts on the target segment afterwards
-      jest.spyOn(service as any, 'assignWithoutLockCheck').mockResolvedValue({ id: 'new-assignment' } as any);
 
       const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 
@@ -2243,13 +2435,11 @@ describe('NodeAssignmentService', () => {
       expect(result.conflictsByKind[SegmentConflictKind.PINYA_PINYA]).toBe(0);
     });
 
-    it('rethrows unexpected (non-domain) errors from assignWithoutLockCheck() instead of masking them as a conflict', async () => {
+    it('rethrows unexpected (non-domain) errors from the INSERT instead of masking them as a conflict', async () => {
       const { target, source, sourceAssignment } = makeMatchedImportFixtures();
       mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
       mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
-      jest
-        .spyOn(service as any, 'assignWithoutLockCheck')
-        .mockRejectedValue(new Error('connection terminated unexpectedly'));
+      mockAssignmentRepo.insert.mockRejectedValueOnce(new Error('connection terminated unexpectedly'));
       const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
       try {
@@ -2803,20 +2993,65 @@ describe('NodeAssignmentService', () => {
       const cloned = { ...adHocSourceNode, id: 'cloned-adhoc-1' };
       mockInstanceNodeRepo.create.mockReturnValue(cloned);
       mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+      // The cloned node's assignment rides in the same batch; make that batch lose the race
+      // so the per-row fallback is what ends up classifying the conflict.
+      mockAssignmentRepo.insert.mockRejectedValueOnce({ code: '23505' });
       jest.spyOn(service as any, 'assignWithoutLockCheck').mockRejectedValue(
         new AssignConflictException(
           'Node cloned-adhoc-1 is already occupied in this figure instance',
           'NODE_OCCUPIED',
         ),
       );
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      try {
+        const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+        expect(result.clonedAdHocNodes).toBe(1);
+        expect(result.conflicts).toHaveLength(1);
+        // Bug fix: must be the reason classified from the caught error, not the
+        // hardcoded generic Catalan string that used to be pushed regardless.
+        expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('writes a cloned ad-hoc assignment in the same batch, and keeps it out of `created`', async () => {
+      const adHocSourceNode = makeInstanceNode({
+        id: 'src-adhoc-1',
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Extra cordó',
+        zone: FigureZone.PINYA,
+      });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode()] });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), adHocSourceNode],
+      });
+      const adHocAssignment = makeAssignment({
+        figureInstance: source as any,
+        instanceNode: adHocSourceNode as any,
+        person: makePerson() as any,
+      });
+
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([adHocAssignment]);
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const cloned = { ...adHocSourceNode, id: 'cloned-adhoc-1' };
+      mockInstanceNodeRepo.create.mockReturnValue(cloned);
+      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
 
       const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 
-      expect(result.clonedAdHocNodes).toBe(1);
-      expect(result.conflicts).toHaveLength(1);
-      // Bug fix: must be the reason classified from the caught error, not the
-      // hardcoded generic Catalan string that used to be pushed regardless.
-      expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+      expect(mockAssignmentRepo.insert).toHaveBeenCalledTimes(1);
+      expect(mockAssignmentRepo.insert.mock.calls[0][0]).toEqual([
+        expect.objectContaining({ instanceNode: { id: 'cloned-adhoc-1' } }),
+      ]);
+      expect(result.created).toHaveLength(0);
+      expect(result.conflicts).toHaveLength(0);
     });
 
     it('still clones ad-hoc nodes when scope restricts the regular loop to PINYA (regression: scope must never filter ad-hoc cloning)', async () => {

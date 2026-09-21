@@ -198,6 +198,16 @@ export interface PersonAssignmentHistory {
 // duplication that forced every Fase-1 field to be added twice; now there is a single
 // source (#2). The dashboard still holds its own stale copy, to be unified in Fase 3.
 
+/** One resolved source→target placement of a bulk import, pending its INSERT. */
+interface PendingImportRow {
+  targetNode: InstanceNode;
+  person: Person;
+  nodeLabel: string;
+  personAlias: string;
+  /** Ad-hoc clones are written but, as ever, left out of the reported `created` list. */
+  countsAsCreated: boolean;
+}
+
 export interface HistoryQueryParams {
   page?: number;
   limit?: number;
@@ -806,6 +816,47 @@ export class NodeAssignmentService {
 
     const conflicts = this.classifySegmentConflicts(assignments);
     return { data: conflicts, meta: this.computeSegmentPeopleCounters(assignments, conflicts) };
+  }
+
+  /**
+   * Batched `getSegmentConflicts`: one query for every segment of an event instead of one
+   * (four-relation) query per segment. Opening an event's detail screen loads the counters of
+   * all its segments at once; the per-segment version ran those in parallel, so they never
+   * added latency, but they did take one pool connection each.
+   *
+   * Segments with no assignments are still present in the map, with empty counters — callers
+   * index by segment id and must not have to distinguish "no conflicts" from "not loaded".
+   */
+  async getSegmentConflictsBySegments(
+    segmentIds: string[],
+  ): Promise<Map<string, SegmentConflictsResponse>> {
+    const bySegment = new Map<string, SegmentConflictsResponse>();
+    if (segmentIds.length === 0) return bySegment;
+
+    const assignments = await this.assignmentRepository.find({
+      where: { segment: { id: In(segmentIds) } },
+      relations: ['segment', 'instanceNode', 'person', 'figureInstance', 'figureInstance.figureTemplate'],
+    });
+
+    const assignmentsBySegment = new Map<string, NodeAssignment[]>();
+    for (const assignment of assignments) {
+      const segmentId = assignment.segment?.id;
+      if (!segmentId) continue;
+      const list = assignmentsBySegment.get(segmentId) ?? [];
+      list.push(assignment);
+      assignmentsBySegment.set(segmentId, list);
+    }
+
+    for (const segmentId of segmentIds) {
+      const segmentAssignments = assignmentsBySegment.get(segmentId) ?? [];
+      const conflicts = this.classifySegmentConflicts(segmentAssignments);
+      bySegment.set(segmentId, {
+        data: conflicts,
+        meta: this.computeSegmentPeopleCounters(segmentAssignments, conflicts),
+      });
+    }
+
+    return bySegment;
   }
 
   /**
@@ -1424,12 +1475,26 @@ export class NodeAssignmentService {
       }
     }
 
+    // Which target nodes already hold an assignment. One query up front replaces the
+    // per-row occupancy findOne that assignWithoutLockCheck() used to do inside the loop;
+    // the set is updated as rows are accepted so that two source placements landing on the
+    // same target node still resolve as a conflict for the second one.
+    const existingTargetAssignments = await this.assignmentRepository.find({
+      where: { figureInstance: { id: instanceId } },
+      relations: ['instanceNode'],
+    });
+    const occupiedNodeIds = new Set(
+      existingTargetAssignments.map((a) => a.instanceNode?.id).filter((id): id is string => !!id),
+    );
+
+    const rows: PendingImportRow[] = [];
+
     for (const sourceAssignment of sourceAssignments) {
       const sourceNode = sourceAssignment.instanceNode;
       if (sourceNode.isAdHoc) continue; // ad-hoc assignments handled below
       if (scopeZones && !scopeZones.has(sourceNode.zone)) continue;
-      const personId = sourceAssignment.person.id;
-      const personAlias = sourceAssignment.person.alias;
+      const person = sourceAssignment.person;
+      const personAlias = person.alias;
       const nodeLabel = sourceNode.label;
 
       let targetNode: InstanceNode | undefined;
@@ -1445,27 +1510,30 @@ export class NodeAssignmentService {
         continue;
       }
 
-      // B4: node/person/segment conflict checks are NOT duplicated here — assign()
-      // already performs them (and has the DB-level backstop via toAssignConflictError).
-      // Uses assignWithoutLockCheck: the lock was already checked once above.
-      try {
-        const detail = await this.assignWithoutLockCheck(instanceId, {
+      // Same rejections assignWithoutLockCheck() used to raise per row, decided in memory.
+      // The DB unique constraint is still the backstop for a concurrent writer (see
+      // insertImportRows), so nothing is traded away by pre-resolving them here.
+      if (targetNode.zone === FigureZone.DECORATION) {
+        conflicts.push({
           nodeId: targetNode.id,
-          personId,
+          nodeLabel,
+          personAlias,
+          reason: 'Els nodes decoratius no es poden assignar.',
         });
-        created.push(detail);
-      } catch (err) {
-        const reason = this.describeBulkImportError(err);
-        if (reason === null) {
-          // B2: an unexpected (non-domain) error must not be masked as a conflict.
-          this.logger.error(
-            `bulkImport: unexpected error assigning node ${targetNode.id} to person ${personId}`,
-            err instanceof Error ? err.stack : err,
-          );
-          throw err;
-        }
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason });
+        continue;
       }
+      if (occupiedNodeIds.has(targetNode.id)) {
+        conflicts.push({
+          nodeId: targetNode.id,
+          nodeLabel,
+          personAlias,
+          reason: 'Node already occupied in target instance',
+        });
+        continue;
+      }
+
+      occupiedNodeIds.add(targetNode.id);
+      rows.push({ targetNode, person, nodeLabel, personAlias, countsAsCreated: true });
     }
 
     // Clone ad-hoc nodes from source to target (idempotent via originNodeId)
@@ -1534,35 +1602,113 @@ export class NodeAssignmentService {
         sourceAssignment.person &&
         sourceAdHoc.zone !== FigureZone.DECORATION
       ) {
-        const personId = sourceAssignment.person.id;
-        const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
-        try {
-          await this.assignWithoutLockCheck(instanceId, {
-            nodeId: savedClone.id,
-            personId,
-          });
-        } catch (err) {
-          const reason = this.describeBulkImportError(err);
-          if (reason === null) {
-            this.logger.error(
-              `bulkImport: unexpected error cloning ad-hoc assignment for node ${savedClone.id}`,
-              err instanceof Error ? err.stack : err,
-            );
-            throw err;
-          }
-          // B2 fix: propagate the classified reason instead of a hardcoded generic message.
-          conflicts.push({
-            nodeId: savedClone.id,
-            nodeLabel: sourceAdHoc.label,
-            personAlias,
-            reason,
-          });
-        }
+        const person = sourceAssignment.person;
+        // A freshly cloned node can never be occupied, so it joins the same batch as the
+        // regular rows. `countsAsCreated: false` keeps the long-standing behaviour that
+        // ad-hoc assignments are not reported in `created`.
+        rows.push({
+          targetNode: savedClone,
+          person,
+          nodeLabel: sourceAdHoc.label,
+          personAlias: person.alias ?? `${person.name} ${person.firstSurname}`,
+          countsAsCreated: false,
+        });
       }
     }
 
+    created.push(...(await this.insertImportRows(targetInstance, rows, conflicts)));
+
     const { meta } = await this.getSegmentConflicts(targetInstance.segment.id);
     return { created, conflicts, clonedAdHocNodes, conflictsByKind: meta.conflictsByKind };
+  }
+
+  /**
+   * Writes a whole import's assignments with a single INSERT instead of one round trip per
+   * row. Occupancy was already resolved in memory by the caller; the only thing left that
+   * can still fail is a concurrent writer taking one of these nodes between the read and the
+   * write, which the DB unique constraint catches. Because a multi-row INSERT is all-or-
+   * nothing, that case falls back to the per-row path so the rest of the import still lands
+   * and the losing row gets a precise reason instead of the whole import disappearing.
+   */
+  private async insertImportRows(
+    targetInstance: FigureInstance,
+    rows: PendingImportRow[],
+    conflicts: BulkImportResult['conflicts'],
+  ): Promise<AssignmentDetail[]> {
+    if (rows.length === 0) return [];
+
+    try {
+      const result = await this.assignmentRepository.insert(
+        rows.map((row) => ({
+          figureInstance: { id: targetInstance.id },
+          instanceNode: { id: row.targetNode.id },
+          person: { id: row.person.id },
+          segment: { id: targetInstance.segment.id },
+        })),
+      );
+
+      const created: AssignmentDetail[] = [];
+      rows.forEach((row, index) => {
+        if (!row.countsAsCreated) return;
+        created.push(
+          toAssignmentDetail({
+            id: result.identifiers[index]?.id as string,
+            figureInstance: targetInstance,
+            instanceNode: row.targetNode,
+            person: row.person,
+          } as NodeAssignment),
+        );
+      });
+      return created;
+    } catch (err) {
+      const conflictError = this.toAssignConflictError(err);
+      if (!(conflictError instanceof AssignConflictException)) {
+        this.logger.error(
+          `bulkImport: unexpected error inserting ${rows.length} assignment(s) into instance ${targetInstance.id}`,
+          err instanceof Error ? err.stack : err,
+        );
+        throw err;
+      }
+      this.logger.warn(
+        `bulkImport: batched insert lost a race on instance ${targetInstance.id}, retrying row by row`,
+      );
+      return this.insertImportRowsIndividually(targetInstance.id, rows, conflicts);
+    }
+  }
+
+  /** Per-row fallback of insertImportRows, used only after the batch lost a race. */
+  private async insertImportRowsIndividually(
+    instanceId: string,
+    rows: PendingImportRow[],
+    conflicts: BulkImportResult['conflicts'],
+  ): Promise<AssignmentDetail[]> {
+    const created: AssignmentDetail[] = [];
+    for (const row of rows) {
+      try {
+        const detail = await this.assignWithoutLockCheck(instanceId, {
+          nodeId: row.targetNode.id,
+          personId: row.person.id,
+        });
+        if (row.countsAsCreated) created.push(detail);
+      } catch (err) {
+        const reason = this.describeBulkImportError(err);
+        if (reason === null) {
+          // B2: an unexpected (non-domain) error must not be masked as a conflict.
+          this.logger.error(
+            `bulkImport: unexpected error assigning node ${row.targetNode.id} to person ${row.person.id}`,
+            err instanceof Error ? err.stack : err,
+          );
+          throw err;
+        }
+        conflicts.push({
+          nodeId: row.targetNode.id,
+          nodeLabel: row.nodeLabel,
+          personAlias: row.personAlias,
+          reason,
+        });
+      }
+    }
+    return created;
   }
 
 

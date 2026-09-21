@@ -25,6 +25,18 @@ import {
  * test cannot observe this — it doesn't have two real connections/snapshots to diverge in the first
  * place. See TEST-2 in docs/automated-analyses/01-full-repo-audit.md.
  */
+const EMPTY_SEGMENT_CONFLICTS = {
+  data: [],
+  meta: {
+    assignmentCount: 0,
+    distinctPersonCount: 0,
+    tronc: { distinctPersonCount: 0 },
+    pinya: { distinctPersonCount: 0 },
+    conflictPersonCount: 0,
+    conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+  },
+};
+
 describe('FigureInstanceService.applyComposition (integration)', () => {
   let db: IntegrationDb;
   let service: FigureInstanceService;
@@ -48,17 +60,12 @@ describe('FigureInstanceService.applyComposition (integration)', () => {
           provide: NodeAssignmentService,
           useValue: {
             checkEventLockByEventId: jest.fn().mockResolvedValue(undefined),
-            getSegmentConflicts: jest.fn().mockResolvedValue({
-              data: [],
-              meta: {
-                assignmentCount: 0,
-                distinctPersonCount: 0,
-                tronc: { distinctPersonCount: 0 },
-                pinya: { distinctPersonCount: 0 },
-                conflictPersonCount: 0,
-                conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
-              },
-            }),
+            getSegmentConflicts: jest.fn().mockResolvedValue(EMPTY_SEGMENT_CONFLICTS),
+            getSegmentConflictsBySegments: jest
+              .fn()
+              .mockImplementation((ids: string[]) =>
+                Promise.resolve(new Map(ids.map((id) => [id, EMPTY_SEGMENT_CONFLICTS]))),
+              ),
           },
         },
         { provide: DataSource, useValue: db.dataSource },

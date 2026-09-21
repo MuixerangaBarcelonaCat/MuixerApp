@@ -49,6 +49,7 @@ import { AddDecorationNodeShapes1785000000000 } from './1785000000000-AddDecorat
 import { UnifyAndRenameDirectionZones1785100000000 } from './1785100000000-UnifyAndRenameDirectionZones';
 import { AddDireccioPinyaToTecnicaTag1785200000000 } from './1785200000000-AddDireccioPinyaToTecnicaTag';
 import { AddHotPathIndexes1785300000000 } from './1785300000000-AddHotPathIndexes';
+import { AddPersonSearchTrigramIndexes1785400000000 } from './1785400000000-AddPersonSearchTrigramIndexes';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -101,4 +102,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   UnifyAndRenameDirectionZones1785100000000,
   AddDireccioPinyaToTecnicaTag1785200000000,
   AddHotPathIndexes1785300000000,
+  AddPersonSearchTrigramIndexes1785400000000,
 ];
