@@ -130,6 +130,54 @@ describe('findOwnPlacements', () => {
 
     expect(placements).toHaveLength(2);
   });
+
+  describe('direcció pinya exemption (D13)', () => {
+    const direccio = () => makeNode({ zone: FigureZone.DIRECTION, positionType: 'direccio-pinya' });
+    const holdBoth = (nodes: ProjectionInstance['nodes'][number][], instanceId: string) =>
+      makeInstance({
+        id: instanceId,
+        nodes,
+        assignments: nodes.map((n) => makeAssignment(n, 'me', 'Marta')),
+      });
+
+    it('leaves only the pinya placement when a direcció pinya sits in the same instance', () => {
+      const dir = direccio();
+      const pinya = makeNode({ zone: FigureZone.PINYA, positionType: 'vents' });
+
+      const placements = findOwnPlacements(makeData([holdBoth([dir, pinya], 'instance-a')]), 'me');
+
+      expect(placements.map((p) => p.node)).toEqual([pinya]);
+    });
+
+    it('keeps both when the pinya node is in a different instance', () => {
+      const dir = direccio();
+      const pinya = makeNode({ zone: FigureZone.PINYA, positionType: 'vents' });
+
+      const placements = findOwnPlacements(
+        makeData([holdBoth([dir], 'instance-a'), holdBoth([pinya], 'instance-b')]),
+        'me',
+      );
+
+      expect(placements).toHaveLength(2);
+    });
+
+    it('keeps both when the other placement is a tronc', () => {
+      const dir = direccio();
+      const tronc = makeNode({ zone: FigureZone.TRONC, positionType: 'segons' });
+
+      const placements = findOwnPlacements(makeData([holdBoth([dir, tronc], 'instance-a')]), 'me');
+
+      expect(placements).toHaveLength(2);
+    });
+
+    it('keeps a lone direcció pinya placement', () => {
+      const dir = direccio();
+
+      const placements = findOwnPlacements(makeData([holdBoth([dir], 'instance-a')]), 'me');
+
+      expect(placements.map((p) => p.node)).toEqual([dir]);
+    });
+  });
 });
 
 describe('findRenglaPredecessor', () => {
