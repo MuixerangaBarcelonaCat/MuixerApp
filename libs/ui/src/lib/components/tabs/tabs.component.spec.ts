@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { Shapes } from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { TabsComponent, TabDef } from './tabs.component';
 
 describe('TabsComponent', () => {
@@ -17,6 +19,7 @@ describe('TabsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [TabsComponent],
+      providers: [allLucideIconsProvider],
     }).compileComponents();
     fixture = TestBed.createComponent(TabsComponent);
     fixture.componentRef.setInput('tabs', TABS);
@@ -91,5 +94,87 @@ describe('TabsComponent', () => {
     emitted.length = 0;
     buttons[0].nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
     expect(emitted).toEqual([]);
+  });
+
+  // DaisyUI's `.tab` is `inline-flex; flex-wrap: wrap`, so in a narrow tab strip a squeezed button
+  // wraps its icon onto a line above the label. Layout can't be measured in jsdom, so these pin
+  // the classes that keep icon and label on a single row (icon always to the left of the text).
+  describe('icon + label layout when the strip is narrow', () => {
+    beforeEach(() => {
+      fixture.componentRef.setInput('tabs', [
+        { id: 'a', label: 'Pinyes', icon: Shapes },
+        { id: 'b', label: 'Troncs' },
+      ]);
+      fixture.detectChanges();
+    });
+
+    it('never wraps the icon onto its own line', () => {
+      for (const button of tabButtons()) {
+        expect(button.nativeElement.classList).toContain('flex-nowrap');
+      }
+    });
+
+    it('keeps the label on one line', () => {
+      for (const button of tabButtons()) {
+        expect(button.nativeElement.classList).toContain('whitespace-nowrap');
+      }
+    });
+
+    it('renders the icon before the label and never lets it shrink', () => {
+      const button = tabButtons()[0].nativeElement as HTMLElement;
+      const icon = button.querySelector('lucide-icon') as HTMLElement;
+
+      expect(button.firstElementChild).toBe(icon);
+      expect(icon.classList).toContain('shrink-0');
+    });
+  });
+
+  // Below `sm` an inactive tab with an icon shrinks to just its icon so the strip fits without a
+  // horizontal scrollbar. The label is `sr-only` (not display:none), so it stays the accessible
+  // name. On by default; `[collapseInactive]="false"` opts out.
+  describe('collapsing inactive tabs to their icon on phones', () => {
+    const ICON_TABS: TabDef[] = [
+      { id: 'a', label: 'Pinyes', icon: Shapes },
+      { id: 'b', label: 'Troncs', icon: Shapes },
+      { id: 'c', label: 'Sense icona' },
+    ];
+    const label = (i: number) =>
+      tabButtons()[i].nativeElement.querySelector('span') as HTMLElement;
+
+    beforeEach(() => {
+      fixture.componentRef.setInput('tabs', ICON_TABS);
+      fixture.detectChanges();
+    });
+
+    it('collapses the label of inactive tabs that have an icon', () => {
+      expect(label(1).classList).toContain('max-sm:sr-only');
+    });
+
+    it('keeps the label of the active tab visible', () => {
+      expect(label(0).classList).not.toContain('max-sm:sr-only');
+    });
+
+    it('moves the collapse when the active tab changes', () => {
+      fixture.componentRef.setInput('activeId', 'b');
+      fixture.detectChanges();
+
+      expect(label(0).classList).toContain('max-sm:sr-only');
+      expect(label(1).classList).not.toContain('max-sm:sr-only');
+    });
+
+    it('never collapses a tab that has no icon (it would become an empty button)', () => {
+      expect(label(2).classList).not.toContain('max-sm:sr-only');
+    });
+
+    it('keeps the collapsed label in the DOM as the accessible name', () => {
+      expect(tabButtons()[1].nativeElement.textContent).toContain('Troncs');
+    });
+
+    it('can be switched off per usage', () => {
+      fixture.componentRef.setInput('collapseInactive', false);
+      fixture.detectChanges();
+
+      expect(label(1).classList).not.toContain('max-sm:sr-only');
+    });
   });
 });

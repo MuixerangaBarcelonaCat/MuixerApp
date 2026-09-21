@@ -248,6 +248,7 @@ Output: `clicked` (only with `clickable`). The sash is a woven two-tone diagonal
 | `ariaLabel` | `string` | `''` | |
 | `testIdPrefix` | `string` | `''` | Opt-in `data-testid="{prefix}-{tab.id}"` per button, for call sites whose specs already query by test id (e.g. event-detail) |
 | `panelIdPrefix` | `string` | `'tabpanel-'` | `aria-controls` target per tab — override when the caller's own panel ids don't match the generic default |
+| `collapseInactive` | `boolean` | `true` | Below `sm` (phones), inactive tabs **that have an icon** shrink to just the icon so the strip fits without a horizontal scrollbar; the active tab keeps icon + label. The label goes `sr-only` (not `display:none`), so it stays the accessible name. Tabs without an icon always keep their label. Opt out with `[collapseInactive]="false"` |
 
 Output: `activeIdChange` — only emitted when a *different* tab is selected (clicking the already-active tab, or pressing arrow keys that land back on it, is a no-op). One real behavior change this caused during rollout: the template editor's Rengles button used to toggle back to Pinya mode when clicked a second time (an `aria-pressed` toggle button); as a tab it no longer self-deselects, which is the semantically correct call for `role="tab"` but is worth knowing if a future consumer expects toggle-off.
 

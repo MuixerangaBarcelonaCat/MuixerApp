@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, WritableSignal, input, output, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
@@ -106,7 +106,11 @@ type MockFn = ReturnType<typeof vi.fn>;
 
 describe('SegmentWorkspaceComponent', () => {
   let ws: WsMock;
-  let layoutService: { requestFullscreen: ReturnType<typeof vi.fn>; exitFullscreen: ReturnType<typeof vi.fn> };
+  let layoutService: {
+    requestFullscreen: ReturnType<typeof vi.fn>;
+    exitFullscreen: ReturnType<typeof vi.fn>;
+    isTouch: WritableSignal<boolean>;
+  };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
   let assignmentService: { resetSnapshot: MockFn };
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
@@ -116,9 +120,15 @@ describe('SegmentWorkspaceComponent', () => {
   // worker) and make an unrelated test's `else` branch flaky. Guarantee a clean slate.
   beforeEach(() => localStorage.clear());
 
-  const setup = async (opts: { queryParams?: Record<string, string>; instanceIdParam?: string } = {}) => {
+  const setup = async (
+    opts: { queryParams?: Record<string, string>; instanceIdParam?: string; touch?: boolean } = {},
+  ) => {
     ws = makeWsMock();
-    layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
+    layoutService = {
+      requestFullscreen: vi.fn(),
+      exitFullscreen: vi.fn(),
+      isTouch: signal(opts.touch ?? false),
+    };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     assignmentService = { resetSnapshot: vi.fn() };
 
@@ -218,7 +228,7 @@ describe('SegmentWorkspaceComponent', () => {
   it('keeps the prev/next segment controls from shrinking so the tab bar is what scrolls', async () => {
     const fixture = await setup();
     const header = fixture.nativeElement.querySelector('header') as HTMLElement;
-    const prevNextGroup = header.querySelector('.shrink-0.ml-2') as HTMLElement;
+    const prevNextGroup = header.querySelector('.shrink-0.sm\\:ml-2') as HTMLElement;
     expect(prevNextGroup).toBeTruthy();
     expect(prevNextGroup.className).toContain('shrink-0');
   });
@@ -236,6 +246,67 @@ describe('SegmentWorkspaceComponent', () => {
   it('falls back to pinyes for an unknown tab query param', async () => {
     const fixture = await setup({ queryParams: { tab: 'nope' } });
     expect(fixture.componentInstance.activeTab()).toBe('pinyes');
+  });
+
+  describe('touch devices (phones / tablets)', () => {
+    it('shows only the pinyes and troncs tabs', async () => {
+      const fixture = await setup({ touch: true });
+
+      expect(tabLabels(fixture)).toEqual(['Pinyes', 'Troncs']);
+    });
+
+    it('still shows all five tabs on a non-touch device', async () => {
+      const fixture = await setup({ touch: false });
+
+      expect(tabLabels(fixture)).toHaveLength(5);
+    });
+
+    it('falls back to the remembered pinyes/troncs tab when the tab query param is not available on touch', async () => {
+      localStorage.setItem('muixer.pinyes.viewMode', 'troncs');
+
+      const fixture = await setup({ touch: true, queryParams: { tab: 'distribucio' } });
+
+      expect(fixture.componentInstance.activeTab()).toBe('troncs');
+    });
+
+    it('falls back to pinyes when nothing is remembered', async () => {
+      const fixture = await setup({ touch: true, queryParams: { tab: 'previsualitza' } });
+
+      expect(fixture.componentInstance.activeTab()).toBe('pinyes');
+    });
+
+    it('keeps a pinyes/troncs tab query param on touch', async () => {
+      const fixture = await setup({ touch: true, queryParams: { tab: 'troncs' } });
+
+      expect(fixture.componentInstance.activeTab()).toBe('troncs');
+    });
+
+    it('leaves the hidden tab when the device becomes touch while it is open', async () => {
+      const fixture = await setup({ touch: false, queryParams: { tab: 'nodes' } });
+      expect(fixture.componentInstance.activeTab()).toBe('nodes');
+
+      layoutService.isTouch.set(true);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.activeTab()).toBe('pinyes');
+      expect(tabLabels(fixture)).toEqual(['Pinyes', 'Troncs']);
+    });
+
+    it('shows the pinyes tab content instead of a hidden tab', async () => {
+      const fixture = await setup({ touch: true, queryParams: { tab: 'nodes' } });
+
+      expect(fixture.nativeElement.querySelector('app-pinyes-tab')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('app-nodes-tab')).toBeNull();
+    });
+  });
+
+  it('collapses the inactive tabs to their icon on phones, keeping the active tab labelled', async () => {
+    const fixture = await setup({ queryParams: { tab: 'troncs' } });
+    const labels = Array.from(fixture.nativeElement.querySelectorAll('[role="tab"] span')) as HTMLElement[];
+
+    const byText = (text: string) => labels.find((el) => (el.textContent ?? '').trim() === text) as HTMLElement;
+    expect(byText('Troncs').classList).not.toContain('max-sm:sr-only');
+    expect(byText('Pinyes').classList).toContain('max-sm:sr-only');
   });
 
   describe('remembered pinyes/troncs tab', () => {
@@ -465,11 +536,103 @@ describe('SegmentWorkspaceComponent', () => {
     });
   });
 
-  it('gives the segment title a fixed width so the prev/next arrows stay in a stable position', async () => {
+  describe('segment title width', () => {
+    const titleClasses = async (name: string | null = 'Bloc 1'): Promise<string[]> => {
+      const fixture = await setup();
+      ws.segmentName.set(name);
+      fixture.detectChanges();
+      const title = fixture.nativeElement.querySelector('h1') as HTMLElement;
+      return title.className.split(/\s+/);
+    };
+
+    it('takes a fixed sixth of the header at every screen size (never content-sized)', async () => {
+      const classes = await titleClasses();
+
+      expect(classes).toContain('w-1/6');
+      expect(classes.filter((c) => /^(sm:|md:|lg:|xl:|2xl:)w-/.test(c))).toEqual([]);
+      expect(classes).toContain('shrink-0');
+    });
+
+    it('truncates long titles instead of growing', async () => {
+      const classes = await titleClasses('Un nom de segment molt però que molt llarg');
+
+      expect(classes).toContain('truncate');
+    });
+
+    it('never sizes itself from its content', async () => {
+      const classes = await titleClasses();
+      const contentSized = /^(sm:|md:|lg:)?(w-auto|w-fit|w-max|w-min|flex-1|flex-auto|grow|min-w-.+|max-w-.+)$/;
+
+      expect(classes.filter((c) => contentSized.test(c))).toEqual([]);
+    });
+  });
+
+  describe('header controls hidden on phones (below `sm`), kept on tablets and up', () => {
+    const header = (f: ComponentFixture<SegmentWorkspaceComponent>) =>
+      f.nativeElement.querySelector('header') as HTMLElement;
+    const button = (f: ComponentFixture<SegmentWorkspaceComponent>, label: string) =>
+      header(f).querySelector(`button[aria-label="${label}"]`) as HTMLElement;
+
+    it('hides the "n/total" segment counter between the arrows', async () => {
+      const fixture = await setup();
+      ws.segmentPosition.set({ current: 2, total: 11 });
+      fixture.detectChanges();
+
+      const counter = Array.from(header(fixture).querySelectorAll('span')).find((el) =>
+        (el.textContent ?? '').includes('2/11'),
+      ) as HTMLElement;
+      expect(counter.classList).toContain('hidden');
+      expect(counter.classList).toContain('sm:inline');
+    });
+
+    it('hides the help button', async () => {
+      const fixture = await setup();
+
+      const wrapper = button(fixture, "Ajuda de l'assignació").closest('.hidden') as HTMLElement;
+      expect(wrapper).toBeTruthy();
+      expect(wrapper.classList).toContain('sm:block');
+    });
+
+    it('hides the import button', async () => {
+      const fixture = await setup();
+
+      const wrapper = button(fixture, "Importa les assignacions d'una figura anterior").closest(
+        '.hidden',
+      ) as HTMLElement;
+      expect(wrapper).toBeTruthy();
+      expect(wrapper.classList).toContain('sm:flex');
+    });
+
+    it('hides the reset button', async () => {
+      const fixture = await setup();
+      ws.instances.set([{ ...makeWorkspaceInstance('inst-a'), snapshotted: true }]);
+      fixture.detectChanges();
+
+      const wrapper = button(
+        fixture,
+        'Reinicialitza una figura: elimina totes les assignacions i torna a la plantilla original',
+      ).closest('.hidden') as HTMLElement;
+      expect(wrapper).toBeTruthy();
+      expect(wrapper.classList).toContain('sm:flex');
+    });
+
+    it('keeps the back and prev/next arrows visible', async () => {
+      const fixture = await setup();
+
+      for (const label of ['Torna arrere', 'Segment anterior', 'Segment següent']) {
+        expect(button(fixture, label).closest('.hidden')).toBeNull();
+      }
+    });
+  });
+
+  it('tightens the header spacing on phones so the controls fit', async () => {
     const fixture = await setup();
-    const title = fixture.nativeElement.querySelector('h1') as HTMLElement;
-    expect(title.className).toContain('w-48');
-    expect(title.className).toContain('truncate');
+    const header = fixture.nativeElement.querySelector('header') as HTMLElement;
+
+    expect(header.className).toContain('gap-2');
+    expect(header.className).toContain('sm:gap-3');
+    expect(header.className).toContain('px-2');
+    expect(header.className).toContain('sm:px-4');
   });
 
   // Scoped to the header's own trigger buttons — the always-rendered figure-picker/confirm
