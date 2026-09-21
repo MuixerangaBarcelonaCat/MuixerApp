@@ -408,7 +408,14 @@ export class MeService {
     };
   }
 
-  /** Assistència d'una persona a la temporada actual, sobre events ja passats. */
+  /**
+   * Assistència d'una persona a la temporada actual, sobre events ja passats.
+   *
+   * Només compta els events amb `countsForStatistics` (el tècnic pot desmarcar-lo, p. ex. en un
+   * assaig cancel·lat) i exclou el dia d'avui: ASSISTIT s'assigna a la passa llista, o a les 3am
+   * només per a ACTUACIO, o sigui que comptar l'event d'avui com a total ja fallat faria baixar el
+   * percentatge el matí de l'assaig per recuperar-lo el mateix vespre.
+   */
   private async computeSeasonAttendance(
     personId: string,
   ): Promise<PersonProfileSummary['seasonAttendance']> {
@@ -434,7 +441,8 @@ export class MeService {
         'attended',
       )
       .where('event."seasonId" = :seasonId', { seasonId: season.id })
-      .andWhere('event.date <= :today', { today: getLocalToday() })
+      .andWhere('event."countsForStatistics" = true')
+      .andWhere('event.date < :today', { today: getLocalToday() })
       .groupBy('event."eventType"')
       .setParameter('assistit', AttendanceStatus.ASSISTIT)
       .getRawMany<{ eventType: EventType; total: string; attended: string }>();

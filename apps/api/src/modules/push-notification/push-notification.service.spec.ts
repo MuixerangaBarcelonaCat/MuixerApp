@@ -43,8 +43,8 @@ describe('PushNotificationService', () => {
           provide: PushSubscriptionService,
           useValue: {
             findActiveByUserIds: jest.fn(),
-            markUsed: jest.fn(),
-            deactivate: jest.fn(),
+            markUsedMany: jest.fn(),
+            deactivateMany: jest.fn(),
             findUserIdsWithActiveSubscriptions: jest.fn(),
           },
         },
@@ -99,7 +99,7 @@ describe('PushNotificationService', () => {
 
       await service.handlePushRequested(new PushRequestedEvent(['u1'], { title: 'T', body: 'B' }));
 
-      expect(subscriptionService.markUsed).toHaveBeenCalledWith('sub-1');
+      expect(subscriptionService.markUsedMany).toHaveBeenCalledWith(['sub-1']);
     });
 
     it('deactivates subscription on 410 Gone', async () => {
@@ -109,7 +109,28 @@ describe('PushNotificationService', () => {
 
       await service.handlePushRequested(new PushRequestedEvent(['u1'], { title: 'T', body: 'B' }));
 
-      expect(subscriptionService.deactivate).toHaveBeenCalledWith('sub-gone');
+      expect(subscriptionService.deactivateMany).toHaveBeenCalledWith(['sub-gone']);
+    });
+
+    it('writes the bookkeeping of a whole fan-out as one call per outcome, not one per device', async () => {
+      const subs = Array.from({ length: 50 }, (_, i) => ({
+        id: `sub-${i}`,
+        endpoint: `https://fcm.googleapis.com/push/${i}`,
+        keys: { p256dh: 'a', auth: 'b' },
+      }));
+      subscriptionService.findActiveByUserIds.mockResolvedValue(subs as never);
+      senderService.send.mockImplementation((sub: { id: string }) =>
+        Promise.resolve(
+          sub.id === 'sub-7' ? { success: false, statusCode: 410, gone: true } : { success: true, statusCode: 201 },
+        ),
+      );
+
+      await service.handlePushRequested(new PushRequestedEvent(['u1'], { title: 'T', body: 'B' }));
+
+      expect(subscriptionService.markUsedMany).toHaveBeenCalledTimes(1);
+      expect(subscriptionService.deactivateMany).toHaveBeenCalledTimes(1);
+      expect(subscriptionService.markUsedMany.mock.calls[0][0]).toHaveLength(49);
+      expect(subscriptionService.deactivateMany).toHaveBeenCalledWith(['sub-7']);
     });
   });
 });
