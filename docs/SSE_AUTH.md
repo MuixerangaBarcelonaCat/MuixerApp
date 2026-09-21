@@ -93,12 +93,32 @@ Passing tokens via query parameters has security implications:
 
 ## Affected Endpoints
 
-Only `sync.controller.ts` uses `@SseAuth()` today (ADMIN role, verified against source):
+`sync.controller.ts` (ADMIN role, `@SseAuth()` at controller level):
 
 - `GET /api/sync/persons?token=<jwt>`
 - `GET /api/sync/events?token=<jwt>`
 - `GET /api/sync/events/:eventId/attendance?token=<jwt>`
 - `GET /api/sync/all?token=<jwt>`
+
+`me.controller.ts` (MEMBER/TECHNICAL/ADMIN, `@SseAuth()` on the single method so the
+controller's other routes keep header-only auth):
+
+- `GET /api/me/events/:eventId/changes?token=<jwt>` — live figure-data changes for one
+  event, so an open projection refetches instead of waiting for a manual reload. Each
+  message is narrowed per-subscriber to **published segments only**
+  (`MeService.narrowSegmentChangeForMember`), matching the `onlyPublished` scope of the
+  projection endpoint — otherwise the stream would leak the ids of unpublished segments.
+  Carries a `ping` heartbeat every 30s; those arrive as a typed SSE event, so a client's
+  `onmessage` only ever sees real changes.
+
+`event-segment.controller.ts` (TECHNICAL/ADMIN, `@SseAuth()` on the single method):
+
+- `GET /api/events/:eventId/segments/changes?token=<jwt>` — same live figure-data
+  stream as above, unfiltered (TECHNICAL/ADMIN already see every segment). Consumed by
+  the dashboard's `ProjectionViewComponent` when used standalone; the embedded copy
+  inside the segment workspace's Previsualitza tab does not open its own connection —
+  the workspace is meant to own one shared connection for the whole tab set (not yet
+  built, see [docs/PINYES_MODULE.md](PINYES_MODULE.md)).
 
 ---
 

@@ -50,6 +50,9 @@ class StubPrevisualitzaTab {}
 @Component({ selector: 'app-segment-conflict-panel', standalone: true, template: '' })
 class StubSegmentConflictPanel {}
 
+@Component({ selector: 'app-live-update-banner', standalone: true, template: '' })
+class StubLiveUpdateBanner {}
+
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
 
@@ -167,6 +170,7 @@ describe('SegmentWorkspaceComponent', () => {
           StubNodesTab,
           StubPrevisualitzaTab,
           StubSegmentConflictPanel,
+          StubLiveUpdateBanner,
           TemplateEditorHelpModalComponent,
           StubImportModal,
         ],

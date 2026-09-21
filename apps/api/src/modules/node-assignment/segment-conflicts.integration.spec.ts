@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { DataSource } from 'typeorm';
 import { EventType, FigureZone, NodeShape, SegmentConflictKind } from '@muixer/shared';
 import { NodeAssignmentService } from './node-assignment.service';
@@ -35,6 +36,7 @@ describe('NodeAssignmentService.getSegmentConflicts (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: SegmentChangeEmitter, useValue: { emitChange: jest.fn() } },
         NodeAssignmentService,
         ...realRepositoryProviders(db.dataSource, [
           NodeAssignment,

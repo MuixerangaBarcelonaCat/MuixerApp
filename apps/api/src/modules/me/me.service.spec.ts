@@ -19,7 +19,9 @@ import { ProjectionService } from '../event-segment/projection.service';
 import { EventSegmentService } from '../event-segment/event-segment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { NewsService } from '../news/news.service';
+import { FigureDataChangedEvent, SegmentChangeSource } from '@muixer/shared';
 import { News } from '../news/news.entity';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 import { SeasonService } from '../season/season.service';
 
 const mockUser: JwtPayload = {
@@ -27,6 +29,8 @@ const mockUser: JwtPayload = {
   email: 'test@test.com',
   role: UserRole.MEMBER,
 };
+
+const changeEmitter = { emitChange: jest.fn() };
 
 const mockEvent: Partial<Event> = {
   id: 'event-1',
@@ -127,6 +131,10 @@ describe('MeService', () => {
         {
           provide: NewsService,
           useValue: { findPublished: jest.fn(), findPublishedOne: jest.fn() },
+        },
+        {
+          provide: SegmentChangeEmitter,
+          useValue: changeEmitter,
         },
         {
           provide: SeasonService,
@@ -946,6 +954,22 @@ describe('MeService', () => {
       expect(result.status).toBe(AttendanceStatus.NO_VAIG);
     });
 
+    it('announces the event after the member confirms their own attendance', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      eventRepo.findOne.mockResolvedValue({ ...mockEvent, date: new Date('2026-12-01') } as Event);
+      attendanceRepo.upsert.mockResolvedValue(undefined as never);
+      attendanceRepo.findOneOrFail.mockResolvedValue({
+        id: 'att-1',
+        status: AttendanceStatus.ANIRE,
+        respondedAt: new Date(),
+      } as never);
+      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+
+      await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE });
+
+      expect(changeEmitter.emitChange).toHaveBeenCalledWith('event-1', [], SegmentChangeSource.ATTENDANCE);
+    });
+
     it('should throw ForbiddenException when user has no person', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
 
@@ -1208,6 +1232,44 @@ describe('MeService', () => {
     it('propagates NotFoundException for a draft/scheduled/missing news', async () => {
       newsService.findPublishedOne.mockRejectedValue(new NotFoundException());
       await expect(service.findNewsDetail('bad-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('narrowSegmentChangeForMember', () => {
+    const change = (segmentIds: string[]): FigureDataChangedEvent => ({
+      eventId: 'event-1',
+      segmentIds,
+      source: SegmentChangeSource.ASSIGNMENT,
+      originClientId: null,
+      occurredAt: '2026-09-15T10:00:00.000Z',
+    });
+
+    it('hides segments the member cannot see', async () => {
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        { id: 'published-1', isPublished: true },
+        { id: 'draft-1', isPublished: false },
+      ] as never);
+
+      const result = await service.narrowSegmentChangeForMember(change(['published-1', 'draft-1']));
+
+      expect(result?.segmentIds).toEqual(['published-1']);
+    });
+
+    it('withholds a change that only touches segments the member cannot see', async () => {
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        { id: 'draft-1', isPublished: false },
+      ] as never);
+
+      const result = await service.narrowSegmentChangeForMember(change(['draft-1']));
+
+      expect(result).toBeNull();
+    });
+
+    it('lets an event-wide change through untouched', async () => {
+      const result = await service.narrowSegmentChangeForMember(change([]));
+
+      expect(result?.segmentIds).toEqual([]);
+      expect(eventSegmentService.findAllByEvent).not.toHaveBeenCalled();
     });
   });
 });

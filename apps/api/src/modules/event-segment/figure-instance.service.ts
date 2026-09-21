@@ -14,6 +14,7 @@ import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { EventSegmentService, InstanceRef, SegmentWithInstances } from './event-segment.service';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 
 export interface DistributionNodeItem {
   id: string;
@@ -97,6 +98,7 @@ import {
   SegmentConflict,
   SegmentMoveConflictResolution,
   TroncChangeImpact,
+  SegmentChangeSource,
 } from '@muixer/shared';
 import { hiddenZonesForFigureModeChange } from '../node-assignment/node-assignment.service';
 
@@ -123,6 +125,7 @@ export class FigureInstanceService {
     private readonly segmentService: EventSegmentService,
     private readonly nodeAssignmentService: NodeAssignmentService,
     private readonly dataSource: DataSource,
+    private readonly segmentChanges: SegmentChangeEmitter,
   ) {}
 
   async create(
@@ -160,6 +163,9 @@ export class FigureInstanceService {
     });
 
     const saved = await this.instanceRepository.save(instance);
+
+    this.segmentChanges.emitChange(eventId, [segmentId], SegmentChangeSource.INSTANCE);
+
     return this.findOneById(saved.id);
   }
 
@@ -197,6 +203,8 @@ export class FigureInstanceService {
     const instance = await this.assertInstanceBelongsToSegment(eventId, segmentId, instanceId);
     await this.nodeAssignmentService.checkEventLock(instanceId);
     await this.instanceRepository.remove(instance);
+
+    this.segmentChanges.emitChange(eventId, [segmentId], SegmentChangeSource.INSTANCE);
   }
 
   async reorder(
@@ -328,6 +336,8 @@ export class FigureInstanceService {
       );
     });
 
+    this.segmentChanges.emitChange(eventId, [segmentId, targetSegmentId], SegmentChangeSource.INSTANCE);
+
     const result: MoveInstanceResult = {
       sourceSegment: await this.segmentService.getOne(segmentId),
       targetSegment: await this.segmentService.getOne(targetSegmentId),
@@ -384,6 +394,8 @@ export class FigureInstanceService {
         });
       }
     });
+
+    this.segmentChanges.emitChange(eventId, [segmentId], SegmentChangeSource.INSTANCE);
   }
 
   async clearDistribution(eventId: string, segmentId: string): Promise<void> {
@@ -397,6 +409,8 @@ export class FigureInstanceService {
        WHERE "segmentId" = $1`,
       [segmentId],
     );
+
+    this.segmentChanges.emitChange(eventId, [segmentId], SegmentChangeSource.INSTANCE);
   }
 
   async getDistribution(eventId: string, segmentId: string): Promise<SegmentDistributionData> {

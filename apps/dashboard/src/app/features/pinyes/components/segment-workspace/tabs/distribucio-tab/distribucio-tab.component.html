@@ -23,6 +23,7 @@
       (troncMoved)="onTroncMoved($event)"
       (troncPanelMoved)="onTroncPanelMoved($event)"
       (stageTransformChanged)="onStageTransformChanged($event)"
+      (interactionActive)="ws.localInteractionActive.set($event)"
     />
 
     <!-- Tronc panel overlays: the real <app-tronc-view> rendering, positioned on top of the

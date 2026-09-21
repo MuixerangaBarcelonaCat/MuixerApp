@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -24,6 +24,9 @@ import { MeModule } from '../modules/me/me.module';
 import { MailModule } from '../modules/mail/mail.module';
 import { NewsModule } from '../modules/news/news.module';
 import { PushNotificationModule } from '../modules/push-notification/push-notification.module';
+import { SegmentEventsModule } from '../modules/segment-events/segment-events.module';
+import { RequestContextModule } from '../common/request-context/request-context.module';
+import { RequestContextMiddleware } from '../common/request-context/request-context.middleware';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -55,6 +58,8 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     MailModule,
     NewsModule,
     PushNotificationModule,
+    SegmentEventsModule,
+    RequestContextModule,
   ],
   controllers: [AppController],
   providers: [
@@ -62,4 +67,8 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}

@@ -11,7 +11,8 @@ import { Composition } from '../composition/entities/composition.entity';
 import { EventSegmentService } from './event-segment.service';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
-import { FigureMode, FigureZone, SegmentMoveConflictResolution, SegmentConflictKind } from '@muixer/shared';
+import { FigureMode, FigureZone, SegmentMoveConflictResolution, SegmentConflictKind, SegmentChangeSource } from '@muixer/shared';
+import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -79,6 +80,8 @@ const mockSegmentService = {
   loadTotalCordons: jest.fn().mockResolvedValue(new Map()),
 };
 
+const mockChangeEmitter = { emitChange: jest.fn() };
+
 const mockNodeAssignmentService = {
   checkEventLock: jest.fn(),
   checkEventLockByEventId: jest.fn(),
@@ -104,6 +107,7 @@ describe('FigureInstanceService', () => {
         { provide: EventSegmentService, useValue: mockSegmentService },
         { provide: NodeAssignmentService, useValue: mockNodeAssignmentService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: SegmentChangeEmitter, useValue: mockChangeEmitter },
       ],
     }).compile();
 
@@ -171,6 +175,22 @@ describe('FigureInstanceService', () => {
 
       expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
       expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('announces the segment after a figure is added', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockFigureTemplateRepo.findOne.mockResolvedValue(makeFigureTemplate());
+      mockInstanceRepo.create.mockReturnValue(makeInstance());
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+
+      await service.create(EVENT_ID, SEGMENT_ID, { figureTemplateId: FIGURE_ID });
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.INSTANCE,
+      );
     });
 
   });
@@ -362,6 +382,21 @@ describe('FigureInstanceService', () => {
       ).rejects.toThrow(ForbiddenException);
       expect(mockInstanceRepo.remove).not.toHaveBeenCalled();
     });
+
+    it('announces the segment after a figure is removed', async () => {
+      const instance = makeInstance();
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(instance);
+      mockInstanceRepo.remove.mockResolvedValue(undefined);
+
+      await service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID);
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.INSTANCE,
+      );
+    });
   });
 
   describe('copy', () => {
@@ -457,6 +492,16 @@ describe('FigureInstanceService', () => {
       expect(result).toEqual({ sourceSegment: sourceSegmentResult, targetSegment: targetSegmentResult });
       expect(mockSegmentService.getOne).toHaveBeenNthCalledWith(1, SEGMENT_ID);
       expect(mockSegmentService.getOne).toHaveBeenNthCalledWith(2, TARGET_SEGMENT_ID);
+    });
+
+    it('announces both the source and target segments', async () => {
+      await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID, TARGET_SEGMENT_ID],
+        SegmentChangeSource.INSTANCE,
+      );
     });
 
     it('checks the event lock before moving', async () => {
@@ -721,6 +766,24 @@ describe('FigureInstanceService', () => {
         }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('announces the segment after its distribution is saved', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+      mockDataSource.transaction.mockImplementation((cb: (m: { update: jest.Mock }) => Promise<void>) =>
+        cb({ update: jest.fn() }),
+      );
+
+      await service.saveDistribution(EVENT_ID, SEGMENT_ID, {
+        items: [{ instanceId: INSTANCE_ID, x: 0, y: 0, angle: 0, troncPanelX: null, troncPanelY: null, troncPanelWidth: null, troncPanelHeight: null }],
+      });
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.INSTANCE,
+      );
+    });
   });
 
   describe('clearDistribution', () => {
@@ -742,6 +805,18 @@ describe('FigureInstanceService', () => {
       await expect(
         service.clearDistribution(EVENT_ID, SEGMENT_ID),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('announces the segment after its distribution is cleared', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+
+      await service.clearDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(mockChangeEmitter.emitChange).toHaveBeenCalledWith(
+        EVENT_ID,
+        [SEGMENT_ID],
+        SegmentChangeSource.INSTANCE,
+      );
     });
   });
 

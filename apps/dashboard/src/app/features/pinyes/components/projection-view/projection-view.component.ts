@@ -9,12 +9,14 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '@muixer/ui';
 import { ProjectionService } from '../../services/projection.service';
+import { SegmentChangesService } from '../../services/segment-changes.service';
 
 @Component({
   selector: 'app-projection-view',
@@ -37,6 +39,8 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService);
   private readonly projectionService = inject(ProjectionService);
   private readonly toast = inject(ToastService);
+  private readonly segmentChanges = inject(SegmentChangesService);
+  private liveChanges: Subscription | null = null;
 
   // ── State signals ───────────────────────────────────────────────────────────
 
@@ -69,6 +73,16 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.segmentId = params['segmentId'];
     this.instanceIdSignal.set(this.embedded() ? null : (params['instanceId'] ?? null));
     this.loadSegment();
+
+    // Embedded use (the workspace's Previsualitza tab) skips its own connection — the
+    // workspace will own one shared connection for the whole tab set instead.
+    if (!this.embedded()) {
+      this.liveChanges = this.segmentChanges
+        .watch(this.eventId, () => this.segmentId)
+        // silent: the segment already has data on screen — a full-screen spinner would
+        // interrupt viewing it for no reason the viewer asked for.
+        .subscribe(() => this.loadSegment({ silent: true }));
+    }
   }
 
   ngOnDestroy(): void {
@@ -76,6 +90,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
       this.layoutService.exitFullscreen();
     }
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
+    this.liveChanges?.unsubscribe();
   }
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
@@ -146,8 +161,10 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  private loadSegment(): void {
-    this.loading.set(true);
+  private loadSegment(options: { silent?: boolean } = {}): void {
+    if (!options.silent) {
+      this.loading.set(true);
+    }
     this.projectionService.getProjection(this.eventId, this.segmentId).subscribe({
       next: (data) => {
         this.segmentData.set(data);

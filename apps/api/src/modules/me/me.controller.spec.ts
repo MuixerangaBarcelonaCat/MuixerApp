@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AttendanceStatus, DelegateType, EventType, JwtPayload, UserRole } from '@muixer/shared';
 import { MeController } from './me.controller';
+import { SegmentEventsService } from '../segment-events/segment-events.service';
 import { MeService } from './me.service';
 
 const mockUser: JwtPayload = {
@@ -35,7 +36,12 @@ describe('MeController', () => {
             removePersonDelegate: jest.fn(),
             findNews: jest.fn(),
             findNewsDetail: jest.fn(),
+            narrowSegmentChangeForMember: jest.fn(),
           },
+        },
+        {
+          provide: SegmentEventsService,
+          useValue: { stream: jest.fn() },
         },
       ],
     }).compile();
