@@ -105,6 +105,15 @@
                   <dd class="text-sm text-right">{{ person()!.phone }}</dd>
                 </div>
               }
+              @if (responsiblePhone(); as responsible) {
+                <div class="flex justify-between items-start" data-testid="responsible-phone">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
+                  <dd class="text-sm text-right">
+                    {{ responsible.phone }}
+                    <span class="text-xs text-base-content/50 ml-1">({{ responsible.alias }}, responsable)</span>
+                  </dd>
+                </div>
+              }
               @if (person()!.birthDate) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Naixement</dt>

@@ -9,6 +9,12 @@ class DelegatePersonDto {
   alias: string;
 }
 
+/** The delegate's own person, with the phone so a xicalla's profile can show a contact number. */
+class DelegateUserPersonDto extends DelegatePersonDto {
+  @Expose()
+  phone: string | null;
+}
+
 class DelegateUserDto {
   @Expose()
   id: string;
@@ -18,8 +24,8 @@ class DelegateUserDto {
 
   /** The delegate's own linked person, if self-managed — lets the UI link to their profile. */
   @Expose()
-  @Type(() => DelegatePersonDto)
-  person: DelegatePersonDto | null;
+  @Type(() => DelegateUserPersonDto)
+  person: DelegateUserPersonDto | null;
 }
 
 export class PersonDelegateResponseDto {

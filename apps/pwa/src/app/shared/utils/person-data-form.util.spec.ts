@@ -16,6 +16,28 @@ describe('person-data-form.util', () => {
       expect(group.controls.secondSurname.hasValidator).toBeDefined();
     });
 
+    it('does not require the phone when requirePhone is false', () => {
+      const group = buildPersonDataFormGroup(new FormBuilder().nonNullable, undefined, {
+        requirePhone: false,
+      });
+      group.setValue({
+        name: 'Joan',
+        firstSurname: 'Garcia',
+        secondSurname: '',
+        gender: Gender.MALE,
+        country: 'ES',
+        phoneNumber: '',
+        birthDate: '2015-01-15',
+      });
+
+      expect(group.valid).toBe(true);
+    });
+
+    it('requires the phone by default', () => {
+      const group = buildPersonDataFormGroup(new FormBuilder().nonNullable);
+      expect(group.controls.phoneNumber.hasError('required')).toBe(true);
+    });
+
     it('defaults the country to Spain', () => {
       const group = buildPersonDataFormGroup(new FormBuilder().nonNullable);
       expect(group.controls.country.value).toBe(DEFAULT_COUNTRY);

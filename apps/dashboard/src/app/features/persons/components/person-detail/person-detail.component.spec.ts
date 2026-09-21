@@ -594,7 +594,7 @@ describe('PersonDetailComponent', () => {
 
     it('shows the primary manager\'s alias (not email) and links to their person page when self-managed', () => {
       component.delegates.set([
-        makeDelegateItem({ user: { id: 'user-1', email: 'parent@test.com', person: { id: 'parent-person', alias: 'ParentAlias' } } }),
+        makeDelegateItem({ user: { id: 'user-1', email: 'parent@test.com', person: { id: 'parent-person', alias: 'ParentAlias', phone: null } } }),
       ]);
       fixture.detectChanges();
       const link = fixture.nativeElement.querySelector('a[href*="/persons/parent-person"]') as HTMLAnchorElement | null;
@@ -603,11 +603,59 @@ describe('PersonDetailComponent', () => {
       expect(fixture.nativeElement.textContent).not.toContain('parent@test.com');
     });
 
+    describe('phone fallback to the responsable', () => {
+      const parentUser = (phone: string | null) => ({
+        id: 'user-1',
+        email: 'parent@test.com',
+        person: { id: 'parent-person', alias: 'ParentAlias', phone },
+      });
+
+      it('shows the responsable\'s phone, labelled, when the person has none', () => {
+        mockPersonService.getOne.mockReturnValue(of(makePerson({ phone: null })));
+        component.person.set(makePerson({ phone: null }));
+        component.delegates.set([makeDelegateItem({ user: parentUser('+34612345678') })]);
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent;
+        expect(text).toContain('+34612345678');
+        expect(text).toContain('ParentAlias');
+        expect(fixture.nativeElement.querySelector('[data-testid="responsible-phone"]')).toBeTruthy();
+      });
+
+      it('shows the person\'s own phone and not the responsable\'s when set', () => {
+        component.person.set(makePerson({ phone: '+34600000000' }));
+        component.delegates.set([makeDelegateItem({ user: parentUser('+34612345678') })]);
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent;
+        expect(text).toContain('+34600000000');
+        expect(text).not.toContain('+34612345678');
+      });
+
+      it('shows nothing when the responsable has no phone either', () => {
+        component.person.set(makePerson({ phone: null }));
+        component.delegates.set([makeDelegateItem({ user: parentUser(null) })]);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-testid="responsible-phone"]')).toBeFalsy();
+      });
+
+      it('ignores secondary delegates', () => {
+        component.person.set(makePerson({ phone: null }));
+        component.delegates.set([
+          makeDelegateItem({ isPrimary: false, user: parentUser('+34612345678') }),
+        ]);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-testid="responsible-phone"]')).toBeFalsy();
+      });
+    });
+
     it('shows a titled, comma-separated "Delegacions" list for secondary managers, with a remove action each when in edit mode', () => {
       component.delegates.set([
         makeDelegateItem(),
         makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.PARTNER, user: { id: 'u2', email: 'partner@test.com', person: null } }),
-        makeDelegateItem({ id: 'del-3', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u3', email: 'aunt@test.com', person: { id: 'aunt-person', alias: 'AuntAlias' } } }),
+        makeDelegateItem({ id: 'del-3', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u3', email: 'aunt@test.com', person: { id: 'aunt-person', alias: 'AuntAlias', phone: null } } }),
       ]);
       component.editing.set(true);
       fixture.detectChanges();

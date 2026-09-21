@@ -13,7 +13,7 @@ export interface PendingDependent {
   birthDate: string | null;
 }
 
-/** Cos de POST /me/pending-dependents. */
-export interface DependentRegistrationRequest extends PersonRegistrationData {
+/** Cos de POST /me/pending-dependents. La xicalla no té telèfon: no s'envia mai. */
+export interface DependentRegistrationRequest extends Omit<PersonRegistrationData, 'phone'> {
   personId: string;
 }

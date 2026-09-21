@@ -10,7 +10,9 @@ export type PersonDataFormGroup = ReturnType<typeof buildPersonDataFormGroup>;
 export function buildPersonDataFormGroup(
   fb: FormBuilder['nonNullable'],
   prefill?: Partial<PersonRegistrationData>,
+  options: { requirePhone?: boolean } = {},
 ) {
+  const { requirePhone = true } = options;
   const { country, phoneNumber } = splitPhoneNumber(prefill?.phone ?? null);
 
   return fb.group({
@@ -19,7 +21,7 @@ export function buildPersonDataFormGroup(
     secondSurname: [prefill?.secondSurname ?? ''],
     gender: [prefill?.gender ?? ('' as Gender | ''), Validators.required],
     country: [country, Validators.required],
-    phoneNumber: [phoneNumber, Validators.required],
+    phoneNumber: [phoneNumber, requirePhone ? Validators.required : []],
     birthDate: [prefill?.birthDate ?? '', Validators.required],
   });
 }

@@ -155,6 +155,12 @@ export class PersonDetailComponent implements OnInit {
   removingDelegateId = signal<string | null>(null);
   existingDelegateUserIds = computed(() => this.delegates().map((d) => d.user.id));
   primaryDelegate = computed(() => this.delegates().find((d) => d.isPrimary) ?? null);
+  /** Phone of the responsible adult, shown when the person (e.g. a xicalla) has none of their own. */
+  responsiblePhone = computed(() => {
+    if (this.person()?.phone) return null;
+    const responsible = this.primaryDelegate()?.user.person;
+    return responsible?.phone ? { alias: responsible.alias, phone: responsible.phone } : null;
+  });
   secondaryDelegates = computed(() => this.delegates().filter((d) => !d.isPrimary));
 
   // ── F3 History ──

@@ -79,6 +79,25 @@ describe('PendingDependentsComponent', () => {
     expect(dependentsService.completePending).not.toHaveBeenCalled();
   });
 
+  it('does not ask for a phone and submits without one', async () => {
+    await setup([child1]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('lib-input[formControlName="phoneNumber"]')).toBeFalsy();
+
+    component.form.patchValue({
+      name: 'Xicalla',
+      firstSurname: 'Completa',
+      gender: Gender.FEMALE,
+      birthDate: '2016-03-10',
+    });
+    component.onSubmit();
+
+    expect(dependentsService.completePending).toHaveBeenCalledTimes(1);
+    const payload = dependentsService.completePending.mock.calls[0][0];
+    expect(payload).not.toHaveProperty('phone');
+    expect(payload.personId).toBe('child-1');
+  });
+
   it('submits the current dependent, re-fetches, and advances to the next one', async () => {
     await setup([child1, child2]);
     dependentsService.getPending.mockReturnValue(of([child2]));
@@ -95,7 +114,7 @@ describe('PendingDependentsComponent', () => {
     fixture.detectChanges();
 
     expect(dependentsService.completePending).toHaveBeenCalledWith(
-      expect.objectContaining({ personId: 'child-1', name: 'Xicalla', phone: '+34612345678' }),
+      expect.objectContaining({ personId: 'child-1', name: 'Xicalla' }),
     );
     expect(component.current()?.personId).toBe('child-2');
     expect(router.navigate).not.toHaveBeenCalled();
