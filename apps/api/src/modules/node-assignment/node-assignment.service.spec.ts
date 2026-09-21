@@ -1459,6 +1459,65 @@ describe('NodeAssignmentService', () => {
         expect(result.get(SEGMENT_ID_B)?.meta.assignmentCount).toBe(1);
       });
 
+      it('orders placements deterministically when they tie on area and renglaPosition', async () => {
+        // Two direction nodes both have renglaPosition null, so the comparator's
+        // `Infinity - Infinity` is NaN and the sort would otherwise keep whatever order
+        // Postgres returned — which differs between a single-segment filter and an IN (...)
+        // one. suggestedRemovalAssignmentIds is derived from this order, so it must not drift.
+        const makeDirection = (id: string, nodeId: string) =>
+          makeConflictAssignment({
+            id,
+            instanceNode: makeInstanceNode({
+              id: nodeId,
+              zone: FigureZone.DIRECTION,
+              renglaPosition: null,
+            }) as any,
+          });
+        const a = makeDirection('aaa-assignment', 'inode-a');
+        const b = makeDirection('bbb-assignment', 'inode-b');
+
+        mockAssignmentRepo.find.mockResolvedValueOnce([b, a]);
+        const oneOrder = await service.getSegmentConflicts(SEGMENT_ID);
+
+        mockAssignmentRepo.find.mockResolvedValueOnce([a, b]);
+        const otherOrder = await service.getSegmentConflicts(SEGMENT_ID);
+
+        expect(oneOrder).toEqual(otherOrder);
+        expect(oneOrder.data[0].placements.map((p) => p.assignmentId)).toEqual([
+          'aaa-assignment',
+          'bbb-assignment',
+        ]);
+      });
+
+      it('picks the same suggested removal regardless of the order the rows arrive in', async () => {
+        // Two pinya placements tied on renglaPosition: which one PINYA_PINYA proposes to remove
+        // must not depend on row order, or the UI would suggest a different person per read.
+        const makePinya = (id: string, nodeId: string) =>
+          makeConflictAssignment({
+            id,
+            instanceNode: makeInstanceNode({
+              id: nodeId,
+              zone: FigureZone.PINYA,
+              renglaPosition: 2,
+              z: 0,
+            }) as any,
+          });
+        const a = makePinya('aaa-assignment', 'inode-a');
+        const b = makePinya('bbb-assignment', 'inode-b');
+
+        mockAssignmentRepo.find.mockResolvedValueOnce([b, a]);
+        const first = await service.getSegmentConflicts(SEGMENT_ID);
+
+        mockAssignmentRepo.find.mockResolvedValueOnce([a, b]);
+        const second = await service.getSegmentConflicts(SEGMENT_ID);
+
+        expect(first.data[0].kind).toBe(SegmentConflictKind.PINYA_PINYA);
+        expect(first.data[0].suggestedRemovalAssignmentIds).toEqual(
+          second.data[0].suggestedRemovalAssignmentIds,
+        );
+        expect(first.data[0].suggestedRemovalAssignmentIds).toEqual(['bbb-assignment']);
+      });
+
       it('gives the same answer as the per-segment getSegmentConflicts for the same assignments', async () => {
         const troncAssignment = makeConflictAssignment({
           instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,

@@ -907,10 +907,21 @@ export class NodeAssignmentService {
       }));
       if (placements.length < 2) continue;
 
+      // Every sort below ends on assignmentId. Without that last tiebreaker the order of two
+      // placements that tie on area and renglaPosition (two direction nodes, two cordó-obert
+      // nodes…) falls through to the order Postgres happened to return the rows in — which has
+      // no ORDER BY, and genuinely differs between a single-segment filter and an IN (...) one.
+      // That is not only cosmetic: suggestedRemovalAssignmentIds below is derived from these
+      // orders, so the placement the UI proposes to remove could change between two reads of
+      // the same unchanged data.
       placements.sort((x, y) => {
         const rankDiff = (areaRank[x.area] ?? 99) - (areaRank[y.area] ?? 99);
         if (rankDiff !== 0) return rankDiff;
-        return (x.renglaPosition ?? Infinity) - (y.renglaPosition ?? Infinity);
+        // Truthiness, not `!== 0`: two nodes with no renglaPosition give Infinity - Infinity,
+        // which is NaN, and NaN would sneak past a `!== 0` check and be returned as the result.
+        const posDiff = (x.renglaPosition ?? Infinity) - (y.renglaPosition ?? Infinity);
+        if (posDiff) return posDiff;
+        return x.assignmentId.localeCompare(y.assignmentId);
       });
 
       const pinyaPlacements = placements.filter((p) => p.area === AssignmentArea.PINYA);
@@ -921,9 +932,11 @@ export class NodeAssignmentService {
       // PINYA_PINYA keeps the interior one (lowest renglaPosition, fallback z).
       let suggestedRemovalAssignmentIds: string[];
       if (kind === SegmentConflictKind.PINYA_PINYA) {
-        const byInterior = [...pinyaPlacements].sort(
-          (x, y) => (x.renglaPosition ?? x.z ?? Infinity) - (y.renglaPosition ?? y.z ?? Infinity),
-        );
+        const byInterior = [...pinyaPlacements].sort((x, y) => {
+          const diff =
+            (x.renglaPosition ?? x.z ?? Infinity) - (y.renglaPosition ?? y.z ?? Infinity);
+          return diff ? diff : x.assignmentId.localeCompare(y.assignmentId);
+        });
         suggestedRemovalAssignmentIds = byInterior.slice(1).map((p) => p.assignmentId);
       } else {
         suggestedRemovalAssignmentIds = pinyaPlacements.map((p) => p.assignmentId);
@@ -937,7 +950,10 @@ export class NodeAssignmentService {
       SegmentConflictKind.TRONC_PINYA,
       SegmentConflictKind.PINYA_PINYA,
     ];
-    conflicts.sort((a, b) => kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind));
+    conflicts.sort((a, b) => {
+      const kindDiff = kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind);
+      return kindDiff !== 0 ? kindDiff : a.personId.localeCompare(b.personId);
+    });
 
     return conflicts;
   }
