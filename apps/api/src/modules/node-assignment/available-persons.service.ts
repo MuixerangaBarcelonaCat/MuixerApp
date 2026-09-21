@@ -101,11 +101,11 @@ export class AvailablePersonsService {
       // change which people the box returns. Left as-is deliberately — see docs/DEBT.md.
       qb.andWhere(
         `(
-          f_unaccent(lower(person.alias)) LIKE f_unaccent(lower(:searchPattern))
-          OR f_unaccent(lower(person.name)) LIKE f_unaccent(lower(:searchPattern))
+          public.f_unaccent(lower(person.alias)) LIKE public.f_unaccent(lower(:searchPattern))
+          OR public.f_unaccent(lower(person.name)) LIKE public.f_unaccent(lower(:searchPattern))
           OR GREATEST(
-            word_similarity(f_unaccent(lower(:rawSearch)), f_unaccent(lower(person.alias))),
-            word_similarity(f_unaccent(lower(:rawSearch)), f_unaccent(lower(person.name)))
+            word_similarity(public.f_unaccent(lower(:rawSearch)), public.f_unaccent(lower(person.alias))),
+            word_similarity(public.f_unaccent(lower(:rawSearch)), public.f_unaccent(lower(person.name)))
           ) > 0.2
         )`,
         { searchPattern: `%${search}%`, rawSearch: search },

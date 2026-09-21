@@ -16,23 +16,30 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * `regdictionary` argument and is declared IMMUTABLE so it can be indexed. The declaration is
  * only true as long as nobody redefines the `unaccent` dictionary — if that ever happens,
  * these indexes must be REINDEXed.
+ *
+ * Everything inside the function body is schema-qualified, and the function pins its own
+ * `search_path`. Without that, a `pg_dump` of this database does not restore: pg_dump runs the
+ * restore with `search_path = ''`, the bare `'unaccent'::regdictionary` fails to resolve, and
+ * every CREATE INDEX below is silently skipped — leaving a restored database whose person
+ * searches are back to sequential scans with nothing in the logs to say so.
  */
 export class AddPersonSearchTrigramIndexes1785400000000 implements MigrationInterface {
   name = 'AddPersonSearchTrigramIndexes1785400000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE OR REPLACE FUNCTION f_unaccent(text)
+      CREATE OR REPLACE FUNCTION public.f_unaccent(text)
       RETURNS text
       LANGUAGE sql
       IMMUTABLE PARALLEL SAFE STRICT
-      AS $$ SELECT unaccent('unaccent'::regdictionary, $1) $$
+      SET search_path = pg_catalog, public
+      AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $$
     `);
 
     for (const column of ['alias', 'name', 'firstSurname', 'secondSurname']) {
       await queryRunner.query(`
         CREATE INDEX IF NOT EXISTS "IDX_persons_trgm_${column.toLowerCase()}"
-        ON "persons" USING gin (f_unaccent(lower("${column}")) gin_trgm_ops)
+        ON "persons" USING gin (public.f_unaccent(lower("${column}")) gin_trgm_ops)
       `);
     }
   }
@@ -42,6 +49,6 @@ export class AddPersonSearchTrigramIndexes1785400000000 implements MigrationInte
       await queryRunner.query(`DROP INDEX IF EXISTS "IDX_persons_trgm_${column.toLowerCase()}"`);
     }
     // Dropped last: the indexes above depend on it.
-    await queryRunner.query(`DROP FUNCTION IF EXISTS f_unaccent(text)`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS public.f_unaccent(text)`);
   }
 }

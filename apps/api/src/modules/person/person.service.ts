@@ -88,16 +88,16 @@ export class PersonService {
       .leftJoinAndSelect('person.user', 'user');
 
     if (search) {
-      // `f_unaccent(lower(col))` — and not `unaccent(col) ILIKE …` — because that is the exact
+      // `public.f_unaccent(lower(col))` — and not `unaccent(col) ILIKE …` — because that is the exact
       // expression the trigram indexes are built on (AddPersonSearchTrigramIndexes). Postgres
       // only uses an expression index when the predicate matches it character for character.
       // `lower()` + LIKE is equivalent to ILIKE for these columns.
       queryBuilder.andWhere(
         `(
-          f_unaccent(lower(person.alias)) LIKE f_unaccent(lower(:search))
-          OR f_unaccent(lower(person.name)) LIKE f_unaccent(lower(:search))
-          OR f_unaccent(lower(person.firstSurname)) LIKE f_unaccent(lower(:search))
-          OR f_unaccent(lower(person.secondSurname)) LIKE f_unaccent(lower(:search))
+          public.f_unaccent(lower(person.alias)) LIKE public.f_unaccent(lower(:search))
+          OR public.f_unaccent(lower(person.name)) LIKE public.f_unaccent(lower(:search))
+          OR public.f_unaccent(lower(person.firstSurname)) LIKE public.f_unaccent(lower(:search))
+          OR public.f_unaccent(lower(person.secondSurname)) LIKE public.f_unaccent(lower(:search))
         )`,
         { search: `%${search}%` },
       );

@@ -65,6 +65,20 @@ describe('person search — trigram-indexable predicate (integration)', () => {
     expect(row?.provolatile).toBe('i');
   });
 
+  it('resolves f_unaccent with an empty search_path, the way a pg_dump restore runs it', async () => {
+    // Regression: with an unqualified body, `pg_dump | psql` restores the function fine but then
+    // fails every `CREATE INDEX` that uses it — silently, because pg_dump sets `search_path = ''`
+    // and `'unaccent'::regdictionary` no longer resolves. The restored database then has no
+    // trigram indexes at all and nothing says so. Found by actually round-tripping a dump.
+    await db.dataSource.query(`SET search_path = ''`);
+    try {
+      const [row] = await db.dataSource.query(`SELECT public.f_unaccent(lower('Mònica')) AS v`);
+      expect(row.v).toBe('monica');
+    } finally {
+      await db.dataSource.query(`SET search_path = "$user", public`);
+    }
+  });
+
   it('created a trigram index per searchable person column', async () => {
     const rows: { indexname: string }[] = await db.dataSource.query(
       `SELECT indexname FROM pg_indexes WHERE tablename = 'persons' AND indexname LIKE 'IDX_persons_trgm_%'`,
@@ -84,7 +98,7 @@ describe('person search — trigram-indexable predicate (integration)', () => {
     await db.dataSource.query('SET enable_seqscan = off');
     try {
       const plan: { 'QUERY PLAN': string }[] = await db.dataSource.query(
-        `EXPLAIN SELECT id FROM persons WHERE f_unaccent(lower("alias")) LIKE f_unaccent(lower('%onic%'))`,
+        `EXPLAIN SELECT id FROM persons WHERE public.f_unaccent(lower("alias")) LIKE public.f_unaccent(lower('%onic%'))`,
       );
       expect(plan.map((r) => r['QUERY PLAN']).join('\n')).toContain('IDX_persons_trgm_alias');
     } finally {
