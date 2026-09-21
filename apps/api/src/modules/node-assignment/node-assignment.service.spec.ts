@@ -189,7 +189,7 @@ const mockFigureNodeRepo = {
 };
 
 const mockPersonRepo = { findOne: jest.fn() };
-const mockTemplateRepo = { findOne: jest.fn() };
+const mockTemplateRepo = { findOne: jest.fn(), find: jest.fn() };
 const mockSegmentRepo = { findOne: jest.fn(), find: jest.fn() };
 const mockEventRepo = { findOne: jest.fn() };
 const mockDataSource = {
@@ -331,6 +331,142 @@ describe('NodeAssignmentService', () => {
       const result = await service.getInstanceNodes(INSTANCE_ID);
 
       expect(result[0].climbIndicator).toBe('X');
+    });
+  });
+
+  // ── batched loaders (projection) ───────────────────────────────────────
+
+  describe('getNodesByInstances', () => {
+    const OTHER_INSTANCE_ID = 'instance-uuid-2';
+
+    it('returns an empty map and queries nothing for an empty id list', async () => {
+      const result = await service.getNodesByInstances([]);
+
+      expect(result.size).toBe(0);
+      expect(mockInstanceRepo.find).not.toHaveBeenCalled();
+      expect(mockInstanceNodeRepo.find).not.toHaveBeenCalled();
+      expect(mockTemplateRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('groups snapshotted InstanceNodes by their own instance', async () => {
+      mockInstanceRepo.find.mockResolvedValue([
+        makeInstance({ snapshotted: true }),
+        makeInstance({ id: OTHER_INSTANCE_ID, snapshotted: true }),
+      ]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        { ...makeInstanceNode(), figureInstance: { id: INSTANCE_ID } },
+        { ...makeInstanceNode({ id: 'inode-uuid-2' }), figureInstance: { id: OTHER_INSTANCE_ID } },
+      ]);
+
+      const result = await service.getNodesByInstances([INSTANCE_ID, OTHER_INSTANCE_ID]);
+
+      expect(result.get(INSTANCE_ID)?.map((n) => n.id)).toEqual([INSTANCE_NODE_ID]);
+      expect(result.get(OTHER_INSTANCE_ID)?.map((n) => n.id)).toEqual(['inode-uuid-2']);
+      expect(mockInstanceNodeRepo.find).toHaveBeenCalledTimes(1);
+      expect(mockTemplateRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the live template nodes for a not-yet-snapshotted instance', async () => {
+      mockInstanceRepo.find.mockResolvedValue([
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      ]);
+      mockTemplateRepo.find.mockResolvedValue([makeTemplate()]);
+
+      const result = await service.getNodesByInstances([INSTANCE_ID]);
+
+      expect(result.get(INSTANCE_ID)?.map((n) => n.id)).toEqual([FIGURE_NODE_ID]);
+      expect(result.get(INSTANCE_ID)?.[0].isSnapshotted).toBe(false);
+      expect(mockInstanceNodeRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('matches getInstanceNodes for the same snapshotted instance', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.find.mockResolvedValue([makeInstanceNode()]);
+      const single = await service.getInstanceNodes(INSTANCE_ID);
+
+      mockInstanceRepo.find.mockResolvedValue([makeInstance({ snapshotted: true })]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        { ...makeInstanceNode(), figureInstance: { id: INSTANCE_ID } },
+      ]);
+      const batched = await service.getNodesByInstances([INSTANCE_ID]);
+
+      expect(batched.get(INSTANCE_ID)).toEqual(single);
+    });
+
+    it('resolves one template even when several instances share it', async () => {
+      mockInstanceRepo.find.mockResolvedValue([
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+        makeInstance({ id: OTHER_INSTANCE_ID, snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      ]);
+      mockTemplateRepo.find.mockResolvedValue([makeTemplate()]);
+
+      await service.getNodesByInstances([INSTANCE_ID, OTHER_INSTANCE_ID]);
+
+      expect(mockTemplateRepo.find).toHaveBeenCalledTimes(1);
+      expect(mockTemplateRepo.find.mock.calls[0][0].where.id._value).toEqual([TEMPLATE_ID]);
+    });
+
+    it('sorts live template nodes by sortOrder', async () => {
+      mockInstanceRepo.find.mockResolvedValue([
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      ]);
+      mockTemplateRepo.find.mockResolvedValue([
+        makeTemplate({
+          nodes: [
+            makeFigureNode({ id: 'fnode-b', sortOrder: 2 }),
+            makeFigureNode({ id: 'fnode-a', sortOrder: 1 }),
+          ],
+        }),
+      ]);
+
+      const result = await service.getNodesByInstances([INSTANCE_ID]);
+
+      expect(result.get(INSTANCE_ID)?.map((n) => n.id)).toEqual(['fnode-a', 'fnode-b']);
+    });
+  });
+
+  describe('getAssignmentsByInstances', () => {
+    const OTHER_INSTANCE_ID = 'instance-uuid-2';
+
+    it('returns an empty map and queries nothing for an empty id list', async () => {
+      const result = await service.getAssignmentsByInstances([]);
+
+      expect(result.size).toBe(0);
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('groups assignments by instance in a single query', async () => {
+      mockAssignmentRepo.find.mockResolvedValue([
+        makeAssignment(),
+        makeAssignment({
+          id: 'assignment-uuid-2',
+          figureInstance: makeInstance({ id: OTHER_INSTANCE_ID }),
+        }),
+      ]);
+
+      const result = await service.getAssignmentsByInstances([INSTANCE_ID, OTHER_INSTANCE_ID]);
+
+      expect(mockAssignmentRepo.find).toHaveBeenCalledTimes(1);
+      expect(result.get(INSTANCE_ID)).toHaveLength(1);
+      expect(result.get(OTHER_INSTANCE_ID)?.[0].id).toBe('assignment-uuid-2');
+    });
+
+    it('omits instances that have no assignments', async () => {
+      mockAssignmentRepo.find.mockResolvedValue([makeAssignment()]);
+
+      const result = await service.getAssignmentsByInstances([INSTANCE_ID, OTHER_INSTANCE_ID]);
+
+      expect(result.has(OTHER_INSTANCE_ID)).toBe(false);
+    });
+
+    it('matches getByInstance for the same instance', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+      mockAssignmentRepo.find.mockResolvedValue([makeAssignment()]);
+
+      const single = await service.getByInstance(INSTANCE_ID);
+      const batched = await service.getAssignmentsByInstances([INSTANCE_ID]);
+
+      expect(batched.get(INSTANCE_ID)).toEqual(single);
     });
   });
 

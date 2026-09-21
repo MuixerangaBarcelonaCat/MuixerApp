@@ -354,7 +354,96 @@ export class NodeAssignmentService {
     return allNodes;
   }
 
+  /**
+   * Batched `getInstanceNodes` for a whole segment: 3 queries regardless of how many
+   * instances are passed, instead of 2 per instance. The projection redraws on every
+   * prev/next swipe of every member's device during an actuació, so the per-instance
+   * version made the cost of one segment grow with the number of figures in it.
+   */
+  async getNodesByInstances(instanceIds: string[]): Promise<Map<string, InstanceNodeResponse[]>> {
+    const byInstance = new Map<string, InstanceNodeResponse[]>();
+    if (instanceIds.length === 0) return byInstance;
+
+    const instances = await this.figureInstanceRepository.find({
+      where: { id: In(instanceIds) },
+      relations: ['figureTemplate'],
+    });
+
+    const snapshottedIds = instances.filter((i) => i.snapshotted).map((i) => i.id);
+    const nodesBySnapshottedInstance = new Map<string, InstanceNode[]>();
+    if (snapshottedIds.length > 0) {
+      const nodes = await this.instanceNodeRepository.find({
+        where: { figureInstance: { id: In(snapshottedIds) } },
+        relations: ['figureInstance'],
+        order: { sortOrder: 'ASC' },
+      });
+      for (const node of nodes) {
+        const list = nodesBySnapshottedInstance.get(node.figureInstance.id) ?? [];
+        list.push(node);
+        nodesBySnapshottedInstance.set(node.figureInstance.id, list);
+      }
+    }
+
+    const templateIds = [
+      ...new Set(
+        instances
+          .filter((i) => !i.snapshotted && i.figureTemplate)
+          .map((i) => i.figureTemplate!.id),
+      ),
+    ];
+    const templatesById = new Map<string, FigureTemplate>();
+    if (templateIds.length > 0) {
+      const templates = await this.figureTemplateRepository.find({
+        where: { id: In(templateIds) },
+        relations: ['nodes'],
+      });
+      for (const template of templates) templatesById.set(template.id, template);
+    }
+
+    for (const instance of instances) {
+      if (instance.snapshotted) {
+        byInstance.set(
+          instance.id,
+          (nodesBySnapshottedInstance.get(instance.id) ?? []).map(instanceNodeToResponse),
+        );
+        continue;
+      }
+
+      const template = instance.figureTemplate
+        ? templatesById.get(instance.figureTemplate.id)
+        : undefined;
+      byInstance.set(
+        instance.id,
+        (template?.nodes ?? [])
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map(figureNodeToResponse),
+      );
+    }
+
+    return byInstance;
+  }
+
   // ── Existing — assignments list ────────────────────────────────────────────
+
+  /** Batched `getByInstance`: one query for a whole segment instead of two per instance. */
+  async getAssignmentsByInstances(instanceIds: string[]): Promise<Map<string, AssignmentDetail[]>> {
+    const byInstance = new Map<string, AssignmentDetail[]>();
+    if (instanceIds.length === 0) return byInstance;
+
+    const assignments = await this.assignmentRepository.find({
+      where: { figureInstance: { id: In(instanceIds) } },
+      relations: ['instanceNode', 'person', 'figureInstance'],
+    });
+
+    for (const assignment of assignments) {
+      const list = byInstance.get(assignment.figureInstance.id) ?? [];
+      list.push(toAssignmentDetail(assignment));
+      byInstance.set(assignment.figureInstance.id, list);
+    }
+
+    return byInstance;
+  }
 
   async getByInstance(instanceId: string): Promise<AssignmentDetail[]> {
     const instance = await this.figureInstanceRepository.findOne({ where: { id: instanceId } });
