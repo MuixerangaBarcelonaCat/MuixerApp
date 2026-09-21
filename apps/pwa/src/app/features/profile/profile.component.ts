@@ -35,9 +35,6 @@ export class ProfileComponent {
   protected readonly UserIcon = User;
   protected readonly ChevronRight = ChevronRight;
 
-  /** Placeholder tiles — real stats are deferred (see implementation plan §5). */
-  protected readonly statPlaceholders = ['Assajos', 'Actuacions', 'Assistència'];
-
   protected readonly selectedPersonId = signal<string | null>(
     this.auth.currentUser()?.person?.id ?? null,
   );
@@ -77,5 +74,19 @@ export class ProfileComponent {
 
   protected delegationLabel(count: number): string {
     return count === 1 ? '1 delegació' : `${count} delegacions`;
+  }
+
+  protected statTiles(personSummary: PersonProfileSummary): { label: string; value: string }[] {
+    const { assajosAttended, assajosTotal, actuacionsAttended, actuacionsTotal } =
+      personSummary.seasonAttendance;
+    const totalAttended = assajosAttended + actuacionsAttended;
+    const total = assajosTotal + actuacionsTotal;
+    const attendancePercent = total === 0 ? null : Math.round((totalAttended / total) * 100);
+
+    return [
+      { label: 'Assajos', value: `${assajosAttended}/${assajosTotal}` },
+      { label: 'Actuacions', value: `${actuacionsAttended}/${actuacionsTotal}` },
+      { label: 'Assistència', value: attendancePercent === null ? '—' : `${attendancePercent}%` },
+    ];
   }
 }

@@ -1,31 +1,64 @@
 <app-mobile-header title="Agenda" />
 
-<div class="flex items-center justify-end gap-4 mb-4">
+<div class="flex items-center justify-between gap-2 mb-4">
   @if (viewMode() === 'list') {
-    <lib-button variant="ghost" size="sm" routerLink="/events/past">
-      Passats
-      <lucide-icon [img]="ChevronRightIcon" [size]="16" aria-hidden="true" />
-    </lib-button>
+    <div
+      role="tablist"
+      class="tabs tabs-boxed flex-nowrap overflow-x-auto min-w-0"
+      aria-label="Filtra per tipus d'event"
+      data-testid="event-list-type-filters"
+    >
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5 whitespace-nowrap"
+        [class.tab-active]="showActuacions()"
+        [attr.aria-selected]="showActuacions()"
+        (click)="toggleActuacions()"
+      >
+        Actuacions
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5 whitespace-nowrap"
+        [class.tab-active]="showAssajos()"
+        [attr.aria-selected]="showAssajos()"
+        (click)="toggleAssajos()"
+      >
+        Assajos
+      </button>
+    </div>
   }
 
-  <lib-button
-    variant="ghost"
-    size="sm"
-    shape="square"
-    [ariaLabel]="viewMode() === 'list' ? 'Mostra el calendari' : 'Mostra la llista'"
-    (clicked)="toggleView()"
-  >
+  <div class="flex items-center gap-4 shrink-0 ml-auto">
     @if (viewMode() === 'list') {
-      <lucide-icon [img]="CalendarIcon" [size]="20" />
-    } @else {
-      <lucide-icon [img]="ListIcon" [size]="20" />
+      <lib-button variant="ghost" size="sm" routerLink="/events/past">
+        Passats
+        <lucide-icon [img]="ChevronRightIcon" [size]="16" aria-hidden="true" />
+      </lib-button>
     }
-  </lib-button>
+
+    <lib-button
+      variant="ghost"
+      size="sm"
+      shape="square"
+      [ariaLabel]="viewMode() === 'list' ? 'Mostra el calendari' : 'Mostra la llista'"
+      (clicked)="toggleView()"
+    >
+      @if (viewMode() === 'list') {
+        <lucide-icon [img]="CalendarIcon" [size]="20" />
+      } @else {
+        <lucide-icon [img]="ListIcon" [size]="20" />
+      }
+    </lib-button>
+  </div>
 </div>
 
 @if (viewMode() === 'list') {
   <app-event-feed
     timeFilter="upcoming"
+    [eventType]="typeFilter()"
     emptyMessage="No hi ha assajos ni actuacions propers programats."
     (attendanceChanged)="onAttendanceChanged($event)"
   />

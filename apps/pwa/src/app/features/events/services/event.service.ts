@@ -9,6 +9,7 @@ import {
   AttendanceResponse,
   AttendanceStatus,
   EventType,
+  EventAttendanceStats,
 } from '@muixer/shared';
 import { environment } from '../../../../environments/environment';
 
@@ -40,6 +41,11 @@ export class EventService {
 
   findSegments(eventId: string): Observable<MeSegment[]> {
     return this.http.get<MeSegment[]>(`${this.baseUrl}/${eventId}/segments`);
+  }
+
+  /** TECHNICAL/ADMIN only: attendance breakdown by status, adults vs xicalla. */
+  getAttendanceStats(eventId: string): Observable<EventAttendanceStats> {
+    return this.http.get<EventAttendanceStats>(`${this.baseUrl}/${eventId}/attendance-stats`);
   }
 
   updateAttendance(

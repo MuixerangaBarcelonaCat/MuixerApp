@@ -971,7 +971,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.on('touchstart', (e) => {
       this.cancelFlight();
       const touches = e.evt.touches;
-      if (touches.length === 1 && e.target === this.stage && this.canPanOrZoom()) {
+      if (touches.length === 1 && !e.target.draggable() && this.canPanOrZoom()) {
         panStart = getTouchPoint(touches[0]);
         panStageStart = { x: this.stage.x(), y: this.stage.y() };
       } else if (touches.length === 2) {

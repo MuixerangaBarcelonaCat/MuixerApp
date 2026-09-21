@@ -28,6 +28,7 @@ describe('MeController', () => {
             completePendingDependent: jest.fn(),
             findEventSegments: jest.fn(),
             findSegmentProjection: jest.fn(),
+            getEventAttendanceStats: jest.fn(),
             resolveManagedPersons: jest.fn(),
             getPersonSummary: jest.fn(),
             listPersonDelegates: jest.fn(),
@@ -137,6 +138,26 @@ describe('MeController', () => {
     });
   });
 
+  describe('getEventAttendanceStats', () => {
+    it('delegates to MeService with the event id', async () => {
+      const expected = {
+        byStatus: {
+          PENDENT: { adults: 0, xicalla: 0 },
+          ANIRE: { adults: 0, xicalla: 0 },
+          NO_VAIG: { adults: 0, xicalla: 0 },
+          ASSISTIT: { adults: 0, xicalla: 0 },
+        },
+        coming: { adults: 0, xicalla: 0 },
+      } as never;
+      meService.getEventAttendanceStats.mockResolvedValue(expected);
+
+      const result = await controller.getEventAttendanceStats('event-1');
+
+      expect(meService.getEventAttendanceStats).toHaveBeenCalledWith('event-1');
+      expect(result).toEqual(expected);
+    });
+  });
+
   describe('getPendingDependents', () => {
     it('delegates to MeService with the current user id', async () => {
       const expected = [
@@ -190,6 +211,12 @@ describe('MeController', () => {
         name: 'Marta',
         firstSurname: 'Puig',
         delegationCount: 1,
+        seasonAttendance: {
+          assajosAttended: 0,
+          assajosTotal: 0,
+          actuacionsAttended: 0,
+          actuacionsTotal: 0,
+        },
       };
       meService.getPersonSummary.mockResolvedValue(expected);
 

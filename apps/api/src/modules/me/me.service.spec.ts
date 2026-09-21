@@ -22,6 +22,7 @@ import { NewsService } from '../news/news.service';
 import { FigureDataChangedEvent, SegmentChangeSource } from '@muixer/shared';
 import { News } from '../news/news.entity';
 import { SegmentChangeEmitter } from '../segment-events/segment-change.emitter';
+import { SeasonService } from '../season/season.service';
 
 const mockUser: JwtPayload = {
   sub: 'user-1',
@@ -60,6 +61,7 @@ describe('MeService', () => {
   let nodeAssignmentRepo: jest.Mocked<Repository<NodeAssignment>>;
   let personRepo: jest.Mocked<Repository<Person>>;
   let newsService: jest.Mocked<NewsService>;
+  let seasonService: jest.Mocked<SeasonService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -92,6 +94,7 @@ describe('MeService', () => {
             save: jest.fn(),
             upsert: jest.fn(),
             findOneOrFail: jest.fn(),
+            createQueryBuilder: jest.fn(),
           },
         },
         {
@@ -133,6 +136,10 @@ describe('MeService', () => {
           provide: SegmentChangeEmitter,
           useValue: changeEmitter,
         },
+        {
+          provide: SeasonService,
+          useValue: { findCurrent: jest.fn(), findCurrentEntity: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -148,7 +155,9 @@ describe('MeService', () => {
     eventSegmentService = module.get(EventSegmentService);
     nodeAssignmentRepo = module.get(getRepositoryToken(NodeAssignment));
     newsService = module.get(NewsService);
+    seasonService = module.get(SeasonService);
     attendanceRepo.find.mockResolvedValue([]);
+    seasonService.findCurrentEntity.mockResolvedValue(null);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -251,6 +260,12 @@ describe('MeService', () => {
         name: 'Marta',
         firstSurname: 'Puig',
         delegationCount: 2,
+        seasonAttendance: {
+          assajosAttended: 0,
+          assajosTotal: 0,
+          actuacionsAttended: 0,
+          actuacionsTotal: 0,
+        },
       });
     });
 
@@ -265,6 +280,59 @@ describe('MeService', () => {
       personRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getPersonSummary('user-1', 'p-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns zeroed season attendance when there is no current season', async () => {
+      personRepo.findOne.mockResolvedValue({
+        id: 'p-1',
+        alias: 'MartaP',
+        name: 'Marta',
+        firstSurname: 'Puig',
+      } as Person);
+      seasonService.findCurrentEntity.mockResolvedValue(null);
+
+      const result = await service.getPersonSummary('user-1', 'p-1');
+
+      expect(eventRepo.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result.seasonAttendance).toEqual({
+        assajosAttended: 0,
+        assajosTotal: 0,
+        actuacionsAttended: 0,
+        actuacionsTotal: 0,
+      });
+    });
+
+    it('aggregates assajos/actuacions attendance for the current season', async () => {
+      personRepo.findOne.mockResolvedValue({
+        id: 'p-1',
+        alias: 'MartaP',
+        name: 'Marta',
+        firstSurname: 'Puig',
+      } as Person);
+      seasonService.findCurrentEntity.mockResolvedValue({ id: 'season-1' } as never);
+      const mockQb = {
+        leftJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        setParameter: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { eventType: EventType.ASSAIG, total: '10', attended: '7' },
+          { eventType: EventType.ACTUACIO, total: '3', attended: '3' },
+        ]),
+      };
+      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+
+      const result = await service.getPersonSummary('user-1', 'p-1');
+
+      expect(result.seasonAttendance).toEqual({
+        assajosAttended: 7,
+        assajosTotal: 10,
+        actuacionsAttended: 3,
+        actuacionsTotal: 3,
+      });
     });
   });
 
@@ -788,6 +856,48 @@ describe('MeService', () => {
         onlyPublished: true,
       });
       expect(result).toBe(expected);
+    });
+  });
+
+  describe('getEventAttendanceStats', () => {
+    it('throws NotFoundException when the event does not exist', async () => {
+      eventRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getEventAttendanceStats('event-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('groups attendance counts by status and adult/xicalla, deriving the coming totals', async () => {
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
+      const mockQb = {
+        leftJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        addGroupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { status: AttendanceStatus.PENDENT, isXicalla: false, count: '3' },
+          { status: AttendanceStatus.PENDENT, isXicalla: true, count: '1' },
+          { status: AttendanceStatus.ANIRE, isXicalla: false, count: '10' },
+          { status: AttendanceStatus.ANIRE, isXicalla: true, count: '2' },
+          { status: AttendanceStatus.NO_VAIG, isXicalla: false, count: '1' },
+          { status: AttendanceStatus.ASSISTIT, isXicalla: false, count: '5' },
+          { status: AttendanceStatus.ASSISTIT, isXicalla: true, count: '1' },
+        ]),
+      };
+      attendanceRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+
+      const result = await service.getEventAttendanceStats('event-1');
+
+      expect(result).toEqual({
+        byStatus: {
+          PENDENT: { adults: 3, xicalla: 1 },
+          ANIRE: { adults: 10, xicalla: 2 },
+          NO_VAIG: { adults: 1, xicalla: 0 },
+          ASSISTIT: { adults: 5, xicalla: 1 },
+        },
+        coming: { adults: 15, xicalla: 3 },
+      });
     });
   });
 

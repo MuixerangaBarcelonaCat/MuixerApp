@@ -18,7 +18,6 @@ import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { safeCompare } from '../../common/utils/timing-safe-equal.util';
-import { Throttle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -51,7 +50,6 @@ interface RequestWithUser extends Request {
 
 @ApiTags('auth')
 @Controller('auth')
-@Throttle({ default: { limit: 10, ttl: 60000 } })
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 

@@ -20,6 +20,9 @@ import {
   PendingDependent,
   PersonProfileSummary,
   MeNewsItem,
+  AttendanceStatus,
+  EventType,
+  EventAttendanceStats,
   computeInstanceDisplayNames,
   FigureDataChangedEvent,
   SegmentChangeSource,
@@ -40,6 +43,7 @@ import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
 import { NewsService } from '../news/news.service';
+import { SeasonService } from '../season/season.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 import { DependentRegistrationDto } from './dto/dependent-registration.dto';
@@ -69,6 +73,7 @@ export class MeService {
     private readonly eventSegmentService: EventSegmentService,
     private readonly newsService: NewsService,
     private readonly segmentChanges: SegmentChangeEmitter,
+    private readonly seasonService: SeasonService,
   ) {}
 
   async resolveManagedPersons(
@@ -273,6 +278,45 @@ export class MeService {
     return visible.length > 0 ? { ...change, segmentIds: visible } : null;
   }
 
+  /** Desglossament d'assistència per estat, adults vs xicalla (TECHNICAL/ADMIN, "Passa llista" i detall de l'event). */
+  async getEventAttendanceStats(eventId: string): Promise<EventAttendanceStats> {
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    const rows = await this.attendanceRepository
+      .createQueryBuilder('attendance')
+      .leftJoin('attendance.person', 'person')
+      .select('attendance.status', 'status')
+      .addSelect('person."isXicalla"', 'isXicalla')
+      .addSelect('COUNT(*)', 'count')
+      .where('attendance."eventId" = :eventId', { eventId })
+      .groupBy('attendance.status')
+      .addGroupBy('person."isXicalla"')
+      .getRawMany<{ status: AttendanceStatus; isXicalla: boolean; count: string }>();
+
+    const byStatus: EventAttendanceStats['byStatus'] = {
+      [AttendanceStatus.PENDENT]: { adults: 0, xicalla: 0 },
+      [AttendanceStatus.ANIRE]: { adults: 0, xicalla: 0 },
+      [AttendanceStatus.NO_VAIG]: { adults: 0, xicalla: 0 },
+      [AttendanceStatus.ASSISTIT]: { adults: 0, xicalla: 0 },
+    };
+    for (const row of rows) {
+      if (!(row.status in byStatus)) continue;
+      byStatus[row.status][row.isXicalla ? 'xicalla' : 'adults'] = Number(row.count);
+    }
+
+    return {
+      byStatus,
+      coming: {
+        adults: byStatus[AttendanceStatus.ANIRE].adults + byStatus[AttendanceStatus.ASSISTIT].adults,
+        xicalla:
+          byStatus[AttendanceStatus.ANIRE].xicalla + byStatus[AttendanceStatus.ASSISTIT].xicalla,
+      },
+    };
+  }
+
   private async fetchAttendancesByEvent(
     eventIds: string[],
     managedPersons: ManagedPerson[],
@@ -377,6 +421,7 @@ export class MeService {
     }
 
     const delegates = await this.personDelegateService.findByPerson(personId);
+    const seasonAttendance = await this.computeSeasonAttendance(personId);
 
     return {
       personId: person.id,
@@ -384,7 +429,52 @@ export class MeService {
       name: person.name,
       firstSurname: person.firstSurname,
       delegationCount: delegates.filter((d) => d.isActive).length,
+      seasonAttendance,
     };
+  }
+
+  /** Assistència d'una persona a la temporada actual, sobre events ja passats. */
+  private async computeSeasonAttendance(
+    personId: string,
+  ): Promise<PersonProfileSummary['seasonAttendance']> {
+    const zero = {
+      assajosAttended: 0,
+      assajosTotal: 0,
+      actuacionsAttended: 0,
+      actuacionsTotal: 0,
+    };
+
+    const season = await this.seasonService.findCurrentEntity();
+    if (!season) return zero;
+
+    const rows = await this.eventRepository
+      .createQueryBuilder('event')
+      .leftJoin('event.attendances', 'attendance', 'attendance."personId" = :personId', {
+        personId,
+      })
+      .select('event."eventType"', 'eventType')
+      .addSelect('COUNT(DISTINCT event.id)', 'total')
+      .addSelect(
+        'COUNT(DISTINCT CASE WHEN attendance.status = :assistit THEN event.id END)',
+        'attended',
+      )
+      .where('event."seasonId" = :seasonId', { seasonId: season.id })
+      .andWhere('event.date <= :today', { today: getLocalToday() })
+      .groupBy('event."eventType"')
+      .setParameter('assistit', AttendanceStatus.ASSISTIT)
+      .getRawMany<{ eventType: EventType; total: string; attended: string }>();
+
+    for (const row of rows) {
+      if (row.eventType === EventType.ASSAIG) {
+        zero.assajosTotal = Number(row.total);
+        zero.assajosAttended = Number(row.attended);
+      } else if (row.eventType === EventType.ACTUACIO) {
+        zero.actuacionsTotal = Number(row.total);
+        zero.actuacionsAttended = Number(row.attended);
+      }
+    }
+
+    return zero;
   }
 
   async listPersonDelegates(userId: string, personId: string): Promise<PersonDelegate[]> {

@@ -27,6 +27,7 @@ import {
   PersonProfileSummary,
   UserRole,
   MeNewsItem,
+  EventAttendanceStats,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -68,6 +69,15 @@ export class MeController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<MeEventDetail> {
     return this.meService.findEventDetail(user, id);
+  }
+
+  @Get('events/:id/attendance-stats')
+  @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
+  @ApiOperation({ summary: "Desglossament d'assistència per estat, adults vs xicalla" })
+  getEventAttendanceStats(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<EventAttendanceStats> {
+    return this.meService.getEventAttendanceStats(id);
   }
 
   @Put('events/:id/attendance')
