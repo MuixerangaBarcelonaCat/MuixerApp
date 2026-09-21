@@ -750,7 +750,35 @@ describe('MeService', () => {
       const result = await service.findEventSegments(mockUser, 'event-1');
 
       expect(result[0].myPlacements).toEqual([
-        { nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: FigureMode.COMPLETA },
+        expect.objectContaining({ nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: FigureMode.COMPLETA }),
+      ]);
+    });
+
+    it('exposes instanceId, positionType and area so clients can apply the direcció-pinya exemption', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        makeSegment({
+          instances: [
+            { id: 'i1', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true } },
+          ],
+        }),
+      ] as never);
+      nodeAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({
+          figureInstance: { id: 'i1', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { name: 'pd4' } },
+          instanceNode: { label: 'Direcció pinya', renglaPosition: null, zone: FigureZone.DIRECTION, positionType: 'direccio-pinya' },
+        }),
+        makeAssignment({
+          figureInstance: { id: 'i1', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { name: 'pd4' } },
+          instanceNode: { label: 'Vent', renglaPosition: 1, zone: FigureZone.PINYA, positionType: 'vents' },
+        }),
+      ] as never);
+
+      const result = await service.findEventSegments(mockUser, 'event-1');
+
+      expect(result[0].myPlacements).toEqual([
+        expect.objectContaining({ instanceId: 'i1', positionType: 'direccio-pinya', area: AssignmentArea.DIRECTION }),
+        expect.objectContaining({ instanceId: 'i1', positionType: 'vents', area: AssignmentArea.PINYA }),
       ]);
     });
 
