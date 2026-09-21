@@ -306,6 +306,8 @@ const CONFLICT_STROKE = '#e11d48';
 /** Matches the min/max of the zoom-selector dropdown (25%–500%). */
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 5;
+/** Fixed size (px) of the observation emoji (1rem), independent of the node/alias size. */
+const NOTES_EMOJI_FONT_SIZE = 16;
 
 @Component({
   selector: 'app-figure-canvas',
@@ -1654,6 +1656,24 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     return handle;
   }
 
+  /**
+   * Observation emoji at a fixed size. Colour emoji are bitmap glyphs, so a text stroke draws
+   * nothing; the drop shadow follows the glyph's silhouette instead and acts as the outline.
+   */
+  private buildNotesEmoji(emoji: string, x: number): Konva.Text {
+    return new Konva.Text({
+      text: emoji,
+      fontSize: NOTES_EMOJI_FONT_SIZE,
+      x: x - NOTES_EMOJI_FONT_SIZE / 2,
+      y: -NOTES_EMOJI_FONT_SIZE / 2,
+      shadowColor: '#000000',
+      shadowBlur: 5,
+      shadowOffset: { x: 0, y: 0 },
+      shadowOpacity: 1,
+      listening: false,
+    });
+  }
+
   /** Small "circle-alert" glyph (matches ICON_OBSERVACIONS) marking a person with technical observations. */
   private buildObservationBadge(x: number, y: number): Konva.Group {
     const group = new Konva.Group({ x, y, listening: false });
@@ -1860,16 +1880,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           const probe = this.getLabelMeasureProbe();
           probe.fontSize(11);
           probe.text(alias);
-          const badgeX = Math.min(probe.getTextWidth() / 2 + 8, node.width / 2 - 5);
+          const badgeX = Math.min(probe.getTextWidth() / 2 + 12, node.width / 2 - 8);
           group.add(
             personDetails.notesEmoji
-              ? new Konva.Text({
-                  text: personDetails.notesEmoji,
-                  fontSize: 12,
-                  x: badgeX - 6,
-                  y: -6,
-                  listening: false,
-                })
+              ? this.buildNotesEmoji(personDetails.notesEmoji, badgeX)
               : this.buildObservationBadge(badgeX, 0),
           );
         }
@@ -2274,16 +2288,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const probe = this.getLabelMeasureProbe();
         probe.fontSize(11);
         probe.text(alias);
-        const badgeX = Math.min(probe.getTextWidth() / 2 + 8, node.width / 2 - 5);
+        const badgeX = Math.min(probe.getTextWidth() / 2 + 12, node.width / 2 - 8);
         group.add(
           personDetails.notesEmoji
-            ? new Konva.Text({
-                text: personDetails.notesEmoji,
-                fontSize: 12,
-                x: badgeX - 6,
-                y: -6,
-                listening: false,
-              })
+            ? this.buildNotesEmoji(personDetails.notesEmoji, badgeX)
             : this.buildObservationBadge(badgeX, 0),
         );
       }
