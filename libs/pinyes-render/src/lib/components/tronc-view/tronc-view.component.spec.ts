@@ -1711,6 +1711,250 @@ describe('TroncViewComponent', () => {
     });
   });
 
+  // ── touch: long press starts the move, and person drag can be switched off ───────────────
+
+  describe('touch long press on a node', () => {
+    function touchEvent(overrides: Partial<PointerEvent> = {}): PointerEvent {
+      return {
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        button: 0,
+        pointerType: 'touch',
+        preventDefault: jest.fn(),
+        currentTarget: { setPointerCapture: () => { /* no-op */ } } as unknown as EventTarget,
+        ...overrides,
+      } as unknown as PointerEvent;
+    }
+    const clickEvent = (): MouseEvent => ({ currentTarget: document.createElement('button'), preventDefault: jest.fn() }) as unknown as MouseEvent;
+    const contextMenuEvent = (): MouseEvent => ({ preventDefault: jest.fn() }) as unknown as MouseEvent;
+    let emitted: string[];
+    let selected: (string | null)[];
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      fixture.componentRef.setInput('instanceId', 'instance-a');
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' }), makeNode({ id: 'node-2', x: 1 })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+      emitted = [];
+      selected = [];
+      component.nodeContextMenu.subscribe((id: string) => emitted.push(id));
+      component.nodeSelected.subscribe((id: string | null) => selected.push(id));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const node = (id: string) => component.troncNodes().find((n) => n.id === id) as TroncNodeItem;
+
+    describe('detecting it', () => {
+      it('emits nodeContextMenu after the finger stays on an assigned node', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+
+        jest.advanceTimersByTime(500);
+
+        expect(emitted).toEqual(['node-1']);
+      });
+
+      it('also emits for an empty node (it can be the destination of a move)', () => {
+        component.onNodePointerDown(node('node-2'), touchEvent());
+
+        jest.advanceTimersByTime(500);
+
+        expect(emitted).toEqual(['node-2']);
+      });
+
+      it('does nothing when the finger is lifted early (a normal tap)', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        jest.advanceTimersByTime(300);
+
+        component.onNodePointerUp(touchEvent());
+        jest.advanceTimersByTime(1000);
+
+        expect(emitted).toEqual([]);
+      });
+
+      it('does nothing when the finger moves away (a scroll)', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent({ clientX: 0, clientY: 0 }));
+
+        component.onNodePointerMove(touchEvent({ clientX: 0, clientY: 40 }));
+        jest.advanceTimersByTime(1000);
+
+        expect(emitted).toEqual([]);
+      });
+
+      it('does nothing when the browser takes the touch over (pointercancel)', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+
+        component.onNodePointerCancel(touchEvent());
+        jest.advanceTimersByTime(1000);
+
+        expect(emitted).toEqual([]);
+      });
+
+      it('ignores a mouse press held down (right-click is the mouse gesture)', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent({ pointerType: 'mouse' }));
+
+        jest.advanceTimersByTime(1000);
+
+        expect(emitted).toEqual([]);
+      });
+
+      it.each(['editor', 'projection'] as const)('does nothing in %s mode', (mode) => {
+        fixture.componentRef.setInput('mode', mode);
+        fixture.detectChanges();
+
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        jest.advanceTimersByTime(1000);
+
+        expect(emitted).toEqual([]);
+      });
+
+      it('also works on a direction node', () => {
+        const dirNode = makeNode({ id: 'dir-1', zone: 'DIRECTION', positionType: 'direccio-tronc' });
+        fixture.componentRef.setInput('directionNodes', [dirNode]);
+        fixture.detectChanges();
+
+        component.onNodePointerDown(dirNode, touchEvent());
+        jest.advanceTimersByTime(500);
+
+        expect(emitted).toEqual(['dir-1']);
+      });
+
+      it('does not fire after the component is destroyed (emitting on a destroyed output throws)', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+
+        fixture.destroy();
+
+        expect(() => jest.advanceTimersByTime(1000)).not.toThrow();
+        expect(emitted).toEqual([]);
+      });
+    });
+
+    describe('the click the browser emits when the finger is lifted', () => {
+      it('is ignored after a long press, so it does not act on the node just pressed', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        jest.advanceTimersByTime(500);
+        component.onNodePointerUp(touchEvent());
+
+        component.onNodeClick(node('node-1'), clickEvent());
+
+        expect(selected).toEqual([]);
+      });
+
+      it('is ignored on a direction node too', () => {
+        const dirNode = makeNode({ id: 'dir-1', zone: 'DIRECTION', positionType: 'direccio-tronc' });
+        fixture.componentRef.setInput('directionNodes', [dirNode]);
+        fixture.detectChanges();
+        component.onNodePointerDown(dirNode, touchEvent());
+        jest.advanceTimersByTime(500);
+        component.onNodePointerUp(touchEvent());
+
+        component.onDirectionNodeClick(dirNode, clickEvent());
+
+        expect(selected).toEqual([]);
+      });
+
+      it('is a normal click after a plain tap', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        component.onNodePointerUp(touchEvent());
+
+        component.onNodeClick(node('node-1'), clickEvent());
+
+        expect(selected).toEqual(['node-1']);
+      });
+
+      it('is a normal click again once the touch is long over', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        jest.advanceTimersByTime(500);
+        component.onNodePointerUp(touchEvent());
+        jest.advanceTimersByTime(5000);
+
+        component.onNodeClick(node('node-1'), clickEvent());
+
+        expect(selected).toEqual(['node-1']);
+      });
+    });
+
+    describe('Android also fires a native contextmenu on a long press', () => {
+      it('reports the gesture once when the native event arrives before the timer', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        jest.advanceTimersByTime(400);
+
+        component.onNodeContextMenu(node('node-1'), contextMenuEvent());
+        jest.advanceTimersByTime(1000);
+
+        expect(emitted).toEqual(['node-1']);
+      });
+
+      it('reports the gesture once when the native event arrives after the timer', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        jest.advanceTimersByTime(500);
+
+        component.onNodeContextMenu(node('node-1'), contextMenuEvent());
+
+        expect(emitted).toEqual(['node-1']);
+      });
+
+      it('suppresses the browser menu in both cases', () => {
+        component.onNodePointerDown(node('node-1'), touchEvent());
+        const event = contextMenuEvent();
+
+        component.onNodeContextMenu(node('node-1'), event);
+
+        expect(event.preventDefault).toHaveBeenCalled();
+      });
+
+      it('a mouse right-click with no touch in progress still emits', () => {
+        component.onNodeContextMenu(node('node-1'), contextMenuEvent());
+
+        expect(emitted).toEqual(['node-1']);
+      });
+    });
+  });
+
+  describe('personDragEnabled', () => {
+    beforeEach(() => {
+      fixture.componentRef.setInput('instanceId', 'instance-a');
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+    });
+
+    it('is on by default: an assigned node can be dragged', () => {
+      expect(component.isDraggableNode('node-1')).toBe(true);
+      expect(fixture.nativeElement.querySelector('[data-tronc-node-id="node-1"]').hasAttribute('data-draggable')).toBe(true);
+    });
+
+    it('when off, an assigned node cannot be dragged and is not marked draggable', () => {
+      fixture.componentRef.setInput('personDragEnabled', false);
+      fixture.detectChanges();
+
+      expect(component.isDraggableNode('node-1')).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-tronc-node-id="node-1"]').hasAttribute('data-draggable')).toBe(false);
+    });
+
+    it('when off, pressing and moving does not start a drag', () => {
+      fixture.componentRef.setInput('personDragEnabled', false);
+      fixture.detectChanges();
+      const event = (x: number) =>
+        ({
+          pointerId: 1, clientX: x, clientY: 0, button: 0, pointerType: 'touch',
+          preventDefault: () => { /* no-op */ },
+          currentTarget: { setPointerCapture: () => { /* no-op */ } },
+        }) as unknown as PointerEvent;
+
+      component.onNodePointerDown(component.troncNodes()[0], event(0));
+      component.onNodePointerMove(event(50));
+
+      expect(component.isDragging('node-1')).toBe(false);
+    });
+  });
+
   describe('selected-node properties panel (design system)', () => {
     // A field's lib-input is freshly created here (behind the @if branch), so its first ngModel
     // write is a *new* standalone NgModel registration — Angular defers that one's initial

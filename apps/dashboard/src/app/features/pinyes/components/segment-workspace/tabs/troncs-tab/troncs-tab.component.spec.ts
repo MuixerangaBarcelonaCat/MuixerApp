@@ -28,6 +28,7 @@ class StubTroncView {
   readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<string>('assignment');
+  readonly personDragEnabled = input<boolean>(true);
   readonly heightMode = input<string>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
@@ -1375,6 +1376,20 @@ describe('TroncsTabComponent', () => {
           expect(troncStubs().length).toBeGreaterThan(0);
           expect(panelStub()).toBeTruthy();
         });
+      });
+    });
+
+    describe('drag and drop of persons', () => {
+      it('stays enabled on desktop', async () => {
+        await setup();
+
+        expect(troncStubs()[0].personDragEnabled()).toBe(true);
+      });
+
+      it('is disabled on touch (a long press moves people instead)', async () => {
+        await setup({ touch: true });
+
+        expect(troncStubs()[0].personDragEnabled()).toBe(false);
       });
     });
 

@@ -33,6 +33,7 @@ class StubFigureCanvas {
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly gridEnabled = input<boolean>(true);
   readonly isPast = input<boolean>(false);
+  readonly personDragEnabled = input<boolean>(true);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
   readonly segmentNodeContextMenu = output<SegmentNodeRef>();
@@ -1371,6 +1372,20 @@ describe('PinyesTabComponent', () => {
           expect(canvasStub()).toBeTruthy();
           expect(panelStub()).toBeTruthy();
         });
+      });
+    });
+
+    describe('drag and drop of persons', () => {
+      it('stays enabled on desktop', async () => {
+        await setup();
+
+        expect(canvasStub().personDragEnabled()).toBe(true);
+      });
+
+      it('is disabled on touch (a long press moves people instead)', async () => {
+        await setup({ touch: true });
+
+        expect(canvasStub().personDragEnabled()).toBe(false);
       });
     });
 

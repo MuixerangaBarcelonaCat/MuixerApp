@@ -54,6 +54,7 @@
       [personDetailsMap]="personDetailsMap()"
       [highlightedNodeIds]="highlightedNodeIds()"
       [isPast]="isPast()"
+      [personDragEnabled]="!isTouch()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
       (segmentNodeContextMenu)="onNodeContextMenu($event)"
       (segmentNodeDropped)="onNodeDropped($event.source, $event.target)"

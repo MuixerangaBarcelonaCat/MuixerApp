@@ -20,6 +20,9 @@ export interface AssignmentActionsHost {
   advanceToNextEmptyNode(instanceId: string, justAssignedNodeId: string): void;
 }
 
+/** Length of the haptic bump when a move starts, in ms (a brief tick, like a native long press). */
+const MOVE_START_HAPTIC_MS = 15;
+
 /** A placement to free before reassigning its person elsewhere. */
 export interface PlacementToRemove {
   assignmentId: string;
@@ -71,6 +74,14 @@ export class SegmentAssignmentActionsService {
     if (!assignment || assignment.id.startsWith('temp-')) return;
     this.host?.clearSelection();
     this.movingAssignmentId.set(assignment.id);
+    this.hapticBump();
+  }
+
+  /** Brief vibration where the browser supports it (Android Chrome/Edge); silently nothing elsewhere. */
+  private hapticBump(): void {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(MOVE_START_HAPTIC_MS);
+    }
   }
 
   cancelMove(): void {

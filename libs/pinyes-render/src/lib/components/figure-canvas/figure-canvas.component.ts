@@ -45,6 +45,7 @@ import {
   touchMidpoint,
   zoomAroundPoint,
 } from '../../utils/gesture-math.util';
+import { LongPressDetector } from '../../utils/long-press.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -432,6 +433,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    * touch). Emitted for empty nodes too, since it can also pick the destination of a move.
    */
   readonly segmentNodeContextMenu = output<SegmentNodeRef>();
+
+  /**
+   * `segment-assignment` mode: whether a placed person can be dragged onto another node. Off on
+   * touch, where a long press starts the move instead (and a drag would fight the canvas pan).
+   */
+  readonly personDragEnabled = input(true);
   readonly segmentAdHocNodeMoved = output<SegmentNodeRef & { x: number; y: number }>();
   readonly segmentAdHocNodeTransformed = output<
     SegmentNodeRef & { x: number; y: number; width: number; height: number; rotation: number }
@@ -478,6 +485,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private personDragGhost: Konva.Label | null = null;
   /** Swallows the synthetic click Konva fires right after a drag ends. */
   private personDragJustEnded = false;
+  /** Touch long press on a node: starts the "move a person" gesture (see `segmentNodeContextMenu`). */
+  private readonly longPress = new LongPressDetector();
   // Slot rotation/offset pivot, frozen on first render so adding or moving a node
   // never recenters the figure. Shared with the placement click-to-local math.
   private readonly segmentSlotPivotCache = new Map<string, { x: number; y: number }>();
@@ -594,6 +603,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // A pending long press must not fire into a destroyed component (emitting on it throws).
+    this.longPress.cancel();
     this.cancelFlight();
     this.clearAllGhostTimers();
     this.clearPersonDragVisuals();
@@ -961,6 +972,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.on('touchstart', (e) => {
       this.cancelFlight();
       const touches = e.evt.touches;
+      if (touches.length > 1) this.longPress.cancel();
       if (touches.length === 1 && !e.target.draggable() && this.canPanOrZoom()) {
         panStart = getTouchPoint(touches[0]);
         panStageStart = { x: this.stage.x(), y: this.stage.y() };
@@ -975,6 +987,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.stage.on('touchmove', (e) => {
       const touches = e.evt.touches;
+      if (touches.length === 1) this.longPress.move(touches[0].clientX, touches[0].clientY);
+      else this.longPress.cancel();
       if (touches.length === 2 && pinchStartDist > 0) {
         e.evt.preventDefault();
         const p1 = getTouchPoint(touches[0]);
@@ -1004,6 +1018,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
 
     this.stage.on('touchend touchcancel', (e) => {
+      this.longPress.end();
       const remaining = e.evt.touches;
       pinchStartDist = 0;
       if (remaining.length === 1) {
@@ -2295,6 +2310,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
 
       group.on('mouseenter.personHover tap.personHover', (e) => {
+        if (e.type === 'tap' && this.longPress.swallowsClick()) return;
         const point = getEventClientPoint(e.evt);
         if (!point) return;
         this.hoveredNodeKey = `${rn.slotId}:${node.id}`;
@@ -2343,6 +2359,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     group.on('click tap', () => {
+      // Lifting the finger after a long press emits a click that is not a real tap.
+      if (this.longPress.swallowsClick()) return;
       // A drag that ended without a valid drop target fires a synthetic click;
       // swallow it so it doesn't re-select the node right after a cancelled drag.
       if (this.personDragJustEnded) {
@@ -2355,7 +2373,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     if (!isEditable) {
       group.on('contextmenu', (e) => {
         e.evt.preventDefault();
+        // Android fires this natively on a long press too: the long-press detector reports that
+        // gesture (once), so it must not also be reported here as a mouse right-click.
+        if (this.longPress.absorbNativeContextMenu()) return;
         this.segmentNodeContextMenu.emit(ref);
+      });
+      // A finger held on a node starts the move gesture; the stage's touch handlers below cancel
+      // it when the finger moves, a second finger arrives, or the touch ends.
+      group.on('touchstart', (e) => {
+        const touches = e.evt.touches;
+        if (touches.length !== 1) {
+          this.longPress.cancel();
+          return;
+        }
+        this.longPress.start(touches[0].clientX, touches[0].clientY, () => this.segmentNodeContextMenu.emit(ref));
       });
     }
 
@@ -2363,7 +2394,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.segmentNodeDoubleClicked.emit(ref);
     });
 
-    const isPersonDraggable = !!assignment && !isEditable;
+    const isPersonDraggable = !!assignment && !isEditable && this.personDragEnabled();
 
     if (isEditable) {
       group.on('dragstart', () => {

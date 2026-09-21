@@ -64,6 +64,7 @@
               [attendanceMap]="attendanceMap()"
               [isPast]="isPast()"
               [personDetailsMap]="personDetailsMap()"
+              [personDragEnabled]="!isTouch()"
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
               (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
               (nodeClicked)="onTroncNodeClicked($event)"

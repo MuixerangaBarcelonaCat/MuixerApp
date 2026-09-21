@@ -104,10 +104,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: '1 dit sobre el fons', action: 'Desplaçar el llenç (pan)' },
       { keys: 'Pinça (2 dits)', action: 'Zoom' },
-      { keys: 'Toc', action: 'Seleccionar node / persona' },
+      { keys: 'Toc', action: 'Seleccionar un node (a l\'assignació, obre la llista de persones)' },
       { keys: 'Doble toc', action: 'Editar etiqueta / obrir detall' },
-      { keys: 'Toc mantingut sobre una persona', action: 'Mostrar la seva fitxa' },
-      { keys: 'Arrossegar', action: 'Moure un node o una persona' },
+      { keys: 'Toc mantingut sobre una persona', action: 'Començar a moure-la: toqueu el node de destí (si és buit la mou, si és ocupat les intercanvia)' },
+      { keys: 'Arrossegar (als editors)', action: 'Moure un node' },
     ],
   },
 ];
@@ -267,7 +267,7 @@ const HELP_SECTIONS: HelpSection[] = [
     items: [
       {
         question: 'Quins gestos tàctils funcionen al Canvas?',
-        answer: 'Un dit sobre el fons: desplaça el llenç (pan). Dos dits (pinça): zoom. Toc: seleccionar un node. Doble toc: editar l\'etiqueta o obrir el detall. Arrossegar un node o una persona: moure’l. Toc mantingut sobre una persona assignada: mostra la seva fitxa (equivalent al hover del ratolí).',
+        answer: 'Un dit sobre el fons: desplaça el llenç (pan). Dos dits (pinça): zoom. Toc: seleccionar un node (a l\'assignació, obre la llista de persones). Doble toc: editar l\'etiqueta o obrir el detall. Arrossegar un node (als editors): moure’l. Toc mantingut sobre una persona assignada (a l\'assignació): començar a moure-la; després toqueu el node de destí.',
       },
       {
         question: 'Puc utilitzar l\'editor de figures o l\'assignació des d\'una tablet o un mòbil?',
@@ -279,7 +279,7 @@ const HELP_SECTIONS: HelpSection[] = [
       },
       {
         question: 'Per què no veig la targeta d\'una persona en tocar-la?',
-        answer: 'Als dispositius tàctils no hi ha "hover": manteniu el dit sobre el node assignat (o feu-hi un toc) perquè aparegui la targeta; toqueu una zona buida del llenç per tancar-la.',
+        answer: 'Als dispositius tàctils no hi ha "hover": feu un toc sobre el node assignat perquè aparegui la targeta; toqueu una zona buida del llenç per tancar-la. Un toc mantingut no la mostra: comença a moure la persona.',
       },
     ],
   },

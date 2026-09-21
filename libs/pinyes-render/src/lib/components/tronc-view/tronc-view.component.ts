@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -26,6 +28,7 @@ import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-v
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { FitTextDirective } from '../../directives/fit-text.directive';
+import { LongPressDetector } from '../../utils/long-press.util';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -88,6 +91,8 @@ export class TroncViewComponent {
   /** Person IDs in conflict in this segment; a node is flagged when its assigned person is one. */
   readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly mode = input<'editor' | 'assignment' | 'projection'>('assignment');
+  /** Assignment mode: whether a placed person can be dragged onto another node. Off on touch, where a long press starts the move instead. */
+  readonly personDragEnabled = input(true);
   readonly heightMode = input<HeightMode>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
 
@@ -179,6 +184,8 @@ export class TroncViewComponent {
    * plain tap — HTML5 DnD had this movement gate built in; pointer events don't.
    */
   private pointerDragOrigin: { nodeId: string; pointerId: number; x: number; y: number } | null = null;
+  /** Touch long press on a node: starts the "move a person" gesture (see `nodeContextMenu`). */
+  private readonly longPress = new LongPressDetector();
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
@@ -222,6 +229,9 @@ export class TroncViewComponent {
   private prevHadAssignedDirections = false;
 
   constructor() {
+    // A pending long press must not fire into a destroyed component (emitting on it throws).
+    inject(DestroyRef).onDestroy(() => this.longPress.cancel());
+
     effect(() => {
       const has = this.hasAssignedDirections();
       if (has && !this.prevHadAssignedDirections) {
@@ -349,6 +359,8 @@ export class TroncViewComponent {
   // ── Event handlers ─────────────────────────────────────────────────────────
 
   onNodeClick(node: TroncNodeItem, event: MouseEvent): void {
+    // The click the browser emits when the finger is lifted after a long press is not a real tap.
+    if (this.longPress.swallowsClick()) return;
     this.nodeSelected.emit(node.id);
     if (this.isAssigned(node.id)) {
       this.nodeClicked.emit({ nodeId: node.id, event });
@@ -367,7 +379,7 @@ export class TroncViewComponent {
   // ── Drag-and-drop (assignment mode) ───────────────────────────────────────
 
   isDraggableNode(nodeId: string): boolean {
-    return this.mode() === 'assignment' && this.isAssigned(nodeId);
+    return this.mode() === 'assignment' && this.personDragEnabled() && this.isAssigned(nodeId);
   }
 
   isDragging(nodeId: string): boolean {
@@ -383,6 +395,10 @@ export class TroncViewComponent {
   }
 
   onNodePointerDown(node: TroncNodeItem, event: PointerEvent): void {
+    // A finger (not the mouse, which has right-click) held on a node starts the move gesture.
+    if (this.mode() === 'assignment' && event.pointerType !== 'mouse') {
+      this.longPress.start(event.clientX, event.clientY, () => this.nodeContextMenu.emit(node.id));
+    }
     if (!this.isDraggableNode(node.id)) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     this.pointerDragOrigin = { nodeId: node.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
@@ -390,6 +406,7 @@ export class TroncViewComponent {
   }
 
   onNodePointerMove(event: PointerEvent): void {
+    this.longPress.move(event.clientX, event.clientY);
     const origin = this.pointerDragOrigin;
     if (!origin || origin.pointerId !== event.pointerId) return;
 
@@ -397,6 +414,7 @@ export class TroncViewComponent {
       const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
       if (distance < DRAG_THRESHOLD_PX) return; // still just a tap/click
       this.draggingNodeId.set(origin.nodeId);
+      this.longPress.cancel();
     }
 
     event.preventDefault();
@@ -406,6 +424,7 @@ export class TroncViewComponent {
   }
 
   onNodePointerUp(event: PointerEvent): void {
+    this.longPress.end();
     const origin = this.pointerDragOrigin;
     if (!origin || origin.pointerId !== event.pointerId) return;
 
@@ -425,6 +444,7 @@ export class TroncViewComponent {
   }
 
   onNodePointerCancel(event: PointerEvent): void {
+    this.longPress.end();
     if (this.pointerDragOrigin?.pointerId !== event.pointerId) return;
     this.endPointerDrag();
   }
@@ -676,10 +696,14 @@ export class TroncViewComponent {
   onNodeContextMenu(node: TroncNodeItem, event: MouseEvent): void {
     if (this.mode() !== 'assignment') return;
     event.preventDefault();
+    // Android fires this natively on a long press too: the long-press detector reports that
+    // gesture (once), so it must not also be reported here as a mouse right-click.
+    if (this.longPress.absorbNativeContextMenu()) return;
     this.nodeContextMenu.emit(node.id);
   }
 
   onDirectionNodeClick(node: TroncNodeItem, event: MouseEvent): void {
+    if (this.longPress.swallowsClick()) return;
     this.nodeSelected.emit(node.id);
     if (this.isAssigned(node.id)) {
       this.nodeClicked.emit({ nodeId: node.id, event });

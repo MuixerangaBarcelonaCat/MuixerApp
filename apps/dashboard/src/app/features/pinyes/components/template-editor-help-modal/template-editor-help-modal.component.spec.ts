@@ -73,6 +73,36 @@ describe('TemplateEditorHelpModalComponent', () => {
     });
   });
 
+  describe('touch gestures: a long press moves people, drag is for editor nodes', () => {
+    const touchShortcuts = () =>
+      component.shortcutGroups.find((g) => g.title.toLowerCase().includes('tàctils'))?.shortcuts ?? [];
+    const touchAnswers = () =>
+      (component.sections.find((s) => s.id === 'tactil')?.items ?? []).map((i) => i.answer);
+
+    it('documents that a long press on a person starts moving them, then the destination is tapped', () => {
+      const entry = touchShortcuts().find((s) => s.keys.toLowerCase().includes('mantingut'));
+
+      expect(entry?.action.toLowerCase()).toContain('moure');
+      expect(entry?.action.toLowerCase()).toContain('destí');
+    });
+
+    it('no longer says a long press shows the person card', () => {
+      expect(touchShortcuts().some((s) => s.action.toLowerCase().includes('fitxa'))).toBe(false);
+    });
+
+    it('no longer says a person can be dragged on touch', () => {
+      expect(touchShortcuts().some((s) => s.action === 'Moure un node o una persona')).toBe(false);
+    });
+
+    it('the gestures answer explains the long press to move', () => {
+      expect(touchAnswers().some((a) => a.toLowerCase().includes('començar a moure-la'))).toBe(true);
+    });
+
+    it('the person-card answer no longer tells the user to hold a finger on the node', () => {
+      expect(touchAnswers().some((a) => a.toLowerCase().includes('manteniu el dit'))).toBe(false);
+    });
+  });
+
   it('includes a touch gestures shortcut group', () => {
     expect(component.shortcutGroups.some((g) => g.title.toLowerCase().includes('tàctils'))).toBe(true);
   });

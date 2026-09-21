@@ -2,7 +2,7 @@ import { AssignmentDetail, SegmentNodeRef } from '@muixer/pinyes-render';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NEVER, of, throwError } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '@muixer/ui';
 import { DIRECCIO_PINYA_POSITION_TYPE } from '@muixer/shared';
 import { SegmentAssignmentActionsService, AssignmentActionsHost } from './segment-assignment-actions.service';
@@ -624,6 +624,75 @@ describe('SegmentAssignmentActionsService', () => {
       state.assignments.set([makeAssignment(INST_A, 'n1', 'p-2')]);
 
       expect(service.movingAssignment()).toBeNull();
+    });
+
+    describe('haptic bump when a move starts', () => {
+      const original = Object.getOwnPropertyDescriptor(navigator, 'vibrate');
+      let vibrate: MockFn;
+
+      beforeEach(() => {
+        vibrate = vi.fn().mockReturnValue(true);
+        Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true, writable: true });
+      });
+
+      afterEach(() => {
+        if (original) Object.defineProperty(navigator, 'vibrate', original);
+        else delete (navigator as unknown as Record<string, unknown>)['vibrate'];
+      });
+
+      it('gives one brief bump when a move starts', () => {
+        state.assignments.set([makeAssignment(INST_A, 'n1', 'p-1')]);
+
+        service.startMove(ref(INST_A, 'n1'));
+
+        expect(vibrate).toHaveBeenCalledTimes(1);
+        expect(vibrate).toHaveBeenCalledWith(15);
+      });
+
+      it('does not bump for an empty node', () => {
+        service.startMove(ref(INST_A, 'n1'));
+
+        expect(vibrate).not.toHaveBeenCalled();
+      });
+
+      it('does not bump when the workspace is locked', () => {
+        state.assignments.set([makeAssignment(INST_A, 'n1', 'p-1')]);
+        ws.isLocked.set(true);
+
+        service.startMove(ref(INST_A, 'n1'));
+
+        expect(vibrate).not.toHaveBeenCalled();
+      });
+
+      it('does not bump for an assignment that is still being saved', () => {
+        state.assignments.set([{ ...makeAssignment(INST_A, 'n1', 'p-1'), id: 'temp-1' }]);
+
+        service.startMove(ref(INST_A, 'n1'));
+
+        expect(vibrate).not.toHaveBeenCalled();
+      });
+
+      it('does not bump again when the move is completed or cancelled', () => {
+        state.assignments.set([makeAssignment(INST_A, 'n1', 'p-1')]);
+        dynamicAssign();
+        service.startMove(ref(INST_A, 'n1'));
+        vibrate.mockClear();
+
+        service.completeMove(ref(INST_A, 'n2'));
+        service.startMove(ref(INST_A, 'n2'));
+        vibrate.mockClear();
+        service.cancelMove();
+
+        expect(vibrate).not.toHaveBeenCalled();
+      });
+
+      it('still starts the move where vibration is not supported', () => {
+        delete (navigator as unknown as Record<string, unknown>)['vibrate'];
+        state.assignments.set([makeAssignment(INST_A, 'n1', 'p-1')]);
+
+        expect(() => service.startMove(ref(INST_A, 'n1'))).not.toThrow();
+        expect(service.movingAssignment()).not.toBeNull();
+      });
     });
 
     describe('completeMove', () => {

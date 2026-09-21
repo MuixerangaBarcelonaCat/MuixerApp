@@ -1082,14 +1082,15 @@ l'amplada) decideix el layout del workspace (`segment-workspace`):
   entre les dues pestanyes a `SegmentAssignmentActionsService` (proveït per pestanya).
 - **Mode «moure»** (`SegmentAssignmentActionsService.startMove/completeMove/cancelMove`): es
   comença amb un clic dret sobre una persona col·locada (`contextmenu`: `segmentNodeContextMenu`
-  al canvas, `nodeContextMenu` a `tronc-view`; el toc mantingut en tàctil hi anirà pel mateix
-  camí). Apareix el bàner `app-move-banner` («S'està movent <ÀLIES>», amb una ✕) i el node origen es
+  al canvas, `nodeContextMenu` a `tronc-view`) o, en tàctil, amb un toc mantingut sobre ella (pel
+  mateix camí, via `LongPressDetector`; en tàctil l'arrossegament de persones està desactivat). Apareix el bàner `app-move-banner` («S'està movent <ÀLIES>», amb una ✕) i el node origen es
   ressalta amb `highlightedNodeIds`. El següent node premut és el destí: buit → la mou, ocupat →
   s'intercanvien (inclòs entre figures), reutilitzant `drop()`, així que és el mateix pas de
   desfer que un arrossegament. Cancel·len el mode: prémer fora d'un node, la ✕, Escape, prémer
   el mateix node, o desaparèixer l'assignació (p. ex. en desfer-la). Un node decoratiu es
   rebutja amb un avís sense cancel·lar. Sense efecte si l'esdeveniment està bloquejat o el node
-  està buit.
+  està buit. En començar de debò un moviment es fa una vibració breu (`navigator.vibrate(15)`,
+  només on el navegador la suporta: Android Chrome/Edge; iOS Safari no).
 - **Capçalera:** per sota de `sm` s'amaguen el comptador «n/total», l'ajuda i els botons
   d'importar/reinicialitzar, i el títol ocupa `w-1/6` fix.
 
@@ -1098,7 +1099,9 @@ l'amplada) decideix el layout del workspace (`segment-workspace`):
 | Gest | Editor | Assignació | Composició | Projecció |
 |---|---|---|---|---|
 | Seleccionar node (tap) | ✅ | ✅ | ✅ | — |
-| Arrossegar node/persona | ✅ | ✅ | ✅ | — |
+| Arrossegar node | ✅ | — | ✅ | — |
+| Arrossegar persona (`personDragEnabled`) | — | ratolí; no en tàctil | — | — |
+| Toc mantingut / clic dret sobre una persona (començar a moure-la) | — | ✅ | — | — |
 | Doble-tap (etiqueta/detall) | ✅ | ✅ | — | — |
 | Deseleccionar / col·locar (tap al fons) | ✅ | ✅ | ✅ | — |
 | Pan del llenç (1 dit) | ✅ | ✅ | ✅ | ✅ |
@@ -1125,6 +1128,17 @@ Implementació:
   de moviment (`DRAG_THRESHOLD_PX`) perquè un simple tap no s'interpreti com a arrossegament.
   El node destí es resol amb `document.elementFromPoint(...)`, que funciona també entre
   tronc-views germanes (figures diferents al mateix segment).
+- **Toc mantingut** (`utils/long-press.util.ts`, `LongPressDetector`): el web no té cap esdeveniment
+  `longpress` i iOS Safari no dispara mai `contextmenu` en un toc mantingut, així que es construeix
+  amb un temporitzador sobre l'inici/moviment/final del toc (500 ms; es cancel·la si el dit es
+  mou més de 10 px, arriba un segon dit o el navegador s'endú el toc). També resol les dues coses
+  que el navegador complica: Android dispara a més un `contextmenu` natiu (`absorbNativeContextMenu()`
+  fa que el gest s'emeti una sola vegada) i en alçar el dit després d'un toc mantingut arriba un
+  clic que no és un toc de veritat (`swallowsClick()`). El fan servir `figure-canvas` (esdeveniments
+  tàctils de Konva) i `tronc-view` (Pointer Events); tots dos emeten el mateix `contextmenu` que
+  el clic dret. L'arrossegament de persones es desactiva en tàctil amb l'input
+  `personDragEnabled` (les pestanyes hi passen `!isTouch()`); en assignació, `tronc-view` també
+  desactiva la selecció de text i el callout d'iOS (`.assignment-mode .tronc-node`).
 - **Guia d'usuari**: `template-editor-help-modal.component.ts` té una secció "Tàctil / tablet"
   (cercable) amb els gestos i la limitació dels 768px dels editors. El modal és accessible des de l'editor de
   templates i del workspace d'assignació (botó "?" a la topbar); la Projecció manté el seu propi

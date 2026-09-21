@@ -124,6 +124,14 @@
   display: flex;
 }
 
+// Assignment mode: a long press on a node starts the move gesture, so the browser's own long-press
+// behaviour (text selection, iOS callout) must stay out of the way.
+.assignment-mode .tronc-node {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 // -- Tronc node button 
 
 .tronc-node {
