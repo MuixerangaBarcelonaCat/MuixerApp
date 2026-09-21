@@ -173,6 +173,256 @@ describe('PersonDetailComponent', () => {
   // stack the label above the field, on every viewport — no responsive breakpoint to verify here
   // anymore, and the always-stacked contract itself is covered by lib-input/lib-select's own specs.
 
+  describe('availability is hidden', () => {
+    it('does not show Disponibilitat in view mode', () => {
+      component.person.set(makePerson());
+      component.editing.set(false);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).not.toContain('Disponibilitat');
+    });
+
+    it('does not offer the Disponibilitat select in edit mode', () => {
+      component.person.set(makePerson());
+      component['patchForm'](makePerson());
+      component.editing.set(true);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).not.toContain('Disponibilitat');
+      expect(fixture.nativeElement.querySelector('select')?.textContent ?? '').not.toContain('Baixa llarga');
+    });
+  });
+
+  describe('edit-mode tag grouping', () => {
+    const makeTag = (id: string, name: string, category: TagCategory) => ({
+      id, name, slug: id, shortDescription: null, longDescription: null, color: '#888',
+      category, positionTypes: [], personCount: 0,
+    });
+
+    const groupTexts = (): Record<string, string[]> => {
+      const groups = Array.from(fixture.nativeElement.querySelectorAll('[data-tag-group]')) as HTMLElement[];
+      return Object.fromEntries(
+        groups.map((g) => [
+          g.getAttribute('data-tag-group')!,
+          Array.from(g.querySelectorAll('button.badge')).map((b) => (b.textContent ?? '').trim()),
+        ]),
+      );
+    };
+
+    it('splits tags into Pinya, Tronc and Altres groups in that order', () => {
+      component.editing.set(true);
+      component.allPositions.set([
+        makeTag('a', 'Novatos', TagCategory.ALTRES),
+        makeTag('b', 'Vent', TagCategory.TRONC),
+        makeTag('c', 'Mans', TagCategory.PINYA),
+      ]);
+      fixture.detectChanges();
+
+      const groups = groupTexts();
+      expect(Object.keys(groups)).toEqual(['PINYA', 'TRONC', 'ALTRES']);
+      expect(groups['PINYA']).toEqual(['Mans']);
+      expect(groups['TRONC']).toEqual(['Vent']);
+      expect(groups['ALTRES']).toEqual(['Novatos']);
+    });
+
+    it('lists XICALLA tags under Altres so they stay selectable', () => {
+      component.editing.set(true);
+      component.allPositions.set([makeTag('x', 'Xicalla A', TagCategory.XICALLA)]);
+      fixture.detectChanges();
+
+      expect(groupTexts()['ALTRES']).toEqual(['Xicalla A']);
+    });
+
+    it('still toggles a tag from within its group', () => {
+      component.editing.set(true);
+      component.allPositions.set([makeTag('c', 'Mans', TagCategory.PINYA)]);
+      fixture.detectChanges();
+
+      (fixture.nativeElement.querySelector('[data-tag-group="PINYA"] button.badge') as HTMLElement).click();
+      expect(component.isPositionSelected('c')).toBe(true);
+    });
+  });
+
+  describe('edit-mode observacions', () => {
+    const startEditingWith = (overrides: Partial<Person> = {}) => {
+      component.person.set(makePerson(overrides));
+      component['patchForm'](makePerson(overrides));
+      component.editing.set(true);
+      fixture.detectChanges();
+    };
+    const optionButtons = (): HTMLElement[] =>
+      Array.from(fixture.nativeElement.querySelectorAll('[data-notes-options] button.badge')) as HTMLElement[];
+    const optionByText = (text: string): HTMLElement =>
+      optionButtons().find((b) => b.textContent?.includes(text))!;
+    const customInput = () =>
+      fixture.nativeElement.querySelector('[data-notes-custom] input[data-testid="lib-input-native"]') as HTMLInputElement | null;
+
+    it('offers the three suggestions plus Altre instead of a textarea', () => {
+      startEditingWith();
+
+      expect(optionButtons().map((b) => b.textContent?.trim())).toEqual([
+        '🤕 Baixa llarga',
+        '🍃 Sense càrrega',
+        '⏰️ Restricció horària',
+        '🐣 Cuida xicalla',
+        'Altre',
+      ]);
+      expect(fixture.nativeElement.querySelector('textarea')).toBeNull();
+      expect(customInput()).toBeNull();
+    });
+
+    it('selecting a suggestion sets notes and notesEmoji', () => {
+      startEditingWith();
+
+      optionByText('Baixa llarga').click();
+      fixture.detectChanges();
+
+      expect(component.form.value.notes).toBe('Baixa llarga');
+      expect(component.form.value.notesEmoji).toBe('🤕');
+    });
+
+    it('keeps the emoji picker and text input visible while a suggestion is selected', () => {
+      startEditingWith();
+
+      optionByText('Baixa llarga').click();
+      fixture.detectChanges();
+
+      expect(customInput()!.value).toBe('Baixa llarga');
+      const trigger = fixture.nativeElement.querySelector('[data-notes-custom] button[aria-haspopup="dialog"]') as HTMLElement;
+      expect(trigger.textContent?.trim()).toBe('🤕');
+      expect(optionByText('Baixa llarga').getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('switches to Altre, keeping the edited text, when the text of a suggestion is edited', () => {
+      startEditingWith();
+      optionByText('Baixa llarga').click();
+      fixture.detectChanges();
+
+      const input = customInput()!;
+      input.value = 'Lesió de genoll';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      expect(optionByText('Altre').getAttribute('aria-pressed')).toBe('true');
+      expect(optionByText('Baixa llarga').getAttribute('aria-pressed')).toBe('false');
+      expect(component.form.value.notes).toBe('Lesió de genoll');
+      expect(component.form.value.notesEmoji).toBe('🤕');
+    });
+
+    it('switches to Altre, keeping the text, when the emoji of a suggestion is changed', () => {
+      startEditingWith();
+      optionByText('Baixa llarga').click();
+      fixture.detectChanges();
+
+      (fixture.nativeElement.querySelector('[data-notes-custom] button[aria-haspopup="dialog"]') as HTMLElement).click();
+      fixture.detectChanges();
+      fixture.nativeElement
+        .querySelector('[data-notes-custom] emoji-picker')
+        .dispatchEvent(new CustomEvent('emoji-click', { detail: { unicode: '🩹' } }));
+      fixture.detectChanges();
+
+      expect(optionByText('Altre').getAttribute('aria-pressed')).toBe('true');
+      expect(component.form.value.notes).toBe('Baixa llarga');
+      expect(component.form.value.notesEmoji).toBe('🩹');
+    });
+
+    it('does not switch to Altre just because a different suggestion is picked', () => {
+      startEditingWith();
+      optionByText('Baixa llarga').click();
+      optionByText('Cuida xicalla').click();
+      fixture.detectChanges();
+
+      expect(optionByText('Cuida xicalla').getAttribute('aria-pressed')).toBe('true');
+      expect(optionByText('Altre').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('hides the emoji picker and text input again once the suggestion is deselected', () => {
+      startEditingWith();
+      optionByText('Baixa llarga').click();
+      optionByText('Baixa llarga').click();
+      fixture.detectChanges();
+
+      expect(customInput()).toBeNull();
+    });
+
+    it('selecting Sense càrrega sets its text and emoji', () => {
+      startEditingWith();
+
+      optionByText('Sense càrrega').click();
+      fixture.detectChanges();
+
+      expect(component.form.value.notes).toBe('Sense càrrega');
+      expect(component.form.value.notesEmoji).toBe('🍃');
+    });
+
+    it('selecting the active suggestion again clears the observation', () => {
+      startEditingWith();
+
+      optionByText('Cuida xicalla').click();
+      optionByText('Cuida xicalla').click();
+      fixture.detectChanges();
+
+      expect(component.form.value.notes).toBe('');
+      expect(component.form.value.notesEmoji).toBeNull();
+    });
+
+    it('selecting Altre reveals the emoji picker and a lib-input for free text', () => {
+      startEditingWith();
+
+      optionByText('Altre').click();
+      fixture.detectChanges();
+
+      expect(customInput()).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-notes-custom] app-emoji-picker')).toBeTruthy();
+    });
+
+    it('typing in the Altre input updates notes', () => {
+      startEditingWith();
+      optionByText('Altre').click();
+      fixture.detectChanges();
+
+      const input = customInput()!;
+      input.value = 'Lesió al genoll';
+      input.dispatchEvent(new Event('input'));
+
+      expect(component.form.value.notes).toBe('Lesió al genoll');
+    });
+
+    it('selecting Altre preselects the ❗️ emoji with empty text', () => {
+      startEditingWith();
+
+      optionByText('Altre').click();
+      fixture.detectChanges();
+
+      expect(component.form.value.notes).toBe('');
+      expect(component.form.value.notesEmoji).toBe('❗️');
+    });
+
+    it('switching from a suggestion to Altre replaces it with ❗️ and empty text', () => {
+      startEditingWith();
+      optionByText('Baixa llarga').click();
+      optionByText('Altre').click();
+      fixture.detectChanges();
+
+      expect(component.form.value.notes).toBe('');
+      expect(component.form.value.notesEmoji).toBe('❗️');
+    });
+
+    it('preselects the matching suggestion for a stored observation', () => {
+      startEditingWith({ notes: 'Restricció horària', notesEmoji: '⏰️' });
+
+      expect(optionByText('Restricció horària').getAttribute('aria-pressed')).toBe('true');
+      expect(optionByText('Altre').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('preselects Altre, with its text, for a stored free-text observation', () => {
+      startEditingWith({ notes: 'Lesió al genoll', notesEmoji: '🩹' });
+
+      expect(optionByText('Altre').getAttribute('aria-pressed')).toBe('true');
+      expect(customInput()!.value).toBe('Lesió al genoll');
+    });
+  });
+
   describe('tap targets >=24px (WI-03, PE-L2)', () => {
     // Position tag toggles are size="sm", matching the read-only Etiquetes badge exactly (user
     // request — the two must look identical, not just both be "small"). lib-badge's clickable

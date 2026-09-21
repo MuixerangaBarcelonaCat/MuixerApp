@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
-import { PersonListComponent } from './person-list.component';
+import { ALL_COLUMNS, PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
 import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
@@ -137,6 +137,12 @@ describe('PersonListComponent', () => {
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
     const provisionalsButton = buttons.find(b => b.textContent?.trim() === 'Provisionals');
     expect(provisionalsButton?.className).toContain('btn-outline');
+  });
+
+  describe('availability column is hidden', () => {
+    it('is not offered among the list columns', () => {
+      expect(ALL_COLUMNS.map((c) => c.key)).not.toContain('availability');
+    });
   });
 
   describe('etiquetes select', () => {

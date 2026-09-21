@@ -9,7 +9,6 @@ import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models
 import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
 import {
   getFullName,
-  getAvailabilityLabel,
   getOnboardingLabel,
   formatDate,
   formatShoulderHeightCm,
@@ -65,7 +64,6 @@ export const ALL_COLUMNS: ColumnDef[] = [
   // "(temp. actual)" avoids reading as "never attends": attendedCount is 0 both for a genuine
   // newcomer and whenever there is no current season — the label scopes it explicitly instead.
   { key: 'attendedCount', label: 'Assistències (temp. actual)', defaultVisible: false, sortField: 'attendedCount' },
-  { key: 'availability', label: 'Pot participar', defaultVisible: false, sortField: 'availability' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
@@ -441,7 +439,6 @@ export class PersonListComponent {
       case 'alias': return person.alias || '—';
       case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
       case 'attendedCount': return String(person.attendedCount ?? 0);
-      case 'availability': return getAvailabilityLabel(person.availability);
       case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
       case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
       case 'isActive': return person.isActive ? 'Actiu' : 'Inactiu';

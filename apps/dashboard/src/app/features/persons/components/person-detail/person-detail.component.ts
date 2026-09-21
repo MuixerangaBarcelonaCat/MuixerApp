@@ -7,6 +7,7 @@ import {
   signal,
   OnInit,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { PersonService } from '../../services/person.service';
@@ -23,7 +24,6 @@ import {
   InputComponent,
   ModalComponent,
   SelectComponent,
-  TextareaComponent,
 } from '@muixer/ui';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
@@ -49,7 +49,7 @@ import {
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
-import { DelegateType, Gender, LegalDocumentType } from '@muixer/shared';
+import { DelegateType, Gender, LegalDocumentType, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
 
 /** Same options and labels as the PWA onboarding form (person-data-fields). */
 const GENDER_LABELS: Record<Gender, string> = {
@@ -57,6 +57,18 @@ const GENDER_LABELS: Record<Gender, string> = {
   [Gender.MALE]: 'Home',
   [Gender.OTHER]: 'Altre / Preferisc no dir-ho',
 };
+
+type NotesChoice = 'LESIO' | 'SENSE_CARREGA' | 'RESTRICCIO_HORARIA' | 'CUIDA_XICALLA' | 'ALTRE';
+
+/** Emoji preselected when the free-text "Altre" option is chosen. */
+const DEFAULT_CUSTOM_NOTES_EMOJI = '❗️';
+
+const NOTES_PRESETS: { choice: Exclude<NotesChoice, 'ALTRE'>; emoji: string; text: string }[] = [
+  { choice: 'LESIO', emoji: '🤕', text: 'Baixa llarga' },
+  { choice: 'SENSE_CARREGA', emoji: '🍃', text: 'Sense càrrega' },
+  { choice: 'RESTRICCIO_HORARIA', emoji: '⏰️', text: 'Restricció horària' },
+  { choice: 'CUIDA_XICALLA', emoji: '🐣', text: 'Cuida xicalla' },
+];
 
 @Component({
   standalone: true,
@@ -74,7 +86,6 @@ const GENDER_LABELS: Record<Gender, string> = {
     InputComponent,
     ModalComponent,
     SelectComponent,
-    TextareaComponent,
     PaginationComponent,
     PersonDelegateModalComponent,
     EmojiPickerComponent,
@@ -121,6 +132,20 @@ export class PersonDetailComponent implements OnInit {
 
   allPositions = signal<TagWithCount[]>([]);
   selectedPositionIds = signal<string[]>([]);
+
+  /** Edit-mode tag chips grouped Pinya / Tronc / Altres; XICALLA tags fall under Altres. */
+  readonly positionGroups = computed(() => {
+    const groups = [TagCategory.PINYA, TagCategory.TRONC, TagCategory.ALTRES].map((category) => ({
+      category,
+      label: TAG_CATEGORY_LABELS[category],
+      tags: [] as TagWithCount[],
+    }));
+    for (const tag of this.allPositions()) {
+      const target = groups.find((g) => g.category === tag.category) ?? groups[groups.length - 1];
+      target.tags.push(tag);
+    }
+    return groups.filter((g) => g.tags.length > 0);
+  });
 
   creatingInviteLink = signal(false);
   delegateModalOpen = signal(false);
@@ -231,8 +256,42 @@ export class PersonDetailComponent implements OnInit {
     );
   }
 
+  /** Observation suggestions; each one is stored as the usual `notes` text + `notesEmoji` pair. */
+  protected readonly notesPresets = NOTES_PRESETS;
+  notesChoice = signal<NotesChoice | null>(null);
+
+  // Typing in the text field is a customisation of whatever suggestion is active. Programmatic
+  // updates (picking a chip, loading a person) patch with `emitEvent: false` so they don't count.
+  private readonly notesTextEdits = this.form.controls.notes.valueChanges
+    .pipe(takeUntilDestroyed())
+    .subscribe(() => this.markNotesCustomised());
+
+  private markNotesCustomised(): void {
+    if (this.notesChoice() !== null) this.notesChoice.set('ALTRE');
+  }
+
+  selectNotesChoice(choice: NotesChoice): void {
+    if (this.notesChoice() === choice) {
+      this.notesChoice.set(null);
+      this.form.patchValue({ notes: '', notesEmoji: null }, { emitEvent: false });
+      return;
+    }
+    this.notesChoice.set(choice);
+    const preset = NOTES_PRESETS.find((p) => p.choice === choice);
+    this.form.patchValue(
+      { notes: preset?.text ?? '', notesEmoji: preset?.emoji ?? DEFAULT_CUSTOM_NOTES_EMOJI },
+      { emitEvent: false },
+    );
+  }
+
+  private notesChoiceFor(notes: string | null, emoji: string | null): NotesChoice | null {
+    if (!notes && !emoji) return null;
+    return NOTES_PRESETS.find((p) => p.text === notes && p.emoji === emoji)?.choice ?? 'ALTRE';
+  }
+
   onNotesEmojiChange(emoji: string | null): void {
     this.form.patchValue({ notesEmoji: emoji });
+    this.markNotesCustomised();
   }
 
   isPositionSelected(positionId: string): boolean {
@@ -346,6 +405,7 @@ export class PersonDetailComponent implements OnInit {
       onboardingStatus: person.onboardingStatus,
       shirtDate: person.shirtDate ?? '',
     });
+    this.notesChoice.set(this.notesChoiceFor(person.notes, person.notesEmoji));
   }
 
   createInviteLink() {
