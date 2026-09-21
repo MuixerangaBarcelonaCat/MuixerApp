@@ -260,14 +260,20 @@ export class AttendanceSyncStrategy {
   ): AttendanceStatus {
     const normalized = this.normalizeEstat(estat);
 
-    // 'Potser' ('Potser vinc' in the legacy app) is treated as no answer → PENDENT.
+    // For an ASSAIG the legacy app only offers 'Potser vinc' as the affirmative answer:
+    // upcoming rehearsals export zero 'Vinc', which only appears once the event is past.
+    // Treating 'Potser' as no answer here would leave every upcoming rehearsal at 0 confirmed,
+    // and a leftover 'Potser' on a past rehearsal means the person turned up.
+    // ACTUACIO is different — there 'Vinc' exists, so 'Potser' is a genuine maybe → PENDENT.
     if (eventType === EventType.ASSAIG) {
       if (isPastEvent) {
         if (normalized === 'Vinc') return AttendanceStatus.ASSISTIT;
+        if (normalized === 'Potser') return AttendanceStatus.ASSISTIT;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
         return AttendanceStatus.PENDENT;
       } else {
         if (normalized === 'Vinc') return AttendanceStatus.ANIRE;
+        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
         return AttendanceStatus.PENDENT;
       }
