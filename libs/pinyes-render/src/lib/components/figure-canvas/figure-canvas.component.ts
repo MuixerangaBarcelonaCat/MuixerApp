@@ -426,6 +426,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   // Segment-assignment mode outputs
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
+
+  /**
+   * `segment-assignment` mode: a node was right-clicked (the gesture a long press will trigger on
+   * touch). Emitted for empty nodes too, since it can also pick the destination of a move.
+   */
+  readonly segmentNodeContextMenu = output<SegmentNodeRef>();
   readonly segmentAdHocNodeMoved = output<SegmentNodeRef & { x: number; y: number }>();
   readonly segmentAdHocNodeTransformed = output<
     SegmentNodeRef & { x: number; y: number; width: number; height: number; rotation: number }
@@ -2345,6 +2351,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
       this.segmentNodeSelected.emit(ref);
     });
+
+    if (!isEditable) {
+      group.on('contextmenu', (e) => {
+        e.evt.preventDefault();
+        this.segmentNodeContextMenu.emit(ref);
+      });
+    }
 
     group.on('dblclick dbltap', () => {
       this.segmentNodeDoubleClicked.emit(ref);

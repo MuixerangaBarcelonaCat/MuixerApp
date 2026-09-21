@@ -34,6 +34,13 @@
       </lib-button>
     </div>
 
+    <!-- Moving a person: says who, offers a cross to cancel -->
+    @if (movingAlias(); as alias) {
+      <div class="absolute top-2 left-2 right-24 z-10 flex justify-center pointer-events-none">
+        <app-move-banner class="block max-w-full pointer-events-auto" [alias]="alias" (cancelled)="cancelMove()" />
+      </div>
+    }
+
     <app-figure-canvas
       #canvas
       mode="segment-assignment"
@@ -48,6 +55,7 @@
       [highlightedNodeIds]="highlightedNodeIds()"
       [isPast]="isPast()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
+      (segmentNodeContextMenu)="onNodeContextMenu($event)"
       (segmentNodeDropped)="onNodeDropped($event.source, $event.target)"
     />
   </div>

@@ -1,5 +1,5 @@
 import { AssignmentDetail, ConflictPlacement, PendingOp, SegmentNodeRef, TroncChangeImpact } from '@muixer/pinyes-render';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { ToastService } from '@muixer/ui';
 import { FigureZone, areaForZone, conflictRelevantPlacements } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
@@ -43,6 +43,58 @@ export class SegmentAssignmentActionsService {
 
   attach(host: AssignmentActionsHost): void {
     this.host = host;
+  }
+
+  // ── Move mode ────────────────────────────────────────────────────────────
+  // Right-click / long-press a placed person, then press the destination node: an empty one moves
+  // them there, an occupied one swaps the two. Same outcomes (and undo steps) as a drag-and-drop.
+
+  // Tracked by assignment id (not node) so it can't resume on whoever later lands on that node.
+  private readonly movingAssignmentId = signal<string | null>(null);
+
+  /** The assignment being moved, or null. Goes back to null by itself if it disappears (e.g. undone). */
+  readonly movingAssignment = computed(() => {
+    const id = this.movingAssignmentId();
+    return id ? (this.state.assignments().find((a) => a.id === id) ?? null) : null;
+  });
+
+  /** Name shown in the "S'està movent …" banner. */
+  readonly movingAlias = computed(() => {
+    const a = this.movingAssignment();
+    return a ? a.person.alias || `${a.person.name} ${a.person.firstSurname}`.trim() : null;
+  });
+
+  /** Starts moving the person placed on `ref`. Ignored for an empty node, a locked workspace, or an unsaved assignment. */
+  startMove(ref: SegmentNodeRef): void {
+    if (this.ws.isLocked()) return;
+    const assignment = this.assignmentFor(ref);
+    if (!assignment || assignment.id.startsWith('temp-')) return;
+    this.host?.clearSelection();
+    this.movingAssignmentId.set(assignment.id);
+  }
+
+  cancelMove(): void {
+    this.movingAssignmentId.set(null);
+  }
+
+  /** Puts the person being moved on `target`: moves them to an empty node, swaps with an occupied one. */
+  completeMove(target: SegmentNodeRef): void {
+    const source = this.movingAssignment();
+    if (!source || this.ws.isLocked()) {
+      this.cancelMove();
+      return;
+    }
+    const sourceRef: SegmentNodeRef = { slotId: source.figureInstanceId, nodeId: source.node.id };
+    if (sourceRef.slotId === target.slotId && sourceRef.nodeId === target.nodeId) {
+      this.cancelMove();
+      return;
+    }
+    if (this.nodeFor(target)?.zone === FigureZone.DECORATION) {
+      this.toast.error('Els nodes decoratius no es poden assignar.');
+      return;
+    }
+    this.cancelMove();
+    this.drop(sourceRef, target);
   }
 
   // ── Lookups ──────────────────────────────────────────────────────────────

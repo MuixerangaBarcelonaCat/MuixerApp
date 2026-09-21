@@ -119,6 +119,12 @@ export class TroncViewComponent {
   /** Emits for popover positioning (assigned node clicked). */
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
+  /**
+   * Assignment mode: a node was right-clicked (the same gesture a long press will trigger on
+   * touch). Emitted for empty nodes too, since it can also pick the destination of a move.
+   */
+  readonly nodeContextMenu = output<string>();
+
   /** Editor only: position/width/positionType changed for a TRONC node. */
   readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null; climbIndicator?: string | null }>();
 
@@ -664,6 +670,13 @@ export class TroncViewComponent {
 
   onUnassignNode(nodeId: string): void {
     this.nodeUnassigned.emit(nodeId);
+  }
+
+  /** Right-click in assignment mode: replaces the browser menu with the move gesture. */
+  onNodeContextMenu(node: TroncNodeItem, event: MouseEvent): void {
+    if (this.mode() !== 'assignment') return;
+    event.preventDefault();
+    this.nodeContextMenu.emit(node.id);
   }
 
   onDirectionNodeClick(node: TroncNodeItem, event: MouseEvent): void {

@@ -27,6 +27,14 @@
       </lib-button>
     </div>
 
+    <!-- Moving a person: says who, offers a cross to cancel. Sticky + zero height so it stays in view
+         while the figures scroll, without pushing them down. -->
+    @if (movingAlias(); as alias) {
+      <div class="sticky top-2 z-10 h-0 flex justify-center pointer-events-none pl-2 pr-24">
+        <app-move-banner class="block max-w-full pointer-events-auto" [alias]="alias" (cancelled)="cancelMove()" />
+      </div>
+    }
+
     @if (figures().length === 0) {
       <div class="flex items-center justify-center h-full text-base-content/50">
         Este segment no té cap figura amb tronc.
@@ -57,6 +65,7 @@
               [isPast]="isPast()"
               [personDetailsMap]="personDetailsMap()"
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
+              (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
               (nodeClicked)="onTroncNodeClicked($event)"
               (nodeUnassigned)="onTroncNodeUnassigned(figure.instance.instanceId, $event)"
               (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"

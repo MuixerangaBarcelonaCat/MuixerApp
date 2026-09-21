@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, co
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
+import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
@@ -34,7 +35,7 @@ interface TroncFigure {
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, NgTemplateOutlet],
+  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -86,6 +87,14 @@ export class TroncsTabComponent implements OnInit {
   @HostListener('click', ['$event'])
   onBackgroundClick(event: MouseEvent): void {
     const target = event.target as HTMLElement | null;
+    // Moving a person: any press that isn't on a node (or the banner / person panel) cancels — even
+    // inside a tronc view, whose own background click doesn't tell the tab anything.
+    if (
+      this.actions.movingAssignment() &&
+      !target?.closest('[data-tronc-node-id], app-move-banner, app-person-panel')
+    ) {
+      this.actions.cancelMove();
+    }
     if (target?.closest('app-tronc-view, app-person-panel, button, a, [role="button"], input')) {
       return;
     }
@@ -112,6 +121,12 @@ export class TroncsTabComponent implements OnInit {
         target.tagName === 'SELECT' ||
         target.isContentEditable);
     if (isEditing) return;
+
+    if (event.key === 'Escape' && this.actions.movingAssignment()) {
+      event.preventDefault();
+      this.actions.cancelMove();
+      return;
+    }
 
     const isMod = event.ctrlKey || event.metaKey;
     if (isMod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
@@ -169,7 +184,31 @@ export class TroncsTabComponent implements OnInit {
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
-  readonly highlightedNodeIds = signal<Set<string>>(new Set());
+  /** Marks the node whose person is being moved (right-click / long-press), if any. */
+  readonly highlightedNodeIds = computed(() => {
+    const moving = this.actions.movingAssignment();
+    return moving ? new Set([moving.node.id]) : new Set<string>();
+  });
+
+  readonly movingAlias = this.actions.movingAlias;
+
+  cancelMove(): void {
+    this.actions.cancelMove();
+  }
+
+  /**
+   * Right-click (long press on touch) on a node: starts moving the person placed there, or — when a
+   * move is already in progress — picks this node as the destination.
+   */
+  onTroncNodeContextMenu(instanceId: string, nodeId: string): void {
+    const ref: SegmentNodeRef = { slotId: instanceId, nodeId };
+    if (this.actions.movingAssignment()) {
+      this.actions.completeMove(ref);
+      return;
+    }
+    this.personPickerOpen.set(false);
+    this.actions.startMove(ref);
+  }
 
   readonly reassignDialog = signal<{
     personId: string;
@@ -264,6 +303,13 @@ export class TroncsTabComponent implements OnInit {
   }
 
   onTroncNodeSelected(instanceId: string, nodeId: string | null): void {
+    // Moving a person: the next press is the destination (empty area cancels).
+    if (this.actions.movingAssignment()) {
+      if (nodeId) this.actions.completeMove({ slotId: instanceId, nodeId });
+      else this.actions.cancelMove();
+      return;
+    }
+
     if (this.ws.isLocked()) return;
 
     if (!nodeId) {

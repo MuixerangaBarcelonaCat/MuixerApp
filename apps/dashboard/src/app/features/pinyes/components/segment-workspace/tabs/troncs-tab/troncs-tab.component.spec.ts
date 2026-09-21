@@ -36,6 +36,7 @@ class StubTroncView {
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
   readonly nodeUnassigned = output<string>();
+  readonly nodeContextMenu = output<string>();
   readonly nodeDropped = output<{
     sourceInstanceId: string;
     sourceNodeId: string;
@@ -1070,6 +1071,245 @@ describe('TroncsTabComponent', () => {
 
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
       expect(ws.pendingSelection()).toBeNull();
+    });
+  });
+
+  // ── move mode: right-click a person, then press the destination ───────────────
+
+  describe('move mode', () => {
+    const banner = () => fixture.nativeElement.querySelector('app-move-banner') as HTMLElement | null;
+    const rightClick = (nodeId: string, instanceId = INST_A) => {
+      component.onTroncNodeContextMenu(instanceId, nodeId);
+      fixture.detectChanges();
+    };
+    const press = (nodeId: string, instanceId = INST_A) => {
+      component.onTroncNodeSelected(instanceId, nodeId);
+      fixture.detectChanges();
+    };
+    const placed = (id = 'p-1', nodeId = 'n1') => ({ [INST_A]: [makeAssignment(INST_A, nodeId, id, 'TRONC')] });
+    const nodes = { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 }), makeNode('n2', 'TRONC', { z: 1, x: 1 })] };
+
+    describe('starting', () => {
+      it('shows no banner by default', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        expect(banner()).toBeNull();
+      });
+
+      it('the tronc view output starts the move for the right instance and node', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        troncStubs()[0].nodeContextMenu.emit('n1');
+        fixture.detectChanges();
+
+        expect(banner()?.textContent).toContain("S'està movent");
+        expect(banner()?.textContent).toContain('Alias p-1');
+      });
+
+      it('right-clicking an empty node does nothing', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        rightClick('n2');
+
+        expect(banner()).toBeNull();
+      });
+
+      it('does nothing when the event is locked', async () => {
+        await setup({ locked: true, assignmentsByInstance: placed() });
+
+        rightClick('n1');
+
+        expect(banner()).toBeNull();
+      });
+
+      it('marks the node being moved in the tronc views, and nothing otherwise', async () => {
+        await setup({ assignmentsByInstance: placed() });
+        expect([...troncStubs()[0].highlightedNodeIds()]).toEqual([]);
+
+        rightClick('n1');
+
+        expect([...troncStubs()[0].highlightedNodeIds()]).toEqual(['n1']);
+      });
+
+      it('drops the current selection', async () => {
+        await setup({ assignmentsByInstance: placed('p-1', 'n1') });
+        press('n2');
+        expect(component.selectedRef()).not.toBeNull();
+
+        rightClick('n1');
+
+        expect(component.selectedRef()).toBeNull();
+      });
+    });
+
+    describe('pressing the destination', () => {
+      it('moves the person when the destination is empty, and the banner goes away', async () => {
+        const existing = makeAssignment(INST_A, 'n1', 'p-1', 'TRONC');
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: { [INST_A]: [existing] } });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+        expect(banner()).toBeNull();
+      });
+
+      it('swaps the two persons when the destination is occupied', async () => {
+        const a1 = makeAssignment(INST_A, 'n1', 'p-1', 'TRONC');
+        const a2 = makeAssignment(INST_A, 'n2', 'p-2', 'TRONC');
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: { [INST_A]: [a1, a2] } });
+        assignmentService.swap.mockReturnValue(of({ a: a1, b: a2 }));
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.swap).toHaveBeenCalledWith(INST_A, { assignmentIdA: a1.id, assignmentIdB: a2.id });
+        expect(banner()).toBeNull();
+      });
+
+      it('swaps across figures (the destination is in another tronc view)', async () => {
+        const a1 = makeAssignment(INST_A, 'n1', 'p-1', 'TRONC');
+        const a2 = makeAssignment(INST_B, 'm1', 'p-2', 'TRONC');
+        await setup({
+          instances: [makeInstance(INST_A), makeInstance(INST_B)],
+          nodesByInstance: {
+            [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })],
+            [INST_B]: [makeNode('m1', 'TRONC', { z: 1 })],
+          },
+          assignmentsByInstance: { [INST_A]: [a1], [INST_B]: [a2] },
+        });
+        assignmentService.assign.mockImplementation((instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(makeAssignment(instanceId, payload.nodeId, payload.personId, 'TRONC')),
+        );
+        rightClick('n1', INST_A);
+
+        press('m1', INST_B);
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n1', personId: 'p-2' });
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+      });
+
+      it('a right-click on the destination also completes the move (long press counts too)', async () => {
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        rightClick('n2');
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+      });
+
+      it('does not select the destination node', async () => {
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(component.selectedRef()).toBeNull();
+      });
+    });
+
+    describe('cancelling', () => {
+      const moving = async () => {
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+        expect(banner()).not.toBeNull();
+      };
+      const nothingMoved = () => {
+        expect(assignmentService.unassign).not.toHaveBeenCalled();
+        expect(assignmentService.swap).not.toHaveBeenCalled();
+        expect(banner()).toBeNull();
+      };
+
+      it('the cross on the banner cancels', async () => {
+        await moving();
+
+        (banner()?.querySelector('button[aria-label="Cancel·la el moviment"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('Escape cancels', async () => {
+        await moving();
+
+        component.onKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('pressing the same node again cancels', async () => {
+        await moving();
+
+        press('n1');
+
+        nothingMoved();
+      });
+
+      it('pressing the empty area around the figures cancels', async () => {
+        await moving();
+
+        const pane: HTMLElement = fixture.nativeElement.querySelector('.overflow-y-auto');
+        pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('pressing empty space inside a tronc view (not on a node) cancels', async () => {
+        await moving();
+
+        const troncView: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+        troncView.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('a click that lands on a node does not cancel by itself (the node handler completes the move)', async () => {
+        await moving();
+        const troncView: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+        const nodeEl = document.createElement('div');
+        nodeEl.setAttribute('data-tronc-node-id', 'n2');
+        troncView.appendChild(nodeEl);
+
+        nodeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(banner()).not.toBeNull();
+      });
+
+      it('clicking the banner itself does not cancel through the background handler', async () => {
+        await moving();
+
+        (banner() as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(banner()).not.toBeNull();
+      });
+    });
+
+    describe('on touch', () => {
+      const modal = () => fixture.debugElement.query(By.directive(ModalComponent));
+
+      it('pressing the destination moves without opening the person modal', async () => {
+        await setup({ touch: true, nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+        expect(modal().componentInstance.open()).toBe(false);
+      });
+
+      it('a normal tap still opens the person modal when no move is in progress', async () => {
+        await setup({ touch: true, nodesByInstance: nodes, assignmentsByInstance: placed() });
+
+        press('n2');
+
+        expect(modal().componentInstance.open()).toBe(true);
+      });
     });
   });
 

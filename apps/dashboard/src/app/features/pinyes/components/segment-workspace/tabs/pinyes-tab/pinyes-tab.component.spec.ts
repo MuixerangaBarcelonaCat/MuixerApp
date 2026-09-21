@@ -35,6 +35,7 @@ class StubFigureCanvas {
   readonly isPast = input<boolean>(false);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
+  readonly segmentNodeContextMenu = output<SegmentNodeRef>();
   centerOnContent = vi.fn();
   zoomIn = vi.fn();
   zoomOut = vi.fn();
@@ -1074,6 +1075,237 @@ describe('PinyesTabComponent', () => {
 
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
       expect(ws.pendingSelection()).toBeNull();
+    });
+  });
+
+  // ── move mode: right-click a person, then press the destination ───────────────
+
+  describe('move mode', () => {
+    const banner = () => fixture.nativeElement.querySelector('app-move-banner') as HTMLElement | null;
+    const rightClick = (nodeId: string, slotId = INST_A) => {
+      canvasStub().segmentNodeContextMenu.emit({ slotId, nodeId });
+      fixture.detectChanges();
+    };
+    const press = (nodeId: string, slotId = INST_A) => {
+      component.onSegmentNodeSelected({ slotId, nodeId });
+      fixture.detectChanges();
+    };
+    const placed = (id = 'p-1', nodeId = 'n1') => ({ [INST_A]: [makeAssignment(INST_A, nodeId, id)] });
+
+    describe('starting', () => {
+      it('shows no banner by default', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        expect(banner()).toBeNull();
+      });
+
+      it('right-clicking a placed person shows "S\'està movent <alias>"', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        rightClick('n1');
+
+        expect(banner()?.textContent).toContain("S'està movent");
+        expect(banner()?.textContent).toContain('Alias p-1');
+      });
+
+      it('right-clicking an empty node does nothing', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        rightClick('n2');
+
+        expect(banner()).toBeNull();
+      });
+
+      it('does nothing when the event is locked', async () => {
+        await setup({ locked: true, assignmentsByInstance: placed() });
+
+        rightClick('n1');
+
+        expect(banner()).toBeNull();
+      });
+
+      it('marks the node being moved on the canvas, and nothing otherwise', async () => {
+        await setup({ assignmentsByInstance: placed() });
+        expect([...canvasStub().highlightedNodeIds()]).toEqual([]);
+
+        rightClick('n1');
+
+        expect([...canvasStub().highlightedNodeIds()]).toEqual(['n1']);
+      });
+
+      it('drops the current selection', async () => {
+        await setup({ assignmentsByInstance: placed('p-1', 'n1') });
+        press('n2');
+        expect(component.selectedRef()).not.toBeNull();
+
+        rightClick('n1');
+
+        expect(component.selectedRef()).toBeNull();
+        expect(state.selectedNodeId()).toBeNull();
+      });
+    });
+
+    describe('pressing the destination', () => {
+      it('moves the person when the destination is empty, and the banner goes away', async () => {
+        const existing = makeAssignment(INST_A, 'n1', 'p-1');
+        await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+        expect(banner()).toBeNull();
+      });
+
+      it('swaps the two persons when the destination is occupied', async () => {
+        const a1 = makeAssignment(INST_A, 'n1', 'p-1');
+        const a2 = makeAssignment(INST_A, 'n2', 'p-2');
+        await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
+        assignmentService.swap.mockReturnValue(of({ a: a1, b: a2 }));
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.swap).toHaveBeenCalledWith(INST_A, { assignmentIdA: a1.id, assignmentIdB: a2.id });
+        expect(banner()).toBeNull();
+      });
+
+      it('a right-click on an occupied destination also swaps (long press counts too)', async () => {
+        const a1 = makeAssignment(INST_A, 'n1', 'p-1');
+        const a2 = makeAssignment(INST_A, 'n2', 'p-2');
+        await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
+        assignmentService.swap.mockReturnValue(of({ a: a1, b: a2 }));
+        rightClick('n1');
+
+        rightClick('n2');
+
+        expect(assignmentService.swap).toHaveBeenCalledWith(INST_A, { assignmentIdA: a1.id, assignmentIdB: a2.id });
+      });
+
+      it('a right-click on an empty destination also moves', async () => {
+        await setup({ assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        rightClick('n2');
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+      });
+
+      it('does not select the destination node (the press only completes the move)', async () => {
+        await setup({ assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(component.selectedRef()).toBeNull();
+      });
+
+      it('can be undone as one step', async () => {
+        await setup({
+          instances: [makeInstance(INST_A, { snapshotted: true })],
+          assignmentsByInstance: placed(),
+        });
+        assignmentService.assign.mockImplementation((instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(makeAssignment(instanceId, payload.nodeId, payload.personId)),
+        );
+        rightClick('n1');
+        press('n2');
+        expect(state.assignments().map((a) => a.node.id)).toEqual(['n2']);
+
+        undoRedo.undo().subscribe();
+
+        expect(state.assignments().map((a) => a.node.id)).toEqual(['n1']);
+      });
+    });
+
+    describe('cancelling', () => {
+      const moving = async () => {
+        await setup({ assignmentsByInstance: placed() });
+        rightClick('n1');
+        expect(banner()).not.toBeNull();
+      };
+      const nothingMoved = () => {
+        expect(assignmentService.unassign).not.toHaveBeenCalled();
+        expect(assignmentService.swap).not.toHaveBeenCalled();
+        expect(banner()).toBeNull();
+      };
+
+      it('pressing outside any node cancels', async () => {
+        await moving();
+
+        component.onSegmentNodeSelected(null);
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('the cross on the banner cancels', async () => {
+        await moving();
+
+        (banner()?.querySelector('button[aria-label="Cancel·la el moviment"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('Escape cancels', async () => {
+        await moving();
+
+        component.onKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('pressing the same node again cancels', async () => {
+        await moving();
+
+        press('n1');
+
+        nothingMoved();
+      });
+
+      it('right-clicking the same node again cancels', async () => {
+        await moving();
+
+        rightClick('n1');
+
+        nothingMoved();
+      });
+    });
+
+    describe('on touch', () => {
+      const modal = () => fixture.debugElement.query(By.directive(ModalComponent));
+
+      it('pressing the destination moves without opening the person modal', async () => {
+        await setup({ touch: true, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+        expect(modal().componentInstance.open()).toBe(false);
+      });
+
+      it('pressing outside cancels without opening the person modal', async () => {
+        await setup({ touch: true, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        component.onSegmentNodeSelected(null);
+        fixture.detectChanges();
+
+        expect(banner()).toBeNull();
+        expect(modal().componentInstance.open()).toBe(false);
+      });
+
+      it('a normal tap still opens the person modal when no move is in progress', async () => {
+        await setup({ touch: true, assignmentsByInstance: placed() });
+
+        press('n2');
+
+        expect(modal().componentInstance.open()).toBe(true);
+      });
     });
   });
 

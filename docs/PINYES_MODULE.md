@@ -1080,6 +1080,16 @@ l'amplada) decideix el layout del workspace (`segment-workspace`):
   i tanca el modal; tancar-lo deselecciona el node. En tàctil no s'avança al següent node buit.
 - **Lògica d'assignació** (assignar/desassignar/moure/intercanviar, amb desfer/refer): compartida
   entre les dues pestanyes a `SegmentAssignmentActionsService` (proveït per pestanya).
+- **Mode «moure»** (`SegmentAssignmentActionsService.startMove/completeMove/cancelMove`): es
+  comença amb un clic dret sobre una persona col·locada (`contextmenu`: `segmentNodeContextMenu`
+  al canvas, `nodeContextMenu` a `tronc-view`; el toc mantingut en tàctil hi anirà pel mateix
+  camí). Apareix el bàner `app-move-banner` («S'està movent <ÀLIES>», amb una ✕) i el node origen es
+  ressalta amb `highlightedNodeIds`. El següent node premut és el destí: buit → la mou, ocupat →
+  s'intercanvien (inclòs entre figures), reutilitzant `drop()`, així que és el mateix pas de
+  desfer que un arrossegament. Cancel·len el mode: prémer fora d'un node, la ✕, Escape, prémer
+  el mateix node, o desaparèixer l'assignació (p. ex. en desfer-la). Un node decoratiu es
+  rebutja amb un avís sense cancel·lar. Sense efecte si l'esdeveniment està bloquejat o el node
+  està buit.
 - **Capçalera:** per sota de `sm` s'amaguen el comptador «n/total», l'ajuda i els botons
   d'importar/reinicialitzar, i el títol ocupa `w-1/6` fix.
 

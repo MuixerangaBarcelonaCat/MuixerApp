@@ -55,6 +55,24 @@ describe('TemplateEditorHelpModalComponent', () => {
     expect(component.activeSection()?.id).toBe('tactil');
   });
 
+  describe('assignment canvas: moving a person', () => {
+    const assignmentShortcuts = () =>
+      component.shortcutGroups.find((g) => g.title === "Canvas d'assignació")?.shortcuts ?? [];
+
+    it('documents the right-click that starts moving a person', () => {
+      const entry = assignmentShortcuts().find((s) => s.keys.toLowerCase().includes('clic dret'));
+
+      expect(entry).toBeDefined();
+      expect(entry?.action.toLowerCase()).toContain('intercanvia');
+    });
+
+    it('says that Escape also cancels a move', () => {
+      const entry = assignmentShortcuts().find((s) => s.keys === 'Escape');
+
+      expect(entry?.action.toLowerCase()).toContain('moviment');
+    });
+  });
+
   it('includes a touch gestures shortcut group', () => {
     expect(component.shortcutGroups.some((g) => g.title.toLowerCase().includes('tàctils'))).toBe(true);
   });

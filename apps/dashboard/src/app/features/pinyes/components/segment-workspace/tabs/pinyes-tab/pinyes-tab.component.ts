@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { LucideAngularModule, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
+import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -42,6 +43,7 @@ import {
     LucideAngularModule,
     ButtonComponent,
     ModalComponent,
+    MoveBannerComponent,
     NgTemplateOutlet,
     FigureCanvasComponent,
     PersonPanelComponent,
@@ -108,7 +110,30 @@ export class PinyesTabComponent implements OnInit {
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
-  readonly highlightedNodeIds = signal<Set<string>>(new Set());
+  /** Marks the node whose person is being moved (right-click / long-press), if any. */
+  readonly highlightedNodeIds = computed(() => {
+    const moving = this.actions.movingAssignment();
+    return moving ? new Set([moving.node.id]) : new Set<string>();
+  });
+
+  readonly movingAlias = this.actions.movingAlias;
+
+  cancelMove(): void {
+    this.actions.cancelMove();
+  }
+
+  /**
+   * Right-click (long press on touch) on a node: starts moving the person placed there, or — when a
+   * move is already in progress — picks this node as the destination.
+   */
+  onNodeContextMenu(ref: SegmentNodeRef): void {
+    if (this.actions.movingAssignment()) {
+      this.actions.completeMove(ref);
+      return;
+    }
+    this.personPickerOpen.set(false);
+    this.actions.startMove(ref);
+  }
 
   readonly reassignDialog = signal<{
     personId: string;
@@ -167,6 +192,7 @@ export class PinyesTabComponent implements OnInit {
 
     if (event.key === 'Escape') {
       event.preventDefault();
+      this.actions.cancelMove();
       this.clearSelection();
       this.state.setSelectedPersonId(null);
       return;
@@ -214,6 +240,13 @@ export class PinyesTabComponent implements OnInit {
   }
 
   onSegmentNodeSelected(ref: SegmentNodeRef | null): void {
+    // Moving a person: the next press is the destination (empty area cancels).
+    if (this.actions.movingAssignment()) {
+      if (ref) this.actions.completeMove(ref);
+      else this.actions.cancelMove();
+      return;
+    }
+
     if (this.ws.isLocked()) return;
 
     if (!ref) {

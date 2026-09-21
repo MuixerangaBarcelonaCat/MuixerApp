@@ -1640,6 +1640,77 @@ describe('TroncViewComponent', () => {
     });
   });
 
+  describe('context menu (right-click) on a node', () => {
+    const nodeEl = (id: string) => fixture.nativeElement.querySelector(`[data-tronc-node-id="${id}"]`) as HTMLElement;
+    const rightClick = (el: HTMLElement): MouseEvent => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      el.dispatchEvent(event);
+      return event;
+    };
+    let emitted: string[];
+
+    beforeEach(() => {
+      emitted = [];
+      component.nodeContextMenu.subscribe((id: string) => emitted.push(id));
+    });
+
+    it('emits the node id for an assigned tronc node and suppresses the browser menu', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+
+      const event = rightClick(nodeEl('node-1'));
+
+      expect(emitted).toEqual(['node-1']);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('also emits for an empty node (it can be the destination of a move) and suppresses the menu', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.detectChanges();
+
+      const event = rightClick(nodeEl('node-1'));
+
+      expect(emitted).toEqual(['node-1']);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('works on a base node', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'base-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('base-1', 'Pepet')]);
+      fixture.detectChanges();
+
+      rightClick(nodeEl('base-1'));
+
+      expect(emitted).toEqual(['base-1']);
+    });
+
+    it('works on a direction node', () => {
+      const dirNode = makeNode({ id: 'dir-1', zone: 'DIRECTION', positionType: 'direccio-tronc' });
+      fixture.componentRef.setInput('directionNodes', [dirNode]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('dir-1', 'Marta')]);
+      fixture.detectChanges();
+
+      rightClick(nodeEl('dir-1'));
+
+      expect(emitted).toEqual(['dir-1']);
+    });
+
+    it.each(['editor', 'projection'] as const)('does nothing in %s mode (the browser menu is left alone)', (mode) => {
+      fixture.componentRef.setInput('mode', mode);
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+
+      const el = nodeEl('node-1');
+      if (!el) return; // projection renders no interactive node element
+      const event = rightClick(el);
+
+      expect(emitted).toEqual([]);
+      expect(event.defaultPrevented).toBe(false);
+    });
+  });
+
   describe('selected-node properties panel (design system)', () => {
     // A field's lib-input is freshly created here (behind the @if branch), so its first ngModel
     // write is a *new* standalone NgModel registration — Angular defers that one's initial
