@@ -69,6 +69,7 @@ const DEFAULT_CONFLICTS_META = {
 const mockNodeAssignmentService = {
   checkEventLockByEventId: jest.fn(),
   getSegmentConflicts: jest.fn(),
+  getSegmentConflictsBySegments: jest.fn(),
 };
 
 describe('EventSegmentService', () => {
@@ -89,6 +90,9 @@ describe('EventSegmentService', () => {
     jest.clearAllMocks();
     mockNodeAssignmentService.checkEventLockByEventId.mockResolvedValue(undefined);
     mockNodeAssignmentService.getSegmentConflicts.mockResolvedValue({ data: [], meta: DEFAULT_CONFLICTS_META });
+    mockNodeAssignmentService.getSegmentConflictsBySegments.mockImplementation((ids: string[]) =>
+      Promise.resolve(new Map(ids.map((id) => [id, { data: [], meta: DEFAULT_CONFLICTS_META }]))),
+    );
     mockSegmentRepo.createQueryBuilder.mockReturnValue(mockSegmentQb);
     mockSegmentQb.leftJoinAndSelect.mockReturnThis();
     mockSegmentQb.where.mockReturnThis();
@@ -306,12 +310,33 @@ describe('EventSegmentService', () => {
       };
       mockEventRepo.findOne.mockResolvedValue(makeEvent());
       mockSegmentQb.getMany.mockResolvedValue([makeSegment()]);
-      mockNodeAssignmentService.getSegmentConflicts.mockResolvedValue({ data: [], meta });
+      mockNodeAssignmentService.getSegmentConflictsBySegments.mockResolvedValue(
+        new Map([[SEGMENT_ID, { data: [], meta }]]),
+      );
 
       const result = await service.findAllByEvent(EVENT_ID);
 
       expect(result[0].conflicts).toEqual(meta);
-      expect(mockNodeAssignmentService.getSegmentConflicts).toHaveBeenCalledWith(SEGMENT_ID);
+      expect(mockNodeAssignmentService.getSegmentConflictsBySegments).toHaveBeenCalledWith([SEGMENT_ID]);
+    });
+
+    it('loads the counters of every segment of the event in a single batched call', async () => {
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockSegmentQb.getMany.mockResolvedValue([
+        makeSegment(),
+        { ...makeSegment(), id: 'segment-uuid-2' },
+        { ...makeSegment(), id: 'segment-uuid-3' },
+      ]);
+
+      await service.findAllByEvent(EVENT_ID);
+
+      expect(mockNodeAssignmentService.getSegmentConflictsBySegments).toHaveBeenCalledTimes(1);
+      expect(mockNodeAssignmentService.getSegmentConflictsBySegments).toHaveBeenCalledWith([
+        SEGMENT_ID,
+        'segment-uuid-2',
+        'segment-uuid-3',
+      ]);
+      expect(mockNodeAssignmentService.getSegmentConflicts).not.toHaveBeenCalled();
     });
 
     it('defaults conflict counters to zero/empty in production (no duplicates yet)', async () => {
