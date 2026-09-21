@@ -22,9 +22,6 @@
 
     <!-- Botons de capçalera -->
     <div class="flex items-center gap-2 flex-wrap">
-      @if (provisionalToggleError()) {
-        <span class="text-xs text-error">{{ provisionalToggleError() }}</span>
-      }
       @if (saveError()) {
         <span class="text-xs text-error">{{ saveError() }}</span>
       }
@@ -33,14 +30,6 @@
       }
 
       @if (person() && !editing()) {
-        <lib-button
-          [variant]="person()!.isProvisional ? 'success' : 'warning'"
-          size="sm"
-          [loading]="togglingProvisional()"
-          (clicked)="toggleProvisional()"
-        >
-          {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar provisional' }}
-        </lib-button>
         <lib-button variant="primary" size="sm" (clicked)="startEditing()">Edita</lib-button>
       }
 

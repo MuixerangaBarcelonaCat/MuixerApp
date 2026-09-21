@@ -124,8 +124,6 @@ export class PersonDetailComponent implements OnInit {
   saving = signal(false);
   saveError = signal<string | null>(null);
   saveSuccess = signal(false);
-  togglingProvisional = signal(false);
-  provisionalToggleError = signal<string | null>(null);
   deletingPerson = signal(false);
   metadataExpanded = signal(false);
   editing = signal(false);
@@ -338,34 +336,6 @@ export class PersonDetailComponent implements OnInit {
       error: (err) => {
         this.saving.set(false);
         this.saveError.set(err?.error?.message ?? 'Error en desar els canvis');
-      },
-    });
-  }
-
-  toggleProvisional() {
-    const p = this.person();
-    if (!p || this.togglingProvisional()) return;
-    const newValue = !p.isProvisional;
-    if (
-      !newValue &&
-      !confirm(
-        'Per promoure una persona provisional a membre regular necessites confirmar que té nom, cognom i àlies definitius configurats.',
-      )
-    )
-      return;
-    this.togglingProvisional.set(true);
-    this.provisionalToggleError.set(null);
-    this.personService.update(p.id, { isProvisional: newValue }).subscribe({
-      next: (updated) => {
-        this.person.set(updated);
-        this.togglingProvisional.set(false);
-        this.toast.success(newValue ? 'Persona marcada com a provisional.' : 'Persona promoguda a membre regular.');
-      },
-      error: (err) => {
-        this.togglingProvisional.set(false);
-        const msg = err?.error?.message ?? 'Error en canviar l\'estat provisional';
-        this.provisionalToggleError.set(msg);
-        this.toast.error(msg);
       },
     });
   }
