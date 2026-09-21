@@ -8,6 +8,7 @@ import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
 import {
+  formatPhone,
   getFullName,
   getOnboardingLabel,
   formatDate,
@@ -443,6 +444,7 @@ export class PersonListComponent {
       case 'isActive': return person.isActive ? 'Actiu' : 'Inactiu';
       case 'isMember': return person.isMember ? 'Sí' : 'No';
       case 'isXicalla': return person.isXicalla ? 'Sí' : 'No';
+      case 'phone': return formatPhone(person.phone) ?? '—';
       case 'birthDate': return person.birthDate ? formatDate(person.birthDate) : '—';
       case 'shirtDate': return person.shirtDate ? formatDate(person.shirtDate) : '—';
       case 'createdAt': return formatDate(person.createdAt);

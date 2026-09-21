@@ -102,7 +102,7 @@
               @if (person()!.phone) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
-                  <dd class="text-sm text-right">{{ person()!.phone }}</dd>
+                  <dd class="text-sm text-right">{{ formatPhone(person()!.phone) }}</dd>
                 </div>
               }
               @if (responsiblePhone(); as responsible) {

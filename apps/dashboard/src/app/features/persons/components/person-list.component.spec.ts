@@ -328,4 +328,18 @@ describe('PersonListComponent', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
     });
   });
+
+  describe('phone column', () => {
+    const cell = (phone: string | null) =>
+      fixture.componentInstance.getCellValueForPerson({ ...mockPerson, phone } as never, 'phone');
+
+    it('hides the +34 prefix', () => {
+      expect(cell('+34612345678')).toBe('612345678');
+    });
+
+    it('keeps other prefixes and shows a dash when empty', () => {
+      expect(cell('+33612345678')).toBe('+33612345678');
+      expect(cell(null)).toBe('—');
+    });
+  });
 });

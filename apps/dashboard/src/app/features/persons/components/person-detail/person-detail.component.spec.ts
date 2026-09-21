@@ -603,6 +603,36 @@ describe('PersonDetailComponent', () => {
       expect(fixture.nativeElement.textContent).not.toContain('parent@test.com');
     });
 
+    describe('phone display', () => {
+      it('hides the +34 prefix on the person\'s own phone', () => {
+        component.person.set(makePerson({ phone: '+34612345678' }));
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent;
+        expect(text).toContain('612345678');
+        expect(text).not.toContain('+34612345678');
+      });
+
+      it('hides the +34 prefix on the responsable\'s phone', () => {
+        component.person.set(makePerson({ phone: null }));
+        component.delegates.set([
+          makeDelegateItem({ user: { id: 'u', email: 'p@test.com', person: { id: 'pp', alias: 'Pare', phone: '+34612345678' } } }),
+        ]);
+        fixture.detectChanges();
+
+        const row = fixture.nativeElement.querySelector('[data-testid="responsible-phone"]') as HTMLElement;
+        expect(row.textContent).toContain('612345678');
+        expect(row.textContent).not.toContain('+34');
+      });
+
+      it('keeps the prefix of other countries', () => {
+        component.person.set(makePerson({ phone: '+33612345678' }));
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain('+33612345678');
+      });
+    });
+
     describe('phone fallback to the responsable', () => {
       const parentUser = (phone: string | null) => ({
         id: 'user-1',
@@ -617,7 +647,7 @@ describe('PersonDetailComponent', () => {
         fixture.detectChanges();
 
         const text = fixture.nativeElement.textContent;
-        expect(text).toContain('+34612345678');
+        expect(text).toContain('612345678');
         expect(text).toContain('ParentAlias');
         expect(fixture.nativeElement.querySelector('[data-testid="responsible-phone"]')).toBeTruthy();
       });
@@ -628,8 +658,8 @@ describe('PersonDetailComponent', () => {
         fixture.detectChanges();
 
         const text = fixture.nativeElement.textContent;
-        expect(text).toContain('+34600000000');
-        expect(text).not.toContain('+34612345678');
+        expect(text).toContain('600000000');
+        expect(text).not.toContain('612345678');
       });
 
       it('shows nothing when the responsable has no phone either', () => {

@@ -38,6 +38,7 @@ import {
   formatDate,
   formatDateTime,
   formatShoulderHeightRelative,
+  formatPhone,
   getFullName,
 } from '../../../../shared/utils';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
@@ -159,7 +160,9 @@ export class PersonDetailComponent implements OnInit {
   responsiblePhone = computed(() => {
     if (this.person()?.phone) return null;
     const responsible = this.primaryDelegate()?.user.person;
-    return responsible?.phone ? { alias: responsible.alias, phone: responsible.phone } : null;
+    return responsible?.phone
+      ? { alias: responsible.alias, phone: formatPhone(responsible.phone) }
+      : null;
   });
   secondaryDelegates = computed(() => this.delegates().filter((d) => !d.isPrimary));
 
@@ -525,4 +528,5 @@ export class PersonDetailComponent implements OnInit {
   }
 
   protected readonly getFullName = getFullName;
+  protected readonly formatPhone = formatPhone;
 }
