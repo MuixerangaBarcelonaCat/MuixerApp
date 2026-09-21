@@ -141,7 +141,7 @@
       [sortOrder]="sortOrder()"
       [rowActions]="rowActions()"
       (sortChange)="onSortChange($event)"
-      (rowClick)="navigateToPerson($any($event))"
+      [rowLink]="personLink"
     />
 
     @if (totalRows() > limit()) {

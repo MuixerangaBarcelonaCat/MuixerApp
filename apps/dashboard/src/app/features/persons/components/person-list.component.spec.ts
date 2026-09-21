@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
@@ -55,10 +55,13 @@ describe('PersonListComponent', () => {
       imports: [PersonListComponent],
       providers: [
         { provide: PersonService, useValue: personService },
-        { provide: Router, useValue: router },
+        provideRouter([]),
         allLucideIconsProvider,
       ],
     }).compileComponents();
+
+    // A real router (RouterLink in the table needs one) with `navigate` spied.
+    router = { navigate: vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true) };
 
     localStorage.clear();
     fixture = TestBed.createComponent(PersonListComponent);
@@ -69,6 +72,12 @@ describe('PersonListComponent', () => {
     expect(fixture.componentInstance).toBeTruthy();
     expect(personService.getAll).toHaveBeenCalled();
     expect(personService.getPositions).toHaveBeenCalled();
+  });
+
+  it('links each row to the person detail route so it can open in a new tab', () => {
+    const link = fixture.nativeElement.querySelector('a[href="/persons/p1"]');
+    expect(link).toBeTruthy();
+    expect(fixture.componentInstance.personLink(mockPerson as never)).toEqual(['/persons', 'p1']);
   });
 
   it('onSortColumn toggles sort and calls getAll with sort params', () => {

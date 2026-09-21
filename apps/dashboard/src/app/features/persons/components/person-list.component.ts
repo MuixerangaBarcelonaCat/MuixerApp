@@ -298,9 +298,8 @@ export class PersonListComponent {
     this.loadPersons();
   }
 
-  onPersonClick(id: string) {
-    this.router.navigate(['/persons', id]);
-  }
+  /** Row route for the data table: real anchors, so a row opens in a new tab. */
+  readonly personLink = (person: Person) => ['/persons', person.id];
 
   onSyncClick() {
     this.router.navigate(['/persons/sync-start']);

@@ -377,6 +377,10 @@ describe('EventListComponent', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/rehearsals', 'sync']);
     });
 
+    it('eventLink points each row at /events/:id so it can open in a new tab', () => {
+      expect(component.eventLink({ id: 'event-123' } as never)).toEqual(['/events', 'event-123']);
+    });
+
     it('navigateToEvent goes to /events/:id', () => {
       component.navigateToEvent('event-123');
       expect(router.navigate).toHaveBeenCalledWith(['/events', 'event-123']);

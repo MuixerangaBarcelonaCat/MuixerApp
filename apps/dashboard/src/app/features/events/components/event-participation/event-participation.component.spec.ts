@@ -855,16 +855,12 @@ describe('EventParticipationComponent', () => {
   });
 
   describe('navigation', () => {
-    it('opens the person detail on row click', async () => {
+    it('links each row to the person detail so it can open in a new tab', async () => {
       const fixture = await setup();
-      const router = TestBed.inject(Router);
-      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
 
-      fixture.componentInstance.navigateToPerson(
-        fixture.componentInstance.persons().find((p) => p.alias === 'PERSIANA')!,
-      );
+      const row = fixture.componentInstance.persons().find((p) => p.alias === 'PERSIANA')!;
 
-      expect(navigate).toHaveBeenCalledWith(['/persons', 'p1']);
+      expect(fixture.componentInstance.personLink(row)).toEqual(['/persons', 'p1']);
     });
 
     it('offers one workshop action per segment, hidden where the person is not placed', async () => {
