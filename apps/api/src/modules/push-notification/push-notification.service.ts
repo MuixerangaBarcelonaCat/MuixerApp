@@ -1,9 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { Repository } from 'typeorm';
-import { AttendanceStatus, NotificationSource, NotificationTargetType } from '@muixer/shared';
+import { MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  AttendanceStatus,
+  EventReferenceKind,
+  EventType,
+  NotificationLinkType,
+  NotificationSource,
+  NotificationTarget,
+  NotificationTargetType,
+} from '@muixer/shared';
+import { getLocalToday } from '../../common/utils/date.util';
 import { Attendance } from '../event/attendance.entity';
+import { Event } from '../event/event.entity';
 import { User } from '../user/user.entity';
 import { PushSenderService } from './push-sender.service';
 import { PushSubscriptionService } from './push-subscription.service';
@@ -18,6 +28,8 @@ export class PushNotificationService {
   constructor(
     @InjectRepository(Attendance)
     private readonly attendanceRepo: Repository<Attendance>,
+    @InjectRepository(Event)
+    private readonly eventRepo: Repository<Event>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly subscriptionService: PushSubscriptionService,
@@ -30,13 +42,17 @@ export class PushNotificationService {
     dto: SendNotificationDto,
     triggeredByUserId?: string,
   ): Promise<{ accepted: boolean; warning?: string }> {
-    const userIds = await this.resolveTargetUserIds(dto);
+    const eventId = dto.linkedEvent ? await this.resolveEventReference(dto.linkedEvent) : undefined;
+
+    const userIds = await this.resolveTargetUserIds(dto, eventId);
+    const resolvedTarget = this.buildResolvedTarget(dto.target, eventId);
+    const url = this.resolveUrl(dto, eventId);
 
     await this.logService.record({
       title: dto.title,
       body: dto.body,
-      url: dto.url,
-      target: dto.target,
+      url,
+      target: resolvedTarget,
       recipientCount: userIds.length,
       source: NotificationSource.MANUAL,
       triggeredByUserId,
@@ -49,7 +65,7 @@ export class PushNotificationService {
     const payload = {
       title: dto.title,
       body: dto.body,
-      ...(dto.url ? { url: dto.url } : {}),
+      ...(url ? { url } : {}),
       icon: '/icons/icon-192.png',
     };
 
@@ -102,7 +118,7 @@ export class PushNotificationService {
     );
   }
 
-  private async resolveTargetUserIds(dto: SendNotificationDto): Promise<string[]> {
+  private async resolveTargetUserIds(dto: SendNotificationDto, eventId?: string): Promise<string[]> {
     const { type } = dto.target;
 
     if (type === NotificationTargetType.ALL) {
@@ -111,7 +127,8 @@ export class PushNotificationService {
     }
 
     if (type === NotificationTargetType.EVENT_ATTENDANCE) {
-      const { eventId, attendanceFilter } = dto.target;
+      if (!eventId) return [];
+      const { attendanceFilter } = dto.target;
       const qb = this.attendanceRepo
         .createQueryBuilder('a')
         .innerJoin('a.person', 'p')
@@ -143,5 +160,64 @@ export class PushNotificationService {
     }
 
     return [];
+  }
+
+  /** Resolves the abstract event reference (a fixed id, or "the nearest upcoming X") to a concrete Event id. */
+  private async resolveEventReference(eventRef: { kind: EventReferenceKind; eventId?: string }): Promise<string | undefined> {
+    switch (eventRef.kind) {
+      case EventReferenceKind.SPECIFIC:
+        return eventRef.eventId;
+      case EventReferenceKind.NEXT_ACTUACIO:
+        return this.findNextEventId(EventType.ACTUACIO);
+      case EventReferenceKind.NEXT_ASSAIG:
+        return this.findNextEventId(EventType.ASSAIG);
+      case EventReferenceKind.NEXT_ACTUACIO_OR_ASSAIG:
+        return this.findNextEventId();
+      case EventReferenceKind.TRIGGERING_EVENT:
+        // Only meaningful from a BEFORE_EVENT scheduled dispatch (not built yet) — see docs plan phase 5.
+        throw new BadRequestException(
+          "TRIGGERING_EVENT només és vàlid en una notificació programada abans d'un esdeveniment",
+        );
+      default:
+        return undefined;
+    }
+  }
+
+  private async findNextEventId(eventType?: EventType): Promise<string | undefined> {
+    const event = await this.eventRepo.findOne({
+      where: {
+        date: MoreThanOrEqual(getLocalToday() as unknown as Date),
+        ...(eventType ? { eventType } : {}),
+      },
+      order: { date: 'ASC' },
+    });
+    return event?.id;
+  }
+
+  private resolveUrl(dto: SendNotificationDto, eventId: string | undefined): string | undefined {
+    switch (dto.linkTo) {
+      case NotificationLinkType.HOME:
+        return '/home';
+      case NotificationLinkType.EVENT:
+        return eventId ? `/events/${eventId}` : undefined;
+      case NotificationLinkType.CUSTOM:
+        return dto.url;
+      default:
+        return undefined;
+    }
+  }
+
+  /** Builds the flat, concrete target shape persisted to NotificationLog — the resolved eventId, not the abstract eventRef. */
+  private buildResolvedTarget(
+    target: SendNotificationDto['target'],
+    eventId: string | undefined,
+  ): NotificationTarget {
+    if (target.type === NotificationTargetType.EVENT_ATTENDANCE) {
+      return { type: target.type, eventId, attendanceFilter: target.attendanceFilter };
+    }
+    if (target.type === NotificationTargetType.PERSON) {
+      return { type: target.type, personIds: target.personIds };
+    }
+    return { type: target.type };
   }
 }

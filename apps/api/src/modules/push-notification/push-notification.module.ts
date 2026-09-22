@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/user.entity';
 import { Attendance } from '../event/attendance.entity';
+import { Event } from '../event/event.entity';
 import { News } from '../news/news.entity';
 import { PushSubscription } from './entities/push-subscription.entity';
 import { NotificationLog } from './entities/notification-log.entity';
@@ -24,7 +25,7 @@ import { PushNotificationController } from './push-notification.controller';
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([PushSubscription, NotificationLog, User, Attendance, News]),
+    TypeOrmModule.forFeature([PushSubscription, NotificationLog, User, Attendance, Event, News]),
   ],
   controllers: [PushSubscriptionController, PushNotificationController],
   providers: [

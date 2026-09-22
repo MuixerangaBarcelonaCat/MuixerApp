@@ -6,8 +6,9 @@ import { PushSenderService } from './push-sender.service';
 import { PushSubscriptionService } from './push-subscription.service';
 import { NotificationLogService } from './notification-log.service';
 import { Attendance } from '../event/attendance.entity';
+import { Event } from '../event/event.entity';
 import { User } from '../user/user.entity';
-import { NotificationSource, NotificationTargetType } from '@muixer/shared';
+import { EventReferenceKind, EventType, NotificationLinkType, NotificationSource, NotificationTargetType } from '@muixer/shared';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { PushRequestedEvent } from './events/push-requested.event';
 
@@ -15,9 +16,18 @@ const makeDto = (targetType: NotificationTargetType = NotificationTargetType.ALL
   const dto = new SendNotificationDto();
   dto.title = 'Test title';
   dto.body = 'Test body';
+  dto.linkTo = NotificationLinkType.HOME;
   dto.target = { type: targetType, ...overrides };
   return dto;
 };
+
+const mockAttendanceQueryBuilder = (rows: { userId: string }[]) => ({
+  innerJoin: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
+  where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
+  getRawMany: jest.fn().mockResolvedValue(rows),
+});
 
 describe('PushNotificationService', () => {
   let service: PushNotificationService;
@@ -25,14 +35,23 @@ describe('PushNotificationService', () => {
   let subscriptionService: jest.Mocked<PushSubscriptionService>;
   let senderService: jest.Mocked<PushSenderService>;
   let logService: jest.Mocked<NotificationLogService>;
+  let attendanceRepo: { createQueryBuilder: jest.Mock };
+  let eventRepo: { findOne: jest.Mock };
 
   beforeEach(async () => {
+    attendanceRepo = { createQueryBuilder: jest.fn().mockReturnValue(mockAttendanceQueryBuilder([{ userId: 'u1' }, { userId: 'u2' }])) };
+    eventRepo = { findOne: jest.fn() };
+
     const module = await Test.createTestingModule({
       providers: [
         PushNotificationService,
         {
           provide: getRepositoryToken(Attendance),
-          useValue: { createQueryBuilder: jest.fn() },
+          useValue: attendanceRepo,
+        },
+        {
+          provide: getRepositoryToken(Event),
+          useValue: eventRepo,
         },
         {
           provide: getRepositoryToken(User),
@@ -86,6 +105,7 @@ describe('PushNotificationService', () => {
         providers: [
           PushNotificationService,
           { provide: getRepositoryToken(Attendance), useValue: { createQueryBuilder: jest.fn() } },
+          { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(User), useValue: userRepo },
           { provide: PushSubscriptionService, useValue: subscriptionService },
           { provide: PushSenderService, useValue: senderService },
@@ -118,6 +138,7 @@ describe('PushNotificationService', () => {
         providers: [
           PushNotificationService,
           { provide: getRepositoryToken(Attendance), useValue: { createQueryBuilder: jest.fn() } },
+          { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(User), useValue: userRepo },
           { provide: PushSubscriptionService, useValue: subscriptionService },
           { provide: PushSenderService, useValue: senderService },
@@ -132,6 +153,146 @@ describe('PushNotificationService', () => {
       expect(logService.record).toHaveBeenCalledWith(
         expect.objectContaining({ recipientCount: 0, source: NotificationSource.MANUAL }),
       );
+    });
+  });
+
+  describe('send (EVENT_ATTENDANCE target)', () => {
+    const eventDto = (linkedEvent: Record<string, unknown>, overrides: Record<string, unknown> = {}) => {
+      const dto = makeDto(NotificationTargetType.EVENT_ATTENDANCE, { attendanceFilter: undefined, ...overrides });
+      dto.linkedEvent = linkedEvent as never;
+      return dto;
+    };
+
+    it('resolves SPECIFIC using the given eventId directly, without an Event lookup', async () => {
+      await service.send(eventDto({ kind: EventReferenceKind.SPECIFIC, eventId: 'evt-specific' }));
+
+      expect(eventRepo.findOne).not.toHaveBeenCalled();
+      expect(attendanceRepo.createQueryBuilder().where).toHaveBeenCalledWith('e.id = :eventId', {
+        eventId: 'evt-specific',
+      });
+    });
+
+    it('resolves NEXT_ACTUACIO to the nearest upcoming ACTUACIO event', async () => {
+      eventRepo.findOne.mockResolvedValue({ id: 'evt-actuacio' });
+
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }));
+
+      expect(eventRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ eventType: EventType.ACTUACIO }),
+          order: { date: 'ASC' },
+        }),
+      );
+      expect(attendanceRepo.createQueryBuilder().where).toHaveBeenCalledWith('e.id = :eventId', {
+        eventId: 'evt-actuacio',
+      });
+    });
+
+    it('resolves NEXT_ASSAIG to the nearest upcoming ASSAIG event', async () => {
+      eventRepo.findOne.mockResolvedValue({ id: 'evt-assaig' });
+
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ASSAIG }));
+
+      expect(eventRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ eventType: EventType.ASSAIG }) }),
+      );
+      expect(attendanceRepo.createQueryBuilder().where).toHaveBeenCalledWith('e.id = :eventId', {
+        eventId: 'evt-assaig',
+      });
+    });
+
+    it('resolves NEXT_ACTUACIO_OR_ASSAIG to the nearest upcoming event of either type', async () => {
+      eventRepo.findOne.mockResolvedValue({ id: 'evt-either' });
+
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO_OR_ASSAIG }));
+
+      const [[callArgs]] = eventRepo.findOne.mock.calls;
+      expect(callArgs.where.eventType).toBeUndefined();
+      expect(attendanceRepo.createQueryBuilder().where).toHaveBeenCalledWith('e.id = :eventId', {
+        eventId: 'evt-either',
+      });
+    });
+
+    it('returns a warning and zero recipients when no upcoming event matches', async () => {
+      eventRepo.findOne.mockResolvedValue(null);
+      attendanceRepo.createQueryBuilder.mockReturnValue(mockAttendanceQueryBuilder([]));
+
+      const result = await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }));
+
+      expect(result.warning).toBeDefined();
+      expect(logService.record).toHaveBeenCalledWith(expect.objectContaining({ recipientCount: 0 }));
+    });
+
+    it('logs the resolved concrete eventId, not the abstract eventRef', async () => {
+      eventRepo.findOne.mockResolvedValue({ id: 'evt-resolved' });
+
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }));
+
+      expect(logService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: { type: NotificationTargetType.EVENT_ATTENDANCE, eventId: 'evt-resolved', attendanceFilter: undefined },
+        }),
+      );
+    });
+
+    it('passes the attendanceFilter through to the attendance query', async () => {
+      await service.send(eventDto({ kind: EventReferenceKind.SPECIFIC, eventId: 'evt-1' }, { attendanceFilter: 'ANIRE' }));
+
+      expect(attendanceRepo.createQueryBuilder().andWhere).toHaveBeenCalledWith('a.status = :status', {
+        status: 'ANIRE',
+      });
+    });
+
+    it('only resolves the linked event once, reusing it for both attendees and the link', async () => {
+      eventRepo.findOne.mockResolvedValue({ id: 'evt-once' });
+      const dto = eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO });
+      dto.linkTo = NotificationLinkType.EVENT;
+
+      await service.send(dto);
+
+      expect(eventRepo.findOne).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('send (linkTo)', () => {
+    it('resolves HOME to /home', async () => {
+      const dto = makeDto(NotificationTargetType.ALL);
+      dto.linkTo = NotificationLinkType.HOME;
+
+      await service.send(dto);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'push.requested',
+        expect.objectContaining({ payload: expect.objectContaining({ url: '/home' }) }),
+      );
+    });
+
+    it('resolves CUSTOM to the given url', async () => {
+      const dto = makeDto(NotificationTargetType.ALL);
+      dto.linkTo = NotificationLinkType.CUSTOM;
+      dto.url = '/noticies/123';
+
+      await service.send(dto);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'push.requested',
+        expect.objectContaining({ payload: expect.objectContaining({ url: '/noticies/123' }) }),
+      );
+    });
+
+    it('resolves EVENT to the resolved linked event page', async () => {
+      eventRepo.findOne.mockResolvedValue({ id: 'evt-link' });
+      const dto = makeDto(NotificationTargetType.ALL);
+      dto.linkTo = NotificationLinkType.EVENT;
+      dto.linkedEvent = { kind: EventReferenceKind.NEXT_ACTUACIO } as never;
+
+      await service.send(dto);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'push.requested',
+        expect.objectContaining({ payload: expect.objectContaining({ url: '/events/evt-link' }) }),
+      );
+      expect(logService.record).toHaveBeenCalledWith(expect.objectContaining({ url: '/events/evt-link' }));
     });
   });
 

@@ -4,25 +4,26 @@ import {
   inject,
   signal,
   computed,
+  effect,
   OnInit,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SlicePipe } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
-import { NotificationTargetType, AttendanceStatus } from '@muixer/shared';
+import { EventReferenceKind, NotificationLinkType, NotificationTargetType } from '@muixer/shared';
+import { AlertComponent, ButtonComponent, FormFieldComponent } from '@muixer/ui';
 import {
-  AlertComponent,
-  BadgeComponent,
-  ButtonComponent,
-  ButtonGroupComponent,
-  SelectComponent,
-} from '@muixer/ui';
-import { NotificationService, SendNotificationPayload } from '../../services/notification.service';
+  EventReferenceValue,
+  NotificationLinkValue,
+  NotificationService,
+  NotificationTargetValue,
+  SendNotificationPayload,
+} from '../../services/notification.service';
 import { EventService } from '../../../events/services/event.service';
 import { EventListItem } from '../../../events/models/event.model';
-import { Person } from '../../../persons/models/person.model';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
+import { NotificationEventPickerComponent } from '../notification-event-picker/notification-event-picker.component';
+import { NotificationLinkPickerComponent } from '../notification-link-picker/notification-link-picker.component';
+import { NotificationTargetPickerComponent } from '../notification-target-picker/notification-target-picker.component';
 
 type SendState = 'idle' | 'sending' | 'success' | 'error';
 
@@ -32,15 +33,14 @@ type SendState = 'idle' | 'sending' | 'success' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
-    SlicePipe,
     LucideAngularModule,
     PageHeaderComponent,
-    PersonSearchInputComponent,
+    NotificationEventPickerComponent,
+    NotificationLinkPickerComponent,
+    NotificationTargetPickerComponent,
     AlertComponent,
-    BadgeComponent,
     ButtonComponent,
-    ButtonGroupComponent,
-    SelectComponent,
+    FormFieldComponent,
   ],
   templateUrl: './notification-send.component.html',
 })
@@ -48,30 +48,47 @@ export class NotificationSendComponent implements OnInit {
   private readonly notificationService = inject(NotificationService);
   private readonly eventService = inject(EventService);
 
-  readonly TargetType = NotificationTargetType;
-  readonly AttendanceStatus = AttendanceStatus;
-
   title = signal('');
   body = signal('');
-  url = signal('');
-  targetType = signal<NotificationTargetType>(NotificationTargetType.ALL);
-  selectedEventId = signal<string>('');
-  attendanceFilter = signal<AttendanceStatus | ''>('');
-  selectedPersons = signal<Person[]>([]);
+  linkedEvent = signal<EventReferenceValue | undefined>(undefined);
+  link = signal<NotificationLinkValue>({ type: NotificationLinkType.HOME });
+  target = signal<NotificationTargetValue>({ type: NotificationTargetType.ALL });
   events = signal<EventListItem[]>([]);
   state = signal<SendState>('idle');
   errorMessage = signal('');
 
   readonly isSending = computed(() => this.state() === 'sending');
-
-  readonly personIds = computed(() => this.selectedPersons().map((p) => p.id));
+  readonly hasLinkedEvent = computed(() => !!this.linkedEvent());
 
   readonly isFormValid = computed(() => {
     if (!this.title().trim() || !this.body().trim()) return false;
-    if (this.targetType() === NotificationTargetType.EVENT_ATTENDANCE && !this.selectedEventId()) return false;
-    if (this.targetType() === NotificationTargetType.PERSON && this.selectedPersons().length === 0) return false;
+
+    const linkedEvent = this.linkedEvent();
+    if (linkedEvent?.kind === EventReferenceKind.SPECIFIC && !linkedEvent.eventId) return false;
+
+    const link = this.link();
+    if (link.type === NotificationLinkType.CUSTOM && !link.url?.trim()) return false;
+
+    const target = this.target();
+    if (target.type === NotificationTargetType.EVENT_ATTENDANCE && !target.attendanceFilter) return false;
+    if (target.type === NotificationTargetType.PERSON && !target.personIds?.length) return false;
+
     return true;
   });
+
+  constructor() {
+    // "Segons assistència" and a link to "the event" both only make sense with a linked event —
+    // if it's cleared, fall back rather than leave the form pointing at a now-meaningless choice.
+    effect(() => {
+      if (this.linkedEvent()) return;
+      if (this.link().type === NotificationLinkType.EVENT) {
+        this.link.set({ type: NotificationLinkType.HOME });
+      }
+      if (this.target().type === NotificationTargetType.EVENT_ATTENDANCE) {
+        this.target.set({ type: NotificationTargetType.ALL });
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.eventService.getAll({ limit: 100 }).subscribe({
@@ -80,36 +97,18 @@ export class NotificationSendComponent implements OnInit {
     });
   }
 
-  addPerson(person: Person): void {
-    if (!this.selectedPersons().some((p) => p.id === person.id)) {
-      this.selectedPersons.update((list) => [...list, person]);
-    }
-  }
-
-  removePerson(id: string): void {
-    this.selectedPersons.update((list) => list.filter((p) => p.id !== id));
-  }
-
   send(): void {
     if (!this.isFormValid() || this.isSending()) return;
 
+    const link = this.link();
     const payload: SendNotificationPayload = {
       title: this.title().trim(),
       body: this.body().trim(),
-      url: this.url().trim() || undefined,
-      target: { type: this.targetType() },
+      linkedEvent: this.linkedEvent(),
+      linkTo: link.type,
+      url: link.type === NotificationLinkType.CUSTOM ? link.url?.trim() : undefined,
+      target: this.target(),
     };
-
-    if (this.targetType() === NotificationTargetType.EVENT_ATTENDANCE) {
-      payload.target.eventId = this.selectedEventId();
-      if (this.attendanceFilter()) {
-        payload.target.attendanceFilter = this.attendanceFilter() as AttendanceStatus;
-      }
-    }
-
-    if (this.targetType() === NotificationTargetType.PERSON) {
-      payload.target.personIds = this.personIds();
-    }
 
     this.state.set('sending');
     this.notificationService.send(payload).subscribe({
@@ -124,11 +123,9 @@ export class NotificationSendComponent implements OnInit {
   reset(): void {
     this.title.set('');
     this.body.set('');
-    this.url.set('');
-    this.targetType.set(NotificationTargetType.ALL);
-    this.selectedEventId.set('');
-    this.attendanceFilter.set('');
-    this.selectedPersons.set([]);
+    this.linkedEvent.set(undefined);
+    this.link.set({ type: NotificationLinkType.HOME });
+    this.target.set({ type: NotificationTargetType.ALL });
     this.state.set('idle');
     this.errorMessage.set('');
   }

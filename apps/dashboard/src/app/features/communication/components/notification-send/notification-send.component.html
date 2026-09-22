@@ -52,129 +52,23 @@
           required
         ></textarea>
         <p class="text-xs text-base-content/50 text-right">{{ body().length }}/500</p>
+      </fieldset>
 
-        <label class="fieldset-label" for="notif-url">Enllaç (opcional)</label>
-        <input
-          id="notif-url"
-          type="text"
-          class="input input-bordered w-full"
-          placeholder="/noticies/123 o https://..."
-          [ngModel]="url()"
-          (ngModelChange)="url.set($event)"
-          name="url"
-        />
-        <p class="text-xs text-base-content/50">
-          Si s'especifica, la notificació obrirà aquesta adreça en fer clic. Pot ser una ruta interna
-          (comença per <code>/</code>) o una adreça completa.
-        </p>
+      <!-- Esdeveniment vinculat i enllaç -->
+      <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-4">
+        <legend class="fieldset-legend text-sm font-semibold">Esdeveniment i enllaç</legend>
+
+        <app-notification-event-picker [(linkedEvent)]="linkedEvent" [events]="events()" />
+
+        <lib-form-field label="Enllaç">
+          <app-notification-link-picker [(link)]="link" [hasLinkedEvent]="hasLinkedEvent()" />
+        </lib-form-field>
       </fieldset>
 
       <!-- Destinataris -->
       <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-3">
         <legend class="fieldset-legend text-sm font-semibold">Destinataris</legend>
-
-        <div role="group" aria-label="Tipus de destinataris">
-          <lib-button-group>
-            <lib-button
-              joinItem
-              outlineMode
-              size="sm"
-              [active]="targetType() === TargetType.ALL"
-              (clicked)="targetType.set(TargetType.ALL)"
-            >
-              <lucide-icon name="Megaphone" [size]="14" />
-              Tots
-            </lib-button>
-            <lib-button
-              joinItem
-              outlineMode
-              size="sm"
-              [active]="targetType() === TargetType.EVENT_ATTENDANCE"
-              (clicked)="targetType.set(TargetType.EVENT_ATTENDANCE)"
-            >
-              <lucide-icon name="Calendar" [size]="14" />
-              Per esdeveniment
-            </lib-button>
-            <lib-button
-              joinItem
-              outlineMode
-              size="sm"
-              [active]="targetType() === TargetType.PERSON"
-              (clicked)="targetType.set(TargetType.PERSON)"
-            >
-              <lucide-icon name="Users" [size]="14" />
-              Persones concretes
-            </lib-button>
-          </lib-button-group>
-        </div>
-
-        @if (targetType() === TargetType.ALL) {
-          <p class="text-sm text-base-content/60">
-            <lucide-icon name="Info" [size]="14" class="inline mr-1" />
-            S'enviarà a tots els membres amb subscripció activa.
-          </p>
-        }
-
-        @if (targetType() === TargetType.EVENT_ATTENDANCE) {
-          <div class="space-y-3">
-            <lib-select
-              label="Esdeveniment"
-              required
-              id="event-select"
-              [ngModel]="selectedEventId()"
-              (ngModelChange)="selectedEventId.set($event)"
-              name="eventId"
-            >
-              <option value="">Seleccioneu un assaig o actuació...</option>
-              @for (event of events(); track event.id) {
-                <option [value]="event.id">{{ event.title }} — {{ event.date | slice:0:10 }}</option>
-              }
-            </lib-select>
-            <lib-select
-              label="Filtre d'assistència (opcional)"
-              id="attendance-filter"
-              [ngModel]="attendanceFilter()"
-              (ngModelChange)="attendanceFilter.set($event)"
-              name="attendanceFilter"
-            >
-              <option value="">Totes les respostes</option>
-              <option [value]="AttendanceStatus.ANIRE">Vinc (ANIRE)</option>
-              <option [value]="AttendanceStatus.NO_VAIG">No vinc (NO_VAIG)</option>
-              <option [value]="AttendanceStatus.PENDENT">Pendent</option>
-              <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
-            </lib-select>
-          </div>
-        }
-
-        @if (targetType() === TargetType.PERSON) {
-          <div class="space-y-2">
-            <app-person-search-input
-              placeholder="Cerca persones..."
-              [excludeIds]="personIds()"
-              (selected)="addPerson($event)"
-            />
-            @if (selectedPersons().length > 0) {
-              <div class="flex flex-wrap gap-2 mt-2">
-                @for (person of selectedPersons(); track person.id) {
-                  <lib-badge outline>
-                    {{ person.alias }}
-                    <lib-button
-                      shape="circle"
-                      size="xs"
-                      variant="ghost"
-                      (clicked)="removePerson(person.id)"
-                      [ariaLabel]="'Eliminar ' + person.name"
-                    >
-                      <lucide-icon name="X" [size]="10" />
-                    </lib-button>
-                  </lib-badge>
-                }
-              </div>
-            } @else {
-              <p class="text-xs text-base-content/50">Cap persona seleccionada.</p>
-            }
-          </div>
-        }
+        <app-notification-target-picker [(target)]="target" [hasLinkedEvent]="hasLinkedEvent()" />
       </fieldset>
 
       @if (state() === 'error') {

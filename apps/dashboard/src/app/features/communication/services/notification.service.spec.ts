@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { NotificationSource, NotificationTargetType } from '@muixer/shared';
+import { NotificationLinkType, NotificationSource, NotificationTargetType } from '@muixer/shared';
 import { NotificationService } from './notification.service';
 
 describe('NotificationService', () => {
@@ -19,7 +19,12 @@ describe('NotificationService', () => {
   afterEach(() => http.verify());
 
   it('send POSTs the payload', () => {
-    const payload = { title: 'Assaig', body: 'Dijous a les 20h', target: { type: NotificationTargetType.ALL } };
+    const payload = {
+      title: 'Assaig',
+      body: 'Dijous a les 20h',
+      linkTo: NotificationLinkType.HOME,
+      target: { type: NotificationTargetType.ALL },
+    };
     service.send(payload).subscribe();
     const req = http.expectOne((r) => r.url.endsWith('/notifications/send'));
     expect(req.request.method).toBe('POST');

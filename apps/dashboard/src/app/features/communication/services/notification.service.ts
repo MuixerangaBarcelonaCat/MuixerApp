@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   DeviceSummary,
+  EventReferenceKind,
+  NotificationLinkType,
   NotificationLogEntry,
   NotificationSource,
   NotificationTargetType,
@@ -10,16 +12,31 @@ import {
 } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 
+export interface EventReferenceValue {
+  kind: EventReferenceKind;
+  eventId?: string;
+}
+
+/** Who receives the notification — independent of the linked event and the link. */
+export interface NotificationTargetValue {
+  type: NotificationTargetType;
+  attendanceFilter?: AttendanceStatus;
+  personIds?: string[];
+}
+
+/** Where the notification opens to — independent of who receives it. */
+export interface NotificationLinkValue {
+  type: NotificationLinkType;
+  url?: string;
+}
+
 export interface SendNotificationPayload {
   title: string;
   body: string;
+  linkedEvent?: EventReferenceValue;
+  linkTo: NotificationLinkType;
   url?: string;
-  target: {
-    type: NotificationTargetType;
-    eventId?: string;
-    attendanceFilter?: AttendanceStatus;
-    personIds?: string[];
-  };
+  target: NotificationTargetValue;
 }
 
 export interface NotificationHistoryFilter {
