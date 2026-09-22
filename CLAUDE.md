@@ -68,7 +68,7 @@ docs/              → Topic documentation (see docs/MAP.md)
 
 ### Backend (`apps/api/src`)
 
-Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard`. Mark public endpoints with `@Public()`, role-restricted ones with `@Roles()`. Rate limiting is enforced at the Caddy reverse proxy (see `apps/dashboard/Caddyfile`): `/api/auth*` 10 req/min per IP, `/api/*` 100 req/min per IP.
+Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard`. Mark public endpoints with `@Public()`, role-restricted ones with `@Roles()`. Rate limiting is enforced at the Caddy reverse proxy (see `apps/dashboard/Caddyfile`): `/api/auth*` 10 req/min per IP, `/api/*` 600 req/min per IP.
 
 Modules under `src/modules/`:
 

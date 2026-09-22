@@ -8,7 +8,7 @@
 #
 # Rate limiting (caddy-ratelimit plugin): mirrors former NestJS throttler
 #   /api/auth* → 10 req / 1m per IP
-#   /api/*     → 100 req / 1m per IP
+#   /api/*     → 600 req / 1m per IP
 
 {$SITE_ADDRESS::80} {
     encode gzip
@@ -26,7 +26,7 @@
             }
             zone api {
                 key {remote_host}
-                events 100
+                events 600
                 window 1m
             }
         }
@@ -56,7 +56,7 @@
             }
             zone api {
                 key {remote_host}
-                events 100
+                events 600
                 window 1m
             }
         }
