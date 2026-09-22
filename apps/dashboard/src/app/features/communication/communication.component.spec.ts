@@ -2,10 +2,17 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { provideRouter } from '@angular/router';
-import { News } from '@muixer/shared';
+import {
+  News,
+  NotificationLinkType,
+  NotificationScheduleEntry,
+  NotificationScheduleType,
+  NotificationTargetType,
+} from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { CommunicationComponent } from './communication.component';
 import { NewsService } from './services/news.service';
+import { NotificationService } from './services/notification.service';
 import { ToastService } from '@muixer/ui';
 
 const mockNews = (overrides: Partial<News> = {}): News => ({
@@ -21,20 +28,43 @@ const mockNews = (overrides: Partial<News> = {}): News => ({
   ...overrides,
 });
 
+const mockSchedule = (overrides: Partial<NotificationScheduleEntry> = {}): NotificationScheduleEntry => ({
+  id: 'schedule-1',
+  title: 'Recordatori',
+  body: 'Cos',
+  linkedEvent: null,
+  linkTo: NotificationLinkType.HOME,
+  url: null,
+  target: { type: NotificationTargetType.ALL },
+  scheduleType: NotificationScheduleType.WEEKLY,
+  ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+  nextRunAt: '2026-06-08T07:00:00.000Z',
+  isActive: true,
+  createdByUserId: 'user-1',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...overrides,
+});
+
 describe('CommunicationComponent', () => {
   let component: CommunicationComponent;
   let fixture: ComponentFixture<CommunicationComponent>;
   let newsService: { getAll: ReturnType<typeof vi.fn> };
+  let notificationService: { getSchedules: ReturnType<typeof vi.fn> };
   let toast: { error: ReturnType<typeof vi.fn> };
 
-  const setup = async (items: News[]) => {
+  const setup = async (items: News[], schedules: NotificationScheduleEntry[] = [], total = schedules.length) => {
     newsService = { getAll: vi.fn().mockReturnValue(of(items)) };
+    notificationService = {
+      getSchedules: vi.fn().mockReturnValue(of({ data: schedules, meta: { total, page: 1, limit: 50 } })),
+    };
     toast = { error: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CommunicationComponent],
       providers: [
         { provide: NewsService, useValue: newsService },
+        { provide: NotificationService, useValue: notificationService },
         { provide: ToastService, useValue: toast },
         allLucideIconsProvider,
         provideRouter([]),
@@ -104,12 +134,14 @@ describe('CommunicationComponent', () => {
 
   it('shows an error toast when loading news fails', async () => {
     newsService = { getAll: vi.fn().mockReturnValue(throwError(() => new Error('boom'))) };
+    notificationService = { getSchedules: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 50 } })) };
     toast = { error: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [CommunicationComponent],
       providers: [
         { provide: NewsService, useValue: newsService },
+        { provide: NotificationService, useValue: notificationService },
         { provide: ToastService, useValue: toast },
         allLucideIconsProvider,
         provideRouter([]),
@@ -120,5 +152,77 @@ describe('CommunicationComponent', () => {
     fixture.detectChanges();
 
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  describe('upcoming notification dispatches', () => {
+    it('requests only the active schedules', async () => {
+      await setup([]);
+      expect(notificationService.getSchedules).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
+    });
+
+    it('lists the soonest dispatches first, capped at 3', async () => {
+      await setup(
+        [],
+        [
+          mockSchedule({ id: '1', title: 'En 5 dies', nextRunAt: '2026-06-06T07:00:00.000Z' }),
+          mockSchedule({ id: '2', title: 'Demà', nextRunAt: '2026-06-02T07:00:00.000Z' }),
+          mockSchedule({ id: '3', title: 'En 3 dies', nextRunAt: '2026-06-04T07:00:00.000Z' }),
+          mockSchedule({ id: '4', title: 'En 10 dies', nextRunAt: '2026-06-11T07:00:00.000Z' }),
+        ],
+      );
+
+      expect(component.upcomingDispatches().map((s) => s.title)).toEqual(['Demà', 'En 3 dies', 'En 5 dies']);
+    });
+
+    it('excludes a schedule that will never fire again', async () => {
+      await setup([], [mockSchedule({ id: '1', title: 'Esgotada', nextRunAt: null })]);
+      expect(component.upcomingDispatches()).toEqual([]);
+    });
+
+    it('labels a dispatch with its weekday, date and time', async () => {
+      await setup([]);
+      expect(component.dispatchLabel('2026-06-08T07:00:00.000Z')).toBe(
+        new Date('2026-06-08T07:00:00.000Z').toLocaleString('ca-ES', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      );
+    });
+
+    it('exposes the total number of active schedules', async () => {
+      await setup([], [mockSchedule()], 7);
+      expect(component.activeScheduleCount()).toBe(7);
+    });
+
+    it('leaves the list empty when loading the schedules fails', async () => {
+      newsService = { getAll: vi.fn().mockReturnValue(of([])) };
+      notificationService = { getSchedules: vi.fn().mockReturnValue(throwError(() => new Error('boom'))) };
+      toast = { error: vi.fn() };
+
+      await TestBed.configureTestingModule({
+        imports: [CommunicationComponent],
+        providers: [
+          { provide: NewsService, useValue: newsService },
+          { provide: NotificationService, useValue: notificationService },
+          { provide: ToastService, useValue: toast },
+          allLucideIconsProvider,
+          provideRouter([]),
+        ],
+      }).compileComponents();
+
+      fixture = TestBed.createComponent(CommunicationComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      expect(component.upcomingDispatches()).toEqual([]);
+    });
+  });
+
+  it('no longer links to the subscribed devices page', async () => {
+    await setup([]);
+    expect(fixture.nativeElement.innerHTML as string).not.toContain('Dispositius subscrits');
   });
 });

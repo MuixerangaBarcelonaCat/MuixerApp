@@ -117,7 +117,7 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-09-22 amb `pnpm run docs:map`.
+> Generat el 2026-09-23 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
@@ -137,7 +137,7 @@ graph TD
 | [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3513 | [[PINYES_MODULE]] |
 | [`person`](../apps/api/src/modules/person) | 12 | 1155 | [[DATA_MODEL]] |
 | [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 528 | [[DATA_MODEL]] |
-| [`push-notification`](../apps/api/src/modules/push-notification) | 25 | 1384 | — |
+| [`push-notification`](../apps/api/src/modules/push-notification) | 28 | 1898 | — |
 | [`season`](../apps/api/src/modules/season) | 6 | 388 | [[DATA_MODEL]] |
 | [`sync`](../apps/api/src/modules/sync) | 10 | 1788 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 8 | 321 | [[TAGS]] · [[DATA_MODEL]] |
@@ -150,7 +150,7 @@ Migracions TypeORM: **57** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`auth`](../apps/dashboard/src/app/features/auth) | 3 | 185 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`communication`](../apps/dashboard/src/app/features/communication) | 13 | 1051 | — |
+| [`communication`](../apps/dashboard/src/app/features/communication) | 14 | 1312 | — |
 | [`config`](../apps/dashboard/src/app/features/config) | 14 | 2161 | [[DASHBOARD_UI]] |
 | [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 366 | — |
 | [`events`](../apps/dashboard/src/app/features/events) | 19 | 4077 | [[DASHBOARD_UI]] |
@@ -175,8 +175,8 @@ Migracions TypeORM: **57** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 4 | 245 | — |
-| [`enums`](../libs/shared/src/enums) | 24 | 218 | — |
-| [`interfaces`](../libs/shared/src/interfaces) | 24 | 904 | — |
+| [`enums`](../libs/shared/src/enums) | 25 | 225 | — |
+| [`interfaces`](../libs/shared/src/interfaces) | 24 | 934 | — |
 | [`utils`](../libs/shared/src/utils) | 8 | 396 | — |
 
 ### Fitxers més grans (candidats a dividir)

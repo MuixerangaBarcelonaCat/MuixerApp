@@ -10,6 +10,7 @@ import {
   NotificationTargetType,
 } from '@muixer/shared';
 import { NotificationScheduleService } from './notification-schedule.service';
+import { NotificationScheduleNextRunService } from './notification-schedule-next-run.service';
 import { PushNotificationService } from './push-notification.service';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { CreateNotificationScheduleDto } from './dto/create-notification-schedule.dto';
@@ -33,6 +34,7 @@ describe('NotificationScheduleService', () => {
   let service: NotificationScheduleService;
   let repo: { create: jest.Mock; save: jest.Mock; findAndCount: jest.Mock; findOneBy: jest.Mock; update: jest.Mock };
   let notificationService: jest.Mocked<Pick<PushNotificationService, 'send'>>;
+  let nextRunService: { computeAll: jest.Mock };
 
   beforeEach(async () => {
     jest.useFakeTimers().setSystemTime(FIXED_NOW);
@@ -45,12 +47,14 @@ describe('NotificationScheduleService', () => {
       update: jest.fn().mockResolvedValue(undefined),
     };
     notificationService = { send: jest.fn().mockResolvedValue({ accepted: true }) };
+    nextRunService = { computeAll: jest.fn().mockResolvedValue(new Map()) };
 
     const module = await Test.createTestingModule({
       providers: [
         NotificationScheduleService,
         { provide: getRepositoryToken(NotificationSchedule), useValue: repo },
         { provide: PushNotificationService, useValue: notificationService },
+        { provide: NotificationScheduleNextRunService, useValue: nextRunService },
       ],
     }).compile();
 
@@ -260,13 +264,28 @@ describe('NotificationScheduleService', () => {
 
       const result = await service.findAll({ page: 1, limit: 25 });
 
-      expect(result).toEqual({ data: [{ id: 's1' }], meta: { total: 1, page: 1, limit: 25 } });
+      expect(result).toEqual({ data: [{ id: 's1', nextRunAt: null }], meta: { total: 1, page: 1, limit: 25 } });
     });
 
     it('filters by isActive when provided', async () => {
       await service.findAll({ isActive: true, page: 1, limit: 25 });
 
       expect(repo.findAndCount).toHaveBeenCalledWith(expect.objectContaining({ where: { isActive: true } }));
+    });
+
+    it('annotates each row with its next run instant as an ISO string', async () => {
+      repo.findAndCount.mockResolvedValue([[{ id: 's1' }, { id: 's2' }], 2]);
+      nextRunService.computeAll.mockResolvedValue(
+        new Map([
+          ['s1', new Date('2026-06-08T07:00:00.000Z')],
+          ['s2', null],
+        ]),
+      );
+
+      const result = await service.findAll({ page: 1, limit: 25 });
+
+      expect(result.data[0].nextRunAt).toBe('2026-06-08T07:00:00.000Z');
+      expect(result.data[1].nextRunAt).toBeNull();
     });
   });
 
@@ -276,7 +295,16 @@ describe('NotificationScheduleService', () => {
 
       const result = await service.findOne('schedule-1');
 
-      expect(result).toEqual({ id: 'schedule-1', title: 'Assaig' });
+      expect(result).toEqual({ id: 'schedule-1', title: 'Assaig', nextRunAt: null });
+    });
+
+    it('annotates the schedule with its next run instant', async () => {
+      repo.findOneBy.mockResolvedValue({ id: 'schedule-1', title: 'Assaig' });
+      nextRunService.computeAll.mockResolvedValue(new Map([['schedule-1', new Date('2026-06-08T07:00:00.000Z')]]));
+
+      const result = await service.findOne('schedule-1');
+
+      expect(result.nextRunAt).toBe('2026-06-08T07:00:00.000Z');
     });
 
     it('throws NotFoundException for an unknown id', async () => {

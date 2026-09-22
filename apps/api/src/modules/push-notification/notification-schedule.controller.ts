@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtPayload, PaginatedResponse, UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { NotificationScheduleService } from './notification-schedule.service';
+import { NotificationScheduleService, NotificationScheduleWithNextRun } from './notification-schedule.service';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { CreateNotificationScheduleDto } from './dto/create-notification-schedule.dto';
 import { UpdateNotificationScheduleDto } from './dto/update-notification-schedule.dto';
@@ -27,13 +27,13 @@ export class NotificationScheduleController {
 
   @Get()
   @ApiOperation({ summary: 'List scheduled notifications' })
-  findAll(@Query() filter: NotificationScheduleFilterDto): Promise<PaginatedResponse<NotificationSchedule>> {
+  findAll(@Query() filter: NotificationScheduleFilterDto): Promise<PaginatedResponse<NotificationScheduleWithNextRun>> {
     return this.scheduleService.findAll(filter);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single scheduled notification' })
-  findOne(@Param('id') id: string): Promise<NotificationSchedule> {
+  findOne(@Param('id') id: string): Promise<NotificationScheduleWithNextRun> {
     return this.scheduleService.findOne(id);
   }
 

@@ -117,6 +117,13 @@ export class NotificationScheduleListComponent implements OnInit {
     return '—';
   }
 
+  /** When this schedule next fires, as computed by the API — the rule summary says *how often*,
+   *  this says *when next*, which is what you actually need to know at a glance. */
+  nextRunLabel(entry: NotificationScheduleEntry): string {
+    if (!entry.nextRunAt) return '—';
+    return this.datePipe.transform(entry.nextRunAt, 'dd/MM/yyyy HH:mm') ?? '—';
+  }
+
   statusLabel(entry: NotificationScheduleEntry): string {
     if (!entry.isActive) return 'Inactiva';
     const recurring = [NotificationScheduleType.WEEKLY, NotificationScheduleType.BEFORE_EVENT];

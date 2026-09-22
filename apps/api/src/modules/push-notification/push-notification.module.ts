@@ -18,6 +18,7 @@ import { PushNotificationCronService } from './push-notification-cron.service';
 import { NotificationLogService } from './notification-log.service';
 import { NotificationScheduleService } from './notification-schedule.service';
 import { NotificationScheduleCronService } from './notification-schedule-cron.service';
+import { NotificationScheduleNextRunService } from './notification-schedule-next-run.service';
 import { PushSubscriptionController } from './push-subscription.controller';
 import { PushNotificationController } from './push-notification.controller';
 import { NotificationScheduleController } from './notification-schedule.controller';
@@ -40,6 +41,7 @@ import { NotificationScheduleController } from './notification-schedule.controll
     NotificationLogService,
     NotificationScheduleService,
     NotificationScheduleCronService,
+    NotificationScheduleNextRunService,
     {
       provide: PUSH_PROVIDER,
       inject: [ConfigService],

@@ -97,6 +97,10 @@ export interface NotificationScheduleEntry {
   target: NotificationTarget;
   scheduleType: NotificationScheduleType;
   ruleConfig: NotificationScheduleRuleConfig;
+  /** When this schedule next dispatches (ISO), or `null` when it never will again — a spent
+   *  one-off, a paused schedule, an exhausted active window, or no matching upcoming event.
+   *  Derived at read time, never stored: it moves as time and the event calendar do. */
+  nextRunAt: string | null;
   isActive: boolean;
   createdByUserId: string | null;
   createdAt: string;

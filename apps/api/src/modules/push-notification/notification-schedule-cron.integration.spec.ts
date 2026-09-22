@@ -10,6 +10,7 @@ import {
 } from '@muixer/shared';
 import { NotificationScheduleCronService } from './notification-schedule-cron.service';
 import { NotificationScheduleService } from './notification-schedule.service';
+import { NotificationScheduleNextRunService } from './notification-schedule-next-run.service';
 import { PushNotificationService } from './push-notification.service';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { NotificationLog } from './entities/notification-log.entity';
@@ -114,6 +115,7 @@ describe('NotificationScheduleCronService (integration)', () => {
       providers: [
         NotificationScheduleCronService,
         NotificationScheduleService,
+        NotificationScheduleNextRunService,
         ...realRepositoryProviders(db.dataSource, [NotificationSchedule, NotificationLog, Event]),
         { provide: PushNotificationService, useValue: { send: sendMock } },
       ],

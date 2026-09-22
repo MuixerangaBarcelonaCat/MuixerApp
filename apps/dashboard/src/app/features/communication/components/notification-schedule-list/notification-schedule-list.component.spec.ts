@@ -26,6 +26,7 @@ const mockEntry = (overrides: Partial<NotificationScheduleEntry> = {}): Notifica
   target: { type: NotificationTargetType.ALL },
   scheduleType: NotificationScheduleType.ONE_OFF,
   ruleConfig: { scheduledFor: '2026-06-01T18:00:00.000Z' },
+  nextRunAt: '2026-06-01T18:00:00.000Z',
   isActive: true,
   createdByUserId: 'user-1',
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -181,6 +182,24 @@ describe('NotificationScheduleListComponent', () => {
         `3 dies abans de cada Actuació, a les 09:00 (des del ${formatDate('2026-06-01')} fins al ${formatDate('2026-12-31')})`,
       );
     });
+  });
+
+  describe('nextRunLabel', () => {
+    it('formats nextRunAt as a date and time', async () => {
+      await setup();
+      const expected = new DatePipe('en-US').transform('2026-06-08T07:00:00.000Z', 'dd/MM/yyyy HH:mm');
+      expect(component.nextRunLabel(mockEntry({ nextRunAt: '2026-06-08T07:00:00.000Z' }))).toBe(expected);
+    });
+
+    it('returns a dash when the schedule will not fire again', async () => {
+      await setup();
+      expect(component.nextRunLabel(mockEntry({ nextRunAt: null }))).toBe('—');
+    });
+  });
+
+  it('shows a "Pròxim enviament" column', async () => {
+    await setup();
+    expect(fixture.nativeElement.innerHTML as string).toContain('Pròxim enviament');
   });
 
   describe('statusLabel', () => {

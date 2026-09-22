@@ -19,6 +19,11 @@ import { UpdateNotificationScheduleDto } from './dto/update-notification-schedul
 import { NotificationScheduleFilterDto } from './dto/notification-schedule-filter.dto';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { PushNotificationService } from './push-notification.service';
+import { NotificationScheduleNextRunService } from './notification-schedule-next-run.service';
+
+/** A schedule as the API exposes it: the stored row plus the projected instant it next fires,
+ *  which is derived at read time rather than stored (it moves as events and time do). */
+export type NotificationScheduleWithNextRun = NotificationSchedule & { nextRunAt: string | null };
 
 @Injectable()
 export class NotificationScheduleService {
@@ -26,6 +31,7 @@ export class NotificationScheduleService {
     @InjectRepository(NotificationSchedule)
     private readonly repo: Repository<NotificationSchedule>,
     private readonly notificationService: PushNotificationService,
+    private readonly nextRunService: NotificationScheduleNextRunService,
   ) {}
 
   async create(dto: CreateNotificationScheduleDto, userId: string): Promise<NotificationSchedule> {
@@ -46,7 +52,7 @@ export class NotificationScheduleService {
     return this.repo.save(schedule);
   }
 
-  async findAll(filter: NotificationScheduleFilterDto): Promise<PaginatedResponse<NotificationSchedule>> {
+  async findAll(filter: NotificationScheduleFilterDto): Promise<PaginatedResponse<NotificationScheduleWithNextRun>> {
     const page = filter.page ?? 1;
     const limit = filter.limit ?? 25;
 
@@ -57,15 +63,25 @@ export class NotificationScheduleService {
       take: limit,
     });
 
-    return { data, meta: { total, page, limit } };
+    return { data: await this.withNextRun(data), meta: { total, page, limit } };
   }
 
-  async findOne(id: string): Promise<NotificationSchedule> {
+  async findOne(id: string): Promise<NotificationScheduleWithNextRun> {
     const schedule = await this.repo.findOneBy({ id });
     if (!schedule) {
       throw new NotFoundException('Notificació programada no trobada');
     }
-    return schedule;
+    const [annotated] = await this.withNextRun([schedule]);
+    return annotated;
+  }
+
+  /** One batched projection for the whole page — never one query per row. */
+  private async withNextRun(schedules: NotificationSchedule[]): Promise<NotificationScheduleWithNextRun[]> {
+    const nextRuns = await this.nextRunService.computeAll(schedules);
+    return schedules.map((schedule) => ({
+      ...schedule,
+      nextRunAt: nextRuns.get(schedule.id)?.toISOString() ?? null,
+    }));
   }
 
   /** Only a still-pending schedule can be edited — once it's fired or cancelled, `isActive` is

@@ -2,15 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { MoreThanOrEqual, Repository } from 'typeorm';
-import { BeforeEventOffsetUnit, BeforeEventScheduleConfig, NotificationScheduleType, NotificationSource } from '@muixer/shared';
-import {
-  getLocalDayOfWeek,
-  getLocalTimeOfDay,
-  getLocalToday,
-  formatDateOnly,
-  addDaysToDateOnly,
-  zonedTimeToUtc,
-} from '../../common/utils/date.util';
+import { BeforeEventScheduleConfig, NotificationScheduleType, NotificationSource } from '@muixer/shared';
+import { getLocalDayOfWeek, getLocalTimeOfDay, getLocalToday, formatDateOnly } from '../../common/utils/date.util';
+import { computeBeforeEventFireInstant } from './notification-schedule-rules.util';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { NotificationLog } from './entities/notification-log.entity';
 import { Event } from '../event/event.entity';
@@ -116,7 +110,7 @@ export class NotificationScheduleCronService {
 
     for (const event of events) {
       try {
-        const fireInstant = this.computeFireInstant(rule, event);
+        const fireInstant = computeBeforeEventFireInstant(rule, event);
         if (!fireInstant || fireInstant > now) continue;
         if (await this.firedForEvent(schedule.id, event.id)) continue;
         await this.scheduleService.processSchedule(schedule, NotificationSource.SCHEDULED_BEFORE_EVENT, event.id);
@@ -127,18 +121,6 @@ export class NotificationScheduleCronService {
         );
       }
     }
-  }
-
-  /** The UTC instant this schedule should fire for `event`, or `null` when it can't be computed
-   *  (an `HOURS` offset needs the event's own `startTime`, which may be unset). */
-  private computeFireInstant(rule: BeforeEventScheduleConfig, event: Event): Date | null {
-    if (rule.offsetUnit === BeforeEventOffsetUnit.HOURS) {
-      if (!event.startTime) return null;
-      const eventStartUtc = zonedTimeToUtc(formatDateOnly(event.date), event.startTime);
-      return new Date(eventStartUtc.getTime() - rule.offsetValue * 60 * 60 * 1000);
-    }
-    const fireDate = addDaysToDateOnly(formatDateOnly(event.date), -rule.offsetValue);
-    return zonedTimeToUtc(fireDate, rule.timeOfDay as string);
   }
 
   private async firedForEvent(scheduleId: string, eventId: string): Promise<boolean> {
