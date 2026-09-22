@@ -28,6 +28,9 @@ export interface DispatchMetadata {
   source: NotificationSource;
   scheduleId?: string;
   triggeredByUserId?: string;
+  /** The concrete Event that a BEFORE_EVENT cron tick fired for — the only source of a
+   *  TRIGGERING_EVENT reference's resolution (see `resolveEventReference`). */
+  triggeredEventId?: string;
 }
 
 @Injectable()
@@ -51,7 +54,7 @@ export class PushNotificationService {
     dto: SendNotificationDto,
     meta: DispatchMetadata,
   ): Promise<{ accepted: boolean; warning?: string }> {
-    const eventId = dto.linkedEvent ? await this.resolveEventReference(dto.linkedEvent) : undefined;
+    const eventId = dto.linkedEvent ? await this.resolveEventReference(dto.linkedEvent, meta.triggeredEventId) : undefined;
 
     const userIds = await this.resolveTargetUserIds(dto, eventId);
     const resolvedTarget = this.buildResolvedTarget(dto.target, eventId);
@@ -66,6 +69,7 @@ export class PushNotificationService {
       source: meta.source,
       scheduleId: meta.scheduleId,
       triggeredByUserId: meta.triggeredByUserId,
+      triggeredEventId: meta.triggeredEventId,
     });
 
     if (userIds.length === 0) {
@@ -172,8 +176,12 @@ export class PushNotificationService {
     return [];
   }
 
-  /** Resolves the abstract event reference (a fixed id, or "the nearest upcoming X") to a concrete Event id. */
-  private async resolveEventReference(eventRef: { kind: EventReferenceKind; eventId?: string }): Promise<string | undefined> {
+  /** Resolves the abstract event reference (a fixed id, "the nearest upcoming X", or the event a
+   *  BEFORE_EVENT cron tick fired for) to a concrete Event id. */
+  private async resolveEventReference(
+    eventRef: { kind: EventReferenceKind; eventId?: string },
+    triggeredEventId?: string,
+  ): Promise<string | undefined> {
     switch (eventRef.kind) {
       case EventReferenceKind.SPECIFIC:
         return eventRef.eventId;
@@ -184,10 +192,14 @@ export class PushNotificationService {
       case EventReferenceKind.NEXT_ACTUACIO_OR_ASSAIG:
         return this.findNextEventId();
       case EventReferenceKind.TRIGGERING_EVENT:
-        // Only meaningful from a BEFORE_EVENT scheduled dispatch (not built yet) — see docs plan phase 5.
-        throw new BadRequestException(
-          "TRIGGERING_EVENT només és vàlid en una notificació programada abans d'un esdeveniment",
-        );
+        // Only meaningful from a BEFORE_EVENT scheduled dispatch, which passes the concrete event
+        // the cron matched via meta.triggeredEventId — see NotificationScheduleCronService.
+        if (!triggeredEventId) {
+          throw new BadRequestException(
+            "TRIGGERING_EVENT només és vàlid en una notificació programada abans d'un esdeveniment",
+          );
+        }
+        return triggeredEventId;
       default:
         return undefined;
     }

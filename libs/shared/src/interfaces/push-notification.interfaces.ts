@@ -4,6 +4,8 @@ import { NotificationSource } from '../enums/notification-source.enum';
 import { NotificationScheduleType } from '../enums/notification-schedule-type.enum';
 import { NotificationLinkType } from '../enums/notification-link-type.enum';
 import { EventReferenceKind } from '../enums/event-reference-kind.enum';
+import { EventType } from '../enums/event-type.enum';
+import { BeforeEventOffsetUnit } from '../enums/before-event-offset-unit.enum';
 
 export interface PushSubscriptionKeys {
   p256dh: string;
@@ -68,8 +70,22 @@ export interface WeeklyScheduleConfig {
   endDate?: string;
 }
 
-/** `BEFORE_EVENT` will add its own shape when built. */
-export type NotificationScheduleRuleConfig = OneOffScheduleConfig | WeeklyScheduleConfig;
+/** `eventType`: which kind of Event this rule watches (only ACTUACIO is meaningful today, but the
+ *  field stays generic). `offsetUnit`/`offsetValue`: how long before. `DAYS` fires at the explicit
+ *  `timeOfDay` (Europe/Madrid) N days before the event's date. `HOURS` fires exactly `offsetValue`
+ *  hours before the event's own `startTime` — `timeOfDay` is unused (and omitted) for `HOURS`, and
+ *  an event with no `startTime` can't be targeted this way. `startDate`/`endDate`: same optional
+ *  active window as `WeeklyScheduleConfig`. */
+export interface BeforeEventScheduleConfig {
+  eventType: EventType;
+  offsetUnit: BeforeEventOffsetUnit;
+  offsetValue: number;
+  timeOfDay?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export type NotificationScheduleRuleConfig = OneOffScheduleConfig | WeeklyScheduleConfig | BeforeEventScheduleConfig;
 
 export interface NotificationScheduleEntry {
   id: string;

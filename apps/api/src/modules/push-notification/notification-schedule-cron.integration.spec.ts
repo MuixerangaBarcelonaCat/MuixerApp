@@ -1,12 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Repository } from 'typeorm';
-import { NotificationLinkType, NotificationScheduleType, NotificationSource, NotificationTargetType } from '@muixer/shared';
+import {
+  BeforeEventOffsetUnit,
+  EventType,
+  NotificationLinkType,
+  NotificationScheduleType,
+  NotificationSource,
+  NotificationTargetType,
+} from '@muixer/shared';
 import { NotificationScheduleCronService } from './notification-schedule-cron.service';
 import { NotificationScheduleService } from './notification-schedule.service';
 import { PushNotificationService } from './push-notification.service';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { NotificationLog } from './entities/notification-log.entity';
-import { getLocalDayOfWeek } from '../../common/utils/date.util';
+import { Event } from '../event/event.entity';
+import { getLocalDayOfWeek, getLocalToday, addDaysToDateOnly } from '../../common/utils/date.util';
 import {
   IntegrationDb,
   setupIntegrationDb,
@@ -29,6 +37,7 @@ describe('NotificationScheduleCronService (integration)', () => {
   let cronService: NotificationScheduleCronService;
   let scheduleRepo: Repository<NotificationSchedule>;
   let logRepo: Repository<NotificationLog>;
+  let eventRepo: Repository<Event>;
   let sendMock: jest.Mock;
 
   const makeOneOff = (title: string, scheduledFor: string, isActive = true) =>
@@ -69,6 +78,34 @@ describe('NotificationScheduleCronService (integration)', () => {
       createdByUserId: null,
     });
 
+  const makeBeforeEvent = (
+    title: string,
+    ruleConfig: {
+      eventType: EventType;
+      offsetUnit: BeforeEventOffsetUnit;
+      offsetValue: number;
+      timeOfDay?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    isActive = true,
+  ) =>
+    scheduleRepo.create({
+      title,
+      body: 'Body',
+      linkedEvent: null,
+      linkTo: NotificationLinkType.HOME,
+      url: null,
+      target: { type: NotificationTargetType.ALL },
+      scheduleType: NotificationScheduleType.BEFORE_EVENT,
+      ruleConfig,
+      isActive,
+      createdByUserId: null,
+    });
+
+  const makeEvent = (eventType: EventType, date: string, startTime: string | null = null) =>
+    eventRepo.create({ eventType, title: 'Event', date: new Date(date), startTime });
+
   beforeAll(async () => {
     db = await setupIntegrationDb();
     sendMock = jest.fn().mockResolvedValue({ accepted: true });
@@ -77,7 +114,7 @@ describe('NotificationScheduleCronService (integration)', () => {
       providers: [
         NotificationScheduleCronService,
         NotificationScheduleService,
-        ...realRepositoryProviders(db.dataSource, [NotificationSchedule, NotificationLog]),
+        ...realRepositoryProviders(db.dataSource, [NotificationSchedule, NotificationLog, Event]),
         { provide: PushNotificationService, useValue: { send: sendMock } },
       ],
     }).compile();
@@ -85,6 +122,7 @@ describe('NotificationScheduleCronService (integration)', () => {
     cronService = module.get(NotificationScheduleCronService);
     scheduleRepo = db.dataSource.getRepository(NotificationSchedule);
     logRepo = db.dataSource.getRepository(NotificationLog);
+    eventRepo = db.dataSource.getRepository(Event);
   });
 
   afterEach(async () => {
@@ -216,6 +254,145 @@ describe('NotificationScheduleCronService (integration)', () => {
         await scheduleRepo.save(makeWeekly('Weekly', today, '00:00', { endDate: '2020-01-01' }));
 
         await cronService.processDueWeeklySchedules();
+
+        expect(sendMock).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('BEFORE_EVENT', () => {
+    it('dispatches for a matching event whose DAYS-offset fire instant has passed, and leaves the schedule active', async () => {
+      const eventDate = addDaysToDateOnly(getLocalToday(), 3);
+      const event = await eventRepo.save(makeEvent(EventType.ACTUACIO, eventDate));
+      const schedule = await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '00:00' }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).toHaveBeenCalledTimes(1);
+      expect(sendMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ triggeredEventId: event.id }));
+      const row = await scheduleRepo.findOneBy({ id: schedule.id });
+      expect(row?.isActive).toBe(true);
+    });
+
+    it('does not dispatch when the DAYS-offset fire time has not come yet today', async () => {
+      const eventDate = addDaysToDateOnly(getLocalToday(), 3);
+      await eventRepo.save(makeEvent(EventType.ACTUACIO, eventDate));
+      await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '23:59' }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    it('does not dispatch for an event of a different eventType', async () => {
+      const eventDate = addDaysToDateOnly(getLocalToday(), 3);
+      await eventRepo.save(makeEvent(EventType.ASSAIG, eventDate));
+      await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '00:00' }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    it('does not dispatch for an HOURS-offset schedule when the event has no startTime', async () => {
+      await eventRepo.save(makeEvent(EventType.ACTUACIO, getLocalToday(), null));
+      await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 1 }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    it('dispatches for an HOURS-offset schedule once the event start time minus the offset has passed', async () => {
+      // 00:30 minus a 1h offset is 23:30 the previous day — solidly in the past for this test run.
+      const event = await eventRepo.save(makeEvent(EventType.ACTUACIO, getLocalToday(), '00:30'));
+      await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 1 }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).toHaveBeenCalledTimes(1);
+      expect(sendMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ triggeredEventId: event.id }));
+    });
+
+    it('does not dispatch for an HOURS-offset schedule before the offset has elapsed', async () => {
+      const tomorrow = addDaysToDateOnly(getLocalToday(), 1);
+      await eventRepo.save(makeEvent(EventType.ACTUACIO, tomorrow, '12:00'));
+      await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 1 }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    it('skips an (schedule, event) pair already dispatched', async () => {
+      const eventDate = addDaysToDateOnly(getLocalToday(), 3);
+      const event = await eventRepo.save(makeEvent(EventType.ACTUACIO, eventDate));
+      const schedule = await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '00:00' }),
+      );
+      await logRepo.save(
+        logRepo.create({
+          title: 'Before',
+          body: 'Body',
+          url: null,
+          target: { type: NotificationTargetType.ALL },
+          recipientCount: 1,
+          source: NotificationSource.SCHEDULED_BEFORE_EVENT,
+          scheduleId: schedule.id,
+          triggeredEventId: event.id,
+        }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    describe('active window (startDate/endDate)', () => {
+      it('skips when today is before startDate', async () => {
+        const eventDate = addDaysToDateOnly(getLocalToday(), 3);
+        await eventRepo.save(makeEvent(EventType.ACTUACIO, eventDate));
+        await scheduleRepo.save(
+          makeBeforeEvent('Before', {
+            eventType: EventType.ACTUACIO,
+            offsetUnit: BeforeEventOffsetUnit.DAYS,
+            offsetValue: 3,
+            timeOfDay: '00:00',
+            startDate: '2099-01-01',
+          }),
+        );
+
+        await cronService.processDueBeforeEventSchedules();
+
+        expect(sendMock).not.toHaveBeenCalled();
+      });
+
+      it('skips when today is after endDate', async () => {
+        const eventDate = addDaysToDateOnly(getLocalToday(), 3);
+        await eventRepo.save(makeEvent(EventType.ACTUACIO, eventDate));
+        await scheduleRepo.save(
+          makeBeforeEvent('Before', {
+            eventType: EventType.ACTUACIO,
+            offsetUnit: BeforeEventOffsetUnit.DAYS,
+            offsetValue: 3,
+            timeOfDay: '00:00',
+            endDate: '2020-01-01',
+          }),
+        );
+
+        await cronService.processDueBeforeEventSchedules();
 
         expect(sendMock).not.toHaveBeenCalled();
       });

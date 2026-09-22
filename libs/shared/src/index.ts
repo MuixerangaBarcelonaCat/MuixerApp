@@ -20,6 +20,7 @@ export * from './enums/notification-source.enum';
 export * from './enums/event-reference-kind.enum';
 export * from './enums/notification-link-type.enum';
 export * from './enums/notification-schedule-type.enum';
+export * from './enums/before-event-offset-unit.enum';
 export * from './enums/tag-category.enum';
 export * from './enums/import-scope.enum';
 export * from './constants/node-preset.constants';

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { BadRequestException } from '@nestjs/common';
 import { PushNotificationService } from './push-notification.service';
 import { PushSenderService } from './push-sender.service';
 import { PushSubscriptionService } from './push-subscription.service';
@@ -143,6 +144,18 @@ describe('PushNotificationService', () => {
       );
     });
 
+    it('logs the triggeredEventId passed through meta, for a BEFORE_EVENT dispatch', async () => {
+      await service.send(makeDto(NotificationTargetType.ALL), {
+        source: NotificationSource.SCHEDULED_BEFORE_EVENT,
+        scheduleId: 'schedule-2',
+        triggeredEventId: 'evt-1',
+      });
+
+      expect(logService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ source: NotificationSource.SCHEDULED_BEFORE_EVENT, triggeredEventId: 'evt-1' }),
+      );
+    });
+
     it('still logs the entry when no subscribers are found, with recipientCount 0', async () => {
       const userRepo = { find: jest.fn().mockResolvedValue([]) };
       const module = await Test.createTestingModule({
@@ -262,6 +275,24 @@ describe('PushNotificationService', () => {
       await service.send(dto, { source: NotificationSource.MANUAL });
 
       expect(eventRepo.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('resolves TRIGGERING_EVENT to meta.triggeredEventId, without an Event lookup', async () => {
+      await service.send(eventDto({ kind: EventReferenceKind.TRIGGERING_EVENT }), {
+        source: NotificationSource.SCHEDULED_BEFORE_EVENT,
+        triggeredEventId: 'evt-triggering',
+      });
+
+      expect(eventRepo.findOne).not.toHaveBeenCalled();
+      expect(attendanceRepo.createQueryBuilder().where).toHaveBeenCalledWith('e.id = :eventId', {
+        eventId: 'evt-triggering',
+      });
+    });
+
+    it('throws when TRIGGERING_EVENT is used without a triggeredEventId in meta', async () => {
+      await expect(
+        service.send(eventDto({ kind: EventReferenceKind.TRIGGERING_EVENT }), { source: NotificationSource.MANUAL }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

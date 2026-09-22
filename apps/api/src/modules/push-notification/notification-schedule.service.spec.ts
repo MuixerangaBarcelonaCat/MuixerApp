@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
+  BeforeEventOffsetUnit,
+  EventType,
   NotificationLinkType,
   NotificationScheduleType,
   NotificationSource,
@@ -153,6 +155,100 @@ describe('NotificationScheduleService', () => {
     it('rejects a WEEKLY schedule without a weekly config', async () => {
       await expect(
         service.create(makeCreateDto({ scheduleType: NotificationScheduleType.WEEKLY, oneOff: undefined }), 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('persists a BEFORE_EVENT/DAYS schedule with its eventType/offset/timeOfDay ruleConfig', async () => {
+      await service.create(
+        makeCreateDto({
+          scheduleType: NotificationScheduleType.BEFORE_EVENT,
+          oneOff: undefined,
+          beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+        }),
+        'user-1',
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduleType: NotificationScheduleType.BEFORE_EVENT,
+          ruleConfig: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+        }),
+      );
+    });
+
+    it('persists a BEFORE_EVENT/HOURS schedule without a timeOfDay in its ruleConfig', async () => {
+      await service.create(
+        makeCreateDto({
+          scheduleType: NotificationScheduleType.BEFORE_EVENT,
+          oneOff: undefined,
+          beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 3 },
+        }),
+        'user-1',
+      );
+
+      const savedArg = repo.save.mock.calls[0][0];
+      expect(savedArg.ruleConfig).toEqual({ eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 3 });
+    });
+
+    it('persists startDate/endDate when given on a BEFORE_EVENT schedule', async () => {
+      await service.create(
+        makeCreateDto({
+          scheduleType: NotificationScheduleType.BEFORE_EVENT,
+          oneOff: undefined,
+          beforeEvent: {
+            eventType: EventType.ACTUACIO,
+            offsetUnit: BeforeEventOffsetUnit.DAYS,
+            offsetValue: 3,
+            timeOfDay: '09:00',
+            startDate: '2026-06-01',
+            endDate: '2026-12-31',
+          },
+        }),
+        'user-1',
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ruleConfig: {
+            eventType: EventType.ACTUACIO,
+            offsetUnit: BeforeEventOffsetUnit.DAYS,
+            offsetValue: 3,
+            timeOfDay: '09:00',
+            startDate: '2026-06-01',
+            endDate: '2026-12-31',
+          },
+        }),
+      );
+    });
+
+    it('rejects a BEFORE_EVENT schedule whose endDate is before its startDate', async () => {
+      await expect(
+        service.create(
+          makeCreateDto({
+            scheduleType: NotificationScheduleType.BEFORE_EVENT,
+            oneOff: undefined,
+            beforeEvent: {
+              eventType: EventType.ACTUACIO,
+              offsetUnit: BeforeEventOffsetUnit.DAYS,
+              offsetValue: 3,
+              timeOfDay: '09:00',
+              startDate: '2026-12-31',
+              endDate: '2026-06-01',
+            },
+          }),
+          'user-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a BEFORE_EVENT schedule without a beforeEvent config', async () => {
+      await expect(
+        service.create(
+          makeCreateDto({ scheduleType: NotificationScheduleType.BEFORE_EVENT, oneOff: undefined }),
+          'user-1',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(repo.save).not.toHaveBeenCalled();
     });
@@ -322,6 +418,109 @@ describe('NotificationScheduleService', () => {
         service.update(
           'schedule-1',
           Object.assign(new UpdateNotificationScheduleDto(), { oneOff: { scheduledFor: '2026-07-01T18:00:00.000Z' } }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('updates the ruleConfig when a new beforeEvent config is given', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.BEFORE_EVENT,
+        ruleConfig: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+      });
+
+      await service.update(
+        'schedule-1',
+        Object.assign(new UpdateNotificationScheduleDto(), {
+          beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 2 },
+        }),
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ruleConfig: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 2 },
+        }),
+      );
+    });
+
+    it('rejects updating a BEFORE_EVENT schedule with an endDate before its startDate', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.BEFORE_EVENT,
+        ruleConfig: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+      });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), {
+            beforeEvent: {
+              eventType: EventType.ACTUACIO,
+              offsetUnit: BeforeEventOffsetUnit.DAYS,
+              offsetValue: 3,
+              timeOfDay: '09:00',
+              startDate: '2026-12-31',
+              endDate: '2026-06-01',
+            },
+          }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a beforeEvent config for a WEEKLY schedule', async () => {
+      repo.findOneBy.mockResolvedValue({ id: 'schedule-1', isActive: true, scheduleType: NotificationScheduleType.WEEKLY });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), {
+            beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+          }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('allows switching a WEEKLY schedule to BEFORE_EVENT when scheduleType and beforeEvent are both given', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await service.update(
+        'schedule-1',
+        Object.assign(new UpdateNotificationScheduleDto(), {
+          scheduleType: NotificationScheduleType.BEFORE_EVENT,
+          beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+        }),
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduleType: NotificationScheduleType.BEFORE_EVENT,
+          ruleConfig: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+        }),
+      );
+    });
+
+    it('rejects switching to BEFORE_EVENT without also giving beforeEvent', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), { scheduleType: NotificationScheduleType.BEFORE_EVENT }),
         ),
       ).rejects.toThrow(BadRequestException);
       expect(repo.save).not.toHaveBeenCalled();
@@ -503,6 +702,33 @@ describe('NotificationScheduleService', () => {
       expect(notificationService.send).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Recordatori setmanal' }),
         { source: NotificationSource.SCHEDULED_WEEKLY, scheduleId: 'schedule-3', triggeredByUserId: 'user-2' },
+      );
+    });
+
+    it('leaves a BEFORE_EVENT schedule active and passes the triggering event id through to send()', async () => {
+      const schedule = {
+        id: 'schedule-4',
+        title: 'Abans de l’actuació',
+        body: 'Diumenge',
+        linkedEvent: { kind: 'TRIGGERING_EVENT' },
+        linkTo: NotificationLinkType.HOME,
+        url: null,
+        target: { type: NotificationTargetType.ALL },
+        scheduleType: NotificationScheduleType.BEFORE_EVENT,
+        createdByUserId: 'user-2',
+      } as NotificationSchedule;
+
+      await service.processSchedule(schedule, NotificationSource.SCHEDULED_BEFORE_EVENT, 'evt-1');
+
+      expect(repo.update).not.toHaveBeenCalled();
+      expect(notificationService.send).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Abans de l’actuació' }),
+        {
+          source: NotificationSource.SCHEDULED_BEFORE_EVENT,
+          scheduleId: 'schedule-4',
+          triggeredByUserId: 'user-2',
+          triggeredEventId: 'evt-1',
+        },
       );
     });
   });

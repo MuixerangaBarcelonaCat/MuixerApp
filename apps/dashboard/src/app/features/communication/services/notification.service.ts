@@ -1,8 +1,10 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  BeforeEventOffsetUnit,
   DeviceSummary,
   EventReferenceKind,
+  EventType,
   NotificationLinkType,
   NotificationLogEntry,
   NotificationScheduleEntry,
@@ -51,6 +53,14 @@ export interface NotificationSchedulePayload extends SendNotificationPayload {
   scheduleType: NotificationScheduleType;
   oneOff?: { scheduledFor: string };
   weekly?: { dayOfWeek: number; timeOfDay: string; startDate?: string; endDate?: string };
+  beforeEvent?: {
+    eventType: EventType;
+    offsetUnit: BeforeEventOffsetUnit;
+    offsetValue: number;
+    timeOfDay?: string;
+    startDate?: string;
+    endDate?: string;
+  };
 }
 
 export interface NotificationScheduleFilter {

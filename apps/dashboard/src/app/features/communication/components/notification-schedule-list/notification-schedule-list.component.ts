@@ -2,7 +2,14 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } 
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { NotificationScheduleEntry, NotificationScheduleType, NotificationTarget, NotificationTargetType } from '@muixer/shared';
+import {
+  BeforeEventOffsetUnit,
+  EventType,
+  NotificationScheduleEntry,
+  NotificationScheduleType,
+  NotificationTarget,
+  NotificationTargetType,
+} from '@muixer/shared';
 import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { NotificationService } from '../../services/notification.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
@@ -11,6 +18,11 @@ import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { WEEKDAY_NAMES } from '../../utils/weekday-names';
 
 type ActiveFilter = 'pending' | 'all';
+
+const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  [EventType.ACTUACIO]: 'Actuació',
+  [EventType.ASSAIG]: 'Assaig',
+};
 
 @Component({
   selector: 'app-notification-schedule-list',
@@ -92,22 +104,33 @@ export class NotificationScheduleListComponent implements OnInit {
       return this.datePipe.transform(rule.scheduledFor, 'dd/MM/yyyy HH:mm') ?? '—';
     }
     if ('dayOfWeek' in rule) {
-      let summary = `Cada ${WEEKDAY_NAMES[rule.dayOfWeek]} a les ${rule.timeOfDay}`;
-      const bounds = [
-        rule.startDate ? `des del ${this.datePipe.transform(rule.startDate, 'dd/MM/yyyy')}` : null,
-        rule.endDate ? `fins al ${this.datePipe.transform(rule.endDate, 'dd/MM/yyyy')}` : null,
-      ].filter((part): part is string => part !== null);
-      if (bounds.length > 0) {
-        summary += ` (${bounds.join(' ')})`;
-      }
-      return summary;
+      return this.withActiveWindow(`Cada ${WEEKDAY_NAMES[rule.dayOfWeek]} a les ${rule.timeOfDay}`, rule);
+    }
+    if ('eventType' in rule) {
+      const eventLabel = EVENT_TYPE_LABELS[rule.eventType];
+      const summary =
+        rule.offsetUnit === BeforeEventOffsetUnit.HOURS
+          ? `${rule.offsetValue} hores abans de cada ${eventLabel}`
+          : `${rule.offsetValue} dies abans de cada ${eventLabel}, a les ${rule.timeOfDay}`;
+      return this.withActiveWindow(summary, rule);
     }
     return '—';
   }
 
   statusLabel(entry: NotificationScheduleEntry): string {
     if (!entry.isActive) return 'Inactiva';
-    return entry.scheduleType === NotificationScheduleType.WEEKLY ? 'Activa' : 'Pendent';
+    const recurring = [NotificationScheduleType.WEEKLY, NotificationScheduleType.BEFORE_EVENT];
+    return recurring.includes(entry.scheduleType) ? 'Activa' : 'Pendent';
+  }
+
+  /** Appends the optional "(des del X fins al Y)" active-window suffix WEEKLY and BEFORE_EVENT
+   *  both carry — shared here since only the base summary text differs between them. */
+  private withActiveWindow(summary: string, rule: { startDate?: string; endDate?: string }): string {
+    const bounds = [
+      rule.startDate ? `des del ${this.datePipe.transform(rule.startDate, 'dd/MM/yyyy')}` : null,
+      rule.endDate ? `fins al ${this.datePipe.transform(rule.endDate, 'dd/MM/yyyy')}` : null,
+    ].filter((part): part is string => part !== null);
+    return bounds.length > 0 ? `${summary} (${bounds.join(' ')})` : summary;
   }
 
   confirmCancel(entry: NotificationScheduleEntry): void {

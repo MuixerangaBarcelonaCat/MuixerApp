@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
+  BeforeEventScheduleConfig,
   NotificationScheduleRuleConfig,
   NotificationScheduleType,
   NotificationSource,
@@ -9,7 +10,11 @@ import {
   WeeklyScheduleConfig,
 } from '@muixer/shared';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
-import { CreateNotificationScheduleDto, WeeklyRuleConfigDto } from './dto/create-notification-schedule.dto';
+import {
+  BeforeEventRuleConfigDto,
+  CreateNotificationScheduleDto,
+  WeeklyRuleConfigDto,
+} from './dto/create-notification-schedule.dto';
 import { UpdateNotificationScheduleDto } from './dto/update-notification-schedule.dto';
 import { NotificationScheduleFilterDto } from './dto/notification-schedule-filter.dto';
 import { SendNotificationDto } from './dto/send-notification.dto';
@@ -92,6 +97,12 @@ export class NotificationScheduleService {
       }
       schedule.ruleConfig = this.buildWeeklyRuleConfig(dto.weekly);
     }
+    if (dto.beforeEvent) {
+      if (effectiveType !== NotificationScheduleType.BEFORE_EVENT) {
+        throw new BadRequestException("'beforeEvent' només és vàlid per a notificacions abans d'un esdeveniment");
+      }
+      schedule.ruleConfig = this.buildBeforeEventRuleConfig(dto.beforeEvent);
+    }
 
     if (dto.scheduleType !== undefined && dto.scheduleType !== schedule.scheduleType) {
       if (dto.scheduleType === NotificationScheduleType.ONE_OFF && !dto.oneOff) {
@@ -99,6 +110,9 @@ export class NotificationScheduleService {
       }
       if (dto.scheduleType === NotificationScheduleType.WEEKLY && !dto.weekly) {
         throw new BadRequestException("Cal indicar 'weekly' en canviar a notificació setmanal");
+      }
+      if (dto.scheduleType === NotificationScheduleType.BEFORE_EVENT && !dto.beforeEvent) {
+        throw new BadRequestException("Cal indicar 'beforeEvent' en canviar a notificació abans d'un esdeveniment");
       }
       schedule.scheduleType = dto.scheduleType;
     }
@@ -145,12 +159,15 @@ export class NotificationScheduleService {
     return this.processSchedule(schedule, NotificationSource.MANUAL);
   }
 
+  /** `triggeredEventId` is only given by the BEFORE_EVENT cron sweep — it's what the schedule's
+   *  `linkedEvent`/`target.eventRef` TRIGGERING_EVENT kind resolves to. */
   async processSchedule(
     schedule: NotificationSchedule,
     source: NotificationSource,
+    triggeredEventId?: string,
   ): Promise<{ accepted: boolean; warning?: string }> {
-    // ONE_OFF fires once, then deactivates. WEEKLY recurs — it stays active; the cron's own
-    // "already fired today" check (via NotificationLog) is what stops it firing twice in a day.
+    // ONE_OFF fires once, then deactivates. WEEKLY/BEFORE_EVENT recur — they stay active; the
+    // cron's own "already fired" checks (via NotificationLog) are what stop a duplicate send.
     if (schedule.scheduleType === NotificationScheduleType.ONE_OFF) {
       await this.repo.update(schedule.id, { isActive: false });
     }
@@ -168,6 +185,7 @@ export class NotificationScheduleService {
       source,
       scheduleId: schedule.id,
       triggeredByUserId: schedule.createdByUserId ?? undefined,
+      triggeredEventId,
     });
   }
 
@@ -183,6 +201,13 @@ export class NotificationScheduleService {
         throw new BadRequestException("Falta la configuració de programació ('weekly')");
       }
       return this.buildWeeklyRuleConfig(dto.weekly);
+    }
+
+    if (dto.scheduleType === NotificationScheduleType.BEFORE_EVENT) {
+      if (!dto.beforeEvent) {
+        throw new BadRequestException("Falta la configuració de programació ('beforeEvent')");
+      }
+      return this.buildBeforeEventRuleConfig(dto.beforeEvent);
     }
 
     // Guaranteed ONE_OFF by CreateNotificationScheduleDto's validation — narrows dto.oneOff.
@@ -202,6 +227,20 @@ export class NotificationScheduleService {
       timeOfDay: weekly.timeOfDay,
       ...(weekly.startDate ? { startDate: weekly.startDate } : {}),
       ...(weekly.endDate ? { endDate: weekly.endDate } : {}),
+    };
+  }
+
+  private buildBeforeEventRuleConfig(beforeEvent: BeforeEventRuleConfigDto): BeforeEventScheduleConfig {
+    if (beforeEvent.startDate && beforeEvent.endDate && beforeEvent.endDate < beforeEvent.startDate) {
+      throw new BadRequestException("'endDate' ha de ser posterior o igual a 'startDate'");
+    }
+    return {
+      eventType: beforeEvent.eventType,
+      offsetUnit: beforeEvent.offsetUnit,
+      offsetValue: beforeEvent.offsetValue,
+      ...(beforeEvent.timeOfDay ? { timeOfDay: beforeEvent.timeOfDay } : {}),
+      ...(beforeEvent.startDate ? { startDate: beforeEvent.startDate } : {}),
+      ...(beforeEvent.endDate ? { endDate: beforeEvent.endDate } : {}),
     };
   }
 }

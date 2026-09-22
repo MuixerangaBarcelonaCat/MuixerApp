@@ -5,6 +5,8 @@ import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastService } from '@muixer/ui';
 import {
+  BeforeEventOffsetUnit,
+  EventType,
   NotificationLinkType,
   NotificationScheduleEntry,
   NotificationScheduleType,
@@ -143,6 +145,42 @@ describe('NotificationScheduleListComponent', () => {
         `Cada Dilluns a les 18:00 (des del ${formatDate('2026-06-01')} fins al ${formatDate('2026-12-31')})`,
       );
     });
+
+    it('formats a BEFORE_EVENT/DAYS ruleConfig with the event type and time', async () => {
+      await setup();
+      const beforeEvent = mockEntry({
+        scheduleType: NotificationScheduleType.BEFORE_EVENT,
+        ruleConfig: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+      });
+      expect(component.ruleSummary(beforeEvent)).toBe('3 dies abans de cada Actuació, a les 09:00');
+    });
+
+    it('formats a BEFORE_EVENT/HOURS ruleConfig relative to the event start time', async () => {
+      await setup();
+      const beforeEvent = mockEntry({
+        scheduleType: NotificationScheduleType.BEFORE_EVENT,
+        ruleConfig: { eventType: EventType.ASSAIG, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 2 },
+      });
+      expect(component.ruleSummary(beforeEvent)).toBe("2 hores abans de cada Assaig");
+    });
+
+    it('appends bounds to a BEFORE_EVENT ruleConfig the same way as WEEKLY', async () => {
+      await setup();
+      const beforeEvent = mockEntry({
+        scheduleType: NotificationScheduleType.BEFORE_EVENT,
+        ruleConfig: {
+          eventType: EventType.ACTUACIO,
+          offsetUnit: BeforeEventOffsetUnit.DAYS,
+          offsetValue: 3,
+          timeOfDay: '09:00',
+          startDate: '2026-06-01',
+          endDate: '2026-12-31',
+        },
+      });
+      expect(component.ruleSummary(beforeEvent)).toBe(
+        `3 dies abans de cada Actuació, a les 09:00 (des del ${formatDate('2026-06-01')} fins al ${formatDate('2026-12-31')})`,
+      );
+    });
   });
 
   describe('statusLabel', () => {
@@ -162,6 +200,11 @@ describe('NotificationScheduleListComponent', () => {
     it('returns Activa for an active WEEKLY schedule', async () => {
       await setup();
       expect(component.statusLabel(mockEntry({ scheduleType: NotificationScheduleType.WEEKLY }))).toBe('Activa');
+    });
+
+    it('returns Activa for an active BEFORE_EVENT schedule', async () => {
+      await setup();
+      expect(component.statusLabel(mockEntry({ scheduleType: NotificationScheduleType.BEFORE_EVENT }))).toBe('Activa');
     });
   });
 

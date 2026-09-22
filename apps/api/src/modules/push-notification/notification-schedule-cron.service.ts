@@ -1,11 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Repository } from 'typeorm';
-import { NotificationScheduleType, NotificationSource } from '@muixer/shared';
-import { getLocalDayOfWeek, getLocalTimeOfDay, getLocalToday, formatDateOnly } from '../../common/utils/date.util';
+import { MoreThanOrEqual, Repository } from 'typeorm';
+import { BeforeEventOffsetUnit, BeforeEventScheduleConfig, NotificationScheduleType, NotificationSource } from '@muixer/shared';
+import {
+  getLocalDayOfWeek,
+  getLocalTimeOfDay,
+  getLocalToday,
+  formatDateOnly,
+  addDaysToDateOnly,
+  zonedTimeToUtc,
+} from '../../common/utils/date.util';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { NotificationLog } from './entities/notification-log.entity';
+import { Event } from '../event/event.entity';
 import { NotificationScheduleService } from './notification-schedule.service';
 
 @Injectable()
@@ -17,6 +25,8 @@ export class NotificationScheduleCronService {
     private readonly repo: Repository<NotificationSchedule>,
     @InjectRepository(NotificationLog)
     private readonly logRepo: Repository<NotificationLog>,
+    @InjectRepository(Event)
+    private readonly eventRepo: Repository<Event>,
     private readonly scheduleService: NotificationScheduleService,
   ) {}
 
@@ -72,17 +82,80 @@ export class NotificationScheduleCronService {
     }
   }
 
+  /** Every minute: for each active BEFORE_EVENT schedule, find its matching upcoming events and
+   *  dispatch once per event whose computed fire instant has passed. Unlike WEEKLY's single
+   *  "fired today" check, one schedule must fire independently for every matching event — so the
+   *  "already fired" check is keyed by (scheduleId, eventId), not by day. */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async processDueBeforeEventSchedules(): Promise<void> {
+    const due = await this.repo
+      .createQueryBuilder('s')
+      .where('s.isActive = true')
+      .andWhere('s.scheduleType = :type', { type: NotificationScheduleType.BEFORE_EVENT })
+      .getMany();
+
+    for (const schedule of due) {
+      if (this.outsideActiveWindow(schedule)) continue;
+      try {
+        await this.processBeforeEventSchedule(schedule);
+      } catch (error) {
+        this.logger.error(`Failed to process before-event notification schedule ${schedule.id}`, error as Error);
+      }
+    }
+  }
+
+  private async processBeforeEventSchedule(schedule: NotificationSchedule): Promise<void> {
+    const rule = schedule.ruleConfig as BeforeEventScheduleConfig;
+    const now = new Date();
+
+    // Only events that haven't happened yet — a reminder never makes sense to send after the
+    // event it's about. A missed tick still self-heals: the event stays matched until it passes.
+    const events = await this.eventRepo.find({
+      where: { eventType: rule.eventType, date: MoreThanOrEqual(getLocalToday() as unknown as Date) },
+    });
+
+    for (const event of events) {
+      try {
+        const fireInstant = this.computeFireInstant(rule, event);
+        if (!fireInstant || fireInstant > now) continue;
+        if (await this.firedForEvent(schedule.id, event.id)) continue;
+        await this.scheduleService.processSchedule(schedule, NotificationSource.SCHEDULED_BEFORE_EVENT, event.id);
+      } catch (error) {
+        this.logger.error(
+          `Failed to process before-event notification schedule ${schedule.id} for event ${event.id}`,
+          error as Error,
+        );
+      }
+    }
+  }
+
+  /** The UTC instant this schedule should fire for `event`, or `null` when it can't be computed
+   *  (an `HOURS` offset needs the event's own `startTime`, which may be unset). */
+  private computeFireInstant(rule: BeforeEventScheduleConfig, event: Event): Date | null {
+    if (rule.offsetUnit === BeforeEventOffsetUnit.HOURS) {
+      if (!event.startTime) return null;
+      const eventStartUtc = zonedTimeToUtc(formatDateOnly(event.date), event.startTime);
+      return new Date(eventStartUtc.getTime() - rule.offsetValue * 60 * 60 * 1000);
+    }
+    const fireDate = addDaysToDateOnly(formatDateOnly(event.date), -rule.offsetValue);
+    return zonedTimeToUtc(fireDate, rule.timeOfDay as string);
+  }
+
+  private async firedForEvent(scheduleId: string, eventId: string): Promise<boolean> {
+    const log = await this.logRepo.findOne({ where: { scheduleId, triggeredEventId: eventId } });
+    return !!log;
+  }
+
   private async firedToday(scheduleId: string): Promise<boolean> {
     const lastLog = await this.logRepo.findOne({ where: { scheduleId }, order: { sentAt: 'DESC' } });
     return !!lastLog && formatDateOnly(lastLog.sentAt) === getLocalToday();
   }
 
-  /** `startDate`/`endDate` (`YYYY-MM-DD`, inclusive) gate a WEEKLY schedule outside of the SQL
-   *  query — string comparison against `getLocalToday()`, reusing the same date-only convention
-   *  as `firedToday`, rather than another raw jsonb expression in the WHERE clause. */
+  /** `startDate`/`endDate` (`YYYY-MM-DD`, inclusive) gate a WEEKLY or BEFORE_EVENT schedule outside
+   *  of the SQL query — string comparison against `getLocalToday()`, reusing the same date-only
+   *  convention as `firedToday`, rather than another raw jsonb expression in the WHERE clause. */
   private outsideActiveWindow(schedule: NotificationSchedule): boolean {
-    const rule = schedule.ruleConfig;
-    if (!('dayOfWeek' in rule)) return false;
+    const rule = schedule.ruleConfig as { startDate?: string; endDate?: string };
     const today = getLocalToday();
     if (rule.startDate && today < rule.startDate) return true;
     if (rule.endDate && today > rule.endDate) return true;

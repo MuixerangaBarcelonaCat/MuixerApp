@@ -4,7 +4,9 @@ import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   AttendanceStatus,
+  BeforeEventOffsetUnit,
   EventReferenceKind,
+  EventType,
   NotificationLinkType,
   NotificationScheduleType,
   NotificationTargetType,
@@ -411,6 +413,101 @@ describe('NotificationSendComponent (schedule mode)', () => {
     });
   });
 
+  describe('BEFORE_EVENT', () => {
+    beforeEach(() => {
+      component.scheduleKind.set(NotificationScheduleType.BEFORE_EVENT);
+    });
+
+    it('is invalid without eventType, offsetValue, and (for DAYS) timeOfDay', () => {
+      component.title.set('T');
+      component.body.set('B');
+      expect(component.isFormValid()).toBe(false);
+      component.beforeEventType.set(EventType.ACTUACIO);
+      expect(component.isFormValid()).toBe(false);
+      component.beforeEventOffsetValue.set(3);
+      expect(component.isFormValid()).toBe(false);
+      component.beforeEventTimeOfDay.set('09:00');
+      expect(component.isFormValid()).toBe(true);
+    });
+
+    it('does not require timeOfDay for a HOURS offset', () => {
+      component.title.set('T');
+      component.body.set('B');
+      component.beforeEventType.set(EventType.ACTUACIO);
+      component.beforeEventOffsetValue.set(3);
+      component.beforeEventOffsetUnit.set(BeforeEventOffsetUnit.HOURS);
+      expect(component.isFormValid()).toBe(true);
+    });
+
+    it('is invalid when endDate is before startDate', () => {
+      component.title.set('T');
+      component.body.set('B');
+      component.beforeEventType.set(EventType.ACTUACIO);
+      component.beforeEventOffsetValue.set(3);
+      component.beforeEventTimeOfDay.set('09:00');
+      component.beforeEventStartDate.set('2026-12-31');
+      component.beforeEventEndDate.set('2026-06-01');
+      expect(component.isFormValid()).toBe(false);
+    });
+
+    it('creates a BEFORE_EVENT/DAYS schedule instead of oneOff or weekly', () => {
+      component.title.set('Actuació');
+      component.body.set('Recordatori');
+      component.beforeEventType.set(EventType.ACTUACIO);
+      component.beforeEventOffsetValue.set(3);
+      component.beforeEventTimeOfDay.set('09:00');
+      component.send();
+
+      expect(notificationService.createSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduleType: NotificationScheduleType.BEFORE_EVENT,
+          beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+        }),
+      );
+      expect(notificationService.createSchedule.mock.calls[0][0].oneOff).toBeUndefined();
+      expect(notificationService.createSchedule.mock.calls[0][0].weekly).toBeUndefined();
+    });
+
+    it('creates a BEFORE_EVENT/HOURS schedule without a timeOfDay', () => {
+      component.title.set('Actuació');
+      component.body.set('Recordatori');
+      component.beforeEventType.set(EventType.ACTUACIO);
+      component.beforeEventOffsetValue.set(2);
+      component.beforeEventOffsetUnit.set(BeforeEventOffsetUnit.HOURS);
+      component.send();
+
+      expect(notificationService.createSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 2 },
+        }),
+      );
+    });
+
+    it('sends startDate/endDate when set', () => {
+      component.title.set('Actuació');
+      component.body.set('Recordatori');
+      component.beforeEventType.set(EventType.ACTUACIO);
+      component.beforeEventOffsetValue.set(3);
+      component.beforeEventTimeOfDay.set('09:00');
+      component.beforeEventStartDate.set('2026-06-01');
+      component.beforeEventEndDate.set('2026-12-31');
+      component.send();
+
+      expect(notificationService.createSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          beforeEvent: {
+            eventType: EventType.ACTUACIO,
+            offsetUnit: BeforeEventOffsetUnit.DAYS,
+            offsetValue: 3,
+            timeOfDay: '09:00',
+            startDate: '2026-06-01',
+            endDate: '2026-12-31',
+          },
+        }),
+      );
+    });
+  });
+
   it('resets scheduleKind and weekly fields back to defaults', () => {
     component.scheduleKind.set(NotificationScheduleType.WEEKLY);
     component.weeklyDayOfWeek.set(3);
@@ -423,6 +520,23 @@ describe('NotificationSendComponent (schedule mode)', () => {
     expect(component.weeklyEndDate()).toBe('');
     expect(component.weeklyDayOfWeek()).toBeNull();
     expect(component.weeklyTimeOfDay()).toBe('');
+  });
+
+  it('resets beforeEvent fields back to defaults', () => {
+    component.scheduleKind.set(NotificationScheduleType.BEFORE_EVENT);
+    component.beforeEventType.set(EventType.ACTUACIO);
+    component.beforeEventOffsetUnit.set(BeforeEventOffsetUnit.HOURS);
+    component.beforeEventOffsetValue.set(3);
+    component.beforeEventTimeOfDay.set('09:00');
+    component.beforeEventStartDate.set('2026-06-01');
+    component.beforeEventEndDate.set('2026-12-31');
+    component.reset();
+    expect(component.beforeEventType()).toBeNull();
+    expect(component.beforeEventOffsetUnit()).toBe(BeforeEventOffsetUnit.DAYS);
+    expect(component.beforeEventOffsetValue()).toBeNull();
+    expect(component.beforeEventTimeOfDay()).toBe('');
+    expect(component.beforeEventStartDate()).toBe('');
+    expect(component.beforeEventEndDate()).toBe('');
   });
 });
 
@@ -588,5 +702,63 @@ describe('NotificationSendComponent (edit mode, WEEKLY)', () => {
     expect(component.weeklyTimeOfDay()).toBe('18:00');
     expect(component.weeklyStartDate()).toBe('2026-06-01');
     expect(component.weeklyEndDate()).toBe('2026-12-31');
+  });
+});
+
+describe('NotificationSendComponent (edit mode, BEFORE_EVENT)', () => {
+  it('prefills scheduleKind and the eventType/offset/timeOfDay fields', async () => {
+    const beforeEventSchedule = {
+      id: 'schedule-3',
+      title: 'Recordatori',
+      body: 'Abans de l’actuació',
+      linkedEvent: undefined,
+      linkTo: NotificationLinkType.HOME,
+      url: null,
+      target: { type: NotificationTargetType.ALL },
+      scheduleType: NotificationScheduleType.BEFORE_EVENT,
+      ruleConfig: {
+        eventType: EventType.ACTUACIO,
+        offsetUnit: BeforeEventOffsetUnit.HOURS,
+        offsetValue: 2,
+        startDate: '2026-06-01',
+        endDate: '2026-12-31',
+      },
+      isActive: true,
+      createdByUserId: 'user-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const notificationService = {
+      send: vi.fn().mockReturnValue(of({ accepted: true })),
+      createSchedule: vi.fn().mockReturnValue(of({ id: 'schedule-3' })),
+      getSchedule: vi.fn().mockReturnValue(of(beforeEventSchedule)),
+      updateSchedule: vi.fn().mockReturnValue(of(beforeEventSchedule)),
+    };
+    const eventService = { getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 200 } })) };
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [NotificationSendComponent],
+      providers: [
+        { provide: NotificationService, useValue: notificationService },
+        { provide: EventService, useValue: eventService },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'schedule-3' }, data: { mode: 'schedule' } } },
+        },
+        allLucideIconsProvider,
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(NotificationSendComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    expect(component.scheduleKind()).toBe(NotificationScheduleType.BEFORE_EVENT);
+    expect(component.beforeEventType()).toBe(EventType.ACTUACIO);
+    expect(component.beforeEventOffsetUnit()).toBe(BeforeEventOffsetUnit.HOURS);
+    expect(component.beforeEventOffsetValue()).toBe(2);
+    expect(component.beforeEventStartDate()).toBe('2026-06-01');
+    expect(component.beforeEventEndDate()).toBe('2026-12-31');
   });
 });

@@ -77,7 +77,12 @@
       <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-4">
         <legend class="fieldset-legend text-sm font-semibold">Esdeveniment i enllaç</legend>
 
-        <app-notification-event-picker [(linkedEvent)]="linkedEvent" [events]="events()" [variant]="mode()" />
+        <app-notification-event-picker
+          [(linkedEvent)]="linkedEvent"
+          [events]="events()"
+          [variant]="mode()"
+          [allowTriggeringEvent]="isSchedule() && scheduleKind() === ScheduleType.BEFORE_EVENT"
+        />
 
         <lib-form-field label="Enllaç">
           <app-notification-link-picker [(link)]="link" [hasLinkedEvent]="hasLinkedEvent()" />
@@ -117,10 +122,92 @@
                 <lucide-icon name="RotateCw" [size]="14" />
                 Setmanal
               </lib-button>
+              <lib-button
+                joinItem
+                outlineMode
+                size="sm"
+                [active]="scheduleKind() === ScheduleType.BEFORE_EVENT"
+                (clicked)="scheduleKind.set(ScheduleType.BEFORE_EVENT)"
+              >
+                <lucide-icon name="CalendarRange" [size]="14" />
+                Abans d'un esdeveniment
+              </lib-button>
             </lib-button-group>
           </div>
 
-          @if (scheduleKind() === ScheduleType.WEEKLY) {
+          @if (scheduleKind() === ScheduleType.BEFORE_EVENT) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <lib-form-field label="Tipus d'esdeveniment">
+                <select
+                  class="select select-bordered w-full"
+                  [ngModel]="beforeEventType()"
+                  (ngModelChange)="beforeEventType.set($event)"
+                  name="beforeEventType"
+                  required
+                >
+                  <option [ngValue]="null">Seleccioneu un tipus...</option>
+                  <option [ngValue]="EventTypeEnum.ACTUACIO">Actuació</option>
+                  <option [ngValue]="EventTypeEnum.ASSAIG">Assaig</option>
+                </select>
+              </lib-form-field>
+
+              <lib-form-field label="Amb quina antelació">
+                <div class="join w-full">
+                  <input
+                    type="number"
+                    min="1"
+                    class="input input-bordered join-item w-1/2"
+                    [ngModel]="beforeEventOffsetValue()"
+                    (ngModelChange)="beforeEventOffsetValue.set($event)"
+                    name="beforeEventOffsetValue"
+                    required
+                  />
+                  <select
+                    class="select select-bordered join-item w-1/2"
+                    [ngModel]="beforeEventOffsetUnit()"
+                    (ngModelChange)="beforeEventOffsetUnit.set($event)"
+                    name="beforeEventOffsetUnit"
+                  >
+                    <option [ngValue]="OffsetUnit.DAYS">dies abans</option>
+                    <option [ngValue]="OffsetUnit.HOURS">hores abans</option>
+                  </select>
+                </div>
+              </lib-form-field>
+
+              @if (beforeEventOffsetUnit() === OffsetUnit.DAYS) {
+                <lib-form-field label="Hora d'enviament">
+                  <input
+                    type="time"
+                    class="input input-bordered w-full"
+                    [ngModel]="beforeEventTimeOfDay()"
+                    (ngModelChange)="beforeEventTimeOfDay.set($event)"
+                    name="beforeEventTimeOfDay"
+                    required
+                  />
+                </lib-form-field>
+              }
+
+              <lib-form-field label="Data d'inici (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="beforeEventStartDate()"
+                  (ngModelChange)="beforeEventStartDate.set($event)"
+                  name="beforeEventStartDate"
+                />
+              </lib-form-field>
+
+              <lib-form-field label="Data de fi (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="beforeEventEndDate()"
+                  (ngModelChange)="beforeEventEndDate.set($event)"
+                  name="beforeEventEndDate"
+                />
+              </lib-form-field>
+            </div>
+          } @else if (scheduleKind() === ScheduleType.WEEKLY) {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <lib-form-field label="Dia de la setmana">
                 <select

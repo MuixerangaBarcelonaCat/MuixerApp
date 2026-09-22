@@ -1,7 +1,10 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min, ValidateIf, ValidateNested, IsDefined } from 'class-validator';
-import { NotificationScheduleType } from '@muixer/shared';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Matches, Max, Min, ValidateIf, ValidateNested, IsDefined } from 'class-validator';
+import { BeforeEventOffsetUnit, EventType, NotificationScheduleType } from '@muixer/shared';
 import { NotificationContentDto } from './notification-content.dto';
+
+/** `YYYY-MM-DD`, inclusive, evaluated in the Europe/Madrid timezone. */
+const DATE_ONLY_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
 export class OneOffRuleConfigDto {
   /** ISO datetime the notification should fire at. Past-dated values are accepted at the DTO
@@ -23,23 +26,51 @@ export class WeeklyRuleConfigDto {
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'timeOfDay ha de tenir el format HH:mm' })
   timeOfDay: string;
 
-  /** `YYYY-MM-DD`, inclusive, evaluated in the Europe/Madrid timezone. Optional — an unbounded
-   *  start/end means the schedule fires from the moment it's created / indefinitely. */
+  /** Optional — an unbounded start/end means the schedule fires from the moment it's created / indefinitely. */
   @IsOptional()
-  @Matches(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, { message: 'startDate ha de tenir el format YYYY-MM-DD' })
+  @Matches(DATE_ONLY_REGEX, { message: 'startDate ha de tenir el format YYYY-MM-DD' })
   startDate?: string;
 
   @IsOptional()
-  @Matches(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, { message: 'endDate ha de tenir el format YYYY-MM-DD' })
+  @Matches(DATE_ONLY_REGEX, { message: 'endDate ha de tenir el format YYYY-MM-DD' })
+  endDate?: string;
+}
+
+export class BeforeEventRuleConfigDto {
+  /** Only ACTUACIO is meaningful today, but the field stays generic. */
+  @IsEnum(EventType)
+  eventType: EventType;
+
+  @IsEnum(BeforeEventOffsetUnit)
+  offsetUnit: BeforeEventOffsetUnit;
+
+  /** How many days or hours before the event, depending on `offsetUnit`. */
+  @IsInt()
+  @Min(1)
+  offsetValue: number;
+
+  /** `HH:mm`, evaluated in the Europe/Madrid timezone. Required for `DAYS` (fires at this time of
+   *  day, `offsetValue` days before the event's date) — unused for `HOURS`, which instead fires
+   *  `offsetValue` hours before the event's own `startTime`. */
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'timeOfDay ha de tenir el format HH:mm' })
+  @ValidateIf((o: BeforeEventRuleConfigDto) => o.offsetUnit === BeforeEventOffsetUnit.DAYS)
+  @IsDefined()
+  timeOfDay?: string;
+
+  /** Optional — an unbounded start/end means the schedule watches for matching events from the
+   *  moment it's created / indefinitely. */
+  @IsOptional()
+  @Matches(DATE_ONLY_REGEX, { message: 'startDate ha de tenir el format YYYY-MM-DD' })
+  startDate?: string;
+
+  @IsOptional()
+  @Matches(DATE_ONLY_REGEX, { message: 'endDate ha de tenir el format YYYY-MM-DD' })
   endDate?: string;
 }
 
 export class CreateNotificationScheduleDto extends NotificationContentDto {
-  /** BEFORE_EVENT is reserved for a later phase. */
   @IsEnum(NotificationScheduleType)
-  @IsIn([NotificationScheduleType.ONE_OFF, NotificationScheduleType.WEEKLY], {
-    message: "Només s'admeten notificacions puntuals (ONE_OFF) o setmanals (WEEKLY) per ara",
-  })
   scheduleType: NotificationScheduleType;
 
   @ValidateNested()
@@ -53,4 +84,10 @@ export class CreateNotificationScheduleDto extends NotificationContentDto {
   @ValidateIf((o: CreateNotificationScheduleDto) => o.scheduleType === NotificationScheduleType.WEEKLY)
   @IsDefined()
   weekly?: WeeklyRuleConfigDto;
+
+  @ValidateNested()
+  @Type(() => BeforeEventRuleConfigDto)
+  @ValidateIf((o: CreateNotificationScheduleDto) => o.scheduleType === NotificationScheduleType.BEFORE_EVENT)
+  @IsDefined()
+  beforeEvent?: BeforeEventRuleConfigDto;
 }

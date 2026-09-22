@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
-import { NotificationLinkType, NotificationScheduleType, NotificationTargetType } from '@muixer/shared';
+import { BeforeEventOffsetUnit, EventType, NotificationLinkType, NotificationScheduleType, NotificationTargetType } from '@muixer/shared';
 import { CreateNotificationScheduleDto } from './create-notification-schedule.dto';
 
 const validate = (payload: Record<string, unknown>) =>
@@ -24,11 +24,6 @@ describe('CreateNotificationScheduleDto', () => {
   it('rejects a payload without scheduleType', () => {
     const { scheduleType: _omit, ...rest } = base;
     const errors = validate(rest);
-    expect(errors.some((e) => e.property === 'scheduleType')).toBe(true);
-  });
-
-  it('rejects BEFORE_EVENT — not implemented yet', () => {
-    const errors = validate({ ...base, scheduleType: NotificationScheduleType.BEFORE_EVENT });
     expect(errors.some((e) => e.property === 'scheduleType')).toBe(true);
   });
 
@@ -125,6 +120,95 @@ describe('CreateNotificationScheduleDto', () => {
       it.each(['2026-13-01', '31/12/2026', 'not-a-date'])('rejects a malformed endDate (%s)', (endDate) => {
         const errors = validate({ ...weeklyBase, weekly: { ...weeklyBase.weekly, endDate } });
         expect(errors.some((e) => e.property === 'weekly')).toBe(true);
+      });
+    });
+  });
+
+  describe('BEFORE_EVENT', () => {
+    const daysBase = {
+      title: 'Actuació',
+      body: 'Recordatori',
+      linkTo: NotificationLinkType.HOME,
+      target: { type: NotificationTargetType.ALL },
+      scheduleType: NotificationScheduleType.BEFORE_EVENT,
+      beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' },
+    };
+
+    it('accepts a minimal valid DAYS payload', () => {
+      expect(validate(daysBase)).toHaveLength(0);
+    });
+
+    it('accepts a minimal valid HOURS payload with no timeOfDay', () => {
+      const hoursBase = {
+        ...daysBase,
+        beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 3 },
+      };
+      expect(validate(hoursBase)).toHaveLength(0);
+    });
+
+    it('requires beforeEvent when scheduleType is BEFORE_EVENT', () => {
+      const { beforeEvent: _omit, ...rest } = daysBase;
+      const errors = validate(rest);
+      expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
+    });
+
+    it('requires timeOfDay when offsetUnit is DAYS', () => {
+      const errors = validate({
+        ...daysBase,
+        beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3 },
+      });
+      expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
+    });
+
+    it('does not require timeOfDay when offsetUnit is HOURS', () => {
+      const errors = validate({
+        ...daysBase,
+        beforeEvent: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 3 },
+      });
+      expect(errors).toHaveLength(0);
+    });
+
+    it.each([0, -1, 1.5])('rejects an invalid offsetValue (%s)', (offsetValue) => {
+      const errors = validate({ ...daysBase, beforeEvent: { ...daysBase.beforeEvent, offsetValue } });
+      expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
+    });
+
+    it('rejects an invalid eventType', () => {
+      const errors = validate({ ...daysBase, beforeEvent: { ...daysBase.beforeEvent, eventType: 'NOT_A_TYPE' } });
+      expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
+    });
+
+    it('rejects an invalid offsetUnit', () => {
+      const errors = validate({ ...daysBase, beforeEvent: { ...daysBase.beforeEvent, offsetUnit: 'WEEKS' } });
+      expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
+    });
+
+    it.each(['24:00', '9:00', '18:60', 'not-a-time'])('rejects an invalid timeOfDay (%s)', (timeOfDay) => {
+      const errors = validate({ ...daysBase, beforeEvent: { ...daysBase.beforeEvent, timeOfDay } });
+      expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
+    });
+
+    describe('startDate/endDate', () => {
+      it('accepts a payload with no startDate/endDate (unbounded)', () => {
+        expect(validate(daysBase)).toHaveLength(0);
+      });
+
+      it('accepts a valid startDate and endDate', () => {
+        const errors = validate({
+          ...daysBase,
+          beforeEvent: { ...daysBase.beforeEvent, startDate: '2026-06-01', endDate: '2026-12-31' },
+        });
+        expect(errors).toHaveLength(0);
+      });
+
+      it.each(['2026-13-01', '01/06/2026', 'not-a-date'])('rejects a malformed startDate (%s)', (startDate) => {
+        const errors = validate({ ...daysBase, beforeEvent: { ...daysBase.beforeEvent, startDate } });
+        expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
+      });
+
+      it.each(['2026-13-01', '31/12/2026', 'not-a-date'])('rejects a malformed endDate (%s)', (endDate) => {
+        const errors = validate({ ...daysBase, beforeEvent: { ...daysBase.beforeEvent, endDate } });
+        expect(errors.some((e) => e.property === 'beforeEvent')).toBe(true);
       });
     });
   });

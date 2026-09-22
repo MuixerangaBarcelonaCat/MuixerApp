@@ -10,7 +10,14 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { EventReferenceKind, NotificationLinkType, NotificationScheduleType, NotificationTargetType } from '@muixer/shared';
+import {
+  BeforeEventOffsetUnit,
+  EventReferenceKind,
+  EventType,
+  NotificationLinkType,
+  NotificationScheduleType,
+  NotificationTargetType,
+} from '@muixer/shared';
 import { AlertComponent, ButtonComponent, ButtonGroupComponent, FormFieldComponent } from '@muixer/ui';
 import {
   EventReferenceValue,
@@ -57,6 +64,8 @@ export class NotificationSendComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly ScheduleType = NotificationScheduleType;
+  readonly OffsetUnit = BeforeEventOffsetUnit;
+  readonly EventTypeEnum = EventType;
   readonly weekdayNames = WEEKDAY_NAMES;
   readonly weekdayDisplayOrder = WEEKDAY_DISPLAY_ORDER;
 
@@ -83,6 +92,14 @@ export class NotificationSendComponent implements OnInit {
   /** Optional active window (`type="date"` values) — empty means unbounded. */
   weeklyStartDate = signal('');
   weeklyEndDate = signal('');
+  /** Only used when scheduleKind() === BEFORE_EVENT. */
+  beforeEventType = signal<EventType | null>(null);
+  beforeEventOffsetUnit = signal<BeforeEventOffsetUnit>(BeforeEventOffsetUnit.DAYS);
+  beforeEventOffsetValue = signal<number | null>(null);
+  /** Required for DAYS, unused for HOURS (fires relative to the event's own start time instead). */
+  beforeEventTimeOfDay = signal('');
+  beforeEventStartDate = signal('');
+  beforeEventEndDate = signal('');
   events = signal<EventListItem[]>([]);
   state = signal<SendState>('idle');
   errorMessage = signal('');
@@ -118,6 +135,12 @@ export class NotificationSendComponent implements OnInit {
         if (this.weeklyDayOfWeek() === null || !this.weeklyTimeOfDay()) return false;
         const start = this.weeklyStartDate();
         const end = this.weeklyEndDate();
+        if (start && end && end < start) return false;
+      } else if (this.scheduleKind() === NotificationScheduleType.BEFORE_EVENT) {
+        if (!this.beforeEventType() || !this.beforeEventOffsetValue()) return false;
+        if (this.beforeEventOffsetUnit() === BeforeEventOffsetUnit.DAYS && !this.beforeEventTimeOfDay()) return false;
+        const start = this.beforeEventStartDate();
+        const end = this.beforeEventEndDate();
         if (start && end && end < start) return false;
       } else if (!this.scheduledFor()) {
         return false;
@@ -164,6 +187,13 @@ export class NotificationSendComponent implements OnInit {
             this.weeklyTimeOfDay.set(schedule.ruleConfig.timeOfDay);
             this.weeklyStartDate.set(schedule.ruleConfig.startDate ?? '');
             this.weeklyEndDate.set(schedule.ruleConfig.endDate ?? '');
+          } else if ('eventType' in schedule.ruleConfig) {
+            this.beforeEventType.set(schedule.ruleConfig.eventType);
+            this.beforeEventOffsetUnit.set(schedule.ruleConfig.offsetUnit);
+            this.beforeEventOffsetValue.set(schedule.ruleConfig.offsetValue);
+            this.beforeEventTimeOfDay.set(schedule.ruleConfig.timeOfDay ?? '');
+            this.beforeEventStartDate.set(schedule.ruleConfig.startDate ?? '');
+            this.beforeEventEndDate.set(schedule.ruleConfig.endDate ?? '');
           }
         },
         error: () => {
@@ -209,7 +239,20 @@ export class NotificationSendComponent implements OnInit {
                 ...(this.weeklyEndDate() ? { endDate: this.weeklyEndDate() } : {}),
               },
             }
-          : { oneOff: { scheduledFor: new Date(this.scheduledFor()).toISOString() } }),
+          : scheduleKind === NotificationScheduleType.BEFORE_EVENT
+            ? {
+                beforeEvent: {
+                  eventType: this.beforeEventType() as EventType,
+                  offsetUnit: this.beforeEventOffsetUnit(),
+                  offsetValue: this.beforeEventOffsetValue() as number,
+                  ...(this.beforeEventOffsetUnit() === BeforeEventOffsetUnit.DAYS
+                    ? { timeOfDay: this.beforeEventTimeOfDay() }
+                    : {}),
+                  ...(this.beforeEventStartDate() ? { startDate: this.beforeEventStartDate() } : {}),
+                  ...(this.beforeEventEndDate() ? { endDate: this.beforeEventEndDate() } : {}),
+                },
+              }
+            : { oneOff: { scheduledFor: new Date(this.scheduledFor()).toISOString() } }),
       };
       const request = editId
         ? this.notificationService.updateSchedule(editId, payload)
@@ -240,6 +283,12 @@ export class NotificationSendComponent implements OnInit {
     this.weeklyTimeOfDay.set('');
     this.weeklyStartDate.set('');
     this.weeklyEndDate.set('');
+    this.beforeEventType.set(null);
+    this.beforeEventOffsetUnit.set(BeforeEventOffsetUnit.DAYS);
+    this.beforeEventOffsetValue.set(null);
+    this.beforeEventTimeOfDay.set('');
+    this.beforeEventStartDate.set('');
+    this.beforeEventEndDate.set('');
     this.state.set('idle');
     this.errorMessage.set('');
   }
