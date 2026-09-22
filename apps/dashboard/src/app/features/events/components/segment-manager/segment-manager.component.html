@@ -69,19 +69,21 @@
         </div>
 
         @if (!isLocked()) {
-          <lib-button
-            variant="primary"
-            size="sm"
-            [disabled]="saving()"
-            [loading]="saving()"
-            ariaLabel="Afegir segment nou"
-            (clicked)="createSegment()"
-          >
-            @if (!saving()) {
-              <lucide-icon name="Plus" [size]="14" />
-            }
-            Segment nou
-          </lib-button>
+          <span class="hidden sm:contents">
+            <lib-button
+              variant="primary"
+              size="sm"
+              [disabled]="saving()"
+              [loading]="saving()"
+              ariaLabel="Afegir segment nou"
+              (clicked)="createSegment()"
+            >
+              @if (!saving()) {
+                <lucide-icon name="Plus" [size]="14" />
+              }
+              Segment nou
+            </lib-button>
+          </span>
         }
       </div>
     </div>
@@ -132,7 +134,7 @@
                 <button
                   type="button"
                   cdkDragHandle
-                  class="btn btn-ghost btn-xs px-1 cursor-grab active:cursor-grabbing text-base-content/30 hover:text-base-content/70 shrink-0"
+                  class="hidden sm:inline-flex btn btn-ghost btn-xs px-1 cursor-grab active:cursor-grabbing text-base-content/30 hover:text-base-content/70 shrink-0"
                   aria-label="Arrossega per reordenar el segment"
                 >
                   <lucide-icon name="GripVertical" [size]="14" />
@@ -149,19 +151,21 @@
               >{{ i + 1 }}</span>
 
               <!-- Collapse toggle -->
-              <lib-button
-                variant="ghost"
-                size="xs"
-                [ariaLabel]="isCollapsed(segment.id) ? 'Desplega el segment' : 'Plega el segment'"
-                [ariaExpanded]="!isCollapsed(segment.id)"
-                (clicked)="toggleCollapse(segment.id)"
-              >
-                @if (isCollapsed(segment.id)) {
-                  <lucide-icon name="ChevronRight" [size]="14" />
-                } @else {
-                  <lucide-icon name="ChevronDown" [size]="14" />
-                }
-              </lib-button>
+              <span class="contents">
+                <lib-button
+                  variant="ghost"
+                  size="xs"
+                  [ariaLabel]="isCollapsed(segment.id) ? 'Desplega el segment' : 'Plega el segment'"
+                  [ariaExpanded]="!isCollapsed(segment.id)"
+                  (clicked)="toggleCollapse(segment.id)"
+                >
+                  @if (isCollapsed(segment.id)) {
+                    <lucide-icon name="ChevronRight" [size]="14" />
+                  } @else {
+                    <lucide-icon name="ChevronDown" [size]="14" />
+                  }
+                </lib-button>
+              </span>
 
               <!-- Name or edit input -->
               @if (editingSegmentId() === segment.id) {
@@ -187,7 +191,7 @@
                 >
                   {{ displayName()(segment) }}
                   @if (!segment.name) {
-                    <span class="text-base-content/40 text-xs font-normal">(automàtic)</span>
+                    <span class="hidden sm:inline text-base-content/40 text-xs font-normal">(automàtic)</span>
                   }
                 </span>
               } @else {
@@ -200,9 +204,9 @@
                   data-testid="segment-rename-trigger"
                 >
                   {{ displayName()(segment) }}
-                  <lucide-icon name="Pencil" [size]="11" class="text-base-content/30 shrink-0" aria-hidden="true" />
+                  <lucide-icon name="Pencil" [size]="11" class="hidden sm:inline text-base-content/30 shrink-0" aria-hidden="true" />
                   @if (!segment.name) {
-                    <span class="text-base-content/40 text-xs font-normal">(automàtic)</span>
+                    <span class="hidden sm:inline text-base-content/40 text-xs font-normal">(automàtic)</span>
                   }
                 </button>
               }
@@ -213,12 +217,14 @@
                      information a redundant aria-label would — and lib-badge only wires its
                      ariaLabel input in clickable mode anyway) -->
                 @if (segmentPeopleLabel(segment); as label) {
-                  <lib-badge variant="ghost" size="sm">
-                    <span class="inline-flex items-center gap-1">
-                      <lucide-icon [name]="ICON_PERSONA" [size]="11" />
-                      {{ label }}
-                    </span>
-                  </lib-badge>
+                  <span class="hidden sm:contents">
+                    <lib-badge variant="ghost" size="sm">
+                      <span class="inline-flex items-center gap-1">
+                        <lucide-icon [name]="ICON_PERSONA" [size]="11" />
+                        {{ label }}
+                      </span>
+                    </lib-badge>
+                  </span>
                 }
 
                 <!-- Conflict count pill (Phase 3) — hidden in production (0 conflicts) -->
@@ -232,26 +238,30 @@
                 }
 
                 <!-- Visibility toggle -->
-                <lib-button
-                  variant="ghost"
-                  size="xs"
-                  [ariaLabel]="segment.isPublished ? 'Visible als membres — cliqueu per ocultar' : 'Ocult als membres — cliqueu per publicar'"
-                  [ariaPressed]="segment.isPublished"
-                  (clicked)="toggleVisibility(segment)"
-                >
-                  @if (segment.isPublished) {
-                    <lucide-icon name="Eye" [size]="14" class="text-success" />
-                  } @else {
-                    <lucide-icon name="EyeOff" [size]="14" class="text-base-content/40" />
-                  }
-                </lib-button>
+                <span class="contents">
+                  <lib-button
+                    variant="ghost"
+                    size="xs"
+                    [ariaLabel]="segment.isPublished ? 'Visible als membres — cliqueu per ocultar' : 'Ocult als membres — cliqueu per publicar'"
+                    [ariaPressed]="segment.isPublished"
+                    (clicked)="toggleVisibility(segment)"
+                  >
+                    @if (segment.isPublished) {
+                      <lucide-icon name="Eye" [size]="14" class="text-success" />
+                    } @else {
+                      <lucide-icon name="EyeOff" [size]="14" class="text-base-content/40" />
+                    }
+                  </lib-button>
+                </span>
 
                 <!-- Add figure -->
                 @if (!isLocked()) {
-                  <lib-button variant="ghost" size="xs" ariaLabel="Afegir figura o composició al segment" (clicked)="openPicker(segment.id)">
-                    <lucide-icon name="Plus" [size]="14" />
-                    Figura
-                  </lib-button>
+                  <span class="hidden sm:contents">
+                    <lib-button variant="ghost" size="xs" ariaLabel="Afegir figura o composició al segment" (clicked)="openPicker(segment.id)">
+                      <lucide-icon name="Plus" [size]="14" />
+                      Figura
+                    </lib-button>
+                  </span>
                 }
 
                 <!-- Assign all -->
@@ -288,7 +298,7 @@
 
                 <!-- Delete segment -->
                 @if (!isLocked()) {
-                  <span class="text-error">
+                  <span class="hidden sm:contents text-error">
                     <lib-button variant="ghost" size="xs" ariaLabel="Eliminar segment" (clicked)="removeSegment(segment)">
                       <lucide-icon name="Trash2" [size]="14" />
                     </lib-button>
@@ -351,7 +361,7 @@
                       <button
                         type="button"
                         cdkDragHandle
-                        class="btn btn-ghost btn-xs px-0.5 py-0 h-auto min-h-0 cursor-grab active:cursor-grabbing text-base-content/25 hover:text-base-content/60 shrink-0 self-center"
+                        class="hidden sm:inline-flex btn btn-ghost btn-xs px-0.5 py-0 h-auto min-h-0 cursor-grab active:cursor-grabbing text-base-content/25 hover:text-base-content/60 shrink-0 self-center"
                         aria-label="Arrossega per reordenar"
                       >
                         <lucide-icon name="GripVertical" [size]="12" />
@@ -379,13 +389,13 @@
                           </lib-button>
                         </div>
                       } @else {
-                        <div class="flex items-center gap-1 min-w-0">
+                        <div class="flex items-center max-sm:flex-wrap gap-1 min-w-0">
                           <!-- Plain-text-styled trigger (raw: carries data-instance-id, which a
                                real spec click-target relies on — same reasoning as the segment
                                rename trigger above) -->
                           <button
                             type="button"
-                            class="flex items-center gap-2 text-sm text-left font-medium hover:text-primary min-w-0 truncate"
+                            class="flex items-center max-sm:flex-wrap gap-x-2 text-sm text-left font-medium hover:text-primary min-w-0 truncate"
                             [class.flex-1]="viewMode() === 'pinyes'"
                             (click)="navigateToAssignment(segment.id, instance.id)"
                             [attr.aria-label]="'Assigna ' + getInstanceLabel(instance, segment)"
@@ -402,7 +412,7 @@
                                 </span>
                               }
                               @if (pinyaDirectionText(instance); as director) {
-                                <span class="flex items-center gap-0.5 text-xs text-base-content/40 shrink-0 font-normal" [attr.aria-label]="'Direcció pinya: ' + director">
+                                <span class="flex items-center gap-0.5 text-xs text-base-content/40 max-sm:basis-full max-sm:shrink max-sm:whitespace-normal font-normal sm:shrink-0" [attr.aria-label]="'Direcció pinya: ' + director">
                                   <span aria-hidden="true">[</span>
                                   <lucide-icon [name]="ICON_DIRECCIO" [size]="11" />
                                   {{ director }}
@@ -416,7 +426,7 @@
                                enclosed in [] and shown right after the figure name. -->
                           @if (viewMode() === 'troncs' && directionSummaryText(instance); as directors) {
                             <span
-                              class="flex items-center gap-0.5 ms-1.5 text-xs text-base-content/40 shrink-0 font-normal"
+                              class="flex items-center gap-0.5 sm:ms-1.5 text-xs text-base-content/40 max-sm:basis-full max-sm:shrink max-sm:whitespace-normal font-normal sm:shrink-0"
                               [attr.aria-label]="'Direcció: ' + directors"
                             >
                               <span aria-hidden="true">[</span>
@@ -429,7 +439,7 @@
                           @if (!isLocked()) {
                             <!-- Wrapper carries ms-auto: lib-button's display:contents host has no
                                  box of its own for margin to apply to. -->
-                            <span class="ms-auto shrink-0">
+                            <span class="hidden sm:inline ms-auto shrink-0">
                               <lib-button
                                 variant="ghost"
                                 size="xs"
@@ -474,7 +484,7 @@
                     <!-- Troncs mode: figure mode selector (Completa/Peu/Remat/Neta), or static 'Neta' label -->
                     @if (viewMode() === 'troncs') {
                       @if (figureModeOptions(instance); as options) {
-                        <div class="w-24 shrink-0">
+                        <div class="hidden sm:block w-24 shrink-0">
                           <lib-select
                             size="xs"
                             [ariaLabel]="'Mode de ' + getInstanceLabel(instance, segment)"
@@ -488,7 +498,7 @@
                           </lib-select>
                         </div>
                       } @else {
-                        <span class="w-16 shrink-0">
+                        <span class="hidden sm:inline w-16 shrink-0">
                           <lib-badge variant="ghost" size="xs">
                             <span class="inline-flex items-center gap-1">
                               <lucide-icon [name]="ICON_FIGURA_NETA" [size]="10" aria-hidden="true" />Neta
@@ -503,7 +513,7 @@
                     @if (viewMode() === 'pinyes') {
                       @if (hasCordonsControl(instance)) {
                         <div
-                          class="w-24 shrink-0 self-center flex items-center justify-center gap-0.5"
+                          class="hidden sm:flex w-24 shrink-0 self-center items-center justify-center gap-0.5"
                           role="group"
                           [attr.aria-label]="'Cordons de ' + getInstanceLabel(instance, segment)"
                           title="Nombre de cordons visibles"
@@ -535,7 +545,7 @@
                         </div>
                       } @else {
                         <span
-                          class="w-24 shrink-0 self-center text-center"
+                          class="hidden sm:inline w-24 shrink-0 self-center text-center"
                           [title]="figureModeLabel(instance) === 'Sense rengles' ? 'Configureu les rengles a la plantilla per poder ajustar el nombre de cordons' : null"
                         >
                           <lib-badge variant="ghost" size="xs" class="whitespace-nowrap">
@@ -554,7 +564,7 @@
                     <!-- Copy to segment. No self-* — inherits the row's align-items, so it sits
                          top-aligned with the rename pencil in troncs mode, centred in pinyes. -->
                     @if (!isLocked()) {
-                      <span class="shrink-0">
+                      <span class="hidden sm:inline shrink-0">
                         <lib-button
                           variant="ghost"
                           size="xs"
@@ -568,7 +578,7 @@
 
                     <!-- Delete instance -->
                     @if (!isLocked()) {
-                      <span class="text-error shrink-0">
+                      <span class="hidden sm:inline text-error shrink-0">
                         <lib-button
                           variant="ghost"
                           size="xs"

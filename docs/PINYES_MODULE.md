@@ -1061,19 +1061,47 @@ function isNodeVisible(
 
 ## 20. Gestos tàctils i suport de tablet (P5.12)
 
-Abast real de "tablet" al mòdul de Pinyes: les rutes d'editor de templates, editor de
-composicions i workspace d'assignació porten `desktopOnlyGuard` (`core/guards/desktop-only.guard.ts`),
-que bloqueja **per sota de 1024px** i redirigeix a `/pinyes` amb un toast. Això vol dir que
-només **tablet en horitzontal** (≥1024px) hi arriba — mòbil i tablet en vertical queden fora.
-La **Projecció no té aquest guard**: és l'únic canvas del mòdul que un mòbil o una tablet en
-vertical pot obrir.
+Abast real de "tablet" al mòdul de Pinyes: les rutes d'editor de templates i editor de
+composicions porten `desktopOnlyGuard` (`core/guards/desktop-only.guard.ts`), que bloqueja
+**per sota de 768px** i redirigeix a `/pinyes` amb un toast. La **Projecció** i el **workspace
+d'assignació** no el porten.
+
+### Workspace d'assignació en dispositius tàctils
+
+`LayoutService.isTouch` (`matchMedia('(pointer: coarse)')`: l'entrada *principal* és tàctil, no
+l'amplada) decideix el layout del workspace (`segment-workspace`):
+
+- **Pestanyes:** en tàctil només es mostren Pinyes i Troncs (les altres no estan adaptades); un
+  `?tab=` cap a una pestanya amagada cau a la darrera Pinyes/Troncs recordada.
+- **Llistat de persones:** en tàctil no hi ha la columna lateral. Es toca un node i s'obre un
+  `lib-modal` amb el mateix `PersonPanelComponent` amb `[searchOnly]="true"` (només la cerca,
+  sense filtres; la cerca redueix els grups en lloc del desplegable, i les persones amb una
+  etiqueta que encaixa amb el node continuen anant primer). Triar una persona l'assigna al node
+  i tanca el modal; tancar-lo deselecciona el node. En tàctil no s'avança al següent node buit.
+- **Lògica d'assignació** (assignar/desassignar/moure/intercanviar, amb desfer/refer): compartida
+  entre les dues pestanyes a `SegmentAssignmentActionsService` (proveït per pestanya).
+- **Mode «moure»** (`SegmentAssignmentActionsService.startMove/completeMove/cancelMove`): es
+  comença amb un clic dret sobre una persona col·locada (`contextmenu`: `segmentNodeContextMenu`
+  al canvas, `nodeContextMenu` a `tronc-view`) o, en tàctil, amb un toc mantingut sobre ella (pel
+  mateix camí, via `LongPressDetector`; en tàctil l'arrossegament de persones està desactivat). Apareix el bàner `app-move-banner` («S'està movent <ÀLIES>», amb una ✕) i el node origen es
+  ressalta amb `highlightedNodeIds`. El següent node premut és el destí: buit → la mou, ocupat →
+  s'intercanvien (inclòs entre figures), reutilitzant `drop()`, així que és el mateix pas de
+  desfer que un arrossegament. Cancel·len el mode: prémer fora d'un node, la ✕, Escape, prémer
+  el mateix node, o desaparèixer l'assignació (p. ex. en desfer-la). Un node decoratiu es
+  rebutja amb un avís sense cancel·lar. Sense efecte si l'esdeveniment està bloquejat o el node
+  està buit. En començar de debò un moviment es fa una vibració breu (`navigator.vibrate(15)`,
+  només on el navegador la suporta: Android Chrome/Edge; iOS Safari no).
+- **Capçalera:** per sota de `sm` s'amaguen el comptador «n/total», l'ajuda i els botons
+  d'importar/reinicialitzar, i el títol ocupa `w-1/6` fix.
 
 ### Matriu de capacitats
 
 | Gest | Editor | Assignació | Composició | Projecció |
 |---|---|---|---|---|
 | Seleccionar node (tap) | ✅ | ✅ | ✅ | — |
-| Arrossegar node/persona | ✅ | ✅ | ✅ | — |
+| Arrossegar node | ✅ | — | ✅ | — |
+| Arrossegar persona (`personDragEnabled`) | — | ratolí; no en tàctil | — | — |
+| Toc mantingut / clic dret sobre una persona (començar a moure-la) | — | ✅ | — | — |
 | Doble-tap (etiqueta/detall) | ✅ | ✅ | — | — |
 | Deseleccionar / col·locar (tap al fons) | ✅ | ✅ | ✅ | — |
 | Pan del llenç (1 dit) | ✅ | ✅ | ✅ | ✅ |
@@ -1100,8 +1128,22 @@ Implementació:
   de moviment (`DRAG_THRESHOLD_PX`) perquè un simple tap no s'interpreti com a arrossegament.
   El node destí es resol amb `document.elementFromPoint(...)`, que funciona també entre
   tronc-views germanes (figures diferents al mateix segment).
+- **Toc mantingut** (`utils/long-press.util.ts`, `LongPressDetector`): el web no té cap esdeveniment
+  `longpress` i iOS Safari no dispara mai `contextmenu` en un toc mantingut, així que es construeix
+  amb un temporitzador sobre l'inici/moviment/final del toc (500 ms; es cancel·la si el dit es
+  mou més de 10 px, arriba un segon dit o el navegador s'endú el toc). També resol les dues coses
+  que el navegador complica: Android dispara a més un `contextmenu` natiu (`absorbNativeContextMenu()`
+  fa que el gest s'emeti una sola vegada) i en alçar el dit després d'un toc mantingut arriba un
+  clic que no és un toc de veritat (`swallowsClick()`). El fan servir `figure-canvas` (esdeveniments
+  tàctils de Konva) i `tronc-view` (Pointer Events); tots dos emeten el mateix `contextmenu` que
+  el clic dret. L'arrossegament de persones es desactiva en tàctil amb l'input
+  `personDragEnabled` (les pestanyes hi passen `!isTouch()`); en assignació, `tronc-view` també
+  desactiva la selecció de text i el callout d'iOS (`.assignment-mode .tronc-node`).
+- **E2E tàctil**: `pnpm e2e:assign-touch` (`apps/dashboard-e2e/src/assign-touch`) prova en un navegador
+  real, amb toc real i l'API simulada, tot el flux d'assignació tàctil de les dues pestanyes (incloent
+  el canvas Konva, que jsdom no pot executar). Veure [[AUDIT_SUITE]].
 - **Guia d'usuari**: `template-editor-help-modal.component.ts` té una secció "Tàctil / tablet"
-  (cercable) amb els gestos i la limitació dels 1024px. El modal és accessible des de l'editor de
+  (cercable) amb els gestos i la limitació dels 768px dels editors. El modal és accessible des de l'editor de
   templates i del workspace d'assignació (botó "?" a la topbar); la Projecció manté el seu propi
   diàleg d'ajuda lleuger (`? / H`), ara també amb les files de pan/pinch.
 

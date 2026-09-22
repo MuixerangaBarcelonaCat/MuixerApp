@@ -1,6 +1,7 @@
 import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../../../testing/lucide-test-provider';
@@ -12,7 +13,8 @@ import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ModalComponent, ToastService } from '@muixer/ui';
+import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 
@@ -26,6 +28,7 @@ class StubTroncView {
   readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<string>('assignment');
+  readonly personDragEnabled = input<boolean>(true);
   readonly heightMode = input<string>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
@@ -34,6 +37,7 @@ class StubTroncView {
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
   readonly nodeUnassigned = output<string>();
+  readonly nodeContextMenu = output<string>();
   readonly nodeDropped = output<{
     sourceInstanceId: string;
     sourceNodeId: string;
@@ -55,6 +59,7 @@ class StubPersonPanel {
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
   readonly isPast = input<boolean>(false);
+  readonly searchOnly = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
@@ -203,6 +208,8 @@ describe('TroncsTabComponent', () => {
     nodesByInstance?: Record<string, InstanceNodeItem[]>;
     assignmentsByInstance?: Record<string, AssignmentDetail[]>;
     locked?: boolean;
+    /** Simulates a touch device (phone / tablet). */
+    touch?: boolean;
   } = {}) => {
     const segment = makeSegment(opts.instances ?? [makeInstance(INST_A)]);
     const defaultNodes: Record<string, InstanceNodeItem[]> = opts.nodesByInstance ?? {
@@ -245,6 +252,7 @@ describe('TroncsTabComponent', () => {
         },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
+        { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false) } },
       ],
     })
       .overrideComponent(TroncsTabComponent, {
@@ -832,9 +840,25 @@ describe('TroncsTabComponent', () => {
   });
 
   describe('minimap', () => {
-    it('starts open', async () => {
+    it('starts open on desktop', async () => {
       await setup();
       expect(component.minimapOpen()).toBe(true);
+    });
+
+    it('starts hidden on touch devices (it takes too much of a small screen)', async () => {
+      await setup({ touch: true });
+      expect(component.minimapOpen()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[aria-label="Mapa de la posició de les figures del segment"]')).toBeNull();
+    });
+
+    it('can still be opened on a touch device', async () => {
+      await setup({ touch: true });
+
+      component.toggleMinimap();
+      fixture.detectChanges();
+
+      expect(component.minimapOpen()).toBe(true);
+      expect(fixture.nativeElement.querySelector('[aria-label="Mapa de la posició de les figures del segment"]')).toBeTruthy();
     });
 
     it('toggles closed and open', async () => {
@@ -1051,37 +1075,459 @@ describe('TroncsTabComponent', () => {
     });
   });
 
-  describe('mobile guard (WI-13, P-M2/GE-H3)', () => {
-    it('renders the tronc view + person panel by default (no matchMedia)', async () => {
-      await setup();
-      expect(fixture.nativeElement.textContent).not.toContain('Encara no optimitzat per a mòbil');
-    }, 10_000);
+  // ── move mode: right-click a person, then press the destination ───────────────
 
-    describe('below sm (< 640px)', () => {
-      const originalMatchMedia = window.matchMedia;
+  describe('move mode', () => {
+    const banner = () => fixture.nativeElement.querySelector('app-move-banner') as HTMLElement | null;
+    const rightClick = (nodeId: string, instanceId = INST_A) => {
+      component.onTroncNodeContextMenu(instanceId, nodeId);
+      fixture.detectChanges();
+    };
+    const press = (nodeId: string, instanceId = INST_A) => {
+      component.onTroncNodeSelected(instanceId, nodeId);
+      fixture.detectChanges();
+    };
+    const placed = (id = 'p-1', nodeId = 'n1') => ({ [INST_A]: [makeAssignment(INST_A, nodeId, id, 'TRONC')] });
+    const nodes = { [INST_A]: [makeNode('n1', 'TRONC', { z: 1 }), makeNode('n2', 'TRONC', { z: 1, x: 1 })] };
 
-      beforeEach(() => {
-        window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-          matches: true,
-          media: query,
-          onchange: null,
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        })) as unknown as typeof window.matchMedia;
+    describe('starting', () => {
+      it('shows no banner by default', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        expect(banner()).toBeNull();
       });
 
-      afterEach(() => {
-        window.matchMedia = originalMatchMedia;
+      it('the tronc view output starts the move for the right instance and node', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        troncStubs()[0].nodeContextMenu.emit('n1');
+        fixture.detectChanges();
+
+        expect(banner()?.textContent).toContain("S'està movent");
+        expect(banner()?.textContent).toContain('Alias p-1');
       });
 
-      it('shows a "not optimized for mobile" message instead of the unusable canvas', async () => {
+      it('right-clicking an empty node does nothing', async () => {
+        await setup({ assignmentsByInstance: placed() });
+
+        rightClick('n2');
+
+        expect(banner()).toBeNull();
+      });
+
+      it('does nothing when the event is locked', async () => {
+        await setup({ locked: true, assignmentsByInstance: placed() });
+
+        rightClick('n1');
+
+        expect(banner()).toBeNull();
+      });
+
+      it('marks the node being moved in the tronc views, and nothing otherwise', async () => {
+        await setup({ assignmentsByInstance: placed() });
+        expect([...troncStubs()[0].highlightedNodeIds()]).toEqual([]);
+
+        rightClick('n1');
+
+        expect([...troncStubs()[0].highlightedNodeIds()]).toEqual(['n1']);
+      });
+
+      it('drops the current selection', async () => {
+        await setup({ assignmentsByInstance: placed('p-1', 'n1') });
+        press('n2');
+        expect(component.selectedRef()).not.toBeNull();
+
+        rightClick('n1');
+
+        expect(component.selectedRef()).toBeNull();
+      });
+    });
+
+    describe('pressing the destination', () => {
+      it('moves the person when the destination is empty, and the banner goes away', async () => {
+        const existing = makeAssignment(INST_A, 'n1', 'p-1', 'TRONC');
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: { [INST_A]: [existing] } });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+        expect(banner()).toBeNull();
+      });
+
+      it('swaps the two persons when the destination is occupied', async () => {
+        const a1 = makeAssignment(INST_A, 'n1', 'p-1', 'TRONC');
+        const a2 = makeAssignment(INST_A, 'n2', 'p-2', 'TRONC');
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: { [INST_A]: [a1, a2] } });
+        assignmentService.swap.mockReturnValue(of({ a: a1, b: a2 }));
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.swap).toHaveBeenCalledWith(INST_A, { assignmentIdA: a1.id, assignmentIdB: a2.id });
+        expect(banner()).toBeNull();
+      });
+
+      it('swaps across figures (the destination is in another tronc view)', async () => {
+        const a1 = makeAssignment(INST_A, 'n1', 'p-1', 'TRONC');
+        const a2 = makeAssignment(INST_B, 'm1', 'p-2', 'TRONC');
+        await setup({
+          instances: [makeInstance(INST_A), makeInstance(INST_B)],
+          nodesByInstance: {
+            [INST_A]: [makeNode('n1', 'TRONC', { z: 1 })],
+            [INST_B]: [makeNode('m1', 'TRONC', { z: 1 })],
+          },
+          assignmentsByInstance: { [INST_A]: [a1], [INST_B]: [a2] },
+        });
+        assignmentService.assign.mockImplementation((instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(makeAssignment(instanceId, payload.nodeId, payload.personId, 'TRONC')),
+        );
+        rightClick('n1', INST_A);
+
+        press('m1', INST_B);
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n1', personId: 'p-2' });
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+      });
+
+      it('a right-click on the destination also completes the move (long press counts too)', async () => {
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        rightClick('n2');
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+      });
+
+      it('does not select the destination node', async () => {
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(component.selectedRef()).toBeNull();
+      });
+    });
+
+    describe('cancelling', () => {
+      const moving = async () => {
+        await setup({ nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+        expect(banner()).not.toBeNull();
+      };
+      const nothingMoved = () => {
+        expect(assignmentService.unassign).not.toHaveBeenCalled();
+        expect(assignmentService.swap).not.toHaveBeenCalled();
+        expect(banner()).toBeNull();
+      };
+
+      it('the cross on the banner cancels', async () => {
+        await moving();
+
+        (banner()?.querySelector('button[aria-label="Cancel·la el moviment"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('Escape cancels', async () => {
+        await moving();
+
+        component.onKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('pressing the same node again cancels', async () => {
+        await moving();
+
+        press('n1');
+
+        nothingMoved();
+      });
+
+      it('pressing the empty area around the figures cancels', async () => {
+        await moving();
+
+        const pane: HTMLElement = fixture.nativeElement.querySelector('.overflow-y-auto');
+        pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('pressing empty space inside a tronc view (not on a node) cancels', async () => {
+        await moving();
+
+        const troncView: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+        troncView.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        nothingMoved();
+      });
+
+      it('a click that lands on a node does not cancel by itself (the node handler completes the move)', async () => {
+        await moving();
+        const troncView: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+        const nodeEl = document.createElement('div');
+        nodeEl.setAttribute('data-tronc-node-id', 'n2');
+        troncView.appendChild(nodeEl);
+
+        nodeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(banner()).not.toBeNull();
+      });
+
+      it('clicking the banner itself does not cancel through the background handler', async () => {
+        await moving();
+
+        (banner() as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(banner()).not.toBeNull();
+      });
+    });
+
+    describe('on touch', () => {
+      const modal = () => fixture.debugElement.query(By.directive(ModalComponent));
+
+      it('pressing the destination moves without opening the person modal', async () => {
+        await setup({ touch: true, nodesByInstance: nodes, assignmentsByInstance: placed() });
+        rightClick('n1');
+
+        press('n2');
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+        expect(modal().componentInstance.open()).toBe(false);
+      });
+
+      it('a normal tap still opens the person modal when no move is in progress', async () => {
+        await setup({ touch: true, nodesByInstance: nodes, assignmentsByInstance: placed() });
+
+        press('n2');
+
+        expect(modal().componentInstance.open()).toBe(true);
+      });
+    });
+  });
+
+  // ── touch devices (phones / tablets) ─────────────────────────────────────────
+  // No side panel: tapping a node opens the (search-only) person panel in a modal instead.
+
+  describe('touch layout', () => {
+    const modal = () => fixture.debugElement.query(By.directive(ModalComponent));
+    const modalOpen = (): boolean => modal().componentInstance.open();
+    const panelStub = (): StubPersonPanel =>
+      fixture.debugElement.query((n) => n.componentInstance instanceof StubPersonPanel)
+        ?.componentInstance as StubPersonPanel;
+    const tap = (nodeId: string, instanceId = INST_A) => {
+      component.onTroncNodeSelected(instanceId, nodeId);
+      fixture.detectChanges();
+    };
+
+    describe('layout', () => {
+      it('desktop: the person panel is a side column, with no modal and not search-only', async () => {
         await setup();
-        expect(fixture.nativeElement.textContent).toContain('Encara no optimitzat per a mòbil');
-        expect(fixture.nativeElement.querySelector('app-tronc-view')).toBeFalsy();
-        expect(fixture.nativeElement.querySelector('app-person-panel')).toBeFalsy();
+
+        expect(modal()).toBeNull();
+        expect(panelStub().searchOnly()).toBe(false);
+      });
+
+      it('touch: the person panel lives inside a modal and is search-only', async () => {
+        await setup({ touch: true });
+
+        expect(modal().nativeElement.querySelector('app-person-panel')).toBeTruthy();
+        expect(panelStub().searchOnly()).toBe(true);
+      });
+
+      it('touch: the person modal starts closed', async () => {
+        await setup({ touch: true });
+
+        expect(modalOpen()).toBe(false);
+      });
+
+      describe('narrow viewport (< 640px)', () => {
+        const originalMatchMedia = window.matchMedia;
+
+        beforeEach(() => {
+          window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+            matches: true,
+            media: query,
+            onchange: null,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+          })) as unknown as typeof window.matchMedia;
+        });
+
+        afterEach(() => {
+          window.matchMedia = originalMatchMedia;
+        });
+
+        it('touch: renders the tronc views instead of the "not optimised for mobile" message', async () => {
+          await setup({ touch: true });
+
+          expect(fixture.nativeElement.textContent).not.toContain('Encara no optimitzat per a mòbil');
+          expect(troncStubs().length).toBeGreaterThan(0);
+          expect(panelStub()).toBeTruthy();
+        });
+      });
+    });
+
+    describe('drag and drop of persons', () => {
+      it('stays enabled on desktop', async () => {
+        await setup();
+
+        expect(troncStubs()[0].personDragEnabled()).toBe(true);
+      });
+
+      it('is disabled on touch (a long press moves people instead)', async () => {
+        await setup({ touch: true });
+
+        expect(troncStubs()[0].personDragEnabled()).toBe(false);
+      });
+    });
+
+    describe('tapping a node', () => {
+      it('opens the person modal on an empty node', async () => {
+        await setup({ touch: true });
+
+        tap('n1');
+
+        expect(modalOpen()).toBe(true);
+        expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+      });
+
+      it('opens the person modal on an assigned node too', async () => {
+        await setup({ touch: true, assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'n1', 'p-1')] } });
+
+        tap('n1');
+
+        expect(modalOpen()).toBe(true);
+      });
+
+      it('does not open a modal on desktop', async () => {
+        await setup();
+
+        component.onTroncNodeSelected(INST_A, 'n1');
+        fixture.detectChanges();
+
+        expect(modal()).toBeNull();
+      });
+
+      it('does not open the modal when the event is locked', async () => {
+        await setup({ touch: true, locked: true });
+
+        tap('n1');
+
+        expect(modalOpen()).toBe(false);
+      });
+
+      it('titles the modal "Assigna una persona" for an empty node and "Canvia la persona" for an assigned one', async () => {
+        await setup({ touch: true, assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'n1', 'p-1')] } });
+
+        tap('n2');
+        expect(modal().componentInstance.title()).toBe('Assigna una persona');
+
+        tap('n1');
+        expect(modal().componentInstance.title()).toBe('Canvia la persona');
+      });
+
+      it('tapping the empty area closes the modal and deselects', async () => {
+        await setup({ touch: true });
+        tap('n1');
+
+        component.onTroncNodeSelected(INST_A, null);
+        fixture.detectChanges();
+
+        expect(modalOpen()).toBe(false);
+        expect(component.selectedRef()).toBeNull();
+      });
+    });
+
+    describe('choosing in the modal', () => {
+      it('assigns the picked person to the tapped node and closes the modal', async () => {
+        await setup({ touch: true });
+        tap('n1');
+
+        panelStub().personSelected.emit(makePerson('p-9'));
+        fixture.detectChanges();
+
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n1', personId: 'p-9' });
+        expect(modalOpen()).toBe(false);
+      });
+
+      it('replaces the person of an assigned node (unassign, then assign)', async () => {
+        const existing = makeAssignment(INST_A, 'n1', 'p-1');
+        await setup({ touch: true, assignmentsByInstance: { [INST_A]: [existing] } });
+        tap('n1');
+
+        panelStub().personSelected.emit(makePerson('p-9'));
+
+        expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
+        expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n1', personId: 'p-9' });
+      });
+
+      it('does not jump to the next empty node after assigning', async () => {
+        await setup({ touch: true });
+        tap('n1');
+
+        panelStub().personSelected.emit(makePerson('p-9'));
+
+        expect(component.selectedRef()).toBeNull();
+        expect(state.selectedNodeId()).toBeNull();
+      });
+
+      it('still jumps to the next empty node on desktop', async () => {
+        await setup();
+        component.onTroncNodeSelected(INST_A, 'n1');
+
+        panelStub().personSelected.emit(makePerson('p-9'));
+
+        expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n2' });
+      });
+
+      it('unassigns from the modal and closes it', async () => {
+        const existing = makeAssignment(INST_A, 'n1', 'p-1');
+        await setup({ touch: true, assignmentsByInstance: { [INST_A]: [existing] } });
+        tap('n1');
+
+        panelStub().unassignRequested.emit(existing);
+        fixture.detectChanges();
+
+        expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
+        expect(modalOpen()).toBe(false);
+      });
+
+      it('picking a person already placed elsewhere closes the modal and asks how to proceed', async () => {
+        await setup({
+          touch: true,
+          assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'n2', 'p-1', 'TRONC')] },
+        });
+        tap('n1');
+
+        panelStub().assignedPersonSelected.emit({ personId: 'p-1', instanceId: INST_A });
+        fixture.detectChanges();
+
+        expect(modalOpen()).toBe(false);
+        expect(component.reassignDialog()).not.toBeNull();
+      });
+
+      it('dismissing the modal (close button / backdrop / Escape) deselects the node', async () => {
+        await setup({ touch: true });
+        tap('n1');
+
+        modal().triggerEventHandler('closed', undefined);
+        fixture.detectChanges();
+
+        expect(modalOpen()).toBe(false);
+        expect(component.selectedRef()).toBeNull();
+        expect(state.selectedNodeId()).toBeNull();
       });
     });
   });

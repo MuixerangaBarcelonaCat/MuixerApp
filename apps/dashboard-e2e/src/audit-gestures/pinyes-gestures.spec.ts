@@ -16,11 +16,13 @@ import { makeTouch, buffersDiffer, Pt } from './gestures';
  * Observation is necessarily coarse (Konva state lives in JS, not the DOM), so
  * this reports "gesture produced a visible change / did not crash" per device.
  *
- * The workspace route is behind `desktopOnlyGuard` (< 768px, the Tailwind `md`
- * breakpoint → redirected to `/pinyes`), so `mobile` never reaches the canvas
- * at all — this test asserts the redirect for that profile instead of running
- * the gesture battery. `tablet-portrait` and `tablet-landscape` (both ≥768px)
- * exercise the real gestures.
+ * The workspace is reachable on every profile, phones included (it used to redirect
+ * below 768px through `desktopOnlyGuard`; that guard now only protects the editors).
+ * On touch devices the side person panel is replaced by a modal and a long press
+ * starts a move — those flows have their own deterministic, mocked-API suite
+ * (`src/assign-touch`, `pnpm e2e:assign-touch`). The observations below (assign
+ * flow, long press) are recorded, best-effort signals from the real dev data, not
+ * assertions about that flow.
  */
 
 const WS_ASSIGN = `/pinyes/events/${TARGETS.workspaceEventId}/segments/${TARGETS.workspaceSegmentId}/assign`;
@@ -28,8 +30,6 @@ const WS_ASSIGN = `/pinyes/events/${TARGETS.workspaceEventId}/segments/${TARGETS
 interface GestureResult {
   device: string;
   viewport: { width: number; height: number } | null;
-  blockedByDesktopGuard: boolean;
-  redirectedToPinyes: boolean;
   canvasFound: boolean;
   canvasBox: { w: number; h: number } | null;
   zoomBefore: string | null;
@@ -59,44 +59,6 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
     await spaGoto(page, `${WS_ASSIGN}?tab=pinyes`);
   }
 
-  const viewportWidth = page.viewportSize()?.width ?? 0;
-  const blockedByDesktopGuard = viewportWidth < 768;
-
-  if (blockedByDesktopGuard) {
-    // desktopOnlyGuard redirects to /pinyes with an error toast — no canvas here.
-    await page.waitForURL((url) => url.pathname === '/pinyes', { timeout: 5000 }).catch(() => {});
-    const redirectedToPinyes = new URL(page.url()).pathname === '/pinyes';
-
-    const result: GestureResult = {
-      device,
-      viewport: page.viewportSize(),
-      blockedByDesktopGuard: true,
-      redirectedToPinyes,
-      canvasFound: false,
-      canvasBox: null,
-      zoomBefore: null,
-      zoomAfterPinch: null,
-      zoomAfterWheel: null,
-      pinchChangedZoom: false,
-      wheelChangedZoom: false,
-      panChangedCanvas: false,
-      mouseDragPanChanged: false,
-      tapChangedCanvas: false,
-      longPressRevealsPersonCard: false,
-      assignFlowChangedView: false,
-      zoomDropdownWorks: false,
-      consoleErrors: consoleErrors.filter((e) => !/403|Forbidden/.test(e)).slice(0, 30),
-    };
-
-    const dir = path.join(RESULTS_DIR, 'gestures');
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `${device}.json`), JSON.stringify(result, null, 2));
-
-    // eslint-disable-next-line playwright/no-conditional-expect
-    expect.soft(redirectedToPinyes, `${device}: below 768px must be redirected to /pinyes by desktopOnlyGuard`).toBeTruthy();
-    return;
-  }
-
   const container = page.locator('.canvas-container').first();
   const canvasFound = await container
     .locator('canvas')
@@ -109,8 +71,6 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
   const result: GestureResult = {
     device,
     viewport: page.viewportSize(),
-    blockedByDesktopGuard: false,
-    redirectedToPinyes: false,
     canvasFound,
     canvasBox: null,
     zoomBefore: null,
@@ -190,9 +150,10 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
       const afterTap = await snap();
       result.tapChangedCanvas = buffersDiffer(beforeTap, afterTap);
 
-      // --- Long-press to reveal a person card (best-effort: depends on the
-      // centre point landing on an assigned node in the dev fixture data;
-      // touch has no hover, so this is the only way to see person info) ---
+      // --- Long-press (best-effort: depends on the centre point landing on an
+      // assigned node in the dev data). On touch this starts a move ("S'està
+      // movent …"); the person card is revealed by a tap instead. Kept as a
+      // recorded signal; the tap below on an empty corner cancels any move. ---
       await touch.longPress(c, 500);
       await page.waitForTimeout(200);
       result.longPressRevealsPersonCard = await page
@@ -202,9 +163,10 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
         .catch(() => false);
       await touch.tap({ x: box.x + 5, y: box.y + 5 }); // tap empty corner to dismiss
 
-      // --- Assignment flow (best-effort): tap a person, then tap the canvas ---
+      // --- Assignment flow (best-effort): tap where a side-panel row used to be, then tap the canvas.
+      // On touch there is no side panel any more (a tap on a node opens a person modal), so this
+      // records whether the view changed; the real flow is covered by `src/assign-touch`. ---
       const beforeAssign = await snap();
-      // People panel sits to the right of the canvas; tap where a row should be.
       const panelX = Math.min(box.x + box.width + 120, (page.viewportSize()?.width ?? box.x) - 20);
       await touch.tap({ x: panelX, y: box.y + 120 });
       await page.waitForTimeout(300);

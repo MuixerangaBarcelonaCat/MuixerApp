@@ -1,6 +1,7 @@
-<div class="flex flex-col h-full bg-base-100 border-l border-base-200">
+<div class="flex flex-col h-full bg-base-100 border-base-200" [class.border-l]="!searchOnly()">
   <!-- Header -->
   <div class="px-2 py-2 border-b border-base-200">
+    @if (!searchOnly()) {
     <div class="flex items-center justify-between mb-1.5">
       <h3 class="text-sm font-semibold text-base-content">Persones</h3>
       <lib-button
@@ -21,9 +22,12 @@
         <span data-testid="pinya-eligible-count">· {{ pinyaEligibleCount() }} elegibles per a pinya</span>
       }
     </div>
+    }
 
     <!-- Search -->
     <div class="relative mb-1.5">
+      <!-- Modal (searchOnly) only: the native <dialog> focuses its [autofocus] element as it opens, inside the user's tap, which is what brings the on-screen keyboard up on touch. -->
+      <!-- eslint-disable @angular-eslint/template/no-autofocus -->
       <input
         #searchInput
         type="search"
@@ -32,14 +36,16 @@
         [value]="search()"
         (input)="onSearchChange($any($event.target).value)"
         (keydown)="onSearchKeyDown($event)"
-        role="combobox"
-        aria-autocomplete="list"
-        [attr.aria-expanded]="search().trim().length > 0"
-        aria-controls="person-search-results"
+        [attr.role]="searchOnly() ? null : 'combobox'"
+        [attr.aria-autocomplete]="searchOnly() ? null : 'list'"
+        [attr.aria-expanded]="searchOnly() ? null : search().trim().length > 0"
+        [attr.aria-controls]="searchOnly() ? null : 'person-search-results'"
+        [attr.autofocus]="searchOnly() ? '' : null"
         aria-label="Cerca persones"
       />
+      <!-- eslint-enable @angular-eslint/template/no-autofocus -->
 
-      @if (search().trim().length > 0) {
+      @if (!searchOnly() && search().trim().length > 0) {
         <div
           id="person-search-results"
           role="listbox"
@@ -77,6 +83,7 @@
       }
     </div>
 
+    @if (!searchOnly()) {
     <!-- Height filter -->
     <div class="flex items-center gap-1 mb-1.5">
       <!-- focusin/focusout (not focus/blur) so the wrapper sees them past lib-input's
@@ -198,6 +205,7 @@
         }
       </div>
     </div>
+    }
   </div>
 
   <!-- Assignació actual del node seleccionat -->
@@ -232,10 +240,15 @@
   <!-- Person list -->
   @if (!loading()) {
     <div class="flex-1 overflow-y-auto">
+      @if (noSearchMatches()) {
+        <p class="text-xs text-base-content/40 px-4 py-3" data-testid="no-search-matches">Cap coincidència</p>
+      }
+
       <!-- Confirmades / Assistits -->
+      @if (!searchActive() || sortedConfirmedPersons().length > 0) {
       <div class="px-2 pt-2 pb-1">
         <p class="text-xs font-semibold text-success mb-1">
-          Confirmades ({{ confirmedPersons().length }})
+          Confirmades ({{ sortedConfirmedPersons().length }})
         </p>
         @for (person of sortedConfirmedPersons(); track person.id) {
           @let posType = activeNodePositionType();
@@ -283,12 +296,13 @@
           </p>
         }
       </div>
+      }
 
       <!-- No presentades (only when isPast, ANIRE) -->
-      @if (isPast() && noShowPersons().length > 0) {
+      @if (isPast() && sortedNoShowPersons().length > 0) {
         <div class="px-2 pb-1 border-t border-base-200">
           <p class="text-xs font-semibold text-warning mt-1.5 mb-1">
-            No presentades ({{ noShowPersons().length }})
+            No presentades ({{ sortedNoShowPersons().length }})
           </p>
           @for (person of sortedNoShowPersons(); track person.id) {
             @let posType = activeNodePositionType();
@@ -330,7 +344,7 @@
       }
 
       <!-- A la pinya (any placement in the PINYA area of this segment) -->
-      @if (pinyaAssignedPersons().length > 0) {
+      @if (visiblePinyaAssignedPersons().length > 0) {
         <div class="border-t border-base-200" data-testid="pinya-assigned-bucket">
           <lib-button
             variant="ghost"
@@ -341,14 +355,14 @@
             (clicked)="pinyaAssignedExpanded.update(v => !v)"
           >
             <span class="flex items-center justify-between w-full text-xs font-semibold text-info">
-              <span>A la pinya ({{ pinyaAssignedPersons().length }})</span>
+              <span>A la pinya ({{ visiblePinyaAssignedPersons().length }})</span>
               <i-lucide [img]="pinyaAssignedExpanded() ? ChevronUp : ChevronDown" class="size-3" />
             </span>
           </lib-button>
 
           @if (pinyaAssignedExpanded()) {
             <div id="pinya-assigned-panel" class="px-2 pb-2">
-              @for (person of pinyaAssignedPersons(); track person.id) {
+              @for (person of visiblePinyaAssignedPersons(); track person.id) {
                 @let posType = activeNodePositionType();
                 @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
                 <button
@@ -388,7 +402,7 @@
       }
 
       <!-- Al tronc (any placement in the TRONC/BASE/DIRECTION area of this segment) -->
-      @if (troncAssignedPersons().length > 0) {
+      @if (visibleTroncAssignedPersons().length > 0) {
         <div class="border-t border-base-200" data-testid="tronc-assigned-bucket">
           <lib-button
             variant="ghost"
@@ -399,14 +413,14 @@
             (clicked)="troncAssignedExpanded.update(v => !v)"
           >
             <span class="flex items-center justify-between w-full text-xs font-semibold text-info">
-              <span>Al tronc ({{ troncAssignedPersons().length }})</span>
+              <span>Al tronc ({{ visibleTroncAssignedPersons().length }})</span>
               <i-lucide [img]="troncAssignedExpanded() ? ChevronUp : ChevronDown" class="size-3" />
             </span>
           </lib-button>
 
           @if (troncAssignedExpanded()) {
             <div id="tronc-assigned-panel" class="px-2 pb-2">
-              @for (person of troncAssignedPersons(); track person.id) {
+              @for (person of visibleTroncAssignedPersons(); track person.id) {
                 @let posType = activeNodePositionType();
                 @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
                 <button
@@ -446,33 +460,34 @@
       }
 
       <!-- Altres / No van venir -->
+      @if (!searchActive() || visiblePendingPersons().length + visibleDeclinedPersons().length > 0) {
       <div class="border-t border-base-200">
         <lib-button
           variant="ghost"
           size="sm"
           fullWidth
-          [ariaExpanded]="altresExpanded()"
+          [ariaExpanded]="altresOpen()"
           ariaControls="altres-panel"
           (clicked)="toggleAltres()"
         >
           <span class="flex items-center justify-between w-full text-xs font-semibold text-base-content/60">
             <span>
               {{ isPast() ? 'No van venir' : 'Altres' }}
-              ({{ pendingPersons().length + declinedPersons().length }})
+              ({{ visiblePendingPersons().length + visibleDeclinedPersons().length }})
             </span>
-            <i-lucide [img]="altresExpanded() ? ChevronUp : ChevronDown" class="size-3" />
+            <i-lucide [img]="altresOpen() ? ChevronUp : ChevronDown" class="size-3" />
           </span>
         </lib-button>
 
-        @if (altresExpanded()) {
+        @if (altresOpen()) {
           <div id="altres-panel" class="px-2 pb-2">
 
             <!-- No vindran / No van venir (NO_VAIG; post-event also PENDENT) -->
-            @if (declinedPersons().length > 0) {
+            @if (visibleDeclinedPersons().length > 0) {
               <p class="text-xs font-medium text-error mt-1.5 mb-1">
-                {{ isPast() ? 'No van venir' : 'No vindran' }} ({{ declinedPersons().length }})
+                {{ isPast() ? 'No van venir' : 'No vindran' }} ({{ visibleDeclinedPersons().length }})
               </p>
-              @for (person of declinedPersons(); track person.id) {
+              @for (person of visibleDeclinedPersons(); track person.id) {
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-60"
@@ -505,11 +520,11 @@
             }
 
             <!-- Pendents (pre-event only) -->
-            @if (pendingPersons().length > 0) {
+            @if (visiblePendingPersons().length > 0) {
               <p class="text-xs font-medium text-warning mt-1.5 mb-1">
-                Pendents ({{ pendingPersons().length }})
+                Pendents ({{ visiblePendingPersons().length }})
               </p>
-              @for (person of pendingPersons(); track person.id) {
+              @for (person of visiblePendingPersons(); track person.id) {
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-80"
@@ -544,6 +559,7 @@
           </div>
         }
       </div>
+      }
     </div>
   }
 

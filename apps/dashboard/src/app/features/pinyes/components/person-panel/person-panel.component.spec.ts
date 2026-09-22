@@ -1203,4 +1203,345 @@ describe('PersonPanelComponent', () => {
       expect(component.pinyaEligibleCount()).toBe(1);
     });
   });
+
+  // ── searchOnly mode (touch: the panel lives in a modal, no filters) ────────
+
+  describe('searchOnly mode', () => {
+    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', category: TagCategory.ALTRES, positionTypes: ['vents'] };
+
+    const enable = () => {
+      fixture.componentRef.setInput('searchOnly', true);
+      fixture.detectChanges();
+    };
+    const el = (selector: string) => fixture.nativeElement.querySelector(selector) as HTMLElement | null;
+    const typeSearch = (value: string) => {
+      component.onSearchChange(value);
+      fixture.detectChanges();
+    };
+    const rowAliases = (): string[] =>
+      Array.from(fixture.nativeElement.querySelectorAll('button[aria-label^="Seleccionar "]')).map((b) =>
+        ((b as HTMLElement).getAttribute('aria-label') ?? '').replace('Seleccionar ', ''),
+      );
+    const person = (id: string, alias: string, overrides: Partial<AvailablePerson> = {}) =>
+      makeAvailablePerson(id, 'ANIRE', { alias, name: 'Anna', ...overrides });
+    const keyEvent = (key: string, value = '') =>
+      ({ key, shiftKey: false, preventDefault: vi.fn(), target: { value } as HTMLInputElement }) as unknown as KeyboardEvent;
+    const assignmentOn = (nodeId: string) => ({
+      id: 'a-1',
+      figureInstanceId: 'instance-1',
+      node: { id: nodeId, label: 'Base 1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, sourceNodeId: null },
+      person: { id: 'p-x', alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: null },
+    });
+
+    describe('what it hides', () => {
+      it('is off by default: title, counters, height and tag filters are all shown', () => {
+        expect(el('h3')).toBeTruthy();
+        expect(el('[data-testid="person-panel-counters"]')).toBeTruthy();
+        expect(el('input[type="number"]')).toBeTruthy();
+        expect(el('button[aria-label="Filtra per etiqueta"]')).toBeTruthy();
+      });
+
+      it('hides the title/refresh row and the counters', () => {
+        enable();
+
+        expect(el('h3')).toBeNull();
+        expect(el('button[aria-label="Refrescar llista de persones"]')).toBeNull();
+        expect(el('[data-testid="person-panel-counters"]')).toBeNull();
+      });
+
+      it('hides the height filter and the Xicalla / tag filters', () => {
+        enable();
+
+        expect(el('input[type="number"]')).toBeNull();
+        expect(el('button[aria-label="Filtra per etiqueta"]')).toBeNull();
+        expect(el('lib-checkbox')).toBeNull();
+      });
+
+      it('keeps the search box', () => {
+        enable();
+
+        expect(el('input[type="search"]')).toBeTruthy();
+      });
+
+      it('keeps the "Desassigna" strip for the selected assigned node', () => {
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.componentRef.setInput('assignments', [assignmentOn('node-1')]);
+        enable();
+
+        expect(el('button[aria-label="Desassigna la persona d\'este node"]')).toBeTruthy();
+      });
+
+      it('does not draw the desktop side-panel left border', () => {
+        expect((fixture.nativeElement.firstElementChild as HTMLElement).classList).toContain('border-l');
+
+        enable();
+
+        expect((fixture.nativeElement.firstElementChild as HTMLElement).classList).not.toContain('border-l');
+      });
+    });
+
+    describe('search box', () => {
+      it('is marked autofocus so the keyboard opens with the modal', () => {
+        enable();
+
+        expect(el('input[type="search"]')?.hasAttribute('autofocus')).toBe(true);
+      });
+
+      it('is not autofocus-marked on desktop', () => {
+        expect(el('input[type="search"]')?.hasAttribute('autofocus')).toBe(false);
+      });
+
+      it('does not open the floating results dropdown while typing', () => {
+        component.persons.set([person('p1', 'Pepet')]);
+        enable();
+
+        typeSearch('pe');
+
+        expect(el('#person-search-results')).toBeNull();
+      });
+
+      it('still shows the floating dropdown on desktop', () => {
+        component.persons.set([person('p1', 'Pepet')]);
+        typeSearch('pe');
+
+        expect(el('#person-search-results')).toBeTruthy();
+      });
+    });
+
+    describe('narrowing the list with the search term', () => {
+      it('does not narrow the list on desktop (the dropdown does the searching)', () => {
+        component.persons.set([person('p1', 'Pepet'), person('p2', 'Maria')]);
+        typeSearch('pe');
+
+        expect(rowAliases()).toEqual(['Pepet', 'Maria']);
+      });
+
+      it('shows every free person while the search box is empty', () => {
+        component.persons.set([person('p1', 'Pepet'), person('p2', 'Maria')]);
+        enable();
+
+        expect(rowAliases()).toEqual(['Pepet', 'Maria']);
+      });
+
+      it('shows only the persons matching the term, ignoring case and accents', () => {
+        component.persons.set([person('p1', 'Andréu'), person('p2', 'Maria'), person('p3', 'Pepet')]);
+        enable();
+
+        typeSearch('ANDREU');
+
+        expect(rowAliases()).toEqual(['Andréu']);
+      });
+
+      it('orders by alias-prefix, then name-prefix, then alias-substring, then name-substring', () => {
+        component.persons.set([
+          person('p1', 'Xic Marc', { name: 'Xavier' }),
+          person('p2', 'Marcel', { name: 'Josep' }),
+          person('p3', 'Toni', { name: 'Marcelí' }),
+          person('p4', 'Bep', { name: 'Xic Marc' }),
+        ]);
+        enable();
+
+        typeSearch('marc');
+
+        expect(rowAliases()).toEqual(['Marcel', 'Toni', 'Xic Marc', 'Bep']);
+      });
+
+      it('lists every match (no 5-result cap)', () => {
+        component.persons.set(Array.from({ length: 8 }, (_, i) => person(`p${i}`, `Marc${i}`)));
+        enable();
+
+        typeSearch('marc');
+
+        expect(rowAliases()).toHaveLength(8);
+      });
+
+      it('puts persons with a tag matching the node first, even against a better text match', () => {
+        component.persons.set([
+          person('p1', 'Marcel'),
+          person('p2', 'Xic Marc', { positions: [posVents] }),
+        ]);
+        fixture.componentRef.setInput('activeNodePositionType', 'vents');
+        enable();
+
+        typeSearch('marc');
+
+        expect(rowAliases()).toEqual(['Xic Marc', 'Marcel']);
+      });
+
+      it('keeps the tag-matching persons first while the search box is empty', () => {
+        component.persons.set([person('p1', 'Marcel'), person('p2', 'Bep', { positions: [posVents] })]);
+        fixture.componentRef.setInput('activeNodePositionType', 'vents');
+        enable();
+
+        expect(rowAliases()).toEqual(['Bep', 'Marcel']);
+      });
+
+      it('narrows the "A la pinya" group too, hiding it when nothing in it matches', () => {
+        component.persons.set([
+          person('p1', 'Marta', { assignedPlacements: [makePlacement()] }),
+          person('p2', 'Pepet'),
+        ]);
+        enable();
+
+        typeSearch('mar');
+        expect(el('[data-testid="pinya-assigned-bucket"]')).toBeTruthy();
+
+        typeSearch('pep');
+        expect(el('[data-testid="pinya-assigned-bucket"]')).toBeNull();
+      });
+
+      it('opens the collapsed "Altres" group when a match is inside it', () => {
+        component.persons.set([makeAvailablePerson('p1', 'NO_VAIG', { alias: 'Pepet', name: 'Anna' })]);
+        enable();
+        expect(el('#altres-panel')).toBeNull();
+
+        typeSearch('pep');
+
+        expect(el('#altres-panel')?.textContent).toContain('Pepet');
+      });
+
+      it('shows "Cap coincidència" and no group headings when nothing matches', () => {
+        component.persons.set([person('p1', 'Pepet')]);
+        enable();
+
+        typeSearch('zzz');
+
+        expect(el('[data-testid="no-search-matches"]')?.textContent).toContain('Cap coincidència');
+        expect(fixture.nativeElement.textContent).not.toContain('Confirmades');
+      });
+
+      it('restores the full list when the term is cleared', () => {
+        component.persons.set([person('p1', 'Pepet'), person('p2', 'Maria')]);
+        enable();
+        typeSearch('pep');
+
+        typeSearch('');
+
+        expect(rowAliases()).toEqual(['Pepet', 'Maria']);
+        expect(el('[data-testid="no-search-matches"]')).toBeNull();
+      });
+
+      it('never removes persons from the assigned/free split while narrowing (counts stay coherent)', () => {
+        component.persons.set([
+          person('p1', 'Marta', { assignedPlacements: [makePlacement()] }),
+          person('p2', 'Pepet'),
+        ]);
+        enable();
+
+        typeSearch('pep');
+
+        expect(component.freePersons().map((p) => p.id)).toEqual(['p2']);
+        expect(component.pinyaAssignedPersons().map((p) => p.id)).toEqual(['p1']);
+      });
+    });
+
+    describe('keyboard', () => {
+      it('Enter picks the first listed person', () => {
+        component.persons.set([person('p1', 'Pepet'), person('p2', 'Peret')]);
+        enable();
+        typeSearch('pe');
+
+        component.onSearchKeyDown(keyEvent('Enter', 'pe'));
+
+        expect(personSelectedSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }));
+      });
+
+      it('Enter picks the tag-matching person first', () => {
+        component.persons.set([person('p1', 'Pepet'), person('p2', 'Peret', { positions: [posVents] })]);
+        fixture.componentRef.setInput('activeNodePositionType', 'vents');
+        enable();
+        typeSearch('pe');
+
+        component.onSearchKeyDown(keyEvent('Enter', 'pe'));
+
+        expect(personSelectedSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'p2' }));
+      });
+
+      it('Enter on an already-assigned match asks to go to / move that person instead', () => {
+        component.persons.set([person('p1', 'Marta', { assignedPlacements: [makePlacement()] })]);
+        enable();
+        typeSearch('mar');
+        const assignedSpy = vi.fn();
+        component.assignedPersonSelected.subscribe(assignedSpy);
+
+        component.onSearchKeyDown(keyEvent('Enter', 'mar'));
+
+        expect(assignedSpy).toHaveBeenCalledWith({ personId: 'p1', instanceId: 'instance-1' });
+        expect(personSelectedSpy).not.toHaveBeenCalled();
+      });
+
+      it('Enter with nothing matching selects nobody', () => {
+        component.persons.set([person('p1', 'Pepet')]);
+        enable();
+        typeSearch('zzz');
+
+        component.onSearchKeyDown(keyEvent('Enter', 'zzz'));
+
+        expect(personSelectedSpy).not.toHaveBeenCalled();
+      });
+
+      it('Backspace on the empty box does not unassign the selected node (easy to hit on a phone)', () => {
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.componentRef.setInput('assignments', [assignmentOn('node-1')]);
+        enable();
+        const unassignSpy = vi.fn();
+        component.unassignRequested.subscribe(unassignSpy);
+
+        component.onSearchKeyDown(keyEvent('Backspace', ''));
+
+        expect(unassignSpy).not.toHaveBeenCalled();
+      });
+
+      it('Backspace on the empty box still unassigns on desktop', () => {
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.componentRef.setInput('assignments', [assignmentOn('node-1')]);
+        fixture.detectChanges();
+        const unassignSpy = vi.fn();
+        component.unassignRequested.subscribe(unassignSpy);
+
+        component.onSearchKeyDown(keyEvent('Backspace', ''));
+
+        expect(unassignSpy).toHaveBeenCalled();
+      });
+    });
+
+    describe('what stays the same', () => {
+      const hoverEvent = { currentTarget: { getBoundingClientRect: () => ({ top: 1, left: 2 }) } } as unknown as MouseEvent;
+
+      it('shows no floating hover card (touch has no hover)', () => {
+        enable();
+
+        component.onPersonHover(hoverEvent, person('p1', 'Pepet'));
+
+        expect(component.hoveredPerson()).toBeNull();
+      });
+
+      it('still shows the hover card on desktop', () => {
+        component.onPersonHover(hoverEvent, person('p1', 'Pepet'));
+
+        expect(component.hoveredPerson()).not.toBeNull();
+      });
+
+      it('still switches the Xicalla filter by the selected node zone', () => {
+        enable();
+
+        fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.detectChanges();
+
+        expect(component.showXicalla()).toBe(true);
+        const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
+        expect(lastQuery).not.toHaveProperty('isXicalla');
+      });
+
+      it('picking a person emits personSelected', () => {
+        component.persons.set([person('p1', 'Pepet')]);
+        enable();
+
+        (el('button[aria-label="Seleccionar Pepet"]') as HTMLButtonElement).click();
+
+        expect(personSelectedSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }));
+      });
+    });
+  });
 });

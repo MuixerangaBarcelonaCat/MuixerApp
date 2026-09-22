@@ -1,11 +1,3 @@
-@if (mobileUnsupported()) {
-  <div class="h-full min-h-0 flex items-center justify-center p-6 text-center">
-    <div class="max-w-xs">
-      <p class="font-medium text-base-content/70">Encara no optimitzat per a mòbil</p>
-      <p class="text-sm text-base-content/50 mt-1">Esta pestanya està disponible en tablet i escriptori.</p>
-    </div>
-  </div>
-} @else {
 <div class="flex h-full min-h-0">
   <!-- Troncs, wrapping into new rows -->
   <div class="relative flex-1 min-w-0 overflow-y-auto">
@@ -34,6 +26,14 @@
         <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
       </lib-button>
     </div>
+
+    <!-- Moving a person: says who, offers a cross to cancel. Sticky + zero height so it stays in view
+         while the figures scroll, without pushing them down. -->
+    @if (movingAlias(); as alias) {
+      <div class="sticky top-2 z-10 h-0 flex justify-center pointer-events-none pl-2 pr-24">
+        <app-move-banner class="block max-w-full pointer-events-auto" [alias]="alias" (cancelled)="cancelMove()" />
+      </div>
+    }
 
     @if (figures().length === 0) {
       <div class="flex items-center justify-center h-full text-base-content/50">
@@ -64,7 +64,9 @@
               [attendanceMap]="attendanceMap()"
               [isPast]="isPast()"
               [personDetailsMap]="personDetailsMap()"
+              [personDragEnabled]="!isTouch()"
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
+              (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
               (nodeClicked)="onTroncNodeClicked($event)"
               (nodeUnassigned)="onTroncNodeUnassigned(figure.instance.instanceId, $event)"
               (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
@@ -133,11 +135,13 @@
     }
   </div>
 
-  <!-- Person panel -->
+  <!-- Person panel: a side column on desktop; on touch it lives in a modal opened by tapping a node -->
+  <ng-template #personPanelTpl>
   <app-person-panel
     #personPanel
-    class="w-80 shrink-0 border-l border-base-300 h-full min-h-0"
+    [class]="isTouch() ? 'block h-full min-h-0' : 'w-80 shrink-0 border-l border-base-300 h-full min-h-0'"
     area="TRONC"
+    [searchOnly]="isTouch()"
     [eventId]="ws.eventId()"
     [segmentId]="ws.segmentId()"
     [selectedNodeId]="state.selectedNodeId()"
@@ -151,8 +155,23 @@
     (unassignRequested)="onUnassign($event)"
     (navigateNode)="navigateAdjacent($event)"
   />
+  </ng-template>
+
+  @if (isTouch()) {
+    <lib-modal
+      size="sm"
+      [open]="personPickerOpen()"
+      [title]="personPickerTitle()"
+      (closed)="onPersonPickerClosed()"
+    >
+      <div class="h-80">
+        <ng-container [ngTemplateOutlet]="personPanelTpl" />
+      </div>
+    </lib-modal>
+  } @else {
+    <ng-container [ngTemplateOutlet]="personPanelTpl" />
+  }
 </div>
-}
 
 @if (reassignDialog(); as dialog) {
   <app-already-assigned-dialog

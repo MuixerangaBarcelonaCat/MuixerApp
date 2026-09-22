@@ -1,0 +1,17 @@
+<div
+  role="status"
+  aria-live="polite"
+  class="inline-flex items-center gap-1 max-w-full rounded-full border border-base-300 bg-base-100/95 backdrop-blur shadow-raised pl-3 pr-1 py-0.5 text-sm"
+>
+  <span class="shrink-0">S'està movent</span>
+  <strong class="truncate min-w-0 font-semibold" data-testid="move-banner-alias">{{ alias() }}</strong>
+  <lib-button
+    variant="ghost"
+    size="xs"
+    shape="circle"
+    ariaLabel="Cancel·la el moviment"
+    (clicked)="cancelled.emit()"
+  >
+    <lucide-icon [img]="X" [size]="14" aria-hidden="true" />
+  </lib-button>
+</div>
