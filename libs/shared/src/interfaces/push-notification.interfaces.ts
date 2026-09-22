@@ -1,5 +1,6 @@
 import { AttendanceStatus } from '../enums/attendance-status.enum';
 import { NotificationTargetType } from '../enums/notification-target-type.enum';
+import { NotificationSource } from '../enums/notification-source.enum';
 
 export interface PushSubscriptionKeys {
   p256dh: string;
@@ -29,4 +30,18 @@ export interface DeviceSummary {
   person: { id: string; firstName: string; lastName: string };
   activeDevices: number;
   lastPushAt: string | null;
+}
+
+export interface NotificationLogEntry {
+  id: string;
+  title: string;
+  body: string;
+  url: string | null;
+  target: NotificationTarget;
+  recipientCount: number;
+  source: NotificationSource;
+  scheduleId: string | null;
+  triggeredEventId: string | null;
+  triggeredByUserId: string | null;
+  sentAt: string;
 }

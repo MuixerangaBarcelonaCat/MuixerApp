@@ -4,6 +4,7 @@ import { NewsListComponent } from './components/news-list/news-list.component';
 import { NewsEditorComponent } from './components/news-editor/news-editor.component';
 import { NotificationSendComponent } from './components/notification-send/notification-send.component';
 import { DeviceListComponent } from './components/device-list/device-list.component';
+import { NotificationHistoryComponent } from './components/notification-history/notification-history.component';
 
 export const communicationRoutes: Routes = [
   { path: '', component: CommunicationComponent },
@@ -12,4 +13,5 @@ export const communicationRoutes: Routes = [
   { path: 'news/:id/edit', component: NewsEditorComponent, data: { title: 'Edita la notícia' } },
   { path: 'notifications', component: NotificationSendComponent, data: { title: 'Envia notificació' } },
   { path: 'notifications/devices', component: DeviceListComponent, data: { title: 'Dispositius subscrits' } },
+  { path: 'notifications/history', component: NotificationHistoryComponent, data: { title: 'Historial de notificacions' } },
 ];

@@ -4,9 +4,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PushNotificationService } from './push-notification.service';
 import { PushSenderService } from './push-sender.service';
 import { PushSubscriptionService } from './push-subscription.service';
+import { NotificationLogService } from './notification-log.service';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
-import { NotificationTargetType } from '@muixer/shared';
+import { NotificationSource, NotificationTargetType } from '@muixer/shared';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { PushRequestedEvent } from './events/push-requested.event';
 
@@ -23,6 +24,7 @@ describe('PushNotificationService', () => {
   let eventEmitter: jest.Mocked<EventEmitter2>;
   let subscriptionService: jest.Mocked<PushSubscriptionService>;
   let senderService: jest.Mocked<PushSenderService>;
+  let logService: jest.Mocked<NotificationLogService>;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
@@ -56,6 +58,10 @@ describe('PushNotificationService', () => {
           provide: EventEmitter2,
           useValue: { emit: jest.fn() },
         },
+        {
+          provide: NotificationLogService,
+          useValue: { record: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -63,6 +69,7 @@ describe('PushNotificationService', () => {
     eventEmitter = module.get(EventEmitter2);
     subscriptionService = module.get(PushSubscriptionService);
     senderService = module.get(PushSenderService);
+    logService = module.get(NotificationLogService);
   });
 
   describe('send (ALL target)', () => {
@@ -83,11 +90,48 @@ describe('PushNotificationService', () => {
           { provide: PushSubscriptionService, useValue: subscriptionService },
           { provide: PushSenderService, useValue: senderService },
           { provide: EventEmitter2, useValue: eventEmitter },
+          { provide: NotificationLogService, useValue: logService },
         ],
       }).compile();
       const svcEmpty = module.get(PushNotificationService);
       const result = await svcEmpty.send(makeDto(NotificationTargetType.ALL));
       expect(result.warning).toBeDefined();
+    });
+
+    it('logs a MANUAL entry with the resolved recipient count', async () => {
+      await service.send(makeDto(NotificationTargetType.ALL), 'user-1');
+
+      expect(logService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Test title',
+          body: 'Test body',
+          recipientCount: 2,
+          source: NotificationSource.MANUAL,
+          triggeredByUserId: 'user-1',
+        }),
+      );
+    });
+
+    it('still logs the entry when no subscribers are found, with recipientCount 0', async () => {
+      const userRepo = { find: jest.fn().mockResolvedValue([]) };
+      const module = await Test.createTestingModule({
+        providers: [
+          PushNotificationService,
+          { provide: getRepositoryToken(Attendance), useValue: { createQueryBuilder: jest.fn() } },
+          { provide: getRepositoryToken(User), useValue: userRepo },
+          { provide: PushSubscriptionService, useValue: subscriptionService },
+          { provide: PushSenderService, useValue: senderService },
+          { provide: EventEmitter2, useValue: eventEmitter },
+          { provide: NotificationLogService, useValue: logService },
+        ],
+      }).compile();
+      const svcEmpty = module.get(PushNotificationService);
+
+      await svcEmpty.send(makeDto(NotificationTargetType.ALL));
+
+      expect(logService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientCount: 0, source: NotificationSource.MANUAL }),
+      );
     });
   });
 

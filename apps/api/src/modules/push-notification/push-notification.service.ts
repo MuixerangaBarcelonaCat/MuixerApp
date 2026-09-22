@@ -2,11 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Repository } from 'typeorm';
-import { AttendanceStatus, NotificationTargetType } from '@muixer/shared';
+import { AttendanceStatus, NotificationSource, NotificationTargetType } from '@muixer/shared';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { PushSenderService } from './push-sender.service';
 import { PushSubscriptionService } from './push-subscription.service';
+import { NotificationLogService } from './notification-log.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { PushRequestedEvent } from './events/push-requested.event';
 
@@ -22,10 +23,25 @@ export class PushNotificationService {
     private readonly subscriptionService: PushSubscriptionService,
     private readonly senderService: PushSenderService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly logService: NotificationLogService,
   ) {}
 
-  async send(dto: SendNotificationDto): Promise<{ accepted: boolean; warning?: string }> {
+  async send(
+    dto: SendNotificationDto,
+    triggeredByUserId?: string,
+  ): Promise<{ accepted: boolean; warning?: string }> {
     const userIds = await this.resolveTargetUserIds(dto);
+
+    await this.logService.record({
+      title: dto.title,
+      body: dto.body,
+      url: dto.url,
+      target: dto.target,
+      recipientCount: userIds.length,
+      source: NotificationSource.MANUAL,
+      triggeredByUserId,
+    });
+
     if (userIds.length === 0) {
       return { accepted: true, warning: 'Cap dispositiu subscrit per als destinataris seleccionats' };
     }

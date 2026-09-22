@@ -16,6 +16,7 @@ export * from './enums/audit-action.enum';
 export * from './enums/segment-move-conflict-resolution.enum';
 export * from './enums/news-status.enum';
 export * from './enums/notification-target-type.enum';
+export * from './enums/notification-source.enum';
 export * from './enums/tag-category.enum';
 export * from './enums/import-scope.enum';
 export * from './constants/node-preset.constants';

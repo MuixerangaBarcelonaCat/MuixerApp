@@ -1,6 +1,13 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { DeviceSummary, NotificationTargetType, AttendanceStatus } from '@muixer/shared';
+import {
+  DeviceSummary,
+  NotificationLogEntry,
+  NotificationSource,
+  NotificationTargetType,
+  AttendanceStatus,
+  PaginatedResponse,
+} from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 
 export interface SendNotificationPayload {
@@ -15,6 +22,12 @@ export interface SendNotificationPayload {
   };
 }
 
+export interface NotificationHistoryFilter {
+  source?: NotificationSource;
+  page?: number;
+  limit?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class NotificationService extends ApiService {
   send(payload: SendNotificationPayload): Observable<{ accepted: boolean; warning?: string }> {
@@ -23,5 +36,14 @@ export class NotificationService extends ApiService {
 
   getDeviceSummary(): Observable<DeviceSummary[]> {
     return this.get<DeviceSummary[]>('/push-subscriptions/summary');
+  }
+
+  getHistory(filter: NotificationHistoryFilter): Observable<PaginatedResponse<NotificationLogEntry>> {
+    const params: Record<string, string | number> = {};
+    if (filter.source) params['source'] = filter.source;
+    if (filter.page) params['page'] = filter.page;
+    if (filter.limit) params['limit'] = filter.limit;
+
+    return this.get<PaginatedResponse<NotificationLogEntry>>('/notifications/history', { params });
   }
 }

@@ -5,6 +5,7 @@ import { User } from '../user/user.entity';
 import { Attendance } from '../event/attendance.entity';
 import { News } from '../news/news.entity';
 import { PushSubscription } from './entities/push-subscription.entity';
+import { NotificationLog } from './entities/notification-log.entity';
 import { PUSH_PROVIDER } from './push-provider.interface';
 import { ConsolePushProvider } from './providers/console-push.provider';
 import { WebPushProvider } from './providers/web-push.provider';
@@ -12,6 +13,7 @@ import { PushSenderService } from './push-sender.service';
 import { PushSubscriptionService } from './push-subscription.service';
 import { PushNotificationService } from './push-notification.service';
 import { PushNotificationCronService } from './push-notification-cron.service';
+import { NotificationLogService } from './notification-log.service';
 import { PushSubscriptionController } from './push-subscription.controller';
 import { PushNotificationController } from './push-notification.controller';
 
@@ -22,7 +24,7 @@ import { PushNotificationController } from './push-notification.controller';
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([PushSubscription, User, Attendance, News]),
+    TypeOrmModule.forFeature([PushSubscription, NotificationLog, User, Attendance, News]),
   ],
   controllers: [PushSubscriptionController, PushNotificationController],
   providers: [
@@ -30,6 +32,7 @@ import { PushNotificationController } from './push-notification.controller';
     PushSubscriptionService,
     PushNotificationService,
     PushNotificationCronService,
+    NotificationLogService,
     {
       provide: PUSH_PROVIDER,
       inject: [ConfigService],
@@ -46,6 +49,6 @@ import { PushNotificationController } from './push-notification.controller';
       },
     },
   ],
-  exports: [PushSubscriptionService, PushNotificationService],
+  exports: [PushSubscriptionService, PushNotificationService, NotificationLogService],
 })
 export class PushNotificationModule {}
