@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { NotificationLinkType, NotificationSource, NotificationTargetType } from '@muixer/shared';
+import { NotificationLinkType, NotificationScheduleType, NotificationSource, NotificationTargetType } from '@muixer/shared';
 import { NotificationService } from './notification.service';
 
 describe('NotificationService', () => {
@@ -55,5 +55,62 @@ describe('NotificationService', () => {
     const req = http.expectOne((r) => r.url.endsWith('/notifications/history'));
     expect(req.request.params.keys()).toEqual([]);
     req.flush({ data: [], meta: { total: 0, page: 1, limit: 25 } });
+  });
+
+  it('createSchedule POSTs the payload', () => {
+    const payload = {
+      title: 'Assaig',
+      body: 'Dijous a les 20h',
+      linkTo: NotificationLinkType.HOME,
+      target: { type: NotificationTargetType.ALL },
+      scheduleType: NotificationScheduleType.ONE_OFF,
+      oneOff: { scheduledFor: '2026-06-01T18:00:00.000Z' },
+    };
+    service.createSchedule(payload).subscribe();
+    const req = http.expectOne((r) => r.url.endsWith('/notifications/schedules'));
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(payload);
+    req.flush({ id: 'schedule-1' });
+  });
+
+  it('getSchedules requests scheduled notifications with query params', () => {
+    service.getSchedules({ isActive: true, page: 1, limit: 25 }).subscribe();
+    const req = http.expectOne(
+      (r) => r.url.endsWith('/notifications/schedules') && r.params.get('isActive') === 'true',
+    );
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('page')).toBe('1');
+    expect(req.request.params.get('limit')).toBe('25');
+    req.flush({ data: [], meta: { total: 0, page: 1, limit: 25 } });
+  });
+
+  it('getSchedules omits unset filters', () => {
+    service.getSchedules({}).subscribe();
+    const req = http.expectOne((r) => r.url.endsWith('/notifications/schedules'));
+    expect(req.request.params.keys()).toEqual([]);
+    req.flush({ data: [], meta: { total: 0, page: 1, limit: 25 } });
+  });
+
+  it('cancelSchedule DELETEs the schedule', () => {
+    service.cancelSchedule('schedule-1').subscribe();
+    const req = http.expectOne((r) => r.url.endsWith('/notifications/schedules/schedule-1'));
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
+  });
+
+  it('getSchedule requests a single scheduled notification', () => {
+    service.getSchedule('schedule-1').subscribe();
+    const req = http.expectOne((r) => r.url.endsWith('/notifications/schedules/schedule-1'));
+    expect(req.request.method).toBe('GET');
+    req.flush({ id: 'schedule-1' });
+  });
+
+  it('updateSchedule PATCHes the schedule', () => {
+    const payload = { title: 'New title' };
+    service.updateSchedule('schedule-1', payload).subscribe();
+    const req = http.expectOne((r) => r.url.endsWith('/notifications/schedules/schedule-1'));
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual(payload);
+    req.flush({ id: 'schedule-1', ...payload });
   });
 });

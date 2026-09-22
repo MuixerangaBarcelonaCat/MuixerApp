@@ -5,9 +5,9 @@ import { DeviceSummary, JwtPayload, PaginatedResponse, UserRole } from '@muixer/
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { PushNotificationService } from './push-notification.service';
 import { PushSubscriptionService } from './push-subscription.service';
 import { NotificationLogService } from './notification-log.service';
+import { NotificationScheduleService } from './notification-schedule.service';
 import { NotificationLog } from './entities/notification-log.entity';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { NotificationLogFilterDto } from './dto/notification-log-filter.dto';
@@ -17,7 +17,7 @@ import { NotificationLogFilterDto } from './dto/notification-log-filter.dto';
 @Controller()
 export class PushNotificationController {
   constructor(
-    private readonly notificationService: PushNotificationService,
+    private readonly scheduleService: NotificationScheduleService,
     private readonly subscriptionService: PushSubscriptionService,
     private readonly logService: NotificationLogService,
     private readonly config: ConfigService,
@@ -33,12 +33,12 @@ export class PushNotificationController {
   @Post('notifications/send')
   @HttpCode(HttpStatus.ACCEPTED)
   @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Send a push notification to selected targets' })
+  @ApiOperation({ summary: 'Send a push notification to selected targets immediately' })
   send(
     @Body() dto: SendNotificationDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<{ accepted: boolean; warning?: string }> {
-    return this.notificationService.send(dto, user.sub);
+    return this.scheduleService.sendNow(dto, user.sub);
   }
 
   @Get('notifications/history')

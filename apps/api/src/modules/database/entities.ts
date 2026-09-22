@@ -20,6 +20,7 @@ import { AuditLog } from '../audit/audit-log.entity';
 import { News } from '../news/news.entity';
 import { PushSubscription } from '../push-notification/entities/push-subscription.entity';
 import { NotificationLog } from '../push-notification/entities/notification-log.entity';
+import { NotificationSchedule } from '../push-notification/entities/notification-schedule.entity';
 
 /** Single source of truth for the entity list, shared by the Nest TypeOrmModule and the integration-test DataSource. */
 export const ENTITIES = [
@@ -45,4 +46,5 @@ export const ENTITIES = [
   News,
   PushSubscription,
   NotificationLog,
+  NotificationSchedule,
 ];

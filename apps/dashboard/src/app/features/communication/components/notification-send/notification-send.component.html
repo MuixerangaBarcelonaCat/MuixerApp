@@ -1,19 +1,38 @@
 <div class="max-w-2xl mx-auto">
 
-<app-page-header title="Envia notificació">
+<app-page-header [title]="pageTitle()">
   <lib-button variant="ghost" size="sm" routerLink="../">
     <lucide-icon name="ArrowLeft" [size]="16" />
     Enrere
   </lib-button>
 </app-page-header>
-<p class="text-sm text-base-content/50 mb-6">Envia una notificació als membres</p>
+<p class="text-sm text-base-content/50 mb-6">
+  {{ isEditMode()
+    ? 'Edita els detalls de la notificació programada'
+    : (isSchedule() ? 'Programa una notificació perquè s\'enviï més endavant' : 'Envia una notificació als membres') }}
+</p>
 
 <div class="flex flex-col gap-6">
 
   @if (state() === 'success') {
-    <lib-alert variant="success" title="Notificació acceptada">
-      <p class="text-sm">L'enviament s'ha processat correctament.</p>
-      <lib-button actions variant="ghost" size="sm" (clicked)="reset()">Nova notificació</lib-button>
+    <lib-alert
+      variant="success"
+      [title]="isEditMode() ? 'Canvis desats' : (isSchedule() ? 'Notificació programada' : 'Notificació acceptada')"
+    >
+      <p class="text-sm">
+        {{ isEditMode()
+          ? 'S\'han desat els canvis de la notificació programada.'
+          : (isSchedule() ? 'La notificació s\'enviarà a l\'hora programada.' : 'L\'enviament s\'ha processat correctament.') }}
+      </p>
+      @if (isEditMode()) {
+        <lib-button actions variant="ghost" size="sm" routerLink="/communication/notifications/schedules">
+          Torna a la llista
+        </lib-button>
+      } @else {
+        <lib-button actions variant="ghost" size="sm" (clicked)="reset()">
+          {{ isSchedule() ? 'Nova programació' : 'Nova notificació' }}
+        </lib-button>
+      }
     </lib-alert>
   } @else {
 
@@ -58,7 +77,7 @@
       <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-4">
         <legend class="fieldset-legend text-sm font-semibold">Esdeveniment i enllaç</legend>
 
-        <app-notification-event-picker [(linkedEvent)]="linkedEvent" [events]="events()" />
+        <app-notification-event-picker [(linkedEvent)]="linkedEvent" [events]="events()" [variant]="mode()" />
 
         <lib-form-field label="Enllaç">
           <app-notification-link-picker [(link)]="link" [hasLinkedEvent]="hasLinkedEvent()" />
@@ -70,6 +89,28 @@
         <legend class="fieldset-legend text-sm font-semibold">Destinataris</legend>
         <app-notification-target-picker [(target)]="target" [hasLinkedEvent]="hasLinkedEvent()" />
       </fieldset>
+
+      <!-- Programació: només visible en el formulari de programar notificació -->
+      @if (isSchedule()) {
+        <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-3">
+          <legend class="fieldset-legend text-sm font-semibold">Programació</legend>
+
+          <div class="join">
+            <button type="button" class="btn btn-sm join-item btn-active" disabled>Puntual</button>
+          </div>
+
+          <lib-form-field label="Data i hora d'enviament">
+            <input
+              type="datetime-local"
+              class="input input-bordered w-full"
+              [ngModel]="scheduledFor()"
+              (ngModelChange)="scheduledFor.set($event)"
+              name="scheduledFor"
+              required
+            />
+          </lib-form-field>
+        </fieldset>
+      }
 
       @if (state() === 'error') {
         <lib-alert variant="error">{{ errorMessage() }}</lib-alert>
@@ -83,11 +124,17 @@
           [disabled]="!isFormValid() || isSending()"
         >
           <lucide-icon name="Send" [size]="16" />
-          Envia notificació
+          {{ submitLabel() }}
         </lib-button>
-        <lib-button variant="ghost" (clicked)="reset()" [disabled]="isSending()">
-          Reinicia
-        </lib-button>
+        @if (isEditMode()) {
+          <lib-button variant="ghost" (clicked)="cancelEdit()" [disabled]="isSending()">
+            Cancel·la
+          </lib-button>
+        } @else {
+          <lib-button variant="ghost" (clicked)="reset()" [disabled]="isSending()">
+            Reinicia
+          </lib-button>
+        }
       </div>
 
     </form>

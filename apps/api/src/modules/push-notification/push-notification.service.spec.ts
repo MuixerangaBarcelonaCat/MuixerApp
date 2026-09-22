@@ -93,7 +93,7 @@ describe('PushNotificationService', () => {
 
   describe('send (ALL target)', () => {
     it('emits push.requested event and returns accepted', async () => {
-      const result = await service.send(makeDto(NotificationTargetType.ALL));
+      const result = await service.send(makeDto(NotificationTargetType.ALL), { source: NotificationSource.MANUAL });
       expect(eventEmitter.emit).toHaveBeenCalledWith('push.requested', expect.any(PushRequestedEvent));
       expect(result.accepted).toBe(true);
     });
@@ -114,12 +114,12 @@ describe('PushNotificationService', () => {
         ],
       }).compile();
       const svcEmpty = module.get(PushNotificationService);
-      const result = await svcEmpty.send(makeDto(NotificationTargetType.ALL));
+      const result = await svcEmpty.send(makeDto(NotificationTargetType.ALL), { source: NotificationSource.MANUAL });
       expect(result.warning).toBeDefined();
     });
 
     it('logs a MANUAL entry with the resolved recipient count', async () => {
-      await service.send(makeDto(NotificationTargetType.ALL), 'user-1');
+      await service.send(makeDto(NotificationTargetType.ALL), { source: NotificationSource.MANUAL, triggeredByUserId: 'user-1' });
 
       expect(logService.record).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -129,6 +129,17 @@ describe('PushNotificationService', () => {
           source: NotificationSource.MANUAL,
           triggeredByUserId: 'user-1',
         }),
+      );
+    });
+
+    it('logs the scheduleId and source passed through meta, for a scheduled dispatch', async () => {
+      await service.send(makeDto(NotificationTargetType.ALL), {
+        source: NotificationSource.SCHEDULED_ONE_OFF,
+        scheduleId: 'schedule-1',
+      });
+
+      expect(logService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ source: NotificationSource.SCHEDULED_ONE_OFF, scheduleId: 'schedule-1' }),
       );
     });
 
@@ -148,7 +159,7 @@ describe('PushNotificationService', () => {
       }).compile();
       const svcEmpty = module.get(PushNotificationService);
 
-      await svcEmpty.send(makeDto(NotificationTargetType.ALL));
+      await svcEmpty.send(makeDto(NotificationTargetType.ALL), { source: NotificationSource.MANUAL });
 
       expect(logService.record).toHaveBeenCalledWith(
         expect.objectContaining({ recipientCount: 0, source: NotificationSource.MANUAL }),
@@ -164,7 +175,7 @@ describe('PushNotificationService', () => {
     };
 
     it('resolves SPECIFIC using the given eventId directly, without an Event lookup', async () => {
-      await service.send(eventDto({ kind: EventReferenceKind.SPECIFIC, eventId: 'evt-specific' }));
+      await service.send(eventDto({ kind: EventReferenceKind.SPECIFIC, eventId: 'evt-specific' }), { source: NotificationSource.MANUAL });
 
       expect(eventRepo.findOne).not.toHaveBeenCalled();
       expect(attendanceRepo.createQueryBuilder().where).toHaveBeenCalledWith('e.id = :eventId', {
@@ -175,7 +186,7 @@ describe('PushNotificationService', () => {
     it('resolves NEXT_ACTUACIO to the nearest upcoming ACTUACIO event', async () => {
       eventRepo.findOne.mockResolvedValue({ id: 'evt-actuacio' });
 
-      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }));
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }), { source: NotificationSource.MANUAL });
 
       expect(eventRepo.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -191,7 +202,7 @@ describe('PushNotificationService', () => {
     it('resolves NEXT_ASSAIG to the nearest upcoming ASSAIG event', async () => {
       eventRepo.findOne.mockResolvedValue({ id: 'evt-assaig' });
 
-      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ASSAIG }));
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ASSAIG }), { source: NotificationSource.MANUAL });
 
       expect(eventRepo.findOne).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ eventType: EventType.ASSAIG }) }),
@@ -204,7 +215,7 @@ describe('PushNotificationService', () => {
     it('resolves NEXT_ACTUACIO_OR_ASSAIG to the nearest upcoming event of either type', async () => {
       eventRepo.findOne.mockResolvedValue({ id: 'evt-either' });
 
-      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO_OR_ASSAIG }));
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO_OR_ASSAIG }), { source: NotificationSource.MANUAL });
 
       const [[callArgs]] = eventRepo.findOne.mock.calls;
       expect(callArgs.where.eventType).toBeUndefined();
@@ -217,7 +228,7 @@ describe('PushNotificationService', () => {
       eventRepo.findOne.mockResolvedValue(null);
       attendanceRepo.createQueryBuilder.mockReturnValue(mockAttendanceQueryBuilder([]));
 
-      const result = await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }));
+      const result = await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }), { source: NotificationSource.MANUAL });
 
       expect(result.warning).toBeDefined();
       expect(logService.record).toHaveBeenCalledWith(expect.objectContaining({ recipientCount: 0 }));
@@ -226,7 +237,7 @@ describe('PushNotificationService', () => {
     it('logs the resolved concrete eventId, not the abstract eventRef', async () => {
       eventRepo.findOne.mockResolvedValue({ id: 'evt-resolved' });
 
-      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }));
+      await service.send(eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO }), { source: NotificationSource.MANUAL });
 
       expect(logService.record).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -236,7 +247,7 @@ describe('PushNotificationService', () => {
     });
 
     it('passes the attendanceFilter through to the attendance query', async () => {
-      await service.send(eventDto({ kind: EventReferenceKind.SPECIFIC, eventId: 'evt-1' }, { attendanceFilter: 'ANIRE' }));
+      await service.send(eventDto({ kind: EventReferenceKind.SPECIFIC, eventId: 'evt-1' }, { attendanceFilter: 'ANIRE' }), { source: NotificationSource.MANUAL });
 
       expect(attendanceRepo.createQueryBuilder().andWhere).toHaveBeenCalledWith('a.status = :status', {
         status: 'ANIRE',
@@ -248,7 +259,7 @@ describe('PushNotificationService', () => {
       const dto = eventDto({ kind: EventReferenceKind.NEXT_ACTUACIO });
       dto.linkTo = NotificationLinkType.EVENT;
 
-      await service.send(dto);
+      await service.send(dto, { source: NotificationSource.MANUAL });
 
       expect(eventRepo.findOne).toHaveBeenCalledTimes(1);
     });
@@ -259,7 +270,7 @@ describe('PushNotificationService', () => {
       const dto = makeDto(NotificationTargetType.ALL);
       dto.linkTo = NotificationLinkType.HOME;
 
-      await service.send(dto);
+      await service.send(dto, { source: NotificationSource.MANUAL });
 
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         'push.requested',
@@ -272,7 +283,7 @@ describe('PushNotificationService', () => {
       dto.linkTo = NotificationLinkType.CUSTOM;
       dto.url = '/noticies/123';
 
-      await service.send(dto);
+      await service.send(dto, { source: NotificationSource.MANUAL });
 
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         'push.requested',
@@ -286,7 +297,7 @@ describe('PushNotificationService', () => {
       dto.linkTo = NotificationLinkType.EVENT;
       dto.linkedEvent = { kind: EventReferenceKind.NEXT_ACTUACIO } as never;
 
-      await service.send(dto);
+      await service.send(dto, { source: NotificationSource.MANUAL });
 
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         'push.requested',

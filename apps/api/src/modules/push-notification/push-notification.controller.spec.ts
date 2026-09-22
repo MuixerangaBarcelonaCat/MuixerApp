@@ -2,14 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload, NotificationSource, NotificationTargetType, UserRole } from '@muixer/shared';
 import { PushNotificationController } from './push-notification.controller';
-import { PushNotificationService } from './push-notification.service';
 import { PushSubscriptionService } from './push-subscription.service';
 import { NotificationLogService } from './notification-log.service';
+import { NotificationScheduleService } from './notification-schedule.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 
 const CURRENT_USER: JwtPayload = { sub: 'user-1', email: 'admin@example.com', role: UserRole.ADMIN };
 
-const mockNotificationService = { send: jest.fn() };
+const mockScheduleService = { sendNow: jest.fn() };
 const mockSubscriptionService = { getSummary: jest.fn() };
 const mockLogService = { findAll: jest.fn() };
 const mockConfig = { get: jest.fn() };
@@ -23,7 +23,7 @@ describe('PushNotificationController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PushNotificationController],
       providers: [
-        { provide: PushNotificationService, useValue: mockNotificationService },
+        { provide: NotificationScheduleService, useValue: mockScheduleService },
         { provide: PushSubscriptionService, useValue: mockSubscriptionService },
         { provide: NotificationLogService, useValue: mockLogService },
         { provide: ConfigService, useValue: mockConfig },
@@ -34,8 +34,8 @@ describe('PushNotificationController', () => {
   });
 
   describe('send', () => {
-    it('delegates to the service with the current user id', async () => {
-      mockNotificationService.send.mockResolvedValue({ accepted: true });
+    it('delegates to NotificationScheduleService.sendNow with the current user id', async () => {
+      mockScheduleService.sendNow.mockResolvedValue({ accepted: true });
       const dto: SendNotificationDto = Object.assign(new SendNotificationDto(), {
         title: 'Assaig',
         body: 'Dijous a les 20h',
@@ -44,7 +44,7 @@ describe('PushNotificationController', () => {
 
       const result = await controller.send(dto, CURRENT_USER);
 
-      expect(mockNotificationService.send).toHaveBeenCalledWith(dto, 'user-1');
+      expect(mockScheduleService.sendNow).toHaveBeenCalledWith(dto, 'user-1');
       expect(result).toEqual({ accepted: true });
     });
   });

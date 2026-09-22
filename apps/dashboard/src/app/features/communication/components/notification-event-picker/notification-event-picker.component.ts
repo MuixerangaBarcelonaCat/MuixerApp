@@ -19,6 +19,9 @@ export class NotificationEventPickerComponent {
   linkedEvent = model<EventReferenceValue | undefined>(undefined);
   events = input.required<EventListItem[]>();
   allowTriggeringEvent = input(false);
+  /** "schedule" swaps "Pròxima"/"Pròxim" for "Següent" — the notification hasn't been sent yet
+   *  when the schedule form is filled in, so "next" reads more naturally than "upcoming". */
+  variant = input<'send' | 'schedule'>('send');
 
   setKind(kind: EventReferenceKind | ''): void {
     if (!kind) {

@@ -79,4 +79,22 @@ describe('NotificationEventPickerComponent', () => {
     const html = fixture.nativeElement.innerHTML as string;
     expect(html).toContain('Aquest esdeveniment');
   });
+
+  it('uses "Pròxima"/"Pròxim" wording by default (send variant)', async () => {
+    await setup();
+    const html = fixture.nativeElement.innerHTML as string;
+    expect(html).toContain('Pròxima actuació');
+    expect(html).toContain('Pròxim assaig');
+    expect(html).not.toContain('Següent actuació');
+  });
+
+  it('uses "Següent" wording when variant is schedule', async () => {
+    await setup();
+    fixture.componentRef.setInput('variant', 'schedule');
+    fixture.detectChanges();
+    const html = fixture.nativeElement.innerHTML as string;
+    expect(html).toContain('Següent actuació');
+    expect(html).toContain('Següent assaig');
+    expect(html).not.toContain('Pròxima actuació');
+  });
 });

@@ -82,7 +82,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
 > Generat el 2026-09-22 des de les entitats TypeORM amb `pnpm run docs:model`.
-> **22 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
+> **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
 
@@ -102,6 +102,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `news` | `News` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
 | `notification_logs` | `NotificationLog` | 11 |
+| `notification_schedules` | `NotificationSchedule` | 13 |
 | `person_delegates` | `PersonDelegate` | 8 |
 | `persons` | `Person` | 26 |
 | `positions` | `Tag` | 10 |
@@ -131,6 +132,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `NewsStatus` | `DRAFT` · `SCHEDULED` · `PUBLISHED` |
 | `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `ARROW_LEFT` · `ARROW_UP` · `ARROW_DOWN` · `DOUBLE_ARROW` · `TRIANGLE` · `STAR` · `CIRCLE` |
 | `NotificationLinkType` | `HOME` · `EVENT` · `CUSTOM` |
+| `NotificationScheduleType` | `ONE_OFF` · `WEEKLY` · `BEFORE_EVENT` |
 | `NotificationSource` | `MANUAL` · `SCHEDULED_ONE_OFF` · `SCHEDULED_WEEKLY` · `SCHEDULED_BEFORE_EVENT` |
 | `NotificationTargetType` | `ALL` · `EVENT_ATTENDANCE` · `PERSON` |
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
@@ -423,6 +425,26 @@ Definició: [`apps/api/src/modules/push-notification/entities/notification-log.e
 | `triggeredEventId` | `uuid` | `string` | sí | — |
 | `triggeredByUserId` | `uuid` | `string` | sí | — |
 | `sentAt` | `timestamptz` | `Date` | no | creació |
+
+### `notification_schedules` — `NotificationSchedule`
+
+Definició: [`apps/api/src/modules/push-notification/entities/notification-schedule.entity.ts`](../apps/api/src/modules/push-notification/entities/notification-schedule.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `title` | `varchar` | `string` | no | — |
+| `body` | `varchar` | `string` | no | — |
+| `linkedEvent` | `jsonb` | `EventReference` | sí | — |
+| `linkTo` | `enum` | `NotificationLinkType` | no | enum `NotificationLinkType` |
+| `url` | `varchar` | `string` | sí | — |
+| `target` | `jsonb` | `NotificationTarget` | no | — |
+| `scheduleType` | `enum` | `NotificationScheduleType` | no | enum `NotificationScheduleType` |
+| `ruleConfig` | `jsonb` | `NotificationScheduleRuleConfig` | no | — |
+| `isActive` | `boolean` | `boolean` | no | default `true` |
+| `createdByUserId` | `uuid` | `string` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
 
 ### `person_delegates` — `PersonDelegate`
 

@@ -126,7 +126,7 @@ graph TD
 | [`audit`](../apps/api/src/modules/audit) | 3 | 99 | [[GDPR_COMPLIANCE]] |
 | [`auth`](../apps/api/src/modules/auth) | 27 | 1421 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`composition`](../apps/api/src/modules/composition) | 8 | 657 | [[PINYES_MODULE]] |
-| [`database`](../apps/api/src/modules/database) | 5 | 219 | [[DATA_MODEL]] |
+| [`database`](../apps/api/src/modules/database) | 5 | 221 | [[DATA_MODEL]] |
 | [`event`](../apps/api/src/modules/event) | 14 | 1307 | [[DATA_MODEL]] |
 | [`event-segment`](../apps/api/src/modules/event-segment) | 19 | 1966 | [[PINYES_MODULE]] |
 | [`figure`](../apps/api/src/modules/figure) | 13 | 1384 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
@@ -137,20 +137,20 @@ graph TD
 | [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3513 | [[PINYES_MODULE]] |
 | [`person`](../apps/api/src/modules/person) | 12 | 1155 | [[DATA_MODEL]] |
 | [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 528 | [[DATA_MODEL]] |
-| [`push-notification`](../apps/api/src/modules/push-notification) | 18 | 1058 | — |
+| [`push-notification`](../apps/api/src/modules/push-notification) | 25 | 1384 | — |
 | [`season`](../apps/api/src/modules/season) | 6 | 388 | [[DATA_MODEL]] |
 | [`sync`](../apps/api/src/modules/sync) | 10 | 1788 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 8 | 321 | [[TAGS]] · [[DATA_MODEL]] |
 | [`user`](../apps/api/src/modules/user) | 12 | 854 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **56** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **57** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`auth`](../apps/dashboard/src/app/features/auth) | 3 | 185 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`communication`](../apps/dashboard/src/app/features/communication) | 12 | 836 | — |
+| [`communication`](../apps/dashboard/src/app/features/communication) | 13 | 1051 | — |
 | [`config`](../apps/dashboard/src/app/features/config) | 14 | 2161 | [[DASHBOARD_UI]] |
 | [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 366 | — |
 | [`events`](../apps/dashboard/src/app/features/events) | 19 | 4077 | [[DASHBOARD_UI]] |
@@ -175,8 +175,8 @@ Migracions TypeORM: **56** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 4 | 245 | — |
-| [`enums`](../libs/shared/src/enums) | 23 | 212 | — |
-| [`interfaces`](../libs/shared/src/interfaces) | 24 | 873 | — |
+| [`enums`](../libs/shared/src/enums) | 24 | 218 | — |
+| [`interfaces`](../libs/shared/src/interfaces) | 24 | 904 | — |
 | [`utils`](../libs/shared/src/utils) | 8 | 396 | — |
 
 ### Fitxers més grans (candidats a dividir)

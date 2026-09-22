@@ -1,15 +1,21 @@
 <div class="space-y-3">
   <lib-select
-    label="Esdeveniment vinculat"
+    label="Esdeveniment vinculat (opcional)"
     id="linked-event-kind"
     [ngModel]="linkedEvent()?.kind ?? ''"
     (ngModelChange)="setKind($event)"
     name="linkedEventKind"
   >
-    <option value="">Cap (opcional)</option>
-    <option [value]="EventRefKind.NEXT_ACTUACIO">Pròxima actuació</option>
-    <option [value]="EventRefKind.NEXT_ASSAIG">Pròxim assaig</option>
-    <option [value]="EventRefKind.NEXT_ACTUACIO_OR_ASSAIG">Pròxima actuació o assaig</option>
+    <option value="">Cap</option>
+    @if (variant() === 'schedule') {
+      <option [value]="EventRefKind.NEXT_ACTUACIO">Següent actuació</option>
+      <option [value]="EventRefKind.NEXT_ASSAIG">Següent assaig</option>
+      <option [value]="EventRefKind.NEXT_ACTUACIO_OR_ASSAIG">Següent actuació o assaig</option>
+    } @else {
+      <option [value]="EventRefKind.NEXT_ACTUACIO">Pròxima actuació</option>
+      <option [value]="EventRefKind.NEXT_ASSAIG">Pròxim assaig</option>
+      <option [value]="EventRefKind.NEXT_ACTUACIO_OR_ASSAIG">Pròxima actuació o assaig</option>
+    }
     <option [value]="EventRefKind.SPECIFIC">Esdeveniment específic...</option>
     @if (allowTriggeringEvent()) {
       <option [value]="EventRefKind.TRIGGERING_EVENT">Aquest esdeveniment</option>

@@ -2,20 +2,30 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AttendanceStatus, EventReferenceKind, NotificationLinkType, NotificationTargetType } from '@muixer/shared';
+import {
+  AttendanceStatus,
+  EventReferenceKind,
+  NotificationLinkType,
+  NotificationScheduleType,
+  NotificationTargetType,
+} from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { NotificationSendComponent } from './notification-send.component';
 import { NotificationService } from '../../services/notification.service';
 import { EventService } from '../../../events/services/event.service';
+import { toDatetimeLocalValue } from '../../../../shared/utils';
 
 describe('NotificationSendComponent', () => {
   let component: NotificationSendComponent;
   let fixture: ComponentFixture<NotificationSendComponent>;
-  let notificationService: { send: ReturnType<typeof vi.fn> };
+  let notificationService: { send: ReturnType<typeof vi.fn>; createSchedule: ReturnType<typeof vi.fn> };
   let eventService: { getAll: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    notificationService = { send: vi.fn().mockReturnValue(of({ accepted: true })) };
+    notificationService = {
+      send: vi.fn().mockReturnValue(of({ accepted: true })),
+      createSchedule: vi.fn().mockReturnValue(of({ id: 'schedule-1' })),
+    };
     eventService = { getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 200 } })) };
 
     await TestBed.configureTestingModule({
@@ -24,7 +34,7 @@ describe('NotificationSendComponent', () => {
         { provide: NotificationService, useValue: notificationService },
         { provide: EventService, useValue: eventService },
         { provide: Router, useValue: { navigate: vi.fn() } },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null }, data: {} } } },
         allLucideIconsProvider,
       ],
     }).compileComponents();
@@ -200,5 +210,198 @@ describe('NotificationSendComponent', () => {
     expect(component.link()).toEqual({ type: NotificationLinkType.HOME });
     expect(component.target()).toEqual({ type: NotificationTargetType.ALL });
     expect(component.state()).toBe('idle');
+  });
+
+  it('defaults to send mode when the route carries no mode', () => {
+    expect(component.mode()).toBe('send');
+    expect(component.submitLabel()).toBe('Envia notificació');
+  });
+});
+
+describe('NotificationSendComponent (schedule mode)', () => {
+  let component: NotificationSendComponent;
+  let fixture: ComponentFixture<NotificationSendComponent>;
+  let notificationService: { send: ReturnType<typeof vi.fn>; createSchedule: ReturnType<typeof vi.fn> };
+  let eventService: { getAll: ReturnType<typeof vi.fn> };
+
+  beforeEach(async () => {
+    notificationService = {
+      send: vi.fn().mockReturnValue(of({ accepted: true })),
+      createSchedule: vi.fn().mockReturnValue(of({ id: 'schedule-1' })),
+    };
+    eventService = { getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 200 } })) };
+
+    await TestBed.configureTestingModule({
+      imports: [NotificationSendComponent],
+      providers: [
+        { provide: NotificationService, useValue: notificationService },
+        { provide: EventService, useValue: eventService },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null }, data: { mode: 'schedule' } } } },
+        allLucideIconsProvider,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(NotificationSendComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('reads mode from route data and adjusts the submit label', () => {
+    expect(component.mode()).toBe('schedule');
+    expect(component.submitLabel()).toBe('Programa notificació');
+  });
+
+  it('is invalid without a scheduledFor even when content is valid', () => {
+    component.title.set('T');
+    component.body.set('B');
+    expect(component.isFormValid()).toBe(false);
+    component.scheduledFor.set('2026-06-01T18:00');
+    expect(component.isFormValid()).toBe(true);
+  });
+
+  it('creates a ONE_OFF schedule with the ISO scheduledFor instead of sending immediately', () => {
+    component.title.set('Assaig');
+    component.body.set('Dijous a les 20h');
+    component.scheduledFor.set('2026-06-01T18:00');
+    component.send();
+
+    expect(notificationService.createSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Assaig',
+        body: 'Dijous a les 20h',
+        scheduleType: NotificationScheduleType.ONE_OFF,
+        oneOff: { scheduledFor: new Date('2026-06-01T18:00').toISOString() },
+      }),
+    );
+    expect(notificationService.send).not.toHaveBeenCalled();
+  });
+
+  it('sets state to success on successful schedule creation', () => {
+    component.title.set('T');
+    component.body.set('B');
+    component.scheduledFor.set('2026-06-01T18:00');
+    component.send();
+    expect(component.state()).toBe('success');
+  });
+
+  it('resets scheduledFor back to empty', () => {
+    component.scheduledFor.set('2026-06-01T18:00');
+    component.reset();
+    expect(component.scheduledFor()).toBe('');
+  });
+});
+
+describe('NotificationSendComponent (edit mode)', () => {
+  let component: NotificationSendComponent;
+  let fixture: ComponentFixture<NotificationSendComponent>;
+  let notificationService: {
+    send: ReturnType<typeof vi.fn>;
+    createSchedule: ReturnType<typeof vi.fn>;
+    getSchedule: ReturnType<typeof vi.fn>;
+    updateSchedule: ReturnType<typeof vi.fn>;
+  };
+  let eventService: { getAll: ReturnType<typeof vi.fn> };
+  let router: { navigate: ReturnType<typeof vi.fn> };
+
+  const mockSchedule = {
+    id: 'schedule-1',
+    title: 'Assaig',
+    body: 'Dijous a les 20h',
+    linkedEvent: { kind: EventReferenceKind.NEXT_ACTUACIO },
+    linkTo: NotificationLinkType.HOME,
+    url: null,
+    target: { type: NotificationTargetType.ALL },
+    scheduleType: NotificationScheduleType.ONE_OFF,
+    ruleConfig: { scheduledFor: '2026-06-01T18:00:00.000Z' },
+    isActive: true,
+    createdByUserId: 'user-1',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  beforeEach(async () => {
+    notificationService = {
+      send: vi.fn().mockReturnValue(of({ accepted: true })),
+      createSchedule: vi.fn().mockReturnValue(of({ id: 'schedule-1' })),
+      getSchedule: vi.fn().mockReturnValue(of(mockSchedule)),
+      updateSchedule: vi.fn().mockReturnValue(of(mockSchedule)),
+    };
+    eventService = { getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 200 } })) };
+    router = { navigate: vi.fn() };
+
+    await TestBed.configureTestingModule({
+      imports: [NotificationSendComponent],
+      providers: [
+        { provide: NotificationService, useValue: notificationService },
+        { provide: EventService, useValue: eventService },
+        { provide: Router, useValue: router },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'schedule-1' }, data: { mode: 'schedule' } } },
+        },
+        allLucideIconsProvider,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(NotificationSendComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('is in edit mode with an adjusted title and submit label', () => {
+    expect(component.isEditMode()).toBe(true);
+    expect(component.pageTitle()).toBe('Edita la notificació programada');
+    expect(component.submitLabel()).toBe('Desa els canvis');
+  });
+
+  it('loads and prefills the existing schedule', () => {
+    expect(notificationService.getSchedule).toHaveBeenCalledWith('schedule-1');
+    expect(component.title()).toBe('Assaig');
+    expect(component.body()).toBe('Dijous a les 20h');
+    expect(component.linkedEvent()).toEqual({ kind: EventReferenceKind.NEXT_ACTUACIO });
+    expect(component.link()).toEqual({ type: NotificationLinkType.HOME, url: undefined });
+    expect(component.target()).toEqual({ type: NotificationTargetType.ALL });
+    expect(component.scheduledFor()).toBe(toDatetimeLocalValue(mockSchedule.ruleConfig.scheduledFor));
+  });
+
+  it('updates the schedule instead of creating a new one', () => {
+    component.title.set('Updated title');
+    component.send();
+
+    expect(notificationService.updateSchedule).toHaveBeenCalledWith(
+      'schedule-1',
+      expect.objectContaining({ title: 'Updated title' }),
+    );
+    expect(notificationService.createSchedule).not.toHaveBeenCalled();
+    expect(component.state()).toBe('success');
+  });
+
+  it('shows an error state when the schedule fails to load', async () => {
+    notificationService.getSchedule.mockReturnValue(throwError(() => new Error('boom')));
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [NotificationSendComponent],
+      providers: [
+        { provide: NotificationService, useValue: notificationService },
+        { provide: EventService, useValue: eventService },
+        { provide: Router, useValue: router },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'schedule-1' }, data: { mode: 'schedule' } } },
+        },
+        allLucideIconsProvider,
+      ],
+    }).compileComponents();
+    const failingFixture = TestBed.createComponent(NotificationSendComponent);
+    failingFixture.detectChanges();
+
+    expect(failingFixture.componentInstance.state()).toBe('error');
+  });
+
+  it('navigates back to the schedule list on cancelEdit', () => {
+    component.cancelEdit();
+    expect(router.navigate).toHaveBeenCalledWith(['/communication/notifications/schedules']);
   });
 });

@@ -5,6 +5,8 @@ import {
   EventReferenceKind,
   NotificationLinkType,
   NotificationLogEntry,
+  NotificationScheduleEntry,
+  NotificationScheduleType,
   NotificationSource,
   NotificationTargetType,
   AttendanceStatus,
@@ -45,6 +47,17 @@ export interface NotificationHistoryFilter {
   limit?: number;
 }
 
+export interface NotificationSchedulePayload extends SendNotificationPayload {
+  scheduleType: NotificationScheduleType;
+  oneOff?: { scheduledFor: string };
+}
+
+export interface NotificationScheduleFilter {
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class NotificationService extends ApiService {
   send(payload: SendNotificationPayload): Observable<{ accepted: boolean; warning?: string }> {
@@ -62,5 +75,30 @@ export class NotificationService extends ApiService {
     if (filter.limit) params['limit'] = filter.limit;
 
     return this.get<PaginatedResponse<NotificationLogEntry>>('/notifications/history', { params });
+  }
+
+  createSchedule(payload: NotificationSchedulePayload): Observable<NotificationScheduleEntry> {
+    return this.post<NotificationScheduleEntry>('/notifications/schedules', payload);
+  }
+
+  getSchedules(filter: NotificationScheduleFilter): Observable<PaginatedResponse<NotificationScheduleEntry>> {
+    const params: Record<string, string | number | boolean> = {};
+    if (filter.isActive !== undefined) params['isActive'] = filter.isActive;
+    if (filter.page) params['page'] = filter.page;
+    if (filter.limit) params['limit'] = filter.limit;
+
+    return this.get<PaginatedResponse<NotificationScheduleEntry>>('/notifications/schedules', { params });
+  }
+
+  cancelSchedule(id: string): Observable<void> {
+    return this.delete<void>(`/notifications/schedules/${id}`);
+  }
+
+  getSchedule(id: string): Observable<NotificationScheduleEntry> {
+    return this.get<NotificationScheduleEntry>(`/notifications/schedules/${id}`);
+  }
+
+  updateSchedule(id: string, payload: Partial<NotificationSchedulePayload>): Observable<NotificationScheduleEntry> {
+    return this.patch<NotificationScheduleEntry>(`/notifications/schedules/${id}`, payload);
   }
 }

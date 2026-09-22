@@ -21,6 +21,15 @@ import { NotificationLogService } from './notification-log.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { PushRequestedEvent } from './events/push-requested.event';
 
+/** Who/what triggered a dispatch, and which schedule (if any) produced it — passed explicitly by
+ *  every caller (manual send-now, the one-off scheduler, and future weekly/before-event cron
+ *  branches) so `send()` stays a pure dispatch primitive with no notion of its own origin. */
+export interface DispatchMetadata {
+  source: NotificationSource;
+  scheduleId?: string;
+  triggeredByUserId?: string;
+}
+
 @Injectable()
 export class PushNotificationService {
   private readonly logger = new Logger(PushNotificationService.name);
@@ -40,7 +49,7 @@ export class PushNotificationService {
 
   async send(
     dto: SendNotificationDto,
-    triggeredByUserId?: string,
+    meta: DispatchMetadata,
   ): Promise<{ accepted: boolean; warning?: string }> {
     const eventId = dto.linkedEvent ? await this.resolveEventReference(dto.linkedEvent) : undefined;
 
@@ -54,8 +63,9 @@ export class PushNotificationService {
       url,
       target: resolvedTarget,
       recipientCount: userIds.length,
-      source: NotificationSource.MANUAL,
-      triggeredByUserId,
+      source: meta.source,
+      scheduleId: meta.scheduleId,
+      triggeredByUserId: meta.triggeredByUserId,
     });
 
     if (userIds.length === 0) {
