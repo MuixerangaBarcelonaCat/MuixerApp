@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   BeforeEventScheduleConfig,
+  EventReference,
+  EventReferenceKind,
   NotificationScheduleRuleConfig,
   NotificationScheduleType,
   NotificationSource,
@@ -36,6 +38,7 @@ export class NotificationScheduleService {
 
   async create(dto: CreateNotificationScheduleDto, userId: string): Promise<NotificationSchedule> {
     const ruleConfig = this.buildRuleConfigForCreate(dto);
+    this.assertEventReferenceFits(dto.linkedEvent ?? null, dto.scheduleType);
 
     const schedule = this.repo.create({
       title: dto.title,
@@ -135,10 +138,13 @@ export class NotificationScheduleService {
 
     if (dto.title !== undefined) schedule.title = dto.title;
     if (dto.body !== undefined) schedule.body = dto.body;
-    if (dto.linkedEvent !== undefined) schedule.linkedEvent = dto.linkedEvent;
+    // `null` is a value, not an absence: it's how the form clears a linked event or a custom url.
+    if (dto.linkedEvent !== undefined) schedule.linkedEvent = dto.linkedEvent ?? null;
     if (dto.linkTo !== undefined) schedule.linkTo = dto.linkTo;
-    if (dto.url !== undefined) schedule.url = dto.url;
+    if (dto.url !== undefined) schedule.url = dto.url ?? null;
     if (dto.target !== undefined) schedule.target = dto.target;
+
+    this.assertEventReferenceFits(schedule.linkedEvent, schedule.scheduleType);
 
     return this.repo.save(schedule);
   }
@@ -157,6 +163,8 @@ export class NotificationScheduleService {
   /** "Send now" is a ONE_OFF schedule dispatched at the moment it's created, so every dispatch —
    *  immediate or future — goes through the same `processSchedule` executor. */
   async sendNow(dto: SendNotificationDto, userId: string): Promise<{ accepted: boolean; warning?: string }> {
+    this.assertEventReferenceFits(dto.linkedEvent ?? null, NotificationScheduleType.ONE_OFF);
+
     const schedule = await this.repo.save(
       this.repo.create({
         title: dto.title,
@@ -167,7 +175,9 @@ export class NotificationScheduleService {
         target: dto.target,
         scheduleType: NotificationScheduleType.ONE_OFF,
         ruleConfig: { scheduledFor: new Date().toISOString() },
-        isActive: true,
+        // Already spent: it's dispatched on the next line, so it must never be visible as due to
+        // the per-minute ONE_OFF sweep in between.
+        isActive: false,
         createdByUserId: userId,
       }),
     );
@@ -203,6 +213,19 @@ export class NotificationScheduleService {
       triggeredByUserId: schedule.createdByUserId ?? undefined,
       triggeredEventId,
     });
+  }
+
+  /** TRIGGERING_EVENT resolves to the event a BEFORE_EVENT cron tick matched — on any other kind of
+   *  schedule there is no such event, and the dispatch would throw on every attempt instead. */
+  private assertEventReferenceFits(linkedEvent: EventReference | null, scheduleType: NotificationScheduleType): void {
+    if (
+      linkedEvent?.kind === EventReferenceKind.TRIGGERING_EVENT &&
+      scheduleType !== NotificationScheduleType.BEFORE_EVENT
+    ) {
+      throw new BadRequestException(
+        "'Aquest esdeveniment' només és vàlid en una notificació programada abans d'un esdeveniment",
+      );
+    }
   }
 
   private assertFutureDate(scheduledFor: string): void {

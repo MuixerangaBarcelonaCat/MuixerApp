@@ -207,6 +207,36 @@ describe('NotificationScheduleCronService', () => {
         expect(scheduleService.processSchedule).toHaveBeenCalledWith(due, NotificationSource.SCHEDULED_WEEKLY);
       });
     });
+    describe('a schedule created after its own send time today', () => {
+      it('does not fire within the minute — its first send is next week', async () => {
+        const due = {
+          id: 's1',
+          ruleConfig: { dayOfWeek: 1, timeOfDay: '09:00' },
+          // FIXED_NOW is 12:00 UTC; today's 09:00 occurrence is already behind us.
+          createdAt: FIXED_NOW,
+        } as NotificationSchedule;
+        qb.getMany.mockResolvedValue([due]);
+        mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() - 3 * 3_600_000));
+
+        await cronService.processDueWeeklySchedules();
+
+        expect(scheduleService.processSchedule).not.toHaveBeenCalled();
+      });
+
+      it('still fires for a schedule created before today\'s send time', async () => {
+        const due = {
+          id: 's1',
+          ruleConfig: { dayOfWeek: 1, timeOfDay: '09:00' },
+          createdAt: new Date('2026-05-20T10:00:00.000Z'),
+        } as NotificationSchedule;
+        qb.getMany.mockResolvedValue([due]);
+        mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() - 3 * 3_600_000));
+
+        await cronService.processDueWeeklySchedules();
+
+        expect(scheduleService.processSchedule).toHaveBeenCalledWith(due, NotificationSource.SCHEDULED_WEEKLY);
+      });
+    });
   });
 
   describe('processDueBeforeEventSchedules', () => {
@@ -305,6 +335,36 @@ describe('NotificationScheduleCronService', () => {
         await cronService.processDueBeforeEventSchedules();
 
         expect(scheduleService.processSchedule).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('an event that has already started', () => {
+      it('does not send a reminder for an event whose start time has passed', async () => {
+        const schedule = makeSchedule(hoursRule);
+        qb.getMany.mockResolvedValue([schedule]);
+        // Event started an hour ago: the fire instant (3h before that) is long past, but a
+        // "d'aquí 3 hores" reminder makes no sense once the event is under way.
+        eventRepo.find.mockResolvedValue([{ id: 'evt-late', date: new Date('2026-06-01'), startTime: '13:00' }]);
+        mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() - 3_600_000));
+
+        await cronService.processDueBeforeEventSchedules();
+
+        expect(scheduleService.processSchedule).not.toHaveBeenCalled();
+      });
+
+      it('still sends for an event that has not started yet', async () => {
+        const schedule = makeSchedule(hoursRule);
+        qb.getMany.mockResolvedValue([schedule]);
+        eventRepo.find.mockResolvedValue([{ id: 'evt-soon', date: new Date('2026-06-01'), startTime: '14:00' }]);
+        mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() + 3_600_000));
+
+        await cronService.processDueBeforeEventSchedules();
+
+        expect(scheduleService.processSchedule).toHaveBeenCalledWith(
+          schedule,
+          NotificationSource.SCHEDULED_BEFORE_EVENT,
+          'evt-soon',
+        );
       });
     });
 

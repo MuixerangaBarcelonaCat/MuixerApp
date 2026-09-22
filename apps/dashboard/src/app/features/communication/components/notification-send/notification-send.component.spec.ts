@@ -199,6 +199,17 @@ describe('NotificationSendComponent', () => {
     expect(component.errorMessage()).toBe('Sense subscriptors');
   });
 
+  it('drops a TRIGGERING_EVENT reference when the recurrence is no longer BEFORE_EVENT', () => {
+    component.scheduleKind.set(NotificationScheduleType.BEFORE_EVENT);
+    component.linkedEvent.set({ kind: EventReferenceKind.TRIGGERING_EVENT });
+    fixture.detectChanges();
+
+    component.scheduleKind.set(NotificationScheduleType.WEEKLY);
+    fixture.detectChanges();
+
+    expect(component.linkedEvent()).toBeUndefined();
+  });
+
   it('resets form back to initial state', () => {
     component.title.set('T');
     component.body.set('B');
@@ -646,6 +657,27 @@ describe('NotificationSendComponent (edit mode)', () => {
     failingFixture.detectChanges();
 
     expect(failingFixture.componentInstance.state()).toBe('error');
+  });
+
+  it('sends null, not an absent field, when the linked event is cleared', () => {
+    component.linkedEvent.set(undefined);
+    component.send();
+
+    expect(notificationService.updateSchedule).toHaveBeenCalledWith(
+      'schedule-1',
+      expect.objectContaining({ linkedEvent: null }),
+    );
+  });
+
+  it('sends null, not an absent field, when the custom url is cleared', () => {
+    component.link.set({ type: NotificationLinkType.CUSTOM, url: '/noticies/1' });
+    component.link.set({ type: NotificationLinkType.HOME });
+    component.send();
+
+    expect(notificationService.updateSchedule).toHaveBeenCalledWith(
+      'schedule-1',
+      expect.objectContaining({ url: null }),
+    );
   });
 
   it('navigates back to the schedule list on cancelEdit', () => {

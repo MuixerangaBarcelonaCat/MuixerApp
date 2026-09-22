@@ -24,6 +24,19 @@ export function computeBeforeEventFireInstant(rule: BeforeEventScheduleConfig, e
   return zonedTimeToUtc(fireDate, rule.timeOfDay as string);
 }
 
+/**
+ * Whether `event` is already under way at `now` — a "d'aquí X" reminder is pointless once it is,
+ * so both the cron sweep and the next-run projection skip such an event.
+ *
+ * An event with no `startTime` has a date but no instant: it only counts as started once its whole
+ * day is behind us.
+ */
+export function hasEventStarted(event: FireInstantEvent, now: Date): boolean {
+  const dateStr = formatDateOnly(event.date);
+  if (!event.startTime) return dateStr < formatDateOnly(now);
+  return zonedTimeToUtc(dateStr, event.startTime) <= now;
+}
+
 /** Whether `dateStr` (`YYYY-MM-DD`) falls inside a rule's inclusive, optional active window. */
 export function withinActiveWindow(dateStr: string, rule: { startDate?: string; endDate?: string }): boolean {
   if (rule.startDate && dateStr < rule.startDate) return false;

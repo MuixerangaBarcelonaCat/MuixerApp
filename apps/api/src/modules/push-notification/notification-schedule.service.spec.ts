@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   BeforeEventOffsetUnit,
+  EventReferenceKind,
   EventType,
   NotificationLinkType,
   NotificationScheduleType,
@@ -254,6 +255,14 @@ describe('NotificationScheduleService', () => {
           'user-1',
         ),
       ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+    it('rejects a TRIGGERING_EVENT reference on a schedule that is not BEFORE_EVENT', async () => {
+      const dto = makeCreateDto({
+        linkedEvent: { kind: EventReferenceKind.TRIGGERING_EVENT } as CreateNotificationScheduleDto['linkedEvent'],
+      });
+
+      await expect(service.create(dto, 'user-1')).rejects.toThrow(BadRequestException);
       expect(repo.save).not.toHaveBeenCalled();
     });
   });
@@ -635,6 +644,94 @@ describe('NotificationScheduleService', () => {
       ).rejects.toThrow(BadRequestException);
       expect(repo.save).not.toHaveBeenCalled();
     });
+    it('clears the linked event when null is sent explicitly', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.ONE_OFF,
+        linkTo: NotificationLinkType.HOME,
+        target: { type: NotificationTargetType.ALL },
+        linkedEvent: { kind: EventReferenceKind.NEXT_ACTUACIO },
+      });
+
+      await service.update('schedule-1', Object.assign(new UpdateNotificationScheduleDto(), { linkedEvent: null }));
+
+      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ linkedEvent: null }));
+    });
+
+    it('clears the custom url when null is sent explicitly', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.ONE_OFF,
+        linkTo: NotificationLinkType.HOME,
+        target: { type: NotificationTargetType.ALL },
+        url: '/noticies/1',
+      });
+
+      await service.update('schedule-1', Object.assign(new UpdateNotificationScheduleDto(), { url: null }));
+
+      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ url: null }));
+    });
+
+    it('leaves the linked event untouched when the field is omitted', async () => {
+      const linkedEvent = { kind: EventReferenceKind.NEXT_ACTUACIO };
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.ONE_OFF,
+        linkTo: NotificationLinkType.HOME,
+        target: { type: NotificationTargetType.ALL },
+        linkedEvent,
+      });
+
+      await service.update('schedule-1', Object.assign(new UpdateNotificationScheduleDto(), { title: 'Nou títol' }));
+
+      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ linkedEvent }));
+    });
+
+    it('rejects a TRIGGERING_EVENT reference on a schedule that is not BEFORE_EVENT', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        linkTo: NotificationLinkType.HOME,
+        target: { type: NotificationTargetType.ALL },
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), {
+            linkedEvent: { kind: EventReferenceKind.TRIGGERING_EVENT },
+          }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('keeps a TRIGGERING_EVENT reference on a BEFORE_EVENT schedule', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.BEFORE_EVENT,
+        linkTo: NotificationLinkType.HOME,
+        target: { type: NotificationTargetType.ALL },
+        ruleConfig: { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 1, timeOfDay: '09:00' },
+      });
+
+      await service.update(
+        'schedule-1',
+        Object.assign(new UpdateNotificationScheduleDto(), {
+          linkedEvent: { kind: EventReferenceKind.TRIGGERING_EVENT },
+        }),
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ linkedEvent: { kind: EventReferenceKind.TRIGGERING_EVENT } }),
+      );
+    });
   });
 
   describe('cancel', () => {
@@ -684,6 +781,31 @@ describe('NotificationScheduleService', () => {
       );
       expect(repo.update).toHaveBeenCalledWith('schedule-1', { isActive: false });
       expect(result).toEqual({ accepted: true });
+    });
+    it('creates the row already inactive — the per-minute sweep must never pick it up too', async () => {
+      const dto = Object.assign(new SendNotificationDto(), {
+        title: 'Assaig',
+        body: 'Dijous a les 20h',
+        linkTo: NotificationLinkType.HOME,
+        target: { type: NotificationTargetType.ALL },
+      });
+
+      await service.sendNow(dto, 'user-1');
+
+      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
+    });
+
+    it('rejects a TRIGGERING_EVENT reference — nothing triggers an immediate send', async () => {
+      const dto = Object.assign(new SendNotificationDto(), {
+        title: 'Assaig',
+        body: 'Dijous a les 20h',
+        linkTo: NotificationLinkType.HOME,
+        linkedEvent: { kind: EventReferenceKind.TRIGGERING_EVENT },
+        target: { type: NotificationTargetType.ALL },
+      });
+
+      await expect(service.sendNow(dto, 'user-1')).rejects.toThrow(BadRequestException);
+      expect(notificationService.send).not.toHaveBeenCalled();
     });
   });
 

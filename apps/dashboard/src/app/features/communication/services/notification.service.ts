@@ -37,9 +37,11 @@ export interface NotificationLinkValue {
 export interface SendNotificationPayload {
   title: string;
   body: string;
-  linkedEvent?: EventReferenceValue;
+  /** `null` on an edit clears a previously linked event; `undefined` in a PATCH body would be
+   *  dropped by JSON serialisation and read as "leave it as it is". */
+  linkedEvent?: EventReferenceValue | null;
   linkTo: NotificationLinkType;
-  url?: string;
+  url?: string | null;
   target: NotificationTargetValue;
 }
 

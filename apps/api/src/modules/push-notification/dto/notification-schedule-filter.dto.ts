@@ -1,12 +1,17 @@
 import { IsOptional, IsInt, Min, Max, IsBoolean } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+
+/** `@Type(() => Boolean)` would cast the string 'false' to `true` — a query param only ever
+ *  arrives as text, so the two accepted spellings are matched by hand. */
+const toBool = ({ value }: { value: unknown }) =>
+  value === 'true' ? true : value === 'false' ? false : undefined;
 
 export class NotificationScheduleFilterDto {
   @ApiPropertyOptional({ description: 'Filtrar per estat actiu (pendent) o inactiu (cancel·lada/enviada)' })
   @IsOptional()
   @IsBoolean()
-  @Type(() => Boolean)
+  @Transform(toBool)
   isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Número de pàgina (comença a 1)', default: 1 })

@@ -223,7 +223,7 @@ export class PushNotificationService {
       case NotificationLinkType.EVENT:
         return eventId ? `/events/${eventId}` : undefined;
       case NotificationLinkType.CUSTOM:
-        return dto.url;
+        return dto.url ?? undefined;
       default:
         return undefined;
     }

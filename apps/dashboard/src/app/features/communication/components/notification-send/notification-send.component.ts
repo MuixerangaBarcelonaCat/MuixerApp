@@ -162,6 +162,15 @@ export class NotificationSendComponent implements OnInit {
         this.target.set({ type: NotificationTargetType.ALL });
       }
     });
+
+    // "Aquest esdeveniment" is resolved by the BEFORE_EVENT cron tick from the event it matched —
+    // on any other recurrence there is no such event, and the dispatch would throw every minute.
+    effect(() => {
+      if (this.isSchedule() && this.scheduleKind() === NotificationScheduleType.BEFORE_EVENT) return;
+      if (this.linkedEvent()?.kind === EventReferenceKind.TRIGGERING_EVENT) {
+        this.linkedEvent.set(undefined);
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -255,7 +264,13 @@ export class NotificationSendComponent implements OnInit {
             : { oneOff: { scheduledFor: new Date(this.scheduledFor()).toISOString() } }),
       };
       const request = editId
-        ? this.notificationService.updateSchedule(editId, payload)
+        // On a PATCH an absent field means "leave it as it is", so a cleared link has to travel as
+        // an explicit null — otherwise it can never be removed once set.
+        ? this.notificationService.updateSchedule(editId, {
+            ...payload,
+            linkedEvent: payload.linkedEvent ?? null,
+            url: payload.url ?? null,
+          })
         : this.notificationService.createSchedule(payload);
       request.subscribe({
         next: () => this.state.set('success'),

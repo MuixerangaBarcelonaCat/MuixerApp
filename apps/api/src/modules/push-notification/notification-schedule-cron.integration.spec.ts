@@ -79,6 +79,15 @@ describe('NotificationScheduleCronService (integration)', () => {
       createdByUserId: null,
     });
 
+  /** Persists a WEEKLY schedule as if it had been created before today, which is the normal case:
+   *  a schedule created after its own send time deliberately waits for next week (see the test
+   *  covering that), so every other weekly case has to be backdated to exercise the sweep. */
+  const saveWeekly = async (...args: Parameters<typeof makeWeekly>) => {
+    const schedule = await scheduleRepo.save(makeWeekly(...args));
+    await scheduleRepo.update(schedule.id, { createdAt: new Date(Date.now() - 7 * 24 * 3_600_000) });
+    return schedule;
+  };
+
   const makeBeforeEvent = (
     title: string,
     ruleConfig: {
@@ -171,7 +180,7 @@ describe('NotificationScheduleCronService (integration)', () => {
     const otherDay = (today + 1) % 7;
 
     it('dispatches a schedule due today whose time has passed, and leaves it active', async () => {
-      const due = await scheduleRepo.save(makeWeekly('Weekly', today, '00:00'));
+      const due = await saveWeekly('Weekly', today, '00:00');
 
       await cronService.processDueWeeklySchedules();
 
@@ -180,8 +189,18 @@ describe('NotificationScheduleCronService (integration)', () => {
       expect(row?.isActive).toBe(true);
     });
 
+    it('does not dispatch a schedule created later today than its own send time', async () => {
+      // Saved just now, with a send time of 00:00: its first send belongs to next week, which is
+      // also what the Dashboard's "next run" column shows.
+      await scheduleRepo.save(makeWeekly('Weekly', today, '00:00'));
+
+      await cronService.processDueWeeklySchedules();
+
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
     it('does not dispatch a schedule for a different day of week', async () => {
-      await scheduleRepo.save(makeWeekly('Weekly', otherDay, '00:00'));
+      await saveWeekly('Weekly', otherDay, '00:00');
 
       await cronService.processDueWeeklySchedules();
 
@@ -189,7 +208,7 @@ describe('NotificationScheduleCronService (integration)', () => {
     });
 
     it('does not dispatch a schedule whose time has not come yet today', async () => {
-      await scheduleRepo.save(makeWeekly('Weekly', today, '23:59'));
+      await saveWeekly('Weekly', today, '23:59');
 
       await cronService.processDueWeeklySchedules();
 
@@ -197,7 +216,7 @@ describe('NotificationScheduleCronService (integration)', () => {
     });
 
     it('skips a schedule already dispatched earlier today', async () => {
-      const schedule = await scheduleRepo.save(makeWeekly('Weekly', today, '00:00'));
+      const schedule = await saveWeekly('Weekly', today, '00:00');
       await logRepo.save(
         logRepo.create({
           title: 'Weekly',
@@ -216,7 +235,7 @@ describe('NotificationScheduleCronService (integration)', () => {
     });
 
     it('dispatches again if the last dispatch for this schedule was on a previous day', async () => {
-      const schedule = await scheduleRepo.save(makeWeekly('Weekly', today, '00:00'));
+      const schedule = await saveWeekly('Weekly', today, '00:00');
       const yesterdayLog = await logRepo.save(
         logRepo.create({
           title: 'Weekly',
@@ -237,7 +256,7 @@ describe('NotificationScheduleCronService (integration)', () => {
 
     describe('active window (startDate/endDate)', () => {
       it('dispatches when today is within the window', async () => {
-        await scheduleRepo.save(makeWeekly('Weekly', today, '00:00', { startDate: '2020-01-01', endDate: '2099-12-31' }));
+        await saveWeekly('Weekly', today, '00:00', { startDate: '2020-01-01', endDate: '2099-12-31' });
 
         await cronService.processDueWeeklySchedules();
 
@@ -245,7 +264,7 @@ describe('NotificationScheduleCronService (integration)', () => {
       });
 
       it('skips when today is before startDate', async () => {
-        await scheduleRepo.save(makeWeekly('Weekly', today, '00:00', { startDate: '2099-01-01' }));
+        await saveWeekly('Weekly', today, '00:00', { startDate: '2099-01-01' });
 
         await cronService.processDueWeeklySchedules();
 
@@ -253,7 +272,7 @@ describe('NotificationScheduleCronService (integration)', () => {
       });
 
       it('skips when today is after endDate', async () => {
-        await scheduleRepo.save(makeWeekly('Weekly', today, '00:00', { endDate: '2020-01-01' }));
+        await saveWeekly('Weekly', today, '00:00', { endDate: '2020-01-01' });
 
         await cronService.processDueWeeklySchedules();
 
@@ -314,10 +333,11 @@ describe('NotificationScheduleCronService (integration)', () => {
     });
 
     it('dispatches for an HOURS-offset schedule once the event start time minus the offset has passed', async () => {
-      // 00:30 minus a 1h offset is 23:30 the previous day — solidly in the past for this test run.
-      const event = await eventRepo.save(makeEvent(EventType.ACTUACIO, getLocalToday(), '00:30'));
+      // Tomorrow at 00:30 minus a 24h offset is today at 00:30 — past for this test run, while the
+      // event itself is still ahead.
+      const event = await eventRepo.save(makeEvent(EventType.ACTUACIO, addDaysToDateOnly(getLocalToday(), 1), '00:30'));
       await scheduleRepo.save(
-        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 1 }),
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 24 }),
       );
 
       await cronService.processDueBeforeEventSchedules();
@@ -329,6 +349,19 @@ describe('NotificationScheduleCronService (integration)', () => {
     it('does not dispatch for an HOURS-offset schedule before the offset has elapsed', async () => {
       const tomorrow = addDaysToDateOnly(getLocalToday(), 1);
       await eventRepo.save(makeEvent(EventType.ACTUACIO, tomorrow, '12:00'));
+      await scheduleRepo.save(
+        makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 1 }),
+      );
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    it('does not dispatch a reminder for an event that has already started', async () => {
+      // Today at 00:30, so both the event start and the fire instant are behind us: the reminder
+      // is late and must be dropped rather than sent after the event began.
+      await eventRepo.save(makeEvent(EventType.ACTUACIO, getLocalToday(), '00:30'));
       await scheduleRepo.save(
         makeBeforeEvent('Before', { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 1 }),
       );

@@ -2,9 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { MoreThanOrEqual, Repository } from 'typeorm';
-import { BeforeEventScheduleConfig, NotificationScheduleType, NotificationSource } from '@muixer/shared';
-import { getLocalDayOfWeek, getLocalTimeOfDay, getLocalToday, formatDateOnly } from '../../common/utils/date.util';
-import { computeBeforeEventFireInstant } from './notification-schedule-rules.util';
+import {
+  BeforeEventScheduleConfig,
+  NotificationScheduleType,
+  NotificationSource,
+  WeeklyScheduleConfig,
+} from '@muixer/shared';
+import {
+  getLocalDayOfWeek,
+  getLocalTimeOfDay,
+  getLocalToday,
+  formatDateOnly,
+  zonedTimeToUtc,
+} from '../../common/utils/date.util';
+import { computeBeforeEventFireInstant, hasEventStarted } from './notification-schedule-rules.util';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
 import { NotificationLog } from './entities/notification-log.entity';
 import { Event } from '../event/event.entity';
@@ -68,6 +79,7 @@ export class NotificationScheduleCronService {
     for (const schedule of due) {
       try {
         if (this.outsideActiveWindow(schedule)) continue;
+        if (this.createdAfterTodaysOccurrence(schedule)) continue;
         if (await this.firedToday(schedule.id)) continue;
         await this.scheduleService.processSchedule(schedule, NotificationSource.SCHEDULED_WEEKLY);
       } catch (error) {
@@ -112,6 +124,7 @@ export class NotificationScheduleCronService {
       try {
         const fireInstant = computeBeforeEventFireInstant(rule, event);
         if (!fireInstant || fireInstant > now) continue;
+        if (hasEventStarted(event, now)) continue;
         if (await this.firedForEvent(schedule.id, event.id)) continue;
         await this.scheduleService.processSchedule(schedule, NotificationSource.SCHEDULED_BEFORE_EVENT, event.id);
       } catch (error) {
@@ -121,6 +134,15 @@ export class NotificationScheduleCronService {
         );
       }
     }
+  }
+
+  /** A WEEKLY schedule created later in the day than its own send time must not fire within the
+   *  minute: its first send is next week, which is also what the next-run projection shows. The
+   *  `firedToday` log check can't catch this — the schedule has no log rows at all yet. */
+  private createdAfterTodaysOccurrence(schedule: NotificationSchedule): boolean {
+    const rule = schedule.ruleConfig as WeeklyScheduleConfig;
+    if (!schedule.createdAt) return false;
+    return schedule.createdAt > zonedTimeToUtc(getLocalToday(), rule.timeOfDay);
   }
 
   private async firedForEvent(scheduleId: string, eventId: string): Promise<boolean> {

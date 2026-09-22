@@ -73,7 +73,7 @@ export class NotificationContentDto {
       o.linkTo === NotificationLinkType.EVENT || o.target?.type === NotificationTargetType.EVENT_ATTENDANCE,
   )
   @IsDefined()
-  linkedEvent?: EventReferenceDto;
+  linkedEvent?: EventReferenceDto | null;
 
   @IsEnum(NotificationLinkType)
   linkTo: NotificationLinkType;
@@ -84,7 +84,7 @@ export class NotificationContentDto {
   })
   @ValidateIf((o: NotificationContentDto) => o.linkTo === NotificationLinkType.CUSTOM)
   @IsNotEmpty()
-  url?: string;
+  url?: string | null;
 
   @IsDefined()
   @ValidateNested()
