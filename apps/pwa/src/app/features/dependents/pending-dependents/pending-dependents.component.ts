@@ -5,7 +5,10 @@ import { DependentRegistrationRequest, PendingDependent, PersonRegistrationData 
 import { AlertComponent, ButtonComponent } from '@muixer/ui';
 import { DependentsService } from '../../../core/services/dependents.service';
 import { PersonDataFieldsComponent } from '../../../shared/components/person-data-fields/person-data-fields.component';
-import { buildPersonDataFormGroup, combinePhoneNumber } from '../../../shared/utils/person-data-form.util';
+import { buildPersonDataFormGroup } from '../../../shared/utils/person-data-form.util';
+
+/** Xicalla have no phone: it is neither asked for nor sent. */
+const NO_PHONE = { requirePhone: false };
 
 /** A provisional Xicalla may not have its personal-data fields set yet — treat nulls as blank prefill. */
 function toPrefill(dependent: PendingDependent): Partial<PersonRegistrationData> {
@@ -14,7 +17,6 @@ function toPrefill(dependent: PendingDependent): Partial<PersonRegistrationData>
     firstSurname: dependent.firstSurname,
     secondSurname: dependent.secondSurname ?? undefined,
     gender: dependent.gender ?? undefined,
-    phone: dependent.phone ?? undefined,
     birthDate: dependent.birthDate ?? undefined,
   };
 }
@@ -40,7 +42,7 @@ export class PendingDependentsComponent {
   readonly current = signal<PendingDependent | null>(null);
   /** 1-indexed position of `current` within the original pending set, for "X de Y" copy. */
   readonly position = computed(() => this.initialTotal() - this.pending().length + 1);
-  form = buildPersonDataFormGroup(this.fb.nonNullable);
+  form = buildPersonDataFormGroup(this.fb.nonNullable, undefined, NO_PHONE);
 
   constructor() {
     this.load(true);
@@ -50,13 +52,7 @@ export class PendingDependentsComponent {
     const dependent = this.current();
     if (this.form.invalid || this.isSubmitting() || !dependent) return;
 
-    const { name, firstSurname, secondSurname, gender, country, phoneNumber, birthDate } =
-      this.form.getRawValue();
-    const phone = combinePhoneNumber(country, phoneNumber);
-    if (!phone) {
-      this.errorMessage.set('El telèfon introduït no és vàlid.');
-      return;
-    }
+    const { name, firstSurname, secondSurname, gender, birthDate } = this.form.getRawValue();
 
     const payload: DependentRegistrationRequest = {
       personId: dependent.personId,
@@ -64,7 +60,6 @@ export class PendingDependentsComponent {
       firstSurname,
       secondSurname: secondSurname || undefined,
       gender: gender as DependentRegistrationRequest['gender'],
-      phone,
       birthDate,
     };
 
@@ -90,7 +85,11 @@ export class PendingDependentsComponent {
         if (isFirstLoad) this.initialTotal.set(pending.length);
         const next = pending[0] ?? null;
         this.current.set(next);
-        this.form = buildPersonDataFormGroup(this.fb.nonNullable, next ? toPrefill(next) : undefined);
+        this.form = buildPersonDataFormGroup(
+          this.fb.nonNullable,
+          next ? toPrefill(next) : undefined,
+          NO_PHONE,
+        );
         this.loading.set(false);
         this.isSubmitting.set(false);
         if (!next) this.router.navigate(['/home']);

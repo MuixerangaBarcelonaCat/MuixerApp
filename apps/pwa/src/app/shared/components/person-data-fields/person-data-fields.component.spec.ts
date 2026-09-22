@@ -31,6 +31,17 @@ describe('PersonDataFieldsComponent', () => {
     expect(el.querySelector('lib-input[formControlName="birthDate"] input')).toBeTruthy();
   });
 
+  it('hides the phone fields when showPhone is false', () => {
+    fixture.componentRef.setInput('formGroup', createGroup());
+    fixture.componentRef.setInput('showPhone', false);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('lib-input[formControlName="phoneNumber"]')).toBeFalsy();
+    expect(el.querySelector('lib-select[formControlName="country"]')).toBeFalsy();
+    expect(el.querySelector('lib-input[formControlName="name"] input')).toBeTruthy();
+  });
+
   it('renders the optional heading when provided', () => {
     fixture.componentRef.setInput('formGroup', createGroup());
     fixture.componentRef.setInput('heading', 'Dades de la xicalla');

@@ -337,7 +337,7 @@ export class PersonService {
     const { positionIds, mentorId, isProvisional, ...personData } =
       updatePersonDto;
 
-    // Handle isProvisional transitions
+    // Only promotion (provisional → regular) is supported
     if (isProvisional !== undefined) {
       if (isProvisional === false && person.isProvisional === true) {
         // Promotion: validate required fields are set
@@ -367,18 +367,6 @@ export class PersonService {
               'Cal proporcionar un usuari per promoure una persona provisional',
             );
           }
-        }
-      }
-
-      if (isProvisional === true && person.isProvisional === false) {
-        // Demotion: auto-prefix alias with ~ if not already prefixed
-        const currentAlias = personData.alias ?? person.alias;
-        if (!currentAlias.startsWith(PROVISIONAL_PREFIX)) {
-          const prefixed = `${PROVISIONAL_PREFIX}${currentAlias}`.slice(
-            0,
-            MAX_ALIAS_LENGTH,
-          );
-          personData.alias = prefixed;
         }
       }
 

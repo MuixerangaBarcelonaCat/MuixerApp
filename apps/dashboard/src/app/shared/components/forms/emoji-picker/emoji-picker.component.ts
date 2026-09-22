@@ -10,18 +10,14 @@ import {
   viewChild,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { BadgeComponent, ButtonComponent } from '@muixer/ui';
 import 'emoji-picker-element';
 import type { EmojiClickEventDetail } from 'emoji-picker-element/shared';
-
-/** Pinned at the top of the picker so the most-used flags are always one click away. */
-const COMMON_EMOJIS = ['⚠️', '🚨', '👁️', '❗', '🤕'];
 
 @Component({
   selector: 'app-emoji-picker',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, ButtonComponent, BadgeComponent],
+  imports: [LucideAngularModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './emoji-picker.component.html',
 })
@@ -31,7 +27,6 @@ export class EmojiPickerComponent {
   readonly valueChange = output<string | null>();
 
   readonly open = signal(false);
-  readonly commonEmojis = COMMON_EMOJIS;
 
   private readonly wrapper = viewChild<ElementRef<HTMLElement>>('wrapper');
 

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { DataTableComponent, RowAction } from './data-table.component';
@@ -332,5 +333,190 @@ describe('DataTableComponent card mode (< lg)', () => {
       fixture.nativeElement.querySelectorAll('[role="menuitem"]'),
     ).map((el) => (el as HTMLElement).textContent?.trim());
     expect(menuLabels).toContain('Veure detall');
+  });
+});
+
+/**
+ * `rowLink` makes each row a set of real anchors, so middle-click / Ctrl+click / the context
+ * menu's «Obre en una pestanya nova» work natively. The primary text is the accessible link;
+ * every other data cell carries an empty, aria-hidden overlay anchor so the whole row is
+ * clickable without nesting interactive content inside an anchor.
+ */
+describe('DataTableComponent rowLink', () => {
+  interface LinkRow {
+    id: string;
+    name: string;
+    status: string;
+    tags: { text: string; color: string; id: string }[];
+  }
+
+  const originalMatchMedia = window.matchMedia;
+
+  const columns: ColumnDef<LinkRow>[] = [
+    { key: 'name', label: 'Nom', defaultVisible: true, primary: true },
+    { key: 'status', label: 'Estat', defaultVisible: true },
+    {
+      key: 'tags',
+      label: 'Etiquetes',
+      defaultVisible: true,
+      type: 'colorBadges',
+      colorBadges: (row) => row.tags,
+      onColorBadgeClick: () => undefined,
+    },
+  ];
+
+  const items: LinkRow[] = [
+    { id: '1', name: 'ADRI', status: 'Actiu', tags: [{ id: 't1', text: 'Pinya', color: '#ff0000' }] },
+    { id: '2', name: 'AINA', status: 'Inactiu', tags: [] },
+  ];
+
+  const rowActions: RowAction<LinkRow>[] = [{ label: 'Veure', icon: 'Eye', action: () => undefined }];
+
+  async function setup(opts: { cardMode?: boolean; rowLink?: boolean } = {}) {
+    const { cardMode = false, rowLink = true } = opts;
+    if (cardMode) {
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })) as unknown as typeof window.matchMedia;
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [DataTableComponent],
+      providers: [allLucideIconsProvider, provideRouter([])],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(DataTableComponent<LinkRow>);
+    fixture.componentRef.setInput('items', items);
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('rowActions', rowActions);
+    if (rowLink) fixture.componentRef.setInput('rowLink', (row: LinkRow) => ['/persons', row.id]);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  describe('table mode', () => {
+    it('renders the primary text as a real link to the row route', async () => {
+      const fixture = await setup();
+      const rows = fixture.nativeElement.querySelectorAll('tbody tr');
+      const link = rows[0].querySelector('td:first-child a:not([aria-hidden])') as HTMLAnchorElement;
+      expect(link.getAttribute('href')).toBe('/persons/1');
+      expect(link.textContent?.trim()).toBe('ADRI');
+      const link2 = rows[1].querySelector('td:first-child a:not([aria-hidden])') as HTMLAnchorElement;
+      expect(link2.getAttribute('href')).toBe('/persons/2');
+    });
+
+    it('covers every other data cell with an empty aria-hidden overlay link to the same route', async () => {
+      const fixture = await setup();
+      const cells: HTMLElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('tbody tr:first-child td'),
+      );
+      // name, status, tags, actions
+      const overlays = cells.slice(1, 3).map((td) => td.querySelector('a[aria-hidden="true"]') as HTMLAnchorElement);
+      for (const a of overlays) {
+        expect(a).not.toBeNull();
+        expect(a.getAttribute('href')).toBe('/persons/1');
+        expect(a.getAttribute('tabindex')).toBe('-1');
+        expect(a.textContent?.trim()).toBe('');
+      }
+    });
+
+    it('leaves the actions cell without any row link', async () => {
+      const fixture = await setup();
+      const actionsCell = fixture.nativeElement.querySelector('tbody tr:first-child td:last-child') as HTMLElement;
+      expect(actionsCell.querySelector('a')).toBeNull();
+    });
+
+    it('does not nest interactive cell content (badge buttons) inside an anchor', async () => {
+      const fixture = await setup();
+      const badgeButton = fixture.nativeElement.querySelector('tbody tr:first-child button.badge') as HTMLElement;
+      expect(badgeButton).not.toBeNull();
+      expect(badgeButton.closest('a')).toBeNull();
+      // Painted above the overlay so its own click wins over the row link.
+      expect(badgeButton.classList.contains('relative')).toBe(true);
+    });
+
+    it('does not emit rowClick on a row click, since the link owns navigation', async () => {
+      const fixture = await setup();
+      const spy = vi.fn();
+      fixture.componentInstance.rowClick.subscribe(spy);
+      (fixture.nativeElement.querySelector('tbody tr:first-child td:nth-child(2)') as HTMLElement).click();
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('keeps a per-cell onCellClick and colour-badge click independent of the row link', async () => {
+      const fixture = await setup();
+      const onBadge = vi.fn();
+      fixture.componentRef.setInput('columns', [
+        ...columns.slice(0, 2),
+        { ...columns[2], onColorBadgeClick: onBadge },
+      ]);
+      fixture.detectChanges();
+      const rowSpy = vi.fn();
+      fixture.componentInstance.rowClick.subscribe(rowSpy);
+      (fixture.nativeElement.querySelector('tbody tr:first-child button.badge') as HTMLElement).click();
+      expect(onBadge).toHaveBeenCalledWith('t1', items[0]);
+      expect(rowSpy).not.toHaveBeenCalled();
+    });
+
+    it('renders no anchors and still emits rowClick when rowLink is not set', async () => {
+      const fixture = await setup({ rowLink: false });
+      expect(fixture.nativeElement.querySelector('tbody a')).toBeNull();
+      const spy = vi.fn();
+      fixture.componentInstance.rowClick.subscribe(spy);
+      (fixture.nativeElement.querySelector('tbody tr:first-child') as HTMLElement).click();
+      expect(spy).toHaveBeenCalledWith(items[0]);
+    });
+  });
+
+  describe('card mode (< lg)', () => {
+    it('renders the card title as a real link to the row route', async () => {
+      const fixture = await setup({ cardMode: true });
+      const links: HTMLAnchorElement[] = Array.from(fixture.nativeElement.querySelectorAll('.card a'));
+      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/persons/1', '/persons/2']);
+      expect(links[0].textContent?.trim()).toBe('ADRI');
+    });
+
+    it('drops the button role from the card wrapper (the link is the focusable element)', async () => {
+      const fixture = await setup({ cardMode: true });
+      expect(fixture.nativeElement.querySelector('[role="button"][tabindex="0"]')).toBeNull();
+    });
+
+    it('does not emit rowClick when the card is clicked', async () => {
+      const fixture = await setup({ cardMode: true });
+      const spy = vi.fn();
+      fixture.componentInstance.rowClick.subscribe(spy);
+      (fixture.nativeElement.querySelector('.card') as HTMLElement).click();
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('keeps interactive card content above the stretched link and outside it', async () => {
+      const fixture = await setup({ cardMode: true });
+      const badgeButton = fixture.nativeElement.querySelector('button.badge') as HTMLElement;
+      expect(badgeButton.closest('a')).toBeNull();
+      expect(badgeButton.classList.contains('relative')).toBe(true);
+      // The actions container (not each button) is what gets lifted above the link.
+      const actions = fixture.nativeElement.querySelector('[aria-label="Accions"]') as HTMLElement;
+      expect((actions.parentElement as HTMLElement).classList.contains('relative')).toBe(true);
+    });
+
+    it('keeps role=button and rowClick when rowLink is not set', async () => {
+      const fixture = await setup({ cardMode: true, rowLink: false });
+      const wrapper = fixture.nativeElement.querySelector('[role="button"][tabindex="0"]') as HTMLElement;
+      const spy = vi.fn();
+      fixture.componentInstance.rowClick.subscribe(spy);
+      wrapper.click();
+      expect(spy).toHaveBeenCalledWith(items[0]);
+    });
   });
 });

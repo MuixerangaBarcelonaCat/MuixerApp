@@ -85,7 +85,6 @@ export interface UpdatePersonDto {
   gender: Gender | null;
   isXicalla: boolean;
   isMember: boolean;
-  isProvisional?: boolean;
   availability: AvailabilityStatus;
   onboardingStatus: OnboardingStatus;
   shirtDate: string | null;

@@ -13,6 +13,10 @@ export interface MeSegment {
   name: string | null;
   sortOrder: number;
   instances: SegmentTitleInstance[];
-  /** The caller's own placements in this segment. Normally 0 or 1; invariant 4 permits more. */
+  /**
+   * The caller's own placements in this segment that count toward a conflict. Normally 0 or 1;
+   * invariant 4 permits more. A `direccio-pinya` placement excused by a pinya node of the same
+   * figure (`conflictRelevantPlacements`) is left out.
+   */
   myPlacements: MeSegmentPlacement[];
 }

@@ -928,6 +928,20 @@ describe('PinyaProjectionComponent', () => {
       expect(fixture.debugElement.query(By.directive(OwnPositionMarkerComponent))).toBeNull();
     });
 
+    it('targets the pinya node when the caller is also the same figure\'s direcció pinya (D13)', () => {
+      const dir = makeNode({ id: 'dir', zone: FigureZone.DIRECTION, positionType: 'direccio-pinya' });
+      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 100, y: 50 });
+      const inst = makeInstance([dir, pinya], ['dir', 'n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      expect(component.ownPositionState()?.kind).toBe('PINYA');
+      const distNode = component.distributionNodes().find((n) => n.id === 'n1')!;
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.target()).toEqual({ kind: 'world', x: distNode.x, y: distNode.y });
+    });
+
     it('renders no marker for the NONE state', () => {
       const inst = makeInstance([makeNode({ id: 'n1' })], [], { id: 'i1' });
       setData(makeSegmentData([inst]));

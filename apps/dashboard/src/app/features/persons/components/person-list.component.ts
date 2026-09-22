@@ -8,8 +8,8 @@ import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
 import {
+  formatPhone,
   getFullName,
-  getAvailabilityLabel,
   getOnboardingLabel,
   formatDate,
   formatShoulderHeightCm,
@@ -65,7 +65,6 @@ export const ALL_COLUMNS: ColumnDef[] = [
   // "(temp. actual)" avoids reading as "never attends": attendedCount is 0 both for a genuine
   // newcomer and whenever there is no current season — the label scopes it explicitly instead.
   { key: 'attendedCount', label: 'Assistències (temp. actual)', defaultVisible: false, sortField: 'attendedCount' },
-  { key: 'availability', label: 'Pot participar', defaultVisible: false, sortField: 'availability' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
@@ -300,9 +299,8 @@ export class PersonListComponent {
     this.loadPersons();
   }
 
-  onPersonClick(id: string) {
-    this.router.navigate(['/persons', id]);
-  }
+  /** Row route for the data table: real anchors, so a row opens in a new tab. */
+  readonly personLink = (person: Person) => ['/persons', person.id];
 
   onSyncClick() {
     this.router.navigate(['/persons/sync-start']);
@@ -441,12 +439,12 @@ export class PersonListComponent {
       case 'alias': return person.alias || '—';
       case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
       case 'attendedCount': return String(person.attendedCount ?? 0);
-      case 'availability': return getAvailabilityLabel(person.availability);
       case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
       case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
       case 'isActive': return person.isActive ? 'Actiu' : 'Inactiu';
       case 'isMember': return person.isMember ? 'Sí' : 'No';
       case 'isXicalla': return person.isXicalla ? 'Sí' : 'No';
+      case 'phone': return formatPhone(person.phone) ?? '—';
       case 'birthDate': return person.birthDate ? formatDate(person.birthDate) : '—';
       case 'shirtDate': return person.shirtDate ? formatDate(person.shirtDate) : '—';
       case 'createdAt': return formatDate(person.createdAt);
@@ -461,16 +459,18 @@ export class PersonListComponent {
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
       ...(col.key === 'positions' && {
-        // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag
-        // (no `id`, so onColorBadgeClick's `badge.id` guard naturally leaves it non-clickable),
-        // flagged with a warning icon/color instead of a real tag color.
+        // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag,
+        // flagged with a warning icon/color instead of a real tag color. It carries the
+        // NO_TAG_RULE_OPTION pseudo-id so it is clickable, and onColorBadgeClick routes it to the
+        // tag-rule filter instead of `togglePosition`.
         colorBadges: (person: Person) => [
           ...person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
           ...(person.tagCompliance && !person.tagCompliance.ok
-            ? [{ text: 'Falten etiquetes', color: SEMANTIC.warning, icon: 'AlertTriangle', title: this.missingTagsLabel(person.tagCompliance) }]
+            ? [{ text: 'Falten etiquetes', id: this.NO_TAG_RULE_OPTION, color: SEMANTIC.warning, icon: 'AlertTriangle', title: this.missingTagsLabel(person.tagCompliance) }]
             : []),
         ],
-        onColorBadgeClick: (id: string) => this.togglePosition(id),
+        onColorBadgeClick: (id: string) =>
+          id === this.NO_TAG_RULE_OPTION ? this.toggleTagRuleFilter() : this.togglePosition(id),
       }),
     }))
   );

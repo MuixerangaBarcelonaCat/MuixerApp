@@ -24,6 +24,9 @@ import {
   EventType,
   EventAttendanceStats,
   computeInstanceDisplayNames,
+  conflictRelevantPlacements,
+  areaForZone,
+  FigureZone,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -224,7 +227,25 @@ export class MeService {
       ]),
     );
 
+    const assignmentsBySegment = new Map<string, typeof assignments>();
     for (const assignment of assignments) {
+      const list = assignmentsBySegment.get(assignment.segment.id) ?? [];
+      list.push(assignment);
+      assignmentsBySegment.set(assignment.segment.id, list);
+    }
+
+    // Same rule as the conflict engines (D13): a `direccio-pinya` placement is excused by a pinya
+    // node of the same figure, so it is not listed — otherwise the PWA would flag a member as
+    // being in two places at once.
+    const relevantAssignments = [...assignmentsBySegment.values()].flatMap((segmentAssignments) =>
+      conflictRelevantPlacements(segmentAssignments, (a) => ({
+        positionType: a.instanceNode.positionType ?? null,
+        area: areaForZone(a.instanceNode.zone as FigureZone) as string,
+        instanceId: a.figureInstance.id,
+      })),
+    );
+
+    for (const assignment of relevantAssignments) {
       const segmentId = assignment.segment.id;
       const instance = assignment.figureInstance;
       const node = assignment.instanceNode;

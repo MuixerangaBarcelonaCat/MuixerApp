@@ -256,9 +256,10 @@ POST /auth/invite/register          →     AuthController.registerViaInvite()
                                     ←     Set-Cookie + { accessToken, user }
 ```
 
-El formulari de registre és `PersonRegistrationDataDto` (nom, cognoms, gènere, telèfon E.164
-validat amb `libphonenumber-js`, data de naixement) + `email`/`password`/`legalAccepted` —
-compartit amb el flux de dependents (§7) via el mateix DTO base.
+El formulari de registre és `PersonRegistrationDataDto` (nom, cognoms, gènere, data de naixement)
++ `phone` (E.164 validat amb `libphonenumber-js`), `email`/`password`/`legalAccepted`. El DTO base
+es comparteix amb el flux de dependents (§7), però el telèfon només l'afegeix `RegisterViaInviteDto`:
+la xicalla no en té i queda a `null`.
 
 **Tots** els camps que el context retorna arriben prellenats (nom, cognoms, gènere, telèfon
 partit en país + número via `splitPhoneNumber`, data de naixement) i són editables: l'usuari
@@ -456,7 +457,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 |--------|----------------|
 | `modules/user/user.service.ts` | `createOrRefreshInviteLink(personId)` — crea/reutilitza `User`, genera i (re)hasheja el token |
 | `modules/user/user.service.ts` | `createRecoveryLink(personId, actorUserId)` — **comentat**: enllaç de contrasenya nova per a un compte ja actiu (§8.1) |
-| `modules/person/dto/person-registration-data.dto.ts` | DTO base compartit (registre propi i dependents): nom, cognoms, gènere, telèfon (`IsValidPhoneNumber`), data naixement |
+| `modules/person/dto/person-registration-data.dto.ts` | DTO base compartit (registre propi i dependents): nom, cognoms, gènere, data naixement (el telèfon és només a `RegisterViaInviteDto`) |
 | `modules/person-delegate/person-delegate.service.ts` | `findProvisionalPrimaryDependents(userId)` — dependents provisionals on l'usuari és delegat primari |
 | `modules/me/me.service.ts` | `getPendingDependents` / `completePendingDependent` (`GET`/`POST /me/pending-dependents`) |
 | `common/validators/is-valid-phone-number.decorator.ts` | `@IsValidPhoneNumber()` — backed by `libphonenumber-js` |

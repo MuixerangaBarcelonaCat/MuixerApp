@@ -2057,4 +2057,21 @@ describe('TroncViewComponent', () => {
       expect(component.gridTemplateColumns()).toBe('repeat(4, minmax(2.5rem, 1fr)) 2.5rem');
     });
   });
+
+  describe('observation emoji size', () => {
+    it('renders the emoji at a fixed size with a black outline', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.componentRef.setInput('personDetailsMap', new Map([
+        ['person-node-1', { positions: [], isXicalla: false, notes: 'Lesió', notesEmoji: '🤕' }],
+      ]));
+      fixture.detectChanges();
+
+      const emoji = Array.from(fixture.nativeElement.querySelectorAll('span'))
+        .find((el) => (el as HTMLElement).textContent?.trim() === '🤕') as HTMLElement;
+      expect(emoji).toBeTruthy();
+      expect(emoji.style.fontSize).toBe('1rem');
+      expect(emoji.style.textShadow).toContain('#000');
+    });
+  });
 });
