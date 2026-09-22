@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { DatePipe } from '@angular/common';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -85,6 +86,83 @@ describe('NotificationScheduleListComponent', () => {
     await setup();
     expect(component.targetSummary({ type: NotificationTargetType.ALL })).toBe('Tothom');
     expect(component.targetSummary({ type: NotificationTargetType.PERSON, personIds: ['p1', 'p2'] })).toBe('2 persones');
+  });
+
+  describe('ruleSummary', () => {
+    it('formats a ONE_OFF ruleConfig as a date/time', async () => {
+      await setup();
+      const expected = new DatePipe('en-US').transform('2026-06-01T18:00:00.000Z', 'dd/MM/yyyy HH:mm');
+      expect(component.ruleSummary(mockEntry())).toBe(expected);
+    });
+
+    it('formats a WEEKLY ruleConfig as "Cada <day> a les <time>"', async () => {
+      await setup();
+      const weekly = mockEntry({
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+      expect(component.ruleSummary(weekly)).toBe('Cada Dilluns a les 18:00');
+    });
+
+    it('uses Diumenge for dayOfWeek 0', async () => {
+      await setup();
+      const weekly = mockEntry({
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 0, timeOfDay: '09:00' },
+      });
+      expect(component.ruleSummary(weekly)).toBe('Cada Diumenge a les 09:00');
+    });
+
+    const formatDate = (value: string) => new DatePipe('en-US').transform(value, 'dd/MM/yyyy');
+
+    it('appends "des del <date>" when only startDate is set', async () => {
+      await setup();
+      const weekly = mockEntry({
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01' },
+      });
+      expect(component.ruleSummary(weekly)).toBe(`Cada Dilluns a les 18:00 (des del ${formatDate('2026-06-01')})`);
+    });
+
+    it('appends "fins al <date>" when only endDate is set', async () => {
+      await setup();
+      const weekly = mockEntry({
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00', endDate: '2026-12-31' },
+      });
+      expect(component.ruleSummary(weekly)).toBe(`Cada Dilluns a les 18:00 (fins al ${formatDate('2026-12-31')})`);
+    });
+
+    it('appends both bounds when startDate and endDate are set', async () => {
+      await setup();
+      const weekly = mockEntry({
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-12-31' },
+      });
+      expect(component.ruleSummary(weekly)).toBe(
+        `Cada Dilluns a les 18:00 (des del ${formatDate('2026-06-01')} fins al ${formatDate('2026-12-31')})`,
+      );
+    });
+  });
+
+  describe('statusLabel', () => {
+    it('returns Inactiva for an inactive schedule regardless of type', async () => {
+      await setup();
+      expect(component.statusLabel(mockEntry({ isActive: false }))).toBe('Inactiva');
+      expect(
+        component.statusLabel(mockEntry({ isActive: false, scheduleType: NotificationScheduleType.WEEKLY })),
+      ).toBe('Inactiva');
+    });
+
+    it('returns Pendent for an active ONE_OFF schedule', async () => {
+      await setup();
+      expect(component.statusLabel(mockEntry())).toBe('Pendent');
+    });
+
+    it('returns Activa for an active WEEKLY schedule', async () => {
+      await setup();
+      expect(component.statusLabel(mockEntry({ scheduleType: NotificationScheduleType.WEEKLY }))).toBe('Activa');
+    });
   });
 
   it('shows an edit link for a pending schedule', async () => {

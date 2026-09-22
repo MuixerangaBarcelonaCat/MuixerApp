@@ -290,6 +290,140 @@ describe('NotificationSendComponent (schedule mode)', () => {
     component.reset();
     expect(component.scheduledFor()).toBe('');
   });
+
+  it('defaults to ONE_OFF scheduleKind', () => {
+    expect(component.scheduleKind()).toBe(NotificationScheduleType.ONE_OFF);
+  });
+
+  describe('WEEKLY', () => {
+    beforeEach(() => {
+      component.scheduleKind.set(NotificationScheduleType.WEEKLY);
+    });
+
+    it('is invalid without both a day of week and a time of day', () => {
+      component.title.set('T');
+      component.body.set('B');
+      expect(component.isFormValid()).toBe(false);
+      component.weeklyDayOfWeek.set(1);
+      expect(component.isFormValid()).toBe(false);
+      component.weeklyTimeOfDay.set('18:00');
+      expect(component.isFormValid()).toBe(true);
+    });
+
+    it('accepts dayOfWeek 0 (Sunday) as valid, not falsy-missing', () => {
+      component.title.set('T');
+      component.body.set('B');
+      component.weeklyDayOfWeek.set(0);
+      component.weeklyTimeOfDay.set('09:00');
+      expect(component.isFormValid()).toBe(true);
+    });
+
+    it('creates a WEEKLY schedule with dayOfWeek/timeOfDay instead of oneOff', () => {
+      component.title.set('Assaig');
+      component.body.set('Cada dilluns');
+      component.weeklyDayOfWeek.set(1);
+      component.weeklyTimeOfDay.set('18:00');
+      component.send();
+
+      expect(notificationService.createSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduleType: NotificationScheduleType.WEEKLY,
+          weekly: { dayOfWeek: 1, timeOfDay: '18:00' },
+        }),
+      );
+      expect(notificationService.createSchedule.mock.calls[0][0].oneOff).toBeUndefined();
+    });
+
+    it('lists the day-of-week options Monday-first, with Sunday last', () => {
+      fixture.detectChanges();
+      const options = Array.from(
+        fixture.nativeElement.querySelectorAll('select[name="weeklyDayOfWeek"] option'),
+      ) as HTMLOptionElement[];
+      const labels = options.map((o) => o.textContent?.trim());
+      expect(labels).toEqual([
+        'Seleccioneu un dia...',
+        'Dilluns',
+        'Dimarts',
+        'Dimecres',
+        'Dijous',
+        'Divendres',
+        'Dissabte',
+        'Diumenge',
+      ]);
+    });
+
+    describe('startDate/endDate', () => {
+      it('is valid with no startDate/endDate (unbounded)', () => {
+        component.title.set('T');
+        component.body.set('B');
+        component.weeklyDayOfWeek.set(1);
+        component.weeklyTimeOfDay.set('18:00');
+        expect(component.isFormValid()).toBe(true);
+      });
+
+      it('is invalid when endDate is before startDate', () => {
+        component.title.set('T');
+        component.body.set('B');
+        component.weeklyDayOfWeek.set(1);
+        component.weeklyTimeOfDay.set('18:00');
+        component.weeklyStartDate.set('2026-12-31');
+        component.weeklyEndDate.set('2026-06-01');
+        expect(component.isFormValid()).toBe(false);
+      });
+
+      it('is valid when endDate equals startDate', () => {
+        component.title.set('T');
+        component.body.set('B');
+        component.weeklyDayOfWeek.set(1);
+        component.weeklyTimeOfDay.set('18:00');
+        component.weeklyStartDate.set('2026-06-01');
+        component.weeklyEndDate.set('2026-06-01');
+        expect(component.isFormValid()).toBe(true);
+      });
+
+      it('sends startDate/endDate when set', () => {
+        component.title.set('Assaig');
+        component.body.set('Cada dilluns');
+        component.weeklyDayOfWeek.set(1);
+        component.weeklyTimeOfDay.set('18:00');
+        component.weeklyStartDate.set('2026-06-01');
+        component.weeklyEndDate.set('2026-12-31');
+        component.send();
+
+        expect(notificationService.createSchedule).toHaveBeenCalledWith(
+          expect.objectContaining({
+            weekly: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-12-31' },
+          }),
+        );
+      });
+
+      it('omits startDate/endDate from the payload when not set', () => {
+        component.title.set('Assaig');
+        component.body.set('Cada dilluns');
+        component.weeklyDayOfWeek.set(1);
+        component.weeklyTimeOfDay.set('18:00');
+        component.send();
+
+        expect(notificationService.createSchedule).toHaveBeenCalledWith(
+          expect.objectContaining({ weekly: { dayOfWeek: 1, timeOfDay: '18:00' } }),
+        );
+      });
+    });
+  });
+
+  it('resets scheduleKind and weekly fields back to defaults', () => {
+    component.scheduleKind.set(NotificationScheduleType.WEEKLY);
+    component.weeklyDayOfWeek.set(3);
+    component.weeklyTimeOfDay.set('12:00');
+    component.weeklyStartDate.set('2026-06-01');
+    component.weeklyEndDate.set('2026-12-31');
+    component.reset();
+    expect(component.scheduleKind()).toBe(NotificationScheduleType.ONE_OFF);
+    expect(component.weeklyStartDate()).toBe('');
+    expect(component.weeklyEndDate()).toBe('');
+    expect(component.weeklyDayOfWeek()).toBeNull();
+    expect(component.weeklyTimeOfDay()).toBe('');
+  });
 });
 
 describe('NotificationSendComponent (edit mode)', () => {
@@ -403,5 +537,56 @@ describe('NotificationSendComponent (edit mode)', () => {
   it('navigates back to the schedule list on cancelEdit', () => {
     component.cancelEdit();
     expect(router.navigate).toHaveBeenCalledWith(['/communication/notifications/schedules']);
+  });
+});
+
+describe('NotificationSendComponent (edit mode, WEEKLY)', () => {
+  it('prefills scheduleKind and the day-of-week/time-of-day fields', async () => {
+    const weeklySchedule = {
+      id: 'schedule-2',
+      title: 'Recordatori',
+      body: 'Cada dilluns',
+      linkedEvent: undefined,
+      linkTo: NotificationLinkType.HOME,
+      url: null,
+      target: { type: NotificationTargetType.ALL },
+      scheduleType: NotificationScheduleType.WEEKLY,
+      ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-12-31' },
+      isActive: true,
+      createdByUserId: 'user-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const notificationService = {
+      send: vi.fn().mockReturnValue(of({ accepted: true })),
+      createSchedule: vi.fn().mockReturnValue(of({ id: 'schedule-2' })),
+      getSchedule: vi.fn().mockReturnValue(of(weeklySchedule)),
+      updateSchedule: vi.fn().mockReturnValue(of(weeklySchedule)),
+    };
+    const eventService = { getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 200 } })) };
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [NotificationSendComponent],
+      providers: [
+        { provide: NotificationService, useValue: notificationService },
+        { provide: EventService, useValue: eventService },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'schedule-2' }, data: { mode: 'schedule' } } },
+        },
+        allLucideIconsProvider,
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(NotificationSendComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    expect(component.scheduleKind()).toBe(NotificationScheduleType.WEEKLY);
+    expect(component.weeklyDayOfWeek()).toBe(1);
+    expect(component.weeklyTimeOfDay()).toBe('18:00');
+    expect(component.weeklyStartDate()).toBe('2026-06-01');
+    expect(component.weeklyEndDate()).toBe('2026-12-31');
   });
 });

@@ -81,6 +81,81 @@ describe('NotificationScheduleService', () => {
       ).rejects.toThrow(BadRequestException);
       expect(repo.save).not.toHaveBeenCalled();
     });
+
+    it('persists a WEEKLY schedule with its dayOfWeek/timeOfDay ruleConfig', async () => {
+      await service.create(
+        makeCreateDto({ scheduleType: NotificationScheduleType.WEEKLY, oneOff: undefined, weekly: { dayOfWeek: 1, timeOfDay: '18:00' } }),
+        'user-1',
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduleType: NotificationScheduleType.WEEKLY,
+          ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+        }),
+      );
+    });
+
+    it('persists startDate/endDate when given on a WEEKLY schedule', async () => {
+      await service.create(
+        makeCreateDto({
+          scheduleType: NotificationScheduleType.WEEKLY,
+          oneOff: undefined,
+          weekly: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-12-31' },
+        }),
+        'user-1',
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-12-31' },
+        }),
+      );
+    });
+
+    it('omits startDate/endDate from ruleConfig when not given', async () => {
+      await service.create(
+        makeCreateDto({ scheduleType: NotificationScheduleType.WEEKLY, oneOff: undefined, weekly: { dayOfWeek: 1, timeOfDay: '18:00' } }),
+        'user-1',
+      );
+
+      const savedArg = repo.save.mock.calls[0][0];
+      expect(savedArg.ruleConfig).toEqual({ dayOfWeek: 1, timeOfDay: '18:00' });
+    });
+
+    it('rejects a WEEKLY schedule whose endDate is before its startDate', async () => {
+      await expect(
+        service.create(
+          makeCreateDto({
+            scheduleType: NotificationScheduleType.WEEKLY,
+            oneOff: undefined,
+            weekly: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-12-31', endDate: '2026-06-01' },
+          }),
+          'user-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('accepts a WEEKLY schedule whose endDate equals its startDate', async () => {
+      await service.create(
+        makeCreateDto({
+          scheduleType: NotificationScheduleType.WEEKLY,
+          oneOff: undefined,
+          weekly: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-06-01' },
+        }),
+        'user-1',
+      );
+
+      expect(repo.save).toHaveBeenCalled();
+    });
+
+    it('rejects a WEEKLY schedule without a weekly config', async () => {
+      await expect(
+        service.create(makeCreateDto({ scheduleType: NotificationScheduleType.WEEKLY, oneOff: undefined }), 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
@@ -143,7 +218,7 @@ describe('NotificationScheduleService', () => {
     });
 
     it('rejects a new scheduledFor in the past', async () => {
-      repo.findOneBy.mockResolvedValue({ id: 'schedule-1', isActive: true });
+      repo.findOneBy.mockResolvedValue({ id: 'schedule-1', isActive: true, scheduleType: NotificationScheduleType.ONE_OFF });
 
       await expect(
         service.update(
@@ -166,6 +241,171 @@ describe('NotificationScheduleService', () => {
       await expect(service.update('schedule-1', new UpdateNotificationScheduleDto())).rejects.toThrow(
         BadRequestException,
       );
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('updates the ruleConfig when a new weekly config is given', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await service.update(
+        'schedule-1',
+        Object.assign(new UpdateNotificationScheduleDto(), { weekly: { dayOfWeek: 2, timeOfDay: '09:00' } }),
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ ruleConfig: { dayOfWeek: 2, timeOfDay: '09:00' } }),
+      );
+    });
+
+    it('updates startDate/endDate when given on a WEEKLY schedule', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await service.update(
+        'schedule-1',
+        Object.assign(new UpdateNotificationScheduleDto(), {
+          weekly: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-12-31' },
+        }),
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-06-01', endDate: '2026-12-31' },
+        }),
+      );
+    });
+
+    it('rejects updating a WEEKLY schedule with an endDate before its startDate', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), {
+            weekly: { dayOfWeek: 1, timeOfDay: '18:00', startDate: '2026-12-31', endDate: '2026-06-01' },
+          }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a weekly config for a ONE_OFF schedule', async () => {
+      repo.findOneBy.mockResolvedValue({ id: 'schedule-1', isActive: true, scheduleType: NotificationScheduleType.ONE_OFF });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), { weekly: { dayOfWeek: 2, timeOfDay: '09:00' } }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a oneOff config for a WEEKLY schedule', async () => {
+      repo.findOneBy.mockResolvedValue({ id: 'schedule-1', isActive: true, scheduleType: NotificationScheduleType.WEEKLY });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), { oneOff: { scheduledFor: '2026-07-01T18:00:00.000Z' } }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('allows switching a WEEKLY schedule to ONE_OFF when scheduleType and oneOff are both given', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await service.update(
+        'schedule-1',
+        Object.assign(new UpdateNotificationScheduleDto(), {
+          scheduleType: NotificationScheduleType.ONE_OFF,
+          oneOff: { scheduledFor: '2026-07-01T18:00:00.000Z' },
+        }),
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduleType: NotificationScheduleType.ONE_OFF,
+          ruleConfig: { scheduledFor: '2026-07-01T18:00:00.000Z' },
+        }),
+      );
+    });
+
+    it('allows switching a ONE_OFF schedule to WEEKLY when scheduleType and weekly are both given', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.ONE_OFF,
+        ruleConfig: { scheduledFor: '2026-06-01T18:00:00.000Z' },
+      });
+
+      await service.update(
+        'schedule-1',
+        Object.assign(new UpdateNotificationScheduleDto(), {
+          scheduleType: NotificationScheduleType.WEEKLY,
+          weekly: { dayOfWeek: 3, timeOfDay: '09:00' },
+        }),
+      );
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduleType: NotificationScheduleType.WEEKLY,
+          ruleConfig: { dayOfWeek: 3, timeOfDay: '09:00' },
+        }),
+      );
+    });
+
+    it('rejects switching to ONE_OFF without also giving oneOff', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.WEEKLY,
+        ruleConfig: { dayOfWeek: 1, timeOfDay: '18:00' },
+      });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), { scheduleType: NotificationScheduleType.ONE_OFF }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects switching to WEEKLY without also giving weekly', async () => {
+      repo.findOneBy.mockResolvedValue({
+        id: 'schedule-1',
+        isActive: true,
+        scheduleType: NotificationScheduleType.ONE_OFF,
+        ruleConfig: { scheduledFor: '2026-06-01T18:00:00.000Z' },
+      });
+
+      await expect(
+        service.update(
+          'schedule-1',
+          Object.assign(new UpdateNotificationScheduleDto(), { scheduleType: NotificationScheduleType.WEEKLY }),
+        ),
+      ).rejects.toThrow(BadRequestException);
       expect(repo.save).not.toHaveBeenCalled();
     });
   });
@@ -221,7 +461,7 @@ describe('NotificationScheduleService', () => {
   });
 
   describe('processSchedule', () => {
-    it('marks the schedule inactive and dispatches through PushNotificationService with the given source', async () => {
+    it('marks a ONE_OFF schedule inactive and dispatches through PushNotificationService with the given source', async () => {
       const schedule = {
         id: 'schedule-2',
         title: 'Actuació',
@@ -230,6 +470,7 @@ describe('NotificationScheduleService', () => {
         linkTo: NotificationLinkType.HOME,
         url: null,
         target: { type: NotificationTargetType.ALL },
+        scheduleType: NotificationScheduleType.ONE_OFF,
         createdByUserId: 'user-2',
       } as NotificationSchedule;
 
@@ -241,6 +482,28 @@ describe('NotificationScheduleService', () => {
         { source: NotificationSource.SCHEDULED_ONE_OFF, scheduleId: 'schedule-2', triggeredByUserId: 'user-2' },
       );
       expect(result).toEqual({ accepted: true });
+    });
+
+    it('leaves a WEEKLY schedule active — it recurs, so it must not be deactivated after firing', async () => {
+      const schedule = {
+        id: 'schedule-3',
+        title: 'Recordatori setmanal',
+        body: 'Cada dilluns',
+        linkedEvent: null,
+        linkTo: NotificationLinkType.HOME,
+        url: null,
+        target: { type: NotificationTargetType.ALL },
+        scheduleType: NotificationScheduleType.WEEKLY,
+        createdByUserId: 'user-2',
+      } as NotificationSchedule;
+
+      await service.processSchedule(schedule, NotificationSource.SCHEDULED_WEEKLY);
+
+      expect(repo.update).not.toHaveBeenCalled();
+      expect(notificationService.send).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Recordatori setmanal' }),
+        { source: NotificationSource.SCHEDULED_WEEKLY, scheduleId: 'schedule-3', triggeredByUserId: 'user-2' },
+      );
     });
   });
 });

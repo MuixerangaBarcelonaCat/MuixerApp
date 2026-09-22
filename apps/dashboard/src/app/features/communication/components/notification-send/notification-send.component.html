@@ -9,7 +9,7 @@
 <p class="text-sm text-base-content/50 mb-6">
   {{ isEditMode()
     ? 'Edita els detalls de la notificació programada'
-    : (isSchedule() ? 'Programa una notificació perquè s\'enviï més endavant' : 'Envia una notificació als membres') }}
+    : (isSchedule() ? 'Programa una notificació perquè s\'envie més endavant' : 'Envia una notificació als membres') }}
 </p>
 
 <div class="flex flex-col gap-6">
@@ -95,20 +95,91 @@
         <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-3">
           <legend class="fieldset-legend text-sm font-semibold">Programació</legend>
 
-          <div class="join">
-            <button type="button" class="btn btn-sm join-item btn-active" disabled>Puntual</button>
+          <div role="group" aria-label="Tipus de programació">
+            <lib-button-group>
+              <lib-button
+                joinItem
+                outlineMode
+                size="sm"
+                [active]="scheduleKind() === ScheduleType.ONE_OFF"
+                (clicked)="scheduleKind.set(ScheduleType.ONE_OFF)"
+              >
+                <lucide-icon name="Clock" [size]="14" />
+                Puntual
+              </lib-button>
+              <lib-button
+                joinItem
+                outlineMode
+                size="sm"
+                [active]="scheduleKind() === ScheduleType.WEEKLY"
+                (clicked)="scheduleKind.set(ScheduleType.WEEKLY)"
+              >
+                <lucide-icon name="RotateCw" [size]="14" />
+                Setmanal
+              </lib-button>
+            </lib-button-group>
           </div>
 
-          <lib-form-field label="Data i hora d'enviament">
-            <input
-              type="datetime-local"
-              class="input input-bordered w-full"
-              [ngModel]="scheduledFor()"
-              (ngModelChange)="scheduledFor.set($event)"
-              name="scheduledFor"
-              required
-            />
-          </lib-form-field>
+          @if (scheduleKind() === ScheduleType.WEEKLY) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <lib-form-field label="Dia de la setmana">
+                <select
+                  class="select select-bordered w-full"
+                  [ngModel]="weeklyDayOfWeek()"
+                  (ngModelChange)="weeklyDayOfWeek.set($event)"
+                  name="weeklyDayOfWeek"
+                  required
+                >
+                  <option [ngValue]="null">Seleccioneu un dia...</option>
+                  @for (day of weekdayDisplayOrder; track day) {
+                    <option [ngValue]="day">{{ weekdayNames[day] }}</option>
+                  }
+                </select>
+              </lib-form-field>
+
+              <lib-form-field label="Hora d'enviament">
+                <input
+                  type="time"
+                  class="input input-bordered w-full"
+                  [ngModel]="weeklyTimeOfDay()"
+                  (ngModelChange)="weeklyTimeOfDay.set($event)"
+                  name="weeklyTimeOfDay"
+                  required
+                />
+              </lib-form-field>
+
+              <lib-form-field label="Data d'inici (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="weeklyStartDate()"
+                  (ngModelChange)="weeklyStartDate.set($event)"
+                  name="weeklyStartDate"
+                />
+              </lib-form-field>
+
+              <lib-form-field label="Data de fi (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="weeklyEndDate()"
+                  (ngModelChange)="weeklyEndDate.set($event)"
+                  name="weeklyEndDate"
+                />
+              </lib-form-field>
+            </div>
+          } @else {
+            <lib-form-field label="Data i hora d'enviament">
+              <input
+                type="datetime-local"
+                class="input input-bordered w-full"
+                [ngModel]="scheduledFor()"
+                (ngModelChange)="scheduledFor.set($event)"
+                name="scheduledFor"
+                required
+              />
+            </lib-form-field>
+          }
         </fieldset>
       }
 

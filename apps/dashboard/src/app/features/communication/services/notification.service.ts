@@ -50,6 +50,7 @@ export interface NotificationHistoryFilter {
 export interface NotificationSchedulePayload extends SendNotificationPayload {
   scheduleType: NotificationScheduleType;
   oneOff?: { scheduledFor: string };
+  weekly?: { dayOfWeek: number; timeOfDay: string; startDate?: string; endDate?: string };
 }
 
 export interface NotificationScheduleFilter {

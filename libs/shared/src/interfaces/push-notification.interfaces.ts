@@ -54,12 +54,22 @@ export interface EventReference {
   eventId?: string;
 }
 
-/** Only `scheduledFor` exists today; `WEEKLY`/`BEFORE_EVENT` will add their own shapes when built. */
 export interface OneOffScheduleConfig {
   scheduledFor: string;
 }
 
-export type NotificationScheduleRuleConfig = OneOffScheduleConfig;
+/** `dayOfWeek`: 0 (Sunday) .. 6 (Saturday), matching JS `Date.getDay()`. `timeOfDay`: `HH:mm`, both evaluated in Europe/Madrid.
+ *  `startDate`/`endDate` (`YYYY-MM-DD`, inclusive, Europe/Madrid): optional active window — outside
+ *  it, the schedule is skipped even though `isActive` stays true (it's still a live recurring rule). */
+export interface WeeklyScheduleConfig {
+  dayOfWeek: number;
+  timeOfDay: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+/** `BEFORE_EVENT` will add its own shape when built. */
+export type NotificationScheduleRuleConfig = OneOffScheduleConfig | WeeklyScheduleConfig;
 
 export interface NotificationScheduleEntry {
   id: string;

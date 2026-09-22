@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { EventReferenceKind, NotificationLinkType, NotificationScheduleType, NotificationTargetType } from '@muixer/shared';
-import { AlertComponent, ButtonComponent, FormFieldComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, ButtonGroupComponent, FormFieldComponent } from '@muixer/ui';
 import {
   EventReferenceValue,
   NotificationLinkValue,
@@ -23,6 +23,7 @@ import {
 import { EventService } from '../../../events/services/event.service';
 import { EventListItem } from '../../../events/models/event.model';
 import { toDatetimeLocalValue } from '../../../../shared/utils';
+import { WEEKDAY_NAMES, WEEKDAY_DISPLAY_ORDER } from '../../utils/weekday-names';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { NotificationEventPickerComponent } from '../notification-event-picker/notification-event-picker.component';
 import { NotificationLinkPickerComponent } from '../notification-link-picker/notification-link-picker.component';
@@ -44,6 +45,7 @@ type NotificationSendMode = 'send' | 'schedule';
     NotificationTargetPickerComponent,
     AlertComponent,
     ButtonComponent,
+    ButtonGroupComponent,
     FormFieldComponent,
   ],
   templateUrl: './notification-send.component.html',
@@ -55,6 +57,8 @@ export class NotificationSendComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly ScheduleType = NotificationScheduleType;
+  readonly weekdayNames = WEEKDAY_NAMES;
+  readonly weekdayDisplayOrder = WEEKDAY_DISPLAY_ORDER;
 
   /** Set via route `data.mode` — `/communication/notifications` (send) and
    *  `/communication/notifications/schedules/new` (schedule) render this same component. */
@@ -71,6 +75,14 @@ export class NotificationSendComponent implements OnInit {
   target = signal<NotificationTargetValue>({ type: NotificationTargetType.ALL });
   /** `datetime-local` input value (local time, no timezone) — only used when mode() === 'schedule'. */
   scheduledFor = signal('');
+  /** Which recurrence shape the "Programació" section shows — only used when mode() === 'schedule'. */
+  scheduleKind = signal<NotificationScheduleType>(NotificationScheduleType.ONE_OFF);
+  /** 0 (Sunday) .. 6 (Saturday) — only used when scheduleKind() === WEEKLY. */
+  weeklyDayOfWeek = signal<number | null>(null);
+  weeklyTimeOfDay = signal('');
+  /** Optional active window (`type="date"` values) — empty means unbounded. */
+  weeklyStartDate = signal('');
+  weeklyEndDate = signal('');
   events = signal<EventListItem[]>([]);
   state = signal<SendState>('idle');
   errorMessage = signal('');
@@ -101,7 +113,16 @@ export class NotificationSendComponent implements OnInit {
     if (target.type === NotificationTargetType.EVENT_ATTENDANCE && !target.attendanceFilter) return false;
     if (target.type === NotificationTargetType.PERSON && !target.personIds?.length) return false;
 
-    if (this.isSchedule() && !this.scheduledFor()) return false;
+    if (this.isSchedule()) {
+      if (this.scheduleKind() === NotificationScheduleType.WEEKLY) {
+        if (this.weeklyDayOfWeek() === null || !this.weeklyTimeOfDay()) return false;
+        const start = this.weeklyStartDate();
+        const end = this.weeklyEndDate();
+        if (start && end && end < start) return false;
+      } else if (!this.scheduledFor()) {
+        return false;
+      }
+    }
 
     return true;
   });
@@ -135,8 +156,14 @@ export class NotificationSendComponent implements OnInit {
           this.linkedEvent.set(schedule.linkedEvent ?? undefined);
           this.link.set({ type: schedule.linkTo, url: schedule.url ?? undefined });
           this.target.set(schedule.target);
+          this.scheduleKind.set(schedule.scheduleType);
           if ('scheduledFor' in schedule.ruleConfig) {
             this.scheduledFor.set(toDatetimeLocalValue(schedule.ruleConfig.scheduledFor));
+          } else if ('dayOfWeek' in schedule.ruleConfig) {
+            this.weeklyDayOfWeek.set(schedule.ruleConfig.dayOfWeek);
+            this.weeklyTimeOfDay.set(schedule.ruleConfig.timeOfDay);
+            this.weeklyStartDate.set(schedule.ruleConfig.startDate ?? '');
+            this.weeklyEndDate.set(schedule.ruleConfig.endDate ?? '');
           }
         },
         error: () => {
@@ -169,10 +196,20 @@ export class NotificationSendComponent implements OnInit {
 
     const editId = this.scheduleId();
     if (this.isSchedule() || editId) {
+      const scheduleKind = this.scheduleKind();
       const payload: NotificationSchedulePayload = {
         ...content,
-        scheduleType: NotificationScheduleType.ONE_OFF,
-        oneOff: { scheduledFor: new Date(this.scheduledFor()).toISOString() },
+        scheduleType: scheduleKind,
+        ...(scheduleKind === NotificationScheduleType.WEEKLY
+          ? {
+              weekly: {
+                dayOfWeek: this.weeklyDayOfWeek() as number,
+                timeOfDay: this.weeklyTimeOfDay(),
+                ...(this.weeklyStartDate() ? { startDate: this.weeklyStartDate() } : {}),
+                ...(this.weeklyEndDate() ? { endDate: this.weeklyEndDate() } : {}),
+              },
+            }
+          : { oneOff: { scheduledFor: new Date(this.scheduledFor()).toISOString() } }),
       };
       const request = editId
         ? this.notificationService.updateSchedule(editId, payload)
@@ -198,6 +235,11 @@ export class NotificationSendComponent implements OnInit {
     this.link.set({ type: NotificationLinkType.HOME });
     this.target.set({ type: NotificationTargetType.ALL });
     this.scheduledFor.set('');
+    this.scheduleKind.set(NotificationScheduleType.ONE_OFF);
+    this.weeklyDayOfWeek.set(null);
+    this.weeklyTimeOfDay.set('');
+    this.weeklyStartDate.set('');
+    this.weeklyEndDate.set('');
     this.state.set('idle');
     this.errorMessage.set('');
   }

@@ -1,9 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NotificationScheduleType, NotificationSource, PaginatedResponse } from '@muixer/shared';
+import {
+  NotificationScheduleRuleConfig,
+  NotificationScheduleType,
+  NotificationSource,
+  PaginatedResponse,
+  WeeklyScheduleConfig,
+} from '@muixer/shared';
 import { NotificationSchedule } from './entities/notification-schedule.entity';
-import { CreateNotificationScheduleDto } from './dto/create-notification-schedule.dto';
+import { CreateNotificationScheduleDto, WeeklyRuleConfigDto } from './dto/create-notification-schedule.dto';
 import { UpdateNotificationScheduleDto } from './dto/update-notification-schedule.dto';
 import { NotificationScheduleFilterDto } from './dto/notification-schedule-filter.dto';
 import { SendNotificationDto } from './dto/send-notification.dto';
@@ -18,12 +24,7 @@ export class NotificationScheduleService {
   ) {}
 
   async create(dto: CreateNotificationScheduleDto, userId: string): Promise<NotificationSchedule> {
-    // Guaranteed by CreateNotificationScheduleDto's validation (scheduleType is currently
-    // restricted to ONE_OFF, which requires oneOff) — narrows dto.oneOff for the rest of this method.
-    if (!dto.oneOff) {
-      throw new BadRequestException("Falta la configuració de programació ('oneOff')");
-    }
-    this.assertFutureDate(dto.oneOff.scheduledFor);
+    const ruleConfig = this.buildRuleConfigForCreate(dto);
 
     const schedule = this.repo.create({
       title: dto.title,
@@ -33,7 +34,7 @@ export class NotificationScheduleService {
       url: dto.url ?? null,
       target: dto.target,
       scheduleType: dto.scheduleType,
-      ruleConfig: { scheduledFor: dto.oneOff.scheduledFor },
+      ruleConfig,
       isActive: true,
       createdByUserId: userId,
     });
@@ -72,9 +73,34 @@ export class NotificationScheduleService {
     if (!schedule.isActive) {
       throw new BadRequestException('Aquesta notificació ja no està activa');
     }
+
+    // `dto.scheduleType` lets an edit switch ONE_OFF <-> WEEKLY, as long as the matching rule
+    // config comes with it — validate against this "effective" type, not the schedule's current
+    // (possibly about-to-change) one, or a legitimate type switch would look like a mismatch.
+    const effectiveType = dto.scheduleType ?? schedule.scheduleType;
+
     if (dto.oneOff) {
+      if (effectiveType !== NotificationScheduleType.ONE_OFF) {
+        throw new BadRequestException("'oneOff' només és vàlid per a notificacions puntuals");
+      }
       this.assertFutureDate(dto.oneOff.scheduledFor);
       schedule.ruleConfig = { scheduledFor: dto.oneOff.scheduledFor };
+    }
+    if (dto.weekly) {
+      if (effectiveType !== NotificationScheduleType.WEEKLY) {
+        throw new BadRequestException("'weekly' només és vàlid per a notificacions setmanals");
+      }
+      schedule.ruleConfig = this.buildWeeklyRuleConfig(dto.weekly);
+    }
+
+    if (dto.scheduleType !== undefined && dto.scheduleType !== schedule.scheduleType) {
+      if (dto.scheduleType === NotificationScheduleType.ONE_OFF && !dto.oneOff) {
+        throw new BadRequestException("Cal indicar 'oneOff' en canviar a notificació puntual");
+      }
+      if (dto.scheduleType === NotificationScheduleType.WEEKLY && !dto.weekly) {
+        throw new BadRequestException("Cal indicar 'weekly' en canviar a notificació setmanal");
+      }
+      schedule.scheduleType = dto.scheduleType;
     }
 
     if (dto.title !== undefined) schedule.title = dto.title;
@@ -123,7 +149,11 @@ export class NotificationScheduleService {
     schedule: NotificationSchedule,
     source: NotificationSource,
   ): Promise<{ accepted: boolean; warning?: string }> {
-    await this.repo.update(schedule.id, { isActive: false });
+    // ONE_OFF fires once, then deactivates. WEEKLY recurs — it stays active; the cron's own
+    // "already fired today" check (via NotificationLog) is what stops it firing twice in a day.
+    if (schedule.scheduleType === NotificationScheduleType.ONE_OFF) {
+      await this.repo.update(schedule.id, { isActive: false });
+    }
 
     const dto = Object.assign(new SendNotificationDto(), {
       title: schedule.title,
@@ -145,5 +175,33 @@ export class NotificationScheduleService {
     if (new Date(scheduledFor).getTime() <= Date.now()) {
       throw new BadRequestException('La data programada ha de ser al futur');
     }
+  }
+
+  private buildRuleConfigForCreate(dto: CreateNotificationScheduleDto): NotificationScheduleRuleConfig {
+    if (dto.scheduleType === NotificationScheduleType.WEEKLY) {
+      if (!dto.weekly) {
+        throw new BadRequestException("Falta la configuració de programació ('weekly')");
+      }
+      return this.buildWeeklyRuleConfig(dto.weekly);
+    }
+
+    // Guaranteed ONE_OFF by CreateNotificationScheduleDto's validation — narrows dto.oneOff.
+    if (!dto.oneOff) {
+      throw new BadRequestException("Falta la configuració de programació ('oneOff')");
+    }
+    this.assertFutureDate(dto.oneOff.scheduledFor);
+    return { scheduledFor: dto.oneOff.scheduledFor };
+  }
+
+  private buildWeeklyRuleConfig(weekly: WeeklyRuleConfigDto): WeeklyScheduleConfig {
+    if (weekly.startDate && weekly.endDate && weekly.endDate < weekly.startDate) {
+      throw new BadRequestException("'endDate' ha de ser posterior o igual a 'startDate'");
+    }
+    return {
+      dayOfWeek: weekly.dayOfWeek,
+      timeOfDay: weekly.timeOfDay,
+      ...(weekly.startDate ? { startDate: weekly.startDate } : {}),
+      ...(weekly.endDate ? { endDate: weekly.endDate } : {}),
+    };
   }
 }

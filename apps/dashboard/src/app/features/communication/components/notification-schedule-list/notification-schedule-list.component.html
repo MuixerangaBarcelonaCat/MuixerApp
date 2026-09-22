@@ -35,7 +35,7 @@
     <table class="table table-zebra w-full">
       <thead>
         <tr>
-          <th>Programada per</th>
+          <th>Programació</th>
           <th>Títol</th>
           <th>Destinataris</th>
           <th>Estat</th>
@@ -45,14 +45,14 @@
       <tbody>
         @for (item of items(); track item.id) {
           <tr>
-            <td class="text-base-content/60 text-sm whitespace-nowrap">{{ scheduledFor(item) | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="text-base-content/60 text-sm whitespace-nowrap">{{ ruleSummary(item) }}</td>
             <td class="font-medium">{{ item.title }}</td>
             <td>{{ targetSummary(item.target) }}</td>
             <td>
               @if (item.isActive) {
-                <lib-badge size="sm" color="#0284c7">Pendent</lib-badge>
+                <lib-badge size="sm" color="#0284c7">{{ statusLabel(item) }}</lib-badge>
               } @else {
-                <lib-badge size="sm">Inactiva</lib-badge>
+                <lib-badge size="sm">{{ statusLabel(item) }}</lib-badge>
               }
             </td>
             <td class="text-right">
@@ -88,7 +88,8 @@
 <lib-modal [open]="!!cancelTarget()" title="Cancel·la la notificació programada" size="sm" (closed)="closeCancel()">
   @if (cancelTarget(); as target) {
     <p class="text-sm">
-      Segur que voleu cancel·lar la notificació <strong>{{ target.title }}</strong>? No s'enviarà.
+      Segur que voleu cancel·lar la notificació <strong>{{ target.title }}</strong>?
+      {{ target.scheduleType === ScheduleType.WEEKLY ? 'Ja no es tornarà a enviar.' : 'No s\'enviarà.' }}
     </p>
   }
 
