@@ -455,6 +455,30 @@ export class NodeAssignmentService {
     return byInstance;
   }
 
+  /**
+   * Nodes + assignments of every figure instance in a segment in one call (~5 queries in
+   * total), so the Dashboard workspace hydrates with one request instead of two per figure.
+   */
+  async getSegmentAssignmentState(
+    eventId: string,
+    segmentId: string,
+  ): Promise<{ instanceId: string; nodes: InstanceNodeResponse[]; assignments: AssignmentDetail[] }[]> {
+    const instances = await this.figureInstanceRepository.find({
+      where: { segment: { id: segmentId, event: { id: eventId } } },
+      select: { id: true },
+    });
+    const ids = instances.map((i) => i.id);
+    const [nodes, assignments] = await Promise.all([
+      this.getNodesByInstances(ids),
+      this.getAssignmentsByInstances(ids),
+    ]);
+    return ids.map((instanceId) => ({
+      instanceId,
+      nodes: nodes.get(instanceId) ?? [],
+      assignments: assignments.get(instanceId) ?? [],
+    }));
+  }
+
   async getByInstance(instanceId: string): Promise<AssignmentDetail[]> {
     const instance = await this.figureInstanceRepository.findOne({ where: { id: instanceId } });
     if (!instance) {

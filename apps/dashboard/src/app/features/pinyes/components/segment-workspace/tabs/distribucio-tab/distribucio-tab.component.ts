@@ -2,6 +2,7 @@ import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent,
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   OnInit,
   ViewChild,
   computed,
@@ -52,6 +53,8 @@ export interface TroncViewPanel {
 }
 
 const INITIAL_ZOOM = 0.75;
+/** Quiet time before a properties-panel edit (keystroke, slider tick) is persisted. */
+const PANEL_SAVE_DEBOUNCE_MS = 400;
 
 /**
  * Distribució tab of the segment workspace: the distribution canvas (drag,
@@ -66,7 +69,7 @@ const INITIAL_ZOOM = 0.75;
   imports: [LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent, FigureModeChangeComponent, CordonsChangeComponent],
   templateUrl: './distribucio-tab.component.html',
 })
-export class DistribucioTabComponent implements OnInit {
+export class DistribucioTabComponent implements OnInit, OnDestroy {
   readonly ws = inject(SegmentWorkspaceStateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly distributionService = inject(SegmentDistributionService);
@@ -213,6 +216,11 @@ export class DistribucioTabComponent implements OnInit {
   }
 
   onSlotMoved(event: { slotId: string; offsetX: number; offsetY: number; angle: number }): void {
+    this.moveSlot(event);
+    this.save();
+  }
+
+  private moveSlot(event: { slotId: string; offsetX: number; offsetY: number; angle: number }): void {
     this.slots.update((current) =>
       current.map((s) =>
         s.slotId === event.slotId
@@ -220,7 +228,6 @@ export class DistribucioTabComponent implements OnInit {
           : s,
       ),
     );
-    this.save();
   }
 
   onTroncMoved(event: { slotId: string; troncPanelX: number | null; troncPanelY: number | null }): void {
@@ -246,23 +253,42 @@ export class DistribucioTabComponent implements OnInit {
     });
   }
 
+  // The properties panel emits per keystroke / slider tick: update the canvas at once, persist once
+  // the user pauses (a slider drag used to send one full-distribution PUT per degree).
   onOffsetXChanged(event: { id: string; value: number }): void {
-    this.onSlotMoved({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetX: event.value });
+    this.moveSlot({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetX: event.value });
+    this.scheduleSave();
   }
 
   onOffsetYChanged(event: { id: string; value: number }): void {
-    this.onSlotMoved({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetY: event.value });
+    this.moveSlot({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetY: event.value });
+    this.scheduleSave();
   }
 
   onAngleChanged(event: { id: string; value: number }): void {
-    this.onSlotMoved({ ...this.currentSlotTransform(event.id), slotId: event.id, angle: event.value });
+    this.moveSlot({ ...this.currentSlotTransform(event.id), slotId: event.id, angle: event.value });
+    this.scheduleSave();
   }
 
   onLabelChanged(event: { id: string; value: string | null }): void {
     this.slots.update((list) =>
       list.map((s) => (s.slotId === event.id ? { ...s, label: event.value } : s)),
     );
-    this.instanceService.update(this.ws.eventId(), this.ws.segmentId(), event.id, { label: event.value }).subscribe({
+    clearTimeout(this.pendingLabelSaves.get(event.id));
+    this.pendingLabelSaves.set(event.id, setTimeout(() => this.saveLabel(event.id), PANEL_SAVE_DEBOUNCE_MS));
+  }
+
+  ngOnDestroy(): void {
+    // Leaving the tab must not drop an edit still waiting out its debounce.
+    if (this.pendingSave) this.save();
+    for (const id of [...this.pendingLabelSaves.keys()]) this.saveLabel(id);
+  }
+
+  private saveLabel(instanceId: string): void {
+    clearTimeout(this.pendingLabelSaves.get(instanceId));
+    this.pendingLabelSaves.delete(instanceId);
+    const label = this.slots().find((s) => s.slotId === instanceId)?.label ?? null;
+    this.instanceService.update(this.ws.eventId(), this.ws.segmentId(), instanceId, { label }).subscribe({
       error: () => this.toast.error("No s'ha pogut actualitzar el nom de la figura."),
     });
   }
@@ -355,6 +381,7 @@ export class DistribucioTabComponent implements OnInit {
   }
 
   onResetDistribution(): void {
+    this.cancelPendingSave();
     this.distributionService.clearDistribution(this.ws.eventId(), this.ws.segmentId()).subscribe({
       next: () => {
         this.loadDistribution();
@@ -404,7 +431,21 @@ export class DistribucioTabComponent implements OnInit {
     this.pendingPlacementItems = null;
   }
 
+  private pendingSave: ReturnType<typeof setTimeout> | null = null;
+  private readonly pendingLabelSaves = new Map<string, ReturnType<typeof setTimeout>>();
+
+  private scheduleSave(): void {
+    this.cancelPendingSave();
+    this.pendingSave = setTimeout(() => this.save(), PANEL_SAVE_DEBOUNCE_MS);
+  }
+
+  private cancelPendingSave(): void {
+    if (this.pendingSave) clearTimeout(this.pendingSave);
+    this.pendingSave = null;
+  }
+
   private save(): void {
+    this.cancelPendingSave();
     const items: InstanceDistributionPayload[] = this.slots().map((s) => ({
       instanceId: s.slotId,
       x: s.offsetX,

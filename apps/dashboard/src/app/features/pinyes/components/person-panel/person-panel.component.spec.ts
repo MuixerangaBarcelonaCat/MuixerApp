@@ -88,12 +88,11 @@ describe('PersonPanelComponent', () => {
       expect(component).toBeTruthy();
     });
 
-    it('loads available persons on init', () => {
-      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
-        EVENT_ID,
-        SEGMENT_ID,
-        expect.any(Object),
-      );
+    it('loads the full roster once on init, with no server-side filters', () => {
+      expect(assignmentService.getAvailablePersons).toHaveBeenCalledTimes(1);
+      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, {
+        excludeAssigned: false,
+      });
     });
 
     it('separates persons into Confirmades (ANIRE) and Altres blocks', () => {
@@ -194,41 +193,47 @@ describe('PersonPanelComponent', () => {
       expect(assignmentService.getAvailablePersons.mock.calls.length).toBe(callCount);
     });
 
-    it('filters by height — calls service with absolute height (140 + relative)', () => {
+    const heights = () => [
+      makeAvailablePerson('short', 'ANIRE', { shoulderHeight: 130 }),
+      makeAvailablePerson('mid', 'ANIRE', { shoulderHeight: 148 }),
+      makeAvailablePerson('tall', 'ANIRE', { shoulderHeight: 165 }),
+    ];
+
+    it('filters by height — orders by proximity to the absolute height (140 + relative), no request', () => {
+      component.persons.set(heights());
+      const callCount = assignmentService.getAvailablePersons.mock.calls.length;
       component.onHeightChange(10);
-      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
-        EVENT_ID,
-        SEGMENT_ID,
-        expect.objectContaining({ height: 150 }),
-      );
+      expect(component.filteredPersons().map((p) => p.id)).toEqual(['mid', 'tall', 'short']);
+      expect(assignmentService.getAvailablePersons.mock.calls.length).toBe(callCount);
     });
 
-    it('filters by height — Max button sets height to 1000 (sorts tallest first)', () => {
+    it('filters by height — Max button sorts tallest first', () => {
+      component.persons.set(heights());
       fixture.componentRef.setInput('heightMode', 'relative');
       fixture.detectChanges();
       const maxBtn = fixture.nativeElement.querySelector(
         'button[aria-label="Ordena de més alt a més baix"]',
       ) as HTMLButtonElement;
       maxBtn.click();
-      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
-        EVENT_ID,
-        SEGMENT_ID,
-        expect.objectContaining({ height: SHOULDER_HEIGHT_BASELINE_CM + 1000 }),
-      );
+      expect(component.filteredPersons().map((p) => p.id)).toEqual(['tall', 'mid', 'short']);
     });
 
-    it('filters by height — Min button sets height to -1000 (sorts shortest first)', () => {
+    it('filters by height — Min button sorts shortest first', () => {
+      component.persons.set(heights());
       fixture.componentRef.setInput('heightMode', 'relative');
       fixture.detectChanges();
       const minBtn = fixture.nativeElement.querySelector(
         'button[aria-label="Ordena de més baix a més alt"]',
       ) as HTMLButtonElement;
       minBtn.click();
-      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
-        EVENT_ID,
-        SEGMENT_ID,
-        expect.objectContaining({ height: SHOULDER_HEIGHT_BASELINE_CM - 1000 }),
-      );
+      expect(component.filteredPersons().map((p) => p.id)).toEqual(['short', 'mid', 'tall']);
+    });
+
+    it('absolute height mode uses the typed value as-is', () => {
+      component.persons.set(heights());
+      fixture.componentRef.setInput('heightMode', 'absolute');
+      component.onHeightChange(131);
+      expect(component.filteredPersons()[0].id).toBe('short');
     });
 
     it('Max button marks itself as selected without writing a value into the height input', () => {
@@ -272,7 +277,7 @@ describe('PersonPanelComponent', () => {
         makeAvailablePerson('p2', 'ANIRE', { shoulderHeight: null }),
         makeAvailablePerson('p3', 'ANIRE', { shoulderHeight: 0 }),
       ];
-      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      component.persons.set(persons);
       component.onHeightChange(-10);
       fixture.detectChanges();
 
@@ -285,7 +290,7 @@ describe('PersonPanelComponent', () => {
         makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 150 }),
         makeAvailablePerson('p2', 'ANIRE', { shoulderHeight: null }),
       ];
-      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      component.persons.set(persons);
       component.toggleHeightSort('min');
       fixture.detectChanges();
 
@@ -304,30 +309,34 @@ describe('PersonPanelComponent', () => {
       expect(component.confirmedPersons()).toHaveLength(2);
     });
 
-    it('filters by xicalla checkbox — unchecking adds isXicalla=false filter', () => {
+    const agulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: null, positionTypes: [], category: TagCategory.TRONC };
+    const tagged = () => [
+      makeAvailablePerson('adult'),
+      makeAvailablePerson('kid', 'ANIRE', { isXicalla: true }),
+      makeAvailablePerson('agulla', 'ANIRE', { positions: [agulla] }),
+    ];
+
+    it('filters by xicalla checkbox — unchecked hides xicalla, checked shows them', () => {
+      component.persons.set(tagged());
       component.onXicallaChange(false);
-      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
-        EVENT_ID,
-        SEGMENT_ID,
-        expect.objectContaining({ isXicalla: false }),
-      );
+      expect(component.filteredPersons().map((p) => p.id)).toEqual(['adult', 'agulla']);
+      component.onXicallaChange(true);
+      expect(component.filteredPersons().map((p) => p.id)).toEqual(['adult', 'kid', 'agulla']);
     });
 
-    it('filters by tag — selecting a tag adds positionId to the query', () => {
+    it('filters by tag — selecting a tag keeps only persons holding it, no request', () => {
+      component.persons.set(tagged());
+      const callCount = assignmentService.getAvailablePersons.mock.calls.length;
       component.onPositionFilterChange('pos-agulla');
-      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
-        EVENT_ID,
-        SEGMENT_ID,
-        expect.objectContaining({ positionId: 'pos-agulla' }),
-      );
+      expect(component.filteredPersons().map((p) => p.id)).toEqual(['agulla']);
+      expect(assignmentService.getAvailablePersons.mock.calls.length).toBe(callCount);
     });
 
-    it('clearing the tag filter omits positionId from the query', () => {
+    it('clearing the tag filter shows everyone again', () => {
+      component.persons.set(tagged());
       component.onPositionFilterChange('pos-agulla');
-      assignmentService.getAvailablePersons.mockClear();
       component.onPositionFilterChange('');
-      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
-      expect(lastQuery).not.toHaveProperty('positionId');
+      expect(component.filteredPersons().map((p) => p.id)).toEqual(['adult', 'agulla']);
     });
 
     it('renders a colored dot for each tag in the filter dropdown', () => {
@@ -352,11 +361,7 @@ describe('PersonPanelComponent', () => {
       const option: HTMLElement = fixture.nativeElement.querySelector('[data-testid="tag-filter-option-t1"]');
       option.click();
 
-      expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
-        EVENT_ID,
-        SEGMENT_ID,
-        expect.objectContaining({ positionId: 't1' }),
-      );
+      expect(component.selectedPositionId()).toBe('t1');
     });
 
     it('typing in the tag search box narrows the visible tag options', () => {
@@ -402,8 +407,6 @@ describe('PersonPanelComponent', () => {
       clearBtn.click();
 
       expect(component.selectedPositionId()).toBeNull();
-      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
-      expect(lastQuery).not.toHaveProperty('positionId');
     });
 
     it.skip('"Nomes lliures" is on by default (excludeAssigned=true)', () => {
@@ -425,23 +428,15 @@ describe('PersonPanelComponent', () => {
       expect(component.showXicalla()).toBe(true);
     });
 
-    it('reloads persons without the isXicalla filter when a TRONC node is selected', () => {
+    it('selecting nodes never re-fetches the roster', () => {
       assignmentService.getAvailablePersons.mockClear();
       fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
-      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
-      expect(lastQuery).not.toHaveProperty('isXicalla');
-    });
-
-    it('reloads persons with isXicalla=false when a non-TRONC node is selected', () => {
-      component.showXicalla.set(true);
-      assignmentService.getAvailablePersons.mockClear();
       fixture.componentRef.setInput('selectedNodeZone', 'PINYA');
       fixture.componentRef.setInput('selectedNodeId', 'node-2');
       fixture.detectChanges();
-      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
-      expect(lastQuery).toMatchObject({ isXicalla: false });
+      expect(assignmentService.getAvailablePersons).not.toHaveBeenCalled();
     });
 
     it('deactivates the Xicalla filter when a non-TRONC node is selected', () => {
@@ -1530,8 +1525,6 @@ describe('PersonPanelComponent', () => {
         fixture.detectChanges();
 
         expect(component.showXicalla()).toBe(true);
-        const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
-        expect(lastQuery).not.toHaveProperty('isXicalla');
       });
 
       it('picking a person emits personSelected', () => {

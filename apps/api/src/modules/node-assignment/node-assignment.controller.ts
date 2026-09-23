@@ -180,6 +180,16 @@ export class NodeAssignmentController {
     return { data };
   }
 
+  @ApiOperation({ summary: 'Get nodes + assignments of every figure instance in a segment' })
+  @Get('events/:eventId/segments/:segmentId/assignment-state')
+  async getSegmentAssignmentState(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ) {
+    const data = await this.assignmentService.getSegmentAssignmentState(eventId, segmentId);
+    return { data };
+  }
+
   @ApiOperation({ summary: 'Get the canonical conflict report for a segment (D13)' })
   @Get('events/:eventId/segments/:segmentId/conflicts')
   getConflicts(

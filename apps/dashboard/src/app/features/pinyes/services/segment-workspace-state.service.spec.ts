@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceDetail, AssignmentDetail, AvailablePerson, InstanceNodeItem, SegmentConflict } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -117,25 +117,6 @@ const makeAssignment = (id: string, instanceId: string, nodeId: string, personId
   },
 });
 
-const makePerson = (id: string, overrides: Partial<AvailablePerson> = {}): AvailablePerson => ({
-  id,
-  alias: `Alias ${id}`,
-  name: 'Nom',
-  firstSurname: 'Cognom',
-  shoulderHeight: null,
-  isXicalla: false,
-  notes: null,
-  notesEmoji: null,
-  attendanceStatus: 'ANIRE',
-  nextPerformanceStatus: null,
-  assignedPlacements: [],
-  assignedInTronc: false,
-  assignedInPinya: false,
-  conflictInSegment: false,
-  positions: [],
-  ...overrides,
-});
-
 describe('SegmentWorkspaceStateService', () => {
   let service: SegmentWorkspaceStateService;
   let state: AssignmentStateService;
@@ -144,6 +125,7 @@ describe('SegmentWorkspaceStateService', () => {
   let assignmentService: {
     getInstanceNodes: ReturnType<typeof vi.fn>;
     getByInstance: ReturnType<typeof vi.fn>;
+    getSegmentAssignmentState: ReturnType<typeof vi.fn>;
     getAvailablePersons: ReturnType<typeof vi.fn>;
     getLockStatus: ReturnType<typeof vi.fn>;
     getSegmentConflicts: ReturnType<typeof vi.fn>;
@@ -155,7 +137,6 @@ describe('SegmentWorkspaceStateService', () => {
     distribution?: SegmentDistributionData;
     nodesByInstance?: Record<string, InstanceNodeItem[]>;
     assignmentsByInstance?: Record<string, AssignmentDetail[]>;
-    persons?: AvailablePerson[];
     conflicts?: SegmentConflict[];
   } = {}) => {
     const segment = opts.segment ?? makeSegment([makeInstance('inst-a')]);
@@ -173,7 +154,16 @@ describe('SegmentWorkspaceStateService', () => {
       getByInstance: vi.fn((instanceId: string) =>
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
       ),
-      getAvailablePersons: vi.fn().mockReturnValue(of({ data: opts.persons ?? [] })),
+      getSegmentAssignmentState: vi.fn(() =>
+        of({
+          data: segment.instances.map((i) => ({
+            instanceId: i.id,
+            nodes: opts.nodesByInstance?.[i.id] ?? [],
+            assignments: opts.assignmentsByInstance?.[i.id] ?? [],
+          })),
+        }),
+      ),
+      getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
       getSegmentConflicts: vi.fn().mockReturnValue(
         of({
@@ -317,14 +307,17 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.instances().find((i) => i.instanceId === 'inst-a')?.assignedCount).toBe(1);
     });
 
-    it('loads confirmed persons into the shared state and marks personsLoaded', () => {
-      configure({ persons: [makePerson('p1'), makePerson('p2', { attendanceStatus: 'PENDENT' })] });
+    it('hydrates every instance with one segment-level request: no per-instance fetches, one conflicts call, no roster fetch (the person panel owns it)', () => {
+      configure({ segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b'), makeInstance('inst-c')]) });
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      expect(service.personsLoaded()).toBe(true);
-      expect(state.confirmedPersons()).toHaveLength(2);
-      expect(state.attendanceRegistry().get('p1')).toBe('ANIRE');
+      expect(assignmentService.getSegmentAssignmentState).toHaveBeenCalledTimes(1);
+      expect(assignmentService.getSegmentAssignmentState).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(assignmentService.getInstanceNodes).not.toHaveBeenCalled();
+      expect(assignmentService.getByInstance).not.toHaveBeenCalled();
+      expect(assignmentService.getSegmentConflicts).toHaveBeenCalledTimes(1);
+      expect(assignmentService.getAvailablePersons).not.toHaveBeenCalled();
     });
 
     it('loads the lock status', () => {
@@ -357,35 +350,38 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.instancesHydrated()).toBe(true);
     });
 
-    it('stays false until every instance has finished loading its nodes (so a camera fit does not run on a partial layout)', () => {
+    it('stays false until the nodes of every instance have arrived (so a camera fit does not run on a partial layout)', () => {
       configure({ segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]) });
-      const subjectA = new Subject<{ data: InstanceNodeItem[] }>();
-      const subjectB = new Subject<{ data: InstanceNodeItem[] }>();
-      assignmentService.getInstanceNodes.mockImplementation((instanceId: string) =>
-        instanceId === 'inst-a' ? subjectA : subjectB,
-      );
+      const instanceState = new Subject<{ data: { instanceId: string; nodes: InstanceNodeItem[]; assignments: AssignmentDetail[] }[] }>();
+      assignmentService.getSegmentAssignmentState.mockReturnValue(instanceState);
 
       service.load(EVENT_ID, SEGMENT_ID);
       expect(service.instancesHydrated()).toBe(false);
 
-      subjectA.next({ data: [makeNode('n1', 'PINYA')] });
-      expect(service.instancesHydrated()).toBe(false);
+      instanceState.next({
+        data: [
+          { instanceId: 'inst-a', nodes: [makeNode('n1', 'PINYA')], assignments: [] },
+          { instanceId: 'inst-b', nodes: [makeNode('n2', 'PINYA')], assignments: [] },
+        ],
+      });
+      instanceState.complete();
 
-      subjectB.next({ data: [makeNode('n2', 'PINYA')] });
       expect(service.instancesHydrated()).toBe(true);
+      expect(service.instances().map((i) => i.nodes.length)).toEqual([1, 1]);
     });
 
-    it('still counts an instance as loaded when its node fetch errors', () => {
+    it('is released when the load fails', () => {
       configure({ segment: makeSegment([makeInstance('inst-a')]) });
-      const subjectA = new Subject<{ data: InstanceNodeItem[] }>();
-      assignmentService.getInstanceNodes.mockReturnValue(subjectA);
+      const instanceState = new Subject<never>();
+      assignmentService.getSegmentAssignmentState.mockReturnValue(instanceState);
 
       service.load(EVENT_ID, SEGMENT_ID);
       expect(service.instancesHydrated()).toBe(false);
 
-      subjectA.error(new Error('boom'));
+      instanceState.error(new Error('boom'));
 
       expect(service.instancesHydrated()).toBe(true);
+      expect(toast.error).toHaveBeenCalled();
     });
   });
 
@@ -752,6 +748,7 @@ describe('SegmentWorkspaceStateService', () => {
           data: [makeSegment([makeInstance('inst-a', { numberOfCordons: 3, figureMode: 'PEU' })])],
         }),
       );
+      service.markTabSwitched();
       service.refresh();
 
       const inst = service.instances()[0];
@@ -770,9 +767,24 @@ describe('SegmentWorkspaceStateService', () => {
           items: [makeDistributionItem('inst-a', { projectionX: 999, projectionY: 111, projectionAngle: 0 })],
         }),
       );
+      service.markTabSwitched();
       service.refresh();
 
       expect(service.distributionByInstance().get('inst-a')?.projectionX).toBe(999);
+    });
+
+    it('is a no-op for the first tab mounted after load — that data was just fetched', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      segmentService.getByEvent.mockClear();
+      distributionService.getDistribution.mockClear();
+      assignmentService.getSegmentConflicts.mockClear();
+
+      service.refresh();
+
+      expect(segmentService.getByEvent).not.toHaveBeenCalled();
+      expect(distributionService.getDistribution).not.toHaveBeenCalled();
+      expect(assignmentService.getSegmentConflicts).not.toHaveBeenCalled();
     });
 
     it('does nothing when called before load (no event/segment id yet)', () => {

@@ -184,6 +184,7 @@ describe('PinyesTabComponent', () => {
   let assignmentService: {
     getInstanceNodes: MockFn;
     getByInstance: MockFn;
+    getSegmentAssignmentState: MockFn;
     getAvailablePersons: MockFn;
     getLockStatus: MockFn;
     getSegmentConflicts: MockFn;
@@ -212,6 +213,15 @@ describe('PinyesTabComponent', () => {
       getInstanceNodes: vi.fn((instanceId: string) => of({ data: defaultNodes[instanceId] ?? [] })),
       getByInstance: vi.fn((instanceId: string) =>
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
+      ),
+      getSegmentAssignmentState: vi.fn(() =>
+        of({
+          data: segment.instances.map((i) => ({
+            instanceId: i.id,
+            nodes: defaultNodes[i.id] ?? [],
+            assignments: opts.assignmentsByInstance?.[i.id] ?? [],
+          })),
+        }),
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
@@ -291,13 +301,13 @@ describe('PinyesTabComponent', () => {
       expect(refreshSpy).toHaveBeenCalled();
     });
 
-    it('does not center the viewport until every figure has finished loading its nodes (avoids freezing on a partial layout)', async () => {
+    it('does not center the viewport until the figures have loaded their nodes (avoids freezing on an empty layout)', async () => {
       const segment = makeSegment([makeInstance(INST_A), makeInstance('inst-b')]);
-      const subjectA = new Subject<{ data: InstanceNodeItem[] }>();
-      const subjectB = new Subject<{ data: InstanceNodeItem[] }>();
+      const instanceState = new Subject<{ data: { instanceId: string; nodes: InstanceNodeItem[]; assignments: AssignmentDetail[] }[] }>();
       assignmentService = {
-        getInstanceNodes: vi.fn((instanceId: string) => (instanceId === INST_A ? subjectA : subjectB)),
+        getInstanceNodes: vi.fn(() => of({ data: [] })),
         getByInstance: vi.fn(() => of({ data: [] })),
+        getSegmentAssignmentState: vi.fn(() => instanceState),
         getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
         getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
         getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
@@ -338,14 +348,17 @@ describe('PinyesTabComponent', () => {
       component = fixture.componentInstance;
       fixture.detectChanges();
 
-      // Only figure A has loaded so far — pinyaSlots() is already non-empty,
-      // but centering now would freeze the viewport on a 1-figure layout.
-      subjectA.next({ data: [makeNode('n1', 'PINYA')] });
       fixture.detectChanges();
       vi.runAllTimers();
       expect(canvasStub().centerOnContent).not.toHaveBeenCalled();
 
-      subjectB.next({ data: [makeNode('n2', 'PINYA')] });
+      instanceState.next({
+        data: [
+          { instanceId: INST_A, nodes: [makeNode('n1', 'PINYA')], assignments: [] },
+          { instanceId: 'inst-b', nodes: [makeNode('n2', 'PINYA')], assignments: [] },
+        ],
+      });
+      instanceState.complete();
       fixture.detectChanges();
       vi.runAllTimers();
       expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);

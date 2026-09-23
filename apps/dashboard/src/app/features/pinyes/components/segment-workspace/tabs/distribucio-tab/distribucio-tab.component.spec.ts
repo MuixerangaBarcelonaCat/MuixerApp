@@ -169,7 +169,7 @@ describe('DistribucioTabComponent', () => {
   let ws: SegmentWorkspaceStateService;
   let distributionService: { getDistribution: MockFn; saveDistribution: MockFn; clearDistribution: MockFn };
   let instanceService: { update: MockFn };
-  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; getSegmentConflicts: MockFn; updateCordons: MockFn; previewCordonsImpact: MockFn; previewFigureModeImpact: MockFn };
+  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getSegmentAssignmentState: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; getSegmentConflicts: MockFn; updateCordons: MockFn; previewCordonsImpact: MockFn; previewFigureModeImpact: MockFn };
   let toast: { success: MockFn; error: MockFn; info: MockFn; warning: MockFn };
 
   const setup = async (opts: {
@@ -190,6 +190,7 @@ describe('DistribucioTabComponent', () => {
     assignmentService = {
       getInstanceNodes: vi.fn().mockReturnValue(of({ data: [] })),
       getByInstance: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentAssignmentState: vi.fn().mockReturnValue(of({ data: [] })),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
@@ -364,6 +365,7 @@ describe('DistribucioTabComponent', () => {
       assignmentService = {
         getInstanceNodes: vi.fn().mockReturnValue(of({ data: [] })),
         getByInstance: vi.fn().mockReturnValue(of({ data: [] })),
+        getSegmentAssignmentState: vi.fn().mockReturnValue(of({ data: [] })),
         getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
         getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
         getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
@@ -611,19 +613,49 @@ describe('DistribucioTabComponent', () => {
       await setup();
       component.onSlotSelected(INST_A);
 
-      component.onOffsetXChanged({ id: INST_A, value: 500 });
+      vi.useFakeTimers();
+      try {
+        component.onOffsetXChanged({ id: INST_A, value: 490 });
+        component.onOffsetXChanged({ id: INST_A, value: 500 });
 
-      const slot = component.slots().find((s) => s.slotId === INST_A);
-      expect(slot?.offsetX).toBe(500);
-      expect(distributionService.saveDistribution).toHaveBeenCalled();
+        const slot = component.slots().find((s) => s.slotId === INST_A);
+        expect(slot?.offsetX).toBe(500);
+        expect(distributionService.saveDistribution).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(400);
+        expect(distributionService.saveDistribution).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('flushes a pending panel edit when the tab is destroyed', async () => {
+      await setup();
+      component.onOffsetXChanged({ id: INST_A, value: 500 });
+      component.onLabelChanged({ id: INST_A, value: 'Pilar central' });
+
+      fixture.destroy();
+
+      expect(distributionService.saveDistribution).toHaveBeenCalledTimes(1);
+      expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, INST_A, { label: 'Pilar central' });
     });
 
     it('label change calls the instance update endpoint and updates the slot label optimistically', async () => {
       await setup();
       component.onSlotSelected(INST_A);
 
-      component.onLabelChanged({ id: INST_A, value: 'Pilar central' });
+      vi.useFakeTimers();
+      try {
+        component.onLabelChanged({ id: INST_A, value: 'Pilar' });
+        component.onLabelChanged({ id: INST_A, value: 'Pilar central' });
+        expect(instanceService.update).not.toHaveBeenCalled();
 
+        vi.advanceTimersByTime(400);
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(instanceService.update).toHaveBeenCalledTimes(1);
       expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, INST_A, { label: 'Pilar central' });
       const slot = component.slots().find((s) => s.slotId === INST_A);
       expect(slot?.label).toBe('Pilar central');

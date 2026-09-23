@@ -1,5 +1,6 @@
 import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { forkJoin } from 'rxjs';
 import {
   FigureZone,
   isNodeVisibleByModeAndCordons,
@@ -9,7 +10,7 @@ import {
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
-import { NodeAssignmentService, LockStatus } from './node-assignment.service';
+import { NodeAssignmentService, LockStatus, SegmentInstanceState } from './node-assignment.service';
 import { ToastService } from '@muixer/ui';
 import { DistributionItem } from '../models/distribution.model';
 
@@ -53,7 +54,6 @@ export class SegmentWorkspaceStateService {
   readonly distributionByInstance = signal<Map<string, DistributionItem>>(new Map());
   readonly selectedInstanceId = signal<string | null>(null);
   readonly lockStatus = signal<LockStatus | null>(null);
-  readonly personsLoaded = signal(false);
   /** Canonical segment conflicts (D13). Empty in production until Phase 5 drops the constraints. */
   readonly conflicts = signal<SegmentConflict[]>([]);
   /** Dotació/conflict counters carried alongside `conflicts` — feeds the conflict banner (Fase 4). */
@@ -65,14 +65,17 @@ export class SegmentWorkspaceStateService {
   private readonly autoPlacementExtentCache = new Map<string, { width: number; height: number }>();
 
   /**
-   * True once every instance's initial node fetch (triggered by `load()`) has
-   * settled (success or error). Consumers that fit a camera/viewport to
-   * `pinyaSlots()` must wait for this — fitting on the first partial emission
-   * (e.g. only 1 of 3 figures loaded) freezes the viewport on an incomplete
-   * layout, since nothing re-fits once the rest of the figures arrive.
+   * True once `load()` has merged every instance's nodes (or failed). Consumers
+   * that fit a camera/viewport to `pinyaSlots()` must wait for this — fitting on
+   * an emission without nodes freezes the viewport on an incomplete layout.
    */
   readonly instancesHydrated = signal(true);
-  private readonly pendingInitialNodeLoads = new Set<string>();
+  /**
+   * True from `load()` until the user switches tab: the data `load()` just
+   * fetched is still current, so the first tab's mount-time `refresh()` would
+   * only repeat those requests.
+   */
+  private loadedDataFresh = false;
   private readonly autoPlacementSpecCache = new Map<
     string,
     { pivotNodes: InstanceNodeItem[]; occupiedNodes: InstanceNodeItem[] }
@@ -235,15 +238,20 @@ export class SegmentWorkspaceStateService {
     this.pendingSelection.set(null);
     this.autoPlacementExtentCache.clear();
 
-    this.segmentService.getByEvent(eventId).subscribe({
-      next: (resp) => {
+    forkJoin({
+      resp: this.segmentService.getByEvent(eventId),
+      instanceState: this.assignmentService.getSegmentAssignmentState(eventId, segmentId),
+    }).subscribe({
+      next: ({ resp, instanceState }) => {
         this.segments.set(resp.data);
         const seg = resp.data.find((s) => s.id === segmentId);
         if (!seg) {
           this.notFound.set(true);
           this.loading.set(false);
+          this.instancesHydrated.set(true);
           return;
         }
+        const stateById = new Map(instanceState.data.map((i) => [i.instanceId, i]));
         this.segment.set(seg);
         const displayNames = this.computeInstanceLabels(seg.instances);
         this.instances.set(
@@ -262,20 +270,20 @@ export class SegmentWorkspaceStateService {
               nodes: [],
               assignedCount: instance.assignedCount ?? 0,
               totalCount: 0,
-            })),
+            }))
+            .map((instance) => {
+              const fresh = stateById.get(instance.instanceId);
+              return fresh ? this.withState(instance, fresh) : instance;
+            }),
         );
+        this.state.assignments.set(instanceState.data.flatMap((i) => i.assignments));
+        this.loadedDataFresh = true;
         this.loading.set(false);
-        this.pendingInitialNodeLoads.clear();
-        for (const instance of this.instances()) {
-          this.pendingInitialNodeLoads.add(instance.instanceId);
-        }
-        this.instancesHydrated.set(this.pendingInitialNodeLoads.size === 0);
-        for (const instance of this.instances()) {
-          this.refreshInstance(instance.instanceId);
-        }
+        this.instancesHydrated.set(true);
       },
       error: () => {
         this.loading.set(false);
+        this.instancesHydrated.set(true);
         this.toast.error('Error en carregar el segment.');
       },
     });
@@ -286,7 +294,6 @@ export class SegmentWorkspaceStateService {
       },
     });
 
-    this.loadConfirmedPersons(eventId, segmentId);
     this.reloadConflicts();
 
     this.assignmentService.getLockStatus(eventId).subscribe({
@@ -321,7 +328,7 @@ export class SegmentWorkspaceStateService {
   refresh(): void {
     const eventId = this.eventId();
     const segmentId = this.segmentId();
-    if (!eventId || !segmentId) return;
+    if (!eventId || !segmentId || this.loadedDataFresh) return;
 
     this.segmentService.getByEvent(eventId).subscribe({
       next: (resp) => {
@@ -362,24 +369,9 @@ export class SegmentWorkspaceStateService {
     this.assignmentService.getInstanceNodes(instanceId).subscribe({
       next: (resp) => {
         this.instances.update((list) =>
-          list.map((i) => {
-            if (i.instanceId !== instanceId) return i;
-            const totalCount = resp.data.filter(
-              (n) =>
-                n.zone !== FigureZone.DECORATION &&
-                isNodeVisibleByModeAndCordons(n, {
-                  figureMode: i.figureMode,
-                  numberOfCordons: i.numberOfCordons,
-                  cordonsObertsEnabled: i.cordonsObertsEnabled,
-                }),
-            ).length;
-            const snapshotted = i.snapshotted || resp.data.some((n) => n.isSnapshotted);
-            return { ...i, nodes: resp.data, totalCount, snapshotted };
-          }),
+          list.map((i) => (i.instanceId === instanceId ? this.withNodes(i, resp.data) : i)),
         );
-        this.markInitialNodeLoadComplete(instanceId);
       },
-      error: () => this.markInitialNodeLoadComplete(instanceId),
     });
 
     this.assignmentService.getByInstance(instanceId).subscribe({
@@ -399,10 +391,27 @@ export class SegmentWorkspaceStateService {
     });
   }
 
-  private markInitialNodeLoadComplete(instanceId: string): void {
-    if (this.pendingInitialNodeLoads.delete(instanceId) && this.pendingInitialNodeLoads.size === 0) {
-      this.instancesHydrated.set(true);
-    }
+  /** Called on a tab switch: from then on a tab's mount-time `refresh()` must re-fetch. */
+  markTabSwitched(): void {
+    this.loadedDataFresh = false;
+  }
+
+  private withNodes(instance: WorkspaceInstance, nodes: InstanceNodeItem[]): WorkspaceInstance {
+    const totalCount = nodes.filter(
+      (n) =>
+        n.zone !== FigureZone.DECORATION &&
+        isNodeVisibleByModeAndCordons(n, {
+          figureMode: instance.figureMode,
+          numberOfCordons: instance.numberOfCordons,
+          cordonsObertsEnabled: instance.cordonsObertsEnabled,
+        }),
+    ).length;
+    const snapshotted = instance.snapshotted || nodes.some((n) => n.isSnapshotted);
+    return { ...instance, nodes, totalCount, snapshotted };
+  }
+
+  private withState(instance: WorkspaceInstance, fresh: SegmentInstanceState): WorkspaceInstance {
+    return { ...this.withNodes(instance, fresh.nodes), assignedCount: fresh.assignments.length };
   }
 
   selectInstance(instanceId: string | null): void {
@@ -474,26 +483,5 @@ export class SegmentWorkspaceStateService {
           figureTemplate: i.figureTemplate,
         })),
     );
-  }
-
-  private loadConfirmedPersons(eventId: string, segmentId: string): void {
-    this.assignmentService
-      .getAvailablePersons(eventId, segmentId, { excludeAssigned: false, isXicalla: false })
-      .subscribe({
-        next: (resp) => {
-          this.state.confirmedPersons.set(resp.data);
-          this.personsLoaded.set(true);
-          this.state.attendanceRegistry.update((m) => {
-            const updated = new Map(m);
-            resp.data.forEach((p) => updated.set(p.id, p.attendanceStatus));
-            return updated;
-          });
-          this.state.nextPerformanceRegistry.update((m) => {
-            const updated = new Map(m);
-            resp.data.forEach((p) => updated.set(p.id, p.nextPerformanceStatus ?? null));
-            return updated;
-          });
-        },
-      });
   }
 }

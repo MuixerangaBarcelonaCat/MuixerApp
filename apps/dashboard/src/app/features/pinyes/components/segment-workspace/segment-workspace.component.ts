@@ -114,6 +114,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     // A hidden tab can't stay active: e.g. the device turns touch while Distribució is open.
     effect(() => {
       if (this.layout.isTouch() && !TOUCH_TABS.includes(this.activeTab())) {
+        this.ws.markTabSwitched();
         this.activeTab.set(this.viewModeService.mode());
       }
     });
@@ -192,6 +193,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   setTab(tab: string): void {
+    if (tab !== this.activeTab()) this.ws.markTabSwitched();
     this.activeTab.set(tab as WorkspaceTab);
     if (isFiguresViewMode(tab)) {
       this.viewModeService.set(tab);
