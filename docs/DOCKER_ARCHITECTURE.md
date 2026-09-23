@@ -144,7 +144,7 @@ El Dockerfile del Dashboard utilitza 3 stages:
 **Per què Caddy?**
 - Serveix els estàtics amb gzip automàtic (Angular usa hashes als noms)
 - Proxeja `/api/*` al contenidor `api` per la xarxa Docker interna
-- Rate limit a l'edge: `/api/auth*` 10 req/min, `/api/*` 100 req/min (plugin `caddy-ratelimit`)
+- Rate limit a l'edge: `/api/auth*` 10 req/min, `/api/*` 600 req/min (plugin `caddy-ratelimit`)
 - SPA fallback: totes les rutes retornen `index.html` per al router Angular
 - **HTTPS automàtic via Let's Encrypt**: canviant `:80` per un domini al `Caddyfile`, Caddy gestiona els certificats sol
 - Configuració mínima (vs nginx)

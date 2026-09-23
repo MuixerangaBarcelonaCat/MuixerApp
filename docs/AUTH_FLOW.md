@@ -521,7 +521,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 - **SHA-256** per hashing de refresh tokens a DB (mai guardat en clar)
 - **Rotació obligatòria**: cada ús de refresh token genera un de nou i invalida l'anterior
 - **Detecció de reutilització**: si un token ja marcat com `used` es presenta, tota la família es revoca
-- **Rate limiting**: Caddy (`apps/dashboard/Caddyfile`) — `/api/auth*` 10 req/60s per IP, `/api/*` 100 req/60s per IP
+- **Rate limiting**: Caddy (`apps/dashboard/Caddyfile`) — `/api/auth*` 10 req/60s per IP, `/api/*` 600 req/60s per IP
 - **Cookie segura**: `httpOnly`, `sameSite: lax`, `secure` en producció, `path: /api/auth`
   - `lax` (no `strict`) permet que el browser enviï la cookie en navegacions top-level des d'enllaços externs (WhatsApp → PWA)
 - **Access token en memòria**: mai `localStorage`, es perd al tancar pestanya (per disseny)
