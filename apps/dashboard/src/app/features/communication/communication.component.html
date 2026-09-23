@@ -62,10 +62,49 @@
     <lib-card sash="title" title="Notificacions" [icon]="ICON_BELL">
       <div class="flex flex-col gap-5">
         <!-- lib-button's host is display:contents, so self-start needs a real element to land on. -->
-        <div class="self-start">
+        <div class="self-start flex gap-2">
           <lib-button variant="primary" size="sm" routerLink="notifications">Envia notificació</lib-button>
+          <lib-button variant="ghost" size="sm" routerLink="notifications/schedules/new">Programa notificació</lib-button>
         </div>
-        <a routerLink="notifications/devices" class="link link-primary text-sm font-medium self-start">Dispositius subscrits</a>
+
+        @if (schedulesLoading()) {
+          <div class="flex flex-col gap-2">
+            <div class="skeleton h-4 w-32"></div>
+            <div class="skeleton h-3 w-full"></div>
+            <div class="skeleton h-3 w-5/6"></div>
+          </div>
+        } @else {
+          <div class="flex flex-col gap-2">
+            <p class="text-sm font-semibold uppercase tracking-wide text-base-content/40">Pròxims enviaments</p>
+
+            @if (upcomingDispatches().length === 0) {
+              <p class="text-sm text-base-content/50">Cap enviament programat.</p>
+            } @else {
+              <ul class="flex flex-col gap-2">
+                @for (dispatch of upcomingDispatches(); track dispatch.id) {
+                  <li class="flex items-baseline justify-between gap-2 text-sm">
+                    <a
+                      [routerLink]="['notifications/schedules', dispatch.id, 'edit']"
+                      class="text-base-content truncate hover:text-primary hover:underline"
+                    >{{ dispatch.title }}</a>
+                    <span class="text-xs text-base-content/50 shrink-0">{{ dispatchLabel(dispatch.nextRunAt!) }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <p class="text-sm font-medium">
+              <a routerLink="notifications/schedules" class="link link-primary">Totes les notificacions programades</a>
+              <span class="text-base-content/30 mx-2">·</span>
+              <a routerLink="notifications/history" class="link link-primary">Historial</a>
+            </p>
+            <p class="text-xs text-base-content/50">
+              {{ activeScheduleCount() }} {{ activeScheduleCount() === 1 ? 'programació activa' : 'programacions actives' }}
+            </p>
+          </div>
+        }
       </div>
     </lib-card>
 

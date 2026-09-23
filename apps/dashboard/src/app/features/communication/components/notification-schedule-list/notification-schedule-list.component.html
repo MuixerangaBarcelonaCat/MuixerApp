@@ -1,0 +1,104 @@
+<app-page-header title="Notificacions programades">
+  <div class="flex gap-2">
+    <lib-button variant="primary" size="sm" routerLink="new">
+      <lucide-icon name="Plus" [size]="16" />
+      Programa notificació
+    </lib-button>
+    <lib-button variant="ghost" size="sm" routerLink="../../">
+      <lucide-icon name="ArrowLeft" [size]="16" />
+      Enrere
+    </lib-button>
+  </div>
+</app-page-header>
+
+<div class="flex flex-wrap gap-3 items-center my-4">
+  <select
+    class="select select-bordered select-sm"
+    [value]="activeFilter()"
+    (change)="onActiveFilterChange($any($event.target).value)"
+  >
+    <option value="pending">Pendents</option>
+    <option value="all">Totes</option>
+  </select>
+</div>
+
+@if (loading()) {
+  <div class="flex justify-center py-16">
+    <span class="loading loading-spinner loading-lg"></span>
+  </div>
+} @else if (error()) {
+  <lib-alert variant="error">Error en carregar les notificacions programades. Torna-ho a intentar.</lib-alert>
+} @else if (items().length === 0) {
+  <lib-empty-state [icon]="ICON_BELL" message="Cap notificació programada." actionLabel="Programa notificació" routerLink="new" />
+} @else {
+  <div class="overflow-x-auto rounded-box border border-base-200">
+    <table class="table table-zebra w-full">
+      <thead>
+        <tr>
+          <th>Pròxim enviament</th>
+          <th>Programació</th>
+          <th>Títol</th>
+          <th>Destinataris</th>
+          <th>Estat</th>
+          <th class="text-right">Accions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+          <tr>
+            <td class="font-medium text-sm whitespace-nowrap">{{ nextRunLabel(item) }}</td>
+            <td class="text-base-content/60 text-sm whitespace-nowrap">{{ ruleSummary(item) }}</td>
+            <td class="font-medium">{{ item.title }}</td>
+            <td>{{ targetSummary(item.target) }}</td>
+            <td>
+              @if (item.isActive) {
+                <lib-badge size="sm" color="#0284c7">{{ statusLabel(item) }}</lib-badge>
+              } @else {
+                <lib-badge size="sm">{{ statusLabel(item) }}</lib-badge>
+              }
+            </td>
+            <td class="text-right">
+              @if (item.isActive) {
+                <div class="flex gap-1 justify-end">
+                  <lib-button variant="ghost" size="xs" [routerLink]="[item.id, 'edit']">
+                    Edita
+                  </lib-button>
+                  <lib-button variant="error" outline size="xs" (clicked)="confirmCancel(item)">
+                    Cancel·la
+                  </lib-button>
+                </div>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4">
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [limit]="limit()"
+      [totalItems]="total()"
+      (pageChange)="onPageChange($event)"
+      (limitChange)="onLimitChange($event)"
+    />
+  </div>
+}
+
+<lib-modal [open]="!!cancelTarget()" title="Cancel·la la notificació programada" size="sm" (closed)="closeCancel()">
+  @if (cancelTarget(); as target) {
+    <p class="text-sm">
+      Segur que voleu cancel·lar la notificació <strong>{{ target.title }}</strong>?
+      {{ target.scheduleType === ScheduleType.WEEKLY ? 'Ja no es tornarà a enviar.' : 'No s\'enviarà.' }}
+    </p>
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="closeCancel()">Torna</lib-button>
+    <lib-button variant="error" size="sm" [disabled]="cancelling()" [loading]="cancelling()" (clicked)="executeCancel()">
+      Cancel·la
+    </lib-button>
+  </div>
+</lib-modal>

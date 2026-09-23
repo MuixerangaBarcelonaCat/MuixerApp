@@ -1,0 +1,92 @@
+<div class="space-y-3">
+  <div role="group" aria-label="Tipus de destinataris">
+    <lib-button-group>
+      <lib-button
+        joinItem
+        outlineMode
+        size="sm"
+        [active]="target().type === TargetType.ALL"
+        (clicked)="setType(TargetType.ALL)"
+      >
+        <lucide-icon name="Megaphone" [size]="14" />
+        Tots
+      </lib-button>
+      @if (hasLinkedEvent()) {
+        <lib-button
+          joinItem
+          outlineMode
+          size="sm"
+          [active]="target().type === TargetType.EVENT_ATTENDANCE"
+          (clicked)="setType(TargetType.EVENT_ATTENDANCE)"
+        >
+          <lucide-icon name="UserCheck" [size]="14" />
+          Segons assistència
+        </lib-button>
+      }
+      <lib-button
+        joinItem
+        outlineMode
+        size="sm"
+        [active]="target().type === TargetType.PERSON"
+        (clicked)="setType(TargetType.PERSON)"
+      >
+        <lucide-icon name="Users" [size]="14" />
+        Persones concretes
+      </lib-button>
+    </lib-button-group>
+  </div>
+
+  @if (target().type === TargetType.ALL) {
+    <p class="text-sm text-base-content/60">
+      <lucide-icon name="Info" [size]="14" class="inline mr-1" />
+      S'enviarà a tots els membres amb subscripció activa.
+    </p>
+  }
+
+  @if (target().type === TargetType.EVENT_ATTENDANCE) {
+    <lib-select
+      label="Filtre d'assistència"
+      required
+      id="attendance-filter"
+      [ngModel]="target().attendanceFilter ?? ''"
+      (ngModelChange)="setAttendanceFilter($event)"
+      name="attendanceFilter"
+    >
+      <option value="" disabled>Selecciona una resposta...</option>
+      <option [value]="AttendanceStatus.ANIRE">Vinc</option>
+      <option [value]="AttendanceStatus.NO_VAIG">No vinc</option>
+      <option [value]="AttendanceStatus.PENDENT">Pendent</option>
+      <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
+    </lib-select>
+  }
+
+  @if (target().type === TargetType.PERSON) {
+    <div class="space-y-2">
+      <app-person-search-input
+        placeholder="Cerca persones..."
+        [excludeIds]="target().personIds ?? []"
+        (selected)="addPerson($event)"
+      />
+      @if (selectedPersons().length > 0) {
+        <div class="flex flex-wrap gap-2 mt-2">
+          @for (person of selectedPersons(); track person.id) {
+            <lib-badge outline>
+              {{ person.alias }}
+              <lib-button
+                shape="circle"
+                size="xs"
+                variant="ghost"
+                (clicked)="removePerson(person.id)"
+                [ariaLabel]="'Eliminar ' + person.name"
+              >
+                <lucide-icon name="X" [size]="10" />
+              </lib-button>
+            </lib-badge>
+          }
+        </div>
+      } @else {
+        <p class="text-xs text-base-content/50">Cap persona seleccionada.</p>
+      }
+    </div>
+  }
+</div>

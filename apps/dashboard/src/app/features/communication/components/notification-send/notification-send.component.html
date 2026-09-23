@@ -1,19 +1,38 @@
 <div class="max-w-2xl mx-auto">
 
-<app-page-header title="Envia notificació">
+<app-page-header [title]="pageTitle()">
   <lib-button variant="ghost" size="sm" routerLink="../">
     <lucide-icon name="ArrowLeft" [size]="16" />
     Enrere
   </lib-button>
 </app-page-header>
-<p class="text-sm text-base-content/50 mb-6">Envia una notificació als membres</p>
+<p class="text-sm text-base-content/50 mb-6">
+  {{ isEditMode()
+    ? 'Edita els detalls de la notificació programada'
+    : (isSchedule() ? 'Programa una notificació perquè s\'envie més endavant' : 'Envia una notificació als membres') }}
+</p>
 
 <div class="flex flex-col gap-6">
 
   @if (state() === 'success') {
-    <lib-alert variant="success" title="Notificació acceptada">
-      <p class="text-sm">L'enviament s'ha processat correctament.</p>
-      <lib-button actions variant="ghost" size="sm" (clicked)="reset()">Nova notificació</lib-button>
+    <lib-alert
+      variant="success"
+      [title]="isEditMode() ? 'Canvis desats' : (isSchedule() ? 'Notificació programada' : 'Notificació acceptada')"
+    >
+      <p class="text-sm">
+        {{ isEditMode()
+          ? 'S\'han desat els canvis de la notificació programada.'
+          : (isSchedule() ? 'La notificació s\'enviarà a l\'hora programada.' : 'L\'enviament s\'ha processat correctament.') }}
+      </p>
+      @if (isEditMode()) {
+        <lib-button actions variant="ghost" size="sm" routerLink="/communication/notifications/schedules">
+          Torna a la llista
+        </lib-button>
+      } @else {
+        <lib-button actions variant="ghost" size="sm" (clicked)="reset()">
+          {{ isSchedule() ? 'Nova programació' : 'Nova notificació' }}
+        </lib-button>
+      }
     </lib-alert>
   } @else {
 
@@ -52,130 +71,204 @@
           required
         ></textarea>
         <p class="text-xs text-base-content/50 text-right">{{ body().length }}/500</p>
+      </fieldset>
 
-        <label class="fieldset-label" for="notif-url">Enllaç (opcional)</label>
-        <input
-          id="notif-url"
-          type="text"
-          class="input input-bordered w-full"
-          placeholder="/noticies/123 o https://..."
-          [ngModel]="url()"
-          (ngModelChange)="url.set($event)"
-          name="url"
+      <!-- Esdeveniment vinculat i enllaç -->
+      <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-4">
+        <legend class="fieldset-legend text-sm font-semibold">Esdeveniment i enllaç</legend>
+
+        <app-notification-event-picker
+          [(linkedEvent)]="linkedEvent"
+          [events]="events()"
+          [variant]="mode()"
+          [allowTriggeringEvent]="isSchedule() && scheduleKind() === ScheduleType.BEFORE_EVENT"
         />
-        <p class="text-xs text-base-content/50">
-          Si s'especifica, la notificació obrirà aquesta adreça en fer clic. Pot ser una ruta interna
-          (comença per <code>/</code>) o una adreça completa.
-        </p>
+
+        <lib-form-field label="Enllaç">
+          <app-notification-link-picker [(link)]="link" [hasLinkedEvent]="hasLinkedEvent()" />
+        </lib-form-field>
       </fieldset>
 
       <!-- Destinataris -->
       <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-3">
         <legend class="fieldset-legend text-sm font-semibold">Destinataris</legend>
-
-        <div role="group" aria-label="Tipus de destinataris">
-          <lib-button-group>
-            <lib-button
-              joinItem
-              outlineMode
-              size="sm"
-              [active]="targetType() === TargetType.ALL"
-              (clicked)="targetType.set(TargetType.ALL)"
-            >
-              <lucide-icon name="Megaphone" [size]="14" />
-              Tots
-            </lib-button>
-            <lib-button
-              joinItem
-              outlineMode
-              size="sm"
-              [active]="targetType() === TargetType.EVENT_ATTENDANCE"
-              (clicked)="targetType.set(TargetType.EVENT_ATTENDANCE)"
-            >
-              <lucide-icon name="Calendar" [size]="14" />
-              Per esdeveniment
-            </lib-button>
-            <lib-button
-              joinItem
-              outlineMode
-              size="sm"
-              [active]="targetType() === TargetType.PERSON"
-              (clicked)="targetType.set(TargetType.PERSON)"
-            >
-              <lucide-icon name="Users" [size]="14" />
-              Persones concretes
-            </lib-button>
-          </lib-button-group>
-        </div>
-
-        @if (targetType() === TargetType.ALL) {
-          <p class="text-sm text-base-content/60">
-            <lucide-icon name="Info" [size]="14" class="inline mr-1" />
-            S'enviarà a tots els membres amb subscripció activa.
-          </p>
-        }
-
-        @if (targetType() === TargetType.EVENT_ATTENDANCE) {
-          <div class="space-y-3">
-            <lib-select
-              label="Esdeveniment"
-              required
-              id="event-select"
-              [ngModel]="selectedEventId()"
-              (ngModelChange)="selectedEventId.set($event)"
-              name="eventId"
-            >
-              <option value="">Seleccioneu un assaig o actuació...</option>
-              @for (event of events(); track event.id) {
-                <option [value]="event.id">{{ event.title }} — {{ event.date | slice:0:10 }}</option>
-              }
-            </lib-select>
-            <lib-select
-              label="Filtre d'assistència (opcional)"
-              id="attendance-filter"
-              [ngModel]="attendanceFilter()"
-              (ngModelChange)="attendanceFilter.set($event)"
-              name="attendanceFilter"
-            >
-              <option value="">Totes les respostes</option>
-              <option [value]="AttendanceStatus.ANIRE">Vinc (ANIRE)</option>
-              <option [value]="AttendanceStatus.NO_VAIG">No vinc (NO_VAIG)</option>
-              <option [value]="AttendanceStatus.PENDENT">Pendent</option>
-              <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
-            </lib-select>
-          </div>
-        }
-
-        @if (targetType() === TargetType.PERSON) {
-          <div class="space-y-2">
-            <app-person-search-input
-              placeholder="Cerca persones..."
-              [excludeIds]="personIds()"
-              (selected)="addPerson($event)"
-            />
-            @if (selectedPersons().length > 0) {
-              <div class="flex flex-wrap gap-2 mt-2">
-                @for (person of selectedPersons(); track person.id) {
-                  <lib-badge outline>
-                    {{ person.alias }}
-                    <lib-button
-                      shape="circle"
-                      size="xs"
-                      variant="ghost"
-                      (clicked)="removePerson(person.id)"
-                      [ariaLabel]="'Eliminar ' + person.name"
-                    >
-                      <lucide-icon name="X" [size]="10" />
-                    </lib-button>
-                  </lib-badge>
-                }
-              </div>
-            } @else {
-              <p class="text-xs text-base-content/50">Cap persona seleccionada.</p>
-            }
-          </div>
-        }
+        <app-notification-target-picker [(target)]="target" [hasLinkedEvent]="hasLinkedEvent()" />
       </fieldset>
+
+      <!-- Programació: només visible en el formulari de programar notificació -->
+      @if (isSchedule()) {
+        <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-3">
+          <legend class="fieldset-legend text-sm font-semibold">Programació</legend>
+
+          <div role="group" aria-label="Tipus de programació">
+            <lib-button-group>
+              <lib-button
+                joinItem
+                outlineMode
+                size="sm"
+                [active]="scheduleKind() === ScheduleType.ONE_OFF"
+                (clicked)="scheduleKind.set(ScheduleType.ONE_OFF)"
+              >
+                <lucide-icon name="Clock" [size]="14" />
+                Puntual
+              </lib-button>
+              <lib-button
+                joinItem
+                outlineMode
+                size="sm"
+                [active]="scheduleKind() === ScheduleType.WEEKLY"
+                (clicked)="scheduleKind.set(ScheduleType.WEEKLY)"
+              >
+                <lucide-icon name="RotateCw" [size]="14" />
+                Setmanal
+              </lib-button>
+              <lib-button
+                joinItem
+                outlineMode
+                size="sm"
+                [active]="scheduleKind() === ScheduleType.BEFORE_EVENT"
+                (clicked)="scheduleKind.set(ScheduleType.BEFORE_EVENT)"
+              >
+                <lucide-icon name="CalendarRange" [size]="14" />
+                Abans d'un esdeveniment
+              </lib-button>
+            </lib-button-group>
+          </div>
+
+          @if (scheduleKind() === ScheduleType.BEFORE_EVENT) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <lib-form-field label="Tipus d'esdeveniment">
+                <select
+                  class="select select-bordered w-full"
+                  [ngModel]="beforeEventType()"
+                  (ngModelChange)="beforeEventType.set($event)"
+                  name="beforeEventType"
+                  required
+                >
+                  <option [ngValue]="null">Seleccioneu un tipus...</option>
+                  <option [ngValue]="EventTypeEnum.ACTUACIO">Actuació</option>
+                  <option [ngValue]="EventTypeEnum.ASSAIG">Assaig</option>
+                </select>
+              </lib-form-field>
+
+              <lib-form-field label="Amb quina antelació">
+                <div class="join w-full">
+                  <input
+                    type="number"
+                    min="1"
+                    class="input input-bordered join-item w-1/2"
+                    [ngModel]="beforeEventOffsetValue()"
+                    (ngModelChange)="beforeEventOffsetValue.set($event)"
+                    name="beforeEventOffsetValue"
+                    required
+                  />
+                  <select
+                    class="select select-bordered join-item w-1/2"
+                    [ngModel]="beforeEventOffsetUnit()"
+                    (ngModelChange)="beforeEventOffsetUnit.set($event)"
+                    name="beforeEventOffsetUnit"
+                  >
+                    <option [ngValue]="OffsetUnit.DAYS">dies abans</option>
+                    <option [ngValue]="OffsetUnit.HOURS">hores abans</option>
+                  </select>
+                </div>
+              </lib-form-field>
+
+              @if (beforeEventOffsetUnit() === OffsetUnit.DAYS) {
+                <lib-form-field label="Hora d'enviament">
+                  <input
+                    type="time"
+                    class="input input-bordered w-full"
+                    [ngModel]="beforeEventTimeOfDay()"
+                    (ngModelChange)="beforeEventTimeOfDay.set($event)"
+                    name="beforeEventTimeOfDay"
+                    required
+                  />
+                </lib-form-field>
+              }
+
+              <lib-form-field label="Data d'inici (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="beforeEventStartDate()"
+                  (ngModelChange)="beforeEventStartDate.set($event)"
+                  name="beforeEventStartDate"
+                />
+              </lib-form-field>
+
+              <lib-form-field label="Data de fi (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="beforeEventEndDate()"
+                  (ngModelChange)="beforeEventEndDate.set($event)"
+                  name="beforeEventEndDate"
+                />
+              </lib-form-field>
+            </div>
+          } @else if (scheduleKind() === ScheduleType.WEEKLY) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <lib-form-field label="Dia de la setmana">
+                <select
+                  class="select select-bordered w-full"
+                  [ngModel]="weeklyDayOfWeek()"
+                  (ngModelChange)="weeklyDayOfWeek.set($event)"
+                  name="weeklyDayOfWeek"
+                  required
+                >
+                  <option [ngValue]="null">Seleccioneu un dia...</option>
+                  @for (day of weekdayDisplayOrder; track day) {
+                    <option [ngValue]="day">{{ weekdayNames[day] }}</option>
+                  }
+                </select>
+              </lib-form-field>
+
+              <lib-form-field label="Hora d'enviament">
+                <input
+                  type="time"
+                  class="input input-bordered w-full"
+                  [ngModel]="weeklyTimeOfDay()"
+                  (ngModelChange)="weeklyTimeOfDay.set($event)"
+                  name="weeklyTimeOfDay"
+                  required
+                />
+              </lib-form-field>
+
+              <lib-form-field label="Data d'inici (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="weeklyStartDate()"
+                  (ngModelChange)="weeklyStartDate.set($event)"
+                  name="weeklyStartDate"
+                />
+              </lib-form-field>
+
+              <lib-form-field label="Data de fi (opcional)">
+                <input
+                  type="date"
+                  class="input input-bordered w-full"
+                  [ngModel]="weeklyEndDate()"
+                  (ngModelChange)="weeklyEndDate.set($event)"
+                  name="weeklyEndDate"
+                />
+              </lib-form-field>
+            </div>
+          } @else {
+            <lib-form-field label="Data i hora d'enviament">
+              <input
+                type="datetime-local"
+                class="input input-bordered w-full"
+                [ngModel]="scheduledFor()"
+                (ngModelChange)="scheduledFor.set($event)"
+                name="scheduledFor"
+                required
+              />
+            </lib-form-field>
+          }
+        </fieldset>
+      }
 
       @if (state() === 'error') {
         <lib-alert variant="error">{{ errorMessage() }}</lib-alert>
@@ -189,11 +282,17 @@
           [disabled]="!isFormValid() || isSending()"
         >
           <lucide-icon name="Send" [size]="16" />
-          Envia notificació
+          {{ submitLabel() }}
         </lib-button>
-        <lib-button variant="ghost" (clicked)="reset()" [disabled]="isSending()">
-          Reinicia
-        </lib-button>
+        @if (isEditMode()) {
+          <lib-button variant="ghost" (clicked)="cancelEdit()" [disabled]="isSending()">
+            Cancel·la
+          </lib-button>
+        } @else {
+          <lib-button variant="ghost" (clicked)="reset()" [disabled]="isSending()">
+            Reinicia
+          </lib-button>
+        }
       </div>
 
     </form>
