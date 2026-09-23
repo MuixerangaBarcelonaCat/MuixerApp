@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
-import { PersonPanelComponent } from './person-panel.component';
+import { PersonPanelComponent, ROSTER_MAX_AGE_MS } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
@@ -428,7 +428,7 @@ describe('PersonPanelComponent', () => {
       expect(component.showXicalla()).toBe(true);
     });
 
-    it('selecting nodes never re-fetches the roster', () => {
+    it('selecting nodes does not re-fetch a roster younger than ROSTER_MAX_AGE_MS', () => {
       assignmentService.getAvailablePersons.mockClear();
       fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
@@ -437,6 +437,29 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('selectedNodeId', 'node-2');
       fixture.detectChanges();
       expect(assignmentService.getAvailablePersons).not.toHaveBeenCalled();
+    });
+
+    it('selecting a node re-fetches the roster once it is older than ROSTER_MAX_AGE_MS (attendance stays fresh)', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        component.loadPersons();
+        assignmentService.getAvailablePersons.mockClear();
+
+        vi.setSystemTime(Date.now() + ROSTER_MAX_AGE_MS);
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.detectChanges();
+        expect(assignmentService.getAvailablePersons).toHaveBeenCalledTimes(1);
+        expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, {
+          excludeAssigned: false,
+        });
+
+        // Just refreshed: the next click inside the window costs nothing.
+        fixture.componentRef.setInput('selectedNodeId', 'node-2');
+        fixture.detectChanges();
+        expect(assignmentService.getAvailablePersons).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('deactivates the Xicalla filter when a non-TRONC node is selected', () => {

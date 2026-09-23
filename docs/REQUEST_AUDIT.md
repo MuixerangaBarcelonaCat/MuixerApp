@@ -4,7 +4,7 @@ tags: [qa]
 
 # Auditoria de peticions al backend
 
-**Data:** 23-09-2026 · **Branca:** `feat/optimize-request` · **Commit dels canvis:** `e554c4ea` (no fusionat)
+**Data:** 23-09-2026 · **Branca:** `feat/optimize-request` · **Commits dels canvis:** `e554c4ea` + ajust de frescor (§2.3), no fusionats
 
 La pantalla que més peticions fa és el **workspace de segments del Dashboard**
 (`/pinyes/events/:eventId/segments/:segmentId/assign`). Obrir-ne un de 6 figures feia **29 peticions**;
@@ -14,8 +14,8 @@ bucles per element).
 Aquest document serveix per decidir què es fusiona. Els canvis ja estan commitejats en un sol commit, però
 cada un dels cinc blocs de sota es pot revertir per separat.
 
-**Recomanació:** fusionar els canvis 2.1, 2.2, 2.4 i 2.5, que no canvien res del que veu l'usuari.
-Decidir el 2.3 (panell de persones) sabent que la llista deixa de refrescar-se a cada clic de node (vegeu §3).
+**Recomanació:** fusionar els cinc canvis. El 2.3 (panell de persones) s'ha ajustat perquè l'assistència
+continuï fresca en clicar nodes, com fins ara, amb com a màxim una petició cada 10 s (vegeu §2.3 i §3).
 
 ## 0. Probable causa del límit, fora del codi
 
@@ -41,7 +41,7 @@ assignacions), comptant les crides a `/api/*`.
 |---|---|---|
 | Obrir el workspace (N figures) | 11 + 3N → **29** | **7** (fix, no depèn de N) |
 | Canviar de pestanya Pinyes ↔ Troncs | 6 | 5 |
-| Clicar un node | 1 | **0** |
+| Clicar un node | 1 per clic | **0** si la llista té < 10 s; **1** si és més antiga |
 | Teclejar l'alçada al panell de persones | 1 per tecla | **0** |
 | Canviar el filtre Xicalla / etiqueta | 1 | **0** |
 | Slider d'angle o X/Y/nom a Distribució | 1 PUT per tecla o per grau | **1** en aturar-se (400 ms) |
@@ -79,6 +79,14 @@ vegades en obrir i 1 per clic; ara 1 vegada.
   panell.
 - **Per què:** abans hi havia 3 crides amb filtres diferents en obrir, 1 per cada clic de node (el filtre
   Xicalla es reaplicava encara que no canviés) i 1 per cada tecla del camp d'alçada.
+- **Ajust de frescor (després de valorar-ho):** en clicar un node, la llista es torna a demanar si té més
+  de `ROSTER_MAX_AGE_MS` (10 s). Així l'assistència (membres que confirmen o es desapunten, passar llista el
+  mateix dia) continua fresca mentre s'assigna, però una ràfega de clics no fa una petició per clic. Si
+  arriben respostes desordenades, només s'aplica l'última.
+- **Com treballeu, segons l'equip:** els tècnics treballen alhora però en **segments diferents**, amb una
+  barreja d'ordinador i mòbil/tauleta el dia de l'assaig. El que ha d'estar fresc és l'**assistència**. La
+  llista de persones només mostra col·locacions del segment actual, de manera que el que assigna un altre
+  tècnic en un altre segment no hi influeix.
 
 ### 2.4 Sense `refresh()` duplicat al primer muntatge
 
@@ -101,7 +109,7 @@ vegades en obrir i 1 per clic; ara 1 vegada.
 |---|---|---|
 | 2.1 Endpoint agregat | No. Mateixes dades. | Baix |
 | 2.2 Càrrega del workspace | Mínim: les figures apareixen totes alhora en comptes de una a una. | Baix |
-| 2.3 Panell de persones | **Sí, la frescor de la llista** (vegeu sota). La resta, igual o millor. | **Mitjà** |
+| 2.3 Panell de persones | No en l'ús habitual: en clicar un node l'assistència es refresca com abans (llista de > 10 s). | Baix |
 | 2.4 Sense refresh duplicat | No. Les dades de `load()` són de fa mil·lisegons. | Molt baix |
 | 2.5 Debounce a Distribució | Un toast d'error com a màxim en lloc de molts. | Baix |
 
@@ -115,13 +123,18 @@ vegades en obrir i 1 per clic; ara 1 vegada.
 
 ### 2.3 — detall (l'únic canvi amb impacte real)
 
-- **Frescor:** abans, cada clic de node tornava a demanar la llista. Per tant, reflectia gairebé al moment
-  les confirmacions d'assistència noves i les assignacions que feia **un altre tècnic** al mateix segment.
-  Ara la llista es refresca en obrir la pestanya, després de cada acció pròpia (assignar, desassignar,
-  desfer…) i amb el botó «Refrescar». Si hi ha dos tècnics treballant alhora al mateix segment, o membres
-  confirmant mentre s'assigna, la llista pot quedar desfasada fins a la propera acció pròpia.
-  - Mitigació possible si es vol mantenir el comportament anterior sense pagar-ne el cost: refrescar la
-    llista en tornar el focus a la finestra, o com a molt una vegada cada 30–60 s en seleccionar un node.
+- **Frescor:** abans, cada clic de node tornava a demanar la llista. Ara es torna a demanar:
+  - en obrir la pestanya;
+  - després de cada acció pròpia (assignar, desassignar, desfer…);
+  - amb el botó «Refrescar»;
+  - **en clicar un node, si la llista té més de 10 s.**
+
+  L'única diferència amb abans: un canvi d'assistència fet durant els 10 s posteriors a l'últim refresc no
+  surt fins al proper clic passat aquest temps. Verificat al navegador: dos clics seguits = 0 peticions; un
+  clic passats 10 s = 1.
+- **Límit conegut:** si dos tècnics treballen al **mateix** segment, el que col·loca l'altre surt a la
+  llista amb el mateix retard de ≤ 10 s. Els nodes ocupats del canvas no es refresquen sols, igual que abans
+  d'aquest canvi. L'equip indica que no s'ha de treballar així.
 - **Ordenació:** mateixa fórmula que el servidor. En cas d'empat (mateixa alçada), l'ordre ara és estable
   (per àlies); abans el decidia Postgres i podia variar.
 - **Mode relatiu/absolut:** ara reordena la llista a l'instant; abans calia tornar a teclejar l'alçada.
@@ -171,8 +184,10 @@ segment anterior (`projection-view.component.ts`).
   `person-panel`, `segment-workspace-state`, `distribucio-tab` i els mocks de les pestanyes.
 - **Revertir un bloc:** el commit `e554c4ea` els conté tots. Per treure'n només un, cal revertir els fitxers
   del bloc:
-  - 2.3: `person-panel.component.ts` + spec, i restaurar `loadConfirmedPersons` a
-    `segment-workspace-state.service.ts`.
+  - 2.3: `person-panel.component.ts` + spec (inclòs l'ajust de frescor), i restaurar
+    `loadConfirmedPersons` a `segment-workspace-state.service.ts`.
+  - Si 10 s resulta massa o massa poc, només cal canviar `ROSTER_MAX_AGE_MS` a
+    `person-panel.component.ts`.
   - 2.5: `distribucio-tab.component.ts` + spec.
   - 2.1 i 2.2 van junts: el frontend depèn de l'endpoint nou.
 

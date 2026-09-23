@@ -15,6 +15,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
+import { Subscription } from 'rxjs';
 import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -22,6 +23,12 @@ import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
+
+/**
+ * A node click re-fetches the roster only when it is older than this, so attendance changes (members
+ * confirming, roll call on the day) still show up while clicking, without one request per click.
+ */
+export const ROSTER_MAX_AGE_MS = 10_000;
 
 interface PersonSearchResult {
   person: AvailablePerson;
@@ -111,6 +118,8 @@ export class PersonPanelComponent {
   // display:contents, unlike focus/blur).
   readonly heightFocused = signal(false);
   private hasTypedSinceNodeSelected = false;
+  private rosterFetchedAt = 0;
+  private rosterSub?: Subscription;
 
   /** "N lliures" header count (§5.4), meaning tied to the active tab's area. */
   readonly freeCount = computed(() => this.state.freeCountForArea(this.area()));
@@ -437,6 +446,7 @@ export class PersonPanelComponent {
         // Auto-toggle the Xicalla filter to match the selected node's zone.
         // Left untouched when a node is deselected (nodeId === null).
         this.onXicallaChange(this.selectedNodeZone() === FigureZone.TRONC);
+        if (Date.now() - this.rosterFetchedAt >= ROSTER_MAX_AGE_MS) untracked(() => this.loadPersons());
       }
     });
 
@@ -453,13 +463,18 @@ export class PersonPanelComponent {
   }
 
   /**
-   * Fetches the full roster (all statuses, including xicalla) once; the visible list is derived
-   * from it client-side (`filteredPersons`). Also feeds state.confirmedPersons + attendance
+   * Fetches the full roster (all statuses, including xicalla); the visible list is derived from it
+   * client-side (`filteredPersons`). Runs on mount, after every assignment mutation
+   * (`personListRefreshTrigger`), on «Refrescar», and on a node click once the roster is older than
+   * `ROSTER_MAX_AGE_MS`. Also feeds state.confirmedPersons + attendance
    * registries, which back hover cards for already-assigned persons anywhere in the canvas.
    */
   loadPersons(): void {
     this.loading.set(true);
-    this.assignmentService
+    this.rosterFetchedAt = Date.now();
+    // Only the latest response may land: an older one arriving late would roll the list back.
+    this.rosterSub?.unsubscribe();
+    this.rosterSub = this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), { excludeAssigned: false })
       .subscribe({
         next: (resp) => {
