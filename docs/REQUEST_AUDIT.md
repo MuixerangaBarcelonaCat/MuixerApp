@@ -4,15 +4,15 @@ tags: [qa]
 
 # Auditoria de peticions al backend
 
-**Data:** 23-09-2026 · **Branca:** `feat/optimize-request` · **Commits dels canvis:** `e554c4ea` + ajust de frescor (§2.3), no fusionats
+**Data:** 23-09-2026 · **Branca:** `feat/optimize-request` · **Commits dels canvis:** `e554c4ea` + `1585cba8` (ajust de frescor, §2.3), no fusionats
 
 La pantalla que més peticions fa és el **workspace de segments del Dashboard**
 (`/pinyes/events/:eventId/segments/:segmentId/assign`). Obrir-ne un de 6 figures feia **29 peticions**;
 amb el commit `e554c4ea` en fa **7**. La PWA de membres és lleugera (1–4 peticions per pantalla, sense
 bucles per element).
 
-Aquest document serveix per decidir què es fusiona. Els canvis ja estan commitejats en un sol commit, però
-cada un dels cinc blocs de sota es pot revertir per separat.
+Aquest document serveix per decidir què es fusiona. Els canvis estan en dos commits: `e554c4ea` (els cinc
+blocs de sota) i `1585cba8` (ajust de frescor del 2.3). Cada bloc es pot revertir per separat.
 
 **Recomanació:** fusionar els cinc canvis. El 2.3 (panell de persones) s'ha ajustat perquè l'assistència
 continuï fresca en clicar nodes, com fins ara, amb com a màxim una petició cada 10 s (vegeu §2.3 i §3).
@@ -121,7 +121,7 @@ vegades en obrir i 1 per clic; ara 1 vegada.
 - Si l'endpoint agregat falla, falla tot el workspace amb el toast «Error en carregar el segment.». Abans,
   si fallava una figura, les altres es mostraven igualment.
 
-### 2.3 — detall (l'únic canvi amb impacte real)
+### 2.3 — detall (el canvi que més es nota, ajustat perquè no canviï l'ús habitual)
 
 - **Frescor:** abans, cada clic de node tornava a demanar la llista. Ara es torna a demanar:
   - en obrir la pestanya;
@@ -182,8 +182,8 @@ segment anterior (`projection-view.component.ts`).
   `ba08ad28-…/dbbef4ca-…` (6 figures).
 - **Tests:** API 1234 tests en verd, Dashboard 103 fitxers en verd. S'han actualitzat els specs de
   `person-panel`, `segment-workspace-state`, `distribucio-tab` i els mocks de les pestanyes.
-- **Revertir un bloc:** el commit `e554c4ea` els conté tots. Per treure'n només un, cal revertir els fitxers
-  del bloc:
+- **Revertir un bloc:** `e554c4ea` conté els cinc blocs i `1585cba8` l'ajust de frescor del 2.3. Per
+  treure'n només un, cal revertir els fitxers del bloc:
   - 2.3: `person-panel.component.ts` + spec (inclòs l'ajust de frescor), i restaurar
     `loadConfirmedPersons` a `segment-workspace-state.service.ts`.
   - Si 10 s resulta massa o massa poc, només cal canviar `ROSTER_MAX_AGE_MS` a
