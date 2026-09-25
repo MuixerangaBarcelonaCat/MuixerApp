@@ -164,6 +164,7 @@ describe('EventDetailComponent — tabbed sections', () => {
     description: null,
     locationUrl: null,
     information: null,
+    notes: null,
     metadata: {},
     isSynced: false,
   };
@@ -244,6 +245,26 @@ describe('EventDetailComponent — tabbed sections', () => {
 
   const panel = (fixture: ComponentFixture<EventDetailComponent>, tab: string): HTMLElement | null =>
     fixture.nativeElement.querySelector(`#event-tabpanel-${tab}`);
+
+  describe('notes panel', () => {
+    it('renders the notes panel above the tabs', async () => {
+      const fixture = await setup();
+      const notesPanel = fixture.nativeElement.querySelector('app-event-notes-panel') as HTMLElement;
+      const tabs = fixture.nativeElement.querySelector('lib-tabs') as HTMLElement;
+
+      expect(notesPanel).toBeTruthy();
+      expect(notesPanel.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('keeps the page state in sync when the panel saves, without refetching', async () => {
+      const fixture = await setup({ notes: 'Antic' });
+
+      fixture.componentInstance.onNotesSaved('Nou');
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.event()!.notes).toBe('Nou');
+    });
+  });
 
   describe('default tab', () => {
     it('opens on Pinyes i Figures', async () => {

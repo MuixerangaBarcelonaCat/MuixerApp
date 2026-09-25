@@ -7,6 +7,7 @@ import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { AlertComponent, ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, CardComponent } from '@muixer/ui';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
+import { EventNotesPanelComponent } from '../event-notes-panel/event-notes-panel.component';
 import { AttendanceListComponent } from '../attendance-list/attendance-list.component';
 import { EventParticipationComponent } from '../event-participation/event-participation.component';
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
@@ -41,6 +42,7 @@ export const EVENT_DETAIL_TABS: readonly EventDetailTab[] = [
     BadgeComponent,
     CardComponent,
     EventFormModalComponent,
+    EventNotesPanelComponent,
     StatCardComponent,
     SegmentManagerComponent,
     AttendanceListComponent,
@@ -99,6 +101,11 @@ export class EventDetailComponent implements OnInit, OnDestroy {
    * switching back does not refetch or lose the filters the user had set.
    */
   private readonly visitedTabs = signal<ReadonlySet<EventDetailTab>>(new Set(['pinyes']));
+
+  /** The notes panel already persisted the value; mirror it locally instead of refetching. */
+  onNotesSaved(notes: string | null): void {
+    this.event.update((ev) => (ev ? { ...ev, notes } : ev));
+  }
 
   hasVisited(tab: EventDetailTab): boolean {
     return this.visitedTabs().has(tab);

@@ -112,6 +112,13 @@
       />
     </div>
 
+    <!-- Observacions internes (només dashboard) -->
+    <app-event-notes-panel
+      [eventId]="ev.id"
+      [notes]="ev.notes"
+      (saved)="onNotesSaved($event)"
+    />
+
     <!-- Pestanyes -->
     <div class="mt-4">
       <lib-tabs
