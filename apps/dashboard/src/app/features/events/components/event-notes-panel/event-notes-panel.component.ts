@@ -2,17 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
   input,
   linkedSignal,
   output,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { LucideAngularModule, ChevronDown, ChevronRight } from 'lucide-angular';
-import { AlertComponent, ButtonComponent, CardComponent, TextareaComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, CardComponent, ToastService } from '@muixer/ui';
+import { MarkdownEditorComponent } from '@muixer/ui/markdown-editor';
 import { EventService } from '../../services/event.service';
 
 /**
@@ -39,12 +37,11 @@ const readStoredExpanded = (): boolean => {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ReactiveFormsModule,
     LucideAngularModule,
     CardComponent,
     AlertComponent,
     ButtonComponent,
-    TextareaComponent,
+    MarkdownEditorComponent,
   ],
   templateUrl: './event-notes-panel.component.html',
 })
@@ -65,18 +62,13 @@ export class EventNotesPanelComponent {
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected readonly control = new FormControl<string>('', { nonNullable: true });
-
   /** Last known persisted text — resets when the event changes, and after a successful save. */
   private readonly baseline = linkedSignal<string>(() => this.notes() ?? '');
-  private readonly draft = signal('');
+
+  /** Re-seeds from `baseline`, so a save or a different event resets the editor's content. */
+  protected readonly draft = linkedSignal<string>(() => this.baseline());
 
   protected readonly dirty = computed(() => this.draft() !== this.baseline());
-
-  constructor() {
-    this.control.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => this.draft.set(value));
-    effect(() => this.control.setValue(this.baseline()));
-  }
 
   protected toggle(): void {
     const next = !this.expanded();
@@ -89,7 +81,7 @@ export class EventNotesPanelComponent {
   }
 
   protected cancel(): void {
-    this.control.setValue(this.baseline());
+    this.draft.set(this.baseline());
     this.error.set(null);
   }
 

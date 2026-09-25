@@ -21,12 +21,20 @@
         <lib-alert variant="error" dense>{{ message }}</lib-alert>
       }
 
-      <lib-textarea
-        [formControl]="control"
-        [rows]="6"
-        ariaLabel="Notes de l'esdeveniment"
-        placeholder="Notes internes per a la tècnica..."
-      />
+      <!-- Deferred: the editor carries Tiptap (~500 kB), so it must not be in the initial bundle.
+           `on immediate` rather than a viewport trigger because opening the panel is already the
+           user's signal that they want to edit. -->
+      @defer (on immediate) {
+        <lib-markdown-editor
+          ariaLabel="Notes de l'esdeveniment"
+          placeholder="Notes internes per a la tècnica..."
+          [value]="draft()"
+          [disabled]="saving()"
+          (valueChange)="draft.set($event)"
+        />
+      } @placeholder {
+        <div class="rounded-box border border-base-300 min-h-40"></div>
+      }
 
       <div class="flex justify-end gap-2">
         <lib-button

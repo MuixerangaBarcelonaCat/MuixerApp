@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 import { ToastService } from '@muixer/ui';
+import { MarkdownEditorComponent } from '@muixer/ui/markdown-editor';
 import { EventService } from '../../services/event.service';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import {
@@ -31,24 +32,38 @@ describe('EventNotesPanelComponent', () => {
     fixture.componentRef.setInput('eventId', 'event-1');
     fixture.componentRef.setInput('notes', notes);
     fixture.detectChanges();
+    // The editor sits behind an `@defer (on immediate)`, so it arrives a tick after the body does.
+    await fixture.whenStable();
+    fixture.detectChanges();
   };
 
   const toggle = (): HTMLButtonElement =>
     fixture.debugElement.query(By.css('[data-testid="event-notes-toggle"]')).nativeElement;
-  const textarea = (): HTMLTextAreaElement | null => {
-    const el = fixture.debugElement.query(By.css('textarea'));
-    return el ? (el.nativeElement as HTMLTextAreaElement) : null;
-  };
-  const clickButton = (testId: string): void => {
-    fixture.debugElement
-      .query(By.css(`[data-testid="${testId}"] button`))
-      .nativeElement.click();
+
+  const expand = async (): Promise<void> => {
+    toggle().click();
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
   };
-  const type = (text: string): void => {
-    const el = textarea()!;
-    el.value = text;
-    el.dispatchEvent(new Event('input'));
+
+  const editorDebug = () => fixture.debugElement.query(By.directive(MarkdownEditorComponent));
+  const editorText = (): string =>
+    fixture.debugElement.query(By.css('.ProseMirror')).nativeElement.textContent;
+  const editorHtml = (): string =>
+    fixture.debugElement.query(By.css('.ProseMirror')).nativeElement.innerHTML;
+
+  const clickButton = (testId: string): void => {
+    fixture.debugElement.query(By.css(`[data-testid="${testId}"] button`)).nativeElement.click();
+    fixture.detectChanges();
+  };
+
+  /**
+   * The panel's contract with the editor is its `valueChange` output — how the text got typed is
+   * the editor's own concern, and covered by its spec.
+   */
+  const editInEditor = (markdown: string): void => {
+    (editorDebug().componentInstance as MarkdownEditorComponent).valueChange.emit(markdown);
     fixture.detectChanges();
   };
 
@@ -57,24 +72,23 @@ describe('EventNotesPanelComponent', () => {
 
   describe('collapsing', () => {
     it('starts collapsed when nothing is stored', async () => {
-      await setup('Observacions');
-      expect(textarea()).toBeNull();
+      await setup('Notes');
+      expect(editorDebug()).toBeNull();
       expect(toggle().getAttribute('aria-expanded')).toBe('false');
     });
 
     it('expands on toggle and persists the state', async () => {
       await setup();
-      toggle().click();
-      fixture.detectChanges();
+      await expand();
 
-      expect(textarea()).not.toBeNull();
+      expect(editorDebug()).not.toBeNull();
       expect(localStorage.getItem(NOTES_EXPANDED_STORAGE_KEY)).toBe('true');
     });
 
     it('starts expanded when the stored state says so', async () => {
       localStorage.setItem(NOTES_EXPANDED_STORAGE_KEY, 'true');
       await setup();
-      expect(textarea()).not.toBeNull();
+      expect(editorDebug()).not.toBeNull();
     });
 
     it('reveals nothing of the notes while collapsed', async () => {
@@ -87,9 +101,15 @@ describe('EventNotesPanelComponent', () => {
   describe('editing', () => {
     beforeEach(() => localStorage.setItem(NOTES_EXPANDED_STORAGE_KEY, 'true'));
 
-    it('seeds the textarea with the current notes', async () => {
+    it('seeds the editor with the current notes', async () => {
       await setup('Text existent');
-      expect(textarea()!.value).toBe('Text existent');
+      expect(editorText()).toContain('Text existent');
+    });
+
+    it('renders stored markdown as rich text rather than syntax', async () => {
+      await setup('Porteu la **faixa** nova');
+      expect(editorHtml()).toContain('<strong>faixa</strong>');
+      expect(editorText()).not.toContain('**');
     });
 
     it('keeps the save button disabled until the text changes', async () => {
@@ -98,26 +118,27 @@ describe('EventNotesPanelComponent', () => {
         .nativeElement as HTMLButtonElement;
       expect(save.disabled).toBe(true);
 
-      type('Text nou');
+      editInEditor('Text nou');
       expect(save.disabled).toBe(false);
     });
 
-    it('sends the new text to the API and emits it', async () => {
+    it('sends the new markdown to the API and emits it', async () => {
       await setup('Antic');
       const emitted: (string | null)[] = [];
       fixture.componentInstance.saved.subscribe((v) => emitted.push(v));
 
-      type('Nou');
+      editInEditor('## Nou');
       clickButton('event-notes-save');
 
-      expect(updateFull).toHaveBeenCalledWith('event-1', { notes: 'Nou' });
-      expect(emitted).toEqual(['Nou']);
+      expect(updateFull).toHaveBeenCalledWith('event-1', { notes: '## Nou' });
+      expect(emitted).toEqual(['## Nou']);
       expect(toastSuccess).toHaveBeenCalled();
     });
 
     it('sends null when the text is cleared, so the field is emptied', async () => {
       await setup('Antic');
-      type('   ');
+
+      editInEditor('   ');
       clickButton('event-notes-save');
 
       expect(updateFull).toHaveBeenCalledWith('event-1', { notes: null });
@@ -125,10 +146,11 @@ describe('EventNotesPanelComponent', () => {
 
     it('restores the original text on cancel', async () => {
       await setup('Antic');
-      type('Esborrany descartat');
+
+      editInEditor('Esborrany descartat');
       clickButton('event-notes-cancel');
 
-      expect(textarea()!.value).toBe('Antic');
+      expect(editorText()).toContain('Antic');
       expect(updateFull).not.toHaveBeenCalled();
     });
 
@@ -136,12 +158,11 @@ describe('EventNotesPanelComponent', () => {
       await setup('Antic');
       updateFull.mockReturnValue(throwError(() => new Error('boom')));
 
-      type('Nou');
+      editInEditor('Nou');
       clickButton('event-notes-save');
 
-      const alert = fixture.debugElement.query(By.css('lib-alert'));
-      expect(alert).not.toBeNull();
-      expect(textarea()!.value).toBe('Nou');
+      expect(fixture.debugElement.query(By.css('lib-alert'))).not.toBeNull();
+      expect(editorText()).toContain('Nou');
     });
   });
 });

@@ -268,6 +268,32 @@
   </div>
 
   <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-markdown-editor</h3>
+    <p class="text-xs text-base-content/50 mb-2 max-w-2xl">
+      WYSIWYG editing over a Markdown value — the string goes in and comes back out, and the user never sees
+      the syntax. Imported from <code>&#64;muixer/ui/markdown-editor</code>, not the main barrel: Tiptap is
+      ~500&nbsp;kB, so it must stay behind an <code>&#64;defer</code> in the consumer. Tables have no button
+      but survive a round trip.
+    </p>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      @defer (on viewport) {
+        <lib-markdown-editor
+          ariaLabel="Exemple d'editor"
+          placeholder="Escriu-hi alguna cosa..."
+          [value]="markdownDemo()"
+          (valueChange)="markdownDemo.set($event)"
+        />
+      } @placeholder {
+        <div class="rounded-box border border-base-300 min-h-48"></div>
+      }
+      <div>
+        <p class="text-xs text-base-content/50 mb-2">Markdown resultant</p>
+        <pre class="text-xs bg-base-200 rounded-box p-3 whitespace-pre-wrap min-h-48">{{ markdownDemo() }}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div>
     <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-form-field</h3>
     <p class="text-xs text-base-content/50 mb-2">
       Label/hint/error chrome via pure content projection — wraps <code>lib-input</code>/<code>lib-select</code> internally, and any
