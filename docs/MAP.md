@@ -150,10 +150,10 @@ Migracions TypeORM: **56** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`auth`](../apps/dashboard/src/app/features/auth) | 3 | 185 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`communication`](../apps/dashboard/src/app/features/communication) | 8 | 576 | — |
+| [`communication`](../apps/dashboard/src/app/features/communication) | 8 | 557 | — |
 | [`config`](../apps/dashboard/src/app/features/config) | 14 | 2161 | [[DASHBOARD_UI]] |
-| [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 366 | — |
-| [`events`](../apps/dashboard/src/app/features/events) | 20 | 4208 | [[DASHBOARD_UI]] |
+| [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 371 | — |
+| [`events`](../apps/dashboard/src/app/features/events) | 20 | 4195 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 115 | [[DASHBOARD_UI]] |
 | [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1624 | [[DASHBOARD_UI]] |
 | [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 51 | 10375 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
@@ -167,7 +167,7 @@ Migracions TypeORM: **56** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`dependents`](../apps/pwa/src/app/features/dependents) | 1 | 105 | [[PWA_UI]] |
 | [`events`](../apps/pwa/src/app/features/events) | 12 | 1668 | [[PWA_UI]] |
 | [`home`](../apps/pwa/src/app/features/home) | 2 | 156 | [[PWA_UI]] |
-| [`news`](../apps/pwa/src/app/features/news) | 2 | 99 | [[PWA_UI]] |
+| [`news`](../apps/pwa/src/app/features/news) | 2 | 74 | [[PWA_UI]] |
 | [`profile`](../apps/pwa/src/app/features/profile) | 5 | 438 | [[PWA_UI]] |
 
 ### Codi compartit (`libs/shared/src`)

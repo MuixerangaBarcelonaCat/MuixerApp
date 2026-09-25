@@ -127,6 +127,8 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 All shipped components live in `libs/ui/src/lib/components/`. Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
 
+All of them are exported from the `@muixer/ui` barrel except `lib-markdown-editor` and `MarkdownService`, which have their own entry points (`@muixer/ui/markdown-editor`, `@muixer/ui/markdown`) so that Tiptap and `marked` stay out of every app's initial bundle — see that section for the measurement.
+
 ### `lib-button`
 
 | Input | Type | Default | Notes |
@@ -435,6 +437,44 @@ The multi-line analogue of `lib-input` — same `ControlValueAccessor`/`label`/`
 | `autofocus` | `boolean` | `false` | Same imperative `effect()` + `viewChild` pattern as `lib-input`'s own `autofocus` — used by the "comodí" node-label dialog, which needs the field focused the instant it opens |
 
 `(blurred)` — a real `@Output`, not just the internal CVA `registerOnTouched` plumbing: the ad-hoc node label runs live-preview-then-commit-on-blur logic (`onLabelPreview` on every keystroke, `onLabelCommit` on blur) that needs an actual blur signal. `(blur)` bound directly on `<lib-textarea>` would silently never fire — the native `blur` event doesn't bubble, so it never reaches the host element from the inner `<textarea>` — hence the dedicated output.
+
+### `lib-markdown-editor`
+
+WYSIWYG editing over a **Markdown** value: the stored string goes in, the edited string comes back out, and the user never sees the syntax. Replaces the previous pattern of a raw-Markdown `lib-textarea` beside a rendered preview pane (news) and a plain textarea (event notes).
+
+**Imported from `@muixer/ui/markdown-editor`, not the `@muixer/ui` barrel**, and it must sit behind an `@defer`. Tiptap plus ProseMirror is a ~500 kB chunk; an `export *` from the main barrel pulls it into every chunk that imports anything from the library, because Angular's component metadata registration reads as a side effect and defeats tree-shaking. Exporting it separately was measured: via the barrel the dashboard's initial bundle went 698 kB → 1.19 MB, past the 1 MB budget error.
+
+```html
+@defer (on immediate) {
+  <lib-markdown-editor
+    ariaLabel="Notes de l'esdeveniment"
+    placeholder="Notes internes per a la tècnica..."
+    [value]="draft()"
+    (valueChange)="draft.set($event)"
+  />
+} @placeholder {
+  <div class="rounded-box border border-base-300 min-h-40"></div>
+}
+```
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `value` | `string` | `''` | Markdown in. A change from outside re-parses the document; the component ignores an echo of its own last emission, which would otherwise rebuild the document and throw the caret back to the start mid-typing |
+| `valueChange` | `output<string>` | — | Markdown out, on every edit. Trimmed: the serializer leaves a trailing blank line, and an untrimmed value isn't idempotent, so a freshly-loaded document would compare as dirty |
+| `placeholder` | `string` | — | Shown on the empty document |
+| `ariaLabel` | `string` | — | Names the editing region; applied to the ProseMirror `contenteditable` |
+| `disabled` | `boolean` | `false` | Makes the document read-only and disables the toolbar |
+
+Toolbar: bold, italic, H2, H3, bullet list, numbered list, link, emoji. **Tables have no button** but `TableKit` is registered anyway, so a table already present in stored Markdown survives a round trip instead of being dropped on the next save — the general hazard of a WYSIWYG that serializes to Markdown is that anything the schema doesn't model is lost on save.
+
+The editable area carries `prose prose-sm`, so it depends on `@tailwindcss/typography` (loaded in `tailwind.config.ts` before `daisyui`, which supplies the `prose` colour theming itself).
+
+Two things worth knowing before touching it:
+
+- **Zoneless.** These apps have no zone.js, so no ProseMirror event triggers change detection on its own. The component bumps a private `revision` signal on every transaction, and the toolbar's `isActive()` reads it — that is the only reason the buttons update as the caret moves.
+- **The emoji picker renders through a CDK overlay**, not in place: the editor's wrapper is `overflow-hidden` to round its corners and the app shell clips to the viewport, so an in-place panel is cut off whenever the editor is short. It needs `@angular/cdk/overlay-prebuilt.css`, imported in both apps' `styles.scss`. Its container's `z-index: 1000` is left as the library ships it — above the CSS-only `.modal-open` dialogs, below the `system` token (9999) that toasts use.
+
+Rendering stored Markdown for display is the matching `MarkdownService` (`@muixer/ui/markdown`, `render(markdown)`), which parses with `marked` and sanitizes with `DomSanitizer`. Sanitization lives inside the service rather than at each call site, because every consumer renders admin-authored content and skipping it anywhere would be an XSS hole.
 
 ### `lib-modal`
 
