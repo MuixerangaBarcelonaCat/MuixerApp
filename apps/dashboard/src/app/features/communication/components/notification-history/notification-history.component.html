@@ -1,0 +1,65 @@
+<app-page-header title="Historial de notificacions">
+  <lib-button variant="ghost" size="sm" routerLink="../../">
+    <lucide-icon name="ArrowLeft" [size]="16" />
+    Enrere
+  </lib-button>
+</app-page-header>
+
+<div class="flex flex-wrap gap-3 items-center my-4">
+  <select
+    class="select select-bordered select-sm"
+    [value]="sourceFilter()"
+    (change)="onSourceChange($any($event.target).value)"
+  >
+    <option value="">Tots els orígens</option>
+    @for (source of sourceOptions; track source) {
+      <option [value]="source">{{ sourceLabels[source] }}</option>
+    }
+  </select>
+</div>
+
+@if (loading()) {
+  <div class="flex justify-center py-16">
+    <span class="loading loading-spinner loading-lg"></span>
+  </div>
+} @else if (error()) {
+  <lib-alert variant="error">Error en carregar l'historial. Torna-ho a intentar.</lib-alert>
+} @else if (items().length === 0) {
+  <lib-empty-state [icon]="ICON_BELL" message="Cap notificació enviada encara." />
+} @else {
+  <div class="overflow-x-auto rounded-box border border-base-200">
+    <table class="table table-zebra w-full">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Títol</th>
+          <th>Origen</th>
+          <th>Destinataris</th>
+          <th class="text-right">Abast</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+          <tr>
+            <td class="text-base-content/60 text-sm whitespace-nowrap">{{ item.sentAt | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="font-medium">{{ item.title }}</td>
+            <td><lib-badge size="sm">{{ sourceLabels[item.source] }}</lib-badge></td>
+            <td>{{ targetSummary(item.target) }}</td>
+            <td class="text-right tabular-nums">{{ item.recipientCount }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4">
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [limit]="limit()"
+      [totalItems]="total()"
+      (pageChange)="onPageChange($event)"
+      (limitChange)="onLimitChange($event)"
+    />
+  </div>
+}
