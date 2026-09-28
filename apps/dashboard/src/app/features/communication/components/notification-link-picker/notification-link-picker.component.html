@@ -1,0 +1,64 @@
+<div class="space-y-3">
+  <div role="group" aria-label="Enllaç de la notificació">
+    <lib-button-group>
+      <lib-button
+        joinItem
+        outlineMode
+        size="sm"
+        [active]="link().type === LinkType.HOME"
+        (clicked)="setType(LinkType.HOME)"
+      >
+        <lucide-icon name="Home" [size]="14" />
+        Pàgina d'inici
+      </lib-button>
+      <span data-testid="link-event-option">
+        <lib-button
+          joinItem
+          outlineMode
+          size="sm"
+          [active]="link().type === LinkType.EVENT"
+          [disabled]="!hasLinkedEvent()"
+          [ariaLabel]="!hasLinkedEvent() ? 'Cal vincular un esdeveniment primer' : 'Esdeveniment vinculat'"
+          (clicked)="setType(LinkType.EVENT)"
+        >
+          <lucide-icon name="Calendar" [size]="14" />
+          Esdeveniment vinculat
+        </lib-button>
+      </span>
+      <lib-button
+        joinItem
+        outlineMode
+        size="sm"
+        [active]="link().type === LinkType.CUSTOM"
+        (clicked)="setType(LinkType.CUSTOM)"
+      >
+        <lucide-icon name="Link" [size]="14" />
+        Un altre lloc
+      </lib-button>
+    </lib-button-group>
+  </div>
+
+  @if (link().type === LinkType.CUSTOM) {
+    <div>
+      <input
+        id="link-url"
+        type="text"
+        class="input input-bordered w-full"
+        placeholder="/noticies/123 o https://..."
+        [ngModel]="link().url ?? ''"
+        (ngModelChange)="setUrl($event)"
+        name="linkUrl"
+      />
+      <p class="text-xs text-base-content/50 mt-1">
+        Ruta interna (comença per <code>/</code>) o adreça completa.
+      </p>
+    </div>
+  }
+
+  @if (!hasLinkedEvent()) {
+    <p class="text-sm text-base-content/60">
+      <lucide-icon name="Info" [size]="14" class="inline mr-1" />
+      Per vincular a l'esdeveniment, seleccioneu-ne un a «Esdeveniment vinculat».
+    </p>
+  }
+</div>

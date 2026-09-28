@@ -81,8 +81,8 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-09-21 des de les entitats TypeORM amb `pnpm run docs:model`.
-> **21 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
+> Generat el 2026-09-22 des de les entitats TypeORM amb `pnpm run docs:model`.
+> **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
 
@@ -101,6 +101,8 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `legal_documents` | `LegalDocument` | 9 |
 | `news` | `News` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
+| `notification_logs` | `NotificationLog` | 11 |
+| `notification_schedules` | `NotificationSchedule` | 13 |
 | `person_delegates` | `PersonDelegate` | 8 |
 | `persons` | `Person` | 26 |
 | `positions` | `Tag` | 10 |
@@ -120,6 +122,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `ClientType` | `dashboard` · `pwa` |
 | `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` · `OTHER` |
+| `EventReferenceKind` | `SPECIFIC` · `NEXT_ACTUACIO` · `NEXT_ASSAIG` · `NEXT_ACTUACIO_OR_ASSAIG` · `TRIGGERING_EVENT` |
 | `EventType` | `ASSAIG` · `ACTUACIO` |
 | `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
 | `FigureZone` | `BASE` · `PINYA` · `TRONC` · `DIRECTION` · `DECORATION` |
@@ -128,6 +131,9 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `LegalDocumentType` | `PRIVACY_POLICY` · `TRANSPARENCY_CLAUSE` |
 | `NewsStatus` | `DRAFT` · `SCHEDULED` · `PUBLISHED` |
 | `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `ARROW_LEFT` · `ARROW_UP` · `ARROW_DOWN` · `DOUBLE_ARROW` · `TRIANGLE` · `STAR` · `CIRCLE` |
+| `NotificationLinkType` | `HOME` · `EVENT` · `CUSTOM` |
+| `NotificationScheduleType` | `ONE_OFF` · `WEEKLY` · `BEFORE_EVENT` |
+| `NotificationSource` | `MANUAL` · `SCHEDULED_ONE_OFF` · `SCHEDULED_WEEKLY` · `SCHEDULED_BEFORE_EVENT` |
 | `NotificationTargetType` | `ALL` · `EVENT_ATTENDANCE` · `PERSON` |
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
 | `SegmentConflictKind` | `TRONC_TRONC` · `TRONC_PINYA` · `PINYA_PINYA` |
@@ -399,6 +405,44 @@ Definició: [`apps/api/src/modules/node-assignment/entities/node-assignment.enti
 | `instanceNode` | `relation` | `InstanceNode` | no | ManyToOne → `InstanceNode`, onDelete RESTRICT |
 | `person` | `relation` | `Person` | no | ManyToOne → `Person`, onDelete RESTRICT |
 | `segment` | `relation` | `EventSegment` | no | ManyToOne → `EventSegment`, onDelete CASCADE |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `notification_logs` — `NotificationLog`
+
+Definició: [`apps/api/src/modules/push-notification/entities/notification-log.entity.ts`](../apps/api/src/modules/push-notification/entities/notification-log.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `title` | `varchar` | `string` | no | — |
+| `body` | `varchar` | `string` | no | — |
+| `url` | `varchar` | `string` | sí | — |
+| `target` | `jsonb` | `NotificationTarget` | no | — |
+| `recipientCount` | `int` | `number` | no | — |
+| `source` | `enum` | `NotificationSource` | no | enum `NotificationSource` |
+| `scheduleId` | `uuid` | `string` | sí | — |
+| `triggeredEventId` | `uuid` | `string` | sí | — |
+| `triggeredByUserId` | `uuid` | `string` | sí | — |
+| `sentAt` | `timestamptz` | `Date` | no | creació |
+
+### `notification_schedules` — `NotificationSchedule`
+
+Definició: [`apps/api/src/modules/push-notification/entities/notification-schedule.entity.ts`](../apps/api/src/modules/push-notification/entities/notification-schedule.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `title` | `varchar` | `string` | no | — |
+| `body` | `varchar` | `string` | no | — |
+| `linkedEvent` | `jsonb` | `EventReference` | sí | — |
+| `linkTo` | `enum` | `NotificationLinkType` | no | enum `NotificationLinkType` |
+| `url` | `varchar` | `string` | sí | — |
+| `target` | `jsonb` | `NotificationTarget` | no | — |
+| `scheduleType` | `enum` | `NotificationScheduleType` | no | enum `NotificationScheduleType` |
+| `ruleConfig` | `jsonb` | `NotificationScheduleRuleConfig` | no | — |
+| `isActive` | `boolean` | `boolean` | no | default `true` |
+| `createdByUserId` | `uuid` | `string` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 
