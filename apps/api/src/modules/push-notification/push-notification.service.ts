@@ -33,6 +33,9 @@ export interface DispatchMetadata {
   triggeredEventId?: string;
 }
 
+/** Max devices a single fan-out sends to at the same time. */
+export const PUSH_SEND_CONCURRENCY = 25;
+
 @Injectable()
 export class PushNotificationService {
   private readonly logger = new Logger(PushNotificationService.name);
@@ -103,18 +106,23 @@ export class PushNotificationService {
     const usedIds: string[] = [];
     const goneIds: string[] = [];
 
-    await Promise.allSettled(
-      subscriptions.map(async (sub) => {
-        const result = await this.senderService.send(sub, event.payload);
-        if (result.success) {
-          usedIds.push(sub.id);
-        } else if (result.gone) {
-          goneIds.push(sub.id);
-        } else if (result.statusCode === 429 || (result.statusCode ?? 0) >= 500) {
-          this.logger.warn(`Push rate-limited or server error (${result.statusCode}), no retry`);
-        }
-      }),
-    );
+    // Sent in chunks, not all at once: each device costs a TLS connection plus per-message
+    // encryption, and a whole-colla fan-out at once spikes CPU/sockets on a small server.
+    // ponytail: fixed-size chunks wait for their slowest send; a worker pool if that ever matters.
+    for (let i = 0; i < subscriptions.length; i += PUSH_SEND_CONCURRENCY) {
+      await Promise.allSettled(
+        subscriptions.slice(i, i + PUSH_SEND_CONCURRENCY).map(async (sub) => {
+          const result = await this.senderService.send(sub, event.payload);
+          if (result.success) {
+            usedIds.push(sub.id);
+          } else if (result.gone) {
+            goneIds.push(sub.id);
+          } else if (result.statusCode === 429 || (result.statusCode ?? 0) >= 500) {
+            this.logger.warn(`Push rate-limited or server error (${result.statusCode}), no retry`);
+          }
+        }),
+      );
+    }
 
     await Promise.all([
       this.subscriptionService.markUsedMany(usedIds),

@@ -21,7 +21,8 @@ export class WebPushProvider implements PushProvider {
       const response = await webPush.sendNotification(
         { endpoint: subscription.endpoint, keys: subscription.keys },
         JSON.stringify(payload),
-        { TTL: 86400 },
+        // timeout: a hung push service must not hold a socket (and its fan-out chunk) forever.
+        { TTL: 86400, timeout: 10_000 },
       );
       return { success: true, statusCode: response.statusCode };
     } catch (err: unknown) {
