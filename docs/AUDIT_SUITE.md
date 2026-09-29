@@ -47,7 +47,7 @@ Les credencials es passen sempre per variable d'entorn, mai hardcodejades. Els r
 ## Notes tècniques
 
 - **Auth:** l'access token viu en memòria i el refresh token és una cookie rotativa d'un sol ús; a més,
-  `/api/auth` està limitat a **10 req/60s**. Per això cada test fa **un únic login per dispositiu** i navega
+  `/api/auth` està limitat a **60 req/60s**. Per això cada test fa **un únic login per dispositiu** i navega
   **client-side** (sense recàrregues). Vegeu `apps/dashboard-e2e/src/audit/login-helper.ts`.
 - **IDs de detall:** `src/audit/audit-targets.ts` conté IDs d'exemple de la BD de dev (sobreescriptibles per
   variable d'entorn); si es reseteja la BD cal refrescar-los.

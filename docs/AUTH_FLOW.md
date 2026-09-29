@@ -396,7 +396,7 @@ per suplantar en silenci» a «minuts, i el propietari rep un avís»:
 3. **Segon factor que el tècnic no dicta** — la pantalla `/reset-password` demana, a més de la
    contrasenya nova, una dada que ja tenim a la `Person` i que no viatja dins de l'enllaç: la
    **data de naixement**. No és un secret fort dins d'una colla, però trenca el cas «he obert un
-   enllaç que no era per a mi». El rate limit de Caddy a `/api/auth` (10 req/60 s) ja limita l'endevinació.
+   enllaç que no era per a mi». El rate limit de Caddy a `/api/auth` (60 req/60 s) ja limita l'endevinació.
 4. **Enviar-lo pel canal verificat** — que el backend l'envie per SMS a `person.phone` en lloc de
    copiar-lo al portapapers del tècnic. Elimina l'error de destinatari, però requereix un
    proveïdor d'SMS (cost real).
@@ -521,7 +521,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 - **SHA-256** per hashing de refresh tokens a DB (mai guardat en clar)
 - **Rotació obligatòria**: cada ús de refresh token genera un de nou i invalida l'anterior
 - **Detecció de reutilització**: si un token ja marcat com `used` es presenta, tota la família es revoca
-- **Rate limiting**: Caddy (`apps/dashboard/Caddyfile`) — `/api/auth*` 10 req/60s per IP, `/api/*` 600 req/60s per IP
+- **Rate limiting**: Caddy (`apps/dashboard/Caddyfile`) — `/api/auth*` 60 req/60s per IP, `/api/*` 600 req/60s per IP
 - **Cookie segura**: `httpOnly`, `sameSite: lax`, `secure` en producció, `path: /api/auth`
   - `lax` (no `strict`) permet que el browser enviï la cookie en navegacions top-level des d'enllaços externs (WhatsApp → PWA)
 - **Access token en memòria**: mai `localStorage`, es perd al tancar pestanya (per disseny)
