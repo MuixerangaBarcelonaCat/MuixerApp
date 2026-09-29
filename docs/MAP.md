@@ -95,6 +95,7 @@ graph TD
 | [[DASHBOARD_UI]] | Patrons d'UI, DaisyUI, composició de pàgines de llista |
 | [[PWA_UI]] | Patrons d'UI de la PWA de membres: layout, chrome, components propis, routing |
 | [[AUDIT_SUITE]] | Com executar les auditories responsive/a11y i els e2e de Playwright |
+| [[PWA_RENDER_PERF]] | Rendiment de la pantalla de projecció (pan/zoom, Konva, overlay de troncs) i pla prioritzat |
 | [[GDPR_COMPLIANCE]] | Informe tècnic i pla d'implementació del compliment LOPDGDD/RGPD |
 
 ### Infraestructura
