@@ -39,19 +39,13 @@
 // clipping cuts printing off after one page, since print renders in that same overflow
 // box instead of flowing across pages. Printing any route needs these reset.
 @media print {
-  .h-screen {
+  body > div.h-screen {
     height: auto !important;
     overflow: visible !important;
   }
 
   main.overflow-y-auto {
     overflow: visible !important;
-    height: auto !important;
-  }
-
-  app-header,
-  app-tab-nav {
-    display: none !important;
   }
 }
 

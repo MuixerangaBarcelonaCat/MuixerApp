@@ -1,15 +1,11 @@
-<div class="flex items-center justify-between gap-4 p-4">
-  <span class="print:hidden">
-    <lib-button variant="ghost" size="sm" (clicked)="goBack()">
-      <lucide-icon name="ArrowLeft" [size]="18" /> Tornar
-    </lib-button>
-  </span>
+<div class="print:hidden flex items-center justify-between gap-4 p-4">
+  <lib-button variant="ghost" size="sm" (clicked)="goBack()">
+    <lucide-icon name="ArrowLeft" [size]="18" /> Tornar
+  </lib-button>
   <h1 class="text-xl font-bold font-serif">{{ eventTitle() }} — {{ eventDate() }}</h1>
-  <span class="print:hidden">
-    <lib-button variant="primary" size="sm" (clicked)="print()">
-      <lucide-icon name="Printer" [size]="16" /> Imprimeix
-    </lib-button>
-  </span>
+  <lib-button variant="primary" size="sm" (clicked)="print()">
+    <lucide-icon name="Printer" [size]="16" /> Imprimeix
+  </lib-button>
 </div>
 
 @if (loading()) {
