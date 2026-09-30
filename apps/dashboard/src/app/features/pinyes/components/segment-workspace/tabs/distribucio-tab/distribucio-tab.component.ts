@@ -56,6 +56,16 @@ const INITIAL_ZOOM = 0.75;
 /** Quiet time before a properties-panel edit (keystroke, slider tick) is persisted. */
 const PANEL_SAVE_DEBOUNCE_MS = 400;
 
+/** Event/segment an edit belongs to, captured when the edit is made. */
+interface SaveTarget {
+  eventId: string;
+  segmentId: string;
+}
+
+interface PendingSave extends SaveTarget {
+  timer: ReturnType<typeof setTimeout>;
+}
+
 /**
  * Distribució tab of the segment workspace: the distribution canvas (drag,
  * rotate, tronc-panel drag) plus a properties panel for the selected figure
@@ -274,21 +284,26 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     this.slots.update((list) =>
       list.map((s) => (s.slotId === event.id ? { ...s, label: event.value } : s)),
     );
-    clearTimeout(this.pendingLabelSaves.get(event.id));
-    this.pendingLabelSaves.set(event.id, setTimeout(() => this.saveLabel(event.id), PANEL_SAVE_DEBOUNCE_MS));
+    clearTimeout(this.pendingLabelSaves.get(event.id)?.timer);
+    const target = this.currentTarget();
+    this.pendingLabelSaves.set(event.id, {
+      ...target,
+      timer: setTimeout(() => this.saveLabel(event.id, target), PANEL_SAVE_DEBOUNCE_MS),
+    });
   }
 
   ngOnDestroy(): void {
-    // Leaving the tab must not drop an edit still waiting out its debounce.
-    if (this.pendingSave) this.save();
-    for (const id of [...this.pendingLabelSaves.keys()]) this.saveLabel(id);
+    // Leaving the tab must not drop an edit still waiting out its debounce. Flushed to the
+    // segment the edit was made in: prev/next navigation moves ws ids before destroying this tab.
+    if (this.pendingSave) this.save(this.pendingSave);
+    for (const [id, pending] of [...this.pendingLabelSaves]) this.saveLabel(id, pending);
   }
 
-  private saveLabel(instanceId: string): void {
-    clearTimeout(this.pendingLabelSaves.get(instanceId));
+  private saveLabel(instanceId: string, target: SaveTarget): void {
+    clearTimeout(this.pendingLabelSaves.get(instanceId)?.timer);
     this.pendingLabelSaves.delete(instanceId);
     const label = this.slots().find((s) => s.slotId === instanceId)?.label ?? null;
-    this.instanceService.update(this.ws.eventId(), this.ws.segmentId(), instanceId, { label }).subscribe({
+    this.instanceService.update(target.eventId, target.segmentId, instanceId, { label }).subscribe({
       error: () => this.toast.error("No s'ha pogut actualitzar el nom de la figura."),
     });
   }
@@ -431,20 +446,25 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     this.pendingPlacementItems = null;
   }
 
-  private pendingSave: ReturnType<typeof setTimeout> | null = null;
-  private readonly pendingLabelSaves = new Map<string, ReturnType<typeof setTimeout>>();
+  private pendingSave: PendingSave | null = null;
+  private readonly pendingLabelSaves = new Map<string, PendingSave>();
+
+  private currentTarget(): SaveTarget {
+    return { eventId: this.ws.eventId(), segmentId: this.ws.segmentId() };
+  }
 
   private scheduleSave(): void {
     this.cancelPendingSave();
-    this.pendingSave = setTimeout(() => this.save(), PANEL_SAVE_DEBOUNCE_MS);
+    const target = this.currentTarget();
+    this.pendingSave = { ...target, timer: setTimeout(() => this.save(target), PANEL_SAVE_DEBOUNCE_MS) };
   }
 
   private cancelPendingSave(): void {
-    if (this.pendingSave) clearTimeout(this.pendingSave);
+    if (this.pendingSave) clearTimeout(this.pendingSave.timer);
     this.pendingSave = null;
   }
 
-  private save(): void {
+  private save(target: SaveTarget = this.currentTarget()): void {
     this.cancelPendingSave();
     const items: InstanceDistributionPayload[] = this.slots().map((s) => ({
       instanceId: s.slotId,
@@ -457,7 +477,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
       troncPanelHeight: null,
     }));
 
-    this.distributionService.saveDistribution(this.ws.eventId(), this.ws.segmentId(), items).subscribe({
+    this.distributionService.saveDistribution(target.eventId, target.segmentId, items).subscribe({
       error: () => this.toast.error("No s'ha pogut alçar la distribució."),
     });
   }
