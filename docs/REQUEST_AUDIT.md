@@ -149,7 +149,7 @@ vegades en obrir i 1 per clic; ara 1 vegada.
 
 - Si es tanca la pestanya del navegador o es recarrega la pàgina menys de 400 ms després de l'última
   edició al panell, aquesta es perd. El canvi de pestanya del workspace i la navegació interna sí que la
-  desen.
+  desen. Amb anterior/següent es desa al segment on s'ha fet l'edició, no al nou.
 - En canviar de pestanya, el `PUT` pendent surt just abans del `refresh()` de la pestanya nova. Si el
   servidor resol primer el `GET`, la pestanya nova pot mostrar la posició anterior fins al següent refresh.
   Aquesta cursa ja existia abans, però amb una finestra més petita.

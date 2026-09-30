@@ -640,6 +640,20 @@ describe('DistribucioTabComponent', () => {
       expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, INST_A, { label: 'Pilar central' });
     });
 
+    it('flushes a pending panel edit to the segment it was made in when prev/next switches segment', async () => {
+      await setup();
+      component.onOffsetXChanged({ id: INST_A, value: 500 });
+      component.onLabelChanged({ id: INST_A, value: 'Pilar central' });
+
+      // load() of the sibling segment moves the ids before its spinner destroys this tab.
+      ws.eventId.set('event-other');
+      ws.segmentId.set('segment-other');
+      fixture.destroy();
+
+      expect(distributionService.saveDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, expect.any(Array));
+      expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, INST_A, { label: 'Pilar central' });
+    });
+
     it('label change calls the instance update endpoint and updates the slot label optimistically', async () => {
       await setup();
       component.onSlotSelected(INST_A);
