@@ -11,7 +11,7 @@ tags: [qa]
 > Regla: si un ítem es resol, s'esborra d'aquí. Res de columnes "✅ Resolt" —
 > per a això ja hi ha el git log.
 
-**Verificat contra el codi:** 3 d'agost de 2026
+**Verificat contra el codi:** 21 de setembre de 2026
 
 ---
 
@@ -53,7 +53,7 @@ tags: [qa]
 | F14 | El fix "string buit → null" en actualitzar formularis es duplica gairebé idènticament en 3 llocs (`event-form-modal`, `season-form-modal`, `tag-form-modal` ×2) en lloc d'un util compartit | `features/events/components/event-form-modal/`, `features/config/components/season-form-modal/`, `features/config/components/tag-form-modal/` | Introduït a #143. Extreure `orNull`/`emptyToNull` a `shared/utils/` si apareix un 4t cas o cal refinar la regla |
 | F15 | `GENDER_LABELS` (mapa d'etiquetes en català per `Gender`) duplicat al dashboard i a la PWA en lloc de compartir-lo des de `@muixer/shared` | `apps/dashboard/.../person-detail/person-detail.component.ts`, `apps/pwa/.../person-data-fields/person-data-fields.component.ts` | Introduït a #143. Un canvi de text o un nou valor de l'enum es pot aplicar a una còpia i oblidar l'altra |
 | F16 | `isNodeVisibleByModeAndCordons` decideix només per `renglaPosition <= numberOfCordons` i ignora `renglaId`, tot i que el seu propi docstring diu «everything else with no rengla … is visible». El predicat que va substituir mantenia sempre els nodes PINYA amb `renglaId === null`, així que un node sense rengla però amb un `renglaPosition` obsolet per damunt del límit ara desapareix del canvas. A més, dins del mateix servei els dos filtres divergeixen: `visibleNodesFor` sí que comprova `!n.renglaId` i `pinyaCanvasNodesFor` (que el crida) hi aplica el predicat compartit a sobre | `libs/shared/src/constants/assignment-area.constants.ts:99`, `features/pinyes/utils/figure-mode-filter.util.ts:17`, `features/pinyes/services/segment-workspace-state.service.ts:421` i `:448` | Introduït en unificar el filtre de mode+cordons. Cap cas reproduït: exigeix un node amb `renglaId` nul i `renglaPosition` no nul, combinació que el flux normal no genera. Decidir quina és la regla bona (el docstring o el codi) i deixar-ne una sola |
-| F1 | El workspace de Pinyes no és usable per sota de `sm` (639px): hi ha un guard que mostra "encara no optimitzat per a mòbil" a Pinyes, Troncs i Nodes extra | `pinyes-tab`, `troncs-tab`, `nodes-tab` | Decisió conscient: a 393px el canvas quedava en 73px reals |
+| F1 | La pestanya Nodes extra del workspace de Pinyes no és usable per sota de `sm` (639px): un guard mostra "encara no optimitzat per a mòbil". En dispositius tàctils la pestanya ni es mostra (només Pinyes i Troncs, veure §20 de `PINYES_MODULE.md`), així que el guard només es veu en una finestra d'escriptori molt estreta | `nodes-tab` | Decisió conscient: cal adaptar-la per a tàctil abans de mostrar-la (Distribució i Previsualitza tampoc estan adaptades). Pinyes i Troncs ja no tenen el guard: en tàctil el llistat de persones va en un modal |
 | F4 | `figure-canvas.component.ts` fa **2.707 línies** | `figure-canvas.component.ts` | Una extracció (`KonvaStageService` + renderers per mode) es va fer i **es va revertir el 12/06/2026 perquè no es va connectar mai**. No repetir-la sense connectar-la de debò |
 | F5 | Les interfícies `Create*Payload` / `Update*Payload` del dashboard no viuen a `libs/shared` | `features/*/models/` | Els models del frontend van derivant respecte dels DTOs de l'API |
 | F6 | Cap cas conegut actualment, però si un control amb aspecte de botó no pot ser `<lib-button>` (p. ex. un `<input type="checkbox">` no pot niar dins d'un `<button>`, HTML invàlid) i s'estila amb `class="...btn..."` a mà, farà `darkening` en hover en lloc de l'animació `ds-lift` compartida | — | Aplicar `ds-lift` a mà en trobar-ne un (`libs/ui/src/styles/_interactive.scss` documenta el mecanisme); revisar si continua fent falta l'aspecte de botó o si, com a "Sols actius" a `person-list`, és més senzill treure'l del tot |
@@ -73,6 +73,26 @@ tags: [qa]
 | T2 | L'offline de la PWA no s'ha verificat en un desplegament real (el service worker només s'activa en build de producció); el test actual és tou |
 | T3 | Cap troballa d'auditoria s'ha validat amb un usuari **MEMBER** real: tot s'ha provat amb ADMIN |
 | T4 | `apps/dashboard-e2e/src/audit/audit-core.ts` exporta `MIN_TAP_TARGET` i `collectMetrics`, però `responsive-audit.spec.ts` en manté còpies locals idèntiques | 
+
+## Rendiment de la capa de dades
+
+> Auditoria de tota la capa de dades d'`apps/api` (branca `feat/optimize-db-access`). El gruix
+> ja està resolt: índexos de les FKs del camí calent, agregat de `recalculateSummary`, càrrega
+> batch de la projecció, `bulkImport` amb un sol INSERT, comptadors de conflictes per event en
+> una query, índexos trigram de la cerca de persones i batch dels UPDATEs de push. El que queda
+> aquí és el que s'ha decidit **no** fer ara, amb el motiu.
+
+| # | Ítem | On | Notes |
+|---|------|-----|-------|
+| P1 | Les ordenacions `unaccent(lower(col))` amb LIMIT/OFFSET fan un sort complet per pàgina | `persons`, `users`, `events`, `figure_templates`, `compositions`, `tags` | **Ja no està blocat:** `f_unaccent` (IMMUTABLE, migració `AddPersonSearchTrigramIndexes`) permet l'índex d'expressió que abans `unaccent()` STABLE rebutjava. Falta crear els btree `f_unaccent(lower(col))` i alinear-hi els `ORDER BY`. Només val la pena quan una taula creixa prou perquè el sort es note |
+| P2 | La branca `word_similarity(...) > 0.2` de la cerca de persones disponibles no és indexable | `node-assignment/available-persons.service.ts` | Les dues branques `LIKE` sí que usen els índexos trigram, però un `OR` només evita el seq-scan si **totes** les branques en tenen. Accelerar-la demana l'operador `<%`, el llindar del qual és una GUC de sessió i no el 0.2 fixat aquí: canviar-ho canviaria qui apareix al cercador. Deixat igual a consciència |
+| P3 | `getEventAttendanceStats` duplica el que `events.attendanceSummary` ja té desnormalitzat | `me.service.ts` | Només el desglossament adults/xicalla de `NO_VAIG`/`PENDENT` és informació nova. Afegir dos comptadors al jsonb existent donaria l'endpoint sencer amb zero queries. També: `fetchAttendancesByEvent` hidrata `person`+`event` sencers només per llegir ids, i `getEventAttendanceStats` fa un `findOne` complet (jsonb inclòs) només per poder fer 404 (`exist()` o plegar-ho dins l'agregat) |
+| P4 | La pantalla de passa llista carrega tot `MeEventDetail` (4 queries, hidrata persones i events sencers) només per pintar títol i data | `apps/pwa/.../roll-call.component.ts` | El fix demana un endpoint o DTO nou: superfície d'API nova per estalviar 4 queries d'una pantalla d'ús puntual |
+| P5 | `ATTENDED_COUNT_EXPRESSION` és una subquery correlada que s'executa per fila **abans** del LIMIT | `person.service.ts` | Només quan `sortBy=attendedCount` (~300 execucions per una pàgina de 50). Mesurar abans de tocar; el fix seria `LEFT JOIN LATERAL` o una CTE agrupada |
+| P6 | `person-sync.strategy.ts` fa ~1500-2500 queries per execució completa | `sync/strategies/person-sync.strategy.ts` | **Prioritat baixa deliberada**, documentat perquè ningú no ho confonga amb un camí calent: és una acció manual d'admin, amb SSE i progrés per fila. El germà `attendance-sync.strategy.ts` ja fa batch-upsert |
+| P7 | `findOne` per entrada a `syncEntries`; bucles de `manager.update` per fila als reordenaments | `composition.service.ts`, `event-segment.service.ts`, `figure-instance.service.ts` | N petita (2-8). `In()` ho resoldria; ignorable mentre desar la distribució no es queixe |
+| P10 | La deduplicació de `WEEKLY`/`BEFORE_EVENT` depén del log a `notification_logs`, però `NotificationLogService.record()` s'empassa els errors: si falla l'INSERT, el cron del minut següent torna a enviar la notificació, i així cada minut. Tampoc no hi ha cap restricció a la BD ni bloqueig entre instàncies: dues instàncies de l'API (rèplica o solapament en un desplegament) poden enviar-la dues vegades | `push-notification/notification-log.service.ts`, `notification-schedule-cron.service.ts` | Probabilitat baixa (una sola instància avui), cost alt (spam a tota la colla). Fix: `UNIQUE (scheduleId, triggeredEventId)` per a `BEFORE_EVENT` i escriure el log abans d'enviar com a condició (si l'INSERT falla, no s'envia), o desactivar la programació si `record()` falla |
+| P8 | `audit_logs` té `IDX_audit_logs_actor` + `IDX_audit_logs_created` però `audit.service.ts` només fa `save()`: cap camí de lectura | `audit/` | Cost d'escriptura per zero benefici **avui**. Decisió presa: mantenir-los, perquè hi ha intenció de fer un visor de logs. Nota informativa, no acció |
 
 ## Neteja menor
 

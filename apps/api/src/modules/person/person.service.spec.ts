@@ -523,29 +523,6 @@ describe('PersonService', () => {
 
   // --- update provisional transitions ---
   describe('update provisional', () => {
-    it('auto-prefixes ~ when demoting a regular person', async () => {
-      const regularPerson = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
-      mockPersonRepository.findOne.mockResolvedValue(regularPerson);
-      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
-
-      await service.update('1', { isProvisional: true });
-
-      expect(mockPersonRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ alias: '~Joan', isProvisional: true }),
-      );
-    });
-
-    it('throws ConflictException (not a raw DB error) when demotion prefix collides with an existing alias', async () => {
-      const regularPerson = { id: '1', alias: 'JoanExisting', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
-      const otherPerson = { id: '2', alias: '~JoanExisting' };
-      mockPersonRepository.findOne
-        .mockResolvedValueOnce(regularPerson)
-        .mockResolvedValueOnce(otherPerson);
-
-      await expect(service.update('1', { isProvisional: true })).rejects.toThrow(ConflictException);
-      expect(mockPersonRepository.save).not.toHaveBeenCalled();
-    });
-
     it('throws ConflictException when a plain alias update collides with another person', async () => {
       const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
       const otherPerson = { id: '2', alias: 'TakenAlias' };

@@ -1,8 +1,14 @@
 import { Equals, IsBoolean, IsEmail, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PersonRegistrationDataDto } from '../../person/dto/person-registration-data.dto';
+import { IsValidPhoneNumber } from '../../../common/validators/is-valid-phone-number.decorator';
 
 export class RegisterViaInviteDto extends PersonRegistrationDataDto {
+  @ApiProperty({ description: 'Telèfon en format E.164', example: '+34612345678' })
+  @IsString()
+  @IsValidPhoneNumber()
+  phone: string;
+
   @ApiProperty({ description: "Token d'invitació rebut via enllaç" })
   @IsString()
   token: string;

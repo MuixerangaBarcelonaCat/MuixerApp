@@ -3,8 +3,8 @@ import { Router, CanActivateFn } from '@angular/router';
 import { ToastService } from '@muixer/ui';
 
 /**
- * Blocks navigation to desktop/tablet-only routes (template editor, composition editor, segment
- * assignment) when accessed from phone viewports (< 768px width, the Tailwind `md` breakpoint).
+ * Blocks navigation to desktop/tablet-only routes (template editor, composition editor) when
+ * accessed from phone viewports (< 768px width, the Tailwind `md` breakpoint).
  *
  * Tablets (>= 768px, e.g. iPad portrait at 768px) are allowed through — only phones are redirected
  * to /pinyes with an error toast.

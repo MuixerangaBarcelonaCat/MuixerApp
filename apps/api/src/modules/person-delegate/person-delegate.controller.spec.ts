@@ -59,6 +59,31 @@ describe('PersonDelegateController', () => {
     });
   });
 
+  describe('findAll — delegate phone', () => {
+    it('exposes the delegate\'s own person phone so the UI can show it for xicalla', async () => {
+      mockService.findByPerson.mockResolvedValue([
+        {
+          id: 'del-1',
+          delegateType: DelegateType.PARENT,
+          isActive: true,
+          isPrimary: true,
+          createdAt: new Date('2026-07-01'),
+          user: {
+            id: 'user-1',
+            email: 'parent@test.com',
+            person: { id: 'parent-p', alias: 'Pare', phone: '+34612345678', notes: 'PRIVATE' },
+          },
+          person: { id: 'child-p', alias: 'child' },
+        },
+      ]);
+
+      const result = await controller.findAll('child-p');
+
+      expect(result[0].user.person).toMatchObject({ id: 'parent-p', phone: '+34612345678' });
+      expect((result[0].user.person as unknown as Record<string, unknown>)['notes']).toBeUndefined();
+    });
+  });
+
   describe('create', () => {
     it('should create and return serialized delegate', async () => {
       const personId = 'person-1';

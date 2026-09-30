@@ -37,6 +37,7 @@
     "audit:report": "playwright show-report apps/dashboard-e2e/playwright-report-audit",
     "audit:pwa": "playwright test -c apps/dashboard-e2e/playwright.pwa-audit.config.ts",
     "audit:gestures": "playwright test -c apps/dashboard-e2e/playwright.gestures.config.ts",
+    "e2e:assign-touch": "playwright test -c apps/dashboard-e2e/playwright.assign-touch.config.ts",
     "audit:pwa-behavior": "playwright test -c apps/dashboard-e2e/playwright.pwa-behavior.config.ts",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3 --configuration=ci",
     "lint:dead": "knip --no-exit-code",

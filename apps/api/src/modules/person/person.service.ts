@@ -88,8 +88,17 @@ export class PersonService {
       .leftJoinAndSelect('person.user', 'user');
 
     if (search) {
+      // `public.f_unaccent(lower(col))` — and not `unaccent(col) ILIKE …` — because that is the exact
+      // expression the trigram indexes are built on (AddPersonSearchTrigramIndexes). Postgres
+      // only uses an expression index when the predicate matches it character for character.
+      // `lower()` + LIKE is equivalent to ILIKE for these columns.
       queryBuilder.andWhere(
-        '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search) OR unaccent(person.firstSurname) ILIKE unaccent(:search) OR unaccent(person.secondSurname) ILIKE unaccent(:search))',
+        `(
+          public.f_unaccent(lower(person.alias)) LIKE public.f_unaccent(lower(:search))
+          OR public.f_unaccent(lower(person.name)) LIKE public.f_unaccent(lower(:search))
+          OR public.f_unaccent(lower(person.firstSurname)) LIKE public.f_unaccent(lower(:search))
+          OR public.f_unaccent(lower(person.secondSurname)) LIKE public.f_unaccent(lower(:search))
+        )`,
         { search: `%${search}%` },
       );
     }
@@ -328,7 +337,7 @@ export class PersonService {
     const { positionIds, mentorId, isProvisional, ...personData } =
       updatePersonDto;
 
-    // Handle isProvisional transitions
+    // Only promotion (provisional → regular) is supported
     if (isProvisional !== undefined) {
       if (isProvisional === false && person.isProvisional === true) {
         // Promotion: validate required fields are set
@@ -358,18 +367,6 @@ export class PersonService {
               'Cal proporcionar un usuari per promoure una persona provisional',
             );
           }
-        }
-      }
-
-      if (isProvisional === true && person.isProvisional === false) {
-        // Demotion: auto-prefix alias with ~ if not already prefixed
-        const currentAlias = personData.alias ?? person.alias;
-        if (!currentAlias.startsWith(PROVISIONAL_PREFIX)) {
-          const prefixed = `${PROVISIONAL_PREFIX}${currentAlias}`.slice(
-            0,
-            MAX_ALIAS_LENGTH,
-          );
-          personData.alias = prefixed;
         }
       }
 

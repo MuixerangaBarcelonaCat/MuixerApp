@@ -12,7 +12,7 @@ export interface PersonDelegateItem {
   user: {
     id: string;
     email: string;
-    person: { id: string; alias: string } | null;
+    person: { id: string; alias: string; phone: string | null } | null;
   };
   person: {
     id: string;

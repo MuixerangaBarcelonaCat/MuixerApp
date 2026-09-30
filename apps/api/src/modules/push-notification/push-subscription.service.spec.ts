@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { PushSubscriptionService } from './push-subscription.service';
 import { PushSubscription } from './entities/push-subscription.entity';
 import { User } from '../user/user.entity';
@@ -166,11 +166,35 @@ describe('PushSubscriptionService', () => {
     });
   });
 
-  describe('deactivate', () => {
-    it('sets isActive false on the given subscription', async () => {
-      repo.update.mockResolvedValue({ affected: 1 } as never);
-      await service.deactivate('sub-1');
-      expect(repo.update).toHaveBeenCalledWith('sub-1', { isActive: false });
+  describe('deactivateMany', () => {
+    it('sets isActive false on every given subscription with a single update', async () => {
+      repo.update.mockResolvedValue({ affected: 3 } as never);
+
+      await service.deactivateMany(['sub-1', 'sub-2', 'sub-3']);
+
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(repo.update).toHaveBeenCalledWith({ id: In(['sub-1', 'sub-2', 'sub-3']) }, { isActive: false });
+    });
+
+    it('does not touch the database for an empty list', async () => {
+      await service.deactivateMany([]);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('markUsedMany', () => {
+    it('stamps lastUsedAt on every given subscription with a single update', async () => {
+      repo.update.mockResolvedValue({ affected: 2 } as never);
+
+      await service.markUsedMany(['sub-1', 'sub-2']);
+
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(repo.update).toHaveBeenCalledWith({ id: In(['sub-1', 'sub-2']) }, { lastUsedAt: expect.any(Date) });
+    });
+
+    it('does not touch the database for an empty list', async () => {
+      await service.markUsedMany([]);
+      expect(repo.update).not.toHaveBeenCalled();
     });
   });
 });

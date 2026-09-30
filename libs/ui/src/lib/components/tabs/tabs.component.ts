@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, booleanAttribute, input, output } from '@angular/core';
 import type { LucideIconData } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
 
@@ -45,7 +45,18 @@ export class TabsComponent {
   // since event-detail's panels were already ids `event-tabpanel-{id}` before this component existed.
   panelIdPrefix = input<string>('tabpanel-');
 
+  // Below `sm`, inactive tabs that have an icon shrink to just the icon (the label goes `sr-only`,
+  // so it stays their accessible name) — keeps the strip from needing a horizontal scrollbar on a
+  // phone. Tabs without an icon always keep their label. On by default; pass
+  // `[collapseInactive]="false"` to keep every label visible.
+  collapseInactive = input(true, { transform: booleanAttribute });
+
   activeIdChange = output<string>();
+
+  // Static class string (not built from parts) so Tailwind's content scanner keeps it.
+  protected labelClass(tab: TabDef): string {
+    return this.collapseInactive() && tab.icon && tab.id !== this.activeId() ? 'max-sm:sr-only' : '';
+  }
 
   protected select(id: string): void {
     if (id !== this.activeId()) {

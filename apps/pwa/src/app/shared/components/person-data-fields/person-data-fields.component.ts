@@ -20,6 +20,8 @@ const GENDER_LABELS: Record<Gender, string> = {
 export class PersonDataFieldsComponent {
   readonly formGroup = input.required<PersonDataFormGroup>();
   readonly heading = input<string>();
+  /** Xicalla have no phone, so the dependent form hides it. */
+  readonly showPhone = input(true);
 
   protected readonly genders = [Gender.FEMALE, Gender.MALE, Gender.OTHER];
   protected readonly genderLabels = GENDER_LABELS;

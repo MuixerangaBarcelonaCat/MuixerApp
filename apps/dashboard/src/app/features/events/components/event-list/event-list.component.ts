@@ -212,6 +212,9 @@ export class EventListComponent implements OnInit {
     this.loadEvents();
   }
 
+  /** Row route for the data table: real anchors, so a row opens in a new tab. */
+  readonly eventLink = (event: EventListItem) => ['/events', event.id];
+
   navigateToEvent(id: string) {
     this.router.navigate(['/events', id]);
   }

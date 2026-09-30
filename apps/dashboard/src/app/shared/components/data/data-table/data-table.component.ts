@@ -10,6 +10,7 @@ import {
   HostListener,
 } from '@angular/core';
 import { NgClass } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { CardComponent } from '@muixer/ui';
 import { ColumnDef, GroupSeparator } from '../../../models/column-def.model';
@@ -29,7 +30,7 @@ export interface RowAction<T = any> {
   selector: 'app-data-table',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgClass, LucideAngularModule, CardComponent],
+  imports: [NgClass, RouterLink, LucideAngularModule, CardComponent],
   host: { class: 'block' },
   templateUrl: './data-table.component.html',
 })
@@ -49,6 +50,16 @@ export class DataTableComponent<T extends object> {
    * (e.g. a red X to remove the row) — the menu still scales better past two or three.
    */
   inlineActions = input(false);
+
+  /**
+   * Route for each row, as `routerLink` commands. When set, the row is rendered as real
+   * anchors — the primary text plus an empty overlay per other data cell (card mode: a
+   * stretched link over the whole card) — so middle-click, Ctrl/Cmd+click and «Obre en una
+   * pestanya nova» work natively, and the row's own click no longer emits `rowClick` (the
+   * link owns navigation). Per-cell buttons (`onCellClick`, colour badges, row actions) stay
+   * above the overlay and keep their own behaviour. Leave unset to keep the `rowClick` flow.
+   */
+  rowLink = input<((item: T) => (string | number)[]) | undefined>(undefined);
 
   rowClick = output<T>();
   sortChange = output<SortChange>();
@@ -100,6 +111,20 @@ export class DataTableComponent<T extends object> {
 
   isSorted(col: ColumnDef<T>): boolean {
     return !!col.sortField && this.sortBy() === col.sortField;
+  }
+
+  /** Row/card click: a no-op when `rowLink` is set, since the anchors handle navigation. */
+  onRowClick(item: T): void {
+    if (this.rowLink()) return;
+    this.rowClick.emit(item);
+  }
+
+  /** True when the cell renders plain text (no badge/pills/colorBadges branch), i.e. can host the row's text link. */
+  isTextCell(col: ColumnDef<T>): boolean {
+    if (col.type === 'badge' && col.badgeClass) return false;
+    if (col.type === 'pills' && col.pills) return false;
+    if (col.type === 'colorBadges' && col.colorBadges) return false;
+    return true;
   }
 
   onCellClick(event: MouseEvent, col: ColumnDef<T>, item: T): void {

@@ -95,13 +95,17 @@ export class AvailablePersonsService {
       .where('person.isActive = true');
 
     if (search) {
+      // The two LIKE branches match the trigram indexes (see AddPersonSearchTrigramIndexes).
+      // The word_similarity branch does not: accelerating it needs the `<%` operator, whose
+      // threshold is a session GUC rather than the 0.2 hardcoded here, so changing it would
+      // change which people the box returns. Left as-is deliberately — see docs/DEBT.md.
       qb.andWhere(
         `(
-          unaccent(lower(person.alias)) LIKE unaccent(lower(:searchPattern))
-          OR unaccent(lower(person.name)) LIKE unaccent(lower(:searchPattern))
+          public.f_unaccent(lower(person.alias)) LIKE public.f_unaccent(lower(:searchPattern))
+          OR public.f_unaccent(lower(person.name)) LIKE public.f_unaccent(lower(:searchPattern))
           OR GREATEST(
-            word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.alias))),
-            word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.name)))
+            word_similarity(public.f_unaccent(lower(:rawSearch)), public.f_unaccent(lower(person.alias))),
+            word_similarity(public.f_unaccent(lower(:rawSearch)), public.f_unaccent(lower(person.name)))
           ) > 0.2
         )`,
         { searchPattern: `%${search}%`, rawSearch: search },

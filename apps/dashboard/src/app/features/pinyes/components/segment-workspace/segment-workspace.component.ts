@@ -39,6 +39,9 @@ export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'prev
 
 const WORKSPACE_TABS: WorkspaceTab[] = ['pinyes', 'troncs', 'distribucio', 'nodes', 'previsualitza'];
 
+/** Tabs usable on touch devices; the rest are not adapted for touch yet. */
+const TOUCH_TABS: WorkspaceTab[] = ['pinyes', 'troncs'];
+
 const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
   value === 'pinyes' || value === 'troncs';
 
@@ -90,7 +93,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   readonly activeTab = signal<WorkspaceTab>('pinyes');
   readonly isPast = signal(false);
 
-  readonly tabDefs: TabDef[] = [
+  private readonly allTabDefs: TabDef[] = [
     { id: 'pinyes', label: 'Pinyes', icon: DOMAIN_ICONS.PINYA },
     { id: 'troncs', label: 'Troncs', icon: DOMAIN_ICONS.TRONC },
     { id: 'distribucio', label: 'Distribució', icon: DOMAIN_ICONS.COMPOSITION },
@@ -98,11 +101,26 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     { id: 'previsualitza', label: 'Previsualitza', icon: Monitor },
   ];
 
+  /** Touch devices only get the pinyes and troncs tabs. */
+  readonly tabDefs = computed(() =>
+    this.layout.isTouch()
+      ? this.allTabDefs.filter((t) => TOUCH_TABS.includes(t.id as WorkspaceTab))
+      : this.allTabDefs,
+  );
+
   /** Set when the route requested a figure explicitly; blocks auto-selection of the first instance. */
   private explicitFigureRequested = false;
   private notFoundHandled = false;
 
   constructor() {
+    // A hidden tab can't stay active: e.g. the device turns touch while Distribució is open.
+    effect(() => {
+      if (this.layout.isTouch() && !TOUCH_TABS.includes(this.activeTab())) {
+        this.ws.markTabSwitched();
+        this.activeTab.set(this.viewModeService.mode());
+      }
+    });
+
     effect(() => {
       if (this.ws.notFound() && !this.notFoundHandled) {
         this.notFoundHandled = true;
@@ -177,6 +195,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   setTab(tab: string): void {
+    if (tab !== this.activeTab()) this.ws.markTabSwitched();
     this.activeTab.set(tab as WorkspaceTab);
     if (isFiguresViewMode(tab)) {
       this.viewModeService.set(tab);

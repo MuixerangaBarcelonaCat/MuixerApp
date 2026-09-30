@@ -80,7 +80,7 @@
     [loading]="loading()"
     [groupSeparator]="groupSeparator()"
     [rowActions]="tableRowActions()"
-    (rowClick)="navigateToEvent($any($event).id)"
+    [rowLink]="eventLink"
     (sortChange)="onSortChangeFromTable($event)"
   />
 

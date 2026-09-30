@@ -6,7 +6,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { AttendanceStatus, DelegateType, EventType, FigureMode, Gender, JwtPayload, UserRole } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, FigureMode, FigureZone, Gender, JwtPayload, UserRole } from '@muixer/shared';
 import { MeService } from './me.service';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -46,6 +46,17 @@ const mockEvent: Partial<Event> = {
     confirmed: 0, declined: 0, pending: 0, attended: 0,
     lateCancel: 0, children: 0, childrenAttended: 0, total: 0,
   },
+};
+
+const EMPTY_SUMMARY = {
+  confirmed: 0,
+  declined: 0,
+  pending: 0,
+  attended: 0,
+  lateCancel: 0,
+  children: 0,
+  childrenAttended: 0,
+  total: 0,
 };
 
 describe('MeService', () => {
@@ -758,7 +769,7 @@ describe('MeService', () => {
       const result = await service.findEventSegments(mockUser, 'event-1');
 
       expect(result[0].myPlacements).toEqual([
-        { nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: FigureMode.COMPLETA },
+        expect.objectContaining({ nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: FigureMode.COMPLETA }),
       ]);
     });
 
@@ -818,6 +829,58 @@ describe('MeService', () => {
       const result = await service.findEventSegments(mockUser, 'event-1');
 
       expect(result[0].myPlacements.map((p) => p.nodeLabel)).toEqual(['Vent', 'Mans']);
+    });
+
+    describe('direcció-pinya exemption', () => {
+      const figure = (id: string) => ({
+        id,
+        label: null,
+        figureMode: FigureMode.COMPLETA,
+        figureTemplate: { name: 'pd4' },
+      });
+      const direccioPinya = (instanceId: string) =>
+        makeAssignment({
+          figureInstance: figure(instanceId),
+          instanceNode: { label: 'Direcció pinya', renglaPosition: null, zone: FigureZone.DIRECTION, positionType: 'direccio-pinya' },
+        });
+      const pinya = (instanceId: string) =>
+        makeAssignment({
+          figureInstance: figure(instanceId),
+          instanceNode: { label: 'Vent', renglaPosition: 1, zone: FigureZone.PINYA, positionType: 'vents' },
+        });
+      const tronc = (instanceId: string) =>
+        makeAssignment({
+          figureInstance: figure(instanceId),
+          instanceNode: { label: 'Segons', renglaPosition: null, zone: FigureZone.TRONC, positionType: 'segons' },
+        });
+
+      const givenPlacements = async (assignments: unknown[]) => {
+        userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+        eventSegmentService.findAllByEvent.mockResolvedValue([makeSegment({ instances: [] })] as never);
+        nodeAssignmentRepo.find.mockResolvedValue(assignments as never);
+        const result = await service.findEventSegments(mockUser, 'event-1');
+        return result[0].myPlacements.map((p) => p.nodeLabel);
+      };
+
+      it('drops a direcció pinya placement when the caller also holds a pinya node of the same figure', async () => {
+        expect(await givenPlacements([direccioPinya('i1'), pinya('i1')])).toEqual(['Vent']);
+      });
+
+      it('keeps both when the pinya node belongs to a different figure', async () => {
+        expect(await givenPlacements([direccioPinya('i1'), pinya('i2')])).toEqual(['Direcció pinya', 'Vent']);
+      });
+
+      it('keeps both when the caller also holds a tronc node', async () => {
+        expect(await givenPlacements([direccioPinya('i1'), tronc('i1')])).toEqual(['Direcció pinya', 'Segons']);
+      });
+
+      it('keeps a lone direcció pinya placement', async () => {
+        expect(await givenPlacements([direccioPinya('i1')])).toEqual(['Direcció pinya']);
+      });
+
+      it('still leaves two placements when a tronc comes on top of the excused pair', async () => {
+        expect(await givenPlacements([direccioPinya('i1'), pinya('i1'), tronc('i1')])).toEqual(['Vent', 'Segons']);
+      });
     });
 
     it('only queries assignments for the caller\'s own person, never a query param', async () => {
@@ -916,7 +979,7 @@ describe('MeService', () => {
         respondedAt: new Date(),
       };
       attendanceRepo.findOneOrFail.mockResolvedValue(persisted as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
         status: AttendanceStatus.ANIRE,
@@ -945,7 +1008,7 @@ describe('MeService', () => {
         respondedAt: new Date(),
       };
       attendanceRepo.findOneOrFail.mockResolvedValue(updated as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
         status: AttendanceStatus.NO_VAIG,
@@ -963,7 +1026,7 @@ describe('MeService', () => {
         status: AttendanceStatus.ANIRE,
         respondedAt: new Date(),
       } as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE });
 
@@ -1009,7 +1072,7 @@ describe('MeService', () => {
 
       const persisted = { id: 'att-new', status: AttendanceStatus.ANIRE, respondedAt: new Date() };
       attendanceRepo.findOneOrFail.mockResolvedValue(persisted as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE });
 
@@ -1031,7 +1094,7 @@ describe('MeService', () => {
         status: AttendanceStatus.ANIRE,
         respondedAt: new Date(),
       } as never);
-      attendanceService.recalculateSummary.mockResolvedValue(undefined);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
         status: AttendanceStatus.ANIRE,

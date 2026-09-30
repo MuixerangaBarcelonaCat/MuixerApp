@@ -1732,4 +1732,176 @@ describe('SegmentManagerComponent', () => {
       expect(deleteBtn).not.toBeNull();
     });
   });
+  describe('phones (below `sm`) show only names, summary and Assigna/Projecta', () => {
+    const hiddenOnPhone = (el: Element | null): boolean => !!el?.closest('.hidden');
+
+    const render = (): HTMLElement => {
+      const seg = makeSegment({
+        id: 'seg-1',
+        instances: [makeInstance({ id: 'inst-1', snapshotted: true, pinyaAssignedCount: 2, totalCordons: 2, numberOfCordons: 2 })],
+      });
+      component.segments.set([seg]);
+      fixture.componentRef.setInput('isLocked', false);
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    };
+    const byLabel = (root: HTMLElement, label: string) => root.querySelector(`[aria-label="${label}"]`);
+    const byLabelStart = (root: HTMLElement, prefix: string) => root.querySelector(`[aria-label^="${prefix}"]`);
+
+    it.each([
+      'Arrossega per reordenar el segment',
+      'Arrossega per reordenar',
+      'Eliminar segment',
+      'Afegir figura o composició al segment',
+      'Redueix els cordons',
+      'Augmenta els cordons',
+    ])('hides "%s"', (label) => {
+      expect(hiddenOnPhone(byLabel(render(), label))).toBe(true);
+    });
+
+    it.each([
+      'Canvia el nom de',
+      'Copia ',
+      'Treure ',
+    ])('hides the control starting with "%s"', (prefix) => {
+      expect(hiddenOnPhone(byLabelStart(render(), prefix))).toBe(true);
+    });
+
+    it('hides the per-segment assigned people pill', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-1' })] });
+      (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(
+        of({
+          segments: [
+            {
+              segmentId: 'seg-1',
+              segmentName: 'Bloc 1',
+              conflicts: makeEmptyCounters(),
+              sortOrder: 0,
+              figures: [makeFigureSummary({ pinya: makeAreaCount(3, 5), total: makeAreaCount(3, 5) })],
+            },
+          ],
+        }),
+      );
+      component.ngOnInit();
+      component.segments.set([seg]);
+      fixture.componentRef.setInput('isLocked', false);
+      fixture.detectChanges();
+
+      const label = component.segmentPeopleLabel(seg) as string;
+      expect(label).toBeTruthy();
+      const badge = Array.from(fixture.nativeElement.querySelectorAll('lib-badge')).find((b) =>
+        (b as Element).textContent?.includes(label),
+      ) as Element;
+      expect(hiddenOnPhone(badge)).toBe(true);
+    });
+
+    it('keeps the per-segment publish toggle, published or not', () => {
+      const seg = makeSegment({ id: 'seg-1', isPublished: true, instances: [makeInstance({ id: 'inst-1' })] });
+      component.segments.set([seg]);
+      fixture.detectChanges();
+      expect(hiddenOnPhone(byLabelStart(fixture.nativeElement, 'Visible als membres'))).toBe(false);
+
+      component.segments.set([{ ...seg, isPublished: false }]);
+      fixture.detectChanges();
+      expect(hiddenOnPhone(byLabelStart(fixture.nativeElement, 'Ocult als membres'))).toBe(false);
+    });
+
+    it.each([false, true])('hides the "(automàtic)" hint next to the title (locked: %s)', (locked) => {
+      component.segments.set([makeSegment({ id: 'seg-1', name: null })]);
+      fixture.componentRef.setInput('isLocked', locked);
+      fixture.detectChanges();
+      const hint = Array.from(fixture.nativeElement.querySelectorAll('span')).find((e) =>
+        (e as Element).textContent?.trim() === '(automàtic)',
+      ) as Element;
+      expect(hint).toBeDefined();
+      expect(hiddenOnPhone(hint)).toBe(true);
+    });
+
+    it('hides "Segment nou"', () => {
+      component.segments.set([makeSegment({ id: 'seg-1' })]);
+      fixture.detectChanges();
+      expect(hiddenOnPhone(byLabel(fixture.nativeElement, 'Afegir segment nou'))).toBe(true);
+    });
+
+    it('hides the pencil next to the segment title', () => {
+      component.segments.set([makeSegment({ id: 'seg-1' })]);
+      fixture.detectChanges();
+      const pencil = fixture.nativeElement.querySelector('[data-testid="segment-rename-trigger"] lucide-icon');
+      expect(hiddenOnPhone(pencil)).toBe(true);
+    });
+
+    describe('directors on their own line', () => {
+      const load = (mode: 'pinyes' | 'troncs') => {
+        (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(
+          of({
+            segments: [
+              {
+                segmentId: 'seg-1',
+                segmentName: 'Bloc 1',
+                conflicts: makeEmptyCounters(),
+                sortOrder: 0,
+                figures: [
+                  makeFigureSummary({
+                    instanceId: 'inst-1',
+                    directions: [
+                      { positionType: 'direccio-pinya', personAlias: 'Marta' },
+                      { positionType: 'direccio-tronc', personAlias: 'Quim' },
+                    ],
+                  }),
+                ],
+              },
+            ],
+          }),
+        );
+        component.ngOnInit();
+        component.setViewMode(mode);
+        component.segments.set([makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-1', snapshotted: true })] })]);
+        fixture.detectChanges();
+      };
+
+      it.each(['pinyes', 'troncs'] as const)('wraps the %s-mode directors below the figure name', (mode) => {
+        load(mode);
+        const el = fixture.nativeElement.querySelector(`[aria-label^="Direcció"]`) as HTMLElement;
+        expect(el.className).toContain('max-sm:basis-full');
+        expect(el.closest('.max-sm\\:flex-wrap')).not.toBeNull();
+      });
+    });
+
+    it('keeps the per-segment collapse/expand toggle, expanded or collapsed', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-1' })] });
+      component.segments.set([seg]);
+      fixture.detectChanges();
+      expect(hiddenOnPhone(byLabelStart(fixture.nativeElement, 'Plega el segment'))).toBe(false);
+
+      component.collapseAll();
+      fixture.detectChanges();
+      expect(hiddenOnPhone(byLabelStart(fixture.nativeElement, 'Desplega el segment'))).toBe(false);
+    });
+
+    it('hides the figure mode / cordons control column', () => {
+      const root = render();
+      expect(hiddenOnPhone(root.querySelector('[title="Nombre de cordons visibles"]'))).toBe(true);
+    });
+
+    it('keeps the segment title, figure name, Assigna and Projecta', () => {
+      const root = render();
+      const seg = component.segments()[0];
+      expect(hiddenOnPhone(root.querySelector('[data-testid="segment-rename-trigger"]'))).toBe(false);
+      expect(hiddenOnPhone(root.querySelector('[data-instance-id="inst-1"]'))).toBe(false);
+      expect(hiddenOnPhone(byLabel(root, 'Assigna persones al segment ' + component.displayName()(seg)))).toBe(false);
+      expect(hiddenOnPhone(byLabel(root, 'Projecta el segment ' + component.displayName()(seg)))).toBe(false);
+    });
+
+    it('keeps the Pinyes/Troncs toggle and the figure pinya summary', () => {
+      const root = render();
+      expect(hiddenOnPhone(byLabel(root, 'Mode de visualització')?.querySelector('lib-button') ?? null)).toBe(false);
+      const summary = root.querySelector('[data-instance-id="inst-1"] [aria-label]');
+      if (summary) expect(hiddenOnPhone(summary)).toBe(false);
+    });
+
+    it('shows the hidden controls again from `sm` up (they use `sm:*` display classes)', () => {
+      const el = byLabel(render(), 'Eliminar segment')?.closest('.hidden') as HTMLElement;
+      expect(el.className).toMatch(/sm:(inline|block|flex|inline-flex|contents)/);
+    });
+  });
 });

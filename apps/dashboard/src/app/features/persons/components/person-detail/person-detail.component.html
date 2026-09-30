@@ -22,9 +22,6 @@
 
     <!-- Botons de capçalera -->
     <div class="flex items-center gap-2 flex-wrap">
-      @if (provisionalToggleError()) {
-        <span class="text-xs text-error">{{ provisionalToggleError() }}</span>
-      }
       @if (saveError()) {
         <span class="text-xs text-error">{{ saveError() }}</span>
       }
@@ -33,14 +30,6 @@
       }
 
       @if (person() && !editing()) {
-        <lib-button
-          [variant]="person()!.isProvisional ? 'success' : 'warning'"
-          size="sm"
-          [loading]="togglingProvisional()"
-          (clicked)="toggleProvisional()"
-        >
-          {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar provisional' }}
-        </lib-button>
         <lib-button variant="primary" size="sm" (clicked)="startEditing()">Edita</lib-button>
       }
 
@@ -113,7 +102,16 @@
               @if (person()!.phone) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
-                  <dd class="text-sm text-right">{{ person()!.phone }}</dd>
+                  <dd class="text-sm text-right">{{ formatPhone(person()!.phone) }}</dd>
+                </div>
+              }
+              @if (responsiblePhone(); as responsible) {
+                <div class="flex justify-between items-start" data-testid="responsible-phone">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
+                  <dd class="text-sm text-right">
+                    {{ responsible.phone }}
+                    <span class="text-xs text-base-content/50 ml-1">({{ responsible.alias }}, responsable)</span>
+                  </dd>
                 </div>
               }
               @if (person()!.birthDate) {
@@ -221,14 +219,6 @@
                 </dd>
               </div>
               <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Disponibilitat</dt>
-                <dd>
-                  <lib-badge size="sm" [variant]="person()!.availability === 'AVAILABLE' ? 'success' : 'warning'">
-                    {{ getAvailabilityLabel(person()!.availability) }}
-                  </lib-badge>
-                </dd>
-              </div>
-              <div class="flex justify-between items-start">
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Acollida</dt>
                 <dd><lib-badge size="sm" outline>{{ getOnboardingLabel(person()!.onboardingStatus) }}</lib-badge></dd>
               </div>
@@ -260,18 +250,30 @@
 
               <!-- Etiquetes (chips toggle) -->
               <lib-form-field label="Etiquetes" size="xs">
-                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció d'etiquetes">
-                  @for (pos of allPositions(); track pos.id) {
-                    <lib-badge
-                      size="sm"
-                      clickable
-                      readableOutlineText
-                      [selected]="isPositionSelected(pos.id)"
-                      [color]="pos.color ?? undefined"
-                      (clicked)="togglePosition(pos.id)"
-                    >
-                      {{ pos.name }}
-                    </lib-badge>
+                <div class="flex flex-col gap-2">
+                  @for (group of positionGroups(); track group.category) {
+                    <div class="flex flex-col gap-1">
+                      <span class="text-xs font-medium text-base-content/60">{{ group.label }}</span>
+                      <div
+                        class="flex flex-wrap gap-1.5"
+                        role="group"
+                        [attr.data-tag-group]="group.category"
+                        [attr.aria-label]="'Etiquetes de ' + group.label"
+                      >
+                        @for (pos of group.tags; track pos.id) {
+                          <lib-badge
+                            size="sm"
+                            clickable
+                            readableOutlineText
+                            [selected]="isPositionSelected(pos.id)"
+                            [color]="pos.color ?? undefined"
+                            (clicked)="togglePosition(pos.id)"
+                          >
+                            {{ pos.name }}
+                          </lib-badge>
+                        }
+                      </div>
+                    </div>
                   }
                   @if (allPositions().length === 0) {
                     <span class="text-xs text-base-content/40">No hi ha etiquetes disponibles</span>
@@ -285,12 +287,6 @@
                 <lib-checkbox size="xs" formControlName="isXicalla"><span class="text-xs">Menor de 16</span></lib-checkbox>
               </div>
 
-              <lib-select label="Disponibilitat" size="xs" formControlName="availability">
-                <option value="AVAILABLE">Disponible</option>
-                <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
-                <option value="LONG_TERM_UNAVAILABLE">Baixa llarga</option>
-              </lib-select>
-
               <lib-select label="Acollida" size="xs" formControlName="onboardingStatus">
                 <option value="IN_PROGRESS">En seguiment</option>
                 <option value="COMPLETED">Finalitzat</option>
@@ -300,21 +296,44 @@
 
               <lib-input label="Data camisa" type="date" size="xs" formControlName="shirtDate" />
 
-              <lib-form-field label="Observacions tècniques" size="xs" id="notes-textarea">
-                <div class="flex justify-end mb-1">
-                  <app-emoji-picker
-                    [value]="form.value.notesEmoji ?? null"
-                    (valueChange)="onNotesEmojiChange($event)"
-                  />
+              <lib-form-field label="Observacions tècniques" size="xs">
+                <div class="flex flex-col gap-2">
+                  <div class="flex flex-wrap gap-1.5" role="group" aria-label="Observacions tècniques" data-notes-options>
+                    @for (preset of notesPresets; track preset.choice) {
+                      <lib-badge
+                        size="sm"
+                        clickable
+                        [selected]="notesChoice() === preset.choice"
+                        (clicked)="selectNotesChoice(preset.choice)"
+                      >
+                        {{ preset.emoji }} {{ preset.text }}
+                      </lib-badge>
+                    }
+                    <lib-badge
+                      size="sm"
+                      clickable
+                      [selected]="notesChoice() === 'ALTRE'"
+                      (clicked)="selectNotesChoice('ALTRE')"
+                    >
+                      Altre
+                    </lib-badge>
+                  </div>
+                  @if (notesChoice() !== null) {
+                    <div class="flex items-end gap-2" data-notes-custom>
+                      <app-emoji-picker
+                        [value]="form.value.notesEmoji ?? null"
+                        (valueChange)="onNotesEmojiChange($event)"
+                      />
+                      <lib-input
+                        class="grow"
+                        size="xs"
+                        ariaLabel="Observació"
+                        formControlName="notes"
+                        placeholder="Observació..."
+                      />
+                    </div>
+                  }
                 </div>
-                <lib-textarea
-                  size="xs"
-                  id="notes-textarea"
-                  ariaLabel="Observacions tècniques"
-                  formControlName="notes"
-                  placeholder="Observacions tècniques..."
-                  [rows]="4"
-                />
               </lib-form-field>
 
             </div>

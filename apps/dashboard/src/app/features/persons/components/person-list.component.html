@@ -114,7 +114,7 @@
     [sortOrder]="sortOrder()"
     [loading]="loading()"
     [rowActions]="tableRowActions"
-    (rowClick)="onPersonClick($any($event).id)"
+    [rowLink]="personLink"
     (sortChange)="onSortChangeFromTable($event)"
   />
 

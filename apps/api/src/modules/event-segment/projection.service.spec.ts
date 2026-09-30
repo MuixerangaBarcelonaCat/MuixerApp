@@ -62,6 +62,8 @@ const DEFAULT_CONFLICTS_META = {
 const mockNodeAssignmentService = {
   getInstanceNodes: jest.fn().mockResolvedValue([]),
   getByInstance: jest.fn().mockResolvedValue([]),
+  getNodesByInstances: jest.fn().mockResolvedValue(new Map()),
+  getAssignmentsByInstances: jest.fn().mockResolvedValue(new Map()),
   getSegmentConflicts: jest.fn().mockResolvedValue({ data: [], meta: DEFAULT_CONFLICTS_META }),
 };
 
@@ -91,6 +93,8 @@ describe('ProjectionService', () => {
     ]);
     mockInstanceRepo.find.mockResolvedValue([]);
     mockAttendanceRepo.find.mockResolvedValue([]);
+    mockNodeAssignmentService.getNodesByInstances.mockResolvedValue(new Map());
+    mockNodeAssignmentService.getAssignmentsByInstances.mockResolvedValue(new Map());
     service = await buildService();
   });
 
@@ -253,6 +257,87 @@ describe('ProjectionService', () => {
   });
 
   // ── onlyPublished (PWA path — members only ever see published segments) ──
+
+  // ── batched instance loading ────────────────────────────────────────────
+
+  describe('batched instance loading', () => {
+    const templateInstance = (id: string): Partial<FigureInstance> => ({
+      ...makeInstance(),
+      id,
+      figureTemplate: { id: `tpl-${id}`, name: `Figura ${id}` } as FigureInstance['figureTemplate'],
+    });
+
+    it('loads nodes and assignments once for the whole segment, not once per instance', async () => {
+      mockInstanceRepo.find.mockResolvedValue([
+        templateInstance('i1'),
+        templateInstance('i2'),
+        templateInstance('i3'),
+      ]);
+
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+
+      expect(mockNodeAssignmentService.getNodesByInstances).toHaveBeenCalledTimes(1);
+      expect(mockNodeAssignmentService.getNodesByInstances).toHaveBeenCalledWith(['i1', 'i2', 'i3']);
+      expect(mockNodeAssignmentService.getAssignmentsByInstances).toHaveBeenCalledTimes(1);
+      expect(mockNodeAssignmentService.getAssignmentsByInstances).toHaveBeenCalledWith(['i1', 'i2', 'i3']);
+      expect(mockNodeAssignmentService.getInstanceNodes).not.toHaveBeenCalled();
+      expect(mockNodeAssignmentService.getByInstance).not.toHaveBeenCalled();
+    });
+
+    it('gives each instance its own nodes and assignments', async () => {
+      mockInstanceRepo.find.mockResolvedValue([templateInstance('i1'), templateInstance('i2')]);
+      mockNodeAssignmentService.getNodesByInstances.mockResolvedValue(
+        new Map([
+          ['i1', [{ id: 'n1', zone: 'PINYA' }]],
+          ['i2', [{ id: 'n2', zone: 'TRONC' }]],
+        ]),
+      );
+      mockNodeAssignmentService.getAssignmentsByInstances.mockResolvedValue(
+        new Map([['i2', [{ id: 'a1' }]]]),
+      );
+
+      const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+
+      expect(result.instances[0].nodes).toEqual([{ id: 'n1', zone: 'PINYA' }]);
+      expect(result.instances[0].assignments).toEqual([]);
+      expect(result.instances[1].nodes).toEqual([{ id: 'n2', zone: 'TRONC' }]);
+      expect(result.instances[1].assignments).toEqual([{ id: 'a1' }]);
+    });
+
+    it('derives hasPinya per instance from that instance own nodes', async () => {
+      mockInstanceRepo.find.mockResolvedValue([templateInstance('i1'), templateInstance('i2')]);
+      mockNodeAssignmentService.getNodesByInstances.mockResolvedValue(
+        new Map([
+          ['i1', [{ id: 'n1', zone: 'PINYA' }]],
+          ['i2', [{ id: 'n2', zone: 'TRONC' }]],
+        ]),
+      );
+
+      const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+
+      expect(result.instances[0].figureTemplate?.hasPinya).toBe(true);
+      expect(result.instances[1].figureTemplate?.hasPinya).toBe(false);
+    });
+
+    it('leaves composition instances without nodes or assignments', async () => {
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+
+      const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+
+      expect(result.instances[0].figureTemplate).toBeNull();
+      expect(result.instances[0].nodes).toEqual([]);
+      expect(result.instances[0].assignments).toEqual([]);
+    });
+
+    it('issues no batch query for a segment with no template instances', async () => {
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+
+      expect(mockNodeAssignmentService.getNodesByInstances).not.toHaveBeenCalled();
+      expect(mockNodeAssignmentService.getAssignmentsByInstances).not.toHaveBeenCalled();
+    });
+  });
 
   describe('onlyPublished', () => {
     it('does not scope the segment lookup to isPublished by default (Dashboard path)', async () => {

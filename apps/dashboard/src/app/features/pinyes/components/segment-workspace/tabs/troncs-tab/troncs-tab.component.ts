@@ -1,21 +1,23 @@
-import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
-import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
+import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ButtonComponent, ToastService } from '@muixer/ui';
-import { generateUUID } from '../../../../../../shared/utils/uuid.util';
-import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
+import { SegmentAssignmentActionsService } from '../../../../services/segment-assignment-actions.service';
+import { ButtonComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { LayoutService } from '../../../../../../core/services/layout.service';
+import { UndoRedoService } from '../../../../services/undo-redo.service';
 import {
   buildTroncBuckets,
   pickAdjacentNode,
   pickNextAssignableNode,
 } from '../../../../utils/assignment-order.util';
-import { DIRECTION_NODE_PRESETS, FigureZone, areaForZone, conflictRelevantPlacements, isNodeVisibleByModeAndCordons } from '@muixer/shared';
-import { forkJoin, map, Observable, switchMap } from 'rxjs';
+import { DIRECTION_NODE_PRESETS, FigureZone, isNodeVisibleByModeAndCordons } from '@muixer/shared';
 
 interface TroncFigure {
   instance: WorkspaceInstance;
@@ -33,37 +35,32 @@ interface TroncFigure {
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent],
+  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
+  providers: [SegmentAssignmentActionsService],
 })
 export class TroncsTabComponent implements OnInit {
   readonly ws = inject(SegmentWorkspaceStateService);
   readonly state = inject(AssignmentStateService);
   private readonly assignmentService = inject(NodeAssignmentService);
+  private readonly actions = inject(SegmentAssignmentActionsService);
   private readonly toast = inject(ToastService);
   private readonly undoRedo = inject(UndoRedoService);
+
+  /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
+  readonly isTouch = inject(LayoutService).isTouch;
 
   readonly isPast = input(false);
 
   /** Emitted when "Anar-hi" targets a node that only exists in the Pinyes tab. */
   readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
 
-  /**
-   * Below `sm`, the fixed-width person panel (w-80) leaves the tronc view
-   * unusably narrow (P-M2, GE-H3 — same layout as the Pinyes tab). Shows a
-   * guard message instead until the mobile layout is designed. Driven by
-   * `matchMedia`; falls back to `false` where `matchMedia` is unavailable.
-   */
-  readonly mobileUnsupported = signal(false);
-
   constructor() {
-    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      const mql = window.matchMedia('(max-width: 639.98px)');
-      this.mobileUnsupported.set(mql.matches);
-      const listener = (e: MediaQueryListEvent) => this.mobileUnsupported.set(e.matches);
-      mql.addEventListener('change', listener);
-      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
-    }
+    this.actions.attach({
+      select: (ref) => this.select(ref),
+      clearSelection: () => this.clearSelection(),
+      advanceToNextEmptyNode: (instanceId, nodeId) => this.advanceToNextEmptyNode(instanceId, nodeId),
+    });
   }
 
   ngOnInit(): void {
@@ -90,6 +87,14 @@ export class TroncsTabComponent implements OnInit {
   @HostListener('click', ['$event'])
   onBackgroundClick(event: MouseEvent): void {
     const target = event.target as HTMLElement | null;
+    // Moving a person: any press that isn't on a node (or the banner / person panel) cancels — even
+    // inside a tronc view, whose own background click doesn't tell the tab anything.
+    if (
+      this.actions.movingAssignment() &&
+      !target?.closest('[data-tronc-node-id], app-move-banner, app-person-panel')
+    ) {
+      this.actions.cancelMove();
+    }
     if (target?.closest('app-tronc-view, app-person-panel, button, a, [role="button"], input')) {
       return;
     }
@@ -116,6 +121,12 @@ export class TroncsTabComponent implements OnInit {
         target.tagName === 'SELECT' ||
         target.isContentEditable);
     if (isEditing) return;
+
+    if (event.key === 'Escape' && this.actions.movingAssignment()) {
+      event.preventDefault();
+      this.actions.cancelMove();
+      return;
+    }
 
     const isMod = event.ctrlKey || event.metaKey;
     if (isMod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
@@ -164,24 +175,40 @@ export class TroncsTabComponent implements OnInit {
 
   /** Ctrl+Z / undo button: reverses the most recent assign/unassign/move/swap. */
   performUndo(): void {
-    if (this.ws.isLocked() || !this.undoRedo.canUndo() || this.undoRedo.isBusy()) return;
-    this.undoRedo.undo().subscribe({
-      next: () => this.ws.reloadConflicts(),
-      error: () => this.toast.error("Error en desfer l'acció."),
-    });
+    this.actions.undo();
   }
 
   /** Ctrl+Shift+Z / redo button: re-applies the most recently undone action. */
   performRedo(): void {
-    if (this.ws.isLocked() || !this.undoRedo.canRedo() || this.undoRedo.isBusy()) return;
-    this.undoRedo.redo().subscribe({
-      next: () => this.ws.reloadConflicts(),
-      error: () => this.toast.error("Error en refer l'acció."),
-    });
+    this.actions.redo();
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
-  readonly highlightedNodeIds = signal<Set<string>>(new Set());
+  /** Marks the node whose person is being moved (right-click / long-press), if any. */
+  readonly highlightedNodeIds = computed(() => {
+    const moving = this.actions.movingAssignment();
+    return moving ? new Set([moving.node.id]) : new Set<string>();
+  });
+
+  readonly movingAlias = this.actions.movingAlias;
+
+  cancelMove(): void {
+    this.actions.cancelMove();
+  }
+
+  /**
+   * Right-click (long press on touch) on a node: starts moving the person placed there, or — when a
+   * move is already in progress — picks this node as the destination.
+   */
+  onTroncNodeContextMenu(instanceId: string, nodeId: string): void {
+    const ref: SegmentNodeRef = { slotId: instanceId, nodeId };
+    if (this.actions.movingAssignment()) {
+      this.actions.completeMove(ref);
+      return;
+    }
+    this.personPickerOpen.set(false);
+    this.actions.startMove(ref);
+  }
 
   readonly reassignDialog = signal<{
     personId: string;
@@ -218,6 +245,14 @@ export class TroncsTabComponent implements OnInit {
   readonly selectedNodePositionType = computed(() => this.selectedNode()?.positionType ?? null);
   readonly selectedNodeZone = computed(() => this.selectedNode()?.zone ?? null);
 
+  /** Touch: the person list modal, opened by tapping a node. */
+  readonly personPickerOpen = signal(false);
+
+  readonly personPickerTitle = computed(() => {
+    const ref = this.selectedRef();
+    return ref && this.actions.assignmentFor(ref) ? 'Canvia la persona' : 'Assigna una persona';
+  });
+
   readonly figures = computed<TroncFigure[]>(() =>
     this.ws
       .instances()
@@ -240,7 +275,8 @@ export class TroncsTabComponent implements OnInit {
 
   // ── Minimap ──────────────────────────────────────────────────────────────
 
-  readonly minimapOpen = signal(true);
+  /** Hidden by default on touch: the map would cover a big part of a small screen. */
+  readonly minimapOpen = signal(!this.isTouch());
 
   readonly minimapBoxes = computed<(FigureBoundingBox & { color: string })[]>(() => {
     const colorBySlot = new Map(this.figures().map((f) => [f.instance.instanceId, f.color]));
@@ -267,9 +303,17 @@ export class TroncsTabComponent implements OnInit {
   }
 
   onTroncNodeSelected(instanceId: string, nodeId: string | null): void {
+    // Moving a person: the next press is the destination (empty area cancels).
+    if (this.actions.movingAssignment()) {
+      if (nodeId) this.actions.completeMove({ slotId: instanceId, nodeId });
+      else this.actions.cancelMove();
+      return;
+    }
+
     if (this.ws.isLocked()) return;
 
     if (!nodeId) {
+      this.personPickerOpen.set(false);
       this.clearSelection();
       return;
     }
@@ -279,35 +323,33 @@ export class TroncsTabComponent implements OnInit {
 
     if (clickedAssignment) {
       this.select(ref);
+      this.openPersonPickerIfTouch();
       return;
     }
 
     const pendingPersonId = this.state.selectedPersonId();
     this.select(ref);
     if (pendingPersonId) {
-      this.triggerAssign(ref, pendingPersonId);
+      this.actions.assign(ref, pendingPersonId);
+      return;
     }
+    this.openPersonPickerIfTouch();
+  }
+
+  /** Touch: the person list modal opens on the tapped node. */
+  private openPersonPickerIfTouch(): void {
+    if (this.isTouch() && this.selectedRef()) this.personPickerOpen.set(true);
+  }
+
+  /** The modal was dismissed (close button, backdrop, Escape) or closed after a choice. */
+  onPersonPickerClosed(): void {
+    this.personPickerOpen.set(false);
+    this.clearSelection();
   }
 
   /** Drag-and-drop: a person was dragged from `source` and dropped on `target`. */
   onNodeDropped(source: SegmentNodeRef, target: SegmentNodeRef): void {
-    if (this.ws.isLocked()) return;
-    if (source.slotId === target.slotId && source.nodeId === target.nodeId) return;
-
-    const sourceAssignment = this.assignmentFor(source);
-    if (!sourceAssignment) return;
-
-    const targetAssignment = this.assignmentFor(target);
-    if (targetAssignment) {
-      if (source.slotId === target.slotId) {
-        this.triggerSwap(sourceAssignment, targetAssignment);
-      } else {
-        this.triggerCrossSwap(sourceAssignment, targetAssignment);
-      }
-    } else {
-      this.triggerUnassignThenAssign(sourceAssignment, target, sourceAssignment.person.id);
-    }
-    this.clearSelection();
+    this.actions.drop(source, target);
   }
 
   onTroncNodeClicked(_event: { nodeId: string; event: MouseEvent }): void {
@@ -321,6 +363,7 @@ export class TroncsTabComponent implements OnInit {
 
   onPersonSelected(person: AvailablePerson): void {
     if (this.ws.isLocked()) return;
+    this.personPickerOpen.set(false);
     const ref = this.selectedRef();
 
     if (!ref) {
@@ -330,13 +373,14 @@ export class TroncsTabComponent implements OnInit {
 
     const existing = this.assignmentFor(ref);
     if (existing) {
-      this.triggerUnassignThenAssign(existing, ref, person.id);
+      this.actions.unassignThenAssign(existing, ref, person.id);
     } else {
-      this.triggerAssign(ref, person.id);
+      this.actions.assign(ref, person.id);
     }
   }
 
   onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
+    this.personPickerOpen.set(false);
     // Collect every placement of this person in this instance instead of a single
     // arbitrary `.find()` (§2). Today the per-instance unique constraint means at most
     // one, so `[0]` matches the old behaviour; from Fase 4 on the full list is consumed.
@@ -348,10 +392,10 @@ export class TroncsTabComponent implements OnInit {
 
     const targetRef = this.selectedRef();
     if (targetRef) {
-      if (!this.wouldConflict(event.personId, targetRef)) {
+      if (!this.actions.wouldConflict(event.personId, targetRef)) {
         // Domain rule (D-«direcció pinya»): a direcció-pinya placement never conflicts with a
         // pinya placement of the same figure instance — assign directly, no dialog.
-        this.triggerAssign(targetRef, event.personId);
+        this.actions.assign(targetRef, event.personId);
         return;
       }
 
@@ -369,43 +413,12 @@ export class TroncsTabComponent implements OnInit {
         figureName: currentInstance?.label ?? '',
         targetInstanceId: targetRef.slotId,
         targetNodeId: targetRef.nodeId,
-        placements: this.placementsForPerson(event.personId),
+        placements: this.actions.placementsForPerson(event.personId),
       });
       return;
     }
 
     this.navigateToAssignment(assignment);
-  }
-
-  /** All of a person's placements in the segment, from the API-provided `assignedPlacements` (Phase 3). */
-  private placementsForPerson(personId: string): ConflictPlacement[] {
-    return this.state.confirmedPersons().find((p) => p.id === personId)?.assignedPlacements ?? [];
-  }
-
-  /**
-   * Whether adding `target` to `personId`'s existing placements in the segment would actually
-   * count as a conflict, per the same domain rule the segment-conflict engine uses
-   * (`conflictRelevantPlacements`, D-«direcció pinya»): a direcció-pinya placement is excused
-   * when the person also holds a pinya placement of the *same* figure instance. Built from the
-   * live `state.assignments()` (not `placementsForPerson`, which mirrors a separately-fetched
-   * person list that can lag behind an assignment just made in this same session).
-   */
-  private wouldConflict(personId: string, target: SegmentNodeRef): boolean {
-    const targetNode = this.nodeFor(target);
-    const targetArea = targetNode ? areaForZone(targetNode.zone as FigureZone) : null;
-    const existing = this.state
-      .assignments()
-      .filter((a) => a.person.id === personId)
-      .map((a) => ({
-        positionType: a.node.positionType,
-        area: (areaForZone(a.node.zone as FigureZone) ?? '') as string,
-        instanceId: a.figureInstanceId,
-      }));
-    const hypothetical = [
-      ...existing,
-      { positionType: targetNode?.positionType ?? null, area: (targetArea ?? '') as string, instanceId: target.slotId },
-    ];
-    return conflictRelevantPlacements(hypothetical, (p) => p).length >= 2;
   }
 
   onReassignDialogClosed(): void {
@@ -425,7 +438,7 @@ export class TroncsTabComponent implements OnInit {
     const dialog = this.reassignDialog();
     if (!dialog) return;
     this.reassignDialog.set(null);
-    this.triggerAssign({ slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId }, dialog.personId);
+    this.actions.assign({ slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId }, dialog.personId);
   }
 
   onReassignDialogConfirm(): void {
@@ -433,32 +446,15 @@ export class TroncsTabComponent implements OnInit {
     if (!dialog) return;
     this.reassignDialog.set(null);
 
-    // "Moure ací" must free every one of the person's existing placements in the
-    // segment, not just the one under the currently-selected node (§ Fase 7 finding).
-    const toRemove = new Map<string, string>([[dialog.oldAssignmentId, dialog.oldInstanceId]]);
-    for (const p of dialog.placements) {
-      toRemove.set(p.assignmentId, p.figureInstanceId);
-    }
-
-    const snapshot = [...this.state.assignments()];
-    const removeIds = new Set(toRemove.keys());
-    this.state.assignments.update((list) => list.filter((a) => !removeIds.has(a.id)));
-
-    forkJoin(
-      Array.from(toRemove, ([assignmentId, instanceId]) => this.assignmentService.unassign(instanceId, assignmentId)),
-    ).subscribe({
-      next: () => {
-        this.triggerAssign(
-          { slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId },
-          dialog.personId,
-          { instanceId: dialog.oldInstanceId, nodeId: dialog.oldNodeId },
-        );
-      },
-      error: () => {
-        this.state.assignments.set(snapshot);
-        this.toast.error('Error en reassignar la persona.');
-      },
-    });
+    this.actions.reassignAll(
+      [
+        { assignmentId: dialog.oldAssignmentId, instanceId: dialog.oldInstanceId },
+        ...dialog.placements.map((p) => ({ assignmentId: p.assignmentId, instanceId: p.figureInstanceId })),
+      ],
+      { slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId },
+      dialog.personId,
+      { instanceId: dialog.oldInstanceId, nodeId: dialog.oldNodeId },
+    );
   }
 
   private navigateToAssignment(assignment: AssignmentDetail): void {
@@ -472,29 +468,8 @@ export class TroncsTabComponent implements OnInit {
   }
 
   onUnassign(assignment: AssignmentDetail): void {
-    if (this.ws.isLocked()) return;
-    const instanceId = assignment.figureInstanceId;
-    const nodeId = assignment.node.id;
-    const personId = assignment.person.id;
-
-    const snapshot = [...this.state.assignments()];
-    this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
-    this.clearSelection();
-
-    this.assignmentService.unassign(instanceId, assignment.id).subscribe({
-      next: () => {
-        this.state.refreshPersonList();
-        // Fase 5: removing one of several duplicate placements can resolve a conflict —
-        // keep the banner live.
-        this.ws.reloadConflicts();
-        this.undoRedo.push(this.buildUnassignAction(instanceId, nodeId, personId, assignment.id));
-      },
-      error: () => {
-        this.state.assignments.set(snapshot);
-        this.state.refreshPersonList();
-        this.toast.error('Error en desassignar la persona.');
-      },
-    });
+    this.personPickerOpen.set(false);
+    this.actions.unassign(assignment);
   }
 
   onDirectionAdded(instanceId: string, event: { positionType: string }): void {
@@ -520,6 +495,7 @@ export class TroncsTabComponent implements OnInit {
           // Select the fresh node so it's highlighted and the person panel auto-focuses
           // its "Cerca per nom o àlies" input, ready to assign someone straight away.
           this.select({ slotId: instanceId, nodeId: created.id });
+          this.openPersonPickerIfTouch();
         },
         error: () => this.toast.error("No s'ha pogut crear la direcció."),
       });
@@ -559,412 +535,23 @@ export class TroncsTabComponent implements OnInit {
   }
 
   private instanceFor(instanceId: string): WorkspaceInstance | null {
-    return this.ws.instances().find((i) => i.instanceId === instanceId) ?? null;
+    return this.actions.instanceFor(instanceId);
   }
 
   private nodeFor(ref: SegmentNodeRef) {
-    const instance = this.instanceFor(ref.slotId);
-    return instance?.nodes.find((n) => n.id === ref.nodeId) ?? null;
+    return this.actions.nodeFor(ref);
   }
 
   private assignmentFor(ref: SegmentNodeRef): AssignmentDetail | null {
-    return (
-      this.state
-        .assignments()
-        .find((a) => a.figureInstanceId === ref.slotId && a.node.id === ref.nodeId) ?? null
-    );
-  }
-
-  /**
-   * Assigns `personId` to `ref`. When `moveFrom` is given (drag-drop move), the pushed undo
-   * action is a single composite MOVE — undo restores the person to `moveFrom` instead of just
-   * unassigning them (FE-BUG-7).
-   */
-  private triggerAssign(
-    ref: SegmentNodeRef,
-    personId: string,
-    moveFrom?: { instanceId: string; nodeId: string },
-  ): void {
-    const instanceId = ref.slotId;
-    const instance = this.instanceFor(instanceId);
-    if (!instance) return;
-
-    const snapshot = [...this.state.assignments()];
-    const matchedNode = this.nodeFor(ref);
-    const tempAssignment: AssignmentDetail = {
-      id: `temp-${generateUUID()}`,
-      figureInstanceId: instanceId,
-      node: {
-        id: ref.nodeId,
-        label: matchedNode?.label ?? '',
-        zone: matchedNode?.zone ?? '',
-        z: matchedNode?.z ?? 0,
-        positionType: matchedNode?.positionType ?? null,
-        sortOrder: matchedNode?.sortOrder ?? 0,
-        climbIndicator: matchedNode?.climbIndicator ?? null,
-        ringLevel: matchedNode?.ringLevel ?? null,
-        originNodeId: matchedNode?.originNodeId ?? null,
-        sourceNodeId: matchedNode?.sourceNodeId ?? null,
-      },
-      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null, notes: null, notesEmoji: null },
-    };
-    this.state.assignments.update((list) => [...list, tempAssignment]);
-    this.clearSelection();
-
-    const op: PendingOp = {
-      id: `op-${generateUUID()}`,
-      type: 'assign',
-      instanceId,
-      nodeId: ref.nodeId,
-      personId,
-      previousAssignments: snapshot,
-    };
-    this.state.pendingOperations.update((ops) => [...ops, op]);
-
-    this.assignmentService.assign(instanceId, { nodeId: ref.nodeId, personId }).subscribe({
-      next: (created) => {
-        this.state.assignments.update((list) =>
-          list.map((a) => (a.id === tempAssignment.id ? created : a)),
-        );
-        this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
-
-        if (!instance.snapshotted) {
-          this.ws.refreshInstance(instanceId);
-        } else {
-          // Fase 5: a duplicate assign is legal and needs the conflict banner to reflect
-          // it immediately. refreshInstance() (above) already reloads conflicts on its own.
-          this.ws.reloadConflicts();
-        }
-
-        this.state.refreshPersonList();
-        this.advanceToNextEmptyNode(instanceId, created.node.id);
-
-        this.undoRedo.push(
-          moveFrom
-            ? this.buildMoveAction(instanceId, ref.nodeId, personId, created, moveFrom)
-            : this.buildAssignAction(instanceId, ref.nodeId, personId, created),
-        );
-      },
-      error: (err) => {
-        this.state.assignments.set(op.previousAssignments);
-        this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
-        this.state.refreshPersonList();
-        this.select(ref);
-        // Fase 5: the only 409 assign() can still throw is NODE_OCCUPIED (someone else
-        // took this node first) — the old PERSON_IN_INSTANCE/PERSON_IN_SEGMENT message no
-        // longer applies, since duplicates are legal now.
-        const msg = err?.status === 409 ? 'Este lloc ja està ocupat.' : 'Error en assignar la persona.';
-        this.toast.error(msg);
-      },
-    });
-  }
-
-  private triggerUnassignThenAssign(
-    existing: AssignmentDetail,
-    targetRef: SegmentNodeRef,
-    personId: string,
-  ): void {
-    const snapshot = [...this.state.assignments()];
-    const moveFrom = { instanceId: existing.figureInstanceId, nodeId: existing.node.id };
-    this.state.assignments.update((list) => list.filter((a) => a.id !== existing.id));
-    this.clearSelection();
-
-    this.assignmentService.unassign(existing.figureInstanceId, existing.id).subscribe({
-      next: () => {
-        this.triggerAssign(targetRef, personId, moveFrom);
-      },
-      error: () => {
-        this.state.assignments.set(snapshot);
-        this.toast.error('Error en desassignar la persona.');
-      },
-    });
-  }
-
-  private triggerSwap(assignment1: AssignmentDetail, assignment2: AssignmentDetail): void {
-    const instanceId = assignment1.figureInstanceId;
-    const snapshot = [...this.state.assignments()];
-
-    this.state.assignments.update((list) =>
-      list.map((a) => {
-        if (a.id === assignment1.id) return { ...a, person: assignment2.person };
-        if (a.id === assignment2.id) return { ...a, person: assignment1.person };
-        return a;
-      }),
-    );
-
-    this.performSwap(instanceId, assignment1.id, assignment2.id).subscribe({
-      next: () => {
-        this.toast.success("S'han intercanviat les persones.");
-        // Fase 5: a swap can create/resolve a duplicate — keep the banner live.
-        this.ws.reloadConflicts();
-        // Swap preserves both assignment ids server-side, so it's its own inverse:
-        // running it again — whether via undo or redo — reverses/re-applies it identically.
-        this.undoRedo.push({
-          type: 'SWAP',
-          description: 'Intercanviar persones',
-          execute: () => this.performSwap(instanceId, assignment1.id, assignment2.id),
-          undo: () => this.performSwap(instanceId, assignment1.id, assignment2.id),
-        });
-      },
-      error: () => {
-        this.state.assignments.set(snapshot);
-        this.toast.error("Error en l'intercanvi de persones.");
-      },
-    });
-  }
-
-  private performSwap(
-    instanceId: string,
-    assignmentIdA: string,
-    assignmentIdB: string,
-  ): Observable<TroncChangeImpact | undefined> {
-    return this.assignmentService.swap(instanceId, { assignmentIdA, assignmentIdB }).pipe(
-      map((result) => {
-        this.state.assignments.update((list) =>
-          list.map((a) => {
-            if (a.id === result.a.id) return result.a;
-            if (a.id === result.b.id) return result.b;
-            return a;
-          }),
-        );
-        return result.impact;
-      }),
-    );
-  }
-
-  private triggerCrossSwap(assignment1: AssignmentDetail, assignment2: AssignmentDetail): void {
-    const snapshot = [...this.state.assignments()];
-    const instance1 = assignment1.figureInstanceId;
-    const node1 = assignment1.node.id;
-    const person1Id = assignment1.person.id;
-    const instance2 = assignment2.figureInstanceId;
-    const node2 = assignment2.node.id;
-    const person2Id = assignment2.person.id;
-
-    this.state.assignments.update((list) =>
-      list.map((a) => {
-        if (a.id === assignment1.id) return { ...a, person: assignment2.person };
-        if (a.id === assignment2.id) return { ...a, person: assignment1.person };
-        return a;
-      }),
-    );
-
-    // Ids returned by unassign+assign change every time this runs, so the current
-    // occupant of each node is tracked in closures shared by execute/undo (FE-BUG-7).
-    let currentId1 = assignment1.id;
-    let currentId2 = assignment2.id;
-
-    const applyCrossSwap = (personFor1: string, personFor2: string) =>
-      this.performCrossSwap(instance1, node1, currentId1, personFor1, instance2, node2, currentId2, personFor2).pipe(
-        map((result) => {
-          currentId1 = result.a.id;
-          currentId2 = result.b.id;
-          this.state.assignments.update((list) =>
-            list.map((a) => {
-              if (a.figureInstanceId === instance1 && a.node.id === node1) return result.a;
-              if (a.figureInstanceId === instance2 && a.node.id === node2) return result.b;
-              return a;
-            }),
-          );
-          return result;
-        }),
-      );
-
-    applyCrossSwap(person2Id, person1Id).subscribe({
-      next: () => {
-        this.toast.success("S'han intercanviat les persones.");
-        // Fase 5: a cross-figure swap can create/resolve a duplicate — keep the banner live.
-        this.ws.reloadConflicts();
-        this.undoRedo.push({
-          type: 'SWAP',
-          description: 'Intercanviar persones (figures diferents)',
-          execute: () => applyCrossSwap(person2Id, person1Id),
-          undo: () => applyCrossSwap(person1Id, person2Id),
-        });
-      },
-      error: () => {
-        this.state.assignments.set(snapshot);
-        this.ws.refreshInstance(instance1);
-        this.ws.refreshInstance(instance2);
-        this.toast.error("Error en l'intercanvi de persones.");
-      },
-    });
-  }
-
-  private performCrossSwap(
-    instance1: string,
-    node1: string,
-    currentId1: string,
-    personFor1: string,
-    instance2: string,
-    node2: string,
-    currentId2: string,
-    personFor2: string,
-  ): Observable<{ a: AssignmentDetail & { impact?: TroncChangeImpact }; b: AssignmentDetail & { impact?: TroncChangeImpact } }> {
-    return forkJoin([
-      this.assignmentService.unassign(instance1, currentId1),
-      this.assignmentService.unassign(instance2, currentId2),
-    ]).pipe(
-      switchMap(() =>
-        forkJoin([
-          this.assignmentService.assign(instance1, { nodeId: node1, personId: personFor1 }),
-          this.assignmentService.assign(instance2, { nodeId: node2, personId: personFor2 }),
-        ]),
-      ),
-      map(([a, b]) => ({ a, b })),
-    );
-  }
-
-  /** Plain assign undo: undo unassigns; redo re-assigns to the same node/person. */
-  private buildAssignAction(
-    instanceId: string,
-    nodeId: string,
-    personId: string,
-    created: AssignmentDetail,
-  ): UndoableAction {
-    let lastAssignId = created.id;
-    return {
-      type: 'ASSIGN',
-      description: 'Assignar persona',
-      execute: () =>
-        new Observable<void>((sub) => {
-          this.assignmentService.assign(instanceId, { nodeId, personId }).subscribe({
-            next: (re) => {
-              lastAssignId = re.id;
-              this.state.assignments.update((list) => [...list, re]);
-              this.state.refreshPersonList();
-              sub.next();
-              sub.complete();
-            },
-            error: (err) => sub.error(err),
-          });
-        }),
-      undo: () =>
-        new Observable<void>((sub) => {
-          const removeId = lastAssignId;
-          this.assignmentService.unassign(instanceId, removeId).subscribe({
-            next: () => {
-              this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
-              this.state.refreshPersonList();
-              sub.next();
-              sub.complete();
-            },
-            error: (err) => sub.error(err),
-          });
-        }),
-    };
-  }
-
-  /** Plain unassign undo: undo re-assigns; redo unassigns again. */
-  private buildUnassignAction(
-    instanceId: string,
-    nodeId: string,
-    personId: string,
-    initialAssignmentId: string,
-  ): UndoableAction {
-    let lastAssignmentId = initialAssignmentId;
-    return {
-      type: 'UNASSIGN',
-      description: 'Desassignar persona',
-      execute: () =>
-        new Observable<void>((sub) => {
-          const removeId = lastAssignmentId;
-          this.assignmentService.unassign(instanceId, removeId).subscribe({
-            next: () => {
-              this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
-              this.state.refreshPersonList();
-              sub.next();
-              sub.complete();
-            },
-            error: (err) => sub.error(err),
-          });
-        }),
-      undo: () =>
-        new Observable<void>((sub) => {
-          this.assignmentService.assign(instanceId, { nodeId, personId }).subscribe({
-            next: (created) => {
-              lastAssignmentId = created.id;
-              this.state.assignments.update((list) => [...list, created]);
-              this.state.refreshPersonList();
-              sub.next();
-              sub.complete();
-            },
-            error: (err) => sub.error(err),
-          });
-        }),
-    };
-  }
-
-  /** Composite move undo: undo unassigns from the target and re-assigns to `moveFrom`; redo reverses that. */
-  private buildMoveAction(
-    targetInstanceId: string,
-    targetNodeId: string,
-    personId: string,
-    created: AssignmentDetail,
-    moveFrom: { instanceId: string; nodeId: string },
-  ): UndoableAction {
-    let targetAssignmentId = created.id;
-    // Re-populated by undo() once the person is reassigned back to moveFrom.
-    let sourceAssignmentId: string | null = null;
-
-    const assignTo = (instanceId: string, nodeId: string) =>
-      this.assignmentService.assign(instanceId, { nodeId, personId });
-
-    return {
-      type: 'MOVE',
-      description: 'Moure persona',
-      execute: () =>
-        new Observable<void>((sub) => {
-          const reassignToTarget = () => {
-            assignTo(targetInstanceId, targetNodeId).subscribe({
-              next: (re) => {
-                targetAssignmentId = re.id;
-                this.state.assignments.update((list) => [...list, re]);
-                this.state.refreshPersonList();
-                sub.next();
-                sub.complete();
-              },
-              error: (err) => sub.error(err),
-            });
-          };
-          if (sourceAssignmentId) {
-            const removeId = sourceAssignmentId;
-            this.assignmentService.unassign(moveFrom.instanceId, removeId).subscribe({
-              next: () => {
-                sourceAssignmentId = null;
-                this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
-                reassignToTarget();
-              },
-              error: (err) => sub.error(err),
-            });
-          } else {
-            reassignToTarget();
-          }
-        }),
-      undo: () =>
-        new Observable<void>((sub) => {
-          const removeId = targetAssignmentId;
-          this.assignmentService.unassign(targetInstanceId, removeId).subscribe({
-            next: () => {
-              this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
-              assignTo(moveFrom.instanceId, moveFrom.nodeId).subscribe({
-                next: (re) => {
-                  sourceAssignmentId = re.id;
-                  this.state.assignments.update((list) => [...list, re]);
-                  this.state.refreshPersonList();
-                  sub.next();
-                  sub.complete();
-                },
-                error: (err) => sub.error(err),
-              });
-            },
-            error: (err) => sub.error(err),
-          });
-        }),
-    };
+    return this.actions.assignmentFor(ref);
   }
 
   private advanceToNextEmptyNode(instanceId: string, justAssignedNodeId: string): void {
+    // Touch has no list to keep filling from: each assignment is its own tap → modal → pick.
+    if (this.isTouch()) {
+      this.clearSelection();
+      return;
+    }
     const instance = this.instanceFor(instanceId);
     if (!instance) return;
 

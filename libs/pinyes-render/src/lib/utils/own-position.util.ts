@@ -1,4 +1,4 @@
-import { DIRECTION_SLOTS, FigureZone } from '@muixer/shared';
+import { areaForZone, conflictRelevantPlacements, DIRECTION_SLOTS, FigureZone } from '@muixer/shared';
 import { AssignmentDetail, InstanceNodeItem } from '../models/assignment.model';
 import { ProjectionInstance, ProjectionSegmentData } from '../models/projection.model';
 import { TRONC_FLOOR_ROW_PX, TRONC_HALF_UNIT_PX, TRONC_HEADER_PX, TRONC_LABEL_COL_PX } from './tronc-size.util';
@@ -15,7 +15,12 @@ export interface OwnPlacement {
   assignment: AssignmentDetail;
 }
 
-/** Every assignment `personId` holds in this segment. Normally 0 or 1; invariant 4 permits more. */
+/**
+ * Every assignment `personId` holds in this segment that counts toward a conflict. Normally 0 or 1;
+ * invariant 4 permits more. A `direccio-pinya` placement excused by a pinya node of the same figure
+ * (`conflictRelevantPlacements`, D13) is left out, so a pinya director is not shown as being in two
+ * places at once.
+ */
 export function findOwnPlacements(data: ProjectionSegmentData, personId: string): OwnPlacement[] {
   const placements: OwnPlacement[] = [];
 
@@ -28,7 +33,11 @@ export function findOwnPlacements(data: ProjectionSegmentData, personId: string)
     }
   });
 
-  return placements;
+  return conflictRelevantPlacements(placements, (p) => ({
+    positionType: p.node.positionType,
+    area: areaForZone(p.node.zone as FigureZone) as string,
+    instanceId: p.instance.id,
+  }));
 }
 
 /**

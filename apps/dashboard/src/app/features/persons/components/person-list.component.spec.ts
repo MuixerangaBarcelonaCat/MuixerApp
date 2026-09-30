@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
-import { PersonListComponent } from './person-list.component';
+import { ALL_COLUMNS, PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
 import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
@@ -55,10 +55,13 @@ describe('PersonListComponent', () => {
       imports: [PersonListComponent],
       providers: [
         { provide: PersonService, useValue: personService },
-        { provide: Router, useValue: router },
+        provideRouter([]),
         allLucideIconsProvider,
       ],
     }).compileComponents();
+
+    // A real router (RouterLink in the table needs one) with `navigate` spied.
+    router = { navigate: vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true) };
 
     localStorage.clear();
     fixture = TestBed.createComponent(PersonListComponent);
@@ -69,6 +72,12 @@ describe('PersonListComponent', () => {
     expect(fixture.componentInstance).toBeTruthy();
     expect(personService.getAll).toHaveBeenCalled();
     expect(personService.getPositions).toHaveBeenCalled();
+  });
+
+  it('links each row to the person detail route so it can open in a new tab', () => {
+    const link = fixture.nativeElement.querySelector('a[href="/persons/p1"]');
+    expect(link).toBeTruthy();
+    expect(fixture.componentInstance.personLink(mockPerson as never)).toEqual(['/persons', 'p1']);
   });
 
   it('onSortColumn toggles sort and calls getAll with sort params', () => {
@@ -137,6 +146,12 @@ describe('PersonListComponent', () => {
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
     const provisionalsButton = buttons.find(b => b.textContent?.trim() === 'Provisionals');
     expect(provisionalsButton?.className).toContain('btn-outline');
+  });
+
+  describe('availability column is hidden', () => {
+    it('is not offered among the list columns', () => {
+      expect(ALL_COLUMNS.map((c) => c.key)).not.toContain('availability');
+    });
   });
 
   describe('etiquetes select', () => {
@@ -225,6 +240,36 @@ describe('PersonListComponent', () => {
       expect(warningBadge?.querySelector('lucide-icon')).toBeTruthy();
     });
 
+    it('activa el filtre "Falten etiquetes" (i no cap filtre d\'etiqueta) en fer clic a l\'etiqueta', () => {
+      fixture.componentInstance.persons.set([
+        { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
+      ]);
+      fixture.detectChanges();
+
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      const warningBadge = badges.find((b) => b.textContent?.trim() === 'Falten etiquetes');
+      expect(warningBadge?.tagName).toBe('BUTTON');
+
+      warningBadge?.click();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBe(false);
+      expect(fixture.componentInstance.selectedPositions()).toEqual([]);
+      expect(fixture.componentInstance.activeFilters().positionIds).toBeUndefined();
+    });
+
+    it('desactiva el filtre "Falten etiquetes" en tornar a fer clic a l\'etiqueta', () => {
+      fixture.componentInstance.toggleTagRuleFilter();
+      fixture.componentInstance.persons.set([
+        { ...mockPerson, tagCompliance: { ok: false, missing: [TagCategory.PINYA] } } as never,
+      ]);
+      fixture.detectChanges();
+
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.badge')) as HTMLElement[];
+      badges.find((b) => b.textContent?.trim() === 'Falten etiquetes')?.click();
+
+      expect(fixture.componentInstance.activeFilters().tagRuleOk).toBeUndefined();
+    });
+
     it('no mostra cap etiqueta "Falten etiquetes" quan la persona compleix la regla', () => {
       fixture.componentInstance.persons.set([{ ...mockPerson } as never]);
       fixture.detectChanges();
@@ -281,6 +326,20 @@ describe('PersonListComponent', () => {
       fixture.componentInstance.onActivationTutorialClosed();
 
       expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
+    });
+  });
+
+  describe('phone column', () => {
+    const cell = (phone: string | null) =>
+      fixture.componentInstance.getCellValueForPerson({ ...mockPerson, phone } as never, 'phone');
+
+    it('hides the +34 prefix', () => {
+      expect(cell('+34612345678')).toBe('612345678');
+    });
+
+    it('keeps other prefixes and shows a dash when empty', () => {
+      expect(cell('+33612345678')).toBe('+33612345678');
+      expect(cell(null)).toBe('—');
     });
   });
 });

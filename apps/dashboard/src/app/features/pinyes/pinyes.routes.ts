@@ -45,7 +45,6 @@ export const pinyesRoutes: Routes = [
       import('./components/segment-workspace/segment-workspace.component').then(
         (m) => m.SegmentWorkspaceComponent,
       ),
-    canActivate: [desktopOnlyGuard],
   },
   {
     path: 'events/:eventId/segments/:segmentId/assign/:instanceId',
@@ -53,7 +52,6 @@ export const pinyesRoutes: Routes = [
       import('./components/segment-workspace/segment-workspace.component').then(
         (m) => m.SegmentWorkspaceComponent,
       ),
-    canActivate: [desktopOnlyGuard],
   },
   {
     path: 'events/:eventId/segments/:segmentId/project',

@@ -90,3 +90,15 @@ export function shoulderHeightRelativeTone(
   }
   return 'zero';
 }
+
+const SPAIN_PHONE_PREFIX = '+34';
+
+/**
+ * Formata un telèfon E.164 per mostrar-lo: amaga el prefix +34 (el de la colla) i deixa
+ * intactes els d'altres països.
+ * @returns El telèfon a mostrar, o `null` si no n'hi ha
+ */
+export function formatPhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  return phone.startsWith(SPAIN_PHONE_PREFIX) ? phone.slice(SPAIN_PHONE_PREFIX.length) : phone;
+}

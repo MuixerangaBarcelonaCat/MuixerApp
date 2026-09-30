@@ -2,6 +2,7 @@
 <section
   class="tronc-view"
   [class.projection-mode]="mode() === 'projection'"
+  [class.assignment-mode]="mode() === 'assignment'"
   [style.border]="mode() === 'projection' && panelColor() ? '2px solid ' + (panelBorderColor() ?? panelColor()) : null"
   [style.background-color]="mode() === 'projection' && panelColor() ? panelColor() + '33' : null"
   aria-label="Vista del tronc"
@@ -77,6 +78,7 @@
                   [attr.data-instance-id]="instanceId()"
                   [attr.data-draggable]="isDraggableNode(dirNode.id) ? '' : null"
                   (click)="onDirectionNodeClick(dirNode, $event)"
+                  (contextmenu)="onNodeContextMenu(dirNode, $event)"
                   (mouseenter)="onNodeHover($event, dirNode.id)"
                   (mouseleave)="onNodeLeave()"
                   (pointerdown)="onNodePointerDown(dirNode, $event)"
@@ -91,7 +93,7 @@
                       <span class="person-alias">{{ assignment.person.alias }}</span>
                       @if (getNotes(assignment); as notes) {
                         @if (getNotesEmoji(assignment); as emoji) {
-                          <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                          <span class="leading-none shrink-0" style="font-size: 1rem; text-shadow: 0 0 5px #000" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
                         } @else {
                           <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
                         }
@@ -208,6 +210,7 @@
                   [attr.data-instance-id]="instanceId()"
                   [attr.data-draggable]="isDraggableNode(node.id) ? '' : null"
                   (click)="onNodeClick(node, $event)"
+                  (contextmenu)="onNodeContextMenu(node, $event)"
                   (mouseenter)="onNodeHover($event, node.id)"
                   (mouseleave)="onNodeLeave()"
                   (pointerdown)="onNodePointerDown(node, $event)"
@@ -233,7 +236,7 @@
                       >{{ displayAlias(node, assignment) }}</span>
                       @if (mode() !== 'projection' && getNotes(assignment); as notes) {
                         @if (getNotesEmoji(assignment); as emoji) {
-                          <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                          <span class="leading-none shrink-0" style="font-size: 1rem; text-shadow: 0 0 5px #000" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
                         } @else {
                           <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
                         }
@@ -272,6 +275,7 @@
                   [attr.data-instance-id]="instanceId()"
                   [attr.data-draggable]="isDraggableNode(node.id) ? '' : null"
                   (click)="onNodeClick(node, $event)"
+                  (contextmenu)="onNodeContextMenu(node, $event)"
                   (mouseenter)="onNodeHover($event, node.id)"
                   (mouseleave)="onNodeLeave()"
                   (pointerdown)="onNodePointerDown(node, $event)"
@@ -302,7 +306,7 @@
                       >{{ displayAlias(node, assignment) }}</span>
                       @if (mode() !== 'projection' && getNotes(assignment); as notes) {
                         @if (getNotesEmoji(assignment); as emoji) {
-                          <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                          <span class="leading-none shrink-0" style="font-size: 1rem; text-shadow: 0 0 5px #000" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
                         } @else {
                           <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
                         }

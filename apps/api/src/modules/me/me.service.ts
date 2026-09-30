@@ -26,6 +26,9 @@ import {
   computeInstanceDisplayNames,
   FigureDataChangedEvent,
   SegmentChangeSource,
+  conflictRelevantPlacements,
+  areaForZone,
+  FigureZone,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -228,7 +231,25 @@ export class MeService {
       ]),
     );
 
+    const assignmentsBySegment = new Map<string, typeof assignments>();
     for (const assignment of assignments) {
+      const list = assignmentsBySegment.get(assignment.segment.id) ?? [];
+      list.push(assignment);
+      assignmentsBySegment.set(assignment.segment.id, list);
+    }
+
+    // Same rule as the conflict engines (D13): a `direccio-pinya` placement is excused by a pinya
+    // node of the same figure, so it is not listed — otherwise the PWA would flag a member as
+    // being in two places at once.
+    const relevantAssignments = [...assignmentsBySegment.values()].flatMap((segmentAssignments) =>
+      conflictRelevantPlacements(segmentAssignments, (a) => ({
+        positionType: a.instanceNode.positionType ?? null,
+        area: areaForZone(a.instanceNode.zone as FigureZone) as string,
+        instanceId: a.figureInstance.id,
+      })),
+    );
+
+    for (const assignment of relevantAssignments) {
       const segmentId = assignment.segment.id;
       const instance = assignment.figureInstance;
       const node = assignment.instanceNode;
@@ -433,7 +454,14 @@ export class MeService {
     };
   }
 
-  /** Assistència d'una persona a la temporada actual, sobre events ja passats. */
+  /**
+   * Assistència d'una persona a la temporada actual, sobre events ja passats.
+   *
+   * Només compta els events amb `countsForStatistics` (el tècnic pot desmarcar-lo, p. ex. en un
+   * assaig cancel·lat) i exclou el dia d'avui: ASSISTIT s'assigna a la passa llista, o a les 3am
+   * només per a ACTUACIO, o sigui que comptar l'event d'avui com a total ja fallat faria baixar el
+   * percentatge el matí de l'assaig per recuperar-lo el mateix vespre.
+   */
   private async computeSeasonAttendance(
     personId: string,
   ): Promise<PersonProfileSummary['seasonAttendance']> {
@@ -459,7 +487,8 @@ export class MeService {
         'attended',
       )
       .where('event."seasonId" = :seasonId', { seasonId: season.id })
-      .andWhere('event.date <= :today', { today: getLocalToday() })
+      .andWhere('event."countsForStatistics" = true')
+      .andWhere('event.date < :today', { today: getLocalToday() })
       .groupBy('event."eventType"')
       .setParameter('assistit', AttendanceStatus.ASSISTIT)
       .getRawMany<{ eventType: EventType; total: string; attended: string }>();

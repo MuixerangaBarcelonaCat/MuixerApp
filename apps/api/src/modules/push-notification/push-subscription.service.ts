@@ -101,13 +101,20 @@ export class PushSubscriptionService {
     return rows.map((r) => r.userId);
   }
 
-  async deactivate(subscriptionId: string): Promise<void> {
-    await this.repo.update(subscriptionId, { isActive: false });
-    this.logger.warn(`Subscription deactivated (410 Gone): ${subscriptionId}`);
+  /**
+   * Batch variants of the per-subscription updates. One push to the whole colla resolves to
+   * hundreds of subscriptions, and updating them one row at a time meant one UPDATE round trip
+   * per device; both callers already hold the full id list once the sends have settled.
+   */
+  async deactivateMany(subscriptionIds: string[]): Promise<void> {
+    if (subscriptionIds.length === 0) return;
+    await this.repo.update({ id: In(subscriptionIds) }, { isActive: false });
+    this.logger.warn(`Subscriptions deactivated (410 Gone): ${subscriptionIds.join(', ')}`);
   }
 
-  async markUsed(subscriptionId: string): Promise<void> {
-    await this.repo.update(subscriptionId, { lastUsedAt: new Date() });
+  async markUsedMany(subscriptionIds: string[]): Promise<void> {
+    if (subscriptionIds.length === 0) return;
+    await this.repo.update({ id: In(subscriptionIds) }, { lastUsedAt: new Date() });
   }
 
   async getSummary(): Promise<DeviceSummary[]> {

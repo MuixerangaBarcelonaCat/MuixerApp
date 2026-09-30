@@ -75,7 +75,7 @@ const ALL_COLUMNS: ColumnDef<Person>[] = [
   [sortOrder]="sortOrder()"
   [loading]="loading()"
   [skeletonRows]="10"
-  (rowClick)="onRowClick($any($event).id)"
+  [rowLink]="rowLink"
   (sortChange)="onSortChange($event)"
 />
 
@@ -88,6 +88,8 @@ const ALL_COLUMNS: ColumnDef<Person>[] = [
   (limitChange)="onLimitChange($event)"
 />
 ```
+
+Navigate rows with `[rowLink]` (`rowLink = (item: T) => ['/things', item.id]`), not `(rowClick)` + `router.navigate`: it renders real anchors, so middle-click, Ctrl/Cmd+click and «Obre en una pestanya nova» work. Per-cell `onCellClick` / `onColorBadgeClick` and row actions keep working above the row link. Use `(rowClick)` only for a row with no route.
 
 ## Sort Handler (3-state)
 

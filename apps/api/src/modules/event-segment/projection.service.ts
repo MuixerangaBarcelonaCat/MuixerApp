@@ -89,17 +89,25 @@ export class ProjectionService {
       order: { sortOrder: 'ASC' },
     });
 
+    // Batched on purpose: the per-instance variants cost 4 queries per figure, and the
+    // projection is refetched on every prev/next swipe by every member at once.
+    const templateInstanceIds = instances.filter((i) => i.figureTemplate).map((i) => i.id);
+    const [nodesByInstance, assignmentsByInstance] =
+      templateInstanceIds.length > 0
+        ? await Promise.all([
+            this.nodeAssignmentService.getNodesByInstances(templateInstanceIds),
+            this.nodeAssignmentService.getAssignmentsByInstances(templateInstanceIds),
+          ])
+        : [new Map<string, InstanceNodeResponse[]>(), new Map<string, AssignmentDetail[]>()];
+
     const projectionInstances: ProjectionInstanceData[] = [];
     for (const instance of instances) {
-      let nodes: InstanceNodeResponse[] = [];
-      let assignments: AssignmentDetail[] = [];
-
-      if (instance.figureTemplate) {
-        [nodes, assignments] = await Promise.all([
-          this.nodeAssignmentService.getInstanceNodes(instance.id),
-          this.nodeAssignmentService.getByInstance(instance.id),
-        ]);
-      }
+      const nodes: InstanceNodeResponse[] = instance.figureTemplate
+        ? (nodesByInstance.get(instance.id) ?? [])
+        : [];
+      const assignments: AssignmentDetail[] = instance.figureTemplate
+        ? (assignmentsByInstance.get(instance.id) ?? [])
+        : [];
 
       const figureMode = instance.figureMode ?? FigureMode.COMPLETA;
       const hasPinyaNodes = nodes.some((n) => n.zone === 'PINYA');

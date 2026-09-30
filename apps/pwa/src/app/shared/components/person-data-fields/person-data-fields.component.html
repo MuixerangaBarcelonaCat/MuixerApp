@@ -32,26 +32,28 @@
     }
   </lib-select>
 
-  <div class="flex gap-2">
-    <div class="w-24 shrink-0">
-      <lib-select label="País" size="md" formControlName="country">
-        @for (country of countries; track country.code) {
-          <option [value]="country.code">{{ country.flag }} {{ country.callingCode }}</option>
-        }
-      </lib-select>
-    </div>
+  @if (showPhone()) {
+    <div class="flex gap-2">
+      <div class="w-24 shrink-0">
+        <lib-select label="País" size="md" formControlName="country">
+          @for (country of countries; track country.code) {
+            <option [value]="country.code">{{ country.flag }} {{ country.callingCode }}</option>
+          }
+        </lib-select>
+      </div>
 
-    <div class="flex-1 min-w-0">
-      <lib-input
-        label="Telèfon"
-        type="tel"
-        inputMode="tel"
-        size="md"
-        formControlName="phoneNumber"
-        autocomplete="tel-national"
-      />
+      <div class="flex-1 min-w-0">
+        <lib-input
+          label="Telèfon"
+          type="tel"
+          inputMode="tel"
+          size="md"
+          formControlName="phoneNumber"
+          autocomplete="tel-national"
+        />
+      </div>
     </div>
-  </div>
+  }
 
   <lib-input
     label="Data de naixement"

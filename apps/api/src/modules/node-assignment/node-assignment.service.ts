@@ -200,6 +200,16 @@ export interface PersonAssignmentHistory {
 // duplication that forced every Fase-1 field to be added twice; now there is a single
 // source (#2). The dashboard still holds its own stale copy, to be unified in Fase 3.
 
+/** One resolved source→target placement of a bulk import, pending its INSERT. */
+interface PendingImportRow {
+  targetNode: InstanceNode;
+  person: Person;
+  nodeLabel: string;
+  personAlias: string;
+  /** Ad-hoc clones are written but, as ever, left out of the reported `created` list. */
+  countsAsCreated: boolean;
+}
+
 export interface HistoryQueryParams {
   page?: number;
   limit?: number;
@@ -357,7 +367,120 @@ export class NodeAssignmentService {
     return allNodes;
   }
 
+  /**
+   * Batched `getInstanceNodes` for a whole segment: 3 queries regardless of how many
+   * instances are passed, instead of 2 per instance. The projection redraws on every
+   * prev/next swipe of every member's device during an actuació, so the per-instance
+   * version made the cost of one segment grow with the number of figures in it.
+   */
+  async getNodesByInstances(instanceIds: string[]): Promise<Map<string, InstanceNodeResponse[]>> {
+    const byInstance = new Map<string, InstanceNodeResponse[]>();
+    if (instanceIds.length === 0) return byInstance;
+
+    const instances = await this.figureInstanceRepository.find({
+      where: { id: In(instanceIds) },
+      relations: ['figureTemplate'],
+    });
+
+    const snapshottedIds = instances.filter((i) => i.snapshotted).map((i) => i.id);
+    const nodesBySnapshottedInstance = new Map<string, InstanceNode[]>();
+    if (snapshottedIds.length > 0) {
+      const nodes = await this.instanceNodeRepository.find({
+        where: { figureInstance: { id: In(snapshottedIds) } },
+        relations: ['figureInstance'],
+        order: { sortOrder: 'ASC' },
+      });
+      for (const node of nodes) {
+        const list = nodesBySnapshottedInstance.get(node.figureInstance.id) ?? [];
+        list.push(node);
+        nodesBySnapshottedInstance.set(node.figureInstance.id, list);
+      }
+    }
+
+    const templateIds = [
+      ...new Set(
+        instances
+          .filter((i) => !i.snapshotted && i.figureTemplate)
+          .map((i) => i.figureTemplate!.id),
+      ),
+    ];
+    const templatesById = new Map<string, FigureTemplate>();
+    if (templateIds.length > 0) {
+      const templates = await this.figureTemplateRepository.find({
+        where: { id: In(templateIds) },
+        relations: ['nodes'],
+      });
+      for (const template of templates) templatesById.set(template.id, template);
+    }
+
+    for (const instance of instances) {
+      if (instance.snapshotted) {
+        byInstance.set(
+          instance.id,
+          (nodesBySnapshottedInstance.get(instance.id) ?? []).map(instanceNodeToResponse),
+        );
+        continue;
+      }
+
+      const template = instance.figureTemplate
+        ? templatesById.get(instance.figureTemplate.id)
+        : undefined;
+      byInstance.set(
+        instance.id,
+        (template?.nodes ?? [])
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map(figureNodeToResponse),
+      );
+    }
+
+    return byInstance;
+  }
+
   // ── Existing — assignments list ────────────────────────────────────────────
+
+  /** Batched `getByInstance`: one query for a whole segment instead of two per instance. */
+  async getAssignmentsByInstances(instanceIds: string[]): Promise<Map<string, AssignmentDetail[]>> {
+    const byInstance = new Map<string, AssignmentDetail[]>();
+    if (instanceIds.length === 0) return byInstance;
+
+    const assignments = await this.assignmentRepository.find({
+      where: { figureInstance: { id: In(instanceIds) } },
+      relations: ['instanceNode', 'person', 'figureInstance'],
+    });
+
+    for (const assignment of assignments) {
+      const list = byInstance.get(assignment.figureInstance.id) ?? [];
+      list.push(toAssignmentDetail(assignment));
+      byInstance.set(assignment.figureInstance.id, list);
+    }
+
+    return byInstance;
+  }
+
+  /**
+   * Nodes + assignments of every figure instance in a segment in one call (~5 queries in
+   * total), so the Dashboard workspace hydrates with one request instead of two per figure.
+   */
+  async getSegmentAssignmentState(
+    eventId: string,
+    segmentId: string,
+  ): Promise<{ instanceId: string; nodes: InstanceNodeResponse[]; assignments: AssignmentDetail[] }[]> {
+    const instances = await this.figureInstanceRepository.find({
+      where: { segment: { id: segmentId, event: { id: eventId } } },
+      select: { id: true },
+    });
+    const ids = instances.map((i) => i.id);
+    const [nodes, assignments] = await Promise.all([
+      this.getNodesByInstances(ids),
+      this.getAssignmentsByInstances(ids),
+    ]);
+    return ids.map((instanceId) => ({
+      instanceId,
+      nodes: nodes.get(instanceId) ?? [],
+      assignments: assignments.get(instanceId) ?? [],
+    }));
+  }
 
   async getByInstance(instanceId: string): Promise<AssignmentDetail[]> {
     const instance = await this.figureInstanceRepository.findOne({ where: { id: instanceId } });
@@ -757,6 +880,47 @@ export class NodeAssignmentService {
   }
 
   /**
+   * Batched `getSegmentConflicts`: one query for every segment of an event instead of one
+   * (four-relation) query per segment. Opening an event's detail screen loads the counters of
+   * all its segments at once; the per-segment version ran those in parallel, so they never
+   * added latency, but they did take one pool connection each.
+   *
+   * Segments with no assignments are still present in the map, with empty counters — callers
+   * index by segment id and must not have to distinguish "no conflicts" from "not loaded".
+   */
+  async getSegmentConflictsBySegments(
+    segmentIds: string[],
+  ): Promise<Map<string, SegmentConflictsResponse>> {
+    const bySegment = new Map<string, SegmentConflictsResponse>();
+    if (segmentIds.length === 0) return bySegment;
+
+    const assignments = await this.assignmentRepository.find({
+      where: { segment: { id: In(segmentIds) } },
+      relations: ['segment', 'instanceNode', 'person', 'figureInstance', 'figureInstance.figureTemplate'],
+    });
+
+    const assignmentsBySegment = new Map<string, NodeAssignment[]>();
+    for (const assignment of assignments) {
+      const segmentId = assignment.segment?.id;
+      if (!segmentId) continue;
+      const list = assignmentsBySegment.get(segmentId) ?? [];
+      list.push(assignment);
+      assignmentsBySegment.set(segmentId, list);
+    }
+
+    for (const segmentId of segmentIds) {
+      const segmentAssignments = assignmentsBySegment.get(segmentId) ?? [];
+      const conflicts = this.classifySegmentConflicts(segmentAssignments);
+      bySegment.set(segmentId, {
+        data: conflicts,
+        meta: this.computeSegmentPeopleCounters(segmentAssignments, conflicts),
+      });
+    }
+
+    return bySegment;
+  }
+
+  /**
    * Groups an already-loaded set of assignments (one segment's worth) by person and
    * classifies each >1-placement group. Callers that already have their assignments
    * batched (getEventAssignmentSummary, projection) reuse this instead of re-querying
@@ -804,10 +968,21 @@ export class NodeAssignmentService {
       }));
       if (placements.length < 2) continue;
 
+      // Every sort below ends on assignmentId. Without that last tiebreaker the order of two
+      // placements that tie on area and renglaPosition (two direction nodes, two cordó-obert
+      // nodes…) falls through to the order Postgres happened to return the rows in — which has
+      // no ORDER BY, and genuinely differs between a single-segment filter and an IN (...) one.
+      // That is not only cosmetic: suggestedRemovalAssignmentIds below is derived from these
+      // orders, so the placement the UI proposes to remove could change between two reads of
+      // the same unchanged data.
       placements.sort((x, y) => {
         const rankDiff = (areaRank[x.area] ?? 99) - (areaRank[y.area] ?? 99);
         if (rankDiff !== 0) return rankDiff;
-        return (x.renglaPosition ?? Infinity) - (y.renglaPosition ?? Infinity);
+        // Truthiness, not `!== 0`: two nodes with no renglaPosition give Infinity - Infinity,
+        // which is NaN, and NaN would sneak past a `!== 0` check and be returned as the result.
+        const posDiff = (x.renglaPosition ?? Infinity) - (y.renglaPosition ?? Infinity);
+        if (posDiff) return posDiff;
+        return x.assignmentId.localeCompare(y.assignmentId);
       });
 
       const pinyaPlacements = placements.filter((p) => p.area === AssignmentArea.PINYA);
@@ -818,9 +993,11 @@ export class NodeAssignmentService {
       // PINYA_PINYA keeps the interior one (lowest renglaPosition, fallback z).
       let suggestedRemovalAssignmentIds: string[];
       if (kind === SegmentConflictKind.PINYA_PINYA) {
-        const byInterior = [...pinyaPlacements].sort(
-          (x, y) => (x.renglaPosition ?? x.z ?? Infinity) - (y.renglaPosition ?? y.z ?? Infinity),
-        );
+        const byInterior = [...pinyaPlacements].sort((x, y) => {
+          const diff =
+            (x.renglaPosition ?? x.z ?? Infinity) - (y.renglaPosition ?? y.z ?? Infinity);
+          return diff ? diff : x.assignmentId.localeCompare(y.assignmentId);
+        });
         suggestedRemovalAssignmentIds = byInterior.slice(1).map((p) => p.assignmentId);
       } else {
         suggestedRemovalAssignmentIds = pinyaPlacements.map((p) => p.assignmentId);
@@ -834,7 +1011,10 @@ export class NodeAssignmentService {
       SegmentConflictKind.TRONC_PINYA,
       SegmentConflictKind.PINYA_PINYA,
     ];
-    conflicts.sort((a, b) => kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind));
+    conflicts.sort((a, b) => {
+      const kindDiff = kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind);
+      return kindDiff !== 0 ? kindDiff : a.personId.localeCompare(b.personId);
+    });
 
     return conflicts;
   }
@@ -1378,12 +1558,26 @@ export class NodeAssignmentService {
       }
     }
 
+    // Which target nodes already hold an assignment. One query up front replaces the
+    // per-row occupancy findOne that assignWithoutLockCheck() used to do inside the loop;
+    // the set is updated as rows are accepted so that two source placements landing on the
+    // same target node still resolve as a conflict for the second one.
+    const existingTargetAssignments = await this.assignmentRepository.find({
+      where: { figureInstance: { id: instanceId } },
+      relations: ['instanceNode'],
+    });
+    const occupiedNodeIds = new Set(
+      existingTargetAssignments.map((a) => a.instanceNode?.id).filter((id): id is string => !!id),
+    );
+
+    const rows: PendingImportRow[] = [];
+
     for (const sourceAssignment of sourceAssignments) {
       const sourceNode = sourceAssignment.instanceNode;
       if (sourceNode.isAdHoc) continue; // ad-hoc assignments handled below
       if (scopeZones && !scopeZones.has(sourceNode.zone)) continue;
-      const personId = sourceAssignment.person.id;
-      const personAlias = sourceAssignment.person.alias;
+      const person = sourceAssignment.person;
+      const personAlias = person.alias;
       const nodeLabel = sourceNode.label;
 
       let targetNode: InstanceNode | undefined;
@@ -1399,29 +1593,30 @@ export class NodeAssignmentService {
         continue;
       }
 
-      // B4: node/person/segment conflict checks are NOT duplicated here — assign()
-      // already performs them (and has the DB-level backstop via toAssignConflictError).
-      // Uses assignWithoutLockCheck: the lock was already checked once above.
-      try {
-        const detail = await this.assignWithoutLockCheck(
-          instanceId,
-          { nodeId: targetNode.id, personId },
-          false,
-          false,
-        );
-        created.push(detail);
-      } catch (err) {
-        const reason = this.describeBulkImportError(err);
-        if (reason === null) {
-          // B2: an unexpected (non-domain) error must not be masked as a conflict.
-          this.logger.error(
-            `bulkImport: unexpected error assigning node ${targetNode.id} to person ${personId}`,
-            err instanceof Error ? err.stack : err,
-          );
-          throw err;
-        }
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason });
+      // Same rejections assignWithoutLockCheck() used to raise per row, decided in memory.
+      // The DB unique constraint is still the backstop for a concurrent writer (see
+      // insertImportRows), so nothing is traded away by pre-resolving them here.
+      if (targetNode.zone === FigureZone.DECORATION) {
+        conflicts.push({
+          nodeId: targetNode.id,
+          nodeLabel,
+          personAlias,
+          reason: 'Els nodes decoratius no es poden assignar.',
+        });
+        continue;
       }
+      if (occupiedNodeIds.has(targetNode.id)) {
+        conflicts.push({
+          nodeId: targetNode.id,
+          nodeLabel,
+          personAlias,
+          reason: 'Node already occupied in target instance',
+        });
+        continue;
+      }
+
+      occupiedNodeIds.add(targetNode.id);
+      rows.push({ targetNode, person, nodeLabel, personAlias, countsAsCreated: true });
     }
 
     // Clone ad-hoc nodes from source to target (idempotent via originNodeId)
@@ -1490,34 +1685,21 @@ export class NodeAssignmentService {
         sourceAssignment.person &&
         sourceAdHoc.zone !== FigureZone.DECORATION
       ) {
-        const personId = sourceAssignment.person.id;
-        const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
-        try {
-          await this.assignWithoutLockCheck(
-            instanceId,
-            { nodeId: savedClone.id, personId },
-            false,
-            false,
-          );
-        } catch (err) {
-          const reason = this.describeBulkImportError(err);
-          if (reason === null) {
-            this.logger.error(
-              `bulkImport: unexpected error cloning ad-hoc assignment for node ${savedClone.id}`,
-              err instanceof Error ? err.stack : err,
-            );
-            throw err;
-          }
-          // B2 fix: propagate the classified reason instead of a hardcoded generic message.
-          conflicts.push({
-            nodeId: savedClone.id,
-            nodeLabel: sourceAdHoc.label,
-            personAlias,
-            reason,
-          });
-        }
+        const person = sourceAssignment.person;
+        // A freshly cloned node can never be occupied, so it joins the same batch as the
+        // regular rows. `countsAsCreated: false` keeps the long-standing behaviour that
+        // ad-hoc assignments are not reported in `created`.
+        rows.push({
+          targetNode: savedClone,
+          person,
+          nodeLabel: sourceAdHoc.label,
+          personAlias: person.alias ?? `${person.name} ${person.firstSurname}`,
+          countsAsCreated: false,
+        });
       }
     }
+
+    created.push(...(await this.insertImportRows(targetInstance, rows, conflicts)));
 
     const { meta } = await this.getSegmentConflicts(targetInstance.segment.id);
     this.segmentChanges.emitChange(
@@ -1527,6 +1709,98 @@ export class NodeAssignmentService {
     );
 
     return { created, conflicts, clonedAdHocNodes, conflictsByKind: meta.conflictsByKind };
+  }
+
+  /**
+   * Writes a whole import's assignments with a single INSERT instead of one round trip per
+   * row. Occupancy was already resolved in memory by the caller; the only thing left that
+   * can still fail is a concurrent writer taking one of these nodes between the read and the
+   * write, which the DB unique constraint catches. Because a multi-row INSERT is all-or-
+   * nothing, that case falls back to the per-row path so the rest of the import still lands
+   * and the losing row gets a precise reason instead of the whole import disappearing.
+   */
+  private async insertImportRows(
+    targetInstance: FigureInstance,
+    rows: PendingImportRow[],
+    conflicts: BulkImportResult['conflicts'],
+  ): Promise<AssignmentDetail[]> {
+    if (rows.length === 0) return [];
+
+    try {
+      const result = await this.assignmentRepository.insert(
+        rows.map((row) => ({
+          figureInstance: { id: targetInstance.id },
+          instanceNode: { id: row.targetNode.id },
+          person: { id: row.person.id },
+          segment: { id: targetInstance.segment.id },
+        })),
+      );
+
+      const created: AssignmentDetail[] = [];
+      rows.forEach((row, index) => {
+        if (!row.countsAsCreated) return;
+        created.push(
+          toAssignmentDetail({
+            id: result.identifiers[index]?.id as string,
+            figureInstance: targetInstance,
+            instanceNode: row.targetNode,
+            person: row.person,
+          } as NodeAssignment),
+        );
+      });
+      return created;
+    } catch (err) {
+      const conflictError = this.toAssignConflictError(err);
+      if (!(conflictError instanceof AssignConflictException)) {
+        this.logger.error(
+          `bulkImport: unexpected error inserting ${rows.length} assignment(s) into instance ${targetInstance.id}`,
+          err instanceof Error ? err.stack : err,
+        );
+        throw err;
+      }
+      this.logger.warn(
+        `bulkImport: batched insert lost a race on instance ${targetInstance.id}, retrying row by row`,
+      );
+      return this.insertImportRowsIndividually(targetInstance.id, rows, conflicts);
+    }
+  }
+
+  /** Per-row fallback of insertImportRows, used only after the batch lost a race. */
+  private async insertImportRowsIndividually(
+    instanceId: string,
+    rows: PendingImportRow[],
+    conflicts: BulkImportResult['conflicts'],
+  ): Promise<AssignmentDetail[]> {
+    const created: AssignmentDetail[] = [];
+    for (const row of rows) {
+      try {
+        // announce=false: the import announces itself once, not once per row.
+        const detail = await this.assignWithoutLockCheck(
+          instanceId,
+          { nodeId: row.targetNode.id, personId: row.person.id },
+          false,
+          false,
+        );
+        if (row.countsAsCreated) created.push(detail);
+      } catch (err) {
+        const reason = this.describeBulkImportError(err);
+        if (reason === null) {
+          // B2: an unexpected (non-domain) error must not be masked as a conflict.
+          this.logger.error(
+            `bulkImport: unexpected error assigning node ${row.targetNode.id} to person ${row.person.id}`,
+            err instanceof Error ? err.stack : err,
+          );
+          throw err;
+        }
+        conflicts.push({
+          nodeId: row.targetNode.id,
+          nodeLabel: row.nodeLabel,
+          personAlias: row.personAlias,
+          reason,
+        });
+      }
+    }
+    return created;
   }
 
 

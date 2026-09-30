@@ -1,12 +1,12 @@
 <div class="flex flex-col h-full min-h-0 bg-base-100">
   <!-- Header -->
-  <header class="flex items-center gap-3 px-4 py-2 border-b border-base-300 shrink-0">
+  <header class="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 border-b border-base-300 shrink-0">
     <lib-button variant="ghost" size="sm" shape="square" ariaLabel="Torna arrere" (clicked)="goBack()">
       <lucide-icon [img]="ArrowLeft" [size]="18" aria-hidden="true" />
     </lib-button>
 
-    <!-- Fixed width so the prev/next arrows stay in the same spot regardless of title length -->
-    <h1 class="text-lg font-semibold font-serif leading-tight truncate w-48 shrink-0">
+    <!-- Fixed width (never content-sized) so the prev/next arrows stay in the same spot regardless of title length -->
+    <h1 class="text-base sm:text-lg font-semibold font-serif leading-tight truncate w-1/6 shrink-0">
       {{ ws.segmentName() ?? 'Segment' }}
     </h1>
 
@@ -18,9 +18,9 @@
     }
 
     <!-- Workspace tabs -->
-    <div class="ml-4 min-w-0">
+    <div class="sm:ml-4 min-w-0">
       <lib-tabs
-        [tabs]="tabDefs"
+        [tabs]="tabDefs()"
         [activeId]="activeTab()"
         ariaLabel="Vistes del segment"
         (activeIdChange)="setTab($event)"
@@ -28,7 +28,7 @@
     </div>
 
     <!-- Prev/next segment navigation -->
-    <div class="flex items-center gap-1 ml-2 shrink-0">
+    <div class="flex items-center gap-1 sm:ml-2 shrink-0">
       <lib-button
         variant="ghost"
         size="sm"
@@ -41,7 +41,7 @@
       </lib-button>
 
       @if (ws.segmentPosition(); as position) {
-        <span class="text-sm text-base-content/60 tabular-nums px-1">
+        <span class="hidden sm:inline text-sm text-base-content/60 tabular-nums px-1">
           {{ position.current }}/{{ position.total }}
         </span>
       }
@@ -57,21 +57,23 @@
         <lucide-icon [img]="ChevronRight" [size]="18" aria-hidden="true" />
       </lib-button>
 
-      <lib-button
-        variant="ghost"
-        size="sm"
-        shape="square"
-        ariaLabel="Ajuda de l'assignació"
-        title="Ajuda"
-        (clicked)="helpModal().open()"
-      >
-        <lucide-icon [img]="CircleQuestionMark" [size]="18" aria-hidden="true" />
-      </lib-button>
+      <div class="hidden sm:block">
+        <lib-button
+          variant="ghost"
+          size="sm"
+          shape="square"
+          ariaLabel="Ajuda de l'assignació"
+          title="Ajuda"
+          (clicked)="helpModal().open()"
+        >
+          <lucide-icon [img]="CircleQuestionMark" [size]="18" aria-hidden="true" />
+        </lib-button>
+      </div>
     </div>
 
-    <!-- Import pinya|tronc / reset snapshot — Pinyes & Troncs tabs, pushed to the far right -->
+    <!-- Import pinya|tronc / reset snapshot — Pinyes & Troncs tabs, pushed to the far right; hidden on phones -->
     @if (activeTab() === 'pinyes' || activeTab() === 'troncs') {
-      <div class="flex items-center gap-1 ml-auto shrink-0">
+      <div class="hidden sm:flex items-center gap-1 ml-auto shrink-0">
         @if (activeTab() === 'pinyes' && resetCandidates().length > 0) {
           <lib-button
             variant="error"

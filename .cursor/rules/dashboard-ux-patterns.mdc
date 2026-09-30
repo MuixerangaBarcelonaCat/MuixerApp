@@ -44,10 +44,12 @@ Pass ALL columns with `value` extractors. Let `app-data-table` handle visibility
   [sortOrder]="sortOrder()"
   [loading]="loading()"
   [rowActions]="rowActions"
-  (rowClick)="onRowClick($any($event).id)"
+  [rowLink]="rowLink"
   (sortChange)="onSortChange($event)"
 />
 ```
+
+`[rowLink]` (`(item: T) => ['/things', item.id]`) makes each row real anchors, so it opens in a new tab; use `(rowClick)` only for a row with no route.
 
 Sort cycle: ASC → DESC → clear (3-state).
 

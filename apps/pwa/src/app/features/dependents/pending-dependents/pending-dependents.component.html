@@ -12,7 +12,7 @@
     <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
   } @else if (current(); as dependent) {
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
-      <app-person-data-fields [formGroup]="form" [heading]="dependent.alias" />
+      <app-person-data-fields [formGroup]="form" [heading]="dependent.alias" [showPhone]="false" />
 
       @if (errorMessage()) {
         <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>

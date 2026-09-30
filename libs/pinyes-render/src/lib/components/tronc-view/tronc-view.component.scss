@@ -124,6 +124,14 @@
   display: flex;
 }
 
+// Assignment mode: a long press on a node starts the move gesture, so the browser's own long-press
+// behaviour (text selection, iOS callout) must stay out of the way.
+.assignment-mode .tronc-node {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 // -- Tronc node button 
 
 .tronc-node {
@@ -172,9 +180,13 @@
     background: rgb(225 29 72 / 0.14);
   }
 
+  // Green outline + glow, like the Konva canvas draws for a highlighted node (shadowBlur 12), so
+  // both tabs mark e.g. "person being moved" alike. Uses the theme's success token; the canvas
+  // still has a hard-coded emerald (`#10b981`) until it is adapted to the theme.
   &.highlighted {
-    border-color: oklch(var(--a));
-    background: oklch(var(--a) / 0.08);
+    border-color: oklch(var(--su));
+    background: oklch(var(--su) / 0.08);
+    box-shadow: 0 0 12px oklch(var(--su) / 0.7);
   }
 
   &.z-colored {

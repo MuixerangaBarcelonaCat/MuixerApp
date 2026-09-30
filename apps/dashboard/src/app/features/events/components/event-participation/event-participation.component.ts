@@ -808,9 +808,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   // ── Navigation ───────────────────────────────────────────────────────────────
 
-  navigateToPerson(row: ParticipationRow): void {
-    this.router.navigate(['/persons', row.id]);
-  }
+  /** Row route for the data table: real anchors, so a row opens in a new tab. */
+  readonly personLink = (row: ParticipationRow) => ['/persons', row.id];
 
   /**
    * Matrix/detail cell click: jumps straight into the workshop for what that cell shows.

@@ -9,7 +9,7 @@
     <button
       type="button"
       role="tab"
-      class="tab gap-1.5 whitespace-nowrap"
+      class="tab gap-1.5 flex-nowrap whitespace-nowrap"
       [class.tab-active]="activeId() === tab.id"
       [attr.aria-selected]="activeId() === tab.id"
       [attr.aria-controls]="panelIdPrefix() + tab.id"
@@ -19,9 +19,9 @@
       (keydown)="onKeydown($event, i)"
     >
       @if (tab.icon) {
-        <lucide-icon [img]="tab.icon" [size]="14" aria-hidden="true" />
+        <lucide-icon class="shrink-0" [img]="tab.icon" [size]="14" aria-hidden="true" />
       }
-      {{ tab.label }}
+      <span [class]="labelClass(tab)">{{ tab.label }}</span>
     </button>
   }
 </nav>

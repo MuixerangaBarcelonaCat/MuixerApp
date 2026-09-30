@@ -256,9 +256,10 @@ POST /auth/invite/register          →     AuthController.registerViaInvite()
                                     ←     Set-Cookie + { accessToken, user }
 ```
 
-El formulari de registre és `PersonRegistrationDataDto` (nom, cognoms, gènere, telèfon E.164
-validat amb `libphonenumber-js`, data de naixement) + `email`/`password`/`legalAccepted` —
-compartit amb el flux de dependents (§7) via el mateix DTO base.
+El formulari de registre és `PersonRegistrationDataDto` (nom, cognoms, gènere, data de naixement)
++ `phone` (E.164 validat amb `libphonenumber-js`), `email`/`password`/`legalAccepted`. El DTO base
+es comparteix amb el flux de dependents (§7), però el telèfon només l'afegeix `RegisterViaInviteDto`:
+la xicalla no en té i queda a `null`.
 
 **Tots** els camps que el context retorna arriben prellenats (nom, cognoms, gènere, telèfon
 partit en país + número via `splitPhoneNumber`, data de naixement) i són editables: l'usuari
@@ -395,7 +396,7 @@ per suplantar en silenci» a «minuts, i el propietari rep un avís»:
 3. **Segon factor que el tècnic no dicta** — la pantalla `/reset-password` demana, a més de la
    contrasenya nova, una dada que ja tenim a la `Person` i que no viatja dins de l'enllaç: la
    **data de naixement**. No és un secret fort dins d'una colla, però trenca el cas «he obert un
-   enllaç que no era per a mi». El rate limit de Caddy a `/api/auth` (10 req/60 s) ja limita l'endevinació.
+   enllaç que no era per a mi». El rate limit de Caddy a `/api/auth` (60 req/60 s) ja limita l'endevinació.
 4. **Enviar-lo pel canal verificat** — que el backend l'envie per SMS a `person.phone` en lloc de
    copiar-lo al portapapers del tècnic. Elimina l'error de destinatari, però requereix un
    proveïdor d'SMS (cost real).
@@ -456,7 +457,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 |--------|----------------|
 | `modules/user/user.service.ts` | `createOrRefreshInviteLink(personId)` — crea/reutilitza `User`, genera i (re)hasheja el token |
 | `modules/user/user.service.ts` | `createRecoveryLink(personId, actorUserId)` — **comentat**: enllaç de contrasenya nova per a un compte ja actiu (§8.1) |
-| `modules/person/dto/person-registration-data.dto.ts` | DTO base compartit (registre propi i dependents): nom, cognoms, gènere, telèfon (`IsValidPhoneNumber`), data naixement |
+| `modules/person/dto/person-registration-data.dto.ts` | DTO base compartit (registre propi i dependents): nom, cognoms, gènere, data naixement (el telèfon és només a `RegisterViaInviteDto`) |
 | `modules/person-delegate/person-delegate.service.ts` | `findProvisionalPrimaryDependents(userId)` — dependents provisionals on l'usuari és delegat primari |
 | `modules/me/me.service.ts` | `getPendingDependents` / `completePendingDependent` (`GET`/`POST /me/pending-dependents`) |
 | `common/validators/is-valid-phone-number.decorator.ts` | `@IsValidPhoneNumber()` — backed by `libphonenumber-js` |
@@ -520,7 +521,7 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 - **SHA-256** per hashing de refresh tokens a DB (mai guardat en clar)
 - **Rotació obligatòria**: cada ús de refresh token genera un de nou i invalida l'anterior
 - **Detecció de reutilització**: si un token ja marcat com `used` es presenta, tota la família es revoca
-- **Rate limiting**: Caddy (`apps/dashboard/Caddyfile`) — `/api/auth*` 10 req/60s per IP, `/api/*` 100 req/60s per IP
+- **Rate limiting**: Caddy (`apps/dashboard/Caddyfile`) — `/api/auth*` 60 req/60s per IP, `/api/*` 600 req/60s per IP
 - **Cookie segura**: `httpOnly`, `sameSite: lax`, `secure` en producció, `path: /api/auth`
   - `lax` (no `strict`) permet que el browser enviï la cookie en navegacions top-level des d'enllaços externs (WhatsApp → PWA)
 - **Access token en memòria**: mai `localStorage`, es perd al tancar pestanya (per disseny)
