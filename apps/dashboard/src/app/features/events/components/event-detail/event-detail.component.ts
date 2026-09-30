@@ -17,6 +17,7 @@ import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '..
 import { getAdultsCount } from '../event-list/event-list.component';
 import { PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
+import { saveBlob } from '../../../../core/utils/save-blob.util';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
 
@@ -79,6 +80,8 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   deleting = signal(false);
   deleteError = signal<string | null>(null);
+
+  printing = signal(false);
 
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
@@ -204,6 +207,24 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.router.navigate(['/events', ev.id, 'confirmation']);
   }
 
+
+  /** Downloads the printable summary (header, notes, segments) the API renders as a PDF. */
+  printSummary() {
+    const ev = this.event();
+    if (!ev || this.printing()) return;
+
+    this.printing.set(true);
+    this.eventService.downloadSummaryPdf(ev.id).subscribe({
+      next: ({ blob, filename }) => {
+        this.printing.set(false);
+        saveBlob(blob, filename);
+      },
+      error: () => {
+        this.printing.set(false);
+        this.toast.error("No s'ha pogut generar el PDF. Torneu a provar-ho més tard.");
+      },
+    });
+  }
 
   deleteEvent() {
     const ev = this.event();

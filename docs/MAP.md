@@ -71,6 +71,7 @@ graph TD
 | [[DATA_MODEL]] | Entitats, camps, relacions i enums |
 | [[PINYES_MODULE]] | Figures, rengles, instàncies, snapshot lazy, assignacions |
 | [[TAGS]] | Etiquetes de persona: els quatre grups, el catàleg, la regla mínima i el lligam feble amb les posicions de les figures |
+| [[EVENT_SUMMARY_PDF]] | Resum imprimible d'un esdeveniment: PDF compost amb Typst al servidor, notes amb `cmarker`, plantilla i proves |
 | [[SEGMENTS_FLEXIBILITY]] | Pla pendent: permetre una persona dues vegades al mateix segment |
 | [[SEGMENTS_FLEXIBILITY_PLAN]] | Pla d'execució fase a fase + protocol de verificació de cada fase |
 
@@ -131,6 +132,7 @@ graph TD
 | [`database`](../apps/api/src/modules/database) | 5 | 221 | [[DATA_MODEL]] |
 | [`event`](../apps/api/src/modules/event) | 14 | 1323 | [[DATA_MODEL]] |
 | [`event-segment`](../apps/api/src/modules/event-segment) | 19 | 1966 | [[PINYES_MODULE]] |
+| [`event-summary`](../apps/api/src/modules/event-summary) | 5 | 299 | [[EVENT_SUMMARY_PDF]] |
 | [`figure`](../apps/api/src/modules/figure) | 13 | 1384 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
 | [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
 | [`mail`](../apps/api/src/modules/mail) | 6 | 146 | — |
@@ -155,7 +157,7 @@ Migracions TypeORM: **59** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`communication`](../apps/dashboard/src/app/features/communication) | 14 | 1360 | — |
 | [`config`](../apps/dashboard/src/app/features/config) | 14 | 2161 | [[DASHBOARD_UI]] |
 | [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 371 | — |
-| [`events`](../apps/dashboard/src/app/features/events) | 20 | 4195 | [[DASHBOARD_UI]] |
+| [`events`](../apps/dashboard/src/app/features/events) | 19 | 4008 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 115 | [[DASHBOARD_UI]] |
 | [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1624 | [[DASHBOARD_UI]] |
 | [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 51 | 10455 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
@@ -179,7 +181,7 @@ Migracions TypeORM: **59** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`constants`](../libs/shared/src/constants) | 4 | 245 | — |
 | [`enums`](../libs/shared/src/enums) | 25 | 225 | — |
 | [`interfaces`](../libs/shared/src/interfaces) | 24 | 934 | — |
-| [`utils`](../libs/shared/src/utils) | 8 | 396 | — |
+| [`utils`](../libs/shared/src/utils) | 9 | 437 | — |
 
 ### Fitxers més grans (candidats a dividir)
 
@@ -188,7 +190,7 @@ Migracions TypeORM: **59** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`apps/api/src/modules/node-assignment/node-assignment.service.ts`](../apps/api/src/modules/node-assignment/node-assignment.service.ts) | 2218 |
 | [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts) | 1245 |
 | [`apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts`](../apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts) | 833 |
-| [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts) | 830 |
+| [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts) | 804 |
 | [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html) | 794 |
 | [`apps/api/src/modules/figure/figure-template.service.ts`](../apps/api/src/modules/figure/figure-template.service.ts) | 755 |
 | [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html) | 689 |
