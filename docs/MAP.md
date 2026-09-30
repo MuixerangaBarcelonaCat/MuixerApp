@@ -37,6 +37,7 @@ graph TD
   MAP --> DESIGN_SYSTEM
   DESIGN_SYSTEM --> DASHBOARD_UI
   DESIGN_SYSTEM --> PWA_UI
+  PINYES_MODULE --> REQUEST_AUDIT
   MAP --> DOCKER_SETUP
   DATA_MODEL --> PINYES_MODULE
   MAP --> TAGS
@@ -96,6 +97,7 @@ graph TD
 | [[PWA_UI]] | Patrons d'UI de la PWA de membres: layout, chrome, components propis, routing |
 | [[AUDIT_SUITE]] | Com executar les auditories responsive/a11y i els e2e de Playwright |
 | [[GDPR_COMPLIANCE]] | Informe tècnic i pla d'implementació del compliment LOPDGDD/RGPD |
+| [[REQUEST_AUDIT]] | Auditoria de peticions al backend: què s'ha optimitzat al workspace de segments, impacte a l'UX i què queda pendent |
 
 ### Infraestructura
 

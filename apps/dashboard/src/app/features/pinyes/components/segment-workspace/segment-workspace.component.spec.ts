@@ -97,6 +97,7 @@ const makeWsMock = () => {
       segmentId.set(segId);
     }),
     refreshInstance: vi.fn(),
+    markTabSwitched: vi.fn(),
     selectInstance: vi.fn(),
     visibleNodesFor: vi.fn().mockReturnValue([]),
   };

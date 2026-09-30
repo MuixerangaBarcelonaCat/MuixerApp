@@ -2,6 +2,7 @@ import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent,
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   OnInit,
   ViewChild,
   computed,
@@ -52,6 +53,18 @@ export interface TroncViewPanel {
 }
 
 const INITIAL_ZOOM = 0.75;
+/** Quiet time before a properties-panel edit (keystroke, slider tick) is persisted. */
+const PANEL_SAVE_DEBOUNCE_MS = 400;
+
+/** Event/segment an edit belongs to, captured when the edit is made. */
+interface SaveTarget {
+  eventId: string;
+  segmentId: string;
+}
+
+interface PendingSave extends SaveTarget {
+  timer: ReturnType<typeof setTimeout>;
+}
 
 /**
  * Distribució tab of the segment workspace: the distribution canvas (drag,
@@ -66,7 +79,7 @@ const INITIAL_ZOOM = 0.75;
   imports: [LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent, FigureModeChangeComponent, CordonsChangeComponent],
   templateUrl: './distribucio-tab.component.html',
 })
-export class DistribucioTabComponent implements OnInit {
+export class DistribucioTabComponent implements OnInit, OnDestroy {
   readonly ws = inject(SegmentWorkspaceStateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly distributionService = inject(SegmentDistributionService);
@@ -213,6 +226,11 @@ export class DistribucioTabComponent implements OnInit {
   }
 
   onSlotMoved(event: { slotId: string; offsetX: number; offsetY: number; angle: number }): void {
+    this.moveSlot(event);
+    this.save();
+  }
+
+  private moveSlot(event: { slotId: string; offsetX: number; offsetY: number; angle: number }): void {
     this.slots.update((current) =>
       current.map((s) =>
         s.slotId === event.slotId
@@ -220,7 +238,6 @@ export class DistribucioTabComponent implements OnInit {
           : s,
       ),
     );
-    this.save();
   }
 
   onTroncMoved(event: { slotId: string; troncPanelX: number | null; troncPanelY: number | null }): void {
@@ -246,23 +263,47 @@ export class DistribucioTabComponent implements OnInit {
     });
   }
 
+  // The properties panel emits per keystroke / slider tick: update the canvas at once, persist once
+  // the user pauses (a slider drag used to send one full-distribution PUT per degree).
   onOffsetXChanged(event: { id: string; value: number }): void {
-    this.onSlotMoved({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetX: event.value });
+    this.moveSlot({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetX: event.value });
+    this.scheduleSave();
   }
 
   onOffsetYChanged(event: { id: string; value: number }): void {
-    this.onSlotMoved({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetY: event.value });
+    this.moveSlot({ ...this.currentSlotTransform(event.id), slotId: event.id, offsetY: event.value });
+    this.scheduleSave();
   }
 
   onAngleChanged(event: { id: string; value: number }): void {
-    this.onSlotMoved({ ...this.currentSlotTransform(event.id), slotId: event.id, angle: event.value });
+    this.moveSlot({ ...this.currentSlotTransform(event.id), slotId: event.id, angle: event.value });
+    this.scheduleSave();
   }
 
   onLabelChanged(event: { id: string; value: string | null }): void {
     this.slots.update((list) =>
       list.map((s) => (s.slotId === event.id ? { ...s, label: event.value } : s)),
     );
-    this.instanceService.update(this.ws.eventId(), this.ws.segmentId(), event.id, { label: event.value }).subscribe({
+    clearTimeout(this.pendingLabelSaves.get(event.id)?.timer);
+    const target = this.currentTarget();
+    this.pendingLabelSaves.set(event.id, {
+      ...target,
+      timer: setTimeout(() => this.saveLabel(event.id, target), PANEL_SAVE_DEBOUNCE_MS),
+    });
+  }
+
+  ngOnDestroy(): void {
+    // Leaving the tab must not drop an edit still waiting out its debounce. Flushed to the
+    // segment the edit was made in: prev/next navigation moves ws ids before destroying this tab.
+    if (this.pendingSave) this.save(this.pendingSave);
+    for (const [id, pending] of [...this.pendingLabelSaves]) this.saveLabel(id, pending);
+  }
+
+  private saveLabel(instanceId: string, target: SaveTarget): void {
+    clearTimeout(this.pendingLabelSaves.get(instanceId)?.timer);
+    this.pendingLabelSaves.delete(instanceId);
+    const label = this.slots().find((s) => s.slotId === instanceId)?.label ?? null;
+    this.instanceService.update(target.eventId, target.segmentId, instanceId, { label }).subscribe({
       error: () => this.toast.error("No s'ha pogut actualitzar el nom de la figura."),
     });
   }
@@ -355,6 +396,7 @@ export class DistribucioTabComponent implements OnInit {
   }
 
   onResetDistribution(): void {
+    this.cancelPendingSave();
     this.distributionService.clearDistribution(this.ws.eventId(), this.ws.segmentId()).subscribe({
       next: () => {
         this.loadDistribution();
@@ -404,7 +446,26 @@ export class DistribucioTabComponent implements OnInit {
     this.pendingPlacementItems = null;
   }
 
-  private save(): void {
+  private pendingSave: PendingSave | null = null;
+  private readonly pendingLabelSaves = new Map<string, PendingSave>();
+
+  private currentTarget(): SaveTarget {
+    return { eventId: this.ws.eventId(), segmentId: this.ws.segmentId() };
+  }
+
+  private scheduleSave(): void {
+    this.cancelPendingSave();
+    const target = this.currentTarget();
+    this.pendingSave = { ...target, timer: setTimeout(() => this.save(target), PANEL_SAVE_DEBOUNCE_MS) };
+  }
+
+  private cancelPendingSave(): void {
+    if (this.pendingSave) clearTimeout(this.pendingSave.timer);
+    this.pendingSave = null;
+  }
+
+  private save(target: SaveTarget = this.currentTarget()): void {
+    this.cancelPendingSave();
     const items: InstanceDistributionPayload[] = this.slots().map((s) => ({
       instanceId: s.slotId,
       x: s.offsetX,
@@ -416,7 +477,7 @@ export class DistribucioTabComponent implements OnInit {
       troncPanelHeight: null,
     }));
 
-    this.distributionService.saveDistribution(this.ws.eventId(), this.ws.segmentId(), items).subscribe({
+    this.distributionService.saveDistribution(target.eventId, target.segmentId, items).subscribe({
       error: () => this.toast.error("No s'ha pogut alçar la distribució."),
     });
   }
