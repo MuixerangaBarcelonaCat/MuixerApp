@@ -1,0 +1,39 @@
+<div class="space-y-3">
+  <lib-select
+    label="Esdeveniment vinculat (opcional)"
+    id="linked-event-kind"
+    [ngModel]="linkedEvent()?.kind ?? ''"
+    (ngModelChange)="setKind($event)"
+    name="linkedEventKind"
+  >
+    <option value="">Cap</option>
+    @if (variant() === 'schedule') {
+      <option [value]="EventRefKind.NEXT_ACTUACIO">Següent actuació</option>
+      <option [value]="EventRefKind.NEXT_ASSAIG">Següent assaig</option>
+      <option [value]="EventRefKind.NEXT_ACTUACIO_OR_ASSAIG">Següent actuació o assaig</option>
+    } @else {
+      <option [value]="EventRefKind.NEXT_ACTUACIO">Pròxima actuació</option>
+      <option [value]="EventRefKind.NEXT_ASSAIG">Pròxim assaig</option>
+      <option [value]="EventRefKind.NEXT_ACTUACIO_OR_ASSAIG">Pròxima actuació o assaig</option>
+    }
+    <option [value]="EventRefKind.SPECIFIC">Esdeveniment específic...</option>
+    @if (allowTriggeringEvent()) {
+      <option [value]="EventRefKind.TRIGGERING_EVENT">Aquest esdeveniment</option>
+    }
+  </lib-select>
+
+  @if (linkedEvent()?.kind === EventRefKind.SPECIFIC) {
+    <lib-select
+      required
+      id="linked-event-select"
+      [ngModel]="linkedEvent()?.eventId ?? ''"
+      (ngModelChange)="setSpecificEventId($event)"
+      name="linkedEventId"
+    >
+      <option value="">Seleccioneu un assaig o actuació...</option>
+      @for (event of events(); track event.id) {
+        <option [value]="event.id">{{ event.title }} — {{ event.date | slice:0:10 }}</option>
+      }
+    </lib-select>
+  }
+</div>

@@ -159,6 +159,7 @@ describe('NodesTabComponent', () => {
   let assignmentService: {
     getInstanceNodes: MockFn;
     getByInstance: MockFn;
+    getSegmentAssignmentState: MockFn;
     getAvailablePersons: MockFn;
     getLockStatus: MockFn;
     getSegmentConflicts: MockFn;
@@ -187,6 +188,15 @@ describe('NodesTabComponent', () => {
       getInstanceNodes: vi.fn((instanceId: string) => of({ data: defaultNodes[instanceId] ?? [] })),
       getByInstance: vi.fn((instanceId: string) =>
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
+      ),
+      getSegmentAssignmentState: vi.fn(() =>
+        of({
+          data: segment.instances.map((i) => ({
+            instanceId: i.id,
+            nodes: defaultNodes[i.id] ?? [],
+            assignments: opts.assignmentsByInstance?.[i.id] ?? [],
+          })),
+        }),
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),

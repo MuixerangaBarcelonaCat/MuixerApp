@@ -1,4 +1,4 @@
-import { AssignmentArea, AvailablePerson, AvailablePersonsQuery, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
+import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,6 +15,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
+import { Subscription } from 'rxjs';
 import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -22,6 +23,12 @@ import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
+
+/**
+ * A node click re-fetches the roster only when it is older than this, so attendance changes (members
+ * confirming, roll call on the day) still show up while clicking, without one request per click.
+ */
+export const ROSTER_MAX_AGE_MS = 10_000;
 
 interface PersonSearchResult {
   person: AvailablePerson;
@@ -82,6 +89,7 @@ export class PersonPanelComponent {
   readonly UserX = UserX;
   readonly ICON_OBSERVACIONS = DOMAIN_ICONS.OBSERVACIONS;
 
+  /** Full segment roster (every status, xicalla included); the filters below are applied client-side. */
   readonly persons = signal<AvailablePerson[]>([]);
   readonly loading = signal(false);
   readonly search = signal('');
@@ -110,6 +118,8 @@ export class PersonPanelComponent {
   // display:contents, unlike focus/blur).
   readonly heightFocused = signal(false);
   private hasTypedSinceNodeSelected = false;
+  private rosterFetchedAt = 0;
+  private rosterSub?: Subscription;
 
   /** "N lliures" header count (§5.4), meaning tied to the active tab's area. */
   readonly freeCount = computed(() => this.state.freeCountForArea(this.area()));
@@ -127,6 +137,37 @@ export class PersonPanelComponent {
 
   /** True while a height filter or Max/Min sort is active — used to exclude persons with no shoulder height set. */
   readonly heightSelectionActive = computed(() => this.height() !== null || this.heightSortMode() !== null);
+
+  /** Absolute shoulder height the list is ordered by (closest first), or null when no height selection is active. */
+  private readonly heightTarget = computed<number | null>(() => {
+    const sortMode = this.heightSortMode();
+    const value = sortMode !== null ? (sortMode === 'max' ? 1000 : -1000) : this.height();
+    if (value === null) return null;
+    return this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + value : value;
+  });
+
+  /**
+   * Roster narrowed by the Xicalla/tag filters and ordered by height proximity — the same
+   * semantics `available-persons` applies server-side, computed here so a node click, a height
+   * keystroke or a filter toggle costs no request. Array.sort is stable, so ties keep the
+   * roster's alias order.
+   */
+  readonly filteredPersons = computed(() => {
+    const positionId = this.selectedPositionId();
+    const list = this.persons().filter(
+      (p) =>
+        (this.showXicalla() || !p.isXicalla) &&
+        (!positionId || p.positions.some((pos) => pos.id === positionId)),
+    );
+    const target = this.heightTarget();
+    if (target === null) return list;
+    const unset = (p: AvailablePerson) => (p.shoulderHeight === null || p.shoulderHeight === 0 ? 1 : 0);
+    return list.sort(
+      (a, b) =>
+        unset(a) - unset(b) ||
+        Math.abs((a.shoulderHeight ?? 0) - target) - Math.abs((b.shoulderHeight ?? 0) - target),
+    );
+  });
 
   private placementForArea(
     person: AvailablePerson,
@@ -148,7 +189,7 @@ export class PersonPanelComponent {
 
   /** Persons with any placement in the segment, split by where they're placed — never double-counted. */
   private assignedPersonsForArea(matchesArea: (area: AssignmentArea) => boolean): AvailablePerson[] {
-    const apiAssigned = this.persons().filter((p) =>
+    const apiAssigned = this.filteredPersons().filter((p) =>
       p.assignedPlacements.some((pl) => matchesArea(pl.area)),
     );
     const seen = new Set(apiAssigned.map((p) => p.id));
@@ -166,7 +207,7 @@ export class PersonPanelComponent {
             ? 'DIRECTION'
             : 'PINYA';
       if (!matchesArea(area)) continue;
-      const fromList = this.persons().find((p) => p.id === assignment.person.id);
+      const fromList = this.filteredPersons().find((p) => p.id === assignment.person.id);
       const optimisticPlacement: ConflictPlacement = {
         assignmentId: assignment.id,
         figureInstanceId: assignment.figureInstanceId,
@@ -223,7 +264,7 @@ export class PersonPanelComponent {
       ...this.pinyaAssignedPersons().map((p) => p.id),
       ...this.troncAssignedPersons().map((p) => p.id),
     ]);
-    const free = this.persons().filter((p) => !assignedIds.has(p.id));
+    const free = this.filteredPersons().filter((p) => !assignedIds.has(p.id));
     if (!this.heightSelectionActive()) return free;
     // A shoulderHeight of null/0 means "not set" — coalesced to 0 server-side, which would
     // otherwise sort these persons as the shortest possible match when ordering by min height.
@@ -337,7 +378,7 @@ export class PersonPanelComponent {
     const results: PersonSearchResult[] = [];
     const seen = new Set<string>();
 
-    const exact = this.persons().find((p) => normalizeForSearch(p.alias) === term);
+    const exact = this.filteredPersons().find((p) => normalizeForSearch(p.alias) === term);
     if (exact) {
       results.push({ person: exact, isAssigned: exact.assignedPlacements.length > 0 });
       seen.add(exact.id);
@@ -404,19 +445,15 @@ export class PersonPanelComponent {
         this.hasTypedSinceNodeSelected = false;
         // Auto-toggle the Xicalla filter to match the selected node's zone.
         // Left untouched when a node is deselected (nodeId === null).
-        // Goes through onXicallaChange (not a direct signal set) so the person
-        // list is actually re-fetched with the new filter, same as a manual toggle.
         this.onXicallaChange(this.selectedNodeZone() === FigureZone.TRONC);
+        if (Date.now() - this.rosterFetchedAt >= ROSTER_MAX_AGE_MS) untracked(() => this.loadPersons());
       }
     });
 
     effect(() => {
       this.state.personListRefreshTrigger();
       untracked(() => {
-        if (this.eventId() && this.segmentId()) {
-          this.loadPersons();
-          this.loadRegistries();
-        }
+        if (this.eventId() && this.segmentId()) this.loadPersons();
       });
     });
   }
@@ -426,50 +463,33 @@ export class PersonPanelComponent {
   }
 
   /**
-   * Full roster (all statuses, including xicalla) regardless of the visible list's filters.
-   * Feeds state.confirmedPersons + attendance registries, which back hover cards for already-
-   * assigned persons anywhere in the canvas — those must resolve even when "Xicalla" is unchecked.
+   * Fetches the full roster (all statuses, including xicalla); the visible list is derived from it
+   * client-side (`filteredPersons`). Runs on mount, after every assignment mutation
+   * (`personListRefreshTrigger`), on «Refrescar», and on a node click once the roster is older than
+   * `ROSTER_MAX_AGE_MS`. Also feeds state.confirmedPersons + attendance
+   * registries, which back hover cards for already-assigned persons anywhere in the canvas.
    */
-  private loadRegistries(): void {
-    this.assignmentService
-      .getAvailablePersons(this.eventId(), this.segmentId(), { excludeAssigned: false })
-      .subscribe((resp) => {
-        this.state.confirmedPersons.set(resp.data);
-        this.state.attendanceRegistry.update((m) => {
-          const updated = new Map(m);
-          resp.data.forEach((p) => updated.set(p.id, p.attendanceStatus));
-          return updated;
-        });
-        this.state.nextPerformanceRegistry.update((m) => {
-          const updated = new Map(m);
-          resp.data.forEach((p) => updated.set(p.id, p.nextPerformanceStatus ?? null));
-          return updated;
-        });
-      });
-  }
-
   loadPersons(): void {
     this.loading.set(true);
-    const query: AvailablePersonsQuery = {
-      excludeAssigned: false,
-    };
-    const sortMode = this.heightSortMode();
-    if (sortMode !== null) {
-      const heightValue = sortMode === 'max' ? 1000 : -1000;
-      query.height = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
-    } else if (this.height() !== null) {
-      const heightValue = this.height()!;
-      const absoluteHeight = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
-      query.height = absoluteHeight;
-    }
-    if (!this.showXicalla()) query.isXicalla = false;
-    const positionId = this.selectedPositionId();
-    if (positionId) query.positionId = positionId;
-    this.assignmentService
-      .getAvailablePersons(this.eventId(), this.segmentId(), query)
+    this.rosterFetchedAt = Date.now();
+    // Only the latest response may land: an older one arriving late would roll the list back.
+    this.rosterSub?.unsubscribe();
+    this.rosterSub = this.assignmentService
+      .getAvailablePersons(this.eventId(), this.segmentId(), { excludeAssigned: false })
       .subscribe({
         next: (resp) => {
           this.persons.set(resp.data);
+          this.state.confirmedPersons.set(resp.data);
+          this.state.attendanceRegistry.update((m) => {
+            const updated = new Map(m);
+            resp.data.forEach((p) => updated.set(p.id, p.attendanceStatus));
+            return updated;
+          });
+          this.state.nextPerformanceRegistry.update((m) => {
+            const updated = new Map(m);
+            resp.data.forEach((p) => updated.set(p.id, p.nextPerformanceStatus ?? null));
+            return updated;
+          });
           this.loading.set(false);
         },
         error: () => this.loading.set(false),
@@ -487,25 +507,21 @@ export class PersonPanelComponent {
   onHeightChange(value: number | null): void {
     this.heightSortMode.set(null);
     this.height.set(value);
-    this.loadPersons();
   }
 
   toggleHeightSort(mode: 'max' | 'min'): void {
     this.height.set(null);
     this.heightSortMode.set(this.heightSortMode() === mode ? null : mode);
-    this.loadPersons();
   }
 
   onXicallaChange(checked: boolean): void {
     this.showXicalla.set(checked);
-    this.loadPersons();
   }
 
   onPositionFilterChange(positionId: string): void {
     this.selectedPositionId.set(positionId || null);
     this.tagFilterOpen.set(false);
     this.tagSearch.set('');
-    this.loadPersons();
   }
 
   clearTagFilter(): void {

@@ -7,7 +7,7 @@
 #   PWA_SITE_ADDRESS=app.beta.muixerangadebarcelona.com
 #
 # Rate limiting (caddy-ratelimit plugin): mirrors former NestJS throttler
-#   /api/auth* → 10 req / 1m per IP
+#   /api/auth* → 60 req / 1m per IP
 #   /api/*     → 600 req / 1m per IP
 
 {$SITE_ADDRESS::80} {
@@ -21,7 +21,7 @@
                     path /api/auth*
                 }
                 key {remote_host}
-                events 10
+                events 60
                 window 1m
             }
             zone api {
@@ -51,7 +51,7 @@
                     path /api/auth*
                 }
                 key {remote_host}
-                events 10
+                events 60
                 window 1m
             }
             zone api {

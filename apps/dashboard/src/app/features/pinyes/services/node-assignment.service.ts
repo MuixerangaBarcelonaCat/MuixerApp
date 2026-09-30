@@ -12,6 +12,13 @@ export class NodeAssignmentService extends ApiService {
     return this.get<{ data: InstanceNodeItem[] }>(`/figure-instances/${instanceId}/nodes`);
   }
 
+  /** Nodes + assignments of every figure instance in the segment, in one request. */
+  getSegmentAssignmentState(eventId: string, segmentId: string): Observable<{ data: SegmentInstanceState[] }> {
+    return this.get<{ data: SegmentInstanceState[] }>(
+      `/events/${eventId}/segments/${segmentId}/assignment-state`,
+    );
+  }
+
   getByInstance(instanceId: string): Observable<{ data: AssignmentDetail[] }> {
     return this.get<{ data: AssignmentDetail[] }>(`/figure-instances/${instanceId}/assignments`);
   }
@@ -135,6 +142,12 @@ export class NodeAssignmentService extends ApiService {
       .filter(([, v]) => v !== undefined)
       .reduce<Record<string, string>>((acc, [k, v]) => ({ ...acc, [k]: String(v) }), {});
   }
+}
+
+export interface SegmentInstanceState {
+  instanceId: string;
+  nodes: InstanceNodeItem[];
+  assignments: AssignmentDetail[];
 }
 
 export interface LockStatus {

@@ -73,7 +73,7 @@ import {
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
   BookOpen, RotateCcw, RotateCw, History, UserPlus, Baby, UsersRound, StickyNote, UserMinus,
   ClipboardCheck, Undo2, Redo2, Ghost, Megaphone, Newspaper, Bell,Smartphone, CandyCane, Printer,
-  FileText, Send, CalendarClock
+  FileText, Link, Send, CalendarClock,
 } from 'lucide-angular';
 
 const icons = {
@@ -91,7 +91,7 @@ const icons = {
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
   BookOpen, RotateCcw, RotateCw, History, UserPlus, Baby, UsersRound, StickyNote, UserMinus,
   ClipboardCheck, Undo2, Redo2, Ghost, Megaphone, Newspaper, Bell,Smartphone, CandyCane, Printer,
-  FileText, Send, CalendarClock
+  FileText, Link, Send, CalendarClock,
 };
 
 export const appConfig: ApplicationConfig = {
