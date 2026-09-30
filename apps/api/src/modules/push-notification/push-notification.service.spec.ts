@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BadRequestException } from '@nestjs/common';
-import { PushNotificationService } from './push-notification.service';
+import { PUSH_SEND_CONCURRENCY, PushNotificationService } from './push-notification.service';
 import { PushSenderService } from './push-sender.service';
 import { PushSubscriptionService } from './push-subscription.service';
 import { NotificationLogService } from './notification-log.service';
@@ -378,6 +378,30 @@ describe('PushNotificationService', () => {
       expect(subscriptionService.deactivateMany).toHaveBeenCalledTimes(1);
       expect(subscriptionService.markUsedMany.mock.calls[0][0]).toHaveLength(49);
       expect(subscriptionService.deactivateMany).toHaveBeenCalledWith(['sub-7']);
+    });
+
+    it('caps how many devices are sent to at once, but still reaches every one', async () => {
+      const subs = Array.from({ length: 120 }, (_, i) => ({
+        id: `sub-${i}`,
+        endpoint: `https://fcm.googleapis.com/push/${i}`,
+        keys: { p256dh: 'a', auth: 'b' },
+      }));
+      subscriptionService.findActiveByUserIds.mockResolvedValue(subs as never);
+      let inFlight = 0;
+      let maxInFlight = 0;
+      senderService.send.mockImplementation(async () => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight--;
+        return { success: true, statusCode: 201 };
+      });
+
+      await service.handlePushRequested(new PushRequestedEvent(['u1'], { title: 'T', body: 'B' }));
+
+      expect(senderService.send).toHaveBeenCalledTimes(120);
+      expect(maxInFlight).toBeLessThanOrEqual(PUSH_SEND_CONCURRENCY);
+      expect(subscriptionService.markUsedMany.mock.calls[0][0]).toHaveLength(120);
     });
   });
 });

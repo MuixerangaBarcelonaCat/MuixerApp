@@ -6,6 +6,8 @@ import { NotificationSource, NotificationTarget } from '@muixer/shared';
  * recurring). No `updatedAt` on purpose — mirrors AuditLog's append-only shape.
  */
 @Entity('notification_logs')
+@Index('IDX_notification_logs_schedule_event', ['scheduleId', 'triggeredEventId'])
+@Index('IDX_notification_logs_schedule_sent_at', ['scheduleId', 'sentAt'])
 export class NotificationLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;

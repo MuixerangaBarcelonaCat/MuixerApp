@@ -29,7 +29,7 @@ const FIXED_NOW = new Date('2026-06-01T12:00:00.000Z');
 describe('NotificationScheduleCronService', () => {
   let cronService: NotificationScheduleCronService;
   let repo: { createQueryBuilder: jest.Mock };
-  let logRepo: { findOne: jest.Mock };
+  let logRepo: { findOne: jest.Mock; find: jest.Mock };
   let eventRepo: { find: jest.Mock };
   let scheduleService: jest.Mocked<Pick<NotificationScheduleService, 'processSchedule'>>;
   let qb: {
@@ -54,7 +54,7 @@ describe('NotificationScheduleCronService', () => {
       getMany: jest.fn().mockResolvedValue([]),
     };
     repo = { createQueryBuilder: jest.fn().mockReturnValue(qb) };
-    logRepo = { findOne: jest.fn().mockResolvedValue(null) };
+    logRepo = { findOne: jest.fn().mockResolvedValue(null), find: jest.fn().mockResolvedValue([]) };
     eventRepo = { find: jest.fn().mockResolvedValue([]) };
     scheduleService = { processSchedule: jest.fn().mockResolvedValue({ accepted: true }) };
 
@@ -240,8 +240,8 @@ describe('NotificationScheduleCronService', () => {
   });
 
   describe('processDueBeforeEventSchedules', () => {
-    const makeSchedule = (ruleConfig: Record<string, unknown>): NotificationSchedule =>
-      ({ id: 's1', ruleConfig } as unknown as NotificationSchedule);
+    const makeSchedule = (ruleConfig: Record<string, unknown>, id = 's1'): NotificationSchedule =>
+      ({ id, ruleConfig } as unknown as NotificationSchedule);
 
     const daysRule = { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.DAYS, offsetValue: 3, timeOfDay: '09:00' };
     const hoursRule = { eventType: EventType.ACTUACIO, offsetUnit: BeforeEventOffsetUnit.HOURS, offsetValue: 3 };
@@ -373,13 +373,10 @@ describe('NotificationScheduleCronService', () => {
       qb.getMany.mockResolvedValue([schedule]);
       eventRepo.find.mockResolvedValue([{ id: 'evt-1', date: new Date('2026-06-04'), startTime: null }]);
       mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() - 60_000));
-      logRepo.findOne.mockResolvedValue({ id: 'log-1' });
+      logRepo.find.mockResolvedValue([{ scheduleId: 's1', triggeredEventId: 'evt-1' }]);
 
       await cronService.processDueBeforeEventSchedules();
 
-      expect(logRepo.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { scheduleId: 's1', triggeredEventId: 'evt-1' } }),
-      );
       expect(scheduleService.processSchedule).not.toHaveBeenCalled();
     });
 
@@ -391,9 +388,7 @@ describe('NotificationScheduleCronService', () => {
         { id: 'evt-pending', date: new Date('2026-06-05'), startTime: null },
       ]);
       mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() - 60_000));
-      logRepo.findOne.mockImplementation(({ where }: { where: { triggeredEventId: string } }) =>
-        Promise.resolve(where.triggeredEventId === 'evt-fired' ? { id: 'log-1' } : null),
-      );
+      logRepo.find.mockResolvedValue([{ scheduleId: 's1', triggeredEventId: 'evt-fired' }]);
 
       await cronService.processDueBeforeEventSchedules();
 
@@ -416,17 +411,66 @@ describe('NotificationScheduleCronService', () => {
       expect(scheduleService.processSchedule).toHaveBeenCalledTimes(2);
     });
 
-    it('continues processing remaining schedules if one fails', async () => {
-      const schedules = [makeSchedule(daysRule), makeSchedule(daysRule)];
-      qb.getMany.mockResolvedValue(schedules);
-      eventRepo.find
-        .mockRejectedValueOnce(new Error('boom'))
-        .mockResolvedValueOnce([{ id: 'evt-1', date: new Date('2026-06-04'), startTime: null }]);
-      mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() - 60_000));
+    it('does not throw when loading the events fails — the next tick retries', async () => {
+      qb.getMany.mockResolvedValue([makeSchedule(daysRule)]);
+      eventRepo.find.mockRejectedValue(new Error('boom'));
 
       await expect(cronService.processDueBeforeEventSchedules()).resolves.toBeUndefined();
 
-      expect(scheduleService.processSchedule).toHaveBeenCalledTimes(1);
+      expect(scheduleService.processSchedule).not.toHaveBeenCalled();
+    });
+
+    it('keeps the query count fixed however many schedules and events there are', async () => {
+      const schedules = ['s1', 's2', 's3'].map((id) => makeSchedule(daysRule, id));
+      qb.getMany.mockResolvedValue(schedules);
+      eventRepo.find.mockResolvedValue(
+        Array.from({ length: 10 }, (_, i) => ({ id: `evt-${i}`, date: new Date('2026-06-04'), startTime: null })),
+      );
+      mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() - 60_000));
+      logRepo.find.mockResolvedValue([{ scheduleId: 's2', triggeredEventId: 'evt-3' }]);
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(eventRepo.find).toHaveBeenCalledTimes(1);
+      expect(logRepo.find).toHaveBeenCalledTimes(1);
+      expect(logRepo.findOne).not.toHaveBeenCalled();
+      expect(scheduleService.processSchedule).toHaveBeenCalledTimes(29);
+      expect(scheduleService.processSchedule).not.toHaveBeenCalledWith(
+        schedules[1],
+        NotificationSource.SCHEDULED_BEFORE_EVENT,
+        'evt-3',
+      );
+    });
+
+    it('queries one event type once, up to the furthest offset among its schedules', async () => {
+      qb.getMany.mockResolvedValue([
+        makeSchedule({ ...daysRule, offsetValue: 2 }, 's1'),
+        makeSchedule({ ...daysRule, offsetValue: 5 }, 's2'),
+        makeSchedule({ ...hoursRule, offsetValue: 30 }, 's3'),
+      ]);
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(eventRepo.find).toHaveBeenCalledTimes(1);
+      expect(mockAddDaysToDateOnly).toHaveBeenCalledWith('2026-06-01', 5);
+    });
+
+    it('bounds an HOURS offset to the days it can reach', async () => {
+      qb.getMany.mockResolvedValue([makeSchedule({ ...hoursRule, offsetValue: 30 })]);
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(mockAddDaysToDateOnly).toHaveBeenCalledWith('2026-06-01', 2);
+    });
+
+    it('does not query the logs when nothing is due', async () => {
+      qb.getMany.mockResolvedValue([makeSchedule(daysRule)]);
+      eventRepo.find.mockResolvedValue([{ id: 'evt-1', date: new Date('2026-06-04'), startTime: null }]);
+      mockZonedTimeToUtc.mockReturnValue(new Date(FIXED_NOW.getTime() + 60_000));
+
+      await cronService.processDueBeforeEventSchedules();
+
+      expect(logRepo.find).not.toHaveBeenCalled();
     });
 
     describe('active window (startDate/endDate)', () => {
