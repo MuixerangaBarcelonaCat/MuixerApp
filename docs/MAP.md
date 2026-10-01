@@ -37,6 +37,7 @@ graph TD
   MAP --> DESIGN_SYSTEM
   DESIGN_SYSTEM --> DASHBOARD_UI
   DESIGN_SYSTEM --> PWA_UI
+  PINYES_MODULE --> REQUEST_AUDIT
   MAP --> DOCKER_SETUP
   DATA_MODEL --> PINYES_MODULE
   MAP --> TAGS
@@ -97,6 +98,7 @@ graph TD
 | [[AUDIT_SUITE]] | Com executar les auditories responsive/a11y i els e2e de Playwright |
 | [[PWA_RENDER_PERF]] | Rendiment de la pantalla de projecció (pan/zoom, Konva, overlay de troncs) i pla prioritzat |
 | [[GDPR_COMPLIANCE]] | Informe tècnic i pla d'implementació del compliment LOPDGDD/RGPD |
+| [[REQUEST_AUDIT]] | Auditoria de peticions al backend: què s'ha optimitzat al workspace de segments, impacte a l'UX i què queda pendent |
 
 ### Infraestructura
 
@@ -118,7 +120,7 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-09-23 amb `pnpm run docs:map`.
+> Generat el 2026-09-28 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
@@ -135,29 +137,29 @@ graph TD
 | [`mail`](../apps/api/src/modules/mail) | 6 | 146 | — |
 | [`me`](../apps/api/src/modules/me) | 8 | 906 | — |
 | [`news`](../apps/api/src/modules/news) | 6 | 224 | — |
-| [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3513 | [[PINYES_MODULE]] |
+| [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3547 | [[PINYES_MODULE]] |
 | [`person`](../apps/api/src/modules/person) | 12 | 1155 | [[DATA_MODEL]] |
 | [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 528 | [[DATA_MODEL]] |
-| [`push-notification`](../apps/api/src/modules/push-notification) | 28 | 1898 | — |
+| [`push-notification`](../apps/api/src/modules/push-notification) | 28 | 1972 | — |
 | [`season`](../apps/api/src/modules/season) | 6 | 388 | [[DATA_MODEL]] |
 | [`sync`](../apps/api/src/modules/sync) | 10 | 1788 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 8 | 321 | [[TAGS]] · [[DATA_MODEL]] |
 | [`user`](../apps/api/src/modules/user) | 12 | 854 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **57** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **58** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`auth`](../apps/dashboard/src/app/features/auth) | 3 | 185 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`communication`](../apps/dashboard/src/app/features/communication) | 14 | 1312 | — |
+| [`communication`](../apps/dashboard/src/app/features/communication) | 14 | 1354 | — |
 | [`config`](../apps/dashboard/src/app/features/config) | 14 | 2161 | [[DASHBOARD_UI]] |
 | [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 366 | — |
 | [`events`](../apps/dashboard/src/app/features/events) | 19 | 4077 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 115 | [[DASHBOARD_UI]] |
 | [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1624 | [[DASHBOARD_UI]] |
-| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 51 | 10375 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
+| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 51 | 10435 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
 | [`sync`](../apps/dashboard/src/app/features/sync) | 2 | 69 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 
 ### Features de la PWA (`apps/pwa/src/app/features`)
@@ -184,14 +186,14 @@ Migracions TypeORM: **57** a [`apps/api/src/migrations`](../apps/api/src/migrati
 
 | Fitxer | Línies |
 |--------|-------:|
-| [`apps/api/src/modules/node-assignment/node-assignment.service.ts`](../apps/api/src/modules/node-assignment/node-assignment.service.ts) | 2194 |
+| [`apps/api/src/modules/node-assignment/node-assignment.service.ts`](../apps/api/src/modules/node-assignment/node-assignment.service.ts) | 2218 |
 | [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts) | 1245 |
 | [`apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts`](../apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts) | 833 |
 | [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts) | 830 |
 | [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html) | 794 |
 | [`apps/api/src/modules/figure/figure-template.service.ts`](../apps/api/src/modules/figure/figure-template.service.ts) | 755 |
 | [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html) | 689 |
-| [`apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.ts`](../apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.ts) | 669 |
+| [`apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.ts`](../apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.ts) | 685 |
 | [`apps/api/src/modules/event-segment/figure-instance.service.ts`](../apps/api/src/modules/event-segment/figure-instance.service.ts) | 667 |
 | [`apps/dashboard/src/app/features/pinyes/services/segment-assignment-actions.service.ts`](../apps/dashboard/src/app/features/pinyes/services/segment-assignment-actions.service.ts) | 646 |
 

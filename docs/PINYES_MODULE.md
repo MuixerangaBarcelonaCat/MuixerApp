@@ -224,6 +224,7 @@ Això garanteix:
 |--------|------|-----------|
 | `GET` | `/node-assignments/instances/:id/nodes` | Nodes disponibles (InstanceNodes si snapshotted, FigureNodes si no) |
 | `GET` | `/node-assignments/instances/:id` | Assignacions actuals de la instància |
+| `GET` | `/events/:eventId/segments/:segmentId/assignment-state` | Nodes + assignacions de totes les instàncies del segment (hidratació del workspace; ~5 queries fixes) |
 | `POST` | `/node-assignments/instances/:id/assign` | Assigna persona a node (auto-snapshot en primera crida) |
 | `DELETE` | `/node-assignments/instances/:id/unassign/:nodeId` | Desassigna node |
 | `POST` | `/node-assignments/instances/:id/swap` | Intercanvia dues assignacions |
@@ -360,10 +361,15 @@ Cap de Pinyes navega a /pinyes/events/:eventId/segments/:segmentId/assign
         │
         ▼
 SegmentWorkspaceComponent inicialitza:
-  1. GET /events/:eventId/segments/:segmentId → instàncies del segment
-  2. Per cada instància: GET /node-assignments/instances/:id/nodes
-  3. Per cada instància: GET /node-assignments/instances/:id → assignacions
-  4. GET /node-assignments/available-persons → persones disponibles
+  1. GET /events/:eventId/segments → instàncies del segment (+ prev/next)
+  2. GET /events/:eventId/segments/:segmentId/assignment-state → nodes + assignacions de
+     TOTES les instàncies en una sola crida (no una parella de crides per figura)
+  3. distribution + conflicts + lock-status, una vegada cadascun
+  4. PersonPanel: GET …/available-persons?excludeAssigned=false → plantilla sencera, una
+     vegada per muntatge; els filtres (alçada, Xicalla, etiqueta) s'apliquen al client, de
+     manera que clicar nodes o teclejar l'alçada no fa cap petició
+  La primera pestanya muntada no torna a fer `refresh()` (les dades de load() són fresques);
+  a partir del primer canvi de pestanya sí.
         │
         ▼
 Renderitza canvas Konva:

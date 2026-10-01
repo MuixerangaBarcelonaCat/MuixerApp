@@ -1,14 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import {
+  BeforeEventOffsetUnit,
   BeforeEventScheduleConfig,
+  EventType,
   NotificationScheduleType,
   NotificationSource,
   WeeklyScheduleConfig,
 } from '@muixer/shared';
 import {
+  addDaysToDateOnly,
   getLocalDayOfWeek,
   getLocalTimeOfDay,
   getLocalToday,
@@ -91,49 +94,102 @@ export class NotificationScheduleCronService {
   /** Every minute: for each active BEFORE_EVENT schedule, find its matching upcoming events and
    *  dispatch once per event whose computed fire instant has passed. Unlike WEEKLY's single
    *  "fired today" check, one schedule must fire independently for every matching event — so the
-   *  "already fired" check is keyed by (scheduleId, eventId), not by day. */
+   *  "already fired" check is keyed by (scheduleId, eventId), not by day.
+   *
+   *  Runs every minute, so the query count is fixed rather than growing with the data: one query
+   *  for the schedules, one per distinct `eventType` for the events (only those close enough for
+   *  some offset to have come due), and one for the "already fired" logs of every due pair. */
   @Cron(CronExpression.EVERY_MINUTE)
   async processDueBeforeEventSchedules(): Promise<void> {
-    const due = await this.repo
-      .createQueryBuilder('s')
-      .where('s.isActive = true')
-      .andWhere('s.scheduleType = :type', { type: NotificationScheduleType.BEFORE_EVENT })
-      .getMany();
+    const schedules = (
+      await this.repo
+        .createQueryBuilder('s')
+        .where('s.isActive = true')
+        .andWhere('s.scheduleType = :type', { type: NotificationScheduleType.BEFORE_EVENT })
+        .getMany()
+    ).filter((schedule) => !this.outsideActiveWindow(schedule));
+    if (schedules.length === 0) return;
 
-    for (const schedule of due) {
-      if (this.outsideActiveWindow(schedule)) continue;
-      try {
-        await this.processBeforeEventSchedule(schedule);
-      } catch (error) {
-        this.logger.error(`Failed to process before-event notification schedule ${schedule.id}`, error as Error);
+    try {
+      const due = await this.findDueBeforeEventPairs(schedules, new Date());
+      if (due.length === 0) return;
+      const fired = await this.firedPairs(due);
+
+      for (const { schedule, eventId } of due) {
+        if (fired.has(pairKey(schedule.id, eventId))) continue;
+        try {
+          await this.scheduleService.processSchedule(schedule, NotificationSource.SCHEDULED_BEFORE_EVENT, eventId);
+        } catch (error) {
+          this.logger.error(
+            `Failed to process before-event notification schedule ${schedule.id} for event ${eventId}`,
+            error as Error,
+          );
+        }
       }
+    } catch (error) {
+      this.logger.error('Failed to process before-event notification schedules', error as Error);
     }
   }
 
-  private async processBeforeEventSchedule(schedule: NotificationSchedule): Promise<void> {
-    const rule = schedule.ruleConfig as BeforeEventScheduleConfig;
-    const now = new Date();
+  /** Every (schedule, event) whose fire instant has passed and whose event hasn't started yet. */
+  private async findDueBeforeEventPairs(
+    schedules: NotificationSchedule[],
+    now: Date,
+  ): Promise<{ schedule: NotificationSchedule; eventId: string }[]> {
+    const eventsByType = await this.loadCandidateEvents(schedules);
+    const due: { schedule: NotificationSchedule; eventId: string }[] = [];
 
-    // Only events that haven't happened yet — a reminder never makes sense to send after the
-    // event it's about. A missed tick still self-heals: the event stays matched until it passes.
-    const events = await this.eventRepo.find({
-      where: { eventType: rule.eventType, date: MoreThanOrEqual(getLocalToday() as unknown as Date) },
-    });
-
-    for (const event of events) {
-      try {
+    for (const schedule of schedules) {
+      const rule = schedule.ruleConfig as BeforeEventScheduleConfig;
+      for (const event of eventsByType.get(rule.eventType) ?? []) {
         const fireInstant = computeBeforeEventFireInstant(rule, event);
         if (!fireInstant || fireInstant > now) continue;
         if (hasEventStarted(event, now)) continue;
-        if (await this.firedForEvent(schedule.id, event.id)) continue;
-        await this.scheduleService.processSchedule(schedule, NotificationSource.SCHEDULED_BEFORE_EVENT, event.id);
-      } catch (error) {
-        this.logger.error(
-          `Failed to process before-event notification schedule ${schedule.id} for event ${event.id}`,
-          error as Error,
-        );
+        due.push({ schedule, eventId: event.id });
       }
     }
+    return due;
+  }
+
+  /** Events from today up to the furthest day any schedule's offset can already reach, one query
+   *  per `eventType`. A reminder never makes sense after its event, so past events are excluded;
+   *  a missed tick still self-heals, since the event stays matched until it passes. */
+  private async loadCandidateEvents(schedules: NotificationSchedule[]): Promise<Map<EventType, Event[]>> {
+    const horizonByType = new Map<EventType, number>();
+    for (const schedule of schedules) {
+      const rule = schedule.ruleConfig as BeforeEventScheduleConfig;
+      const horizon = beforeEventHorizonDays(rule);
+      horizonByType.set(rule.eventType, Math.max(horizonByType.get(rule.eventType) ?? 0, horizon));
+    }
+
+    const today = getLocalToday();
+    const entries = await Promise.all(
+      [...horizonByType].map(async ([eventType, horizon]): Promise<[EventType, Event[]]> => [
+        eventType,
+        await this.eventRepo.find({
+          select: { id: true, date: true, startTime: true },
+          where: {
+            eventType,
+            date: Between(today as unknown as Date, addDaysToDateOnly(today, horizon) as unknown as Date),
+          },
+        }),
+      ]),
+    );
+    return new Map(entries);
+  }
+
+  /** Which of `pairs` already have a log row, in a single query (served by the
+   *  `(scheduleId, triggeredEventId)` index). The IN × IN may match a few extra combinations;
+   *  the key set filters them out. */
+  private async firedPairs(pairs: { schedule: NotificationSchedule; eventId: string }[]): Promise<Set<string>> {
+    const logs = await this.logRepo.find({
+      select: { scheduleId: true, triggeredEventId: true },
+      where: {
+        scheduleId: In([...new Set(pairs.map((pair) => pair.schedule.id))]),
+        triggeredEventId: In([...new Set(pairs.map((pair) => pair.eventId))]),
+      },
+    });
+    return new Set(logs.map((log) => pairKey(log.scheduleId as string, log.triggeredEventId as string)));
   }
 
   /** A WEEKLY schedule created later in the day than its own send time must not fire within the
@@ -143,11 +199,6 @@ export class NotificationScheduleCronService {
     const rule = schedule.ruleConfig as WeeklyScheduleConfig;
     if (!schedule.createdAt) return false;
     return schedule.createdAt > zonedTimeToUtc(getLocalToday(), rule.timeOfDay);
-  }
-
-  private async firedForEvent(scheduleId: string, eventId: string): Promise<boolean> {
-    const log = await this.logRepo.findOne({ where: { scheduleId, triggeredEventId: eventId } });
-    return !!log;
   }
 
   private async firedToday(scheduleId: string): Promise<boolean> {
@@ -165,4 +216,15 @@ export class NotificationScheduleCronService {
     if (rule.endDate && today > rule.endDate) return true;
     return false;
   }
+}
+
+function pairKey(scheduleId: string, eventId: string): string {
+  return `${scheduleId}:${eventId}`;
+}
+
+/** How many days ahead of today an event can be and still have this rule's reminder already due:
+ *  a DAYS offset fires on (event date − offset); an HOURS offset fires at (start − offset), which
+ *  from any time today lands at most ⌈offset / 24⌉ days ahead. */
+function beforeEventHorizonDays(rule: BeforeEventScheduleConfig): number {
+  return rule.offsetUnit === BeforeEventOffsetUnit.HOURS ? Math.ceil(rule.offsetValue / 24) : rule.offsetValue;
 }

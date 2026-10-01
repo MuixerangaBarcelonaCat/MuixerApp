@@ -475,6 +475,25 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  describe('getSegmentAssignmentState', () => {
+    it('returns nodes and assignments per segment instance, with empty lists when none', async () => {
+      mockInstanceRepo.find
+        .mockResolvedValueOnce([{ id: INSTANCE_ID }, { id: 'instance-uuid-2' }])
+        .mockResolvedValueOnce([]);
+      mockAssignmentRepo.find.mockResolvedValue([makeAssignment()]);
+
+      const result = await service.getSegmentAssignmentState('event-uuid', 'segment-uuid');
+
+      expect(mockInstanceRepo.find).toHaveBeenNthCalledWith(1, {
+        where: { segment: { id: 'segment-uuid', event: { id: 'event-uuid' } } },
+        select: { id: true },
+      });
+      expect(result.map((r) => r.instanceId)).toEqual([INSTANCE_ID, 'instance-uuid-2']);
+      expect(result[0].assignments).toHaveLength(1);
+      expect(result[1]).toEqual({ instanceId: 'instance-uuid-2', nodes: [], assignments: [] });
+    });
+  });
+
   // ── assign ────────────────────────────────────────────────────────────
 
   describe('assign', () => {
