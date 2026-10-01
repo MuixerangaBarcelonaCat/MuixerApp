@@ -70,6 +70,9 @@ export interface CanvasNode {
   isAdHoc?: boolean;
 }
 
+/** Backing-store DPR cap for the read-only (projection) canvas — see `initStage`. */
+const READONLY_MAX_PIXEL_RATIO = 2;
+
 export type CanvasMode = 'editor' | 'readonly' | 'composition' | 'assignment' | 'segment-assignment';
 
 export interface OutlineBox {
@@ -468,6 +471,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private wheelHandler: ((e: WheelEvent) => void) | null = null;
   /** In-flight `flyToBounds()` tween, if any — cancelled by any user gesture (see `cancelFlight`). */
   private flightTween: Konva.Tween | null = null;
+  /** Pending rAF that will flush one `stageTransformChanged` emission — see `scheduleStageTransform`. */
+  private stageTransformFrame: number | null = null;
+  private gestureEndHandler: (() => void) | null = null;
 
   private activeGhostGroup: Konva.Group | null = null;
   private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -608,12 +614,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     // A pending long press must not fire into a destroyed component (emitting on it throws).
     this.longPress.cancel();
     this.cancelFlight();
+    if (this.stageTransformFrame !== null) cancelAnimationFrame(this.stageTransformFrame);
     this.clearAllGhostTimers();
     this.clearPersonDragVisuals();
     this.resizeObserver?.disconnect();
     if (this.wheelHandler) {
       this.stage?.container()?.removeEventListener('wheel', this.wheelHandler);
       this.wheelHandler = null;
+    }
+    if (this.gestureEndHandler) {
+      const container = this.stage?.container();
+      container?.removeEventListener('touchend', this.gestureEndHandler, true);
+      container?.removeEventListener('touchcancel', this.gestureEndHandler, true);
+      this.gestureEndHandler = null;
     }
     this.labelMeasureProbe?.destroy();
     this.labelMeasureProbe = null;
@@ -799,8 +812,24 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.emitStageTransform();
   }
 
+  /**
+   * Coalesces the per-`touchmove`/wheel emissions into at most one per frame: touch events can
+   * outnumber frames, and every emission re-lays-out the DOM overlay (tronc panels) in the parent.
+   */
+  private scheduleStageTransform(): void {
+    if (this.stageTransformFrame !== null) return;
+    this.stageTransformFrame = requestAnimationFrame(() => {
+      this.stageTransformFrame = null;
+      this.emitStageTransform();
+    });
+  }
+
   private emitStageTransform(): void {
     if (!this.stage) return;
+    if (this.stageTransformFrame !== null) {
+      cancelAnimationFrame(this.stageTransformFrame);
+      this.stageTransformFrame = null;
+    }
     this.renderGrid();
     this.stageTransformChanged.emit({
       x: this.stage.x(),
@@ -836,6 +865,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.add(this.transformer);
 
     this.stage.add(this.gridLayer, this.outlineLayer, this.pinyaLayer);
+
+    // Read-only projection is repainted every pan/pinch frame: at DPR 3 that is 9 device pixels
+    // per CSS pixel. Cap the backing store at 2x (per canvas, not the global `Konva.pixelRatio`).
+    if (this.mode() === 'readonly' && window.devicePixelRatio > READONLY_MAX_PIXEL_RATIO) {
+      for (const layer of [this.gridLayer, this.outlineLayer, this.pinyaLayer]) {
+        layer.getCanvas().setPixelRatio(READONLY_MAX_PIXEL_RATIO);
+      }
+    }
 
     this.setupStageInteraction();
   }
@@ -968,8 +1005,26 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     let panStageStart: Point = { x: 0, y: 0 };
     let pinchStartDist = 0;
     let pinchStartScale = 1;
+    // Container doesn't move mid-gesture: read its rect once, not on every touchmove (forced reflow).
+    let pinchRect: DOMRect | null = null;
 
     const getTouchPoint = (touch: Touch): Point => ({ x: touch.clientX, y: touch.clientY });
+
+    // Read-only projection: nothing in the scene needs hit-testing *during* a pan/pinch, but
+    // Konva redraws the hit canvas together with the scene on every frame. Suspend it for the
+    // gesture and rebuild it once in the capture phase of touchend — i.e. before Konva resolves
+    // the tap target — so a tap on a person right after a pan still behaves exactly as before.
+    const suspendHitGraph = (): void => {
+      if (this.mode() === 'readonly' && this.pinyaLayer.listening()) this.pinyaLayer.listening(false);
+    };
+    this.gestureEndHandler = () => {
+      if (this.pinyaLayer.listening()) return;
+      this.pinyaLayer.listening(true);
+      this.pinyaLayer.drawHit();
+    };
+    const container = this.stage.container();
+    container.addEventListener('touchend', this.gestureEndHandler, true);
+    container.addEventListener('touchcancel', this.gestureEndHandler, true);
 
     this.stage.on('touchstart', (e) => {
       this.cancelFlight();
@@ -982,6 +1037,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         panStart = null;
         pinchStartDist = touchDistance(getTouchPoint(touches[0]), getTouchPoint(touches[1]));
         pinchStartScale = this.stage.scaleX();
+        pinchRect = this.stage.container().getBoundingClientRect();
         this.userAdjustedView = true;
         e.evt.preventDefault();
       }
@@ -997,15 +1053,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const p2 = getTouchPoint(touches[1]);
         const dist = touchDistance(p1, p2);
         const newScale = clampScale(pinchStartScale * (dist / pinchStartDist), ZOOM_MIN, ZOOM_MAX);
-        const rect = this.stage.container().getBoundingClientRect();
+        const rect = pinchRect ?? this.stage.container().getBoundingClientRect();
         const midpoint = touchMidpoint(p1, p2);
         const focal = { x: midpoint.x - rect.left, y: midpoint.y - rect.top };
         const newPos = zoomAroundPoint(this.stage.position(), this.stage.scaleX(), newScale, focal);
         this.stage.scale({ x: newScale, y: newScale });
         this.stage.position(newPos);
         this.zoomLevel.set(newScale);
+        suspendHitGraph();
         this.stage.batchDraw();
-        this.emitStageTransform();
+        this.scheduleStageTransform();
       } else if (touches.length === 1 && panStart) {
         e.evt.preventDefault();
         this.userAdjustedView = true;
@@ -1014,8 +1071,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           x: panStageStart.x + (pos.x - panStart.x),
           y: panStageStart.y + (pos.y - panStart.y),
         });
+        suspendHitGraph();
         this.stage.batchDraw();
-        this.emitStageTransform();
+        this.scheduleStageTransform();
       }
     });
 
@@ -1050,7 +1108,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.zoomLevel.set(newScale);
       this.userAdjustedView = true;
       this.stage.batchDraw();
-      this.emitStageTransform();
+      this.scheduleStageTransform();
     };
     this.stage.container().addEventListener('wheel', this.wheelHandler, { passive: false });
   }
@@ -1145,6 +1203,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    * fixed area around world (0,0).
    */
   private renderGrid(): void {
+    // Nothing to erase or draw (e.g. projection, `[gridEnabled]="false"`): skip the redraw.
+    if (!this.gridEnabled() && this.gridLayer.getChildren().length === 0) return;
     this.gridLayer.destroyChildren();
 
     if (!this.gridEnabled()) {
