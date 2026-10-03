@@ -21,6 +21,7 @@ import {
   getSegmentInstanceLabel,
   formatDirectionNames,
   DIRECCIO_PINYA_POSITION_TYPE,
+  type EventPhase,
 } from '@muixer/shared';
 import { forkJoin } from 'rxjs';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
@@ -71,7 +72,8 @@ interface PendingInstanceRemoval {
 export class SegmentManagerComponent implements OnInit {
   eventId = input.required<string>();
   isLocked = input<boolean>(false);
-  isPast = input<boolean>(false);
+  /** Before / on / after the event day — handed to the assignment workshop. */
+  phase = input<EventPhase>('before');
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_PERSONA = ICON_PERSONA;
   readonly ICON_COMPOSITION = ICON_COMPOSITION;
@@ -807,7 +809,7 @@ export class SegmentManagerComponent implements OnInit {
       route.push(instanceId);
     }
     const qp: Record<string, string> = { returnUrl: this.currentReturnUrl() };
-    if (this.isPast()) qp['past'] = '1';
+    if (this.phase() !== 'before') qp['phase'] = this.phase();
     if (this.viewMode() === 'troncs') qp['tab'] = 'troncs';
     this.router.navigate(route, { queryParams: qp });
   }

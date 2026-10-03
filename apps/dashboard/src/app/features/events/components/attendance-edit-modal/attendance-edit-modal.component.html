@@ -1,14 +1,6 @@
-<lib-modal [open]="true" [title]="attendance().person.alias" (closed)="onClose()">
+<lib-modal [open]="true" [title]="'Notes de ' + attendance().person.alias" (closed)="onClose()">
 
-  <p class="text-sm text-base-content/60 -mt-2 mb-1">{{ attendance().person.name }} {{ attendance().person.firstSurname }}</p>
-  <div class="flex gap-1 mb-4 flex-wrap">
-    @for (pos of attendance().person.positions; track pos.id) {
-      <lib-badge size="xs" [color]="pos.color ?? '#888'">{{ pos.name }}</lib-badge>
-    }
-    @if (attendance().person.isXicalla) {
-      <lib-badge size="xs" variant="ghost">👶 Xicalla</lib-badge>
-    }
-  </div>
+  <p class="text-sm text-base-content/60 -mt-2 mb-3">{{ attendance().person.name }} {{ attendance().person.firstSurname }}</p>
 
   @if (errorMessage()) {
     <div class="mb-4">
@@ -16,36 +8,9 @@
     </div>
   }
 
-  <!-- Status buttons: mixed variant families (ghost+active-darken for PENDENT vs fill/outline-color
-       for the other three) don't fit lib-button-group's single fill-mode/outline-mode segmented
-       model, and it disallows variant="ghost" in a joinItem outright — flagged, left raw. -->
-  <div class="mb-4">
-    <p class="text-sm font-medium mb-2">Estat d'assistència</p>
-    <div class="flex flex-wrap gap-2">
-      @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]; track status) {
-        <button
-          type="button"
-          [class]="statusButtonClass(status)"
-          (click)="selectedStatus.set(status)"
-        >{{ statusLabel(status) }}</button>
-      }
-    </div>
-  </div>
-
-  <!-- Warning for past event stats change -->
-  @if (showWarning()) {
-    <div class="mb-4">
-      <lib-alert variant="warning" dense>
-        Esteu modificant l'assistència d'un event passat. Afectarà les estadístiques.
-      </lib-alert>
-    </div>
-  }
-
-  <!-- Notes -->
   <div class="form-control mb-2">
     <label class="label" for="attendance-notes">
-      <span class="label-text font-medium">Notes</span>
-      <span class="label-text-alt text-base-content/50">Opcional</span>
+      <span class="label-text font-medium">Notes d'assistència</span>
     </label>
     <lib-textarea
       id="attendance-notes"
@@ -56,18 +21,16 @@
     />
   </div>
 
-  <div modalFooter class="w-full flex items-center justify-end">
-    <div class="flex gap-2">
-      <lib-button variant="ghost" size="sm" (clicked)="onClose()">Cancel·la</lib-button>
-      <lib-button
-        variant="primary"
-        size="sm"
-        [disabled]="!hasChanges() || saving()"
-        [loading]="saving()"
-        (clicked)="onSave()"
-      >
-        Alça
-      </lib-button>
-    </div>
+  <div modalFooter class="w-full flex items-center justify-end gap-2">
+    <lib-button variant="ghost" size="sm" (clicked)="onClose()">Cancel·la</lib-button>
+    <lib-button
+      variant="primary"
+      size="sm"
+      [disabled]="!hasChanges() || saving()"
+      [loading]="saving()"
+      (clicked)="onSave()"
+    >
+      Alça
+    </lib-button>
   </div>
 </lib-modal>

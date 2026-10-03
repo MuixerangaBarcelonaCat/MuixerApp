@@ -14,7 +14,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, DIRECTION_NODE_PRESETS, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_NODE_PRESETS, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, EventPhase, isArrivalPhase } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
@@ -348,7 +348,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
-  readonly isPast = input<boolean>(false);
+  /** Before / on / after the event day: from the event day on, ANIRE is a no-show and PENDENT a no-answer. */
+  readonly phase = input<EventPhase>('before');
   /** personId → positions/isXicalla, used to render the hover card on assigned nodes. */
   readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
   /** Extra bounding boxes (in canvas space, x/y = center) included in the readonly fit but not rendered. */
@@ -1752,7 +1753,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     );
     const highlighted = this.highlightedNodeIds();
 
-    const past = this.isPast();
+    const past = isArrivalPhase(this.phase());
     const ATTENDANCE_COLORS: Record<string, string> = {
       ANIRE: past ? '#f59e0b' : '#22c55e',
       ASSISTIT: '#22c55e',
@@ -2175,7 +2176,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const nextPerformanceMap = this.nextPerformanceMap();
     const ref: SegmentNodeRef = { slotId: rn.slotId, nodeId: node.id };
 
-    const past = this.isPast();
+    const past = isArrivalPhase(this.phase());
     const ATTENDANCE_COLORS: Record<string, string> = {
       ANIRE: past ? '#f59e0b' : '#22c55e',
       ASSISTIT: '#22c55e',
@@ -2506,7 +2507,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const assignments = this.assignments();
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
     const attendanceMap = this.attendanceMap();
-    const past = this.isPast();
+    const past = isArrivalPhase(this.phase());
     const ATTENDANCE_COLORS: Record<string, string> = {
       ANIRE: past ? '#f59e0b' : '#22c55e',
       ASSISTIT: '#22c55e',

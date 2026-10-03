@@ -18,7 +18,7 @@ import {
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
-import { conflictRelevantPlacements, TagCategory } from '@muixer/shared';
+import { conflictRelevantPlacements, EventPhase, TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const EVENT_ID = 'event-1';
@@ -161,58 +161,32 @@ describe('EventParticipationComponent — isConflicted (direcció pinya exemptio
   });
 });
 
-describe('EventParticipationComponent — statusLabel', () => {
-  let component: Pick<EventParticipationComponent, 'statusLabel' | 'isPast'>;
+describe('EventParticipationComponent — status labels and badges', () => {
+  const withPhase = (phase: EventPhase) => {
+    const component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
+    (component as unknown as { phase: () => EventPhase }).phase = () => phase;
+    return component;
+  };
 
-  beforeEach(() => {
-    component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
+  it.each([
+    ['before', 'ANIRE', 'Ve'],
+    ['before', 'PENDENT', 'Pendent'],
+    ['day', 'ASSISTIT', 'Ha arribat'],
+    ['day', 'ANIRE', 'No ha arribat'],
+    ['day', 'NO_VAIG', 'No vindrà'],
+    ['after', 'ASSISTIT', 'Va vindre'],
+    ['after', 'ANIRE', 'No presentat'],
+    ['after', 'PENDENT', 'Sense resposta'],
+  ] as const)('%s / %s → "%s" (shared phase labels)', (phase, status, expected) => {
+    expect(withPhase(phase).statusLabel(status)).toBe(expected);
   });
 
-  describe('past event', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => true;
-    });
-
-    it.each([
-      ['PENDENT', 'Sense resposta'],
-      ['ANIRE', 'No presentat'],
-      ['NO_VAIG', 'No va anar'],
-      ['ASSISTIT', 'Assistit'],
-    ] as const)('%s → "%s"', (status, expected) => {
-      expect(component.statusLabel(status)).toBe(expected);
-    });
+  it('ANIRE reads as success before the event day', () => {
+    expect(withPhase('before').statusBadgeClass('ANIRE')).toBe('badge-success');
   });
 
-  describe('future event', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => false;
-    });
-
-    it.each([
-      ['PENDENT', 'Pendent'],
-      ['ANIRE', 'Aniré'],
-      ['NO_VAIG', 'No vaig'],
-    ] as const)('%s → "%s"', (status, expected) => {
-      expect(component.statusLabel(status)).toBe(expected);
-    });
-  });
-});
-
-describe('EventParticipationComponent — statusBadgeClass', () => {
-  let component: Pick<EventParticipationComponent, 'statusBadgeClass' | 'isPast'>;
-
-  beforeEach(() => {
-    component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
-  });
-
-  it('ANIRE reads as success while the event is upcoming', () => {
-    (component as unknown as { isPast: () => boolean }).isPast = () => false;
-    expect(component.statusBadgeClass('ANIRE')).toBe('badge-success');
-  });
-
-  it('ANIRE becomes a warning once the event is past (a no-show)', () => {
-    (component as unknown as { isPast: () => boolean }).isPast = () => true;
-    expect(component.statusBadgeClass('ANIRE')).toBe('badge-warning');
+  it.each(['day', 'after'] as const)('ANIRE becomes a warning from the event day on (%s)', (phase) => {
+    expect(withPhase(phase).statusBadgeClass('ANIRE')).toBe('badge-warning');
   });
 });
 
@@ -310,7 +284,7 @@ describe('EventParticipationComponent', () => {
 
   const setup = async (
     response: EventParticipation = buildResponse(),
-    isPast = false,
+    phase: EventPhase = 'before',
     { failCatalog = false }: { failCatalog?: boolean } = {},
   ): Promise<ComponentFixture<EventParticipationComponent>> => {
     await TestBed.configureTestingModule({
@@ -330,7 +304,7 @@ describe('EventParticipationComponent', () => {
 
     const fixture = TestBed.createComponent(EventParticipationComponent);
     fixture.componentRef.setInput('eventId', EVENT_ID);
-    fixture.componentRef.setInput('isPast', isPast);
+    fixture.componentRef.setInput('phase', phase);
     fixture.detectChanges();
     return fixture;
   };
@@ -440,7 +414,7 @@ describe('EventParticipationComponent', () => {
       const response = buildResponse({
         persons: [makePerson('p1', 'PERSIANA', {}, { positions: [wornTag] })],
       });
-      const fixture = await setup(response, false, { failCatalog: true });
+      const fixture = await setup(response, 'before', { failCatalog: true });
 
       expect(fixture.componentInstance.positionOptions().map((o) => o.name)).toEqual(['1es Vents']);
     });
@@ -890,8 +864,8 @@ describe('EventParticipationComponent', () => {
       );
     });
 
-    it('flags a past event so the workshop opens read-only', async () => {
-      const fixture = await setup(buildResponse(), true);
+    it('passes the event phase to the workshop', async () => {
+      const fixture = await setup(buildResponse(), 'after');
       const router = TestBed.inject(Router);
       vi.spyOn(router, 'url', 'get').mockReturnValue('/events/event-1?tab=participacio');
       const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -901,7 +875,7 @@ describe('EventParticipationComponent', () => {
 
       expect(navigate).toHaveBeenCalledWith(
         expect.anything(),
-        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes', past: '1' } },
+        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes', phase: 'after' } },
       );
     });
 

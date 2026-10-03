@@ -12,17 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ButtonComponent, InputComponent, BadgeComponent } from '@muixer/ui';
-import {
-  DIRECTION_NODE_PRESETS,
-  DIRECTION_SLOTS,
-  DirectionAssignmentEntry,
-  formatDirectionNames,
-  ICON_OBSERVACIONS,
-  SHOULDER_HEIGHT_BASELINE_CM,
-  TRONC_NODE_PRESETS,
-  TRONC_Z_DEFAULTS,
-  TroncNodePreset,
-} from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, DIRECTION_SLOTS, DirectionAssignmentEntry, formatDirectionNames, ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM, TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, EventPhase, isArrivalPhase } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
@@ -98,7 +88,8 @@ export class TroncViewComponent {
 
   /** personId → AttendanceStatus for the next actuació */
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
-  readonly isPast = input<boolean>(false);
+  /** Before / on / after the event day: from the event day on, ANIRE is a no-show and PENDENT a no-answer. */
+  readonly phase = input<EventPhase>('before');
 
   /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes. */
   readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
@@ -647,7 +638,7 @@ export class TroncViewComponent {
 
   getAttendanceColor(assignment: AssignmentDetail): string {
     const status = this.getAttendanceStatus(assignment);
-    const past = this.isPast();
+    const past = isArrivalPhase(this.phase());
     if (status === 'ASSISTIT') return 'oklch(var(--su))';
     if (status === 'ANIRE') return past ? 'oklch(var(--wa))' : 'oklch(var(--su))';
     if (status === 'NO_VAIG') return 'oklch(var(--er))';

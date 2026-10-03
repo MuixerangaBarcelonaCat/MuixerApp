@@ -10,14 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  FigureZone,
-  ImportScope,
-  computeInstanceDisplayNames,
-  getSegmentInstanceLabel,
-  isNodeVisibleByModeAndCordons,
-  OwnPositionSubject,
-} from '@muixer/shared';
+import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
@@ -76,6 +69,12 @@ export class PinyaProjectionComponent {
 
   /** Forwarded to FigureCanvasComponent — see its own doc comment. */
   readonly showZoomControls = input<boolean>(true);
+
+  /**
+   * Before / on / after the event day, for the attendance colours and hover labels. Defaults to
+   * 'after': a projection has always read attendance as arrivals.
+   */
+  readonly phase = input<EventPhase>('after');
 
   /**
    * The viewer's own `Person.id` — enables the "you are here" banner. `null` (the default, and

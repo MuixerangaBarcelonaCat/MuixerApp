@@ -27,7 +27,7 @@ class StubFigureCanvas {
   readonly isPlacementMode = input<boolean>(false);
   readonly placementSlotId = input<string | null>(null);
   readonly adHocNodesEditable = input<boolean>(false);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly canvasClicked = output<{ x: number; y: number }>();
   readonly segmentAdHocNodeMoved = output<SegmentNodeRef & { x: number; y: number }>();
@@ -45,7 +45,7 @@ class StubAdHocNodeProperties {
   readonly assignment = input<AssignmentDetail | null>(null);
   readonly heightMode = input<HeightMode>('relative');
   readonly attendanceStatus = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly closed = output<void>();
   readonly nodeUpdated = output<void>();
   readonly deleteRequested = output<string>();

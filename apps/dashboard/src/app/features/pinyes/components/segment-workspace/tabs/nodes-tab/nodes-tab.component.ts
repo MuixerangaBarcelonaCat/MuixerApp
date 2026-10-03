@@ -13,12 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import {
-  DECORATION_NODE_PRESETS,
-  NodePreset,
-  NodeShape,
-  PINYA_NODE_PRESETS,
-} from '@muixer/shared';
+import { DECORATION_NODE_PRESETS, NodePreset, NodeShape, PINYA_NODE_PRESETS, EventPhase } from '@muixer/shared';
 import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -66,7 +61,7 @@ export class NodesTabComponent implements OnInit {
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
 
-  readonly isPast = input(false);
+  readonly phase = input<EventPhase>('before');
 
   // Queried by template ref (not by type) so tests can substitute a stub component.
   @ViewChild('canvas') private canvasRef?: FigureCanvasComponent;

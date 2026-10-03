@@ -32,7 +32,7 @@ class StubTroncView {
   readonly heightMode = input<string>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
@@ -58,7 +58,7 @@ class StubPersonPanel {
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly searchOnly = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();

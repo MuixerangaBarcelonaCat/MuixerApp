@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { AttendanceStatus } from '@muixer/shared';
 import { AttendanceEditModalComponent } from './attendance-edit-modal.component';
@@ -44,14 +44,31 @@ describe('AttendanceEditModalComponent', () => {
     expect(document.body.textContent).not.toContain('Elimina el registre');
   });
 
-  it('saves through set, keyed by person — also for a person with no row', () => {
+  it('only edits notes: no status buttons', () => {
+    expect(document.body.textContent).not.toContain('Estat d\'assistència');
+    expect(document.body.textContent).not.toContain('Aniré');
+  });
+
+  it('saves only the notes through set, keyed by person — also for a person with no row', () => {
     const emitted: unknown[] = [];
     fixture.componentInstance.saved.subscribe((r) => emitted.push(r));
 
-    fixture.componentInstance.selectedStatus.set(AttendanceStatus.ANIRE);
+    fixture.componentInstance.editedNotes.set('Lesionada');
     fixture.componentInstance.onSave();
 
-    expect(set).toHaveBeenCalledWith('event-1', 'person-1', { status: AttendanceStatus.ANIRE, notes: null });
+    expect(set).toHaveBeenCalledWith('event-1', 'person-1', { notes: 'Lesionada' });
     expect(emitted).toHaveLength(1);
+  });
+
+  it('does not save when the notes did not change', () => {
+    fixture.componentInstance.onSave();
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('shows a fallback error when the save fails without a server message', () => {
+    set.mockReturnValue(throwError(() => new Error('offline')));
+    fixture.componentInstance.editedNotes.set('Lesionada');
+    fixture.componentInstance.onSave();
+    expect(fixture.componentInstance.errorMessage()).toBe("No s'han pogut alçar les notes.");
   });
 });

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { EventDetailComponent } from './event-detail.component';
-import { AttendanceStatus, EventType, UserRole } from '@muixer/shared';
+import { AttendanceStatus, EventPhase, EventType, UserRole } from '@muixer/shared';
 import { AttendanceSummary, EventDetail } from '../../models/event.model';
 import { AttendanceItem } from '../../models/attendance.model';
 import { EventService } from '../../services/event.service';
@@ -18,7 +18,12 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
  * No Angular TestBed needed — the methods under test are stateless logic.
  */
 describe('EventDetailComponent — getSummaryForDisplay', () => {
-  let component: Pick<EventDetailComponent, 'getSummaryForDisplay' | 'isPast' | 'formatDate'>;
+  let component: Pick<EventDetailComponent, 'getSummaryForDisplay' | 'isPast' | 'phase' | 'formatDate'>;
+
+  const stub = (phase: EventPhase, isPast: boolean) => {
+    (component as unknown as { phase: () => EventPhase }).phase = () => phase;
+    (component as unknown as { isPast: () => boolean }).isPast = () => isPast;
+  };
 
   const pastSummary: AttendanceSummary = {
     confirmed: 3,     // ANIRE count (no-shows)
@@ -46,14 +51,17 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
     component = Object.create(EventDetailComponent.prototype) as EventDetailComponent;
   });
 
-  describe('past event', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => true;
+  describe('after the event day', () => {
+    beforeEach(() => stub('after', true));
+
+    it('labels the rows Va vindre / No presentat / No va vindre / Sense resposta', () => {
+      const labels = component.getSummaryForDisplay(pastSummary).map((r) => r.label);
+      expect(labels.slice(0, 5)).toEqual(['Va vindre', 'No presentat', 'No va vindre', 'Baixes tardanes', 'Sense resposta']);
     });
 
-    it('includes Assistit row with attended value', () => {
+    it('includes Va vindre row with attended value', () => {
       const rows = component.getSummaryForDisplay(pastSummary);
-      const row = rows.find((r) => r.label === 'Assistit');
+      const row = rows.find((r) => r.label === 'Va vindre');
       expect(row).toBeDefined();
       expect(row!.value).toBe(55);
     });
@@ -93,14 +101,32 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
     });
   });
 
-  describe('future event', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => false;
+  describe('on the event day', () => {
+    beforeEach(() => stub('day', true));
+
+    it('labels the rows Ha arribat / No ha arribat / No vindrà / Pendents, with their values', () => {
+      const rows = component.getSummaryForDisplay(pastSummary);
+      expect(rows.slice(0, 5).map((r) => [r.label, r.value])).toEqual([
+        ['Ha arribat', 55],
+        ['No ha arribat', 3],
+        ['No vindrà', 15],
+        ['Baixes tardanes', 2],
+        ['Pendents', 8],
+      ]);
+    });
+  });
+
+  describe('before the event day', () => {
+    beforeEach(() => stub('before', false));
+
+    it('labels the rows Ve / No ve / Pendents', () => {
+      const labels = component.getSummaryForDisplay(futureSummary).map((r) => r.label);
+      expect(labels.slice(0, 3)).toEqual(['Ve', 'No ve', 'Pendents']);
     });
 
-    it('includes Aniré row with confirmed value', () => {
+    it('includes Ve row with confirmed value', () => {
       const rows = component.getSummaryForDisplay(futureSummary);
-      const row = rows.find((r) => r.label === 'Aniré');
+      const row = rows.find((r) => r.label === 'Ve');
       expect(row).toBeDefined();
       expect(row!.value).toBe(30);
     });
@@ -124,9 +150,7 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
   });
 
   describe('icon fields use Lucide names (not emojis)', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => false;
-    });
+    beforeEach(() => stub('before', false));
 
     it('all rows have icon as a Lucide icon name string', () => {
       const rows = component.getSummaryForDisplay(futureSummary);
@@ -278,6 +302,46 @@ describe('EventDetailComponent — tabbed sections', () => {
       expect(fixture.nativeElement.querySelector('app-attendance-list')).toBeTruthy();
       expect(panel(fixture, 'assistencia')!.className).not.toContain('hidden');
       expect(panel(fixture, 'resum')!.className).toContain('hidden');
+    });
+
+    it('labels the main stat card with the phase label ("Va vindre" after the event day)', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-07-23T10:00:00Z'));
+      try {
+        const fixture = await setup();
+        const card = fixture.nativeElement.querySelector('app-stat-card') as HTMLElement;
+        expect(card.textContent).toContain('Va vindre');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('passes the event phase to the segment manager and the participation matrix', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-07-22T10:00:00Z'));
+      try {
+        const fixture = await setup();
+        const manager = fixture.debugElement.query((de) => de.name === 'app-segment-manager');
+        expect(manager.componentInstance.phase()).toBe('day');
+        clickTab(fixture, 'participacio');
+        const matrix = fixture.debugElement.query((de) => de.name === 'app-event-participation');
+        expect(matrix.componentInstance.phase()).toBe('day');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('passes the event phase to the attendance list (an event on 22/07/2026, seen later, is "after")', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-07-23T10:00:00Z'));
+      try {
+        const fixture = await setup();
+        clickTab(fixture, 'assistencia');
+        const list = fixture.debugElement.query((de) => de.name === 'app-attendance-list');
+        expect(list.componentInstance.phase()).toBe('after');
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('keeps a visited tab mounted (hidden) so its filters survive a round trip', async () => {

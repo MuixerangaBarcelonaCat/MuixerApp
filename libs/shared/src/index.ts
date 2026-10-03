@@ -46,3 +46,4 @@ export * from './interfaces/person-delegate.interface';
 export * from './interfaces/legal-document.interface';
 export * from './interfaces/news.interface';
 export * from './interfaces/push-notification.interfaces';
+export * from './utils/event-phase.util';

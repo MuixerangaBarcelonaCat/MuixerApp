@@ -1,6 +1,6 @@
 import { AttendanceStatus, AttendanceSummary, TagCategory } from '@muixer/shared';
 
-export interface AttendancePosition {
+interface AttendancePosition {
   id: string;
   name: string;
   color: string | null;

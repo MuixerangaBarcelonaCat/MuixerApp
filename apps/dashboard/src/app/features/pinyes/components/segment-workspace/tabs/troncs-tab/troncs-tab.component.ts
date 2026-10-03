@@ -17,7 +17,7 @@ import {
   pickAdjacentNode,
   pickNextAssignableNode,
 } from '../../../../utils/assignment-order.util';
-import { DIRECTION_NODE_PRESETS, FigureZone, isNodeVisibleByModeAndCordons } from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, FigureZone, isNodeVisibleByModeAndCordons, EventPhase } from '@muixer/shared';
 
 interface TroncFigure {
   instance: WorkspaceInstance;
@@ -50,7 +50,7 @@ export class TroncsTabComponent implements OnInit {
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
 
-  readonly isPast = input(false);
+  readonly phase = input<EventPhase>('before');
 
   /** Emitted when "Anar-hi" targets a node that only exists in the Pinyes tab. */
   readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();

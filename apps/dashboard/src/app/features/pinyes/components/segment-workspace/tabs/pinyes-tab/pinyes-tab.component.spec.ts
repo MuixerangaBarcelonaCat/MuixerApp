@@ -32,7 +32,7 @@ class StubFigureCanvas {
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly gridEnabled = input<boolean>(true);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly personDragEnabled = input<boolean>(true);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
@@ -52,7 +52,7 @@ class StubPersonPanel {
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly searchOnly = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();

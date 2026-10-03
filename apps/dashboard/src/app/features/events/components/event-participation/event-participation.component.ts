@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { conflictRelevantPlacements, DIRECTION_NODE_PRESETS, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, conflictRelevantPlacements, DIRECTION_NODE_PRESETS, EventPhase, isArrivalPhase, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -125,7 +125,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
 
   eventId = input.required<string>();
-  isPast = input(false);
+  /** Before / on / after the event day: worded labels and the no-show colour of ANIRE. */
+  phase = input<EventPhase>('before');
 
   loading = signal(true);
   loadError = signal(false);
@@ -634,21 +635,13 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   statusLabel(status: AttendanceStatus): string {
-    const past = this.isPast();
-    const labels: Record<AttendanceStatus, string> = {
-      PENDENT: past ? 'Sense resposta' : 'Pendent',
-      ANIRE: past ? 'No presentat' : 'Aniré',
-      NO_VAIG: past ? 'No va anar' : 'No vaig',
-      ASSISTIT: 'Assistit',
-    };
-    return labels[status] ?? status;
+    return attendanceStatusLabel(status, this.phase());
   }
 
   statusBadgeClass(status: AttendanceStatus): string {
-    const past = this.isPast();
     const classes: Record<AttendanceStatus, string> = {
       PENDENT: 'badge-ghost',
-      ANIRE: past ? 'badge-warning' : 'badge-success',
+      ANIRE: isArrivalPhase(this.phase()) ? 'badge-warning' : 'badge-success',
       NO_VAIG: 'badge-error',
       ASSISTIT: 'badge-success',
     };
@@ -824,7 +817,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   private openAssignment(segmentId: string, instanceId: string | undefined, tab: 'pinyes' | 'troncs' = 'pinyes'): void {
     const queryParams: Record<string, string> = { returnUrl: eventReturnUrl(this.router), tab };
-    if (this.isPast()) queryParams['past'] = '1';
+    if (this.phase() !== 'before') queryParams['phase'] = this.phase();
     const commands = ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign'];
     if (instanceId) commands.push(instanceId);
     this.router.navigate(commands, { queryParams });

@@ -5,43 +5,19 @@
         Llista d'assistència
       </h2>
 
-      <!-- Pinyes / Troncs toggle -->
-      <div role="group" aria-label="Mode de visualització">
-        <lib-button-group>
-          <lib-button
-            joinItem
-            variant="primary"
-            size="xs"
-            [active]="viewMode() === 'pinyes'"
-            (clicked)="setViewMode('pinyes')"
-          >
-            <lucide-icon [name]="ICON_PINYA" [size]="13" />
-            Pinyes
-          </lib-button>
-          <lib-button
-            joinItem
-            variant="primary"
-            size="xs"
-            [active]="viewMode() === 'troncs'"
-            (clicked)="setViewMode('troncs')"
-          >
-            <lucide-icon [name]="ICON_TRONC" [size]="14" />
-            Troncs
-          </lib-button>
-        </lib-button-group>
-      </div>
-
-      <div class="w-36">
-        <lib-select [ngModel]="attendanceStatusFilter() ?? ''" (ngModelChange)="onAttendanceStatusFilter($event)">
-          <option value="">Tots</option>
-          <option [value]="AttendanceStatus.ANIRE">Aniré</option>
-          <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
-          <option [value]="AttendanceStatus.NO_VAIG">No vaig</option>
-          <option [value]="AttendanceStatus.PENDENT">Pendents</option>
+      <div class="w-44">
+        <lib-select
+          ariaLabel="Filtra per estat d'assistència"
+          [ngModel]="attendanceStatusFilter() ?? ''"
+          (ngModelChange)="onAttendanceStatusFilter($event)"
+        >
+          @for (option of filterOptions(); track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
         </lib-select>
       </div>
 
-      <div class="w-40">
+      <div class="w-48">
         <lib-input
           placeholder="Cerca..."
           [icon]="SearchIcon"
@@ -51,12 +27,99 @@
       </div>
     </div>
 
-    @if (positionFilter(); as pf) {
-      <div class="flex items-center gap-2 mb-3 flex-wrap">
-        <span class="text-xs text-base-content/50">Filtrant per etiqueta:</span>
-        <lib-badge clickable selected [color]="pf.color ?? '#888'" (clicked)="clearPositionFilter()" ariaLabel="Elimina el filtre">{{ pf.name }} ×</lib-badge>
+    <!-- Shared bits of a row, rendered by both the table (desktop) and the cards (< lg). -->
+    <ng-template #aliasLink let-att>
+      <span
+        class="link link-hover cursor-pointer font-medium text-sm inline-flex items-center min-h-6"
+        tabindex="0"
+        role="link"
+        (click)="navigateToPerson(att.person.id)"
+        (keydown.enter)="navigateToPerson(att.person.id)"
+        [attr.title]="'Veure ' + att.person.alias"
+      >{{ att.person.alias }}</span>
+      @if (att.person.isProvisional) { <span class="ml-1"><lib-badge size="xs" variant="warning">Prov.</lib-badge></span> }
+      @if (att.person.isXicalla) {
+        <span class="ml-1">
+          <lib-badge variant="info" size="sm" ariaLabel="Xicalla">
+            <lucide-icon [name]="ICON_XICALLA" [size]="10" />
+          </lib-badge>
+        </span>
+      }
+      @if (att.person.notes) {
+        <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.person.notes">
+          @if (att.person.notesEmoji) {
+            <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
+          } @else {
+            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
+          }
+        </span>
+      }
+    </ng-template>
+
+    <ng-template #nameLink let-att>
+      <span
+        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
+        tabindex="0"
+        role="link"
+        (click)="navigateToPerson(att.person.id)"
+        (keydown.enter)="navigateToPerson(att.person.id)"
+      >{{ att.person.name }} {{ att.person.firstSurname }}</span>
+    </ng-template>
+
+    <ng-template #rowActions let-att let-fullWidth="fullWidth">
+      <div data-testid="attendance-row-actions" class="flex items-center gap-1" [class.w-full]="fullWidth">
+        <ng-container *ngTemplateOutlet="statusControl; context: { $implicit: att, fullWidth: fullWidth }" />
+        <ng-container *ngTemplateOutlet="notesButton; context: { $implicit: att }" />
       </div>
-    }
+    </ng-template>
+
+    <ng-template #statusControl let-att let-fullWidth="fullWidth">
+      <div
+        data-testid="attendance-status"
+        [class.flex-1]="fullWidth"
+        role="group"
+        [attr.aria-label]="'Assistència de ' + att.person.alias"
+        [attr.title]="respondedTitle(att)"
+      >
+        @if (readOnly()) {
+          <lib-badge size="sm" [variant]="getStatusBadgeVariant(att.status)">{{ getStatusLabel(att.status) }}</lib-badge>
+        } @else {
+        <lib-button-group [fullWidth]="fullWidth">
+          @for (status of statusOptions(); track status) {
+            <lib-button
+              joinItem
+              size="xs"
+              [fullWidth]="fullWidth"
+              [variant]="att.status === status ? getStatusButtonVariant(status) : 'neutral'"
+              [active]="att.status === status"
+              [ariaPressed]="att.status === status"
+              (clicked)="toggleStatus(att, status)"
+            >{{ getStatusLabel(status) }}</lib-button>
+          }
+        </lib-button-group>
+        }
+      </div>
+    </ng-template>
+
+    <ng-template #notesButton let-att>
+      <span
+        data-testid="attendance-notes"
+        [class.tooltip]="!!att.notes"
+        [class.tooltip-left]="!!att.notes"
+        [attr.data-tip]="att.notes"
+      >
+        <lib-button
+          size="xs"
+          shape="square"
+          [variant]="att.notes ? 'primary' : 'neutral'"
+          ghost
+          [ariaLabel]="'Notes de ' + att.person.alias"
+          (clicked)="openNotes(att)"
+        >
+          <lucide-icon [name]="att.notes ? MessageSquareText : MessageSquare" [size]="14" />
+        </lib-button>
+      </span>
+    </ng-template>
 
     @if (!attendanceCardMode()) {
     <div class="overflow-x-auto">
@@ -65,90 +128,29 @@
           <tr>
             <th>Àlies</th>
             <th>Nom</th>
-            <th>Estat</th>
-            <th>Resposta</th>
-            <th>Etiquetes</th>
+            <th>Assistència</th>
           </tr>
         </thead>
         <tbody>
           @if (loadingAttendance()) {
             @for (i of [1,2,3]; track i) {
-              <tr><td colspan="5"><div class="skeleton h-5 w-full"></div></td></tr>
+              <tr><td colspan="3"><div class="skeleton h-5 w-full"></div></td></tr>
             }
           } @else if (attendances().length === 0) {
             <tr>
-              <td colspan="5" class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</td>
+              <td colspan="3" class="text-center text-base-content/50 py-8 text-sm">Cap persona trobada</td>
             </tr>
           } @else {
             @for (att of attendances(); track att.person.id) {
               <tr class="hover">
-                <td class="font-medium text-sm whitespace-nowrap">
-                  <span
-                    class="link link-hover cursor-pointer inline-flex items-center min-h-6"
-                    tabindex="0"
-                    role="link"
-                    (click)="navigateToPerson(att.person.id)"
-                    (keydown.enter)="navigateToPerson(att.person.id)"
-                    [attr.title]="'Veure ' + att.person.alias"
-                  >{{ att.person.alias }}</span>
-                  @if (att.person.isProvisional) { <span class="ml-1"><lib-badge size="xs" variant="warning">Prov.</lib-badge></span> }
-                  @if (att.person.notes) {
-                    <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.person.notes">
-                      @if (att.person.notesEmoji) {
-                        <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
-                      } @else {
-                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
-                      }
-                    </span>
-                  }
+                <td class="whitespace-nowrap">
+                  <ng-container *ngTemplateOutlet="aliasLink; context: { $implicit: att }" />
                 </td>
-                <td class="text-sm text-base-content/70 whitespace-nowrap">
-                  <span
-                    class="link link-hover cursor-pointer inline-flex items-center min-h-6"
-                    tabindex="0"
-                    role="link"
-                    (click)="navigateToPerson(att.person.id)"
-                    (keydown.enter)="navigateToPerson(att.person.id)"
-                  >{{ att.person.name }} {{ att.person.firstSurname }}</span>
+                <td class="text-sm text-base-content/60 whitespace-nowrap">
+                  <ng-container *ngTemplateOutlet="nameLink; context: { $implicit: att }" />
                 </td>
                 <td>
-                  <lib-badge
-                    clickable
-                    selected
-                    size="sm"
-                    [variant]="getStatusBadgeVariant(att.status)"
-                    (clicked)="openAttendanceEdit(att)"
-                    [ariaLabel]="'Edita assistència de ' + att.person.alias"
-                  >{{ getStatusLabel(att.status) }}</lib-badge>
-                  @if (att.person.isXicalla) {
-                    <span class="ml-0.5">
-                      <lib-badge variant="info" size="sm" ariaLabel="Xicalla">
-                        <lucide-icon [name]="ICON_XICALLA" [size]="10" />
-                      </lib-badge>
-                    </span>
-                  }
-                  @if (att.notes) {
-                    <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.notes">
-                      <lib-badge variant="ghost" size="sm">
-                        <lucide-icon name="StickyNote" [size]="10" />
-                      </lib-badge>
-                    </span>
-                  }
-                </td>
-                <td class="text-xs text-base-content/50 whitespace-nowrap">{{ formatDateTime(att.respondedAt) }}</td>
-                <td>
-                  <div class="flex flex-wrap gap-1">
-                    @for (pos of visibleTags(att.person.positions); track pos.id) {
-                      <lib-badge
-                        clickable
-                        selected
-                        size="xs"
-                        [color]="pos.color ?? '#888'"
-                        (clicked)="filterByPosition(pos)"
-                        [ariaLabel]="'Filtra per ' + pos.name"
-                      >{{ pos.name }}</lib-badge>
-                    }
-                  </div>
+                  <ng-container *ngTemplateOutlet="rowActions; context: { $implicit: att, fullWidth: false }" />
                 </td>
               </tr>
             }
@@ -163,84 +165,21 @@
           <div class="skeleton h-20 w-full rounded-lg"></div>
         }
       } @else if (attendances().length === 0) {
-        <div class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</div>
+        <div class="text-center text-base-content/50 py-8 text-sm">Cap persona trobada</div>
       } @else {
         @for (att of attendances(); track att.person.id) {
-          <div class="border border-base-300 rounded-lg p-3" data-testid="attendance-card">
+          <div class="border border-base-300 rounded-lg p-3 flex flex-col gap-2" data-testid="attendance-card">
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <div class="flex items-center gap-1 flex-wrap">
-                  <span
-                    class="link link-hover cursor-pointer font-medium text-sm inline-flex items-center min-h-6"
-                    tabindex="0"
-                    role="link"
-                    (click)="navigateToPerson(att.person.id)"
-                    (keydown.enter)="navigateToPerson(att.person.id)"
-                    [attr.title]="'Veure ' + att.person.alias"
-                  >{{ att.person.alias }}</span>
-                  @if (att.person.isProvisional) { <lib-badge size="xs" variant="warning">Prov.</lib-badge> }
-                  @if (att.person.isXicalla) {
-                    <lib-badge variant="info" size="sm" ariaLabel="Xicalla">
-                      <lucide-icon [name]="ICON_XICALLA" [size]="10" />
-                    </lib-badge>
-                  }
-                  @if (att.person.notes) {
-                    <span class="tooltip tooltip-right" [attr.data-tip]="att.person.notes">
-                      @if (att.person.notesEmoji) {
-                        <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
-                      } @else {
-                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
-                      }
-                    </span>
-                  }
-                  @if (att.notes) {
-                    <span class="tooltip tooltip-right" [attr.data-tip]="att.notes">
-                      <lib-badge variant="ghost" size="sm">
-                        <lucide-icon name="StickyNote" [size]="10" />
-                      </lib-badge>
-                    </span>
-                  }
+                <div class="flex items-center flex-wrap">
+                  <ng-container *ngTemplateOutlet="aliasLink; context: { $implicit: att }" />
                 </div>
-                <div class="text-xs text-base-content/70 truncate">
-                  <span
-                    class="link link-hover cursor-pointer inline-flex items-center min-h-6"
-                    tabindex="0"
-                    role="link"
-                    (click)="navigateToPerson(att.person.id)"
-                    (keydown.enter)="navigateToPerson(att.person.id)"
-                  >{{ att.person.name }} {{ att.person.firstSurname }}</span>
+                <div class="text-xs text-base-content/60 truncate">
+                  <ng-container *ngTemplateOutlet="nameLink; context: { $implicit: att }" />
                 </div>
               </div>
-              <span class="shrink-0">
-                <lib-badge
-                  clickable
-                  selected
-                  size="sm"
-                  [variant]="getStatusBadgeVariant(att.status)"
-                  (clicked)="openAttendanceEdit(att)"
-                  [ariaLabel]="'Edita assistència de ' + att.person.alias"
-                >{{ getStatusLabel(att.status) }}</lib-badge>
-              </span>
             </div>
-
-            <div class="flex items-center justify-between gap-2 mt-2 text-xs text-base-content/50">
-              <span>{{ formatDateTime(att.respondedAt) }}</span>
-            </div>
-
-            @if (visibleTags(att.person.positions).length > 0) {
-              <div class="flex flex-wrap gap-1 mt-2">
-                @for (pos of visibleTags(att.person.positions); track pos.id) {
-                  <lib-badge
-                    clickable
-                    selected
-                    size="xs"
-                    [color]="pos.color ?? '#888'"
-                    (clicked)="filterByPosition(pos)"
-                    [ariaLabel]="'Filtra per ' + pos.name"
-                  >{{ pos.name }}</lib-badge>
-                }
-              </div>
-            }
+            <ng-container *ngTemplateOutlet="rowActions; context: { $implicit: att, fullWidth: true }" />
           </div>
         }
       }
@@ -260,7 +199,6 @@
   <app-attendance-edit-modal
     [attendance]="editing"
     [eventId]="eventId()"
-    [isPast]="isPast()"
     (saved)="onAttendanceSaved($event)"
     (closed)="editingAttendance.set(null)"
   />

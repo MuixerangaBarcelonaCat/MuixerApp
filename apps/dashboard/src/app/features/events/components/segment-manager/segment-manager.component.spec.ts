@@ -739,18 +739,18 @@ describe('SegmentManagerComponent', () => {
       );
     });
 
-    it('includes past=1 query param when isPast is true', () => {
-      fixture.componentRef.setInput('isPast', true);
+    it.each(['day', 'after'] as const)('passes the event phase (%s) as a query param', (phase) => {
+      fixture.componentRef.setInput('phase', phase);
       fixture.detectChanges();
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith(
         ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
-        { queryParams: { returnUrl: '/rehearsals/event-123', past: '1' } },
+        { queryParams: { returnUrl: '/rehearsals/event-123', phase } },
       );
     });
 
-    it('does not include past query param when isPast is false', () => {
-      fixture.componentRef.setInput('isPast', false);
+    it('does not include a phase query param before the event day', () => {
+      fixture.componentRef.setInput('phase', 'before');
       fixture.detectChanges();
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith(

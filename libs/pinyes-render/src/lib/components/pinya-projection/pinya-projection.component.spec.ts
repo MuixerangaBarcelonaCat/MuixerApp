@@ -31,7 +31,7 @@ class FigureCanvasStub {
   readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly gridEnabled = input<boolean>(true);
   readonly attendanceMap = input<Map<string, string>>(new Map());
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   readonly outlineBoxes = input<unknown[]>([]);
   readonly showZoomControls = input<boolean>(true);
@@ -50,7 +50,7 @@ class TroncViewStub {
   readonly mode = input<string>('projection');
   readonly isNetaFigure = input<boolean>(false);
   readonly attendanceMap = input<Map<string, string>>(new Map());
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly panelColor = input<string>('');
   readonly panelBorderColor = input<string>('');
   readonly figureName = input<string>('');
@@ -202,6 +202,20 @@ describe('PinyaProjectionComponent', () => {
 
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
       expect(canvas.componentInstance.showZoomControls()).toBe(false);
+    });
+  });
+
+  describe('phase', () => {
+    it("defaults to 'after' (a projection reads attendance as arrivals), forwarded to the figure canvas", () => {
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.phase()).toBe('after');
+    });
+
+    it('forwards the given phase to the figure canvas', () => {
+      fixture.componentRef.setInput('phase', 'day');
+      fixture.detectChanges();
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.phase()).toBe('day');
     });
   });
 
