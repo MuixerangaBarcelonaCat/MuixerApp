@@ -20,12 +20,16 @@ const KEYBOARD_ROWS = [
   ['', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫', ''],
 ];
 
+/** Physical-keyboard keys accepted: exactly the letters the on-screen keypad offers. */
+const KEYPAD_LETTERS = new Set(KEYBOARD_ROWS.flat().filter((k) => k !== '' && k !== '⌫'));
+
 @Component({
   selector: 'app-attendance-confirmation',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BadgeComponent, ButtonComponent, CardComponent],
   templateUrl: './attendance-confirmation.component.html',
+  host: { '(document:keydown)': 'onPhysicalKey($event)' },
 })
 export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
   private readonly attendanceService = inject(AttendanceService);
@@ -79,6 +83,21 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
       this.query.update((q) => q + key);
     }
     this.loadResults();
+  }
+
+  /** Mirrors the on-screen keypad for a hardware keyboard: letters append, Backspace deletes. */
+  onPhysicalKey(event: KeyboardEvent) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      this.onKey('⌫');
+      return;
+    }
+    const letter = event.key.toUpperCase();
+    if (KEYPAD_LETTERS.has(letter)) {
+      event.preventDefault();
+      this.onKey(letter);
+    }
   }
 
   private loadResults() {

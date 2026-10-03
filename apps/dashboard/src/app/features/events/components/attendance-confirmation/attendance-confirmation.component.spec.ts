@@ -180,6 +180,57 @@ describe('AttendanceConfirmationComponent', () => {
 
   // ── goBack ────────────────────────────────────────────────────────────────
 
+  // ── physical keyboard ─────────────────────────────────────────────────────
+
+  describe('physical keyboard', () => {
+    const press = (key: string, init: KeyboardEventInit = {}) => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+      document.dispatchEvent(event);
+      return event;
+    };
+
+    it('appends a typed letter uppercased', () => {
+      press('a');
+      press('B');
+      expect(component.query()).toBe('AB');
+    });
+
+    it('accepts ç like the on-screen Ç key', () => {
+      press('ç');
+      expect(component.query()).toBe('Ç');
+    });
+
+    it('Backspace removes the last character and prevents default', () => {
+      press('a');
+      press('b');
+      const event = press('Backspace');
+      expect(component.query()).toBe('A');
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('triggers a search once two letters are typed', () => {
+      press('p');
+      press('e');
+      expect(attendanceService.getByEvent).toHaveBeenCalledWith(EVENT_ID, { search: 'PE', limit: 100 });
+    });
+
+    it('ignores keys the on-screen keypad does not offer', () => {
+      press('1');
+      press(' ');
+      press('Enter');
+      press('Shift');
+      press('ArrowLeft');
+      expect(component.query()).toBe('');
+    });
+
+    it('ignores letters typed with Ctrl/Meta/Alt (browser shortcuts)', () => {
+      press('r', { ctrlKey: true });
+      press('l', { metaKey: true });
+      press('a', { altKey: true });
+      expect(component.query()).toBe('');
+    });
+  });
+
   it('goBack navigates to parent route', () => {
     component.goBack();
     expect(routerMock.navigate).toHaveBeenCalledWith(['..'], expect.any(Object));
