@@ -15,6 +15,7 @@ import { EventType, AttendanceStatus, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, ChevronLeft, ChevronRight, Star } from 'lucide-angular';
 import { ButtonComponent } from '@muixer/ui';
 import { parseLocalDate } from '../../../../shared/pipes/format-event-date.pipe';
+import { memberAttendanceStatus } from '../../../../shared/utils/member-attendance-status.util';
 
 export interface CalendarDay {
   date: string;
@@ -271,7 +272,7 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
       existing.push({
         id: e.id,
         eventType: e.eventType,
-        attendanceStatus: e.myAttendance?.status ?? null,
+        attendanceStatus: memberAttendanceStatus(e.myAttendance?.status),
       });
       eventsByDate.set(e.date, existing);
     }

@@ -32,6 +32,7 @@ import { EventCardComponent } from '../components/event-card/event-card.componen
 import { EventService } from '../services/event.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { PullToRefreshComponent } from '../../../shared/components/pull-to-refresh/pull-to-refresh.component';
+import { memberAttendanceStatus } from '../../../shared/utils/member-attendance-status.util';
 
 @Component({
   selector: 'app-event-detail',
@@ -52,6 +53,7 @@ import { PullToRefreshComponent } from '../../../shared/components/pull-to-refre
   templateUrl: './event-detail.component.html',
 })
 export class EventDetailComponent {
+  protected readonly memberAttendanceStatus = memberAttendanceStatus;
   readonly id = input.required<string>();
 
   protected readonly Info = Info;

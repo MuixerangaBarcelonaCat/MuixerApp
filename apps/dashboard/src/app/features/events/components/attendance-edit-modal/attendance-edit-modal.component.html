@@ -56,22 +56,7 @@
     />
   </div>
 
-  <div modalFooter class="w-full flex items-center justify-between">
-    <!-- Delete with confirmation -->
-    <div>
-      @if (showDeleteConfirm()) {
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-error">Segur?</span>
-          <lib-button variant="error" size="xs" [loading]="deleting()" (clicked)="onDelete()">Sí, elimina</lib-button>
-          <lib-button variant="ghost" size="xs" (clicked)="showDeleteConfirm.set(false)">No</lib-button>
-        </div>
-      } @else {
-        <lib-button variant="error" outline size="sm" (clicked)="showDeleteConfirm.set(true)">
-          Elimina el registre
-        </lib-button>
-      }
-    </div>
-
+  <div modalFooter class="w-full flex items-center justify-end">
     <div class="flex gap-2">
       <lib-button variant="ghost" size="sm" (clicked)="onClose()">Cancel·la</lib-button>
       <lib-button

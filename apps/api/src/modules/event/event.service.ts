@@ -6,6 +6,7 @@ import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { SeasonService } from '../season/season.service';
+import { AttendanceService, withLivePending } from './attendance.service';
 import { EventFilterDto } from './dto/event-filter.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -28,6 +29,7 @@ export class EventService {
     @InjectRepository(EventSegment)
     private readonly segmentRepository: Repository<EventSegment>,
     private readonly seasonService: SeasonService,
+    private readonly attendanceService: AttendanceService,
   ) {}
 
   /** Retorna una llista paginada d'events amb filtres per temporada, tipus, rang de dates i text. Suporta el filtre `timeFilter` (upcoming/past). */
@@ -93,7 +95,10 @@ export class EventService {
       .getMany();
 
     const eventIds = events.map((e) => e.id);
-    const summaryMap = await this.buildSegmentsSummaryMap(eventIds);
+    const [summaryMap] = await Promise.all([
+      this.buildSegmentsSummaryMap(eventIds),
+      this.applyLivePending(events),
+    ]);
 
     return { data: events.map((e) => toListItem(e, summaryMap.get(e.id) ?? null)), total };
   }
@@ -109,6 +114,7 @@ export class EventService {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
+    await this.applyLivePending([event]);
     return toDetailItem(event);
   }
 
@@ -143,6 +149,7 @@ export class EventService {
       where: { id: saved.id },
       relations: ['season'],
     });
+    await this.applyLivePending([withRelations!]);
     return toDetailItem(withRelations!);
   }
 
@@ -179,6 +186,7 @@ export class EventService {
     }
 
     const saved = await this.eventRepository.save(event);
+    await this.applyLivePending([saved]);
     return toDetailItem(saved);
   }
 
@@ -201,6 +209,18 @@ export class EventService {
     }
 
     await this.eventRepository.remove(event);
+  }
+
+  /**
+   * Replaces each event's stored `pending` (and `total`) with the live count: it changes whenever a
+   * person is created, which never touches the stored summary. Mutates the loaded entities only.
+   */
+  private async applyLivePending(events: Event[]): Promise<void> {
+    if (events.length === 0) return;
+    const counts = await this.attendanceService.livePendingCounts(events.map((e) => e.id));
+    for (const event of events) {
+      event.attendanceSummary = withLivePending(event.attendanceSummary, counts.get(event.id) ?? 0);
+    }
   }
 
   private async buildSegmentsSummaryMap(

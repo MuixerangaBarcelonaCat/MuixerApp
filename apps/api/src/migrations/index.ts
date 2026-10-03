@@ -53,6 +53,7 @@ import { AddPersonSearchTrigramIndexes1785400000000 } from './1785400000000-AddP
 import { CreateNotificationLogs1785500000000 } from './1785500000000-CreateNotificationLogs';
 import { CreateNotificationSchedules1785600000000 } from './1785600000000-CreateNotificationSchedules';
 import { AddNotificationLogScheduleIndexes1785700000000 } from './1785700000000-AddNotificationLogScheduleIndexes';
+import { DeleteEmptyPendingAttendances1785800000000 } from './1785800000000-DeleteEmptyPendingAttendances';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -109,4 +110,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreateNotificationLogs1785500000000,
   CreateNotificationSchedules1785600000000,
   AddNotificationLogScheduleIndexes1785700000000,
+  DeleteEmptyPendingAttendances1785800000000,
 ];

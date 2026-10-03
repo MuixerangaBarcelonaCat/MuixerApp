@@ -169,7 +169,6 @@ describe('EventDetailComponent — tabbed sections', () => {
   };
 
   const attendance: AttendanceItem = {
-    id: 'att-1',
     status: AttendanceStatus.ANIRE,
     respondedAt: null,
     notes: null,

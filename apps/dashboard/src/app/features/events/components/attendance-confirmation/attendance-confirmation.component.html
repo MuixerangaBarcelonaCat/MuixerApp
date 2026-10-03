@@ -100,7 +100,7 @@
       </div>
     } @else {
       <div class="flex-1 overflow-y-auto flex flex-col gap-2 px-4 pb-4">
-        @for (att of results(); track att.id) {
+        @for (att of results(); track att.person.id) {
           <!-- lib-card stays in its default (non-clickable, plain <div>) mode — its own
                `clickable` mode renders a real <button>, which is inline-block and won't stretch
                full width the way a <div> does; the row's own interactive semantics live on this
@@ -109,14 +109,14 @@
             class="ds-lift ds-lift-surface cursor-pointer"
             role="button"
             tabindex="0"
-            [class.opacity-40]="confirmingId() === att.id"
+            [class.opacity-40]="confirmingId() === att.person.id"
             [class.pointer-events-none]="confirmingId() !== null"
             (click)="confirm(att)"
             (keydown.enter)="confirm(att)"
           >
             <lib-card>
               <div class="flex items-center gap-4 py-3">
-                @if (confirmingId() === att.id) {
+                @if (confirmingId() === att.person.id) {
                   <span class="loading loading-spinner loading-sm text-primary shrink-0"></span>
                 }
                 <div class="flex flex-col min-w-0">

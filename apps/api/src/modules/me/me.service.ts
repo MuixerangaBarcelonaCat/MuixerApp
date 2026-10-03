@@ -39,7 +39,8 @@ import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
-import { AttendanceService } from '../event/attendance.service';
+import { AttendanceService, withLivePending } from '../event/attendance.service';
+import { personPendingAtEventSql, resolveAttendanceStatus } from '../../common/utils/attendance-status.util';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
 import { NewsService } from '../news/news.service';
@@ -137,10 +138,10 @@ export class MeService {
 
     const events = await qb.offset((page - 1) * limit).limit(limit).getMany();
 
-    const attendancesByEvent = await this.fetchAttendancesByEvent(
-      events.map((event) => event.id),
-      managedPersons,
-    );
+    const [attendancesByEvent] = await Promise.all([
+      this.fetchAttendancesByEvent(events, managedPersons),
+      this.applyLivePending(events),
+    ]);
 
     const data: MeEvent[] = events.map((event) =>
       this.toMeEvent(event, attendancesByEvent.get(event.id) ?? []),
@@ -159,7 +160,10 @@ export class MeService {
     }
 
     const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
-    const attendancesByEvent = await this.fetchAttendancesByEvent([eventId], managedPersons);
+    const [attendancesByEvent] = await Promise.all([
+      this.fetchAttendancesByEvent([event], managedPersons),
+      this.applyLivePending([event]),
+    ]);
 
     return {
       ...this.toMeEvent(event, attendancesByEvent.get(eventId) ?? []),
@@ -290,9 +294,20 @@ export class MeService {
       .addSelect('person."isXicalla"', 'isXicalla')
       .addSelect('COUNT(*)', 'count')
       .where('attendance."eventId" = :eventId', { eventId })
+      .andWhere('attendance.status <> :pendent', { pendent: AttendanceStatus.PENDENT })
       .groupBy('attendance.status')
       .addGroupBy('person."isXicalla"')
       .getRawMany<{ status: AttendanceStatus; isXicalla: boolean; count: string }>();
+
+    // No row ≡ PENDENT: pending is counted over people, not attendance rows.
+    const pendingRows = await this.personRepository
+      .createQueryBuilder('p')
+      .innerJoin(Event, 'e', 'e.id = :eventId', { eventId })
+      .select('p."isXicalla"', 'isXicalla')
+      .addSelect('COUNT(*)', 'count')
+      .where(personPendingAtEventSql('p', 'e'))
+      .groupBy('p."isXicalla"')
+      .getRawMany<{ isXicalla: boolean; count: string }>();
 
     const byStatus: EventAttendanceStats['byStatus'] = {
       [AttendanceStatus.PENDENT]: { adults: 0, xicalla: 0 },
@@ -303,6 +318,9 @@ export class MeService {
     for (const row of rows) {
       if (!(row.status in byStatus)) continue;
       byStatus[row.status][row.isXicalla ? 'xicalla' : 'adults'] = Number(row.count);
+    }
+    for (const row of pendingRows) {
+      byStatus[AttendanceStatus.PENDENT][row.isXicalla ? 'xicalla' : 'adults'] = Number(row.count);
     }
 
     return {
@@ -315,37 +333,45 @@ export class MeService {
     };
   }
 
+  /** Each managed person's attendance per event, always resolved (see `MyAttendanceInfo`). */
   private async fetchAttendancesByEvent(
-    eventIds: string[],
+    events: Event[],
     managedPersons: ManagedPerson[],
   ): Promise<Map<string, ManagedPersonAttendance[]>> {
     const attendancesByEvent = new Map<string, ManagedPersonAttendance[]>();
-    if (eventIds.length === 0 || managedPersons.length === 0) return attendancesByEvent;
+    if (events.length === 0 || managedPersons.length === 0) return attendancesByEvent;
 
-    const attendances = await this.attendanceRepository.find({
-      where: {
-        event: { id: In(eventIds) },
-        person: { id: In(managedPersons.map((p) => p.personId)) },
-      },
-      relations: ['person', 'event'],
-    });
+    const personIds = managedPersons.map((p) => p.personId);
+    const [attendances, persons] = await Promise.all([
+      this.attendanceRepository.find({
+        where: {
+          event: { id: In(events.map((e) => e.id)) },
+          person: { id: In(personIds) },
+        },
+        relations: ['person', 'event'],
+      }),
+      this.personRepository.find({ where: { id: In(personIds) }, select: { id: true, createdAt: true } }),
+    ]);
+    const createdAtByPerson = new Map(persons.map((p) => [p.id, p.createdAt]));
 
-    for (const eventId of eventIds) {
+    for (const event of events) {
       attendancesByEvent.set(
-        eventId,
+        event.id,
         managedPersons.map((managedPerson) => {
           const attendance = attendances.find(
-            (a) => a.event.id === eventId && a.person.id === managedPerson.personId,
+            (a) => a.event.id === event.id && a.person.id === managedPerson.personId,
           );
           return {
             ...managedPerson,
-            attendance: attendance
-              ? {
-                  id: attendance.id,
-                  status: attendance.status,
-                  respondedAt: attendance.respondedAt ? attendance.respondedAt.toISOString() : null,
-                }
-              : null,
+            attendance: {
+              id: attendance?.id ?? null,
+              status: resolveAttendanceStatus(
+                attendance?.status ?? null,
+                createdAtByPerson.get(managedPerson.personId) ?? new Date(0),
+                event.date,
+              ),
+              respondedAt: attendance?.respondedAt ? attendance.respondedAt.toISOString() : null,
+            },
           };
         }),
       );
@@ -375,6 +401,16 @@ export class MeService {
 
     if (isPastLockWindow(event.date)) {
       throw new BadRequestException('No es pot modificar l\'assistència d\'un event passat');
+    }
+
+    // No row ≡ PENDENT: going to PENDENT only writes when there was an answer to take back.
+    if (dto.status === AttendanceStatus.PENDENT) {
+      const existing = await this.attendanceRepository.findOne({
+        where: { person: { id: personId }, event: { id: eventId } },
+      });
+      if (!existing) {
+        return { id: null, status: AttendanceStatus.PENDENT, respondedAt: null };
+      }
     }
 
     const now = new Date();
@@ -575,6 +611,15 @@ export class MeService {
       publishedAt: news.publishedAt!.toISOString(),
       body: news.body,
     };
+  }
+
+  /** Replaces each event's stored `pending`/`total` with the live count (see `AttendanceService.livePendingCounts`). */
+  private async applyLivePending(events: Event[]): Promise<void> {
+    if (events.length === 0) return;
+    const counts = await this.attendanceService.livePendingCounts(events.map((e) => e.id));
+    for (const event of events) {
+      event.attendanceSummary = withLivePending(event.attendanceSummary, counts.get(event.id) ?? 0);
+    }
   }
 
   private emptyPage(filters: MeEventFilterDto): PaginatedResponse<MeEvent> {

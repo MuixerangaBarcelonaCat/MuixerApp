@@ -124,10 +124,11 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
 
   confirm(att: AttendanceItem) {
     if (this.confirmingId()) return;
-    this.confirmingId.set(att.id);
+    this.confirmingId.set(att.person.id);
 
+    // Keyed by person: someone still PENDENT may have no attendance row yet.
     this.attendanceService
-      .update(this.eventId, att.id, { status: AttendanceStatus.ASSISTIT })
+      .set(this.eventId, att.person.id, { status: AttendanceStatus.ASSISTIT })
       .subscribe({
         next: () => {
           this.recentlyConfirmed.set(att.person.alias);

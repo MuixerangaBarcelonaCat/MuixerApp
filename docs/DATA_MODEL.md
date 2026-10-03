@@ -74,6 +74,14 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 9. **Traçabilitat del legacy**: `legacyId` + `lastSyncedAt` a `Person` (vegeu [[SYNC_ARCHITECTURE]]).
 10. **Alçada relativa**: al tronc, si la persona té `shoulderHeight`, es mostra la diferència respecte al
     baseline de 140 cm ("+3" / "-5").
+11. **Assistència = estat de (persona, event)**, no una entitat: no tindre fila a `attendances` equival a
+    `PENDENT`. Només es desa una fila `PENDENT` quan algú havia respost i torna a Pendent (`respondedAt`
+    en marca el moment) o quan l'equip hi deixa una nota. Hi ha un sol endpoint d'escriptura,
+    `PUT /events/:id/attendance/:personId`, i no se'n pot esborrar el registre. Tota persona (activa o
+    no) compta per a un event; la que no té resposta i es va crear després del dia de l'event
+    (`createdAt` en hora de Madrid) té l'estat derivat `NO_REGISTRAT` (mai desat): les llistes i
+    recomptes de l'event l'exclouen, i `/me` el retorna (la PWA el mostra com a Pendent).
+    `attendanceSummary.pending`/`total` es calculen en llegir (canvien en crear persones).
 
 ---
 
@@ -81,7 +89,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-09-28 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-10-02 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum

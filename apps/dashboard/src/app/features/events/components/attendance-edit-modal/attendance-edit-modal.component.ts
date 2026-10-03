@@ -12,7 +12,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AlertComponent, ButtonComponent, BadgeComponent, ModalComponent, TextareaComponent } from '@muixer/ui';
 import { AttendanceService } from '../../services/attendance.service';
-import { AttendanceItem, AttendanceCrudResponse, AttendanceDeleteResponse } from '../../models/attendance.model';
+import { AttendanceItem, AttendanceCrudResponse } from '../../models/attendance.model';
 import { AttendanceStatus } from '@muixer/shared';
 
 @Component({
@@ -32,21 +32,17 @@ export class AttendanceEditModalComponent implements OnChanges {
   isPast = input(false);
 
   saved = output<AttendanceCrudResponse>();
-  deleted = output<AttendanceDeleteResponse>();
   closed = output<void>();
 
   selectedStatus = signal<AttendanceStatus>(AttendanceStatus.PENDENT);
   editedNotes = signal<string | null>(null);
   saving = signal(false);
-  deleting = signal(false);
-  showDeleteConfirm = signal(false);
   errorMessage = signal<string | null>(null);
 
   ngOnChanges() {
     const att = this.attendance();
     this.selectedStatus.set(att.status);
     this.editedNotes.set(att.notes);
-    this.showDeleteConfirm.set(false);
     this.errorMessage.set(null);
   }
 
@@ -92,7 +88,7 @@ export class AttendanceEditModalComponent implements OnChanges {
     this.errorMessage.set(null);
 
     this.attendanceService
-      .update(this.eventId(), this.attendance().id, {
+      .set(this.eventId(), this.attendance().person.id, {
         status: this.selectedStatus(),
         notes: this.editedNotes(),
       })
@@ -106,23 +102,6 @@ export class AttendanceEditModalComponent implements OnChanges {
           this.errorMessage.set(err?.error?.message ?? 'Error en desar els canvis');
         },
       });
-  }
-
-  onDelete() {
-    if (this.deleting()) return;
-    this.deleting.set(true);
-    this.errorMessage.set(null);
-
-    this.attendanceService.remove(this.eventId(), this.attendance().id).subscribe({
-      next: (result) => {
-        this.deleting.set(false);
-        this.deleted.emit(result);
-      },
-      error: (err) => {
-        this.deleting.set(false);
-        this.errorMessage.set(err?.error?.message ?? 'Error en eliminar el registre');
-      },
-    });
   }
 
   onClose() {

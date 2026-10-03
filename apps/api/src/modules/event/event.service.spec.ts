@@ -7,6 +7,7 @@ import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { SeasonService } from '../season/season.service';
+import { AttendanceService } from './attendance.service';
 import { EventType } from '@muixer/shared';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
@@ -42,6 +43,11 @@ describe('EventService', () => {
 
   const mockAttendanceRepo = {
     count: jest.fn().mockResolvedValue(0),
+  };
+
+  /** Live pending counts: nobody pending unless a test says otherwise. */
+  const mockAttendanceService = {
+    livePendingCounts: jest.fn(async (ids: string[]) => new Map(ids.map((id) => [id, 0]))),
   };
 
   const segmentQb = {
@@ -92,10 +98,46 @@ describe('EventService', () => {
         { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+        { provide: AttendanceService, useValue: mockAttendanceService },
       ],
     }).compile();
 
     service = module.get<EventService>(EventService);
+  });
+
+  describe('live pending count', () => {
+    const stored = { confirmed: 5, declined: 1, pending: 2, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 8 };
+
+    it('lays the live pending count over each listed summary and adjusts total', async () => {
+      eventQb.getCount.mockResolvedValue(1);
+      eventQb.getMany.mockResolvedValue([makeEvent({ attendanceSummary: stored })]);
+      mockAttendanceService.livePendingCounts.mockResolvedValueOnce(new Map([['evt-uuid', 10]]));
+
+      const result = await service.findAll({});
+
+      expect(mockAttendanceService.livePendingCounts).toHaveBeenCalledWith(['evt-uuid']);
+      expect(result.data[0].attendanceSummary).toEqual(expect.objectContaining({ pending: 10, total: 16, confirmed: 5 }));
+    });
+
+    it('lays the live pending count over the detail summary', async () => {
+      const eventRepo = { findOne: jest.fn().mockResolvedValue(makeEvent({ attendanceSummary: stored })) };
+      mockAttendanceService.livePendingCounts.mockResolvedValueOnce(new Map([['evt-uuid', 3]]));
+      const mod = await Test.createTestingModule({
+        providers: [
+          EventService,
+          { provide: getRepositoryToken(Event), useValue: eventRepo },
+          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+          { provide: AttendanceService, useValue: mockAttendanceService },
+        ],
+      }).compile();
+
+      const detail = await mod.get(EventService).findOne('evt-uuid');
+
+      expect(detail.attendanceSummary).toEqual(expect.objectContaining({ pending: 3, total: 9 }));
+    });
   });
 
   describe('findAll', () => {
@@ -241,6 +283,8 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
           { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+          { provide: AttendanceService, useValue: mockAttendanceService },
+        { provide: AttendanceService, useValue: mockAttendanceService },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -258,6 +302,8 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
           { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+          { provide: AttendanceService, useValue: mockAttendanceService },
+        { provide: AttendanceService, useValue: mockAttendanceService },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -278,6 +324,8 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
           { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+          { provide: AttendanceService, useValue: mockAttendanceService },
+        { provide: AttendanceService, useValue: mockAttendanceService },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -302,6 +350,8 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
           { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+          { provide: AttendanceService, useValue: mockAttendanceService },
+        { provide: AttendanceService, useValue: mockAttendanceService },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -326,6 +376,8 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
           { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+          { provide: AttendanceService, useValue: mockAttendanceService },
+        { provide: AttendanceService, useValue: mockAttendanceService },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);

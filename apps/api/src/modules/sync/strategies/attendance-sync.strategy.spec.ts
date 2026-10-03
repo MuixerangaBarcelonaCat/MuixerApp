@@ -246,6 +246,33 @@ describe('AttendanceSyncStrategy', () => {
       expect(summary.lateCancel).toBe(1);
     });
 
+    it('does not write a PENDENT row for someone who never answered (no row ≡ PENDENT)', async () => {
+      personRepository.find.mockResolvedValue([makePerson('100'), makePerson('101')]);
+      (legacyApiClient.getAssistenciesXlsx as jest.Mock).mockResolvedValue([
+        makeRow({ legacyPersonId: '100', estat: null, instant: null }),
+        makeRow({ legacyPersonId: '101', estat: 'Vinc', instant: '15/01/2020 20:00:00' }),
+      ]);
+
+      const sub = { next: jest.fn() } as unknown as import('rxjs').Subscriber<SyncEvent>;
+      await strategy.syncAll(sub, [makeEvent()]);
+
+      const batch = attendanceRepository.upsert.mock.calls[0][0];
+      expect(batch.map((a: { person: { id: string } }) => a.person.id)).toEqual(['person-101']);
+    });
+
+    it('keeps a PENDENT answer that has a timestamp (a genuine "Potser" on an ACTUACIO)', async () => {
+      personRepository.find.mockResolvedValue([makePerson('100')]);
+      (legacyApiClient.getAssistenciesXlsx as jest.Mock).mockResolvedValue([
+        makeRow({ legacyPersonId: '100', estat: 'Potser', instant: '10/01/2099 20:00:00' }),
+      ]);
+
+      const sub = { next: jest.fn() } as unknown as import('rxjs').Subscriber<SyncEvent>;
+      await strategy.syncAll(sub, [makeEvent({ eventType: EventType.ACTUACIO, date: new Date('2099-01-15') })]);
+
+      const batch = attendanceRepository.upsert.mock.calls[0][0];
+      expect(batch[0].status).toBe(AttendanceStatus.PENDENT);
+    });
+
     it('skips unmatched legacyPersonId and counts as unmatched', async () => {
       const event = makeEvent();
       personRepository.find.mockResolvedValue([]); // no persons in DB

@@ -80,7 +80,7 @@
               <td colspan="5" class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</td>
             </tr>
           } @else {
-            @for (att of attendances(); track att.id) {
+            @for (att of attendances(); track att.person.id) {
               <tr class="hover">
                 <td class="font-medium text-sm whitespace-nowrap">
                   <span
@@ -165,7 +165,7 @@
       } @else if (attendances().length === 0) {
         <div class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</div>
       } @else {
-        @for (att of attendances(); track att.id) {
+        @for (att of attendances(); track att.person.id) {
           <div class="border border-base-300 rounded-lg p-3" data-testid="attendance-card">
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
@@ -262,7 +262,6 @@
     [eventId]="eventId()"
     [isPast]="isPast()"
     (saved)="onAttendanceSaved($event)"
-    (deleted)="onAttendanceDeleted($event)"
     (closed)="editingAttendance.set(null)"
   />
 }

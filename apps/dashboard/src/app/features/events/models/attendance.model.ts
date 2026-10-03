@@ -19,8 +19,8 @@ export interface AttendancePerson {
   positions: AttendancePosition[];
 }
 
+/** A person's attendance to an event, keyed by `person.id` — with no row it reads as PENDENT. */
 export interface AttendanceItem {
-  id: string;
   status: AttendanceStatus;
   respondedAt: string | null;
   notes: string | null;
@@ -35,22 +35,13 @@ export interface AttendanceFilterParams {
   limit?: number;
 }
 
-export interface CreateAttendancePayload {
-  personId: string;
-  status: AttendanceStatus;
-  notes?: string;
-}
-
-export interface UpdateAttendancePayload {
+export interface SetAttendancePayload {
   status?: AttendanceStatus;
   notes?: string | null;
+  force?: boolean;
 }
 
 export interface AttendanceCrudResponse {
   attendance: AttendanceItem;
-  summary: AttendanceSummary;
-}
-
-export interface AttendanceDeleteResponse {
   summary: AttendanceSummary;
 }

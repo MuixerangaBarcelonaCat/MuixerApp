@@ -9,5 +9,5 @@ export interface ManagedPerson {
 }
 
 export interface ManagedPersonAttendance extends ManagedPerson {
-  attendance: MyAttendanceInfo | null;
+  attendance: MyAttendanceInfo;
 }

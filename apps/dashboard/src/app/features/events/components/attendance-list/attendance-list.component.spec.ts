@@ -101,7 +101,6 @@ describe('AttendanceListComponent — rendering (WI-08, EV-M2)', () => {
   const EVENT_ID = 'event-1';
 
   const attendance: AttendanceItem = {
-    id: 'att-1',
     status: AttendanceStatus.ANIRE,
     respondedAt: null,
     notes: null,
@@ -211,7 +210,6 @@ describe('AttendanceListComponent — rendering (WI-08, EV-M2)', () => {
 
 describe('AttendanceListComponent — summary propagation', () => {
   const attendance: AttendanceItem = {
-    id: 'att-1',
     status: AttendanceStatus.ANIRE,
     respondedAt: null,
     notes: null,
@@ -264,17 +262,18 @@ describe('AttendanceListComponent — summary propagation', () => {
     expect(fixture.componentInstance.attendances()[0].status).toBe(AttendanceStatus.NO_VAIG);
   });
 
-  it('emits the recalculated summary and drops the row when a record is deleted', async () => {
+  it('replaces the saved row by person id (a person without a row has no attendance id)', async () => {
     const fixture = await setup();
-    const emitted: unknown[] = [];
-    fixture.componentInstance.summaryChanged.subscribe((s) => emitted.push(s));
 
-    fixture.componentInstance.openAttendanceEdit(attendance);
-    fixture.componentInstance.onAttendanceDeleted({ summary });
+    const updated: AttendanceItem = { ...attendance, status: AttendanceStatus.ASSISTIT, notes: 'Nova' };
+    fixture.componentInstance.onAttendanceSaved({ attendance: updated, summary });
 
-    expect(emitted).toEqual([summary]);
-    expect(fixture.componentInstance.attendances()).toEqual([]);
-    expect(fixture.componentInstance.totalAttendances()).toBe(0);
+    expect(fixture.componentInstance.attendances()).toEqual([updated]);
+  });
+
+  it('has no way to delete an attendance record', async () => {
+    const fixture = await setup();
+    expect((fixture.componentInstance as unknown as Record<string, unknown>)['onAttendanceDeleted']).toBeUndefined();
   });
 });
 
@@ -318,7 +317,6 @@ describe('AttendanceListComponent — default status filter', () => {
 describe('AttendanceListComponent — provisional persons', () => {
   it('flags a provisional attendee with a "Prov." badge', async () => {
     const provisional: AttendanceItem = {
-      id: 'att-p',
       status: AttendanceStatus.ASSISTIT,
       respondedAt: null,
       notes: null,

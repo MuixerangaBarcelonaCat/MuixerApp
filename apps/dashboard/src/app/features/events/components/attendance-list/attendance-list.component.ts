@@ -22,7 +22,6 @@ import {
   AttendanceItem,
   AttendanceFilterParams,
   AttendanceCrudResponse,
-  AttendanceDeleteResponse,
   AttendancePosition,
 } from '../../models/attendance.model';
 import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS, TagCategory } from '@muixer/shared';
@@ -77,7 +76,7 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
   eventId = input.required<string>();
   isPast = input(false);
 
-  /** Emitted whenever an edit or delete recalculates the event's attendance summary. */
+  /** Emitted whenever an edit recalculates the event's attendance summary. */
   summaryChanged = output<AttendanceSummary>();
 
   loadingAttendance = signal(false);
@@ -174,22 +173,14 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
   }
 
   onAttendanceSaved(result: AttendanceCrudResponse) {
-    // Optimistic local update — no full reload needed
+    // Optimistic local update — no full reload needed. Keyed by person: someone listed as
+    // PENDENT may have no attendance row at all.
     this.attendances.update((list) =>
-      list.map((a) => (a.id === result.attendance.id ? result.attendance : a)),
+      list.map((a) => (a.person.id === result.attendance.person.id ? result.attendance : a)),
     );
     this.summaryChanged.emit(result.summary);
     this.editingAttendance.set(null);
     this.toast.success('Assistència actualitzada.');
-  }
-
-  onAttendanceDeleted(result: AttendanceDeleteResponse) {
-    const deleted = this.editingAttendance();
-    this.attendances.update((list) => list.filter((a) => a.id !== deleted?.id));
-    this.totalAttendances.update((n) => n - 1);
-    this.summaryChanged.emit(result.summary);
-    this.editingAttendance.set(null);
-    this.toast.success('Registre d\'assistència eliminat.');
   }
 
   setViewMode(mode: FiguresViewMode): void {

@@ -24,7 +24,7 @@ const mockEventDetail = {
 };
 
 const mockAttendanceResponse = {
-  attendance: { id: 'att-uuid', status: AttendanceStatus.ANIRE, respondedAt: new Date(), notes: null, person: { id: 'p1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isXicalla: false, positions: [] } },
+  attendance: { status: AttendanceStatus.ANIRE, respondedAt: new Date(), notes: null, person: { id: 'p1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isXicalla: false, positions: [] } },
   summary: { confirmed: 1, declined: 0, pending: 0, attended: 0, noShow: 0, lateCancel: 0, children: 0, total: 1 },
 };
 
@@ -44,9 +44,7 @@ describe('EventController', () => {
 
     attendanceService = {
       findByEvent: jest.fn().mockResolvedValue({ data: [], total: 0 }),
-      create: jest.fn().mockResolvedValue(mockAttendanceResponse),
-      update: jest.fn().mockResolvedValue(mockAttendanceResponse),
-      remove: jest.fn().mockResolvedValue({ summary: mockAttendanceResponse.summary }),
+      set: jest.fn().mockResolvedValue(mockAttendanceResponse),
     } as unknown as jest.Mocked<AttendanceService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -136,55 +134,27 @@ describe('EventController', () => {
     });
   });
 
-  // --- createAttendance ---
-  describe('createAttendance', () => {
-    it('delegates to attendanceService.create', async () => {
-      const dto = { personId: 'p1', status: AttendanceStatus.ANIRE };
-      const result = await controller.createAttendance('ev-uuid', dto);
-      expect(attendanceService.create).toHaveBeenCalledWith('ev-uuid', dto);
-      expect(result.attendance.status).toBe(AttendanceStatus.ANIRE);
-    });
-
-    it('propagates ConflictException on duplicate', async () => {
-      attendanceService.create.mockRejectedValueOnce(new ConflictException('Ja existeix'));
-      await expect(controller.createAttendance('ev-uuid', { personId: 'p1', status: AttendanceStatus.ANIRE }))
-        .rejects.toThrow(ConflictException);
-    });
-
-    it('propagates NotFoundException when person not found', async () => {
-      attendanceService.create.mockRejectedValueOnce(new NotFoundException('Person not found'));
-      await expect(controller.createAttendance('ev-uuid', { personId: 'bad', status: AttendanceStatus.ANIRE }))
-        .rejects.toThrow(NotFoundException);
-    });
-  });
-
-  // --- updateAttendance ---
-  describe('updateAttendance', () => {
+  // --- setAttendance ---
+  describe('setAttendance', () => {
     const mockUser = { sub: 'user-1', email: 'test@test.com', role: 'TECHNICAL' } as never;
 
-    it('delegates to attendanceService.update', async () => {
+    it('delegates to attendanceService.set keyed by person', async () => {
       const dto = { status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' };
-      await controller.updateAttendance(mockUser, 'ev-uuid', 'att-uuid', dto);
-      expect(attendanceService.update).toHaveBeenCalledWith('ev-uuid', 'att-uuid', dto, 'user-1');
-    });
-
-    it('propagates NotFoundException when attendance not found', async () => {
-      attendanceService.update.mockRejectedValueOnce(new NotFoundException());
-      await expect(controller.updateAttendance(mockUser, 'ev-uuid', 'bad-uuid', {})).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  // --- removeAttendance ---
-  describe('removeAttendance', () => {
-    it('delegates to attendanceService.remove and returns summary', async () => {
-      const result = await controller.removeAttendance('ev-uuid', 'att-uuid');
-      expect(attendanceService.remove).toHaveBeenCalledWith('ev-uuid', 'att-uuid');
+      const result = await controller.setAttendance(mockUser, 'ev-uuid', 'p1', dto);
+      expect(attendanceService.set).toHaveBeenCalledWith('ev-uuid', 'p1', dto, 'user-1');
       expect(result).toHaveProperty('summary');
     });
 
-    it('propagates NotFoundException when attendance not found', async () => {
-      attendanceService.remove.mockRejectedValueOnce(new NotFoundException());
-      await expect(controller.removeAttendance('ev-uuid', 'bad-uuid')).rejects.toThrow(NotFoundException);
+    it('propagates NotFoundException when the person is not found', async () => {
+      attendanceService.set.mockRejectedValueOnce(new NotFoundException());
+      await expect(controller.setAttendance(mockUser, 'ev-uuid', 'bad-uuid', {})).rejects.toThrow(NotFoundException);
     });
+  });
+
+  it('exposes no create, update-by-id or delete attendance handlers', () => {
+    const handlers = controller as unknown as Record<string, unknown>;
+    expect(handlers.createAttendance).toBeUndefined();
+    expect(handlers.updateAttendance).toBeUndefined();
+    expect(handlers.removeAttendance).toBeUndefined();
   });
 });
