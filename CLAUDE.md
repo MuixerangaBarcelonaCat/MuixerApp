@@ -108,7 +108,7 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 - `/home` · `/persons` · `/rehearsals`, `/performances` (events feature: list + sync)
 - `/events/:id` → `EventDetailComponent`, `/events/:id/confirmation` → `AttendanceConfirmationComponent`
 - `/pinyes` → Pinyes module (see below) · `/sync` → legacy sync SSE UI
-- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags`, `/config/seasons`, `/config/legal` (ADMIN only)
+- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags` (inclou l'assistent d'etiquetatge de persones), `/config/seasons`, `/config/legal` (ADMIN only)
 - `/design-system` → live token/component reference (ADMIN only, see below)
 
 **Shared components** (`shared/components/`): `data/` (page-header, data-table, filter-bar, active-filters, column-toggle, pagination, stat-card) · `forms/` (emoji-picker, person-search-input) · `layout/` (header, tab-nav, user-chip). Compose list pages with these — never build raw table/pagination HTML. Buttons/badges/cards/inputs/modals/toasts/empty-states come from `@muixer/ui` (`lib-button`/`lib-badge`/`lib-card`/`lib-input`/`lib-modal`/`lib-toast-container`/`lib-empty-state`) — see **Design system** below before adding a new one of these by hand.
