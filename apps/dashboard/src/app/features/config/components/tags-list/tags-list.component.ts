@@ -8,7 +8,7 @@ import {
 import { Router } from '@angular/router';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
-import { AlertComponent, ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
@@ -37,7 +37,6 @@ const CATEGORY_ORDER: Record<TagCategory, number> = {
     PageHeaderComponent,
     TagFormModalComponent,
     TaggingWizardModalComponent,
-    AlertComponent,
     ButtonComponent,
     BadgeComponent,
     EmptyStateComponent,

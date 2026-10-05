@@ -93,6 +93,11 @@ describe('TagsListComponent', () => {
     expect(fixture.nativeElement.textContent).toContain("4 persones pendents d'etiquetar");
   });
 
+  it('shows the pending hint in the header, not as an alert banner', () => {
+    expect(fixture.nativeElement.querySelector('lib-alert')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="pending-hint"]').textContent).toContain('4 persones pendents');
+  });
+
   it('hides the banner when nobody is pending', () => {
     personService.getAll.mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 1 } }));
     component.onWizardClosed();

@@ -1,19 +1,20 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Observable, Subscription, forkJoin, map, of, switchMap } from 'rxjs';
-import { ExternalLink, LucideAngularModule, Search } from 'lucide-angular';
+import { ExternalLink, LucideAngularModule } from 'lucide-angular';
 import { TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
 import {
   BadgeComponent,
   ButtonComponent,
   EmptyStateComponent,
-  InputComponent,
   ModalComponent,
   TabDef,
   TabsComponent,
   ToastService,
 } from '@muixer/ui';
+import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { formatShoulderHeightRelative } from '../../../../shared/utils';
 import { PersonService } from '../../../persons/services/person.service';
 import { Person, PersonFilterParams, Position } from '../../../persons/models/person.model';
 import { TagService } from '../../services/tag.service';
@@ -21,8 +22,22 @@ import { TagWithCount } from '../../models/tag.model';
 import { TaggingMode, advance, isTagCompliant } from './tagging-queue.util';
 
 const PAGE_SIZE = 100;
-const SEARCH_DEBOUNCE_MS = 300;
 const CATEGORY_ORDER: TagCategory[] = [TagCategory.PINYA, TagCategory.TRONC, TagCategory.XICALLA, TagCategory.ALTRES];
+
+const CATEGORY_ICONS = {
+  [TagCategory.PINYA]: DOMAIN_ICONS.PINYA,
+  [TagCategory.TRONC]: DOMAIN_ICONS.TRONC,
+  [TagCategory.XICALLA]: DOMAIN_ICONS.XICALLA,
+  [TagCategory.ALTRES]: DOMAIN_ICONS.PERSONA,
+};
+
+/** Static map (not template literals) so Tailwind keeps the classes. Pinya spans the row; Tronc spans two rows beside Xicalla + Altres. */
+const CATEGORY_GRID_CLASS: Record<TagCategory, string> = {
+  [TagCategory.PINYA]: 'md:col-span-2',
+  [TagCategory.TRONC]: 'md:row-span-2',
+  [TagCategory.XICALLA]: '',
+  [TagCategory.ALTRES]: '',
+};
 
 const toPosition = (tag: TagWithCount): Position => ({
   id: tag.id,
@@ -39,14 +54,13 @@ const toPosition = (tag: TagWithCount): Position => ({
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule,
     LucideAngularModule,
     ModalComponent,
     ButtonComponent,
     BadgeComponent,
-    InputComponent,
-    TabsComponent,
+      TabsComponent,
     EmptyStateComponent,
+    PersonSearchInputComponent,
   ],
   templateUrl: './tagging-wizard-modal.component.html',
 })
@@ -58,7 +72,7 @@ export class TaggingWizardModalComponent {
 
   readonly closed = output<void>();
 
-  readonly SearchIcon = Search;
+  readonly formatHeight = formatShoulderHeightRelative;
   readonly ExternalLinkIcon = ExternalLink;
   readonly modeTabs: TabDef[] = [
     { id: 'pending', label: 'Pendents' },
@@ -72,8 +86,6 @@ export class TaggingWizardModalComponent {
   readonly loadError = signal(false);
   readonly tags = signal<TagWithCount[]>([]);
   private readonly inFlight = signal<ReadonlySet<string>>(new Set());
-  private readonly search = signal('');
-  searchInput = '';
 
   readonly current = computed(() => this.people()[this.index()] ?? null);
   readonly canNext = computed(() => {
@@ -86,17 +98,17 @@ export class TaggingWizardModalComponent {
     CATEGORY_ORDER.map((category) => ({
       category,
       label: TAG_CATEGORY_LABELS[category],
+      icon: CATEGORY_ICONS[category],
+      gridClass: CATEGORY_GRID_CLASS[category],
       tags: this.tags().filter((t) => t.category === category),
     })).filter((g) => g.tags.length > 0),
   );
 
   private loadSub?: Subscription;
-  private searchTimeout?: ReturnType<typeof setTimeout>;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.loadSub?.unsubscribe();
-      clearTimeout(this.searchTimeout);
     });
     this.tagService.getAll().subscribe({
       next: (tags) => this.tags.set(tags),
@@ -111,12 +123,21 @@ export class TaggingWizardModalComponent {
     this.reload();
   }
 
-  onSearchChange(value: string): void {
-    clearTimeout(this.searchTimeout);
-    this.searchTimeout = setTimeout(() => {
-      this.search.set(value.trim());
-      this.reload();
-    }, SEARCH_DEBOUNCE_MS);
+  /** Salta a una persona de la cerca; si no és a la cua, l'insereix just després de l'actual. */
+  jumpTo(person: Person): void {
+    const list = this.people();
+    const found = list.findIndex((p) => p.id === person.id);
+    if (found >= 0) {
+      this.index.set(found);
+      return;
+    }
+    const at = list.length === 0 ? 0 : this.index() + 1;
+    this.people.set([...list.slice(0, at), person, ...list.slice(at)]);
+    this.index.set(at);
+  }
+
+  selectedCount(person: Person, tags: TagWithCount[]): number {
+    return tags.filter((t) => this.hasTag(person, t.id)).length;
   }
 
   reload(): void {
@@ -127,7 +148,6 @@ export class TaggingWizardModalComponent {
       isActive: true,
       sortBy: 'firstSurname',
       sortOrder: 'ASC',
-      search: this.search() || undefined,
       tagRuleOk: this.mode() === 'pending' ? false : undefined,
       limit: PAGE_SIZE,
     }).subscribe({

@@ -2,19 +2,17 @@
 
   <!-- Capçalera -->
   <app-page-header title="Etiquetes" [count]="tags().length">
+    @if (pendingCount(); as pending) {
+      <span data-testid="pending-hint" class="flex items-center gap-1.5 text-xs sm:text-sm text-base-content/70">
+        <span class="inline-block h-2 w-2 rounded-full bg-warning" aria-hidden="true"></span>
+        {{ pending }} {{ pending === 1 ? 'persona pendent' : 'persones pendents' }} d'etiquetar
+      </span>
+    }
     <lib-button variant="ghost" size="sm" (clicked)="openWizard()">Etiqueta persones</lib-button>
     <lib-button variant="primary" size="sm" (clicked)="openCreateModal()">
       Etiqueta nova
     </lib-button>
   </app-page-header>
-
-  <!-- Pendents d'etiquetar -->
-  @if (pendingCount(); as pending) {
-    <lib-alert variant="warning" dense>
-      {{ pending }} {{ pending === 1 ? 'persona pendent' : 'persones pendents' }} d'etiquetar
-      <lib-button actions variant="warning" size="xs" (clicked)="openWizard()">Etiqueta-les</lib-button>
-    </lib-alert>
-  }
 
   <!-- Filtre per categoria -->
   <div class="flex gap-1" role="group" aria-label="Filtra per categoria">

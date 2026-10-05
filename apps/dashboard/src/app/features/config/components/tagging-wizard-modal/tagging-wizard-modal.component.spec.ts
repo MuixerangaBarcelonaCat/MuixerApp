@@ -188,6 +188,42 @@ describe('TaggingWizardModalComponent', () => {
     expect(component.people().map((p) => p.id)).toEqual(['z']);
   });
 
+  it('does not send a search term to the API (search is a jump, not a filter)', async () => {
+    await setup();
+    expect(personService.getAll.mock.calls[0][0]).not.toHaveProperty('search');
+  });
+
+  it('jumps to a searched person already in the queue', async () => {
+    await setup([person('a'), person('b'), person('c')]);
+    component.jumpTo(person('c'));
+    expect(component.current()?.id).toBe('c');
+    expect(component.people().map((p) => p.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('inserts a searched person missing from the queue right after the current one', async () => {
+    await setup([person('a'), person('b')]);
+    component.jumpTo(person('z'));
+    expect(component.people().map((p) => p.id)).toEqual(['a', 'z', 'b']);
+    expect(component.current()?.id).toBe('z');
+  });
+
+  it('shows the shoulder height relative to the 140 cm baseline', async () => {
+    await setup([{ ...person('a'), shoulderHeight: 145 }]);
+    expect(fixture.nativeElement.textContent).toContain("Alçada d'espatlles: +5");
+  });
+
+  it('shows 0 for the baseline height', async () => {
+    await setup([{ ...person('a'), shoulderHeight: 140 }]);
+    expect(fixture.nativeElement.textContent).toContain("Alçada d'espatlles: 0");
+  });
+
+  it('renders one distinct section per tag category with its tags', async () => {
+    await setup();
+    const sections = fixture.nativeElement.querySelectorAll('[data-testid^="tag-group-"]');
+    expect(sections.length).toBe(2);
+    expect(sections[0].getAttribute('data-testid')).toBe('tag-group-PINYA');
+  });
+
   it('opens the person detail in a new tab', async () => {
     await setup();
     const open = vi.spyOn(window, 'open').mockReturnValue(null);

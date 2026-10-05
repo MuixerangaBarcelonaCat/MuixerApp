@@ -1,8 +1,8 @@
-<lib-modal [open]="true" title="Etiqueta persones" size="2xl" (closed)="closed.emit()">
+<lib-modal [open]="true" title="Etiqueta persones" size="4xl" (closed)="closed.emit()">
   <div class="flex flex-col gap-4">
 
-    <!-- Mode + cerca -->
-    <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+    <!-- Mode + salt a una persona -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
       <lib-tabs
         class="shrink-0"
         ariaLabel="Mode de l'assistent"
@@ -11,13 +11,7 @@
         (activeIdChange)="setMode($any($event))"
       />
       <div class="w-full sm:flex-1">
-        <lib-input
-          ariaLabel="Cerca persona"
-          placeholder="Nom, àlies o cognoms..."
-          [icon]="SearchIcon"
-          [(ngModel)]="searchInput"
-          (ngModelChange)="onSearchChange($event)"
-        />
+        <app-person-search-input placeholder="Salta a una persona..." (selected)="jumpTo($event)" />
       </div>
     </div>
 
@@ -36,7 +30,7 @@
     } @else if (current(); as person) {
 
       <!-- Fitxa -->
-      <section class="flex flex-col gap-2" aria-live="polite">
+      <section class="flex flex-col gap-3 rounded-box bg-base-200 p-4" aria-live="polite">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
             <h3 class="text-lg font-semibold truncate">
@@ -49,7 +43,9 @@
               }
               <span class="text-sm text-base-content/70 tabular-nums">
                 @if (person.shoulderHeight) {
-                  Alçada d'espatlles: {{ person.shoulderHeight }} cm
+                  <span [attr.title]="person.shoulderHeight + ' cm'">
+                    Alçada d'espatlles: {{ formatHeight(person.shoulderHeight) }}
+                  </span>
                 } @else {
                   Sense alçada d'espatlles
                 }
@@ -62,7 +58,7 @@
           </lib-button>
         </div>
         @if (person.notes) {
-          <p class="text-sm bg-base-200 rounded-box p-3">
+          <p class="text-sm bg-base-100 rounded-box p-3">
             @if (person.notesEmoji) {
               <span aria-hidden="true">{{ person.notesEmoji }}</span>
             }
@@ -71,11 +67,22 @@
         }
       </section>
 
-      <!-- Etiquetes per categoria -->
-      <section class="flex flex-col gap-3">
+      <!-- Etiquetes: una secció per categoria -->
+      <div class="grid gap-3 md:grid-cols-2">
         @for (group of groups(); track group.category) {
-          <div>
-            <p class="text-xs font-medium uppercase tracking-wide text-base-content/60 mb-1.5">{{ group.label }}</p>
+          <section
+            class="rounded-box border border-base-300 bg-base-100 p-3"
+            [class]="group.gridClass"
+            [attr.data-testid]="'tag-group-' + group.category"
+            [attr.aria-label]="'Etiquetes de ' + group.label"
+          >
+            <header class="flex items-center gap-2 pb-2 mb-2 border-b border-base-200">
+              <lucide-icon [img]="group.icon" [size]="16" class="text-base-content/60" aria-hidden="true" />
+              <h4 class="text-sm font-semibold">{{ group.label }}</h4>
+              <span class="ml-auto text-xs text-base-content/50 tabular-nums">
+                {{ selectedCount(person, group.tags) }} / {{ group.tags.length }}
+              </span>
+            </header>
             <div class="flex flex-wrap gap-1.5" role="group" [attr.aria-label]="'Etiquetes de ' + group.label">
               @for (tag of group.tags; track tag.id) {
                 <lib-badge
@@ -90,9 +97,9 @@
                 </lib-badge>
               }
             </div>
-          </div>
+          </section>
         }
-      </section>
+      </div>
 
     } @else {
       <lib-empty-state
