@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -49,6 +50,16 @@ export class TagsListComponent {
   readonly categoryLabels = TAG_CATEGORY_LABELS;
 
   readonly tags = signal<TagWithCount[]>([]);
+  readonly categoryFilter = signal<TagCategory | null>(null);
+  readonly filteredTags = computed(() => {
+    const cat = this.categoryFilter();
+    return cat ? this.tags().filter((t) => t.category === cat) : this.tags();
+  });
+  readonly filterOptions: { value: TagCategory | null; label: string }[] = [
+    { value: null, label: 'Totes' },
+    { value: TagCategory.PINYA, label: TAG_CATEGORY_LABELS[TagCategory.PINYA] },
+    { value: TagCategory.TRONC, label: TAG_CATEGORY_LABELS[TagCategory.TRONC] },
+  ];
   readonly loading = signal(false);
   readonly modalOpen = signal(false);
   readonly selectedTag = signal<TagWithCount | null>(null);

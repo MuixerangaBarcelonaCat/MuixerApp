@@ -7,6 +7,19 @@
     </lib-button>
   </app-page-header>
 
+  <!-- Filtre per categoria -->
+  <div class="flex gap-1" role="group" aria-label="Filtra per categoria">
+    @for (opt of filterOptions; track opt.label) {
+      <lib-button
+        size="xs"
+        [variant]="categoryFilter() === opt.value ? 'primary' : 'ghost'"
+        (clicked)="categoryFilter.set(opt.value)"
+      >
+        {{ opt.label }}
+      </lib-button>
+    }
+  </div>
+
   <!-- Taula -->
   <div class="overflow-x-auto">
     <table class="table table-sm w-full" role="table">
@@ -33,7 +46,7 @@
             </tr>
           }
         } @else {
-          @for (pos of tags(); track pos.id) {
+          @for (pos of filteredTags(); track pos.id) {
             <tr class="hover cursor-pointer" (click)="onRowClick(pos)">
               <td>
                 @if (pos.color) {
