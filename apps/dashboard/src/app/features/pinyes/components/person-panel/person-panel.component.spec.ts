@@ -229,6 +229,16 @@ describe('PersonPanelComponent', () => {
       expect(component.filteredPersons().map((p) => p.id)).toEqual(['short', 'mid', 'tall']);
     });
 
+    it('keeps confirmed persons with no height at the end of the list while filtering by height', () => {
+      component.persons.set([
+        makeAvailablePerson('unset', 'ANIRE', { shoulderHeight: null }),
+        ...heights(),
+      ]);
+      component.onHeightChange(10);
+      expect(component.freePersons().map((p) => p.id)).toEqual(['mid', 'tall', 'short', 'unset']);
+      expect(component.confirmedPersons().map((p) => p.id)).toEqual(['mid', 'tall', 'short', 'unset']);
+    });
+
     it('absolute height mode uses the typed value as-is', () => {
       component.persons.set(heights());
       fixture.componentRef.setInput('heightMode', 'absolute');
@@ -271,7 +281,7 @@ describe('PersonPanelComponent', () => {
       expect(component.heightSortMode()).toBeNull();
     });
 
-    it('excludes persons with no shoulder height set when a height filter is typed', () => {
+    it('keeps persons with no shoulder height last when a height filter is typed', () => {
       const persons = [
         makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 150 }),
         makeAvailablePerson('p2', 'ANIRE', { shoulderHeight: null }),
@@ -282,10 +292,10 @@ describe('PersonPanelComponent', () => {
       fixture.detectChanges();
 
       const ids = component.confirmedPersons().map((p) => p.id);
-      expect(ids).toEqual(['p1']);
+      expect(ids).toEqual(['p1', 'p2', 'p3']);
     });
 
-    it('excludes persons with no shoulder height set when Min sort is active', () => {
+    it('keeps persons with no shoulder height last when Min sort is active', () => {
       const persons = [
         makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 150 }),
         makeAvailablePerson('p2', 'ANIRE', { shoulderHeight: null }),
@@ -295,7 +305,7 @@ describe('PersonPanelComponent', () => {
       fixture.detectChanges();
 
       const ids = component.confirmedPersons().map((p) => p.id);
-      expect(ids).toEqual(['p1']);
+      expect(ids).toEqual(['p1', 'p2']);
     });
 
     it('does not exclude persons with no shoulder height when no height selection is active', () => {
