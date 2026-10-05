@@ -5,6 +5,7 @@ import { Router, provideRouter } from '@angular/router';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { TagsListComponent } from './tags-list.component';
 import { TagService } from '../../services/tag.service';
+import { PersonService } from '../../../persons/services/person.service';
 import { ToastService } from '@muixer/ui';
 import { TagWithCount } from '../../models/tag.model';
 import { TagCategory } from '@muixer/shared';
@@ -28,6 +29,7 @@ describe('TagsListComponent', () => {
   let tagService: { getAll: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let router: Router;
+  let personService: { getAll: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     tagService = {
@@ -35,12 +37,14 @@ describe('TagsListComponent', () => {
       remove: vi.fn().mockReturnValue(of(undefined)),
     };
     toast = { success: vi.fn(), error: vi.fn() };
+    personService = { getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 4, page: 1, limit: 1 } })) };
 
     await TestBed.configureTestingModule({
       imports: [TagsListComponent],
       providers: [
         { provide: TagService, useValue: tagService },
         { provide: ToastService, useValue: toast },
+        { provide: PersonService, useValue: personService },
         allLucideIconsProvider,
         provideRouter([]),
       ],
@@ -79,4 +83,30 @@ describe('TagsListComponent', () => {
     ]);
   });
 
+
+  it('loads the pending count on init', () => {
+    expect(personService.getAll).toHaveBeenCalledWith({ isActive: true, tagRuleOk: false, limit: 1 });
+    expect(component.pendingCount()).toBe(4);
+  });
+
+  it('shows the pending banner with the count', () => {
+    expect(fixture.nativeElement.textContent).toContain("4 persones pendents d'etiquetar");
+  });
+
+  it('hides the banner when nobody is pending', () => {
+    personService.getAll.mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 1 } }));
+    component.onWizardClosed();
+    fixture.detectChanges();
+    expect(component.pendingCount()).toBe(0);
+    expect(fixture.nativeElement.textContent).not.toContain("pendents d'etiquetar");
+  });
+
+  it('opens the wizard and refreshes the count when it closes', () => {
+    component.openWizard();
+    expect(component.wizardOpen()).toBe(true);
+    personService.getAll.mockClear();
+    component.onWizardClosed();
+    expect(component.wizardOpen()).toBe(false);
+    expect(personService.getAll).toHaveBeenCalledTimes(1);
+  });
 });

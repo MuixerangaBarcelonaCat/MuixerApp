@@ -8,10 +8,12 @@ import {
 import { Router } from '@angular/router';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
-import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
+import { TaggingWizardModalComponent } from '../tagging-wizard-modal/tagging-wizard-modal.component';
+import { PersonService } from '../../../persons/services/person.service';
 import {
   TRONC_NODE_PRESETS,
   PINYA_NODE_PRESETS,
@@ -34,6 +36,8 @@ const CATEGORY_ORDER: Record<TagCategory, number> = {
   imports: [
     PageHeaderComponent,
     TagFormModalComponent,
+    TaggingWizardModalComponent,
+    AlertComponent,
     ButtonComponent,
     BadgeComponent,
     EmptyStateComponent,
@@ -45,6 +49,7 @@ export class TagsListComponent {
   private readonly tagService = inject(TagService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly personService = inject(PersonService);
 
   readonly ICON_TAG = DOMAIN_ICONS.TAG;
   readonly categoryLabels = TAG_CATEGORY_LABELS;
@@ -61,6 +66,8 @@ export class TagsListComponent {
     { value: TagCategory.TRONC, label: TAG_CATEGORY_LABELS[TagCategory.TRONC] },
   ];
   readonly loading = signal(false);
+  readonly pendingCount = signal<number | null>(null);
+  readonly wizardOpen = signal(false);
   readonly modalOpen = signal(false);
   readonly selectedTag = signal<TagWithCount | null>(null);
   readonly confirmDeleteTarget = signal<TagWithCount | null>(null);
@@ -77,6 +84,16 @@ export class TagsListComponent {
 
   constructor() {
     this.loadTags();
+    this.loadPendingCount();
+  }
+
+  openWizard(): void {
+    this.wizardOpen.set(true);
+  }
+
+  onWizardClosed(): void {
+    this.wizardOpen.set(false);
+    this.loadPendingCount();
   }
 
   onRowClick(tag: TagWithCount): void {
@@ -151,6 +168,13 @@ export class TagsListComponent {
         this.loading.set(false);
         this.toast.error("Error en carregar les etiquetes.");
       },
+    });
+  }
+
+  private loadPendingCount(): void {
+    this.personService.getAll({ isActive: true, tagRuleOk: false, limit: 1 }).subscribe({
+      next: (res) => this.pendingCount.set(res.meta.total),
+      error: () => this.pendingCount.set(null),
     });
   }
 }
