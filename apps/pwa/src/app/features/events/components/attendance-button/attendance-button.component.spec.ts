@@ -41,15 +41,15 @@ describe('AttendanceButtonComponent', () => {
     return fixture;
   }
 
-  it('should render Vinc and No vinc buttons when status is null', () => {
+  it('should render Vaig and No vaig buttons when status is null', () => {
     const fixture = createButton(null);
     const buttons: HTMLButtonElement[] = fixture.nativeElement.querySelectorAll('button');
     expect(buttons.length).toBe(2);
-    expect(buttons[0].textContent).toContain('Vinc');
-    expect(buttons[1].textContent).toContain('No vinc');
+    expect(buttons[0].textContent).toContain('Vaig');
+    expect(buttons[1].textContent).toContain('No vaig');
   });
 
-  it('should highlight Vinc button when status is ANIRE', () => {
+  it('should highlight Vaig button when status is ANIRE', () => {
     const fixture = createButton(AttendanceStatus.ANIRE);
     const buttons: HTMLButtonElement[] = fixture.nativeElement.querySelectorAll('button');
     expect(buttons[0].classList.contains('btn-success')).toBe(true);
@@ -73,17 +73,17 @@ describe('AttendanceButtonComponent', () => {
     expect(buttons[0].classList.contains('btn-xs')).toBe(true);
   });
 
-  it('should call updateAttendance with ANIRE when clicking Vinc', () => {
+  it('should call updateAttendance with ANIRE when clicking Vaig', () => {
     const fixture = createButton(null);
-    const vincBtn = fixture.nativeElement.querySelector('button');
-    vincBtn.click();
+    const vaigBtn = fixture.nativeElement.querySelector('button');
+    vaigBtn.click();
     expect(eventService.updateAttendance).toHaveBeenCalledWith('ev-1', AttendanceStatus.ANIRE, undefined);
   });
 
   it('should call updateAttendance with the given personId', () => {
     const fixture = createButton(null, 'person-2');
-    const vincBtn = fixture.nativeElement.querySelector('button');
-    vincBtn.click();
+    const vaigBtn = fixture.nativeElement.querySelector('button');
+    vaigBtn.click();
     expect(eventService.updateAttendance).toHaveBeenCalledWith('ev-1', AttendanceStatus.ANIRE, 'person-2');
   });
 
@@ -102,8 +102,8 @@ describe('AttendanceButtonComponent', () => {
     fixture.detectChanges();
 
     expect(toastService.error).toHaveBeenCalledWith("No s'ha pogut actualitzar l'assistència.");
-    const vincBtn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
-    expect(vincBtn.classList.contains('btn-success')).toBe(false);
+    const vaigBtn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(vaigBtn.classList.contains('btn-success')).toBe(false);
   });
 
   it('should show server error message when available', () => {
@@ -126,12 +126,12 @@ describe('AttendanceButtonComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('button').length).toBe(0);
   });
 
-  it('should still offer Vinc / No vinc when ASSISTIT and the event is within its window', () => {
+  it('should still offer Vaig / No vaig when ASSISTIT and the event is within its window', () => {
     const fixture = createButton(AttendanceStatus.ASSISTIT, undefined, false);
     const buttons: HTMLButtonElement[] = fixture.nativeElement.querySelectorAll('button');
     expect(buttons.length).toBe(2);
-    expect(buttons[0].textContent).toContain('Vinc');
-    expect(buttons[1].textContent).toContain('No vinc');
+    expect(buttons[0].textContent).toContain('Vaig');
+    expect(buttons[1].textContent).toContain('No vaig');
   });
 
   it('should show a "He assistit" indicator alongside the buttons when ASSISTIT and editable', () => {
@@ -143,8 +143,8 @@ describe('AttendanceButtonComponent', () => {
 
   it('should let a member revert ASSISTIT to NO_VAIG', () => {
     const fixture = createButton(AttendanceStatus.ASSISTIT, undefined, false);
-    const noVincBtn = fixture.nativeElement.querySelectorAll('button')[1];
-    noVincBtn.click();
+    const noVaigBtn = fixture.nativeElement.querySelectorAll('button')[1];
+    noVaigBtn.click();
     expect(eventService.updateAttendance).toHaveBeenCalledWith('ev-1', AttendanceStatus.NO_VAIG, undefined);
   });
 });

@@ -57,8 +57,8 @@ const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('ca', {
 });
 
 const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
-  [AttendanceStatus.ANIRE]: 'Vinc',
-  [AttendanceStatus.NO_VAIG]: 'No vinc',
+  [AttendanceStatus.ANIRE]: 'Vaig',
+  [AttendanceStatus.NO_VAIG]: 'No vaig',
   [AttendanceStatus.PENDENT]: 'Pendent',
   [AttendanceStatus.ASSISTIT]: 'He assistit',
 };

@@ -42,7 +42,7 @@ import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } f
           [ariaPressed]="displayStatus() === ANIRE"
           [ariaLabel]="ariaLabelFor(ANIRE)"
           (clicked)="setStatus(ANIRE)"
-        >Vinc</lib-button>
+        >Vaig</lib-button>
         <lib-button
           joinItem
           size="xs"
@@ -53,7 +53,7 @@ import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } f
           [ariaPressed]="displayStatus() === NO_VAIG"
           [ariaLabel]="ariaLabelFor(NO_VAIG)"
           (clicked)="setStatus(NO_VAIG)"
-        >No vinc</lib-button>
+        >No vaig</lib-button>
       </lib-button-group>
       @if (displayStatus() === ASSISTIT) {
         <span class="badge badge-info badge-sm gap-1 py-3">
@@ -91,7 +91,7 @@ export class AttendanceButtonComponent {
   /**
    * `ASSISTIT` no longer hard-locks the control: a member who was marked as attended (by the
    * rehearsal tablet, by staff, or by the performance auto-sweep) can still move back to «No
-   * vinc» while the event is editable. Only once the parent disables the control (event out of
+   * vaig» while the event is editable. Only once the parent disables the control (event out of
    * its editing window) does `ASSISTIT` collapse to a read-only badge.
    */
   protected readonly isLockedBadgeOnly = computed(
@@ -101,8 +101,8 @@ export class AttendanceButtonComponent {
     () => this.disabled() || this.isPending(),
   );
   private static readonly STATUS_LABELS: Record<AttendanceStatus, string> = {
-    [AttendanceStatus.ANIRE]: 'Vinc',
-    [AttendanceStatus.NO_VAIG]: 'No vinc',
+    [AttendanceStatus.ANIRE]: 'Vaig',
+    [AttendanceStatus.NO_VAIG]: 'No vaig',
     [AttendanceStatus.PENDENT]: 'Pendent',
     [AttendanceStatus.ASSISTIT]: 'He assistit',
   };
