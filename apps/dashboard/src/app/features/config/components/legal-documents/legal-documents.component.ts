@@ -204,9 +204,9 @@ export class LegalDocumentsComponent {
     },
     {
       type: LegalDocumentType.TRANSPARENCY_CLAUSE,
-      label: 'Clàusula de transparència',
+      label: 'Avís de confidencialitat',
       description:
-        "Es mostra al formulari d'alta i edició de membres. És informativa: mai obliga a acceptar res.",
+        "Es mostra a l'equip tècnic al formulari d'alta i edició de membres. És informatiu: mai obliga a acceptar res.",
       gatesConsent: false,
     },
   ];

@@ -109,7 +109,7 @@ export class PersonDetailComponent implements OnInit {
 
   person = signal<Person | null>(null);
 
-  /** Informative transparency clause (art. 13 RGPD) shown while editing personal data. */
+  /** Confidentiality notice for staff (art. 5 LOPDGDD) shown while editing personal data; stored as `TRANSPARENCY_CLAUSE`. */
   readonly transparencyClause = signal<string | null>(null);
 
   /** Full name shown under the alias in the header, or '' when it would just
