@@ -98,6 +98,7 @@ graph TD
 | [[AUDIT_SUITE]] | Com executar les auditories responsive/a11y i els e2e de Playwright |
 | [[GDPR_COMPLIANCE]] | Informe tècnic i pla d'implementació del compliment LOPDGDD/RGPD |
 | [[REQUEST_AUDIT]] | Auditoria de peticions al backend: què s'ha optimitzat al workspace de segments, impacte a l'UX i què queda pendent |
+| [[DATA_FRESHNESS]] | Estudi de frescor de dades (Dashboard i PWA): per què es va descartar l'SSE i proposta de polling de revisions |
 
 ### Infraestructura
 
