@@ -1,0 +1,123 @@
+<lib-modal [open]="true" title="Etiqueta persones" size="2xl" (closed)="closed.emit()">
+  <div class="flex flex-col gap-4">
+
+    <!-- Mode + cerca -->
+    <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+      <lib-tabs
+        class="shrink-0"
+        ariaLabel="Mode de l'assistent"
+        [tabs]="modeTabs"
+        [activeId]="mode()"
+        (activeIdChange)="setMode($any($event))"
+      />
+      <div class="w-full sm:flex-1">
+        <lib-input
+          ariaLabel="Cerca persona"
+          placeholder="Nom, àlies o cognoms..."
+          [icon]="SearchIcon"
+          [(ngModel)]="searchInput"
+          (ngModelChange)="onSearchChange($event)"
+        />
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="space-y-3" aria-busy="true">
+        <div class="skeleton h-6 w-48"></div>
+        <div class="skeleton h-4 w-64"></div>
+        <div class="skeleton h-24 w-full"></div>
+      </div>
+    } @else if (loadError()) {
+      <lib-empty-state
+        message="No s'han pogut carregar les persones."
+        actionLabel="Reintenta"
+        (clicked)="reload()"
+      />
+    } @else if (current(); as person) {
+
+      <!-- Fitxa -->
+      <section class="flex flex-col gap-2" aria-live="polite">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <h3 class="text-lg font-semibold truncate">
+              {{ person.name }} {{ person.firstSurname }} {{ person.secondSurname }}
+            </h3>
+            <div class="flex flex-wrap items-center gap-2 mt-1">
+              <lib-badge size="sm">{{ person.alias }}</lib-badge>
+              @if (person.isXicalla) {
+                <lib-badge size="sm" variant="info">Menor de 16</lib-badge>
+              }
+              <span class="text-sm text-base-content/70 tabular-nums">
+                @if (person.shoulderHeight) {
+                  Alçada d'espatlles: {{ person.shoulderHeight }} cm
+                } @else {
+                  Sense alçada d'espatlles
+                }
+              </span>
+            </div>
+          </div>
+          <lib-button variant="ghost" size="xs" (clicked)="openDetail(person)">
+            Veu el detall
+            <lucide-icon [img]="ExternalLinkIcon" [size]="14" aria-hidden="true" />
+          </lib-button>
+        </div>
+        @if (person.notes) {
+          <p class="text-sm bg-base-200 rounded-box p-3">
+            @if (person.notesEmoji) {
+              <span aria-hidden="true">{{ person.notesEmoji }}</span>
+            }
+            {{ person.notes }}
+          </p>
+        }
+      </section>
+
+      <!-- Etiquetes per categoria -->
+      <section class="flex flex-col gap-3">
+        @for (group of groups(); track group.category) {
+          <div>
+            <p class="text-xs font-medium uppercase tracking-wide text-base-content/60 mb-1.5">{{ group.label }}</p>
+            <div class="flex flex-wrap gap-1.5" role="group" [attr.aria-label]="'Etiquetes de ' + group.label">
+              @for (tag of group.tags; track tag.id) {
+                <lib-badge
+                  size="md"
+                  clickable
+                  readableOutlineText
+                  [selected]="hasTag(person, tag.id)"
+                  [color]="tag.color ?? undefined"
+                  (clicked)="toggleTag(tag)"
+                >
+                  {{ tag.name }}
+                </lib-badge>
+              }
+            </div>
+          </div>
+        }
+      </section>
+
+    } @else {
+      <lib-empty-state
+        [message]="mode() === 'pending'
+          ? 'No hi ha persones pendents d\'etiquetar.'
+          : 'No s\'ha trobat cap persona.'"
+        [actionLabel]="mode() === 'pending' ? 'Revisa tothom' : undefined"
+        (clicked)="setMode('all')"
+      />
+    }
+  </div>
+
+  <div modalFooter class="w-full flex items-center justify-between gap-2">
+    <span class="text-sm text-base-content/60 tabular-nums">
+      @if (current()) {
+        {{ index() + 1 }} de {{ people().length }}
+      }
+    </span>
+    <div class="flex gap-2">
+      <lib-button variant="ghost" size="sm" [disabled]="index() === 0 || !current()" (clicked)="previous()">
+        Anterior
+      </lib-button>
+      <lib-button variant="primary" size="sm" [disabled]="isLast() || !current()" (clicked)="next()">
+        Següent
+      </lib-button>
+    </div>
+  </div>
+</lib-modal>
