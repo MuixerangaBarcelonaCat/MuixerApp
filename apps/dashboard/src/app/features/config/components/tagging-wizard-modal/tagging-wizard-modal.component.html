@@ -115,7 +115,7 @@
       <lib-button variant="ghost" size="sm" [disabled]="index() === 0 || !current()" (clicked)="previous()">
         Anterior
       </lib-button>
-      <lib-button variant="primary" size="sm" [disabled]="isLast() || !current()" (clicked)="next()">
+      <lib-button variant="primary" size="sm" [disabled]="!canNext()" (clicked)="next()">
         Següent
       </lib-button>
     </div>

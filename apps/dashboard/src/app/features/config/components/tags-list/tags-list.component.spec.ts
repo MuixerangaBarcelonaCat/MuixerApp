@@ -109,4 +109,10 @@ describe('TagsListComponent', () => {
     expect(component.wizardOpen()).toBe(false);
     expect(personService.getAll).toHaveBeenCalledTimes(1);
   });
+
+  it('reloads tag person counts when the wizard closes', () => {
+    tagService.getAll.mockClear();
+    component.onWizardClosed();
+    expect(tagService.getAll).toHaveBeenCalledTimes(1);
+  });
 });

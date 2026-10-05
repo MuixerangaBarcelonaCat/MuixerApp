@@ -56,9 +56,21 @@ describe('tagging-queue.util', () => {
       expect(r.index).toBe(0);
     });
 
-    it('does not move past the end, even if the last person is compliant', () => {
-      const list = [person('a'), person('b', ok)];
-      expect(advance(list, 1, 1, 'pending')).toEqual({ people: list, index: 1 });
+    it('drops the last person when compliant in pending mode, leaving an empty queue if alone', () => {
+      expect(advance([person('a', ok)], 0, 1, 'pending')).toEqual({ people: [], index: 0 });
+    });
+
+    it('drops the last compliant person and clamps the index to the new last', () => {
+      const r = advance([person('a'), person('b', ok)], 1, 1, 'pending');
+      expect(r.people.map((p) => p.id)).toEqual(['a']);
+      expect(r.index).toBe(0);
+    });
+
+    it('keeps the last person when still pending or in all mode', () => {
+      const pending = [person('a'), person('b')];
+      expect(advance(pending, 1, 1, 'pending')).toEqual({ people: pending, index: 1 });
+      const all = [person('a'), person('b', ok)];
+      expect(advance(all, 1, 1, 'all')).toEqual({ people: all, index: 1 });
     });
 
     it('does not move before the start', () => {

@@ -126,7 +126,7 @@ describe('TaggingWizardModalComponent', () => {
     tagService.assignPersons.mockReturnValue(throwError(() => new Error('boom')));
     component.toggleTag(TRONC);
     expect(component.current()?.positions.map((p) => p.id)).toEqual(['pinya']);
-    expect(toast.error).toHaveBeenCalledWith("No s'ha pogut desar l'etiqueta.");
+    expect(toast.error).toHaveBeenCalledWith("No s'ha pogut alçar l'etiqueta.");
   });
 
   it('ignores a second click on the same tag while its request is in flight', async () => {
@@ -148,12 +148,20 @@ describe('TaggingWizardModalComponent', () => {
     expect(component.current()?.id).toBe('b');
   });
 
-  it('keeps the last person visible after becoming compliant', async () => {
+  it('empties the queue when the last person becomes compliant and Next is pressed', async () => {
     await setup([person('a')]);
     component.toggleTag(PINYA);
     component.toggleTag(TRONC);
+    expect(component.canNext()).toBe(true);
     component.next();
-    expect(component.current()?.id).toBe('a');
+    expect(component.current()).toBeNull();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No hi ha persones pendents');
+  });
+
+  it('does not allow Next on the last person while still pending', async () => {
+    await setup([person('a')]);
+    expect(component.canNext()).toBe(false);
   });
 
   it('shows an empty state when there is nobody to tag', async () => {

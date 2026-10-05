@@ -19,7 +19,16 @@ export function advance(
   mode: TaggingMode,
 ): { people: Person[]; index: number } {
   const target = index + delta;
-  if (target < 0 || target >= people.length) return { people, index };
+  if (target < 0) return { people, index };
+
+  if (target >= people.length) {
+    // Darrera persona: només es pot deixar enrere (i buidar la cua) si ja compleix la regla.
+    if (mode === 'pending' && isTagCompliant(people[index])) {
+      const rest = people.filter((_, i) => i !== index);
+      return { people: rest, index: Math.max(0, rest.length - 1) };
+    }
+    return { people, index };
+  }
 
   if (mode === 'pending' && isTagCompliant(people[index])) {
     return {

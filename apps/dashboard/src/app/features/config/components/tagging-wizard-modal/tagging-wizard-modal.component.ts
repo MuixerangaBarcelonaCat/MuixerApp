@@ -18,7 +18,7 @@ import { PersonService } from '../../../persons/services/person.service';
 import { Person, PersonFilterParams, Position } from '../../../persons/models/person.model';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
-import { TaggingMode, advance } from './tagging-queue.util';
+import { TaggingMode, advance, isTagCompliant } from './tagging-queue.util';
 
 const PAGE_SIZE = 100;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -76,7 +76,12 @@ export class TaggingWizardModalComponent {
   searchInput = '';
 
   readonly current = computed(() => this.people()[this.index()] ?? null);
-  readonly isLast = computed(() => this.index() >= this.people().length - 1);
+  readonly canNext = computed(() => {
+    const person = this.current();
+    if (!person) return false;
+    if (this.index() < this.people().length - 1) return true;
+    return this.mode() === 'pending' && isTagCompliant(person);
+  });
   readonly groups = computed(() =>
     CATEGORY_ORDER.map((category) => ({
       category,
@@ -176,7 +181,7 @@ export class TaggingWizardModalComponent {
       error: () => {
         this.setInFlight(key, false);
         this.patchPositions(person.id, had ? add : remove);
-        this.toast.error("No s'ha pogut desar l'etiqueta.");
+        this.toast.error("No s'ha pogut alçar l'etiqueta.");
       },
     });
   }

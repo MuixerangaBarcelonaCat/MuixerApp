@@ -94,6 +94,7 @@ export class TagsListComponent {
   onWizardClosed(): void {
     this.wizardOpen.set(false);
     this.loadPendingCount();
+    this.loadTags();
   }
 
   onRowClick(tag: TagWithCount): void {
