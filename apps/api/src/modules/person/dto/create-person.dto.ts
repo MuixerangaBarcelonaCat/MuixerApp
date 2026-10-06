@@ -11,6 +11,7 @@ import {
   IsArray,
   IsDateString,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 
@@ -48,9 +49,10 @@ export class CreatePersonDto {
   birthDate?: string;
 
   @ApiPropertyOptional({ description: 'Alçada d\'espatlles en cm', minimum: 50, maximum: 250 })
-  @IsInt()
-  @Min(50)
-  @Max(250)
+  @Type(() => Number)
+  @IsInt({ message: "L'alçada ha de ser un nombre enter." })
+  @Min(50, { message: "L'alçada ha de ser de 50 cm com a mínim." })
+  @Max(250, { message: "L'alçada ha de ser de 250 cm com a màxim." })
   @IsOptional()
   shoulderHeight?: number;
 

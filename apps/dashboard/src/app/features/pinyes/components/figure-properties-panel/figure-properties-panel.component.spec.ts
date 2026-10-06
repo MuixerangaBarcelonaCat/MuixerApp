@@ -193,13 +193,32 @@ describe('FigurePropertiesPanelComponent', () => {
     fixture.componentInstance.offsetYChanged.subscribe((e) => (y = e));
     fixture.componentInstance.angleChanged.subscribe((e) => (angle = e));
 
-    fixture.componentInstance.onOffsetXChange('100');
-    fixture.componentInstance.onOffsetYChange('200');
+    fixture.componentInstance.onOffsetXChange(100);
+    fixture.componentInstance.onOffsetYChange(200);
     fixture.componentInstance.onAngleChange('45');
 
     expect(x).toEqual({ id: 'entry-1', value: 100 });
     expect(y).toEqual({ id: 'entry-1', value: 200 });
     expect(angle).toEqual({ id: 'entry-1', value: 45 });
+  });
+
+  it('emits offset 0 (not NaN) when the X/Y fields are cleared', () => {
+    const fixture = create(makeEntry());
+    let x: { id: string; value: number } | undefined;
+    let y: { id: string; value: number } | undefined;
+    fixture.componentInstance.offsetXChanged.subscribe((e) => (x = e));
+    fixture.componentInstance.offsetYChanged.subscribe((e) => (y = e));
+
+    const [xInput, yInput] = fixture.debugElement
+      .queryAll(By.css('input[type="number"]'))
+      .map((d) => d.nativeElement as HTMLInputElement);
+    for (const input of [xInput, yInput]) {
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+    }
+
+    expect(x).toEqual({ id: 'entry-1', value: 0 });
+    expect(y).toEqual({ id: 'entry-1', value: 0 });
   });
 
   it('emits removeRequested with the entry id', () => {

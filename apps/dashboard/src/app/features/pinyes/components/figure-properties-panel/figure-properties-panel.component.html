@@ -92,14 +92,14 @@
       type="number"
       size="sm"
       [ngModel]="entry().offsetX"
-      (ngModelChange)="onOffsetXChange('' + $event)"
+      (ngModelChange)="onOffsetXChange($event)"
     />
     <lib-input
       label="Y"
       type="number"
       size="sm"
       [ngModel]="entry().offsetY"
-      (ngModelChange)="onOffsetYChange('' + $event)"
+      (ngModelChange)="onOffsetYChange($event)"
     />
   </div>
 </div>

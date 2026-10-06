@@ -85,12 +85,12 @@ export class FigurePropertiesPanelComponent {
     this.cordonsObertsEnabledChanged.emit({ id: this.entry().id, value });
   }
 
-  onOffsetXChange(value: string): void {
-    this.offsetXChanged.emit({ id: this.entry().id, value: +value });
+  onOffsetXChange(value: number | null): void {
+    this.offsetXChanged.emit({ id: this.entry().id, value: value ?? 0 });
   }
 
-  onOffsetYChange(value: string): void {
-    this.offsetYChanged.emit({ id: this.entry().id, value: +value });
+  onOffsetYChange(value: number | null): void {
+    this.offsetYChanged.emit({ id: this.entry().id, value: value ?? 0 });
   }
 
   onAngleChange(value: string): void {

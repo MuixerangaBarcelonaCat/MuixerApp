@@ -267,6 +267,17 @@ describe('PersonPanelComponent', () => {
       expect(component.heightSortMode()).toBeNull();
     });
 
+    it('typing a relative height of 0 filters by the baseline height instead of clearing the filter', () => {
+      fixture.componentRef.setInput('heightMode', 'relative');
+      fixture.detectChanges();
+      const input = fixture.nativeElement.querySelector('input[type="number"]') as HTMLInputElement;
+
+      input.value = '0';
+      input.dispatchEvent(new Event('input'));
+
+      expect(component.height()).toBe(0);
+    });
+
     it('selecting Max clears a previously typed height value', () => {
       component.onHeightChange(15);
       expect(component.height()).toBe(15);

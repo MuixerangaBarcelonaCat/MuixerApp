@@ -415,6 +415,17 @@ describe('RenglaOverlayComponent', () => {
         expect(component.startPosition()).toBe(3);
       });
 
+      it('clearing the start-position field keeps the previous value', async () => {
+        await Promise.resolve();
+        fixture.detectChanges();
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input[id="rengla-start-pos"]');
+
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+
+        expect(component.startPosition()).toBe(1);
+      });
+
       it('Finalitza and Cancel·la are lib-buttons', () => {
         findButtonByAriaLabel('Cancel·la creació de rengla').clicked.emit();
         expect(component.creatingRengla()).toBe(false);

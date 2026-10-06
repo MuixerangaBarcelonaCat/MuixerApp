@@ -95,7 +95,7 @@
           size="sm"
           [placeholder]="heightMode() === 'relative' ? 'Alçada relativa (ex: +5, -10)' : 'Alçada absoluta (cm)'"
           [ngModel]="height()"
-          (ngModelChange)="onHeightChange($event ? +$event : null)"
+          (ngModelChange)="onHeightChange($event)"
           [ariaLabel]="'Filtra per alçada ' + (heightMode() === 'relative' ? 'relativa' : 'absoluta')"
           [min]="heightMode() === 'relative' ? -50 : 100"
           [max]="heightMode() === 'relative' ? 50 : 200"
