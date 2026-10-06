@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -11,6 +12,8 @@ import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, T
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
+import { TaggingWizardModalComponent } from '../tagging-wizard-modal/tagging-wizard-modal.component';
+import { PersonService } from '../../../persons/services/person.service';
 import {
   TRONC_NODE_PRESETS,
   PINYA_NODE_PRESETS,
@@ -33,6 +36,7 @@ const CATEGORY_ORDER: Record<TagCategory, number> = {
   imports: [
     PageHeaderComponent,
     TagFormModalComponent,
+    TaggingWizardModalComponent,
     ButtonComponent,
     BadgeComponent,
     EmptyStateComponent,
@@ -44,12 +48,25 @@ export class TagsListComponent {
   private readonly tagService = inject(TagService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly personService = inject(PersonService);
 
   readonly ICON_TAG = DOMAIN_ICONS.TAG;
   readonly categoryLabels = TAG_CATEGORY_LABELS;
 
   readonly tags = signal<TagWithCount[]>([]);
+  readonly categoryFilter = signal<TagCategory | null>(null);
+  readonly filteredTags = computed(() => {
+    const cat = this.categoryFilter();
+    return cat ? this.tags().filter((t) => t.category === cat) : this.tags();
+  });
+  readonly filterOptions: { value: TagCategory | null; label: string }[] = [
+    { value: null, label: 'Totes' },
+    { value: TagCategory.PINYA, label: TAG_CATEGORY_LABELS[TagCategory.PINYA] },
+    { value: TagCategory.TRONC, label: TAG_CATEGORY_LABELS[TagCategory.TRONC] },
+  ];
   readonly loading = signal(false);
+  readonly pendingCount = signal<number | null>(null);
+  readonly wizardOpen = signal(false);
   readonly modalOpen = signal(false);
   readonly selectedTag = signal<TagWithCount | null>(null);
   readonly confirmDeleteTarget = signal<TagWithCount | null>(null);
@@ -65,6 +82,17 @@ export class TagsListComponent {
   }, {});
 
   constructor() {
+    this.loadTags();
+    this.loadPendingCount();
+  }
+
+  openWizard(): void {
+    this.wizardOpen.set(true);
+  }
+
+  onWizardClosed(): void {
+    this.wizardOpen.set(false);
+    this.loadPendingCount();
     this.loadTags();
   }
 
@@ -140,6 +168,13 @@ export class TagsListComponent {
         this.loading.set(false);
         this.toast.error("Error en carregar les etiquetes.");
       },
+    });
+  }
+
+  private loadPendingCount(): void {
+    this.personService.getAll({ isActive: true, tagRuleOk: false, limit: 1 }).subscribe({
+      next: (res) => this.pendingCount.set(res.meta.total),
+      error: () => this.pendingCount.set(null),
     });
   }
 }
