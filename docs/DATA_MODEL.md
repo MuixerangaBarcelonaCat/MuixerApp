@@ -101,7 +101,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `composition_entries` | `CompositionEntry` | 13 |
 | `compositions` | `Composition` | 6 |
 | `event_segments` | `EventSegment` | 11 |
-| `events` | `Event` | 20 |
+| `events` | `Event` | 21 |
 | `figure_instances` | `FigureInstance` | 21 |
 | `figure_nodes` | `FigureNode` | 22 |
 | `figure_templates` | `FigureTemplate` | 11 |
@@ -250,6 +250,7 @@ Definició: [`apps/api/src/modules/event/event.entity.ts`](../apps/api/src/modul
 | `location` | `varchar` | `string` | sí | — |
 | `locationUrl` | `varchar` | `string` | sí | — |
 | `information` | `text` | `string` | sí | — |
+| `notes` | `text` | `string` | sí | — |
 | `countsForStatistics` | `—` | `boolean` | no | default `true` |
 | `metadata` | `jsonb` | `RehearsalMetadata \| PerformanceMetadata` | no | — |
 | `attendanceSummary` | `jsonb` | `AttendanceSummary` | no | default `DEFAULT_ATTENDANCE_SUMMARY` |

@@ -38,6 +38,7 @@ const mockEvent: Partial<Event> = {
   description: 'Desc',
   locationUrl: null,
   information: 'Info',
+  notes: 'Observacions internes',
   attendanceSummary: {
     confirmed: 0, declined: 0, pending: 0, attended: 0,
     lateCancel: 0, children: 0, childrenAttended: 0, total: 0,
@@ -591,6 +592,15 @@ describe('MeService', () => {
       expect(result.description).toBe('Desc');
       expect(result.information).toBe('Info');
       expect(result.myAttendance?.status).toBe(AttendanceStatus.ANIRE);
+    });
+
+    it('should never expose the technician-only notes to members', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
+
+      const result = await service.findEventDetail(mockUser, 'event-1');
+
+      expect(result).not.toHaveProperty('notes');
     });
 
     it('should return event without attendance when no person linked', async () => {

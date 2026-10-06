@@ -43,6 +43,8 @@ export interface EventDetail extends EventListItem {
   description: string | null;
   locationUrl: string | null;
   information: string | null;
+  /** Observacions internes: només visibles al dashboard, mai a la PWA. */
+  notes: string | null;
   metadata: RehearsalMetadata | PerformanceMetadata;
   isSynced: boolean;
 }
@@ -70,6 +72,7 @@ export interface CreateEventPayload {
   locationUrl?: string;
   description?: string;
   information?: string;
+  notes?: string;
   countsForStatistics?: boolean;
   seasonId?: string;
 }

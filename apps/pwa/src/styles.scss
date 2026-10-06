@@ -9,6 +9,13 @@
 @import '@fontsource/atkinson-hyperlegible-mono/400.css';
 @import '@fontsource/atkinson-hyperlegible-mono/700.css';
 
+// Positioning styles for the CDK overlay container (the emoji picker in lib-markdown-editor
+// renders through it, so it escapes the editor's `overflow-hidden` and the shell's viewport clip).
+// Must come before Tailwind's layers so utilities can still win. Its own z-index of 1000 is left
+// as the library ships it: it lands above the CSS-only `.modal-open` dialogs and below the
+// `system` token (9999) that toasts use, which is where a popover belongs on our scale.
+@import '@angular/cdk/overlay-prebuilt.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

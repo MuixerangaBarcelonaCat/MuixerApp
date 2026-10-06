@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
+import { ToastService } from '@muixer/ui';
 import { EventDetailComponent } from './event-detail.component';
 import { AttendanceStatus, EventPhase, EventType, UserRole } from '@muixer/shared';
 import { AttendanceSummary, EventDetail } from '../../models/event.model';
@@ -188,6 +189,7 @@ describe('EventDetailComponent — tabbed sections', () => {
     description: null,
     locationUrl: null,
     information: null,
+    notes: null,
     metadata: {},
     isSynced: false,
   };
@@ -209,6 +211,12 @@ describe('EventDetailComponent — tabbed sections', () => {
     },
   };
 
+  let downloadSummaryPdf: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    downloadSummaryPdf = vi.fn();
+  });
+
   const setup = async (
     eventOverrides: Partial<EventDetail> = {},
     queryParams: Record<string, string> = {},
@@ -222,7 +230,7 @@ describe('EventDetailComponent — tabbed sections', () => {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap({ id: EVENT_ID }), queryParams } },
         },
-        { provide: EventService, useValue: { getOne: () => of({ ...event, ...eventOverrides }) } },
+        { provide: EventService, useValue: { getOne: () => of({ ...event, ...eventOverrides }), downloadSummaryPdf } },
         { provide: AttendanceService, useValue: { getByEvent: () => of({ data: [attendance], meta: { total: 1, page: 1, limit: 100 } }) } },
         {
           provide: ParticipationService,
@@ -267,6 +275,26 @@ describe('EventDetailComponent — tabbed sections', () => {
 
   const panel = (fixture: ComponentFixture<EventDetailComponent>, tab: string): HTMLElement | null =>
     fixture.nativeElement.querySelector(`#event-tabpanel-${tab}`);
+
+  describe('notes panel', () => {
+    it('renders the notes panel above the tabs', async () => {
+      const fixture = await setup();
+      const notesPanel = fixture.nativeElement.querySelector('app-event-notes-panel') as HTMLElement;
+      const tabs = fixture.nativeElement.querySelector('lib-tabs') as HTMLElement;
+
+      expect(notesPanel).toBeTruthy();
+      expect(notesPanel.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('keeps the page state in sync when the panel saves, without refetching', async () => {
+      const fixture = await setup({ notes: 'Antic' });
+
+      fixture.componentInstance.onNotesSaved('Nou');
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.event()!.notes).toBe('Nou');
+    });
+  });
 
   describe('default tab', () => {
     it('opens on Pinyes i Figures', async () => {
@@ -419,6 +447,70 @@ describe('EventDetailComponent — tabbed sections', () => {
 
       expect(fixture.componentInstance.event()!.attendanceSummary.confirmed).toBe(12);
       expect(fixture.componentInstance.adultsCount()).toBe(10);
+    });
+  });
+
+  describe('Imprimeix', () => {
+    const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+
+    beforeEach(() => {
+      URL.createObjectURL = vi.fn().mockReturnValue('blob:fake');
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    afterEach(() => {
+      URL.createObjectURL = original.create;
+      URL.revokeObjectURL = original.revoke;
+      vi.restoreAllMocks();
+    });
+
+    const printButton = (fixture: ComponentFixture<EventDetailComponent>) =>
+      fixture.nativeElement.querySelector('[data-testid="event-print"] button') as HTMLButtonElement;
+
+    it('downloads the event summary PDF under the filename the API proposes', async () => {
+      const blob = new Blob(['%PDF-']);
+      downloadSummaryPdf.mockReturnValue(of({ blob, filename: '2026-07-22-assaig-general.pdf' }));
+      const downloads: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        downloads.push(this.download);
+      });
+      const fixture = await setup();
+
+      printButton(fixture).click();
+
+      expect(downloadSummaryPdf).toHaveBeenCalledWith(EVENT_ID);
+      expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+      expect(downloads).toEqual(['2026-07-22-assaig-general.pdf']);
+    });
+
+    it('shows a loading state and ignores clicks while the PDF is being generated', async () => {
+      const response = new Subject<{ blob: Blob; filename: string }>();
+      downloadSummaryPdf.mockReturnValue(response);
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      const fixture = await setup();
+
+      fixture.componentInstance.printSummary();
+      fixture.detectChanges();
+      fixture.componentInstance.printSummary();
+
+      expect(fixture.componentInstance.printing()).toBe(true);
+      expect(printButton(fixture).disabled).toBe(true);
+      expect(downloadSummaryPdf).toHaveBeenCalledTimes(1);
+
+      response.next({ blob: new Blob(), filename: 'a.pdf' });
+      response.complete();
+      expect(fixture.componentInstance.printing()).toBe(false);
+    });
+
+    it('shows an error toast when the PDF cannot be generated', async () => {
+      downloadSummaryPdf.mockReturnValue(throwError(() => new Error('500')));
+      const fixture = await setup();
+      const toastError = vi.spyOn(TestBed.inject(ToastService), 'error');
+
+      fixture.componentInstance.printSummary();
+
+      expect(toastError).toHaveBeenCalledWith("No s'ha pogut generar el PDF. Torneu a provar-ho més tard.");
+      expect(fixture.componentInstance.printing()).toBe(false);
     });
   });
 });

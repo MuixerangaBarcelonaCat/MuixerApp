@@ -128,6 +128,7 @@ export class EventService {
       locationUrl: dto.locationUrl ?? null,
       description: dto.description ?? null,
       information: dto.information ?? null,
+      notes: dto.notes ?? null,
       countsForStatistics: dto.countsForStatistics ?? true,
     });
 
@@ -171,6 +172,7 @@ export class EventService {
     if (dto.locationUrl !== undefined) event.locationUrl = dto.locationUrl ?? null;
     if (dto.description !== undefined) event.description = dto.description ?? null;
     if (dto.information !== undefined) event.information = dto.information ?? null;
+    if (dto.notes !== undefined) event.notes = dto.notes || null;
     if (dto.countsForStatistics !== undefined) event.countsForStatistics = dto.countsForStatistics;
 
     if (dto.seasonId !== undefined) {
@@ -321,6 +323,7 @@ export interface EventDetailItem extends EventListItem {
   description: string | null;
   locationUrl: string | null;
   information: string | null;
+  notes: string | null;
   metadata: Record<string, unknown>;
   isSynced: boolean;
 }
@@ -352,6 +355,7 @@ function toDetailItem(event: Event): EventDetailItem {
     description: event.description,
     locationUrl: event.locationUrl,
     information: event.information,
+    notes: event.notes,
     metadata: event.metadata as unknown as Record<string, unknown>,
     isSynced: event.legacyId !== null,
   };

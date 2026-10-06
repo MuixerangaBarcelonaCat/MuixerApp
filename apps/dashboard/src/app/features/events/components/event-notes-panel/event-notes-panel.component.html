@@ -1,0 +1,62 @@
+<lib-card>
+  <button
+    type="button"
+    class="flex w-full items-center gap-2 text-left min-h-8"
+    data-testid="event-notes-toggle"
+    [attr.aria-expanded]="expanded()"
+    aria-controls="event-notes-body"
+    (click)="toggle()"
+  >
+    <lucide-icon
+      [name]="expanded() ? ChevronDown : ChevronRight"
+      [size]="18"
+      class="text-base-content/50 shrink-0"
+    />
+    <span class="text-sm font-semibold shrink-0">Notes</span>
+  </button>
+
+  @if (expanded()) {
+    <div id="event-notes-body" class="mt-3 flex flex-col gap-3">
+      @if (error(); as message) {
+        <lib-alert variant="error" dense>{{ message }}</lib-alert>
+      }
+
+      <!-- Deferred: the editor carries Tiptap (~500 kB), so it must not be in the initial bundle.
+           `on immediate` rather than a viewport trigger because opening the panel is already the
+           user's signal that they want to edit. -->
+      @defer (on immediate) {
+        <lib-markdown-editor
+          ariaLabel="Notes de l'esdeveniment"
+          placeholder="Notes internes per a la tècnica..."
+          [value]="draft()"
+          [disabled]="saving()"
+          (valueChange)="draft.set($event)"
+        />
+      } @placeholder {
+        <div class="rounded-box border border-base-300 min-h-40"></div>
+      }
+
+      <div class="flex justify-end gap-2">
+        <lib-button
+          variant="ghost"
+          size="sm"
+          data-testid="event-notes-cancel"
+          [disabled]="!dirty() || saving()"
+          (clicked)="cancel()"
+        >
+          Cancel·la
+        </lib-button>
+        <lib-button
+          variant="primary"
+          size="sm"
+          data-testid="event-notes-save"
+          [disabled]="!dirty()"
+          [loading]="saving()"
+          (clicked)="save()"
+        >
+          Alça
+        </lib-button>
+      </div>
+    </div>
+  }
+</lib-card>

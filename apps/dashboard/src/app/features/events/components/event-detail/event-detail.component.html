@@ -48,7 +48,15 @@
             <lucide-icon name="ClipboardCheck" [size]="14" /> Confirmació
           </lib-button>
         }
-        <lib-button variant="info" outline size="sm" (clicked)="goToPrint()">
+        <lib-button
+          data-testid="event-print"
+          variant="primary"
+          outline
+          size="sm"
+          [loading]="printing()"
+          [disabled]="printing()"
+          (clicked)="printSummary()"
+        >
           <lucide-icon name="Printer" [size]="14" /> Imprimeix
         </lib-button>
         <lib-button variant="primary" outline size="sm" (clicked)="showEditModal.set(true)">Edita</lib-button>
@@ -111,6 +119,13 @@
         accentClass="text-info"
       />
     </div>
+
+    <!-- Observacions internes (només dashboard) -->
+    <app-event-notes-panel
+      [eventId]="ev.id"
+      [notes]="ev.notes"
+      (saved)="onNotesSaved($event)"
+    />
 
     <!-- Pestanyes -->
     <div class="mt-4">

@@ -7,6 +7,7 @@ import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { AlertComponent, ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, CardComponent } from '@muixer/ui';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
+import { EventNotesPanelComponent } from '../event-notes-panel/event-notes-panel.component';
 import { AttendanceListComponent } from '../attendance-list/attendance-list.component';
 import { EventParticipationComponent } from '../event-participation/event-participation.component';
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
@@ -16,6 +17,7 @@ import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '..
 import { getAdultsCount } from '../event-list/event-list.component';
 import { AttendanceStatus, attendanceGroupLabel, EventPhase, getEventPhase, isArrivalPhase, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
+import { saveBlob } from '../../../../core/utils/save-blob.util';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
 
@@ -41,6 +43,7 @@ export const EVENT_DETAIL_TABS: readonly EventDetailTab[] = [
     BadgeComponent,
     CardComponent,
     EventFormModalComponent,
+    EventNotesPanelComponent,
     StatCardComponent,
     SegmentManagerComponent,
     AttendanceListComponent,
@@ -78,6 +81,8 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   deleting = signal(false);
   deleteError = signal<string | null>(null);
 
+  printing = signal(false);
+
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
 
@@ -99,6 +104,11 @@ export class EventDetailComponent implements OnInit, OnDestroy {
    * switching back does not refetch or lose the filters the user had set.
    */
   private readonly visitedTabs = signal<ReadonlySet<EventDetailTab>>(new Set(['pinyes']));
+
+  /** The notes panel already persisted the value; mirror it locally instead of refetching. */
+  onNotesSaved(notes: string | null): void {
+    this.event.update((ev) => (ev ? { ...ev, notes } : ev));
+  }
 
   hasVisited(tab: EventDetailTab): boolean {
     return this.visitedTabs().has(tab);
@@ -215,12 +225,24 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.router.navigate(['/events', ev.id, 'confirmation']);
   }
 
-  goToPrint() {
-    const ev = this.event();
-    if (!ev) return;
-    this.router.navigate(['/events', ev.id, 'print']);
-  }
 
+  /** Downloads the printable summary (header, notes, segments) the API renders as a PDF. */
+  printSummary() {
+    const ev = this.event();
+    if (!ev || this.printing()) return;
+
+    this.printing.set(true);
+    this.eventService.downloadSummaryPdf(ev.id).subscribe({
+      next: ({ blob, filename }) => {
+        this.printing.set(false);
+        saveBlob(blob, filename);
+      },
+      error: () => {
+        this.printing.set(false);
+        this.toast.error("No s'ha pogut generar el PDF. Torneu a provar-ho més tard.");
+      },
+    });
+  }
 
   deleteEvent() {
     const ev = this.event();

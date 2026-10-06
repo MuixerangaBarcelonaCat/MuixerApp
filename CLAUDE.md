@@ -84,6 +84,7 @@ Modules under `src/modules/`:
 | `event-segment` | `EventSegment`, `FigureInstance`, `InstanceNode`, distribution, `ProjectionService` |
 | `node-assignment` | assignment logic, lazy snapshot, ad-hoc nodes |
 | `tag` | CRUD of person labels; entity maps to the legacy-named `positions` table (M:N with Person via `person_positions`); `category` **is the group** (PINYA/TRONC/XICALLA/ALTRES); person assignment via `POST/DELETE /tags/:id/persons`. `positionTypes` points at figure-node `positionType`s with no FK, no validation and no server-side filtering — see [docs/TAGS.md](docs/TAGS.md) |
+| `event-summary` | `GET /events/:id/summary.pdf` (TECHNICAL/ADMIN): printable event summary (header, notes, numbered segments with directors + tronc floors, two flowing columns). Compiled in-process by Typst (`@myriaddreamin/typst-ts-node-compiler`) from `assets/typst/event-summary.typ`; data enters as JSON only; notes rendered by vendored `cmarker` with `raw-typst: false` — see [docs/EVENT_SUMMARY_PDF.md](docs/EVENT_SUMMARY_PDF.md) |
 | `me` | member-scoped API consumed by the PWA (own events/attendance, published segments + projection) |
 | `legal` | legal documents (terms/privacy) + versioning, consent read/accept |
 | `audit` | `AuditLog` entity + service; records sensitive mutations |
@@ -111,7 +112,7 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 - `/config` → `ConfigComponent`, with `/config/users`, `/config/tags`, `/config/seasons`, `/config/legal` (ADMIN only)
 - `/design-system` → live token/component reference (ADMIN only, see below)
 
-**Shared components** (`shared/components/`): `data/` (page-header, data-table, filter-bar, active-filters, column-toggle, pagination, stat-card) · `forms/` (emoji-picker, person-search-input) · `layout/` (header, tab-nav, user-chip). Compose list pages with these — never build raw table/pagination HTML. Buttons/badges/cards/inputs/modals/toasts/empty-states come from `@muixer/ui` (`lib-button`/`lib-badge`/`lib-card`/`lib-input`/`lib-modal`/`lib-toast-container`/`lib-empty-state`) — see **Design system** below before adding a new one of these by hand.
+**Shared components** (`shared/components/`): `data/` (page-header, data-table, filter-bar, active-filters, column-toggle, pagination, stat-card) · `forms/` (emoji-picker, person-search-input) · `layout/` (header, tab-nav, user-chip). Compose list pages with these — never build raw table/pagination HTML. Buttons/badges/cards/inputs/modals/toasts/empty-states come from `@muixer/ui` (`lib-button`/`lib-badge`/`lib-card`/`lib-input`/`lib-modal`/`lib-toast-container`/`lib-empty-state`) — see **Design system** below before adding a new one of these by hand. Rich text is `lib-markdown-editor`, imported from `@muixer/ui/markdown-editor` (**not** the barrel) and always behind an `@defer` — it carries Tiptap; rendering stored markdown for display is `MarkdownService` from `@muixer/ui/markdown`.
 
 `app-data-table` has a **responsive card mode** below `lg` (`matchMedia`); flag the title column with `primary: true` in its `ColumnDef`.
 
