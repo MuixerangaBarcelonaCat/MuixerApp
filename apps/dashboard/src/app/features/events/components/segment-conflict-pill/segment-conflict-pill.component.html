@@ -1,0 +1,61 @@
+@if (conflicts().length; as count) {
+  <!-- Focusable so keyboard and touch (tap focuses) users can open the list too. -->
+  <span
+    #trigger
+    tabindex="0"
+    class="inline-flex rounded-badge focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+    [attr.aria-describedby]="open() ? popoverId : null"
+    (mouseenter)="show()"
+    (mouseleave)="scheduleHide()"
+    (focus)="show()"
+    (blur)="hide()"
+    (keydown.escape)="hide()"
+    data-testid="segment-conflict-pill"
+  >
+    <lib-badge variant="error" size="sm">
+      <span class="inline-flex items-center gap-1">
+        <lucide-icon [name]="ICON_CONFLICT" [size]="11" />
+        {{ count }} {{ count === 1 ? 'conflicte' : 'conflictes' }}
+      </span>
+    </lib-badge>
+  </span>
+
+  <!-- `inset-auto m-0` cancel the `[popover]` UA stylesheet's default centering (see the color
+       picker) so the explicit top/bottom/left below apply. -->
+  @if (open()) {
+    <div
+      #popoverRef
+      popover="manual"
+      role="tooltip"
+      [id]="popoverId"
+      class="fixed inset-auto m-0 z-dropdown w-72 max-h-80 overflow-y-auto bg-base-100 border border-base-300 rounded-box shadow-overlay p-3 text-sm text-base-content"
+      [style.top.px]="position()?.top"
+      [style.bottom.px]="position()?.bottom"
+      [style.left.px]="position()?.left"
+      (mouseenter)="cancelClose()"
+      (mouseleave)="scheduleHide()"
+      data-testid="segment-conflict-popover"
+    >
+      <ul class="flex flex-col gap-2">
+        @for (conflict of conflicts(); track conflict.personId) {
+          <li>
+            <div class="font-medium truncate">{{ conflict.personAlias }}</div>
+            <ul class="flex flex-col gap-0.5 mt-0.5">
+              @for (placement of conflict.placements; track placement.assignmentId) {
+                <li class="flex items-center gap-2">
+                  <span class="shrink-0">
+                    <lib-badge [variant]="placement.area === 'TRONC' ? 'error' : 'ghost'" size="xs">
+                      {{ areaLabel(placement.area) }}
+                    </lib-badge>
+                  </span>
+                  <span class="truncate">{{ placementLabel(placement) }}</span>
+                </li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+      <p class="mt-2 text-xs text-base-content/60">Resoleu-los des de l'assignació.</p>
+    </div>
+  }
+}

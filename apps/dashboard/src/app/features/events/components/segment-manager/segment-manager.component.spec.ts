@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceDetail, EventAssignmentSummary, EventFigureSummary, SegmentPeopleCounters } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceDetail, EventAssignmentSummary, EventFigureSummary, SegmentPeopleCounters, SegmentConflict } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi, afterEach } from 'vitest';
@@ -953,6 +953,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -976,6 +977,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -999,6 +1001,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -1034,6 +1037,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [makeFigureSummary({ instanceId: 'inst-uuid-1', directions })],
@@ -1093,6 +1097,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -1113,6 +1118,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -1132,6 +1138,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [makeFigureSummary({ pinya: makeAreaCount(0, 0), total: makeAreaCount(3, 3) })],
@@ -1158,36 +1165,13 @@ describe('SegmentManagerComponent', () => {
       ...over,
     });
 
-    it('segmentConflictCount is 0 in production (no conflicts) so the pill fragment is hidden', () => {
-      loadSummary({
-        segments: [
-          { segmentId: 'seg-1', segmentName: 'Bloc 1', conflicts: counters(), sortOrder: 0, figures: [makeFigureSummary()] },
-        ],
-      });
-      expect(component.segmentConflictCount(makeSegment({ id: 'seg-1' }))).toBe(0);
-    });
-
-    it('segmentConflictCount reflects the segment conflictPersonCount', () => {
-      loadSummary({
-        segments: [
-          {
-            segmentId: 'seg-1',
-            segmentName: 'Bloc 1',
-            conflicts: counters({ conflictPersonCount: 3 }),
-            sortOrder: 0,
-            figures: [makeFigureSummary()],
-          },
-        ],
-      });
-      expect(component.segmentConflictCount(makeSegment({ id: 'seg-1' }))).toBe(3);
-    });
-
     it('segmentDotacioTooltip reports distinct people per area', () => {
       loadSummary({
         segments: [
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: counters({
               distinctPersonCount: 45,
               tronc: { distinctPersonCount: 8 },
@@ -1203,8 +1187,52 @@ describe('SegmentManagerComponent', () => {
       expect(tooltip).toContain('43');
     });
 
-    it('segmentConflictCount is 0 for a segment with no summary', () => {
-      expect(component.segmentConflictCount(makeSegment({ id: 'unknown' }))).toBe(0);
+    it('segmentConflicts returns the segment conflict list from the summary', () => {
+      const conflict: SegmentConflict = {
+        personId: 'p1',
+        personAlias: 'Pepet',
+        kind: 'PINYA_PINYA',
+        suggestedRemovalAssignmentIds: [],
+        placements: [],
+      };
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            conflictList: [conflict],
+            conflicts: counters({ conflictPersonCount: 1 }),
+            sortOrder: 0,
+            figures: [makeFigureSummary()],
+          },
+        ],
+      });
+      expect(component.segmentConflicts(makeSegment({ id: 'seg-1' }))).toEqual([conflict]);
+      expect(component.segmentConflicts(makeSegment({ id: 'unknown' }))).toEqual([]);
+    });
+
+    it('renders the hoverable conflict pill in the segment header when the segment has conflicts', () => {
+      (segmentService.getByEvent as ReturnType<typeof vi.fn>).mockReturnValue(
+        of({ data: [makeSegment({ id: 'seg-1' })] }),
+      );
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            conflictList: [
+              { personId: 'p1', personAlias: 'Pepet', kind: 'PINYA_PINYA', suggestedRemovalAssignmentIds: [], placements: [] },
+            ],
+            conflicts: counters({ conflictPersonCount: 1 }),
+            sortOrder: 0,
+            figures: [makeFigureSummary()],
+          },
+        ],
+      });
+      fixture.detectChanges();
+
+      const pill = fixture.nativeElement.querySelector('[data-testid="segment-conflict-pill"]') as HTMLElement | null;
+      expect(pill?.textContent).toContain('1 conflicte');
     });
   });
 
@@ -1775,6 +1803,7 @@ describe('SegmentManagerComponent', () => {
             {
               segmentId: 'seg-1',
               segmentName: 'Bloc 1',
+              conflictList: [],
               conflicts: makeEmptyCounters(),
               sortOrder: 0,
               figures: [makeFigureSummary({ pinya: makeAreaCount(3, 5), total: makeAreaCount(3, 5) })],
@@ -1838,6 +1867,7 @@ describe('SegmentManagerComponent', () => {
               {
                 segmentId: 'seg-1',
                 segmentName: 'Bloc 1',
+                conflictList: [],
                 conflicts: makeEmptyCounters(),
                 sortOrder: 0,
                 figures: [

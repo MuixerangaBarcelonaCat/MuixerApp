@@ -1,11 +1,10 @@
 export type {
-  EventAssignmentSummary,
   EventFigureSummary,
-  EventSegmentSummary,
   FigureAreaCount,
 } from '@muixer/shared';
 
 import { FigureZone, ImportScope, TagCategory } from '@muixer/shared';
+import type { EventSegmentSummary as SharedEventSegmentSummary } from '@muixer/shared';
 
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
@@ -100,6 +99,15 @@ export interface SegmentConflict {
   placements: ConflictPlacement[];
   kind: SegmentConflictKind;
   suggestedRemovalAssignmentIds: string[];
+}
+
+/** The shared summary, with `conflictList` in this library's string-union conflict types. */
+export type EventSegmentSummary = Omit<SharedEventSegmentSummary, 'conflictList'> & {
+  conflictList: SegmentConflict[];
+};
+
+export interface EventAssignmentSummary {
+  segments: EventSegmentSummary[];
 }
 
 /** Dotació/conflict counters for a whole segment (over every assignment, not just conflicted ones). */

@@ -36,6 +36,7 @@ import {
   ImportScope,
   zonesForScope,
   getSegmentInstanceLabel,
+  computeInstanceDisplayNames,
   formatTroncSummary,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
@@ -1330,9 +1331,34 @@ export class NodeAssignmentService {
       else assignmentsBySegment.set(segmentId, [a]);
     }
 
+    // The assignments above load `figureInstance` without its template (classifySegmentConflicts
+    // would name every placement "Sense plantilla"), so names come from the instances instead,
+    // numbered per segment like the segment list («Pilar 1», «Pilar 2»).
+    const figureNameByInstanceId = new Map<string, string>();
+    for (const segmentInstances of instancesBySegment.values()) {
+      const names = computeInstanceDisplayNames(
+        [...segmentInstances]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((fi) => ({
+            id: fi.id,
+            label: fi.label,
+            figureMode: fi.figureMode,
+            // hasPinya is unused by getSegmentInstanceLabel (see its doc comment).
+            figureTemplate: fi.figureTemplate ? { name: fi.figureTemplate.name, hasPinya: false } : null,
+          })),
+      );
+      for (const [id, name] of names) figureNameByInstanceId.set(id, name);
+    }
+
     const result: EventSegmentSummary[] = segments.map((segment) => {
       const segmentAssignments = assignmentsBySegment.get(segment.id) ?? [];
-      const segmentConflicts = this.classifySegmentConflicts(segmentAssignments);
+      const segmentConflicts = this.classifySegmentConflicts(segmentAssignments).map((conflict) => ({
+        ...conflict,
+        placements: conflict.placements.map((p) => ({
+          ...p,
+          figureName: figureNameByInstanceId.get(p.figureInstanceId) ?? p.figureName,
+        })),
+      }));
       const conflictAssignmentIdsByInstance = new Map<string, Set<string>>();
       for (const conflict of segmentConflicts) {
         for (const placement of conflict.placements) {
@@ -1363,6 +1389,7 @@ export class NodeAssignmentService {
         sortOrder: segment.sortOrder,
         figures,
         conflicts: this.computeSegmentPeopleCounters(segmentAssignments, segmentConflicts),
+        conflictList: segmentConflicts,
       };
     });
 

@@ -4,7 +4,7 @@ import { FigureZone } from '../../enums/figure-zone.enum';
 import { NodeShape } from '../../enums/node-shape.enum';
 import { TagCategory } from '../../enums/tag-category.enum';
 import { PaginatedMeta } from '../pagination.interface';
-import { ConflictPlacement, SegmentPeopleCounters } from './segment-conflict.interfaces';
+import { ConflictPlacement, SegmentConflict, SegmentPeopleCounters } from './segment-conflict.interfaces';
 import { DirectionAssignmentEntry } from '../../utils/direction-summary.util';
 
 // ── Core assignment types ───────────────────────────────────────────────────
@@ -177,6 +177,8 @@ export interface EventSegmentSummary {
   sortOrder: number;
   figures: EventFigureSummary[];
   conflicts: SegmentPeopleCounters;
+  /** The segment's canonical conflicts (D13) — who is in conflict and where. Empty when none. */
+  conflictList: SegmentConflict[];
 }
 
 export interface EventAssignmentSummary {

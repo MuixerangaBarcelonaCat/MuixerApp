@@ -2034,6 +2034,94 @@ describe('NodeAssignmentService', () => {
       expect(mockAssignmentRepo.find).toHaveBeenCalledTimes(1);
     });
 
+    it('exposes each segment conflict list, naming figures from the already-loaded instances', async () => {
+      const person = makePerson();
+      const troncNode = makeInstanceNode({ id: 'n1', zone: FigureZone.TRONC, label: 'Baix' });
+      const pinyaNode = makeInstanceNode({ id: 'n2', zone: FigureZone.PINYA, label: 'R2' });
+      const makeFi = (id: string, name: string) => ({
+        id,
+        figureTemplate: { id: `${TEMPLATE_ID}-${id}`, name, nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      });
+      // The summary query loads `figureInstance` without its template, as in production.
+      const troncAssignment = { id: 'assignment-a1', instanceNode: troncNode, person, figureInstance: { id: 'fi-1' } };
+      const pinyaAssignment = { id: 'assignment-a2', instanceNode: pinyaNode, person, figureInstance: { id: 'fi-2' } };
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([makeFi('fi-1', 'Pilar de 4'), makeFi('fi-2', 'Torre de 7')]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        { ...troncNode, figureInstance: { id: 'fi-1' } },
+        { ...pinyaNode, figureInstance: { id: 'fi-2' } },
+      ]);
+      mockAssignmentRepo.find.mockResolvedValue([troncAssignment, pinyaAssignment]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].conflictList).toEqual([
+        expect.objectContaining({
+          personId: PERSON_ID,
+          personAlias: 'Pepet',
+          kind: SegmentConflictKind.TRONC_PINYA,
+          placements: [
+            expect.objectContaining({ figureInstanceId: 'fi-1', figureName: 'Pilar de 4', nodeLabel: 'Baix', area: 'TRONC' }),
+            expect.objectContaining({ figureInstanceId: 'fi-2', figureName: 'Torre de 7', nodeLabel: 'R2', area: 'PINYA' }),
+          ],
+        }),
+      ]);
+      expect(mockAssignmentRepo.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('names conflict placements like the segment list, so two figures of the same template can be told apart', async () => {
+      const person = makePerson();
+      const n1 = makeInstanceNode({ id: 'n1', zone: FigureZone.TRONC, label: 'Baix' });
+      const n2 = makeInstanceNode({ id: 'n2', zone: FigureZone.TRONC, label: 'Baix' });
+      const makeFi = (id: string, sortOrder: number) => ({
+        id,
+        label: null,
+        sortOrder,
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', hasPinya: true, nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      });
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      // Loaded out of order: the numbers must follow sortOrder, as in the segment list.
+      mockInstanceRepo.find.mockResolvedValue([makeFi('fi-2', 2), makeFi('fi-1', 1)]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        { ...n1, figureInstance: { id: 'fi-1' } },
+        { ...n2, figureInstance: { id: 'fi-2' } },
+      ]);
+      mockAssignmentRepo.find.mockResolvedValue([
+        { id: 'a1', instanceNode: n1, person, figureInstance: { id: 'fi-1' } },
+        { id: 'a2', instanceNode: n2, person, figureInstance: { id: 'fi-2' } },
+      ]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      const names = result.segments[0].conflictList[0].placements.map((p) => [p.figureInstanceId, p.figureName]);
+      expect(Object.fromEntries(names)).toEqual({ 'fi-1': 'Pilar 1', 'fi-2': 'Pilar 2' });
+    });
+
+    it('returns an empty conflict list for a segment without conflicts', async () => {
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([]);
+      mockAssignmentRepo.find.mockResolvedValue([]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].conflictList).toEqual([]);
+    });
+
     it('returns empty segments array when event has no segments', async () => {
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([]);

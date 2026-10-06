@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceDetail, FigureMode, InstanceTroncSummary, TroncFloorData, MoveInstanceResult, EventFigureSummary, FigureAreaCount, SegmentPeopleCounters } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceDetail, FigureMode, InstanceTroncSummary, TroncFloorData, MoveInstanceResult, EventFigureSummary, FigureAreaCount, SegmentPeopleCounters, SegmentConflict } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,7 +15,6 @@ import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '../../../../shared/constants/domain-icons';
 import {
-  ICON_OBSERVACIONS,
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
   getSegmentInstanceLabel,
@@ -37,6 +36,7 @@ import {
 } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
 import { FigureModeChangeComponent } from '../../../pinyes/components/figure-mode-change/figure-mode-change.component';
 import { CordonsChangeComponent } from '../../../pinyes/components/cordons-change/cordons-change.component';
+import { SegmentConflictPillComponent } from '../segment-conflict-pill/segment-conflict-pill.component';
 import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 export type ViewMode = FiguresViewMode;
@@ -67,6 +67,7 @@ interface PendingInstanceRemoval {
     FigurePickerModalComponent,
     FigureModeChangeComponent,
     CordonsChangeComponent,
+    SegmentConflictPillComponent,
   ],
   templateUrl: './segment-manager.component.html',
 })
@@ -83,7 +84,6 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_TRONC = ICON_TRONC;
   readonly ICON_RENGLA = ICON_RENGLA;
   readonly ICON_DIRECCIO = ICON_DIRECCIO;
-  readonly ICON_CONFLICT = ICON_OBSERVACIONS;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -127,6 +127,8 @@ export class SegmentManagerComponent implements OnInit {
   private readonly figuresBySegment = signal<Map<string, EventFigureSummary[]>>(new Map());
   /** Segment-level dotació/conflict counters (Phase 3). Empty in production until Phase 5. */
   private readonly conflictsBySegment = signal<Map<string, SegmentPeopleCounters>>(new Map());
+  /** Who is in conflict and where, per segment — feeds the conflict pill's hover list. */
+  private readonly conflictListBySegment = signal<Map<string, SegmentConflict[]>>(new Map());
   private readonly figureSummaryByInstance = computed(() => {
     const map = new Map<string, EventFigureSummary>();
     for (const figures of this.figuresBySegment().values()) {
@@ -152,6 +154,7 @@ export class SegmentManagerComponent implements OnInit {
       next: (summary) => {
         this.figuresBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.figures])));
         this.conflictsBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.conflicts])));
+        this.conflictListBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.conflictList])));
       },
       error: () => undefined,
     });
@@ -676,9 +679,8 @@ export class SegmentManagerComponent implements OnInit {
     return `${this.formatAreaCount(pinya)} pinyes, ${totalPart}`;
   }
 
-  /** People holding >1 placement in the segment (Phase 3). 0 in production until Phase 5. */
-  segmentConflictCount(segment: SegmentDetail): number {
-    return this.conflictsBySegment().get(segment.id)?.conflictPersonCount ?? 0;
+  segmentConflicts(segment: SegmentDetail): SegmentConflict[] {
+    return this.conflictListBySegment().get(segment.id) ?? [];
   }
 
   /** Tooltip with dotació per àrea (distinct people at tronc / pinya). Null when no summary. */

@@ -227,15 +227,8 @@
                   </span>
                 }
 
-                <!-- Conflict count pill (Phase 3) — hidden in production (0 conflicts) -->
-                @if (segmentConflictCount(segment); as conflictCount) {
-                  <lib-badge variant="error" size="sm">
-                    <span class="inline-flex items-center gap-1">
-                      <lucide-icon [name]="ICON_CONFLICT" [size]="11" />
-                      {{ conflictCount }} {{ conflictCount === 1 ? 'conflicte' : 'conflictes' }}
-                    </span>
-                  </lib-badge>
-                }
+                <!-- Conflict count pill — lists the conflicts on hover/focus; renders nothing without conflicts -->
+                <app-segment-conflict-pill [conflicts]="segmentConflicts(segment)" />
 
                 <!-- Visibility toggle -->
                 <span class="contents">
