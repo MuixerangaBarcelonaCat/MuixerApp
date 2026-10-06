@@ -86,6 +86,7 @@ const mockCompositionRepo = {
 const mockSegmentService = {
   getOne: jest.fn(),
   loadTotalCordons: jest.fn().mockResolvedValue(new Map()),
+  loadCordonsObertsInstanceIds: jest.fn().mockResolvedValue(new Set()),
 };
 
 const mockNodeAssignmentService = {
@@ -294,6 +295,20 @@ describe('FigureInstanceService', () => {
 
       expect(mockSegmentService.loadTotalCordons).toHaveBeenCalledWith([FIGURE_ID]);
       expect(result.totalCordons).toBe(4);
+    });
+
+    it('returns hasCordonsOberts from segmentService.loadCordonsObertsInstanceIds (shared with the segment list)', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.COMPLETA }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+      mockSegmentService.loadCordonsObertsInstanceIds.mockResolvedValueOnce(new Set([INSTANCE_ID]));
+
+      const result = await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      expect(mockSegmentService.loadCordonsObertsInstanceIds).toHaveBeenCalledWith([INSTANCE_ID]);
+      expect(result.hasCordonsOberts).toBe(true);
     });
 
     it('does not call loadTotalCordons and returns totalCordons null for REMAT/NETA instances', async () => {

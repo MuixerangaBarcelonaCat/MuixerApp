@@ -1905,14 +1905,32 @@ export class NodeAssignmentService {
   }
 
   /**
+   * Read-only counterpart to removeCordoObertAssignments(): how many assignments turning
+   * cordonsObertsEnabled off WOULD remove. Both go through cordoObertNodeIds() so the count
+   * shown in the confirmation and what actually gets removed can never diverge.
+   */
+  async previewCordonsObertsDisable(instanceId: string): Promise<number> {
+    const cordoObertNodeIds = await this.cordoObertNodeIds(instanceId);
+    if (cordoObertNodeIds.length === 0) return 0;
+
+    return this.assignmentRepository.count({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(cordoObertNodeIds) } },
+    });
+  }
+
+  private async cordoObertNodeIds(instanceId: string): Promise<string[]> {
+    const nodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    return nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id);
+  }
+
+  /**
    * Deletes assignments on cordo-obert nodes — called when cordonsObertsEnabled
    * is turned off, since those nodes become hidden from the assignment UI.
    */
   private async removeCordoObertAssignments(instanceId: string): Promise<number> {
-    const nodes = await this.instanceNodeRepository.find({
-      where: { figureInstance: { id: instanceId } },
-    });
-    const cordoObertNodeIds = nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id);
+    const cordoObertNodeIds = await this.cordoObertNodeIds(instanceId);
     if (cordoObertNodeIds.length === 0) return 0;
 
     const assignments = await this.assignmentRepository.find({

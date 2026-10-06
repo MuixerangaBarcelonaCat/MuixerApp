@@ -91,6 +91,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -170,7 +171,7 @@ describe('DistribucioTabComponent', () => {
   let ws: SegmentWorkspaceStateService;
   let distributionService: { getDistribution: MockFn; saveDistribution: MockFn; clearDistribution: MockFn };
   let instanceService: { update: MockFn };
-  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getSegmentAssignmentState: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; getSegmentConflicts: MockFn; updateCordons: MockFn; previewCordonsImpact: MockFn; previewFigureModeImpact: MockFn };
+  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getSegmentAssignmentState: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; getSegmentConflicts: MockFn; updateCordons: MockFn; previewCordonsImpact: MockFn; previewCordonsObertsImpact: MockFn; previewFigureModeImpact: MockFn };
   let toast: { success: MockFn; error: MockFn; info: MockFn; warning: MockFn };
 
   const setup = async (opts: {
@@ -197,6 +198,7 @@ describe('DistribucioTabComponent', () => {
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
       updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: 2, cordonsObertsEnabled: true, removedAssignments: 0 })),
       previewCordonsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
+      previewCordonsObertsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
       previewFigureModeImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() };
@@ -372,6 +374,7 @@ describe('DistribucioTabComponent', () => {
         getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
         updateCordons: vi.fn(),
         previewCordonsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
+        previewCordonsObertsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
         previewFigureModeImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
       };
       toast = { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() };
@@ -698,7 +701,7 @@ describe('DistribucioTabComponent', () => {
       expect(assignmentService.updateCordons).not.toHaveBeenCalled();
       const cordonsChange = fixture.debugElement.query(By.directive(CordonsChangeComponent))
         .componentInstance as CordonsChangeComponent;
-      expect(cordonsChange.pending()).toEqual({ instanceId: INST_A, numberOfCordons: 1, affectedCount: 1 });
+      expect(cordonsChange.pending()).toEqual({ kind: 'count', instanceId: INST_A, numberOfCordons: 1, affectedCount: 1 });
     });
 
     it('reloads the distribution once the shared component confirms and applies a cordons change', async () => {
@@ -836,88 +839,29 @@ describe('DistribucioTabComponent', () => {
       expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
     });
 
-    it('disabling with no cordo-obert assignments calls updateCordons directly', async () => {
-      const items = [
-        makeDistributionItem(INST_A, {
-          figureTemplate: {
-            id: 'tpl-a',
-            name: 'Figura a',
-            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
-          },
-          assignments: [],
-        }),
-      ];
-      await setup({ items });
+    it('disabling delegates to the shared CordonsChangeComponent, asking the real backend for the impact', async () => {
+      await setup();
+      assignmentService.previewCordonsObertsImpact.mockReturnValue(of({ affectedCount: 1 }));
       component.onSlotSelected(INST_A);
 
       component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
 
-      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { cordonsObertsEnabled: false });
-      expect(component.pendingCordonsObertsChange()).toBeNull();
-    });
-
-    it('disabling with existing cordo-obert assignments asks for confirmation first', async () => {
-      const items = [
-        makeDistributionItem(INST_A, {
-          figureTemplate: {
-            id: 'tpl-a',
-            name: 'Figura a',
-            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
-          },
-          assignments: [{ figureNodeId: 'co', personId: 'person-uuid-1', personAlias: 'JoanP' }],
-        }),
-      ];
-      await setup({ items });
-      component.onSlotSelected(INST_A);
-
-      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
-
+      expect(assignmentService.previewCordonsObertsImpact).toHaveBeenCalledWith(INST_A);
       expect(assignmentService.updateCordons).not.toHaveBeenCalled();
-      expect(component.pendingCordonsObertsChange()).toEqual({ id: INST_A, affectedCount: 1 });
+      const cordonsChange = fixture.debugElement.query(By.directive(CordonsChangeComponent))
+        .componentInstance as CordonsChangeComponent;
+      expect(cordonsChange.pending()).toEqual({ kind: 'oberts', instanceId: INST_A, affectedCount: 1 });
     });
 
-    it('confirming the pending cordons oberts change calls updateCordons and reloads', async () => {
-      const items = [
-        makeDistributionItem(INST_A, {
-          figureTemplate: {
-            id: 'tpl-a',
-            name: 'Figura a',
-            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
-          },
-          assignments: [{ figureNodeId: 'co', personId: 'person-uuid-1', personAlias: 'JoanP' }],
-        }),
-      ];
-      await setup({ items });
+    it('disabling with no affected assignments applies directly and reloads the distribution', async () => {
+      await setup();
       component.onSlotSelected(INST_A);
-      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
       distributionService.getDistribution.mockClear();
 
-      component.confirmCordonsObertsChange();
+      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
 
       expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { cordonsObertsEnabled: false });
       expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
-      expect(component.pendingCordonsObertsChange()).toBeNull();
-    });
-
-    it('cancelling the pending cordons oberts change does not call updateCordons', async () => {
-      const items = [
-        makeDistributionItem(INST_A, {
-          figureTemplate: {
-            id: 'tpl-a',
-            name: 'Figura a',
-            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
-          },
-          assignments: [{ figureNodeId: 'co', personId: 'person-uuid-1', personAlias: 'JoanP' }],
-        }),
-      ];
-      await setup({ items });
-      component.onSlotSelected(INST_A);
-      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
-
-      component.cancelCordonsObertsChange();
-
-      expect(assignmentService.updateCordons).not.toHaveBeenCalled();
-      expect(component.pendingCordonsObertsChange()).toBeNull();
     });
   });
 

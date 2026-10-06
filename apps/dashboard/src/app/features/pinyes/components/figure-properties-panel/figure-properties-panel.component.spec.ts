@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { FigurePropertiesPanelComponent, FigurePropertiesEntry } from './figure-properties-panel.component';
 
 const makeEntry = (overrides: Partial<FigurePropertiesEntry> = {}): FigurePropertiesEntry => ({
@@ -240,6 +241,16 @@ describe('FigurePropertiesPanelComponent', () => {
     it('is shown when the figure has cordo-obert nodes', () => {
       const fixture = create(makeEntry({ hasCordoObertNodes: true }));
       expect(fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))).toBeTruthy();
+    });
+
+    it('carries the cordons oberts domain icon next to its label', () => {
+      const fixture = create(makeEntry({ hasCordoObertNodes: true }));
+      const paths = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('[data-cordons-oberts-checkbox] lucide-icon svg path'),
+      ).map((p) => p.getAttribute('d'));
+      const expected = DOMAIN_ICONS.CORDONS_OBERTS.filter(([tag]) => tag === 'path').map(([, attrs]) => attrs['d']);
+      expect(expected.length).toBeGreaterThan(0);
+      expect(paths).toEqual(expected);
     });
 
     // lib-checkbox's first ngModel write is a *new* standalone NgModel registration — Angular

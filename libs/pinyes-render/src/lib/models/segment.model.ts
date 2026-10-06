@@ -13,6 +13,8 @@ export interface InstanceDetail {
   totalCordons: number | null;
   numberOfCordons: number | null;
   cordonsObertsEnabled: boolean;
+  /** Whether the template has any cordo-obert nodes — false means there's nothing to toggle. */
+  hasCordonsOberts: boolean;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;

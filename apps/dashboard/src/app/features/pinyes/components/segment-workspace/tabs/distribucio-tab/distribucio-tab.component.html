@@ -82,24 +82,8 @@
   }
 </div>
 
-<!-- Cordons reduction confirmation (shared with the segment list) -->
+<!-- Cordons count / cordons oberts confirmation (shared with the segment list) -->
 <app-cordons-change (changed)="onCordonsChangeApplied()" />
-
-<!-- Cordons oberts disable confirmation modal -->
-<lib-modal [open]="!!pendingCordonsObertsChange()" title="Desactiva els cordons oberts" (closed)="cancelCordonsObertsChange()">
-  @if (pendingCordonsObertsChange(); as pendingOberts) {
-    <p class="text-sm text-base-content/70">
-      Esta acció eliminarà
-      <strong class="text-error">{{ pendingOberts.affectedCount }} assignacions</strong>
-      dels cordons oberts. Les persones assignades quedaran lliures.
-    </p>
-    <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
-  }
-  <div modalFooter class="flex justify-end gap-2 w-full">
-    <lib-button variant="ghost" size="sm" (clicked)="cancelCordonsObertsChange()">Cancel·la</lib-button>
-    <lib-button variant="error" size="sm" (clicked)="confirmCordonsObertsChange()">Elimina-les</lib-button>
-  </div>
-</lib-modal>
 
 <!-- Figure mode change confirmation (shared with the segment list) -->
 <app-figure-mode-change (changed)="onFigureModeChangeApplied()" />

@@ -547,7 +547,7 @@ export class FigureInstanceService {
 
     const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
 
-    const [countResult, pinyaResult, pinyaAssignedResult, totalCordonsMap] = await Promise.all([
+    const [countResult, pinyaResult, pinyaAssignedResult, totalCordonsMap, cordonsObertsInstanceIds] = await Promise.all([
       this.dataSource.query(
         `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
         [id],
@@ -567,6 +567,7 @@ export class FigureInstanceService {
       hasPinyaFigure && instance.figureTemplate
         ? this.segmentService.loadTotalCordons([instance.figureTemplate.id])
         : Promise.resolve(new Map<string, number>()),
+      this.segmentService.loadCordonsObertsInstanceIds([instance.id]),
     ]);
 
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
@@ -585,6 +586,7 @@ export class FigureInstanceService {
       totalCordons,
       numberOfCordons: instance.numberOfCordons ?? null,
       cordonsObertsEnabled: instance.cordonsObertsEnabled,
+      hasCordonsOberts: cordonsObertsInstanceIds.has(instance.id),
       figureMode: instance.figureMode ?? FigureMode.COMPLETA,
       figureTemplate: instance.figureTemplate
         ? {

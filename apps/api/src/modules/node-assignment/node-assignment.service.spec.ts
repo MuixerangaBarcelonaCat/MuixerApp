@@ -3962,6 +3962,32 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  describe('previewCordonsObertsDisable', () => {
+    it('counts assignments on cordo-obert nodes, without removing them', async () => {
+      const cordoObertNode = makeInstanceNode({ id: 'inode-co', positionType: 'cordo-obert' });
+      const otherNode = makeInstanceNode({ id: 'inode-other', positionType: 'mans' });
+      mockInstanceNodeRepo.find.mockResolvedValue([cordoObertNode, otherNode]);
+      mockAssignmentRepo.count.mockResolvedValue(2);
+
+      const result = await service.previewCordonsObertsDisable(INSTANCE_ID);
+
+      expect(mockAssignmentRepo.count).toHaveBeenCalledWith({
+        where: { figureInstance: { id: INSTANCE_ID }, instanceNode: { id: In(['inode-co']) } },
+      });
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+      expect(result).toBe(2);
+    });
+
+    it('returns 0 without querying assignments when the instance has no cordo-obert nodes', async () => {
+      mockInstanceNodeRepo.find.mockResolvedValue([makeInstanceNode({ id: 'inode-other', positionType: 'mans' })]);
+
+      const result = await service.previewCordonsObertsDisable(INSTANCE_ID);
+
+      expect(mockAssignmentRepo.count).not.toHaveBeenCalled();
+      expect(result).toBe(0);
+    });
+  });
+
   describe('previewFigureModeChange', () => {
     it('counts PINYA and BASE assignments for REMAT, without removing them', async () => {
       const pinyaNode = makeInstanceNode({ id: 'inode-pinya', zone: FigureZone.PINYA });

@@ -97,6 +97,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,

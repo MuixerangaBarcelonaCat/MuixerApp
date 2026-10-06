@@ -61,6 +61,7 @@ const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail =
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -104,6 +105,7 @@ describe('SegmentManagerComponent', () => {
     getEventAssignmentSummary: ReturnType<typeof vi.fn>;
     updateCordons: ReturnType<typeof vi.fn>;
     previewCordonsImpact: ReturnType<typeof vi.fn>;
+    previewCordonsObertsImpact: ReturnType<typeof vi.fn>;
     previewFigureModeImpact: ReturnType<typeof vi.fn>;
   };
   let toastService: {
@@ -141,6 +143,7 @@ describe('SegmentManagerComponent', () => {
       getEventAssignmentSummary: vi.fn().mockReturnValue(of({ segments: [] } satisfies EventAssignmentSummary)),
       updateCordons: vi.fn(),
       previewCordonsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
+      previewCordonsObertsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
       previewFigureModeImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
     };
 
@@ -843,6 +846,60 @@ describe('SegmentManagerComponent', () => {
       const group = fixture.nativeElement.querySelector('[role="group"][aria-label*="Cordons"]');
       expect(group).toBeTruthy();
       expect(group.textContent).toContain('2/4');
+    });
+
+    describe('cordons oberts toggle (Pinyes view)', () => {
+      const render = (overrides: Partial<InstanceDetail>, locked = false) => {
+        const seg = makeSegment({
+          id: 'seg-1',
+          instances: [makeInstance({ id: 'inst-1', totalCordons: 4, numberOfCordons: 2, ...overrides })],
+        });
+        component.segments.set([seg]);
+        component.setViewMode('pinyes');
+        fixture.componentRef.setInput('isLocked', locked);
+        fixture.detectChanges();
+        return fixture.nativeElement.querySelector('[aria-label="Cordons oberts"]') as HTMLButtonElement | null;
+      };
+
+      it('sits inside the cordons group for figures whose template has cordons oberts', () => {
+        const toggle = render({ hasCordonsOberts: true });
+
+        expect(toggle).toBeTruthy();
+        expect(toggle!.closest('[role="group"][aria-label*="Cordons"]')).toBeTruthy();
+      });
+
+      it('is absent when the template has no cordons oberts', () => {
+        expect(render({ hasCordonsOberts: false })).toBeNull();
+      });
+
+      it('reflects the current state through aria-pressed', () => {
+        expect(render({ hasCordonsOberts: true, cordonsObertsEnabled: true })!.getAttribute('aria-pressed')).toBe('true');
+        expect(render({ hasCordonsOberts: true, cordonsObertsEnabled: false })!.getAttribute('aria-pressed')).toBe('false');
+      });
+
+      it('is disabled while the event is locked', () => {
+        expect(render({ hasCordonsOberts: true }, true)!.disabled).toBe(true);
+      });
+
+      it('turns cordons oberts off through the shared confirmation flow', () => {
+        nodeAssignmentService.updateCordons.mockReturnValue(
+          of({ numberOfCordons: 2, cordonsObertsEnabled: false, removedAssignments: 0 }),
+        );
+        render({ hasCordonsOberts: true, cordonsObertsEnabled: true })!.click();
+
+        expect(nodeAssignmentService.previewCordonsObertsImpact).toHaveBeenCalledWith('inst-1');
+        expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith('inst-1', { cordonsObertsEnabled: false });
+      });
+
+      it('turns cordons oberts back on without a preview', () => {
+        nodeAssignmentService.updateCordons.mockReturnValue(
+          of({ numberOfCordons: 2, cordonsObertsEnabled: true, removedAssignments: 0 }),
+        );
+        render({ hasCordonsOberts: true, cordonsObertsEnabled: false })!.click();
+
+        expect(nodeAssignmentService.previewCordonsObertsImpact).not.toHaveBeenCalled();
+        expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith('inst-1', { cordonsObertsEnabled: true });
+      });
     });
 
     it('shows Neta badge for figures without pinya', () => {
@@ -1616,7 +1673,7 @@ describe('SegmentManagerComponent', () => {
       expect(nodeAssignmentService.updateCordons).not.toHaveBeenCalled();
       const cordonsChange = fixture.debugElement.query(By.directive(CordonsChangeComponent))
         .componentInstance as CordonsChangeComponent;
-      expect(cordonsChange.pending()).toEqual({ instanceId: inst.id, numberOfCordons: 2, affectedCount: 2 });
+      expect(cordonsChange.pending()).toEqual({ kind: 'count', instanceId: inst.id, numberOfCordons: 2, affectedCount: 2 });
     });
 
     it('shows an error toast when the preview request fails', () => {

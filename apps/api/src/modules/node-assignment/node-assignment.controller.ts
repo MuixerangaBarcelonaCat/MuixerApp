@@ -122,6 +122,12 @@ export class NodeAssignmentController {
     return { affectedCount: await this.assignmentService.previewCordonsReduction(instanceId, numberOfCordons) };
   }
 
+  @ApiOperation({ summary: 'Preview how many assignments turning cordons oberts off would remove, without applying it' })
+  @Get('figure-instances/:instanceId/cordons-oberts/impact')
+  async previewCordonsObertsImpact(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
+    return { affectedCount: await this.assignmentService.previewCordonsObertsDisable(instanceId) };
+  }
+
   @ApiOperation({ summary: 'Preview how many assignments switching to a figureMode would remove, without applying it' })
   @Get('figure-instances/:instanceId/figure-mode/impact')
   async previewFigureModeImpact(

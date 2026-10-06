@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ButtonComponent, ButtonGroupComponent, InputComponent, CheckboxComponent } from '@muixer/ui';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 export interface FigurePropertiesEntry {
   id: string;
@@ -47,6 +48,7 @@ export class FigurePropertiesPanelComponent {
   readonly entry = input.required<FigurePropertiesEntry>();
   readonly showRemove = input(true);
   readonly modeOptions = MODE_OPTIONS;
+  readonly ICON_CORDONS_OBERTS = DOMAIN_ICONS.CORDONS_OBERTS;
 
   readonly labelChanged = output<{ id: string; value: string | null }>();
   readonly figureModeChanged = output<{ id: string; value: FigureMode }>();

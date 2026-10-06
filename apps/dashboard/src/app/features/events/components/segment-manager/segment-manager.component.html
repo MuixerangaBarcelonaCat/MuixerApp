@@ -509,7 +509,7 @@
                     @if (viewMode() === 'pinyes') {
                       @if (hasCordonsControl(instance)) {
                         <div
-                          class="hidden sm:flex w-24 shrink-0 self-center items-center justify-center gap-0.5"
+                          class="hidden sm:flex w-28 shrink-0 self-center items-center justify-center gap-0.5"
                           role="group"
                           [attr.aria-label]="'Cordons de ' + getInstanceLabel(instance, segment)"
                           title="Nombre de cordons visibles"
@@ -538,10 +538,33 @@
                           >
                             <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
                           </lib-button>
+                          <!-- Empty slot when there's nothing to toggle, so the stepper stays aligned across rows -->
+                          @if (instance.hasCordonsOberts) {
+                            <lib-button
+                              [variant]="instance.cordonsObertsEnabled ? 'primary' : 'ghost'"
+                              [ghost]="instance.cordonsObertsEnabled"
+                              size="xs"
+                              shape="square"
+                              [disabled]="isLocked()"
+                              ariaLabel="Cordons oberts"
+                              [ariaPressed]="instance.cordonsObertsEnabled"
+                              [tooltip]="instance.cordonsObertsEnabled ? 'Cordons oberts: activats' : 'Cordons oberts: desactivats'"
+                              (clicked)="onCordonsObertsToggle(instance)"
+                            >
+                              <lucide-icon
+                                [img]="ICON_CORDONS_OBERTS"
+                                [size]="12"
+                                [class.text-base-content/40]="!instance.cordonsObertsEnabled"
+                                aria-hidden="true"
+                              />
+                            </lib-button>
+                          } @else {
+                            <span class="w-6 shrink-0" aria-hidden="true"></span>
+                          }
                         </div>
                       } @else {
                         <span
-                          class="hidden sm:inline w-24 shrink-0 self-center text-center"
+                          class="hidden sm:inline w-28 shrink-0 self-center text-center"
                           [title]="figureModeLabel(instance) === 'Sense rengles' ? 'Configureu les rengles a la plantilla per poder ajustar el nombre de cordons' : null"
                         >
                           <lib-badge variant="ghost" size="xs" class="whitespace-nowrap">
@@ -680,5 +703,5 @@
 <!-- REMAT / NETA mode change confirmation (shared with the Distribució tab) -->
 <app-figure-mode-change (changed)="onFigureModeChangeApplied($event)" (cancelled)="onFigureModeChangeCancelled($event)" />
 
-<!-- Cordons reduction confirmation (shared with the Distribució tab) -->
+<!-- Cordons count / cordons oberts confirmation (shared with the Distribució tab) -->
 <app-cordons-change (changed)="onCordonsChangeApplied()" />

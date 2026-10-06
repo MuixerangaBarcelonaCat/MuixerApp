@@ -13,7 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS, ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '../../../../shared/constants/domain-icons';
 import {
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
@@ -83,6 +83,7 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
   readonly ICON_RENGLA = ICON_RENGLA;
+  readonly ICON_CORDONS_OBERTS = DOMAIN_ICONS.CORDONS_OBERTS;
   readonly ICON_DIRECCIO = ICON_DIRECCIO;
 
   private readonly segmentService = inject(EventSegmentService);
@@ -633,6 +634,11 @@ export class SegmentManagerComponent implements OnInit {
     if (instance.numberOfCordons === 1) return;
     const next = (instance.numberOfCordons ?? instance.totalCordons ?? 1) - 1;
     this.cordonsChange.request(instance.id, next);
+  }
+
+  /** On → off previews the impact and confirms if it would unassign people; off → on applies directly. */
+  onCordonsObertsToggle(instance: InstanceDetail): void {
+    this.cordonsChange.requestCordonsOberts(instance.id, !instance.cordonsObertsEnabled);
   }
 
   onCordonsChangeApplied(): void {
