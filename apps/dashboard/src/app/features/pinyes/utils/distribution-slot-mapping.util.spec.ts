@@ -36,6 +36,7 @@ const itemWithPosition = (
   overrides: Partial<DistributionItem> = {},
 ): DistributionItem => ({
   instanceId,
+  sortOrder: 0,
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
@@ -345,6 +346,15 @@ describe('mapDistributionItemsToSlots', () => {
 
     expect(a.label).toBe('Pilar');
     expect(b.label).toBe('Vano');
+  });
+
+  it('takes each slot\'s sortOrder (its color index) from the item, not from its array position', () => {
+    const slots = mapDistributionItemsToSlots([
+      itemWithPosition('a', 0, 0, 0, { sortOrder: 2 }),
+      itemWithPosition('b', 300, 0, 0, { sortOrder: 3 }),
+    ]);
+
+    expect(slots.map((s) => s.sortOrder)).toEqual([2, 3]);
   });
 
   it('passes assignments through to the slot', () => {

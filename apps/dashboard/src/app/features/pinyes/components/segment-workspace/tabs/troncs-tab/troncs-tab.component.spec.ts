@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -959,19 +959,29 @@ describe('TroncsTabComponent', () => {
   });
 
   describe('figure colors', () => {
-    it('assigns a distinct color to each figure by segment order', async () => {
+    it('colors each figure by its sortOrder, like the Pinyes canvas and the projection', async () => {
       await setup({
-        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
         nodesByInstance: {
           [INST_A]: [makeNode('n1', 'TRONC')],
           [INST_B]: [makeNode('m1', 'TRONC')],
         },
       });
 
-      const [a, b] = component.figures();
-      expect(a.color).not.toBe(b.color);
+      expect(component.figures().map((f) => f.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
+    it('colors a minimap box by its figure\'s sortOrder even when that figure has no tronc', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'PINYA', { z: 0, width: 40, height: 40 })],
+        },
+      });
+
+      expect(component.minimapBoxes().map((b) => [b.slotId, b.color])).toEqual([[INST_B, FIGURE_PALETTE[1]]]);
+    });
   });
 
   describe('minimap', () => {

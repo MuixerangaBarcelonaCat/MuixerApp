@@ -73,6 +73,7 @@ const makeDistributionItem = (
   overrides: Partial<SegmentDistributionData['items'][number]> = {},
 ): SegmentDistributionData['items'][number] => ({
   instanceId,
+  sortOrder: 0,
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
@@ -521,6 +522,23 @@ describe('SegmentWorkspaceStateService', () => {
       expect(slotB?.offsetX).toBeGreaterThan(400 + 50);
     });
 
+    it('keeps each figure\'s own sortOrder (its color index) when an earlier figure has no pinya slot', () => {
+      configure({
+        segment: makeSegment([
+          makeInstance('inst-a', { sortOrder: 0, figureMode: 'REMAT' }),
+          makeInstance('inst-b', { sortOrder: 1 }),
+        ]),
+        nodesByInstance: {
+          'inst-a': [makeNode('p1', 'PINYA')],
+          'inst-b': [makeNode('p2', 'PINYA')],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.pinyaSlots().map((s) => [s.slotId, s.sortOrder])).toEqual([['inst-b', 1]]);
+    });
+
     it('includes PINYA, BASE and DECORATION nodes but never TRONC nodes', () => {
       configure({
         nodesByInstance: {
@@ -677,8 +695,9 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
       const slots = mapDistributionItemsToSlots(
-        ids.map((id) => ({
+        ids.map((id, index) => ({
           instanceId: id,
+          sortOrder: index,
           label: null,
           figureMode: 'COMPLETA',
           numberOfCordons: 1,
@@ -755,6 +774,26 @@ describe('SegmentWorkspaceStateService', () => {
       expect(inst.numberOfCordons).toBe(3);
       expect(inst.figureMode).toBe('PEU');
       expect(inst.nodes).toHaveLength(1);
+    });
+
+    it('re-fetches sortOrder, so a reorder made elsewhere recolors the figures', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { sortOrder: 0 }), makeInstance('inst-b', { sortOrder: 1 })]),
+      });
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      segmentService.getByEvent.mockReturnValue(
+        of({
+          data: [makeSegment([makeInstance('inst-b', { sortOrder: 0 }), makeInstance('inst-a', { sortOrder: 1 })])],
+        }),
+      );
+      service.markTabSwitched();
+      service.refresh();
+
+      expect(service.instances().map((i) => [i.instanceId, i.sortOrder])).toEqual([
+        ['inst-a', 1],
+        ['inst-b', 0],
+      ]);
     });
 
     it('re-fetches distribution positions', () => {

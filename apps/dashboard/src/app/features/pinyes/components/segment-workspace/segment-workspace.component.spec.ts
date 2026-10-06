@@ -55,6 +55,7 @@ const SEGMENT_ID = 'seg-1';
 
 const makeWorkspaceInstance = (id: string): WorkspaceInstance => ({
   instanceId: id,
+  sortOrder: 0,
   label: `Figura ${id}`,
   figureTemplateId: `tpl-${id}`,
   figureTemplateName: `Figura ${id}`,

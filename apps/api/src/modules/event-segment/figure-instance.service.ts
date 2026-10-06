@@ -70,6 +70,8 @@ function toDistributionNodeItem(n: DistributionSourceNode): DistributionNodeItem
 
 export interface DistributionItem {
   instanceId: string;
+  /** Position in the segment, unique 0..n-1 — also the figure's color index on every view. */
+  sortOrder: number;
   label: string | null;
   figureMode: string;
   numberOfCordons: number | null;
@@ -144,22 +146,16 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureTemplate with ID ${dto.figureTemplateId} not found`);
     }
 
-    const maxOrder = await this.instanceRepository
-      .createQueryBuilder('instance')
-      .select('MAX(instance.sortOrder)', 'max')
-      .where('instance.segment = :segmentId', { segmentId })
-      .getRawOne<{ max: number | null }>();
-
-    const sortOrder = (maxOrder?.max ?? -1) + 1;
-
-    const instance = this.instanceRepository.create({
-      segment,
-      figureTemplate,
-      label: dto.label ?? null,
-      sortOrder,
+    const saved = await this.dataSource.transaction(async (manager) => {
+      await this.lockSegmentOrder(manager, [segmentId]);
+      const instance = this.instanceRepository.create({
+        segment,
+        figureTemplate,
+        label: dto.label ?? null,
+        sortOrder: await this.nextSortOrder(manager, segmentId),
+      });
+      return manager.save(FigureInstance, instance);
     });
-
-    const saved = await this.instanceRepository.save(instance);
     return this.findOneById(saved.id);
   }
 
@@ -172,7 +168,6 @@ export class FigureInstanceService {
     const instance = await this.assertInstanceBelongsToSegment(eventId, segmentId, instanceId);
 
     if (dto.label !== undefined) instance.label = dto.label ?? null;
-    if (dto.sortOrder !== undefined) instance.sortOrder = dto.sortOrder;
     if (dto.figureMode !== undefined) {
       await this.nodeAssignmentService.checkEventLock(instanceId);
       instance.figureMode = dto.figureMode;
@@ -196,7 +191,11 @@ export class FigureInstanceService {
   async remove(eventId: string, segmentId: string, instanceId: string): Promise<void> {
     const instance = await this.assertInstanceBelongsToSegment(eventId, segmentId, instanceId);
     await this.nodeAssignmentService.checkEventLock(instanceId);
-    await this.instanceRepository.remove(instance);
+    await this.dataSource.transaction(async (manager) => {
+      await this.lockSegmentOrder(manager, [segmentId]);
+      await manager.remove(FigureInstance, instance);
+      await this.compactSortOrder(manager, segmentId);
+    });
   }
 
   async reorder(
@@ -215,13 +214,18 @@ export class FigureInstanceService {
     const existingIds = new Set(existing.map((i) => i.id));
     const invalid = dto.instanceIds.filter((id) => !existingIds.has(id));
 
-    if (invalid.length > 0) {
-      throw new BadRequestException(
-        `Instance IDs not found in segment: ${invalid.join(', ')}`,
-      );
+    // A partial list would leave the omitted figures colliding with the renumbered ones. In
+    // normal use it means a stale list: another technician added or removed a figure meanwhile.
+    if (
+      invalid.length > 0 ||
+      new Set(dto.instanceIds).size !== dto.instanceIds.length ||
+      dto.instanceIds.length !== existingIds.size
+    ) {
+      throw new BadRequestException('La llista de figures ha canviat. Recarregueu el segment.');
     }
 
     await this.dataSource.transaction(async (manager) => {
+      await this.lockSegmentOrder(manager, [segmentId]);
       for (let i = 0; i < dto.instanceIds.length; i++) {
         await manager.update(FigureInstance, { id: dto.instanceIds[i] }, { sortOrder: i });
       }
@@ -246,23 +250,17 @@ export class FigureInstanceService {
     const targetSegment = await this.assertSegmentBelongsToEvent(eventId, targetSegmentId);
     await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
-    const maxOrder = await this.instanceRepository
-      .createQueryBuilder('instance')
-      .select('MAX(instance.sortOrder)', 'max')
-      .where('instance.segment = :segmentId', { segmentId: targetSegmentId })
-      .getRawOne<{ max: number | null }>();
-
-    const sortOrder = (maxOrder?.max ?? -1) + 1;
-
-    const newInstance = this.instanceRepository.create({
-      segment: targetSegment,
-      figureTemplate: sourceInstance.figureTemplate ?? null,
-      label: sourceInstance.label,
-      numberOfCordons: sourceInstance.numberOfCordons,
-      sortOrder,
+    const saved = await this.dataSource.transaction(async (manager) => {
+      await this.lockSegmentOrder(manager, [targetSegmentId]);
+      const newInstance = this.instanceRepository.create({
+        segment: targetSegment,
+        figureTemplate: sourceInstance.figureTemplate ?? null,
+        label: sourceInstance.label,
+        numberOfCordons: sourceInstance.numberOfCordons,
+        sortOrder: await this.nextSortOrder(manager, targetSegmentId),
+      });
+      return manager.save(FigureInstance, newInstance);
     });
-
-    const saved = await this.instanceRepository.save(newInstance);
     return this.findOneById(saved.id);
   }
 
@@ -289,16 +287,17 @@ export class FigureInstanceService {
     // resolution (KEEP_TARGET/KEEP_MOVED are now opt-in clean-up shortcuts).
     const effectiveResolution = resolution ?? SegmentMoveConflictResolution.KEEP_BOTH;
 
-    const targetInstances = await this.instanceRepository.find({
-      where: { segment: { id: targetSegmentId } },
-      select: ['id'],
-      order: { sortOrder: 'ASC' },
-    });
-    const orderedIds = targetInstances.map((i) => i.id);
-    const insertAt = Math.min(Math.max(targetIndex ?? orderedIds.length, 0), orderedIds.length);
-    orderedIds.splice(insertAt, 0, instanceId);
-
     await this.dataSource.transaction(async (manager) => {
+      await this.lockSegmentOrder(manager, [segmentId, targetSegmentId]);
+      const targetInstances = await manager.find(FigureInstance, {
+        where: { segment: { id: targetSegmentId } },
+        select: ['id'],
+        order: { sortOrder: 'ASC' },
+      });
+      const orderedIds = targetInstances.map((i) => i.id);
+      const insertAt = Math.min(Math.max(targetIndex ?? orderedIds.length, 0), orderedIds.length);
+      orderedIds.splice(insertAt, 0, instanceId);
+
       if (conflicts.length > 0) {
         const personIds = conflicts.map((c) => c.personId);
         await this.nodeAssignmentService.resolveSegmentMoveConflicts(
@@ -326,6 +325,7 @@ export class FigureInstanceService {
         { figureInstance: { id: instanceId } },
         { segment: { id: targetSegment.id } } as QueryDeepPartialEntity<NodeAssignment>,
       );
+      await this.compactSortOrder(manager, segmentId);
     });
 
     const result: MoveInstanceResult = {
@@ -408,12 +408,7 @@ export class FigureInstanceService {
       order: { sortOrder: 'ASC' },
     });
 
-    // `sortOrder` isn't guaranteed unique across instances (duplicates exist in
-    // practice), so ties must be broken deterministically here — otherwise
-    // Postgres can return a different row order on each call.
-    const figureInstances = instances
-      .filter((inst) => inst.figureTemplate !== null)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
+    const figureInstances = instances.filter((inst) => inst.figureTemplate !== null);
     const instanceIds = figureInstances.map((inst) => inst.id);
 
     // A snapshotted instance's real nodes are its own InstanceNodes (possibly including
@@ -481,6 +476,7 @@ export class FigureInstanceService {
 
       return {
         instanceId: inst.id,
+        sortOrder: inst.sortOrder,
         label: inst.label,
         figureMode: inst.figureMode ?? FigureMode.COMPLETA,
         numberOfCordons: inst.numberOfCordons ?? null,
@@ -600,6 +596,45 @@ export class FigureInstanceService {
     };
   }
 
+  /**
+   * Serializes writes to these segments' figure order until the enclosing transaction commits —
+   * `MAX(sortOrder)` can't lock rows itself, so concurrent appends would read the same value and
+   * collide on `UQ_figure_instances_segment_sort_order`. Locked in id order so two opposite
+   * cross-segment moves can't deadlock.
+   */
+  private async lockSegmentOrder(manager: EntityManager, segmentIds: string[]): Promise<void> {
+    await manager.query(
+      `SELECT "id" FROM "event_segments" WHERE "id" = ANY($1) ORDER BY "id" FOR UPDATE`,
+      [segmentIds],
+    );
+  }
+
+  /** The segment's next free `sortOrder`; race-free only after `lockSegmentOrder`. */
+  private async nextSortOrder(manager: EntityManager, segmentId: string): Promise<number> {
+    const rows: { max: number | null }[] = await manager.query(
+      `SELECT MAX("sortOrder") AS "max" FROM "figure_instances" WHERE "segmentId" = $1`,
+      [segmentId],
+    );
+    return (rows[0]?.max ?? -1) + 1;
+  }
+
+  /**
+   * Renumbers the segment's figures 0..n-1 in their current order, closing the gap a remove/move
+   * leaves — figure colors are indexed by `sortOrder`, so a gap would skip a color.
+   */
+  private async compactSortOrder(manager: EntityManager, segmentId: string): Promise<void> {
+    await manager.query(
+      `UPDATE "figure_instances" fi
+       SET "sortOrder" = ranked."rank"
+       FROM (
+         SELECT "id", ROW_NUMBER() OVER (ORDER BY "sortOrder") - 1 AS "rank"
+         FROM "figure_instances" WHERE "segmentId" = $1
+       ) ranked
+       WHERE fi."id" = ranked."id" AND fi."sortOrder" <> ranked."rank"`,
+      [segmentId],
+    );
+  }
+
   private async deleteAssignmentsInZones(instanceId: string, zones: FigureZone[], manager: EntityManager): Promise<void> {
     await manager.query(
       `DELETE FROM node_assignments
@@ -628,15 +663,9 @@ export class FigureInstanceService {
       throw new NotFoundException(`Composition with ID ${compositionId} not found`);
     }
 
-    const maxOrder = await this.instanceRepository
-      .createQueryBuilder('instance')
-      .select('MAX(instance.sortOrder)', 'max')
-      .where('instance.segment = :segmentId', { segmentId })
-      .getRawOne<{ max: number | null }>();
-
-    let nextSortOrder = (maxOrder?.max ?? -1) + 1;
-
     await this.dataSource.transaction(async (manager) => {
+      await this.lockSegmentOrder(manager, [segmentId]);
+      let nextSortOrder = await this.nextSortOrder(manager, segmentId);
       await manager.save(EventSegment, { id: segment.id, name: composition.name });
 
       for (const entry of composition.entries ?? []) {

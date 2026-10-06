@@ -139,6 +139,7 @@ const makeDistributionItem = (
   overrides: Partial<SegmentDistributionData['items'][number]> = {},
 ): SegmentDistributionData['items'][number] => ({
   instanceId,
+  sortOrder: 0,
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,

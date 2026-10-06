@@ -77,7 +77,7 @@ export function mapDistributionItemsToSlots(
     })),
   );
 
-  return items.map((item, index) => {
+  return items.map((item) => {
     const positionedNodes = nodesByInstance.get(item.instanceId) ?? [];
     const extent = figureExtentFromNodes(item.instanceId, pinyaBaseNodes(positionedNodes));
 
@@ -110,7 +110,7 @@ export function mapDistributionItemsToSlots(
       label: displayNames.get(item.instanceId) ?? computeSlotLabel(item),
       offsetX,
       offsetY,
-      sortOrder: index,
+      sortOrder: item.sortOrder,
       angle,
       assignments: item.assignments,
       troncGridCols: item.troncGridCols,

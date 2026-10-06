@@ -5,6 +5,9 @@ import { FigureZone, ImportScope, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projection.component';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import {
+  FIGURE_PALETTE,
+  SINGLE_FIGURE_PANEL_COLOR,
+  SINGLE_FIGURE_SHADOW_COLOR,
   ProjectionInstance,
   ProjectionSegmentData,
   InstanceNodeItem,
@@ -185,6 +188,43 @@ describe('PinyaProjectionComponent', () => {
       const d = makeInstance([], [], { id: 'd' });
       setData(makeSegmentData([c, d]));
       expect(component.filteredInstances().map((i) => i.id)).toEqual(['a']);
+    });
+  });
+
+  // ── figure colors ───────────────────────────────────────────────────────────
+
+  describe('figure colors', () => {
+    const figure = (id: string, sortOrder: number) =>
+      makeInstance(
+        [
+          makeNode({ id: `${id}-p`, zone: FigureZone.PINYA, x: 0, y: 0 }),
+          makeNode({ id: `${id}-t`, zone: FigureZone.TRONC, z: 0, x: 0, width: 1 }),
+        ],
+        [`${id}-p`],
+        { id, sortOrder, projectionX: sortOrder * 400, projectionY: 0 },
+      );
+
+    it('colors each figure\'s tronc panel and glow by its sortOrder', () => {
+      setData(makeSegmentData([figure('a', 0), figure('b', 1)]));
+
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
+      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
+    });
+
+    it('keeps a figure\'s own color in the single-figure preview of a multi-figure segment', () => {
+      setData(makeSegmentData([figure('a', 0), figure('b', 1)]));
+      fixture.componentRef.setInput('instanceId', 'b');
+      fixture.detectChanges();
+
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[1]]);
+      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([FIGURE_PALETTE[1]]);
+    });
+
+    it('uses the neutral single-figure colors only when the segment itself has one figure', () => {
+      setData(makeSegmentData([figure('a', 0)]));
+
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([SINGLE_FIGURE_PANEL_COLOR]);
+      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([SINGLE_FIGURE_SHADOW_COLOR]);
     });
   });
 
@@ -798,7 +838,7 @@ describe('PinyaProjectionComponent', () => {
       const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
       expect(banner.componentInstance.state()).toEqual({
         kind: 'PINYA',
-        instanceIndex: 0,
+        figureSortOrder: 0,
         nodeLabel: 'Lateral',
         cordon: null,
         figureName: null,

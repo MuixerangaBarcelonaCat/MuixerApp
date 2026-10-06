@@ -145,6 +145,13 @@ export class PinyaProjectionComponent {
   });
 
   /**
+   * The neutral single-figure colors are for a segment that holds one figure — not for the
+   * Dashboard's single-figure preview (`instanceId`) of a larger one, where the figure keeps the
+   * color it has everywhere else.
+   */
+  private readonly isSingleFigureSegment = computed(() => this.data().instances.length === 1);
+
+  /**
    * Per-instance display names for the whole segment: a figure sharing its name with another in
    * the same segment gets a trailing ordinal («Pilar 1», «Pilar 2»), a unique one stays bare.
    * Keyed off the raw `data().instances` (never `filteredInstances()`) so the Dashboard's
@@ -165,7 +172,7 @@ export class PinyaProjectionComponent {
    * Every assignment `highlightPersonId` holds in this segment, against the raw, unfiltered
    * `data()` — deliberately not `filteredInstances()`, which exists for the Dashboard's
    * single-figure preview route (`instanceId`) and would silently misreport
-   * `figureName`/`instanceIndex` if a placement happened to live outside the filter. The two
+   * `figureName`/`figureSortOrder` if a placement happened to live outside the filter. The two
    * inputs are never set together in practice (the Dashboard never passes `highlightPersonId`,
    * the PWA never sets `instanceId`), so this only matters for correctness, not behaviour today.
    */
@@ -493,9 +500,9 @@ export class PinyaProjectionComponent {
     );
     const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
     const totalScale = distScale * stageScale;
-    const singleFigure = instances.length === 1;
+    const singleFigure = this.isSingleFigureSegment();
 
-    return instances.map((inst, instIndex) => {
+    return instances.map((inst) => {
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
 
       // Figure center in canvas-world coords (matches distributionNodes() computation).
@@ -527,7 +534,7 @@ export class PinyaProjectionComponent {
         screenY = figScreenY - figHalfH * totalScale - naturalH * totalScale - TRONC_GAP_PX * totalScale;
       }
 
-      const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(instIndex);
+      const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(inst.sortOrder);
       const borderColor = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : color;
       return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color, borderColor };
     });
@@ -542,10 +549,10 @@ export class PinyaProjectionComponent {
       this.containerHeight(),
     );
 
-    const singleFigure = instances.length === 1;
+    const singleFigure = this.isSingleFigureSegment();
 
-    return instances.flatMap((inst, instIndex) => {
-      const color = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : getFigureColor(instIndex);
+    return instances.flatMap((inst) => {
+      const color = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : getFigureColor(inst.sortOrder);
       const projX = inst.projectionX ?? 0;
       const projY = inst.projectionY ?? 0;
       const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;

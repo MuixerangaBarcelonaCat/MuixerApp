@@ -62,9 +62,9 @@ export interface CreateInstancePayload {
   label?: string;
 }
 
+/** No `sortOrder`: order is only written through the reorder endpoint, which keeps it unique. */
 export interface UpdateInstancePayload {
   label?: string | null;
-  sortOrder?: number;
   figureMode?: FigureMode;
 }
 

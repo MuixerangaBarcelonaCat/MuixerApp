@@ -2,7 +2,7 @@ import { SegmentDetail, InstanceDetail, EventAssignmentSummary, EventFigureSumma
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi, afterEach } from 'vitest';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
@@ -527,24 +527,29 @@ describe('SegmentManagerComponent', () => {
   });
 
   describe('onInstancesConfirmed()', () => {
-    it('creates all instances in parallel and appends to segment', () => {
+    it('creates the instances one after another, so the server appends them in selection order', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [] });
       component.segments.set([seg]);
       component.pickerSegmentId.set('seg-1');
 
-      const inst1 = makeInstance({ id: 'inst-1' });
-      const inst2 = makeInstance({ id: 'inst-2' });
+      const first = new Subject<InstanceDetail>();
       (instanceService.create as ReturnType<typeof vi.fn>)
-        .mockReturnValueOnce(of(inst1))
-        .mockReturnValueOnce(of(inst2));
+        .mockReturnValueOnce(first)
+        .mockReturnValueOnce(of(makeInstance({ id: 'inst-2' })));
 
       component.onInstancesConfirmed([
         { figureTemplateId: 'fig-1' },
         { figureTemplateId: 'fig-2' },
       ]);
 
+      expect(instanceService.create).toHaveBeenCalledTimes(1);
+
+      first.next(makeInstance({ id: 'inst-1' }));
+      first.complete();
+
       expect(instanceService.create).toHaveBeenCalledTimes(2);
-      expect(component.segments()[0].instances).toHaveLength(2);
+      expect(instanceService.create).toHaveBeenNthCalledWith(2, EVENT_ID, 'seg-1', { figureTemplateId: 'fig-2' });
+      expect(component.segments()[0].instances.map((i) => i.id)).toEqual(['inst-1', 'inst-2']);
     });
 
     it('shows success toast with count', () => {

@@ -16,6 +16,8 @@ import { DistributionItem } from '../models/distribution.model';
 
 export interface WorkspaceInstance {
   instanceId: string;
+  /** Position in the segment, unique 0..n-1 — also the figure's color index on every view. */
+  sortOrder: number;
   label: string;
   figureTemplateId: string | null;
   figureTemplateName: string;
@@ -158,7 +160,7 @@ export class SegmentWorkspaceStateService {
       optimizedByInstance = new Map(placeFigures(specs).map((p) => [p.instanceId, p]));
     }
 
-    return entries.map(({ instance, nodes }, index) => {
+    return entries.map(({ instance, nodes }) => {
       const item = distribution.get(instance.instanceId);
       const optimized = optimizedByInstance.get(instance.instanceId);
       let offsetX: number;
@@ -186,7 +188,7 @@ export class SegmentWorkspaceStateService {
         label: instance.label,
         offsetX,
         offsetY,
-        sortOrder: index,
+        sortOrder: instance.sortOrder,
         angle,
         figureTemplate: {
           id: instance.figureTemplateId ?? instance.instanceId,
@@ -279,6 +281,7 @@ export class SegmentWorkspaceStateService {
             .filter((i) => !!i.figureTemplate)
             .map((instance) => ({
               instanceId: instance.id,
+              sortOrder: instance.sortOrder,
               label: displayNames.get(instance.id) ?? instance.figureTemplate?.name ?? '?',
               figureTemplateId: instance.figureTemplate?.id ?? null,
               figureTemplateName: instance.figureTemplate?.name ?? '?',
@@ -359,6 +362,7 @@ export class SegmentWorkspaceStateService {
             if (!fresh) return existing;
             return {
               ...existing,
+              sortOrder: fresh.sortOrder,
               label: displayNames.get(fresh.id) ?? fresh.figureTemplate?.name ?? '?',
               figureMode: fresh.figureMode ?? 'COMPLETA',
               numberOfCordons: fresh.numberOfCordons ?? null,

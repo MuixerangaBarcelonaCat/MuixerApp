@@ -65,6 +65,6 @@ export class OwnPositionBannerComponent {
   /** The figure's palette colour — matches its canvas silhouette and tronc panel border. */
   protected readonly figureColor = computed(() => {
     const s = this.state();
-    return s.kind === 'PINYA' || s.kind === 'TRONC' ? getFigureColor(s.instanceIndex) : null;
+    return s.kind === 'PINYA' || s.kind === 'TRONC' ? getFigureColor(s.figureSortOrder) : null;
   });
 }

@@ -23,7 +23,7 @@ import {
   DIRECCIO_PINYA_POSITION_TYPE,
   type EventPhase,
 } from '@muixer/shared';
-import { forkJoin } from 'rxjs';
+import { concatMap, forkJoin, from, toArray } from 'rxjs';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
@@ -451,10 +451,11 @@ export class SegmentManagerComponent implements OnInit {
     const segmentId = this.pickerSegmentId();
     if (!segmentId || selections.length === 0) return;
 
-    forkJoin(
-      selections.map((sel) =>
-        this.instanceService.create(this.eventId(), segmentId, sel),
-      ),
+    // One at a time: the server appends each figure after the last, so the segment's order (and
+    // with it each figure's number and color) follows the order the figures were picked in.
+    from(selections).pipe(
+      concatMap((sel) => this.instanceService.create(this.eventId(), segmentId, sel)),
+      toArray(),
     ).subscribe({
       next: (instances) => {
         this.segments.update((list) =>

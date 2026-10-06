@@ -263,7 +263,7 @@ export class TroncsTabComponent implements OnInit {
   readonly figures = computed<TroncFigure[]>(() =>
     this.ws
       .instances()
-      .map((instance, index) => {
+      .map((instance) => {
         const visible = this.ws.visibleNodesFor(instance);
         return {
           instance,
@@ -274,7 +274,7 @@ export class TroncsTabComponent implements OnInit {
           directionNodes: visible.filter(
             (n) => n.zone === FigureZone.DIRECTION,
           ) as unknown as TroncNodeItem[],
-          color: getFigureColor(index),
+          color: getFigureColor(instance.sortOrder),
         };
       })
       .filter((f) => f.troncNodes.length > 0 || f.baseNodes.length > 0 || f.directionNodes.length > 0),
@@ -286,10 +286,12 @@ export class TroncsTabComponent implements OnInit {
   readonly minimapOpen = signal(!this.isTouch());
 
   readonly minimapBoxes = computed<(FigureBoundingBox & { color: string })[]>(() => {
-    const colorBySlot = new Map(this.figures().map((f) => [f.instance.instanceId, f.color]));
+    // From the pinya slots themselves, not `figures()`: a figure with a pinya but no tronc has a
+    // box here and no tronc panel, and must still get its own color.
+    const sortOrderBySlot = new Map(this.ws.pinyaSlots().map((slot) => [slot.slotId, slot.sortOrder]));
     return computeFigureBoundingBoxes(this.ws.pinyaSlots()).map((box) => ({
       ...box,
-      color: colorBySlot.get(box.slotId) ?? getFigureColor(0),
+      color: getFigureColor(sortOrderBySlot.get(box.slotId) ?? 0),
     }));
   });
 

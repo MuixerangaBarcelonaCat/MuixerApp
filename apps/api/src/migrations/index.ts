@@ -56,6 +56,7 @@ import { AddNotificationLogScheduleIndexes1785700000000 } from './1785700000000-
 import { DeleteEmptyPendingAttendances1785800000000 } from './1785800000000-DeleteEmptyPendingAttendances';
 import { RemovePartnerDelegateType1785900000000 } from './1785900000000-RemovePartnerDelegateType';
 import { AddEventNotes1785800000000 } from './1785800000000-AddEventNotes';
+import { UniqueFigureInstanceSortOrder1786000000000 } from './1786000000000-UniqueFigureInstanceSortOrder';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -115,4 +116,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   DeleteEmptyPendingAttendances1785800000000,
   RemovePartnerDelegateType1785900000000,
   AddEventNotes1785800000000,
+  UniqueFigureInstanceSortOrder1786000000000,
 ];
