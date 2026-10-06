@@ -179,6 +179,8 @@ describe('NodesTabComponent', () => {
     instances?: InstanceDetail[];
     nodesByInstance?: Record<string, InstanceNodeItem[]>;
     assignmentsByInstance?: Record<string, AssignmentDetail[]>;
+    /** Runs after the workspace loads and before the tab is created (simulates state left by another tab). */
+    beforeCreate?: () => void;
   } = {}) => {
     const segment = makeSegment(opts.instances ?? [makeInstance(INST_A)]);
     const defaultNodes: Record<string, InstanceNodeItem[]> = opts.nodesByInstance ?? {
@@ -237,6 +239,7 @@ describe('NodesTabComponent', () => {
     ws = TestBed.inject(SegmentWorkspaceStateService);
     state = TestBed.inject(AssignmentStateService);
     ws.load(EVENT_ID, SEGMENT_ID);
+    opts.beforeCreate?.();
 
     fixture = TestBed.createComponent(NodesTabComponent);
     component = fixture.componentInstance;
@@ -305,6 +308,40 @@ describe('NodesTabComponent', () => {
 
       expect(ws.selectedInstanceId()).toBe(INST_B);
       expect(component.selectedRef()).toBeNull();
+    });
+
+    it('selects the first figure on entry when no figure is selected', async () => {
+      await setup({ instances: [makeInstance(INST_A), makeInstance(INST_B)] });
+
+      expect(ws.selectedInstanceId()).toBe(INST_A);
+      expect(canvasStub().placementSlotId()).toBe(INST_A);
+    });
+
+    it('selects the first figure on entry when the selected figure is not in the segment', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        beforeCreate: () => ws.selectInstance('missing-instance'),
+      });
+
+      expect(ws.selectedInstanceId()).toBe(INST_A);
+    });
+
+    it('keeps an existing valid figure selection on entry', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        beforeCreate: () => ws.selectInstance(INST_B),
+      });
+
+      expect(ws.selectedInstanceId()).toBe(INST_B);
+    });
+
+    it('creates a decoration node on the first figure when none was selected before entering', async () => {
+      await setup({ instances: [makeInstance(INST_A), makeInstance(INST_B)] });
+      component.onPresetSelected({ ...component.decorationPresets[0], requiresCustomLabel: false });
+
+      component.onCanvasClicked({ x: 10, y: 20 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(INST_A, expect.anything());
     });
   });
 

@@ -7,6 +7,7 @@ import {
   OnInit,
   ViewChild,
   computed,
+  effect,
   inject,
   input,
   signal,
@@ -101,6 +102,16 @@ export class NodesTabComponent implements OnInit {
       mql.addEventListener('change', listener);
       inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
     }
+
+    // Placing a node needs a target figure: another tab may have left the selection
+    // empty (or pointing at a figure no longer in the segment), so fall back to the first.
+    effect(() => {
+      const instances = this.ws.instances();
+      const selected = this.ws.selectedInstanceId();
+      if (instances.length > 0 && !instances.some((i) => i.instanceId === selected)) {
+        this.ws.selectInstance(instances[0].instanceId);
+      }
+    });
   }
 
   readonly dimmedSlotIds = computed(() => {
