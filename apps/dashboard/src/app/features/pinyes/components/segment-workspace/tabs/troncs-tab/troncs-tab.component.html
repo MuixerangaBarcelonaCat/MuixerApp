@@ -35,9 +35,20 @@
       </div>
     }
 
+    <!-- Opens the same picker as the segment summary's «+ Figura» -->
+    <ng-template #addFigureButton>
+      <lib-button variant="ghost" size="sm" ariaLabel="Afegir figura o composició al segment" (clicked)="openFigurePicker()">
+        <lucide-icon [img]="Plus" [size]="16" aria-hidden="true" />
+        Figura
+      </lib-button>
+    </ng-template>
+
     @if (figures().length === 0) {
-      <div class="flex items-center justify-center h-full text-base-content/50">
+      <div class="flex flex-col items-center justify-center gap-3 h-full text-base-content/50">
         Este segment no té cap figura amb tronc.
+        @if (!ws.isLocked()) {
+          <ng-container [ngTemplateOutlet]="addFigureButton" />
+        }
       </div>
     } @else {
       <div class="flex flex-wrap content-start items-start gap-6 p-4">
@@ -73,6 +84,11 @@
               (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
               (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
             />
+          </div>
+        }
+        @if (!ws.isLocked()) {
+          <div class="self-stretch flex items-center justify-center min-w-40 p-3 rounded-lg border-2 border-dashed border-base-300">
+            <ng-container [ngTemplateOutlet]="addFigureButton" />
           </div>
         }
       </div>
@@ -184,5 +200,15 @@
     (viewRequested)="onReassignDialogView()"
     (reassignRequested)="onReassignDialogConfirm()"
     (assignAnywayRequested)="onReassignDialogAssignAnyway()"
+  />
+}
+
+@if (figurePickerOpen()) {
+  <app-figure-picker-modal
+    [open]="figurePickerOpen()"
+    [segmentId]="ws.segmentId()"
+    (confirmed)="onFiguresConfirmed($event)"
+    (compositionSelected)="onCompositionSelected($event)"
+    (closed)="closeFigurePicker()"
   />
 }

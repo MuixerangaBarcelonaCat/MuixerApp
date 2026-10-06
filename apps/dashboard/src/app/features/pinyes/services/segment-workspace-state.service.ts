@@ -238,6 +238,26 @@ export class SegmentWorkspaceStateService {
     this.pendingSelection.set(null);
     this.autoPlacementExtentCache.clear();
 
+    this.fetchSegmentData(eventId, segmentId);
+
+    this.assignmentService.getLockStatus(eventId).subscribe({
+      next: (status) => this.lockStatus.set(status),
+    });
+  }
+
+  /**
+   * Re-fetches the segment's instances (picking up figures added since `load()`), their nodes,
+   * assignments, distribution and conflicts — without the loading spinner or the shared-state
+   * reset of `load()`, so the open tab stays mounted and keeps its selection.
+   */
+  reloadInstances(): void {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return;
+    this.fetchSegmentData(eventId, segmentId);
+  }
+
+  private fetchSegmentData(eventId: string, segmentId: string): void {
     forkJoin({
       resp: this.segmentService.getByEvent(eventId),
       instanceState: this.assignmentService.getSegmentAssignmentState(eventId, segmentId),
@@ -295,10 +315,6 @@ export class SegmentWorkspaceStateService {
     });
 
     this.reloadConflicts();
-
-    this.assignmentService.getLockStatus(eventId).subscribe({
-      next: (status) => this.lockStatus.set(status),
-    });
   }
 
   /**

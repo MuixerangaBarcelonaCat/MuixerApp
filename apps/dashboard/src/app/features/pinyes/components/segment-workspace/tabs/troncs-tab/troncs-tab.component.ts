@@ -1,13 +1,17 @@
 import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
-import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
+import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
+import { forkJoin } from 'rxjs';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
+import { FigurePickerModalComponent, InstanceSelection } from '../../../figure-picker-modal/figure-picker-modal.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
+import { FigureInstanceService } from '../../../../services/figure-instance.service';
+import { CompositionService } from '../../../../services/composition.service';
 import { SegmentAssignmentActionsService } from '../../../../services/segment-assignment-actions.service';
 import { ButtonComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
@@ -35,7 +39,7 @@ interface TroncFigure {
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, NgTemplateOutlet],
+  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -46,6 +50,8 @@ export class TroncsTabComponent implements OnInit {
   private readonly actions = inject(SegmentAssignmentActionsService);
   private readonly toast = inject(ToastService);
   private readonly undoRedo = inject(UndoRedoService);
+  private readonly instanceService = inject(FigureInstanceService);
+  private readonly compositionService = inject(CompositionService);
 
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
@@ -103,6 +109,7 @@ export class TroncsTabComponent implements OnInit {
   }
 
   readonly MapIcon = MapIcon;
+  readonly Plus = Plus;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
 
@@ -514,6 +521,45 @@ export class TroncsTabComponent implements OnInit {
     this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
       next: () => this.ws.refreshInstance(instanceId),
       error: () => this.toast.error("No s'ha pogut eliminar la direcció."),
+    });
+  }
+
+  // ── Add figures (same picker as the segment summary's «+ Figura») ────────
+
+  readonly figurePickerOpen = signal(false);
+
+  openFigurePicker(): void {
+    this.figurePickerOpen.set(true);
+  }
+
+  closeFigurePicker(): void {
+    this.figurePickerOpen.set(false);
+  }
+
+  onFiguresConfirmed(selections: InstanceSelection[]): void {
+    if (selections.length === 0) return;
+    const eventId = this.ws.eventId();
+    const segmentId = this.ws.segmentId();
+
+    forkJoin(selections.map((sel) => this.instanceService.create(eventId, segmentId, sel))).subscribe({
+      next: (instances) => {
+        this.ws.reloadInstances();
+        const count = instances.length;
+        this.toast.success(count === 1 ? '1 figura afegida.' : `${count} figures afegides.`);
+        this.closeFigurePicker();
+      },
+      error: () => this.toast.error('Error en afegir les figures.'),
+    });
+  }
+
+  onCompositionSelected(event: { compositionId: string; compositionName: string }): void {
+    this.compositionService.applyToSegment(this.ws.eventId(), this.ws.segmentId(), event.compositionId).subscribe({
+      next: () => {
+        this.ws.reloadInstances();
+        this.toast.success(`Composició «${event.compositionName}» aplicada.`);
+        this.closeFigurePicker();
+      },
+      error: () => this.toast.error('No s\'ha pogut aplicar la composició.'),
     });
   }
 

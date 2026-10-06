@@ -13,6 +13,12 @@ import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
+import { FigureInstanceService } from '../../../../services/figure-instance.service';
+import { CompositionService } from '../../../../services/composition.service';
+import {
+  FigurePickerModalComponent,
+  InstanceSelection,
+} from '../../../figure-picker-modal/figure-picker-modal.component';
 import { ModalComponent, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
@@ -65,6 +71,15 @@ class StubPersonPanel {
   readonly unassignRequested = output<AssignmentDetail>();
   readonly navigateNode = output<-1 | 1>();
   focusSearch = vi.fn();
+}
+
+@Component({ selector: 'app-figure-picker-modal', standalone: true, template: '' })
+class StubFigurePicker {
+  readonly open = input.required<boolean>();
+  readonly segmentId = input.required<string>();
+  readonly confirmed = output<InstanceSelection[]>();
+  readonly compositionSelected = output<{ compositionId: string; compositionName: string }>();
+  readonly closed = output<void>();
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -202,6 +217,8 @@ describe('TroncsTabComponent', () => {
     deleteAdHocNode: MockFn;
   };
   let toast: { success: MockFn; error: MockFn; info: MockFn };
+  let instanceService: { create: MockFn };
+  let compositionService: { applyToSegment: MockFn };
   let refreshSpy: ReturnType<typeof vi.spyOn>;
 
   const setup = async (opts: {
@@ -243,6 +260,12 @@ describe('TroncsTabComponent', () => {
       deleteAdHocNode: vi.fn(),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    instanceService = {
+      create: vi.fn((_e: string, _s: string, sel: InstanceSelection) =>
+        of(makeInstance(`new-${sel.figureTemplateId}`)),
+      ),
+    };
+    compositionService = { applyToSegment: vi.fn().mockReturnValue(of(segment)) };
 
     await TestBed.configureTestingModule({
       imports: [TroncsTabComponent],
@@ -262,12 +285,14 @@ describe('TroncsTabComponent', () => {
         },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
+        { provide: FigureInstanceService, useValue: instanceService },
+        { provide: CompositionService, useValue: compositionService },
         { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false) } },
       ],
     })
       .overrideComponent(TroncsTabComponent, {
-        remove: { imports: [TroncViewComponent, PersonPanelComponent] },
-        add: { imports: [StubTroncView, StubPersonPanel] },
+        remove: { imports: [TroncViewComponent, PersonPanelComponent, FigurePickerModalComponent] },
+        add: { imports: [StubTroncView, StubPersonPanel, StubFigurePicker] },
       })
       .compileComponents();
 
@@ -782,6 +807,106 @@ describe('TroncsTabComponent', () => {
       fixture.detectChanges();
 
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+    });
+  });
+
+  describe('adding figures to the segment', () => {
+    const addButton = () =>
+      fixture.debugElement.query(By.css('lib-button[ariaLabel="Afegir figura o composició al segment"]'));
+    const picker = () => fixture.debugElement.query(By.directive(StubFigurePicker));
+    const openPicker = () => {
+      addButton().triggerEventHandler('clicked', undefined);
+      fixture.detectChanges();
+    };
+
+    it('shows a "Figura" button that opens the figure picker for this segment', async () => {
+      await setup();
+      expect(picker()).toBeNull();
+
+      openPicker();
+
+      expect(picker()).not.toBeNull();
+      expect((picker().componentInstance as StubFigurePicker).segmentId()).toBe(SEGMENT_ID);
+    });
+
+    it('sits right after the last tronc view in the main area, not in the toolbar', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+      });
+
+      const views = fixture.debugElement.queryAll(By.directive(StubTroncView));
+      const lastCard = (views[views.length - 1].nativeElement as HTMLElement).parentElement;
+      const tile = Array.from(lastCard?.parentElement?.children ?? []).find((child) =>
+        child.contains(addButton().nativeElement),
+      );
+      expect(tile?.previousElementSibling).toBe(lastCard);
+    });
+
+    it('hides the button when the segment is locked', async () => {
+      await setup({ locked: true });
+
+      expect(addButton()).toBeNull();
+    });
+
+    it('shows the button even when no figure has a tronc yet', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('p1', 'PINYA')] } });
+
+      expect(addButton()).not.toBeNull();
+    });
+
+    it('creates one instance per chosen figure, reloads the workspace and closes the picker', async () => {
+      await setup();
+      const reloadSpy = vi.spyOn(ws, 'reloadInstances');
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }, { figureTemplateId: 'tpl-y' }]);
+      fixture.detectChanges();
+
+      expect(instanceService.create).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-x' });
+      expect(instanceService.create).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-y' });
+      expect(reloadSpy).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith('2 figures afegides.');
+      expect(picker()).toBeNull();
+    });
+
+    it('keeps the picker open and reports an error when adding fails', async () => {
+      await setup();
+      instanceService.create.mockReturnValue(throwError(() => new Error('boom')));
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }]);
+      fixture.detectChanges();
+
+      expect(toast.error).toHaveBeenCalledWith('Error en afegir les figures.');
+      expect(picker()).not.toBeNull();
+    });
+
+    it('applies a chosen composition to the segment and reloads the workspace', async () => {
+      await setup();
+      const reloadSpy = vi.spyOn(ws, 'reloadInstances');
+      openPicker();
+
+      picker().triggerEventHandler('compositionSelected', { compositionId: 'comp-1', compositionName: 'Diada' });
+      fixture.detectChanges();
+
+      expect(compositionService.applyToSegment).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, 'comp-1');
+      expect(reloadSpy).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith('Composició «Diada» aplicada.');
+      expect(picker()).toBeNull();
+    });
+
+    it('closes the picker when it is dismissed', async () => {
+      await setup();
+      openPicker();
+
+      picker().triggerEventHandler('closed', undefined);
+      fixture.detectChanges();
+
+      expect(picker()).toBeNull();
     });
   });
 

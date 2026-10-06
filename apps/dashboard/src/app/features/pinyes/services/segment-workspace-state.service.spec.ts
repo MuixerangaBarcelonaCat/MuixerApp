@@ -795,6 +795,71 @@ describe('SegmentWorkspaceStateService', () => {
     });
   });
 
+  describe('reloadInstances', () => {
+    const addInstanceToSegment = () => {
+      const segment = makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]);
+      segmentService.getByEvent.mockReturnValue(of({ data: [segment] }));
+      assignmentService.getSegmentAssignmentState.mockReturnValue(
+        of({
+          data: [
+            { instanceId: 'inst-a', nodes: [makeNode('n1', 'TRONC')], assignments: [makeAssignment('as-1', 'inst-a', 'n1')] },
+            { instanceId: 'inst-b', nodes: [makeNode('m1', 'TRONC'), makeNode('m2', 'TRONC')], assignments: [] },
+          ],
+        }),
+      );
+    };
+
+    it('picks up figures added to the segment since load, with their nodes', () => {
+      configure({ nodesByInstance: { 'inst-a': [makeNode('n1', 'TRONC')] } });
+      service.load(EVENT_ID, SEGMENT_ID);
+      addInstanceToSegment();
+
+      service.reloadInstances();
+
+      expect(service.instances().map((i) => i.instanceId)).toEqual(['inst-a', 'inst-b']);
+      expect(service.instances()[1].nodes).toHaveLength(2);
+      expect(state.assignments().map((a) => a.id)).toEqual(['as-1']);
+    });
+
+    it('keeps the workspace on screen: no loading spinner, selection kept', () => {
+      configure({ nodesByInstance: { 'inst-a': [makeNode('n1', 'TRONC')] } });
+      service.load(EVENT_ID, SEGMENT_ID);
+      state.setSelectedNodeId('n1');
+      addInstanceToSegment();
+      const loadingStates: boolean[] = [];
+      const original = service.loading.set.bind(service.loading);
+      vi.spyOn(service.loading, 'set').mockImplementation((v) => {
+        loadingStates.push(v);
+        original(v);
+      });
+
+      service.reloadInstances();
+
+      expect(loadingStates).not.toContain(true);
+      expect(state.selectedNodeId()).toBe('n1');
+    });
+
+    it('re-fetches distribution positions and conflicts', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      distributionService.getDistribution.mockClear();
+      assignmentService.getSegmentConflicts.mockClear();
+
+      service.reloadInstances();
+
+      expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(assignmentService.getSegmentConflicts).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+    });
+
+    it('does nothing when called before load (no event/segment id yet)', () => {
+      configure();
+
+      service.reloadInstances();
+
+      expect(segmentService.getByEvent).not.toHaveBeenCalled();
+    });
+  });
+
   describe('segment navigation (prev/next/position)', () => {
     const makeSegmentWithId = (id: string, sortOrder: number): SegmentDetail => ({
       ...makeSegment([makeInstance(`inst-${id}`)]),
