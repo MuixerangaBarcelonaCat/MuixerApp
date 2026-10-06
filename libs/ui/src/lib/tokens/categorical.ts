@@ -6,8 +6,8 @@ export interface CategoricalPalette {
   light: OklchColor[];
 }
 
-// Order matches the current libs/pinyes-render/src/lib/utils/figure-palette.util.ts (§2.1i) —
-// first 6 are the fixed palette's own accent hues (shared with the semantic error/success/
+// Also drives the per-figure colors (libs/pinyes-render/src/lib/utils/figure-palette.util.ts).
+// First 6 are the fixed palette's own accent hues (shared with the semantic error/success/
 // warning/info roles), last 4 fill the genuinely open gaps left in the hue wheel once those 6
 // are placed.
 const CATEGORICAL_BASE_HEX: readonly string[] = [
