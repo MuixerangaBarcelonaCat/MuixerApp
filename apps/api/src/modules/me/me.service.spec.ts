@@ -367,7 +367,7 @@ describe('MeService', () => {
   });
 
   describe('createPersonDelegate', () => {
-    const dto = { alias: 'JoanP', delegateType: DelegateType.PARTNER };
+    const dto = { alias: 'JoanP', delegateType: DelegateType.OTHER };
 
     function mockPersonQb(targetPerson: unknown) {
       const qb = {
@@ -381,7 +381,7 @@ describe('MeService', () => {
 
     it('creates a delegate for the account linked to the matching alias, always as non-primary', async () => {
       const qb = mockPersonQb({ id: 'p-target', alias: 'JoanP', user: { id: 'user-target' } });
-      const created = { id: 'del-new', delegateType: DelegateType.PARTNER, isPrimary: false };
+      const created = { id: 'del-new', delegateType: DelegateType.OTHER, isPrimary: false };
       personDelegateService.create.mockResolvedValue(created as never);
 
       const result = await service.createPersonDelegate('user-1', 'p-1', dto);
@@ -390,7 +390,7 @@ describe('MeService', () => {
       expect(qb.where).toHaveBeenCalledWith('LOWER(person.alias) = LOWER(:alias)', { alias: 'JoanP' });
       expect(personDelegateService.create).toHaveBeenCalledWith('p-1', {
         userId: 'user-target',
-        delegateType: DelegateType.PARTNER,
+        delegateType: DelegateType.OTHER,
         isPrimary: false,
       });
       expect(result).toEqual(created);

@@ -99,7 +99,7 @@ describe('MeService profile endpoints (integration)', () => {
     { isPrimary }: { isPrimary: boolean },
   ) =>
     delegateRepo.save(
-      delegateRepo.create({ person, user, delegateType: DelegateType.PARTNER, isPrimary }),
+      delegateRepo.create({ person, user, delegateType: DelegateType.OTHER, isPrimary }),
     );
 
   it('lets a user manage their own person', async () => {
@@ -159,7 +159,7 @@ describe('MeService profile endpoints (integration)', () => {
 
     const created = await service.createPersonDelegate((user as User).id, person.id, {
       alias: 'joanp',
-      delegateType: DelegateType.PARTNER,
+      delegateType: DelegateType.OTHER,
     });
 
     expect(created.isPrimary).toBe(false);
@@ -175,7 +175,7 @@ describe('MeService profile endpoints (integration)', () => {
     await expect(
       service.createPersonDelegate((user as User).id, person.id, {
         alias: 'NoTalAlias',
-        delegateType: DelegateType.PARTNER,
+        delegateType: DelegateType.OTHER,
       }),
     ).rejects.toThrow(NotFoundException);
   });
@@ -187,7 +187,7 @@ describe('MeService profile endpoints (integration)', () => {
     await expect(
       service.createPersonDelegate((user as User).id, person.id, {
         alias: 'NoAccount',
-        delegateType: DelegateType.PARTNER,
+        delegateType: DelegateType.OTHER,
       }),
     ).rejects.toThrow(NotFoundException);
   });

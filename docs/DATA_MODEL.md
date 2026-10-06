@@ -89,7 +89,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-10-02 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-10-06 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -130,7 +130,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `BeforeEventOffsetUnit` | `DAYS` · `HOURS` |
 | `ClientType` | `dashboard` · `pwa` |
-| `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` · `OTHER` |
+| `DelegateType` | `PARENT` · `GUARDIAN` · `OTHER` |
 | `EventReferenceKind` | `SPECIFIC` · `NEXT_ACTUACIO` · `NEXT_ASSAIG` · `NEXT_ACTUACIO_OR_ASSAIG` · `TRIGGERING_EVENT` |
 | `EventType` | `ASSAIG` · `ACTUACIO` |
 | `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
