@@ -32,8 +32,8 @@ OKLCH throughout, not hex/RGB — perceptually uniform lightness makes tone-shif
 |------|--------|-------|
 | `primary` | Derived from `shirtHex` | Fixed L=0.62 / C=0.18 target, hue from the shirt color |
 | `secondary` | Derived from `shirtHex` | Same hue as primary, lighter and lower-chroma — a muted sibling, never sash-derived |
-| `accent` | Fixed | `#D4793B` (orange) — not colla-dependent, reused from the categorical palette |
-| `error` / `success` / `warning` / `info` | Fixed | `#C23B3B` / `#3B8C5A` / `#C9A84C` / `#3B6FC2` — same across every colla |
+| `accent` | Fixed | `#DD8C46` (apricot) — not colla-dependent, reused from the categorical palette |
+| `error` / `success` / `warning` / `info` | Fixed | `#C74007` / `#277C64` / `#C9A84C` / `#3B6FC2` — same across every colla. Error (scarlet) and success (jade) are tuned to stay apart for red-green colorblind users and to keep AA text contrast on paper; `fixed-colors.spec.ts` enforces both |
 | Sash (`--ds-sash-fill`/`-content`/`-edge`/`-weave`) | Derived from `sashSpec` | Independent of `primary` — never assume a colla's sash matches its shirt color |
 
 **`tone(base, variant, mode)`** computes a role's interactive states from its base color:
@@ -119,7 +119,7 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 ### Categorical colors
 
-`CategoricalPalette` in `categorical.ts` — 10 hues for domain data that needs many distinguishable colors at once (tags, figure-node presets), not a small closed set of semantic roles. The first 6 reuse the fixed accent/semantic hues (error/success/info/warning red/green/blue/gold, plus purple and orange); the last 4 (teal, pink, brown, olive) fill genuine gaps in the hue wheel. Light-mode variants are hand-tuned per hue for the first 6; dark mode always computes via `tone()` rather than reusing pale light-mode values unmodified (which would read as a glow, not a receding shadow).
+`CategoricalPalette` in `categorical.ts` — 10 hues for domain data that needs many distinguishable colors at once (tags, figure-node presets), not a small closed set of semantic roles. The first 6 reuse the fixed accent/semantic hues (error/success/info/warning red/green/blue/gold, plus purple and orange); the last 4 (teal, pink, brown, olive) fill genuine gaps in the hue wheel. Light-mode variants close 55% of each color's own lightness gap to the paper at 60% of its chroma (a fixed lightness step clipped the already-light gold and orange to near-white). Every pair of normal colors stays at OKLab ΔE ≥ 10 except gold/orange (≈ 9.3, accepted by eye), and red vs orange stays ≥ 15 — all enforced in `categorical.spec.ts`; dark mode always computes via `tone()` rather than reusing pale light-mode values unmodified (which would read as a glow, not a receding shadow).
 
 **Defined now; not yet consumed anywhere.** Its intended consumer is the Konva canvas (`libs/pinyes-render`) — Tier 5 of the component-library plan, not yet built.
 

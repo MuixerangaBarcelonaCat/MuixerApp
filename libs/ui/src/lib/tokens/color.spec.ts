@@ -8,7 +8,7 @@ import {
   sashFromHue,
   sashFromFill,
 } from './color';
-import { INK, PAPER } from './fixed-colors';
+import { INK, PAPER, SEMANTIC } from './fixed-colors';
 
 const INK_BLACK = hexToOklch(INK.black);
 const PAPER_WHITE = hexToOklch(PAPER.white);
@@ -288,8 +288,8 @@ describe('sashFromHue', () => {
   it("stays distinct from the fixed error token's L/C even when the hue matches", () => {
     // The confusability mitigation from the plan (§2.1a): a red sash must not chromatically
     // coincide with the fixed error color, even though both are "red".
-    const redSash = sashFromHue('#C23B3B', 'light', INK_BLACK, PAPER_WHITE);
-    const errorOklch = hexToOklch('#C23B3B'); // the fixed error token itself
+    const redSash = sashFromHue(SEMANTIC.error, 'light', INK_BLACK, PAPER_WHITE);
+    const errorOklch = hexToOklch(SEMANTIC.error); // the fixed error token itself
     const sameL = Math.abs(redSash.fill.l - errorOklch.l) < 0.01;
     const sameC = Math.abs(redSash.fill.c - errorOklch.c) < 0.01;
     expect(sameL && sameC).toBe(false);

@@ -330,8 +330,10 @@ describe('SegmentManagerComponent', () => {
       const btn = fixture.nativeElement.querySelector('[aria-label^="Cap segment publicat"]');
       expect(btn).not.toBeNull();
       expect(btn.textContent).toContain('No publicat');
-      // Whole control (not just the icon) carries the lib-button role colour.
-      expect(btn.className).toContain('text-neutral');
+      // Muted gray, not full ink: the published state is green, and the jade success tone is
+      // too close to ink to tell the two apart (same pairing as the per-segment eye toggle).
+      expect(btn.className).not.toContain('text-neutral');
+      expect(btn.querySelector('.text-base-content\\/60')?.textContent).toContain('No publicat');
 
       btn.click();
       expect(spy).toHaveBeenCalled();

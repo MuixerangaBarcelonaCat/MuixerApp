@@ -11,7 +11,7 @@
         <!-- Bulk publish toggle -->
         @if (segments().length > 0) {
           <lib-button
-            [variant]="anySegmentPublished() ? 'success' : 'neutral'"
+            [variant]="anySegmentPublished() ? 'success' : 'ghost'"
             ghost
             size="xs"
             [ariaLabel]="anySegmentPublished() ? 'Segments publicats — cliqueu per ocultar-los tots als membres' : 'Cap segment publicat — cliqueu per publicar-los tots'"
@@ -22,8 +22,11 @@
               <lucide-icon name="Eye" [size]="13" />
               Publicat
             } @else {
-              <lucide-icon name="EyeOff" [size]="13" />
-              No publicat
+              <!-- Muted gray, not ink: jade green is too close to ink to read as the "on" state -->
+              <span class="inline-flex items-center gap-1 text-base-content/60">
+                <lucide-icon name="EyeOff" [size]="13" />
+                No publicat
+              </span>
             }
           </lib-button>
         }

@@ -1,5 +1,5 @@
 import { formatHex, hexToOklch, tone, OklchColor, ThemeMode } from './color';
-import { SEMANTIC, SEMANTIC_LIGHT } from './fixed-colors';
+import { PAPER, SEMANTIC } from './fixed-colors';
 
 export interface CategoricalPalette {
   normal: OklchColor[];
@@ -11,42 +11,39 @@ export interface CategoricalPalette {
 // warning/info roles), last 4 fill the genuinely open gaps left in the hue wheel once those 6
 // are placed.
 const CATEGORICAL_BASE_HEX: readonly string[] = [
-  SEMANTIC.error, // red
-  SEMANTIC.success, // green
+  SEMANTIC.error, // red (scarlet)
+  SEMANTIC.success, // green (jade)
   SEMANTIC.info, // blue
-  '#cfa72b', // gold (yellow)
+  '#DCAD21', // gold
   '#77579e', // purple — no semantic role, categorical-only
-  '#D4793B', // orange — no semantic role, categorical-only
-  '#248995', // teal   — new, gap between green and blue
+  '#DD8C46', // orange (apricot) — no semantic role, categorical-only; kept well clear of red
+  '#2B98B0', // teal   — new, gap between green and blue; leans blue so it doesn't read as green
   '#BF609B', // pink   — new, gap between purple and red
   '#915c4b', // brown  — new, deliberately darker/more desaturated than red/orange rather than
   //           hue-separated from them, since brown reads as an earth tone, not a distinct hue
   '#768A42', // olive  — new, gap between gold and green
 ];
 
-// Hand-tuned light variants for the first 6 hues — valid for light mode only. There's no
-// dark-mode equivalent authored for these, so dark mode always computes via tone() instead (see
-// below); reusing these pale values unmodified in dark mode would read as a glow, not a
-// receding shadow tone.
-const FIXED_LIGHT_HEX: readonly (string | undefined)[] = [
-  '#f39891',
-  undefined,
-  undefined,
-  '#fcd97b',
-  undefined,
-  '#facfb6',
-  undefined,
-  '#f0b7d8',
-  undefined,
-  undefined,
-];
+// Light-mode variants close the same share of each color's own gap to the paper, rather than
+// taking a fixed lightness step: a fixed step pushes already-light hues (gold, orange) into the
+// white end of sRGB, where they clip to almost paper and lose their color.
+const LIGHT_PAPER_SHARE = 0.55;
+const LIGHT_CHROMA_FACTOR = 0.6;
+const PAPER_L = hexToOklch(PAPER.white).l;
+
+function lightVariant(base: OklchColor, mode: ThemeMode): OklchColor {
+  // Dark mode keeps tone()'s receding shadow tone — a paper-ward share would glow on a dark surface.
+  if (mode === 'dark') return tone(base, 'muted', mode);
+  return {
+    l: base.l + LIGHT_PAPER_SHARE * (PAPER_L - base.l),
+    c: base.c * LIGHT_CHROMA_FACTOR,
+    h: base.h,
+  };
+}
 
 export function buildCategoricalPalette(mode: ThemeMode): CategoricalPalette {
   const normal = CATEGORICAL_BASE_HEX.map(hexToOklch);
-  const light = normal.map((base, i) => {
-    const literalLight = mode === 'light' ? FIXED_LIGHT_HEX[i] : undefined;
-    return literalLight ? hexToOklch(literalLight) : tone(base, 'muted', mode);
-  });
+  const light = normal.map((base) => lightVariant(base, mode));
   return { normal, light };
 }
 
