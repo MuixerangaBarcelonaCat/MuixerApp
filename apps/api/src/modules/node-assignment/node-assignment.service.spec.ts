@@ -1745,6 +1745,36 @@ describe('NodeAssignmentService', () => {
       expect(result.data[1].figureName).toBe('Pilar caminant');
       expect(result.data[2].figureName).toBe('Peu de Pilar de 4');
     });
+
+    it('adds each instance\'s tronc summary, worded as in the segment list', async () => {
+      const ev = { id: 'e1', title: 'Assaig', date: '2026-05-01', eventType: EventType.ASSAIG };
+      const completa = makeInstance({ snapshotted: true, figureMode: FigureMode.COMPLETA });
+      completa.segment = { ...makeSegment(), event: ev };
+      const remat = makeInstance({ snapshotted: true, id: 'fi-remat', figureMode: FigureMode.REMAT });
+      remat.segment = { ...makeSegment(), event: ev };
+      const noTronc = makeInstance({ snapshotted: true, id: 'fi-no-tronc' });
+      noTronc.segment = { ...makeSegment(), event: ev };
+
+      mockTemplateRepo.findOne.mockResolvedValue({ id: TEMPLATE_ID, name: 'Pilar de 4' });
+      mockHistoryQb.getCount.mockResolvedValue(3);
+      mockHistoryQb.getMany.mockResolvedValue([completa, remat, noTronc]);
+      mockDataSource.query.mockResolvedValueOnce([
+        { instance_id: INSTANCE_ID, zone: 'BASE', z: 0, sort_order: 0, alias: 'Pepet', climb_indicator: null },
+        { instance_id: INSTANCE_ID, zone: 'BASE', z: 0, sort_order: 1, alias: null, climb_indicator: null },
+        { instance_id: INSTANCE_ID, zone: 'TRONC', z: 1, sort_order: 0, alias: 'Maria', climb_indicator: null },
+        { instance_id: 'fi-remat', zone: 'BASE', z: 0, sort_order: 0, alias: 'Joan', climb_indicator: null },
+        { instance_id: 'fi-remat', zone: 'TRONC', z: 1, sort_order: 0, alias: 'Aina', climb_indicator: null },
+      ]);
+
+      const result = await service.getHistory(TEMPLATE_ID);
+
+      expect(mockDataSource.query).toHaveBeenCalledWith(expect.any(String), [
+        [INSTANCE_ID, 'fi-remat', 'fi-no-tronc'],
+      ]);
+      expect(result.data[0].troncSummary).toBe('Pepet - ? // Maria');
+      expect(result.data[1].troncSummary).toBe('Aina');
+      expect(result.data[2].troncSummary).toBeNull();
+    });
   });
 
   // ── getPersonHistory ───────────────────────────────────────────────────

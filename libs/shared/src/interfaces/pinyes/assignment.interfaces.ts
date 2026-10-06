@@ -103,6 +103,9 @@ export interface FigureHistoryEntry {
   snapshotted: boolean;
   assignmentCount: number;
   totalNodes: number;
+  /** One-line tronc, base → top («Pepet - ? // Maria»), as the segment list's Troncs mode shows
+   *  it; null when the figure has no tronc nodes or nothing left to show for its mode. */
+  troncSummary: string | null;
   assignments: {
     nodeId: string;
     nodeLabel: string;

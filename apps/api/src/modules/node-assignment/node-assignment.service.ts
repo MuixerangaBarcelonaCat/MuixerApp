@@ -36,12 +36,14 @@ import {
   ImportScope,
   zonesForScope,
   getSegmentInstanceLabel,
+  formatTroncSummary,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
+import { fetchTroncFloors } from '../event-segment/tronc-floors.util';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { Person } from '../person/person.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -145,6 +147,9 @@ export interface FigureHistoryEntry {
   snapshotted: boolean;
   assignmentCount: number;
   totalNodes: number;
+  /** One-line tronc, base → top («Pepet - ? // Maria»), as the segment list's Troncs mode shows
+   *  it; null when the figure has no tronc nodes or nothing left to show for its mode. */
+  troncSummary: string | null;
   assignments: {
     nodeId: string;
     nodeLabel: string;
@@ -1112,6 +1117,10 @@ export class NodeAssignmentService {
       .take(limit)
       .getMany();
 
+    const troncFloors = await fetchTroncFloors(this.dataSource, {
+      instanceIds: instances.map((i) => i.id),
+    });
+
     const data = instances.map((instance) => {
       const event = instance.segment.event as Event;
       // Show a figure name when the user renamed the instance OR the mode isn't the plain
@@ -1138,6 +1147,7 @@ export class NodeAssignmentService {
         snapshotted: instance.snapshotted,
         assignmentCount: instance.assignments?.length ?? 0,
         totalNodes: (instance as FigureInstance & { instanceNodeCount?: number }).instanceNodeCount ?? 0,
+        troncSummary: formatTroncSummary(troncFloors.get(instance.id) ?? [], figureMode),
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
