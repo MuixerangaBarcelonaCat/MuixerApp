@@ -12,6 +12,7 @@ import {
   NgZone,
 } from '@angular/core';
 import { EventType, AttendanceStatus, MeEvent } from '@muixer/shared';
+import { NgTemplateOutlet } from '@angular/common';
 import { LucideAngularModule, ChevronLeft, ChevronRight, Star } from 'lucide-angular';
 import { ButtonComponent } from '@muixer/ui';
 import { parseLocalDate } from '../../../../shared/pipes/format-event-date.pipe';
@@ -63,11 +64,30 @@ const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.ASSISTIT]: 'He assistit',
 };
 
-// Color now depends only on the attendance answer, not the event type — a will-attend/attended
+// Color depends only on the attendance answer, not the event type — a will-attend/attended
 // event reads as "good" (success), a declined one as "gone" (error), and an unanswered one is
 // left empty/outline in the neutral primary hue. Shape is what carries the event type instead
 // (circle for assaig, star for actuació — see `dotClasses`/`starClasses` below).
+// Color is never the only cue: a declined marker is also drawn as an outline with a slash
+// through it, so «Vaig» (solid) and «No vaig» (struck) stay apart for colorblind members.
 type AttendanceBucket = 'positive' | 'negative' | 'pending';
+
+// `neutral` is the legend's event-type key — no attendance answer attached.
+type MarkerTone = AttendanceBucket | 'neutral';
+
+interface LegendItem {
+  label: string;
+  eventType: EventType;
+  tone: MarkerTone;
+}
+
+const LEGEND: LegendItem[] = [
+  { label: 'Vaig', eventType: EventType.ASSAIG, tone: 'positive' },
+  { label: 'No vaig', eventType: EventType.ASSAIG, tone: 'negative' },
+  { label: 'Pendent', eventType: EventType.ASSAIG, tone: 'pending' },
+  { label: 'Assaig', eventType: EventType.ASSAIG, tone: 'neutral' },
+  { label: 'Actuació', eventType: EventType.ACTUACIO, tone: 'neutral' },
+];
 
 const BUCKET_BY_STATUS: Record<AttendanceStatus, AttendanceBucket> = {
   [AttendanceStatus.ANIRE]: 'positive',
@@ -76,19 +96,21 @@ const BUCKET_BY_STATUS: Record<AttendanceStatus, AttendanceBucket> = {
   [AttendanceStatus.PENDENT]: 'pending',
 };
 
-const DOT_CLASSES: Record<AttendanceBucket, string> = {
+const DOT_CLASSES: Record<MarkerTone, string> = {
   positive: 'bg-success',
-  negative: 'bg-error',
+  negative: 'border border-error',
   pending: 'border border-primary',
+  neutral: 'bg-base-content/60',
 };
 
 // `fill-*`/`text-*` land on the icon's own generated <svg> (see LucideAngularComponent's `class`
 // input), overriding its hardcoded `fill="none"` presentation attribute — a plain CSS class binds
 // with normal cascade precedence, which beats a presentation attribute regardless of DOM order.
-const STAR_CLASSES: Record<AttendanceBucket, string> = {
+const STAR_CLASSES: Record<MarkerTone, string> = {
   positive: 'text-success fill-success',
-  negative: 'text-error fill-error',
+  negative: 'text-error',
   pending: 'text-primary',
+  neutral: 'text-base-content/60 fill-base-content/60',
 };
 
 const SWIPE_THRESHOLD = 50;
@@ -97,7 +119,7 @@ const SWIPE_THRESHOLD = 50;
   selector: 'app-calendar-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, ButtonComponent],
+  imports: [LucideAngularModule, ButtonComponent, NgTemplateOutlet],
   templateUrl: './calendar-view.component.html',
 })
 export class CalendarViewComponent implements AfterViewInit, OnDestroy {
@@ -110,6 +132,7 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
   protected readonly Star = Star;
   protected readonly EventType = EventType;
   protected readonly dayHeaders = DAY_HEADERS;
+  protected readonly legend = LEGEND;
 
   private readonly el = inject(ElementRef<HTMLElement>);
   private readonly zone = inject(NgZone);
@@ -187,16 +210,16 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
     this.selectedDateChange.emit(newDate);
   }
 
-  private bucketFor(ev: CalendarDayEvent): AttendanceBucket {
+  bucketFor(ev: CalendarDayEvent): AttendanceBucket {
     return ev.attendanceStatus == null ? 'pending' : BUCKET_BY_STATUS[ev.attendanceStatus];
   }
 
-  dotClasses(ev: CalendarDayEvent): string {
-    return DOT_CLASSES[this.bucketFor(ev)];
+  dotClasses(tone: MarkerTone): string {
+    return DOT_CLASSES[tone];
   }
 
-  starClasses(ev: CalendarDayEvent): string {
-    return STAR_CLASSES[this.bucketFor(ev)];
+  starClasses(tone: MarkerTone): string {
+    return STAR_CLASSES[tone];
   }
 
   onDayKeydown(event: KeyboardEvent, day: CalendarDay): void {
