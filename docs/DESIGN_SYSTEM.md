@@ -51,7 +51,7 @@ OKLCH throughout, not hex/RGB — perceptually uniform lightness makes tone-shif
 
 Every `InteractiveRole` (`primary`/`secondary`/`accent`/`neutral`/`info`/`success`/`warning`/`error`) gets its hover/active/disabled precomputed into theme-level `--ds-{role}-hover`/`-active`/`-disabled` custom properties — DaisyUI's own `:hover`/`:disabled` states always mix toward flat black/gray regardless of role, so components that want `tone()`'s mode-aware, per-role feedback need these precomputed rather than relying on DaisyUI's default.
 
-**`contrastContent(background, darkContent, lightContent)`** picks readable content color via real APCA contrast (not naive relative luminance) — used everywhere a solid fill needs readable text/icon color on top of an arbitrary custom color (Badge's `color` override, Card's `sashColor` override), and by the sash motif itself (below) for its own fill.
+**`contrastContent(background, darkContent, lightContent)`** picks readable content color via real APCA contrast (not naive relative luminance) — used everywhere a solid fill needs readable text/icon color on top of an arbitrary custom color, and by the sash motif itself (below) for its own fill. For a user-picked hex, `readableContentOn(hex)` wraps it with the ink/paper pair and returns a CSS color (Badge's `color`, Card's `sashColor`, the color picker's hover pencil).
 
 `contrastContent` gamut-maps every candidate (`culori`'s `clampChroma`) before computing APCA luminance. Needed because fixed L/C targets — the sash's `SASH_L=0.52`/`SASH_C=0.2` in particular — can land outside the sRGB gamut for some hues (confirmed: `#B32400`, h≈33°); left unclamped, culori's raw RGB conversion returns an out-of-range channel (e.g. blue < 0), which collapses both candidates' APCA contrast to ~0 — a tie the `>=` tie-break silently resolves to dark content regardless of how dark the color actually reads. Gamut-mapping first matches what a browser actually paints for an out-of-gamut `oklch()` value, so the text-color decision agrees with the rendered fill.
 
@@ -554,6 +554,14 @@ Output: `clicked`. No wrapper chrome — sits directly in whatever layout the co
 <lib-empty-state message="No s'han trobat persones amb els filtres actuals" actionLabel="Neteja filtres" (clicked)="clearFilters()" />
 ```
 
+### `lib-theme-picker`
+
+No inputs. A compact icon-only `lib-button-group` (`xs`, square) of «Sistema» / «Clar» / «Fosc» (monitor / sun / moon, named via `ariaLabel` + tooltip) bound to `ThemeService` (pressed state = current preference). Labelled as a group «Aparença».
+
+```html
+<lib-theme-picker />
+```
+
 ## Component conventions
 
 Cross-cutting rules for anyone adding a new `libs/ui` component:
@@ -582,17 +590,35 @@ Cross-cutting rules for anyone adding a new `libs/ui` component:
 
 ## Theming / dark mode
 
-`generateCollaTheme(shirtHex, sashSpec)` (`libs/ui/src/lib/tokens/theme.ts`) derives a complete DaisyUI theme — every semantic color role plus every `--ds-*` custom property — for both light and dark mode from those two inputs alone. `tailwind.config.ts` registers the result per colla:
+`generateCollaTheme(shirtHex, sashSpec)` (`libs/ui/src/lib/tokens/theme.ts`) derives a complete DaisyUI theme — every semantic color role plus every `--ds-*` custom property and `color-scheme` — for both light and dark mode from those two inputs alone. `tailwind.config.ts` registers both, named by `THEME_NAMES` (`theme-names.ts`):
 
 ```ts
 daisyui: {
-  themes: [
-    { 'colla-barcelona': generateCollaTheme('#1E3A8A', { kind: 'hue', hex: '#6B4C91' }) },
-  ],
+  themes: [{ [THEME_NAMES.light]: barcelona.light }, { [THEME_NAMES.dark]: barcelona.dark }],
+  darkTheme: THEME_NAMES.dark,
 }
 ```
 
-Runtime switch: `document.documentElement.setAttribute('data-theme', 'colla-nova')`. Dark mode isn't a flat inversion — several tokens (shadow tint, `disabled`'s `recedeExtremeGap`, categorical dark variants) compute differently by mode rather than reusing light-mode values unmodified, since a straight invert reads wrong for some of them (a dark shadow reads weakly against an already-dark surface; a pale light-mode categorical hue reused in dark mode reads as a glow, not a receding shadow).
+Dark mode isn't a flat inversion — several tokens compute differently by mode rather than reusing light-mode values unmodified:
+
+| Token | Light | Dark | Why |
+|-------|-------|------|-----|
+| `base-100/200/300` | paper.white / cream / washi | ink.dark / ink.black / ink.dark at L 0.37 | Elevation lightens in both; dark base-300 is one step above the card (ink.mid read as hard lines) |
+| `neutral` | ink.dark | ink.faint | ink.dark is the dark card itself — neutral buttons/badges would vanish |
+| Hue sash fill | L 0.52 / C 0.20 | L 0.58 / C 0.15 | Sinks into the dark card at 0.52 |
+| `primary` | L 0.62 / C 0.18 | same | Lifted versions read as too light (previewed and rejected) |
+| `color-scheme` | `light` | `dark` | Native date pickers, selects and scrollbars follow the theme |
+
+Shadow tint, `disabled`'s `recedeExtremeGap` and the categorical dark variants also differ by mode (a dark shadow reads weakly on a dark surface; a pale light-mode hue reused in dark mode reads as a glow). Error/success text on dark surfaces is still below AA — see DEBT F18.
+
+**Switching.** The preference is per device: `ThemeService` (`libs/ui`) holds `preference` («Sistema» / «Clar» / «Fosc», default system), `mode` (what's on screen) and `setPreference()`, stored in `localStorage` under `THEME_STORAGE_KEY`. «Sistema» leaves `<html>` without `data-theme`, so DaisyUI's own `prefers-color-scheme` block picks the theme in pure CSS; an explicit choice sets `data-theme` on `<html>`. A small inline script in each app's `index.html` applies a stored choice before first paint (no light flash); `index-html.spec.ts` in each app runs it to keep its copied names in sync. Users change it with `lib-theme-picker` (PWA: Configuració → Aparença; Dashboard: the user menu).
+
+**Pinned surfaces.** `libThemeScope="light" | "dark"` (`ThemeScopeDirective`) pins an element and everything inside it to one theme, whatever the page theme:
+
+- **Figure rendering is pinned light** (`app-figure-canvas`, `app-tronc-view`, `lib-pinya-projection` and the projection backdrop) until the Konva canvas is themed — see DEBT.md.
+- **HUDs over a figure are always dark** (projection navigation bars, the PWA search button, the own-position banner/chevron/ring), as is the sync log terminal.
+
+DaisyUI paints `background-color: base-100` and `color: base-content` on every `[data-theme]` element, so a pinned element that should stay translucent needs an explicit `bg-*` class (utilities win over that base-layer rule). Inside a pinned scope, still use theme tokens (`bg-base-200/60`, `text-base-content/70`) — never `bg-black`/`text-white`; `pnpm run lint:tokens` flags Tailwind's stock palette classes for this reason.
 
 ## Accessibility
 

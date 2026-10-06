@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { UserRole } from '@muixer/shared';
+import { ThemePickerComponent } from '@muixer/ui';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -18,7 +19,7 @@ const ROLE_BADGE_CLASS: Record<UserRole, string> = {
 @Component({
   selector: 'app-user-chip',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [],
+  imports: [ThemePickerComponent],
   templateUrl: './user-chip.component.html',
 })
 export class UserChipComponent {

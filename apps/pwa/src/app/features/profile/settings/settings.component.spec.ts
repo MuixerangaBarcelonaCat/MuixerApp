@@ -90,6 +90,12 @@ describe('SettingsComponent', () => {
       expect(text).toContain('Tancar sessió');
     });
 
+    it('renders the appearance row with the theme picker', () => {
+      const row = fixture.nativeElement.querySelector('[data-testid="appearance-row"]');
+      expect(row.textContent).toContain('Aparença');
+      expect(row.querySelector('lib-theme-picker')).toBeTruthy();
+    });
+
     it('renders the notifications row showing push is unsupported in JSDOM', () => {
       const row = fixture.nativeElement.querySelector('[data-testid="notifications-row"]');
       expect(row).toBeTruthy();

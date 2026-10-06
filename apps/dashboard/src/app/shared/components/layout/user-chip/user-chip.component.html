@@ -25,7 +25,15 @@
           <span class="badge badge-sm {{ roleBadgeClass() }} w-fit">{{ roleLabel() }}</span>
         </div>
       </li>
-      <li><hr class="my-1 border-base-200" /></li>
+      <li role="separator"></li>
+      <li data-testid="appearance-item">
+        <!-- Not a menu action itself: cancel the menu's own hover/press fill on this row. -->
+        <div class="flex items-center justify-between gap-2 cursor-default hover:bg-transparent active:!bg-transparent">
+          <span class="text-xs font-medium text-base-content/70">Aparença</span>
+          <lib-theme-picker />
+        </div>
+      </li>
+      <li role="separator"></li>
       <li>
         <button type="button" class="text-error" (click)="logout()">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

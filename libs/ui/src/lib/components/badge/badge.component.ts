@@ -1,8 +1,7 @@
 import { booleanAttribute, ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { LiftHoverDirective } from '../../directives/lift-hover.directive';
-import { contrastContent, formatOklch, hexToOklch } from '../../tokens/color';
-import { INK, PAPER } from '../../tokens/fixed-colors';
+import { readableContentOn } from '../../tokens/color';
 
 export type BadgeVariant =
   | 'primary'
@@ -42,9 +41,6 @@ const SIZE_CLASSES: Record<BadgeSize, string> = {
 export function badgeClasses(variant: BadgeVariant, size: BadgeSize): string {
   return ['badge', VARIANT_CLASSES[variant], SIZE_CLASSES[size]].filter(Boolean).join(' ');
 }
-
-const INK_BLACK = hexToOklch(INK.black);
-const PAPER_WHITE = hexToOklch(PAPER.white);
 
 @Component({
   selector: 'lib-badge',
@@ -112,6 +108,6 @@ export class BadgeComponent {
     if (!color) {
       return null;
     }
-    return formatOklch(contrastContent(hexToOklch(color), INK_BLACK, PAPER_WHITE));
+    return readableContentOn(color);
   });
 }

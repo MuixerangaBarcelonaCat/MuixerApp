@@ -53,15 +53,20 @@
     } @else {
       <div class="flex flex-wrap content-start items-start gap-6 p-4">
         @for (figure of figures(); track figure.instance.instanceId) {
+          <!-- Pinned light with the tronc panel it frames (figure rendering isn't themed for dark
+               yet, DEBT F19); the panel is transparent so the figure tint shows through it. -->
           <div
+            libThemeScope="light"
+            data-figure-card
             class="flex flex-col gap-2 shrink-0 p-3 rounded-lg border-2"
-            [style.border-color]="figure.color + '55'"
-            [style.background-color]="figure.color + '0d'"
+            [style.border-color]="figure.tint.border"
+            [style.background-color]="figure.tint.background"
           >
             <h2 class="text-lg font-semibold text-base-content/70 text-center">
               {{ figure.instance.label }}
             </h2>
             <app-tronc-view
+              class="bg-transparent"
               [instanceId]="figure.instance.instanceId"
               [troncNodes]="figure.troncNodes"
               [baseNodes]="figure.baseNodes"

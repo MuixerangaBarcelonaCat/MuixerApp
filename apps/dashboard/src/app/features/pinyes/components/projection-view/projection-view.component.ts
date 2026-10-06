@@ -13,7 +13,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '@muixer/ui';
+import { ThemeScopeDirective, ToastService } from '@muixer/ui';
 import { ProjectionService } from '../../services/projection.service';
 
 @Component({
@@ -24,6 +24,7 @@ import { ProjectionService } from '../../services/projection.service';
     CommonModule,
     LucideAngularModule,
     PinyaProjectionComponent,
+    ThemeScopeDirective,
   ],
   templateUrl: './projection-view.component.html',
 })

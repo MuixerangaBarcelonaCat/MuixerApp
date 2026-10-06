@@ -1,3 +1,4 @@
+import { THEME_NAMES } from '@muixer/ui';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ButtonComponent } from '@muixer/ui';
@@ -83,6 +84,11 @@ describe('TroncViewComponent', () => {
   });
 
   // ── Floor grouping ────────────────────────────────────────────────────────
+
+  it('is pinned to the light theme until figure rendering is themed for dark mode', () => {
+    expect(fixture.nativeElement.dataset['theme']).toBe(THEME_NAMES.light);
+  });
+
 
   it('shows no floors when no nodes are provided', () => {
     expect(component.floors().length).toBe(0);

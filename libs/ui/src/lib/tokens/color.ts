@@ -1,5 +1,6 @@
 import { clampChroma, converter, formatHex as culoriFormatHex } from 'culori';
 import { APCAcontrast, sRGBtoY } from 'apca-w3';
+import { INK, PAPER } from './fixed-colors';
 
 const toOklch = converter('oklch');
 const toRgb = converter('rgb');
@@ -142,6 +143,14 @@ export function contrastContent(
   return darkContrast >= lightContrast ? darkContent : lightContent;
 }
 
+/**
+ * Readable text/icon color on top of an arbitrary user-picked hex fill (a tag color, a node
+ * color), as a CSS color: the ink/paper pair contrastContent picks between.
+ */
+export function readableContentOn(fillHex: string): string {
+  return formatOklch(contrastContent(hexToOklch(fillHex), hexToOklch(INK.black), hexToOklch(PAPER.white)));
+}
+
 // Fixed L/C targets per color role (§2.1a) — deliberately distinct per role so a colla's
 // computed colors never chromatically coincide with each other or with the fixed error token,
 // even when hues happen to be close. Exact values are implementation-time tuning, revisit once
@@ -162,6 +171,11 @@ const SECONDARY_C = 0.08;
 // The sash motif's own fixed L/C target, distinct from primary and secondary.
 const SASH_L = 0.52;
 const SASH_C = 0.2;
+// Dark mode lifts the sash so it still reads against the ink.dark card: at 0.52 it sinks into it.
+// Chroma drops too, as at this lightness 0.2 runs out of gamut for most hues and reads loud.
+// Primary keeps its single L/C target in both modes; lifted versions read as too light.
+const SASH_L_DARK = 0.58;
+const SASH_C_DARK = 0.15;
 
 /**
  * A colla's primary color, re-normalized from their shirt color: fixed lightness/chroma,
@@ -210,7 +224,7 @@ export function sashFromFill(
   };
 }
 
-/** A real-hue sash (red/purple/yellow/orange/...): fixed sash L/C, hue from the sash color. */
+/** A real-hue sash (red/purple/yellow/orange/...): fixed sash L/C per mode, hue from the sash color. */
 export function sashFromHue(
   sashHex: string,
   mode: ThemeMode,
@@ -218,5 +232,6 @@ export function sashFromHue(
   lightContent: OklchColor,
 ): SashTokens {
   const { h } = hexToOklch(sashHex);
-  return sashFromFill({ l: SASH_L, c: SASH_C, h }, mode, darkContent, lightContent);
+  const fill = mode === 'light' ? { l: SASH_L, c: SASH_C, h } : { l: SASH_L_DARK, c: SASH_C_DARK, h };
+  return sashFromFill(fill, mode, darkContent, lightContent);
 }

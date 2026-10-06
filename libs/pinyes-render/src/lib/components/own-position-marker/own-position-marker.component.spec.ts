@@ -4,6 +4,7 @@ import { OwnPositionSubject } from '@muixer/shared';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { MarkerTarget, OwnPositionMarkerComponent } from './own-position-marker.component';
+import { THEME_NAMES } from '@muixer/ui';
 
 const IDENTITY: StageTransform = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
 const VIEWPORT = { width: 400, height: 300 };
@@ -65,6 +66,18 @@ describe('OwnPositionMarkerComponent', () => {
         stageTransform: { x: 999, y: 999, scaleX: 5, scaleY: 5 },
       });
       expect(fixture.componentInstance.screenPosition()).toEqual({ x: 150, y: 40 });
+    });
+  });
+
+  describe('always dark, whatever the page theme', () => {
+    it('draws the chevron from the dark theme tokens', () => {
+      setInputs({ target: { kind: 'screen', x: 500, y: 150 } });
+      expect(chevronEl().nativeElement.dataset['theme']).toBe(THEME_NAMES.dark);
+    });
+
+    it('draws the pin ring from the dark theme tokens', () => {
+      setInputs({ target: { kind: 'screen', x: 200, y: 150 } });
+      expect(pinEl().query(By.css('[data-theme]')).nativeElement.dataset['theme']).toBe(THEME_NAMES.dark);
     });
   });
 

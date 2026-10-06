@@ -1,3 +1,4 @@
+import { THEME_NAMES } from '@muixer/ui';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -151,6 +152,11 @@ describe('PinyaProjectionComponent', () => {
   });
 
   // ── instanceId reactivity (design decision 6) ───────────────────────────────
+
+  it('is pinned to the light theme until figure rendering is themed for dark mode', () => {
+    expect(fixture.nativeElement.dataset['theme']).toBe(THEME_NAMES.light);
+  });
+
 
   describe('instanceId', () => {
     it('shows all instances when instanceId is null', () => {

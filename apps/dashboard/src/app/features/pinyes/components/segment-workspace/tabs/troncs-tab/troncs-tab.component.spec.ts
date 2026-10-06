@@ -19,7 +19,7 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../figure-picker-modal/figure-picker-modal.component';
-import { ModalComponent, ToastService } from '@muixer/ui';
+import { ModalComponent, THEME_NAMES, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -969,6 +969,20 @@ describe('TroncsTabComponent', () => {
       });
 
       expect(component.figures().map((f) => f.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
+    });
+
+    it('frames each tronc in a light card tinted with its figure color, which the tronc panel lets through', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')] },
+      });
+      fixture.detectChanges();
+
+      const tronc: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+      const card = tronc.closest('[data-figure-card]') as HTMLElement;
+      // Pinned light like the rest of the figure rendering, until the canvas is themed (DEBT F19).
+      expect(card.dataset['theme']).toBe(THEME_NAMES.light);
+      expect(tronc.classList).toContain('bg-transparent');
     });
 
     it('colors a minimap box by its figure\'s sortOrder even when that figure has no tronc', async () => {

@@ -7,6 +7,7 @@ import {
   generateSecondary,
   sashFromHue,
   sashFromFill,
+  readableContentOn,
 } from './color';
 import { INK, PAPER, SEMANTIC } from './fixed-colors';
 
@@ -168,6 +169,13 @@ describe('tone', () => {
   });
 });
 
+describe('readableContentOn', () => {
+  it('picks ink-black or paper-white for an arbitrary hex fill, as a CSS color', () => {
+    expect(readableContentOn('#F5E663')).toBe(formatOklch(INK_BLACK)); // pale yellow
+    expect(readableContentOn('#1E3A8A')).toBe(formatOklch(PAPER_WHITE)); // navy
+  });
+});
+
 describe('contrastContent', () => {
   // Picks between the *actual* dark/light content colors passed in — never a hardcoded pure
   // black/white — so callers stay on the warm ink/paper scale instead of breaking it. The
@@ -293,6 +301,16 @@ describe('sashFromHue', () => {
     const sameL = Math.abs(redSash.fill.l - errorOklch.l) < 0.01;
     const sameC = Math.abs(redSash.fill.c - errorOklch.c) < 0.01;
     expect(sameL && sameC).toBe(false);
+  });
+
+  it('lifts the fill to L 0.58 / C 0.15 in dark mode, keeping the hue, so it still reads on the dark card', () => {
+    const light = sashFromHue('#C23B3B', 'light', INK_BLACK, PAPER_WHITE);
+    const dark = sashFromHue('#C23B3B', 'dark', INK_BLACK, PAPER_WHITE);
+    expect(dark.fill.l).toBeCloseTo(0.58, 5);
+    expect(dark.fill.c).toBeCloseTo(0.15, 5);
+    expect(dark.fill.h).toBeCloseTo(light.fill.h, 5);
+    expect(light.fill.l).toBeCloseTo(0.52, 5);
+    expect(light.fill.c).toBeCloseTo(0.2, 5);
   });
 
   it('picks light (paper) content for #B32400 — a real colla sash color whose fixed L/C target falls outside the sRGB gamut', () => {

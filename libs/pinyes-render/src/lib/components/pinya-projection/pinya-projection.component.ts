@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { THEME_NAMES } from '@muixer/ui';
 import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
@@ -57,11 +58,14 @@ interface DistributionTroncPanel {
   selector: 'lib-pinya-projection',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'contents' },
+  host: { class: 'contents', '[attr.data-theme]': 'pinnedTheme' },
   imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
+  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
+  protected readonly pinnedTheme = THEME_NAMES.light;
+
   readonly data = input.required<ProjectionSegmentData>();
 
   /** Restricts rendering to a single figure. `null` renders the whole segment. */

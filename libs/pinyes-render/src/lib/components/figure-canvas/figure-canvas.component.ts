@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
+import { THEME_NAMES } from '@muixer/ui';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, DIRECTION_NODE_PRESETS, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, EventPhase, isArrivalPhase } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
@@ -315,10 +316,16 @@ const NOTES_EMOJI_FONT_SIZE = 16;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, PersonHoverCardComponent],
+  // bg-transparent: undo DaisyUI's base-100 fill on [data-theme] elements, so the rounded
+  // wrapper's corners keep showing the page behind them.
+  host: { class: 'bg-transparent', '[attr.data-theme]': 'pinnedTheme' },
   templateUrl: './figure-canvas.component.html',
   styleUrl: './figure-canvas.component.scss',
 })
 export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
+  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
+  protected readonly pinnedTheme = THEME_NAMES.light;
+
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
 
   readonly nodes = input<CanvasNode[]>([]);

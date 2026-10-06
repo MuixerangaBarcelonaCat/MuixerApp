@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { ButtonComponent, InputComponent, BadgeComponent } from '@muixer/ui';
+import { ButtonComponent, InputComponent, BadgeComponent, THEME_NAMES } from '@muixer/ui';
 import { DIRECTION_NODE_PRESETS, DIRECTION_SLOTS, DirectionAssignmentEntry, formatDirectionNames, ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM, TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, EventPhase, isArrivalPhase } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
@@ -61,10 +61,14 @@ const DRAG_THRESHOLD_PX = 6;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, FitTextDirective, ButtonComponent, InputComponent, BadgeComponent],
+  host: { '[attr.data-theme]': 'pinnedTheme' },
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
 export class TroncViewComponent {
+  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
+  protected readonly pinnedTheme = THEME_NAMES.light;
+
   // ── Inputs ─────────────────────────────────────────────────────────────────
 
   /** TRONC-zone nodes (z≥1). x and width are relative units. */

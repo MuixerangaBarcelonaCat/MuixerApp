@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { OWN_POSITION_MULTIPLE_PLACEMENTS, OWN_POSITION_NO_PLACEMENT, OwnPositionSubject } from '@muixer/shared';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from './own-position-banner.component';
 import { FIGURE_PALETTE } from '../../utils/figure-palette.util';
+import { THEME_NAMES } from '@muixer/ui';
 
 /** jsdom normalizes inline colors to `rgb(r, g, b)`. */
 const hexToRgb = (hex: string) => {
@@ -37,6 +38,14 @@ describe('OwnPositionBannerComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({ imports: [OwnPositionBannerComponent] }).compileComponents();
     fixture = TestBed.createComponent(OwnPositionBannerComponent);
+  });
+
+  it('is always a dark HUD, drawn from the dark theme tokens whatever the page theme', () => {
+    setState({ kind: 'NONE' });
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.dataset['theme']).toBe(THEME_NAMES.dark);
+    expect(host.className).toContain('bg-base-200/60');
+    expect(host.className).not.toMatch(/\b(bg|text)-(black|white)\b/);
   });
 
   it('renders a PINYA placement with every clause', () => {
