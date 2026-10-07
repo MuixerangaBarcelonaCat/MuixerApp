@@ -27,6 +27,7 @@ export * from './constants/node-preset.constants';
 export * from './constants/assignment-area.constants';
 export * from './constants/person.constants';
 export * from './constants/domain-icons.constants';
+export * from './constants/about-app.constants';
 export * from './utils/color.util';
 export * from './utils/segment-title.util';
 export * from './utils/own-position.util';

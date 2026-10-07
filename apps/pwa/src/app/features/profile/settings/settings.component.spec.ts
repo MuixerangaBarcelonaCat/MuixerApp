@@ -283,6 +283,59 @@ describe('SettingsComponent', () => {
     });
   });
 
+  describe('about info', () => {
+    async function openAbout(): Promise<HTMLElement> {
+      createTestBed();
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(SettingsComponent);
+      fixture.detectChanges();
+      (fixture.nativeElement.querySelector('[data-testid="about-row-toggle"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      return fixture.nativeElement.querySelector('[data-testid="about-info"]') as HTMLElement;
+    }
+
+    afterEach(() => vi.useRealTimers());
+
+    it('shows a single-year copyright notice in 2026', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-06T12:00:00Z'));
+
+      const info = await openAbout();
+
+      expect(info.textContent).toContain('© 2026 Associació Muixeranga de Barcelona');
+    });
+
+    it('shows a year range in the copyright notice after 2026', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2028-03-01T12:00:00Z'));
+
+      const info = await openAbout();
+
+      expect(info.textContent).toContain('© 2026–2028 Associació Muixeranga de Barcelona');
+    });
+
+    it('shows a Contacte section pointing to the Comissió Tecnològica above the privacy policy', async () => {
+      await openAbout();
+      const root = fixture.nativeElement as HTMLElement;
+      const contact = root.querySelector('[data-testid="about-contact"]') as HTMLElement;
+      const policy = root.querySelector('[data-testid="privacy-policy-viewer"]') as HTMLElement;
+
+      expect(contact.querySelector('h4')?.textContent?.trim()).toBe('Contacte');
+      expect(contact.textContent).toContain('Comissió Tecnològica');
+      expect(contact.compareDocumentPosition(policy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('links to the source code on GitHub in a new tab', async () => {
+      const info = await openAbout();
+      const link = info.querySelector('a') as HTMLAnchorElement;
+
+      expect(link.textContent?.trim()).toBe('GitHub');
+      expect(link.href).toBe('https://github.com/MuixerangaBarcelonaCat/MuixerApp');
+      expect(link.target).toBe('_blank');
+      expect(link.rel).toContain('noopener');
+    });
+  });
+
   describe('logout', () => {
     let authService: ReturnType<typeof createTestBed>['authService'];
 

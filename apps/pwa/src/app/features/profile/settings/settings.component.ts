@@ -8,7 +8,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LegalDocumentType } from '@muixer/shared';
+import { COPYRIGHT_HOLDER, LegalDocumentType, SOURCE_CODE_URL, formatCopyrightYears } from '@muixer/shared';
 import { LucideAngularModule, Lock, FileText, LogOut, ChevronDown, Palette } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { PushSettingsComponent } from '../components/push-settings/push-settings.component';
@@ -91,6 +91,10 @@ export class SettingsComponent {
       },
     });
   }
+
+  protected readonly copyrightYears = formatCopyrightYears(new Date().getFullYear());
+  protected readonly copyrightHolder = COPYRIGHT_HOLDER;
+  protected readonly sourceCodeUrl = SOURCE_CODE_URL;
 
   protected readonly openSection = signal<SettingsSection | null>(null);
   protected readonly privacyPolicyContent = signal<string | null>(null);

@@ -1,8 +1,9 @@
-import { Component, ChangeDetectionStrategy, inject, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { UserRole } from '@muixer/shared';
 import { ThemePickerComponent } from '@muixer/ui';
 import { AuthService } from '../../../../core/auth/services/auth.service';
+import { AboutAppModalComponent } from '../../about-app-modal/about-app-modal.component';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.ADMIN]: 'Admin',
@@ -19,7 +20,7 @@ const ROLE_BADGE_CLASS: Record<UserRole, string> = {
 @Component({
   selector: 'app-user-chip',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ThemePickerComponent],
+  imports: [ThemePickerComponent, AboutAppModalComponent],
   templateUrl: './user-chip.component.html',
 })
 export class UserChipComponent {
@@ -50,6 +51,14 @@ export class UserChipComponent {
     if (u.person?.name) return u.person.name.charAt(0).toUpperCase();
     return u.email.charAt(0).toUpperCase();
   });
+
+  readonly aboutOpen = signal(false);
+
+  openAbout(): void {
+    // Drop focus so the CSS-only dropdown closes behind the modal.
+    (document.activeElement as HTMLElement | null)?.blur();
+    this.aboutOpen.set(true);
+  }
 
   logout(): void {
     this.auth.logout().subscribe({
