@@ -18,6 +18,7 @@ import { getAdultsCount } from '../event-list/event-list.component';
 import { PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
 import { saveBlob } from '../../../../core/utils/save-blob.util';
+import { openPendingTab, showBlobInTab } from '../../../../core/utils/blob-tab.util';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
 
@@ -208,19 +209,32 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   }
 
 
-  /** Downloads the printable summary (header, notes, segments) the API renders as a PDF. */
+  /**
+   * Shows the printable summary (header, notes, segments) the API renders as a PDF in a new tab,
+   * through the browser's own viewer, so checking or printing it doesn't save a file each time.
+   * It is downloaded instead where the browser has no PDF viewer (`pdfViewerEnabled` is false on
+   * Android Chrome) or the popup blocker refuses the tab.
+   */
   printSummary() {
     const ev = this.event();
     if (!ev || this.printing()) return;
+
+    // Opened before the request, while still inside the click — see `openPendingTab`.
+    const tab = navigator.pdfViewerEnabled === true ? openPendingTab("S'està generant el resum...") : null;
 
     this.printing.set(true);
     this.eventService.downloadSummaryPdf(ev.id).subscribe({
       next: ({ blob, filename }) => {
         this.printing.set(false);
-        saveBlob(blob, filename);
+        if (tab) {
+          showBlobInTab(tab, blob);
+        } else {
+          saveBlob(blob, filename);
+        }
       },
       error: () => {
         this.printing.set(false);
+        tab?.close();
         this.toast.error("No s'ha pogut generar el PDF. Torneu a provar-ho més tard.");
       },
     });

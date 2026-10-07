@@ -389,41 +389,104 @@ describe('EventDetailComponent — tabbed sections', () => {
 
   describe('Imprimeix', () => {
     const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+    const blob = new Blob(['%PDF-'], { type: 'application/pdf' });
+    const filename = '2026-07-22-assaig-general.pdf';
+    let downloads: string[];
+    let tab: { document: Document; location: { href: string }; opener: unknown; close: ReturnType<typeof vi.fn> };
+    let open: ReturnType<typeof vi.spyOn>;
+
+    /** `navigator.pdfViewerEnabled`: whether the browser can show a PDF itself (false on Android Chrome). */
+    const setPdfViewer = (enabled: boolean): void => {
+      Object.defineProperty(window.navigator, 'pdfViewerEnabled', { value: enabled, configurable: true });
+    };
 
     beforeEach(() => {
-      URL.createObjectURL = vi.fn().mockReturnValue('blob:fake');
+      URL.createObjectURL = vi.fn().mockReturnValue('blob:resum');
       URL.revokeObjectURL = vi.fn();
+      downloads = [];
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        downloads.push(this.download);
+      });
+      tab = {
+        document: document.implementation.createHTMLDocument(''),
+        location: { href: '' },
+        opener: {},
+        close: vi.fn(),
+      };
+      open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+      setPdfViewer(true);
     });
 
     afterEach(() => {
       URL.createObjectURL = original.create;
       URL.revokeObjectURL = original.revoke;
+      delete (window.navigator as { pdfViewerEnabled?: boolean }).pdfViewerEnabled;
       vi.restoreAllMocks();
     });
 
     const printButton = (fixture: ComponentFixture<EventDetailComponent>) =>
       fixture.nativeElement.querySelector('[data-testid="event-print"] button') as HTMLButtonElement;
 
-    it('downloads the event summary PDF under the filename the API proposes', async () => {
-      const blob = new Blob(['%PDF-']);
-      downloadSummaryPdf.mockReturnValue(of({ blob, filename: '2026-07-22-assaig-general.pdf' }));
-      const downloads: string[] = [];
-      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-        downloads.push(this.download);
-      });
+    // The tab has to open inside the click: once the request comes back, popup blockers refuse it.
+    it('opens a tab straight away, before the PDF has been generated', async () => {
+      downloadSummaryPdf.mockReturnValue(new Subject());
+      const fixture = await setup();
+
+      printButton(fixture).click();
+
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(tab.document.body.textContent).toBe("S'està generant el resum...");
+    });
+
+    it('shows the PDF in that tab without saving a file', async () => {
+      downloadSummaryPdf.mockReturnValue(of({ blob, filename }));
       const fixture = await setup();
 
       printButton(fixture).click();
 
       expect(downloadSummaryPdf).toHaveBeenCalledWith(EVENT_ID);
       expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
-      expect(downloads).toEqual(['2026-07-22-assaig-general.pdf']);
+      expect(tab.location.href).toBe('blob:resum');
+      expect(downloads).toEqual([]);
+    });
+
+    it('closes the tab and shows an error toast when the PDF cannot be generated', async () => {
+      downloadSummaryPdf.mockReturnValue(throwError(() => new Error('500')));
+      const fixture = await setup();
+      const toastError = vi.spyOn(TestBed.inject(ToastService), 'error');
+
+      printButton(fixture).click();
+
+      expect(tab.close).toHaveBeenCalled();
+      expect(toastError).toHaveBeenCalledWith("No s'ha pogut generar el PDF. Torneu a provar-ho més tard.");
+      expect(fixture.componentInstance.printing()).toBe(false);
+    });
+
+    it('downloads the PDF under the filename the API proposes when the popup blocker refuses the tab', async () => {
+      open.mockReturnValue(null);
+      downloadSummaryPdf.mockReturnValue(of({ blob, filename }));
+      const fixture = await setup();
+
+      printButton(fixture).click();
+
+      expect(downloads).toEqual([filename]);
+    });
+
+    // Android Chrome has no PDF viewer: a tab would only trigger a download and stay blank.
+    it('downloads straight away, without a tab, when the browser cannot show a PDF', async () => {
+      setPdfViewer(false);
+      downloadSummaryPdf.mockReturnValue(of({ blob, filename }));
+      const fixture = await setup();
+
+      printButton(fixture).click();
+
+      expect(open).not.toHaveBeenCalled();
+      expect(downloads).toEqual([filename]);
     });
 
     it('shows a loading state and ignores clicks while the PDF is being generated', async () => {
       const response = new Subject<{ blob: Blob; filename: string }>();
       downloadSummaryPdf.mockReturnValue(response);
-      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
       const fixture = await setup();
 
       fixture.componentInstance.printSummary();
@@ -433,20 +496,10 @@ describe('EventDetailComponent — tabbed sections', () => {
       expect(fixture.componentInstance.printing()).toBe(true);
       expect(printButton(fixture).disabled).toBe(true);
       expect(downloadSummaryPdf).toHaveBeenCalledTimes(1);
+      expect(open).toHaveBeenCalledTimes(1);
 
-      response.next({ blob: new Blob(), filename: 'a.pdf' });
+      response.next({ blob, filename });
       response.complete();
-      expect(fixture.componentInstance.printing()).toBe(false);
-    });
-
-    it('shows an error toast when the PDF cannot be generated', async () => {
-      downloadSummaryPdf.mockReturnValue(throwError(() => new Error('500')));
-      const fixture = await setup();
-      const toastError = vi.spyOn(TestBed.inject(ToastService), 'error');
-
-      fixture.componentInstance.printSummary();
-
-      expect(toastError).toHaveBeenCalledWith("No s'ha pogut generar el PDF. Torneu a provar-ho més tard.");
       expect(fixture.componentInstance.printing()).toBe(false);
     });
   });
