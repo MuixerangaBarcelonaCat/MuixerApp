@@ -7,5 +7,7 @@ export function saveBlob(blob: Blob, filename: string): void {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // Not right away: Firefox and some Safari versions start the download asynchronously and would
+  // otherwise read a released blob, saving an empty file.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

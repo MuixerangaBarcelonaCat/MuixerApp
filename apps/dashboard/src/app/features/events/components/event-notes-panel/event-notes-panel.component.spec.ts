@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 import { ToastService } from '@muixer/ui';
@@ -37,8 +38,9 @@ describe('EventNotesPanelComponent', () => {
     fixture.detectChanges();
   };
 
+  // A `lib-button`: the test id sits on the host, the ARIA state on the native button inside.
   const toggle = (): HTMLButtonElement =>
-    fixture.debugElement.query(By.css('[data-testid="event-notes-toggle"]')).nativeElement;
+    fixture.debugElement.query(By.css('[data-testid="event-notes-toggle"] button')).nativeElement;
 
   const expand = async (): Promise<void> => {
     toggle().click();
@@ -130,7 +132,7 @@ describe('EventNotesPanelComponent', () => {
       editInEditor('## Nou');
       clickButton('event-notes-save');
 
-      expect(updateFull).toHaveBeenCalledWith('event-1', { notes: '## Nou' });
+      expect(updateFull).toHaveBeenCalledWith('event-1', { notes: '## Nou', expectedNotes: 'Antic' });
       expect(emitted).toEqual(['## Nou']);
       expect(toastSuccess).toHaveBeenCalled();
     });
@@ -141,7 +143,7 @@ describe('EventNotesPanelComponent', () => {
       editInEditor('   ');
       clickButton('event-notes-save');
 
-      expect(updateFull).toHaveBeenCalledWith('event-1', { notes: null });
+      expect(updateFull).toHaveBeenCalledWith('event-1', { notes: null, expectedNotes: 'Antic' });
     });
 
     it('restores the original text on cancel', async () => {
@@ -163,6 +165,56 @@ describe('EventNotesPanelComponent', () => {
 
       expect(fixture.debugElement.query(By.css('lib-alert'))).not.toBeNull();
       expect(editorText()).toContain('Nou');
+    });
+  });
+
+  /** Two technicians on the same event: the API refuses a save that would discard the other's edit. */
+  describe('concurrent edits', () => {
+    beforeEach(() => localStorage.setItem(NOTES_EXPANDED_STORAGE_KEY, 'true'));
+
+    const alertText = (): string =>
+      fixture.debugElement.query(By.css('lib-alert')).nativeElement.textContent;
+
+    it('sends an empty expected text when the event had no notes yet', async () => {
+      await setup(null);
+
+      editInEditor('Primeres');
+      clickButton('event-notes-save');
+
+      expect(updateFull).toHaveBeenCalledWith('event-1', { notes: 'Primeres', expectedNotes: '' });
+    });
+
+    it('expects the text it just saved on the next save', async () => {
+      await setup('Antic');
+
+      editInEditor('Segon');
+      clickButton('event-notes-save');
+      editInEditor('Tercer');
+      clickButton('event-notes-save');
+
+      expect(updateFull).toHaveBeenLastCalledWith('event-1', { notes: 'Tercer', expectedNotes: 'Segon' });
+    });
+
+    it('explains the conflict and keeps the draft when someone else saved first', async () => {
+      await setup('Antic');
+      updateFull.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
+
+      editInEditor('El meu text');
+      clickButton('event-notes-save');
+
+      expect(alertText()).toContain('Algú altre ha modificat les notes');
+      expect(editorText()).toContain('El meu text');
+      expect(toastSuccess).not.toHaveBeenCalled();
+    });
+
+    it('keeps the generic message for any other failure', async () => {
+      await setup('Antic');
+      updateFull.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+      editInEditor('Nou');
+      clickButton('event-notes-save');
+
+      expect(alertText()).toContain('No s\'han pogut alçar les notes.');
     });
   });
 });

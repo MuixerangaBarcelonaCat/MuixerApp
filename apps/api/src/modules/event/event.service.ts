@@ -158,6 +158,12 @@ export class EventService {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
+    // Optimistic lock on the notes alone: `updatedAt` moves on every attendance confirmation
+    // (the event row carries `attendanceSummary`), so it would flag conflicts nobody caused.
+    if (dto.expectedNotes !== undefined && (event.notes ?? '') !== dto.expectedNotes) {
+      throw new ConflictException('Event notes were changed by someone else since they were loaded');
+    }
+
     if (dto.title !== undefined) event.title = dto.title;
     if (dto.date !== undefined) event.date = new Date(dto.date);
     if (dto.startTime !== undefined) event.startTime = dto.startTime;

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventService } from './event.service';
 import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
@@ -422,6 +422,49 @@ describe('EventService', () => {
       const svc = await makeService(eventRepo);
       const result = await svc.update('evt-uuid', { title: 'ALTRE TÍTOL' });
       expect(result.notes).toBe('Es manté');
+    });
+
+    /**
+     * Two technicians routinely have the same rehearsal open. The notes panel sends the text it
+     * started from, so a save that would silently discard someone else's edit is refused instead.
+     * Compared on the notes themselves, not `updatedAt`: every attendance confirmation rewrites the
+     * event's `attendanceSummary`, and that would turn into a stream of false conflicts.
+     */
+    describe('concurrent edits (expectedNotes)', () => {
+      const makeRepo = (stored: string | null) => ({
+        findOne: jest.fn().mockResolvedValue(makeEvent({ notes: stored })),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      });
+
+      it('saves when the stored notes are still the ones the editor started from', async () => {
+        const eventRepo = makeRepo('Antic');
+        const svc = await makeService(eventRepo);
+        const result = await svc.update('evt-uuid', { notes: 'Nou', expectedNotes: 'Antic' });
+        expect(result.notes).toBe('Nou');
+      });
+
+      it('treats an empty expected text as matching notes that were never written', async () => {
+        const eventRepo = makeRepo(null);
+        const svc = await makeService(eventRepo);
+        const result = await svc.update('evt-uuid', { notes: 'Primeres', expectedNotes: '' });
+        expect(result.notes).toBe('Primeres');
+      });
+
+      it('refuses with 409 and writes nothing when someone else changed the notes meanwhile', async () => {
+        const eventRepo = makeRepo('Canvi d\'una altra persona');
+        const svc = await makeService(eventRepo);
+        await expect(svc.update('evt-uuid', { notes: 'Nou', expectedNotes: 'Antic' })).rejects.toBeInstanceOf(
+          ConflictException,
+        );
+        expect(eventRepo.save).not.toHaveBeenCalled();
+      });
+
+      it('keeps the unconditional overwrite for callers that send no expectedNotes', async () => {
+        const eventRepo = makeRepo('Canvi d\'una altra persona');
+        const svc = await makeService(eventRepo);
+        const result = await svc.update('evt-uuid', { notes: 'Nou' });
+        expect(result.notes).toBe('Nou');
+      });
     });
 
     it('omits notes from list items, which feed the events table', async () => {

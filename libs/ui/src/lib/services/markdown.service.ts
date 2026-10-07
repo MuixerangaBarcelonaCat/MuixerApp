@@ -1,6 +1,6 @@
 import { Injectable, SecurityContext, inject } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
-import { Marked } from 'marked';
+import { Marked, Renderer } from 'marked';
 
 /**
  * Renders stored Markdown to HTML for display. Sanitization is part of the service rather than
@@ -18,12 +18,16 @@ export class MarkdownService {
     renderer: {
       // Links must open in a new tab: in the dashboard the editor may hold unsaved changes, and
       // in the installed PWA a plain <a href> would navigate the whole app shell away.
-      // `this.parser` is wired up by marked at call time, so this has to stay a regular
+      // Marked has no option for extra link attributes, so this wraps its default renderer
+      // rather than rebuilding the tag: the default is what escapes `href` and `title`. Ours go
+      // first because the browser keeps the first of two repeated attributes. A URL marked
+      // refuses comes back as plain text, which the replace leaves alone.
+      // `this` is the renderer marked wires up at call time, so this has to stay a regular
       // function rather than an arrow function bound early.
-      link({ href, title, tokens }) {
-        const text = this.parser.parseInline(tokens);
-        const titleAttr = title ? ` title="${title}"` : '';
-        return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer" class="underline">${text}</a>`;
+      link(token) {
+        return Renderer.prototype.link
+          .call(this, token)
+          .replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" class="underline" ');
       },
     },
   });

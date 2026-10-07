@@ -97,14 +97,16 @@
             </span>
           }
           @case ('scheduled') {
-            <input
-              id="news-published-at"
-              type="datetime-local"
-              class="input input-bordered w-full mt-2"
-              aria-label="Data i hora de publicació"
-              [ngModel]="publishedAtLocal()"
-              (ngModelChange)="publishedAtLocal.set($event)"
-            />
+            <div class="mt-2">
+              <lib-input
+                id="news-published-at"
+                type="datetime-local"
+                size="md"
+                ariaLabel="Data i hora de publicació"
+                [ngModel]="publishedAtLocal()"
+                (ngModelChange)="publishedAtLocal.set($event)"
+              />
+            </div>
             <span class="label">
               <span class="label-text-alt text-base-content/50">
                 @if (!publishedAtLocal()) {

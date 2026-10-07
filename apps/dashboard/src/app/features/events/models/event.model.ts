@@ -79,6 +79,9 @@ export interface CreateEventPayload {
 
 export type UpdateEventPayload = {
   [K in keyof CreateEventPayload]?: CreateEventPayload[K] | null;
+} & {
+  /** The notes the editor started from; the API answers 409 if they changed meanwhile. */
+  expectedNotes?: string;
 };
 
 export interface PaginatedResponse<T> {
