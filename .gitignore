@@ -84,3 +84,5 @@ HANDOFF.md
 # -- Local scratch (no pujar) ────────────────────────────
 HANDOFF.md
 scripts/migrate-pre-to-dev.sh
+# Local MCP config (contains DB credentials)
+.mcp.json
