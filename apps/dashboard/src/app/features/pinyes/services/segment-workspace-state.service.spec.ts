@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict, getFigureTint, isRematMarker } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -561,7 +561,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(ids).toEqual(['b1', 'd1', 'p1']);
     });
 
-    it('hides PINYA and BASE nodes for REMAT instances', () => {
+    it('hides PINYA and BASE nodes for REMAT instances, drawing the REMAT marker instead (first, so behind its decorations)', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
         nodesByInstance: {
@@ -571,8 +571,44 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
-      expect(ids).toEqual(['d1']);
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => (isRematMarker(n) ? 'marker' : n.id));
+      expect(ids).toEqual(['marker', 'd1']);
+    });
+
+    it('draws the REMAT marker in the figure tint, with no text, centered where its hidden pinya was', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT', sortOrder: 2 })]),
+        nodesByInstance: {
+          'inst-a': [
+            makeNode('p1', 'PINYA', { x: 100, y: 100, width: 100, height: 100 }),
+            makeNode('b1', 'BASE', { x: 300, y: 300, width: 100, height: 100 }),
+          ],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const marker = service.pinyaSlots()[0].figureTemplate.nodes.find(isRematMarker)!;
+      expect(marker).toMatchObject({
+        x: 200,
+        y: 200,
+        width: 240,
+        height: 240,
+        color: getFigureTint(2),
+        label: '',
+      });
+    });
+
+    it('never counts the REMAT marker as a node to fill', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
+        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('t1', 'TRONC')] },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.instances()[0].nodes.some(isRematMarker)).toBe(false);
+      expect(service.instances()[0].totalCount).toBe(1);
     });
 
     it('hides PINYA nodes but keeps BASE nodes for NETA instances', () => {
@@ -589,7 +625,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(ids).toEqual(['b1']);
     });
 
-    it('keeps an empty slot for a REMAT instance with only PINYA/BASE nodes, so Nodes extra can place decorations on it', () => {
+    it('gives a REMAT instance with only PINYA/BASE nodes a slot holding just its marker', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
         nodesByInstance: {
@@ -599,7 +635,10 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      expect(service.pinyaSlots().map((s) => [s.slotId, s.figureTemplate.nodes])).toEqual([['inst-a', []]]);
+      const slots = service.pinyaSlots();
+      expect(slots.map((s) => s.slotId)).toEqual(['inst-a']);
+      expect(slots[0].figureTemplate.nodes.every(isRematMarker)).toBe(true);
+      expect(slots[0].figureTemplate.nodes).toHaveLength(1);
     });
 
     it('hides PINYA nodes beyond the instance numberOfCordons and repositions cordo-obert nodes', () => {
@@ -721,10 +760,10 @@ describe('SegmentWorkspaceStateService', () => {
   });
 
   describe('hasPinyaCanvasNodes', () => {
-    it('is false when no figure draws anything on the pinya canvas (a lone REMAT figure)', () => {
+    it('is false when no figure draws anything on the pinya canvas (a figure with only tronc nodes)', () => {
       configure({
-        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
-        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('t1', 'TRONC')] },
+        segment: makeSegment([makeInstance('inst-a')]),
+        nodesByInstance: { 'inst-a': [makeNode('t1', 'TRONC')] },
       });
 
       service.load(EVENT_ID, SEGMENT_ID);
@@ -732,10 +771,10 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.hasPinyaCanvasNodes()).toBe(false);
     });
 
-    it('is true once a REMAT figure carries a decoration node', () => {
+    it('is true for a lone REMAT figure — its marker is drawn', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
-        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('d1', 'DECORATION', { isAdHoc: true })] },
+        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('t1', 'TRONC')] },
       });
 
       service.load(EVENT_ID, SEGMENT_ID);

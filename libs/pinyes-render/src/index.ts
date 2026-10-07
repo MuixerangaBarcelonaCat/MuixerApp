@@ -21,6 +21,7 @@ export * from './lib/utils/assigned-label.util';
 export * from './lib/utils/tronc-size.util';
 export * from './lib/utils/figure-palette.util';
 export * from './lib/utils/segment-assignment-render.util';
+export * from './lib/utils/remat-marker.util';
 export * from './lib/utils/gesture-math.util';
 export * from './lib/utils/cordo-obert.util';
 export * from './lib/utils/projection-layout.util';

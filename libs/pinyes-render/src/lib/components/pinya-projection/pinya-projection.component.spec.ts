@@ -25,6 +25,9 @@ import {
   computeTroncNaturalSize,
   TroncPanelMeasurerComponent,
   TroncPanelMeasureSpec,
+  getFigureTint,
+  isRematMarker,
+  REMAT_MARKER_RADIUS,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -330,14 +333,14 @@ describe('PinyaProjectionComponent', () => {
       expect(result.map((n) => n.id)).toEqual(['dec1', 'p1']);
     });
 
-    it('excludes BASE nodes for REMAT instances', () => {
+    it('excludes BASE nodes for REMAT instances, drawing the REMAT marker instead (first, so behind its decorations)', () => {
       const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
       const deco = makeNode({ id: 'dec1', zone: FigureZone.DECORATION });
       const instance = makeInstance([base, deco], [], { figureMode: 'REMAT' });
 
       const result = component.getInstanceProjectionNodes(instance);
 
-      expect(result.map((n) => n.id)).toEqual(['dec1']);
+      expect(result.map((n) => (isRematMarker(n) ? 'marker' : n.id))).toEqual(['marker', 'dec1']);
     });
 
     it('keeps BASE nodes for NETA instances (only PINYA strips on NETA)', () => {
@@ -723,52 +726,97 @@ describe('PinyaProjectionComponent', () => {
 
   // ── REMAT figures (no pinya drawn, decorations allowed) ──────────────────────
 
-  describe('REMAT figure pivot', () => {
-    // A REMAT figure keeps its (hidden) PINYA/BASE nodes. Distribució and the workspace pivot
-    // each figure on its *visible* PINYA+BASE nodes — none for REMAT, so the origin — and that is
-    // where the user placed its decoration nodes. The projection must use the same pivot, or every
-    // decoration on a REMAT figure lands offset by the hidden pinya's center.
-    const remat = (withHiddenPinya: boolean) =>
+  describe('REMAT marker', () => {
+    // A REMAT figure keeps its (hidden) PINYA/BASE nodes but draws none of them. The projection
+    // draws a circular marker where it stands instead, centered where its pinya was, and pivots
+    // the figure on it — the same pivot as Distribució and the segment workspace.
+    const remat = (
+      opts: { hiddenPinya?: boolean; extra?: InstanceNodeItem[]; sortOrder?: number; id?: string } = {},
+    ) =>
       makeInstance(
         [
-          ...(withHiddenPinya
-            ? [
+          ...(opts.hiddenPinya === false
+            ? []
+            : [
                 makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 300, y: 400, width: 200, height: 100 }),
                 makeNode({ id: 'b1', zone: FigureZone.BASE, x: 300, y: 500, width: 80, height: 40 }),
-              ]
-            : []),
-          makeNode({ id: 'd1', zone: FigureZone.DECORATION, positionType: 'star', x: 0, y: 0, isAdHoc: true }),
+              ]),
+          ...(opts.extra ?? []),
           makeNode({ id: 't1', zone: FigureZone.TRONC, z: 0, x: 0, width: 1 }),
         ],
         [],
         {
-          id: 'r',
+          id: opts.id ?? 'r',
+          sortOrder: opts.sortOrder ?? 0,
           projectionX: 0,
           projectionY: 0,
           figureMode: 'REMAT',
           figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: false },
         },
       );
+    const markerOf = (id = 'r') => component.distributionNodes().find((n) => isRematMarker(n) && n.id.endsWith(id));
 
-    it('draws a decoration where it was placed, ignoring the hidden pinya', () => {
-      setData(makeSegmentData([remat(false)], { hasDistribution: true }));
-      const expected = component.distributionNodes().find((n) => n.id === 'd1')!;
+    it('draws a circular marker of radius 120 in the figure tint, with no text', () => {
+      setData(makeSegmentData([remat({ sortOrder: 3 })], { hasDistribution: true }));
+      const { scale } = computeDistributionTransform(
+        component.effectiveInstances(),
+        window.innerWidth,
+        window.innerHeight,
+      );
 
-      setData(makeSegmentData([remat(true)], { hasDistribution: true }));
-      const actual = component.distributionNodes().find((n) => n.id === 'd1')!;
-
-      expect(actual.x).toBeCloseTo(expected.x);
-      expect(actual.y).toBeCloseTo(expected.y);
+      const marker = markerOf()!;
+      expect(marker.shape).toBe(NodeShape.CIRCLE);
+      expect(marker.color).toBe(getFigureTint(3));
+      expect(marker.label).toBe('');
+      expect(marker.width).toBeCloseTo(2 * REMAT_MARKER_RADIUS * scale);
+      expect(marker.height).toBeCloseTo(2 * REMAT_MARKER_RADIUS * scale);
     });
 
-    it('floats a linked tronc panel at the figure position, ignoring the hidden pinya height', () => {
-      setData(makeSegmentData([remat(false)], { hasDistribution: true }));
+    it('draws no marker for a figure in any other mode', () => {
+      setData(
+        makeSegmentData(
+          [makeInstance([makeNode({ id: 'n1', zone: FigureZone.PINYA })], ['n1'], { projectionX: 0, projectionY: 0 })],
+          { hasDistribution: true },
+        ),
+      );
+
+      expect(component.distributionNodes().some(isRematMarker)).toBe(false);
+    });
+
+    it('draws the marker at the figure position, with a decoration placed at the hidden pinya center on top of it', () => {
+      // Hidden PINYA+BASE span x:[200,400] y:[350,520] → center (300,435).
+      const deco = makeNode({ id: 'd1', zone: FigureZone.DECORATION, positionType: 'star', x: 300, y: 435, isAdHoc: true });
+      setData(makeSegmentData([remat({ extra: [deco] })], { hasDistribution: true }));
+
+      const marker = markerOf()!;
+      const drawnDeco = component.distributionNodes().find((n) => n.id === 'd1')!;
+      expect(drawnDeco.x).toBeCloseTo(marker.x);
+      expect(drawnDeco.y).toBeCloseTo(marker.y);
+    });
+
+    it('floats a linked tronc panel above the marker, whatever the size of the hidden pinya', () => {
+      setData(makeSegmentData([remat({ hiddenPinya: false })], { hasDistribution: true }));
       const expected = component.distributionFitBounds()[0];
 
-      setData(makeSegmentData([remat(true)], { hasDistribution: true }));
+      setData(makeSegmentData([remat()], { hasDistribution: true }));
       const actual = component.distributionFitBounds()[0];
 
       expect(actual.y).toBeCloseTo(expected.y);
+      const marker = markerOf()!;
+      expect(actual.y + actual.height / 2).toBeLessThan(marker.y - marker.height / 2);
+    });
+
+    it('gives each REMAT figure its own marker', () => {
+      setData(
+        makeSegmentData([remat({ id: 'r1', sortOrder: 0 }), { ...remat({ id: 'r2', sortOrder: 1 }), projectionX: 800 }], {
+          hasDistribution: true,
+        }),
+      );
+
+      expect(component.distributionNodes().filter(isRematMarker).map((n) => n.color)).toEqual([
+        getFigureTint(0),
+        getFigureTint(1),
+      ]);
     });
   });
 

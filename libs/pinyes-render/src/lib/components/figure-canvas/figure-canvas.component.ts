@@ -2158,6 +2158,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       for (const rn of slotNodes) {
         const nodeGroup = this.buildSegmentAssignmentNodeGroup(rn);
+        if (!rn.isInteractive) {
+          // Drawn like any decoration, but kept out of Konva's hit graph and of the
+          // geometric drop-target lookup (`findPersonDropTargetAt`).
+          nodeGroup.listening(false);
+          this.segmentNodeGroupsByKey.delete(rn.key);
+        }
         slotGroup.add(nodeGroup);
         if (editable && rn.isSelected && rn.node.isAdHoc) {
           selectedEditableGroup = nodeGroup;

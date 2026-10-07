@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, repositionCordoObertNodes, FigureMode, FigureTemplateListItem } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, CompositionSlotWithNodes, repositionCordoObertNodes, rematMarkerNode, FigureMode, FigureTemplateListItem } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -159,9 +159,17 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       filteredNodes,
       entry.numberOfCordons,
     );
-    const visibleNodes = entry.cordonsObertsEnabled
+    const cordonsFiltered = entry.cordonsObertsEnabled
       ? positionedNodes
       : positionedNodes.filter((n) => n.positionType !== 'cordo-obert');
+    // A REMAT entry shows neither pinya nor base: its marker stands in for them (drawn, never stored).
+    const marker = rematMarkerNode({
+      instanceId: entry.id,
+      figureMode: entry.figureMode,
+      sortOrder: entry.sortOrder,
+      nodes: entry.figureTemplate.nodes,
+    });
+    const visibleNodes = marker ? [marker, ...cordonsFiltered] : cordonsFiltered;
 
     return {
       slotId: entry.id,
@@ -178,7 +186,8 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
         id: entry.figureTemplate.id,
         name: entry.figureTemplate.name,
         hasPinya: visibleNodes.some((n) => n.zone === 'PINYA'),
-        nodes: visibleNodes,
+        // CompositionSlotWithNodes types nodes as FigureNodeItem; the marker (InstanceNodeItem) is structurally compatible.
+        nodes: visibleNodes as CompositionSlotWithNodes['figureTemplate']['nodes'],
       },
     };
   }

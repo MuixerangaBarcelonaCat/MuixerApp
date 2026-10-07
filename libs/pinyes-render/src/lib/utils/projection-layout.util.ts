@@ -1,6 +1,7 @@
 import { FigureZone, isNodeVisibleByModeAndCordons } from '@muixer/shared';
 import { InstanceNodeItem } from '../models/assignment.model';
 import { ProjectionInstance } from '../models/projection.model';
+import { rematMarkerNode } from './remat-marker.util';
 
 // ── Constants (calibrated to tronc-view.component.scss projection-mode) ──────
 
@@ -87,8 +88,16 @@ function toMetrics(instance: ProjectionInstance): FigureMetrics {
     );
     bbox = computePinyaBbox(visibleNodes);
   } else {
-    // No pinya (REMAT/NETA or a neta template): only its decoration nodes need room.
-    bbox = computePinyaBbox(instance.nodes.filter((n) => n.zone === FigureZone.DECORATION));
+    // No pinya (REMAT/NETA or a neta template): only its decoration nodes need room — plus, for
+    // REMAT, the marker drawn where it stands.
+    const marker = rematMarkerNode({
+      instanceId: instance.id,
+      figureMode: instance.figureMode,
+      sortOrder: instance.sortOrder,
+      nodes: instance.nodes,
+    });
+    const decorations = instance.nodes.filter((n) => n.zone === FigureZone.DECORATION);
+    bbox = computePinyaBbox(marker ? [...decorations, marker] : decorations);
   }
 
   return {

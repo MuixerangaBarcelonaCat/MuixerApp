@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, rematMarkerNode, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import {
@@ -121,9 +121,8 @@ export class SegmentWorkspaceStateService {
 
   /**
    * Slots for the pinya canvas, at stored or auto-placed positions: one per instance, even one
-   * with nothing to draw (a REMAT figure before any decoration) — Nodes extra needs it to place
-   * decoration nodes, and Distribució's own auto-placement packs every figure too. The canvas
-   * skips drawing an empty slot.
+   * with nothing to draw (e.g. only tronc nodes) — Distribució's own auto-placement packs every
+   * figure too. The canvas skips drawing an empty slot.
    */
   readonly pinyaSlots = computed<CompositionSlotWithNodes[]>(() => {
     const distribution = this.distributionByInstance();
@@ -474,18 +473,28 @@ export class SegmentWorkspaceStateService {
     });
   }
 
-  /** PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas. */
+  /**
+   * PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas, plus
+   * the marker of a REMAT figure (`rematMarkerNode` — drawn only, never in `instance.nodes`).
+   */
   private pinyaCanvasNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
     const opts = {
       figureMode: instance.figureMode,
       numberOfCordons: instance.numberOfCordons,
       cordonsObertsEnabled: instance.cordonsObertsEnabled,
     };
-    return this.visibleNodesFor(instance).filter(
+    const nodes = this.visibleNodesFor(instance).filter(
       (n) =>
         (n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE || n.zone === FigureZone.DECORATION) &&
         isNodeVisibleByModeAndCordons(n, opts),
     );
+    const marker = rematMarkerNode({
+      instanceId: instance.instanceId,
+      figureMode: instance.figureMode,
+      sortOrder: instance.sortOrder,
+      nodes: instance.nodes,
+    });
+    return marker ? [marker, ...nodes] : nodes;
   }
 
   /**

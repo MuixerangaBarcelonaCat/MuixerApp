@@ -55,13 +55,22 @@ describe('computeInstanceNaturalExtent', () => {
     );
   });
 
-  it('makes room for the decoration nodes of a figure with no pinya (REMAT)', () => {
+  it('makes room for the REMAT marker (a 240px circle) below the tronc panel', () => {
+    const bare = computeInstanceNaturalExtent(remat([tronc()]));
+    const troncOnly = computeInstanceNaturalExtent(
+      makeInstance([tronc()], { figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: false } }),
+    );
+
+    expect(bare.height).toBe(troncOnly.height + 240);
+  });
+
+  it('makes room for the decoration nodes of a REMAT figure around its marker', () => {
     const bare = computeInstanceNaturalExtent(remat([tronc()]));
     const decorated = computeInstanceNaturalExtent(
       remat([tronc(), makeNode({ zone: FigureZone.DECORATION, isAdHoc: true, width: 900, height: 300 })]),
     );
 
     expect(decorated.width).toBe(900);
-    expect(decorated.height).toBe(bare.height + 300);
+    expect(decorated.height).toBe(bare.height + 60);
   });
 });

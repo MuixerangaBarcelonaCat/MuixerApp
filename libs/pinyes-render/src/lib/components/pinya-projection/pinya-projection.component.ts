@@ -19,6 +19,7 @@ import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.comp
 import { TroncPanelMeasurerComponent, TroncPanelMeasureSpec } from '../tronc-panel-measurer/tronc-panel-measurer.component';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 import { pivotNodesFor } from '../../utils/segment-assignment-render.util';
+import { rematMarkerNode } from '../../utils/remat-marker.util';
 import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
@@ -666,16 +667,26 @@ export class PinyaProjectionComponent {
 
   // ── Node data accessors ───────────────────────────────────────────────────
 
+  /** The figure's own nodes plus, for a REMAT figure, the marker drawn where it stands (never stored). */
+  private nodesWithRematMarker(instance: ProjectionInstance): InstanceNodeItem[] {
+    const marker = rematMarkerNode({
+      instanceId: instance.id,
+      figureMode: instance.figureMode,
+      sortOrder: instance.sortOrder,
+      nodes: instance.nodes,
+    });
+    return marker ? [marker, ...instance.nodes] : instance.nodes;
+  }
+
   /**
    * A figure's rotation pivot nodes: PINYA+BASE (`pivotNodesFor`) among those its `figureMode`
-   * shows — the same set Distribució and the segment workspace pivot on. A REMAT figure keeps its
-   * hidden PINYA/BASE nodes, so pivoting on all of them would shift its decoration nodes (and its
-   * linked tronc panel) away from where they were placed. Cordons aren't applied here: they never
-   * move a pinya's center.
+   * shows — the same set Distribució and the segment workspace pivot on. A REMAT figure shows
+   * neither, so it pivots on its marker instead. Cordons aren't applied here: they never move a
+   * pinya's center.
    */
   private visiblePivotNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const opts = { figureMode: instance.figureMode, numberOfCordons: null, cordonsObertsEnabled: true };
-    return pivotNodesFor(instance.nodes.filter((n) => isNodeVisibleByModeAndCordons(n, opts)));
+    return pivotNodesFor(this.nodesWithRematMarker(instance).filter((n) => isNodeVisibleByModeAndCordons(n, opts)));
   }
 
   /** Nodes to render on the Konva canvas: PINYA + BASE + DECORATION (spatial x,y nodes).
@@ -687,7 +698,8 @@ export class PinyaProjectionComponent {
    *  reducing cordons does not auto-unassign anyone server-side, but the
    *  structure physically doesn't have that cordon anymore. cordo-obert nodes
    *  are exempt (matches Distribució's filterNodesByFigureMode keepCordoObert).
-   *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
+   *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla.
+   *  A REMAT figure also gets its marker (`rematMarkerNode`). */
   getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
     const isBaseVisible = (n: InstanceNodeItem) =>
@@ -711,7 +723,7 @@ export class PinyaProjectionComponent {
           : undefined,
     );
 
-    return instance.nodes
+    return this.nodesWithRematMarker(instance)
       .filter((n) =>
         (n.zone === FigureZone.PINYA || (n.zone === FigureZone.BASE && isBaseVisible(n)) || n.zone === FigureZone.DECORATION) &&
         !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)) &&
