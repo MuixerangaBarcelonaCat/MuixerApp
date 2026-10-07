@@ -81,6 +81,13 @@ const EMPTY_META: ParticipationMeta = {
 };
 
 type AreaFilter = 'TRONC' | 'PINYA' | null;
+type XicallaFilter = 'ONLY' | 'EXCLUDE' | null;
+
+/** Per-browser memory of which fixed columns the user toggled (key → visible). */
+const COLUMNS_STORAGE_KEY = 'muixer_participation_columns';
+
+/** Columns that depend on the scope/segments: always seeded from their defaults, never remembered. */
+const isScopedColumn = (key: string): boolean => key.startsWith('segment-') || ['segFigure', 'segPosition', 'segZone'].includes(key);
 
 /**
  * Person x segment participation matrix for one event: what each member does, across
@@ -147,6 +154,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   onlyConflicts = signal(false);
   /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
   areaFilter = signal<AreaFilter>(null);
+  xicallaFilter = signal<XicallaFilter>(null);
 
   sortBy = signal<SortField>('alias');
   sortOrder = signal<SortOrder | undefined>('ASC');
@@ -193,12 +201,14 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     const status = this.statusFilter();
     const position = this.positionFilter();
     const conflictsOnly = this.onlyConflicts();
+    const xicalla = this.xicallaFilter();
     const term = normalizeForSearch(this.search());
 
     let rows = this.persons();
     if (status) rows = rows.filter((r) => r.attendanceStatus === status);
     if (position) rows = rows.filter((r) => r.positions.some((p) => p.id === position.id));
     if (conflictsOnly) rows = rows.filter((r) => r.conflictSegmentIds.length > 0);
+    if (xicalla) rows = rows.filter((r) => r.isXicalla === (xicalla === 'ONLY'));
     if (term) rows = this.rankByMatch(rows, term);
     return rows;
   });
@@ -266,6 +276,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
     const area = this.areaFilter();
     if (area) filters.push({ key: 'area', label: `Àrea: ${area === 'TRONC' ? 'Troncs' : 'Pinyes'}` });
+
+    const xicalla = this.xicallaFilter();
+    if (xicalla) filters.push({ key: 'xicalla', label: xicalla === 'ONLY' ? 'Només xicalla' : 'Sense xicalla' });
 
     return filters;
   });
@@ -384,7 +397,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       cols.push({
         key: 'nextPerformanceStatus',
         label: `Pròxima actuació (${nextPerformance.date})`,
-        defaultVisible: false,
+        defaultVisible: true,
         type: 'badge',
         value: (r) => this.statusLabel(r.nextPerformanceStatus ?? 'PENDENT'),
         badgeClass: (r) => this.statusBadgeClass(r.nextPerformanceStatus ?? 'PENDENT'),
@@ -696,6 +709,11 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.resetPage();
   }
 
+  onXicallaChange(value: string): void {
+    this.xicallaFilter.set(value === 'ONLY' || value === 'EXCLUDE' ? value : null);
+    this.resetPage();
+  }
+
   onAreaChange(value: string): void {
     this.areaFilter.set(value === 'TRONC' || value === 'PINYA' ? value : null);
     this.resetPage();
@@ -723,6 +741,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       case 'area':
         this.areaFilter.set(null);
         break;
+      case 'xicalla':
+        this.xicallaFilter.set(null);
+        break;
     }
     this.resetPage();
   }
@@ -735,6 +756,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.positionFilter.set(null);
     this.onlyConflicts.set(false);
     this.areaFilter.set(null);
+    this.xicallaFilter.set(null);
     this.seedVisibleColumns();
     this.resetPage();
   }
@@ -749,6 +771,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.visibleKeys.update((keys) =>
       keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key],
     );
+    this.saveColumnChoice();
   }
 
   onLimitChange(limit: number): void {
@@ -762,8 +785,37 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.page.set(1);
   }
 
+  /** Defaults, overridden by the user's remembered choice for the fixed (non-scoped) columns. */
   private seedVisibleColumns(): void {
-    this.visibleKeys.set(this.columns().filter((c) => c.defaultVisible).map((c) => c.key));
+    const saved = this.readColumnChoice();
+    this.visibleKeys.set(
+      this.columns()
+        .filter((c) => (isScopedColumn(c.key) ? c.defaultVisible : (saved[c.key] ?? c.defaultVisible)))
+        .map((c) => c.key),
+    );
+  }
+
+  private readColumnChoice(): Record<string, boolean> {
+    try {
+      const raw = JSON.parse(localStorage.getItem(COLUMNS_STORAGE_KEY) ?? '{}');
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** Merged into the stored map so columns absent from this scope keep their remembered state. */
+  private saveColumnChoice(): void {
+    const visible = this.visibleKeys();
+    const choice = this.readColumnChoice();
+    for (const c of this.columns()) {
+      if (!isScopedColumn(c.key)) choice[c.key] = visible.includes(c.key);
+    }
+    try {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(choice));
+    } catch {
+      // storage unavailable — the choice just lasts for this visit
+    }
   }
 
   // ── Search ranking ───────────────────────────────────────────────────────────

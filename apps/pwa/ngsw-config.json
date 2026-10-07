@@ -17,5 +17,17 @@
         "files": ["/images/**", "/icons/**"]
       }
     }
+  ],
+  "dataGroups": [
+    {
+      "name": "segment-projection",
+      "urls": ["/api/me/events/*/segments/*/projection"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "timeout": "3s",
+        "maxAge": "12h",
+        "maxSize": 20
+      }
+    }
   ]
 }

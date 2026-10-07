@@ -80,6 +80,19 @@
       </lib-select>
     </div>
 
+    <div class="w-36">
+      <lib-select
+        [ngModel]="xicallaFilter() ?? ''"
+        (ngModelChange)="onXicallaChange($event)"
+        ariaLabel="Filtra per xicalla"
+        data-testid="participation-xicalla-filter"
+      >
+        <option value="">Tota la colla</option>
+        <option value="ONLY">Només xicalla</option>
+        <option value="EXCLUDE">Sense xicalla</option>
+      </lib-select>
+    </div>
+
     @if (positionOptions().length > 0) {
       <div class="w-40">
         <lib-select

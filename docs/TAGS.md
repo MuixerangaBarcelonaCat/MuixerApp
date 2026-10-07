@@ -196,6 +196,11 @@ en tres llocs, tots a `/persons`:
   persones noves que **ja venen recurrentment** i encara no tenen posició assignada: el cas
   d'ús real de tot este apartat.
 
+A `/config/tags` hi ha, a més, una banda «N persones pendents d'etiquetar» (el mateix filtre
+`tagRuleOk=false` sobre persones actives) que obri l'**assistent d'etiquetatge**
+(`tagging-wizard-modal`): un modal que recorre persones i desa cada etiqueta al moment. Té el
+mode «Pendents» (la cua es va buidant en avançar) i el mode «Tothom» (repàs complet per cognom).
+
 Si canvies la regla, canvia-la als **dos** llocs: la util compartida i la seua traducció a SQL.
 
 ---
