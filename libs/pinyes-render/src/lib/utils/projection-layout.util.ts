@@ -50,13 +50,21 @@ function computePinyaBbox(nodes: InstanceNodeItem[]): { w: number; h: number } |
   return w > 0 && h > 0 ? { w, h } : null;
 }
 
+/** Whether the mode shows this BASE node (not in REMAT). `numberOfCordons`/`cordonsObertsEnabled`
+ *  don't matter: the BASE check never reads them. */
+function isBaseShown(instance: ProjectionInstance, node: InstanceNodeItem): boolean {
+  return isNodeVisibleByModeAndCordons(node, {
+    figureMode: instance.figureMode,
+    numberOfCordons: null,
+    cordonsObertsEnabled: true,
+  });
+}
+
 function computeTroncPx(instance: ProjectionInstance): number {
-  const { nodes, figureMode } = instance;
+  const { nodes } = instance;
   const zLevels = new Set(nodes.filter((n) => n.zone === FigureZone.TRONC).map((n) => n.z));
-  // The tronc panel only has a base row when the mode shows the base (not in REMAT).
-  // `numberOfCordons`/`cordonsObertsEnabled` don't matter: the BASE check never reads them.
-  const baseOpts = { figureMode, numberOfCordons: null, cordonsObertsEnabled: true };
-  const hasBase = nodes.some((n) => n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, baseOpts));
+  // The tronc panel only has a base row when the mode shows the base.
+  const hasBase = nodes.some((n) => n.zone === FigureZone.BASE && isBaseShown(instance, n));
   const floorCount = zLevels.size + (hasBase ? 1 : 0);
   return NAME_HEADER_PX + TRONC_PADDING_PX + floorCount * TRONC_ROW_PX;
 }
@@ -88,16 +96,19 @@ function toMetrics(instance: ProjectionInstance): FigureMetrics {
     );
     bbox = computePinyaBbox(visibleNodes);
   } else {
-    // No pinya (REMAT/NETA or a neta template): only its decoration nodes need room — plus, for
-    // REMAT, the marker drawn where it stands.
+    // No pinya (REMAT/NETA or a neta template): its decoration nodes need room, and so does
+    // whatever stands where the pinya would — the base for NETA, the marker for REMAT (which
+    // hides the base).
     const marker = rematMarkerNode({
       instanceId: instance.id,
       figureMode: instance.figureMode,
       sortOrder: instance.sortOrder,
       nodes: instance.nodes,
     });
-    const decorations = instance.nodes.filter((n) => n.zone === FigureZone.DECORATION);
-    bbox = computePinyaBbox(marker ? [...decorations, marker] : decorations);
+    const drawn = instance.nodes.filter(
+      (n) => n.zone === FigureZone.DECORATION || (n.zone === FigureZone.BASE && isBaseShown(instance, n)),
+    );
+    bbox = computePinyaBbox(marker ? [...drawn, marker] : drawn);
   }
 
   return {

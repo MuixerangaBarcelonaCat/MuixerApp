@@ -55,6 +55,25 @@ describe('computeInstanceNaturalExtent', () => {
     );
   });
 
+  it('makes room for the base a NETA figure draws, so it cannot overlap its neighbour', () => {
+    const neta = (nodes: InstanceNodeItem[]) =>
+      makeInstance(nodes, { figureMode: 'NETA', figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: false } });
+    const withBase = (height: number) =>
+      computeInstanceNaturalExtent(neta([tronc(), makeNode({ zone: FigureZone.BASE, width: 900, height })]));
+
+    expect(withBase(100).width).toBe(900);
+    expect(withBase(100).height - withBase(50).height).toBe(50);
+  });
+
+  it('still leaves the base a REMAT figure hides out of its cell', () => {
+    const bare = computeInstanceNaturalExtent(remat([tronc()]));
+    const withHiddenBase = computeInstanceNaturalExtent(
+      remat([tronc(), makeNode({ zone: FigureZone.BASE, width: 900, height: 1000 })]),
+    );
+
+    expect(withHiddenBase).toEqual(bare);
+  });
+
   it('makes room for the REMAT marker (a 240px circle) below the tronc panel', () => {
     const bare = computeInstanceNaturalExtent(remat([tronc()]));
     const troncOnly = computeInstanceNaturalExtent(
