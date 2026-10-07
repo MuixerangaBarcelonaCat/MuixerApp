@@ -523,7 +523,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(slotB?.offsetX).toBeGreaterThan(400 + 50);
     });
 
-    it('keeps each figure\'s own sortOrder (its color index) when an earlier figure has no pinya slot', () => {
+    it('keeps each figure\'s own sortOrder (its color index) when an earlier figure draws nothing on the pinya canvas', () => {
       configure({
         segment: makeSegment([
           makeInstance('inst-a', { sortOrder: 0, figureMode: 'REMAT' }),
@@ -537,7 +537,10 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      expect(service.pinyaSlots().map((s) => [s.slotId, s.sortOrder])).toEqual([['inst-b', 1]]);
+      expect(service.pinyaSlots().map((s) => [s.slotId, s.sortOrder])).toEqual([
+        ['inst-a', 0],
+        ['inst-b', 1],
+      ]);
     });
 
     it('includes PINYA, BASE and DECORATION nodes but never TRONC nodes', () => {
@@ -586,7 +589,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(ids).toEqual(['b1']);
     });
 
-    it('produces no pinya slot for a REMAT instance with only PINYA/BASE nodes', () => {
+    it('keeps an empty slot for a REMAT instance with only PINYA/BASE nodes, so Nodes extra can place decorations on it', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
         nodesByInstance: {
@@ -596,7 +599,7 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      expect(service.pinyaSlots()).toEqual([]);
+      expect(service.pinyaSlots().map((s) => [s.slotId, s.figureTemplate.nodes])).toEqual([['inst-a', []]]);
     });
 
     it('hides PINYA nodes beyond the instance numberOfCordons and repositions cordo-obert nodes', () => {
@@ -665,7 +668,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(offsetXAfter).toBe(initialOffsetX);
     });
 
-    it('skips instances with no pinya-canvas nodes', () => {
+    it('keeps a slot for every instance, even one with no pinya-canvas nodes (like Distribució does)', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]),
         nodesByInstance: {
@@ -676,7 +679,68 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      expect(service.pinyaSlots().map((s) => s.slotId)).toEqual(['inst-b']);
+      expect(service.pinyaSlots().map((s) => [s.slotId, s.figureTemplate.nodes.length])).toEqual([
+        ['inst-a', 0],
+        ['inst-b', 1],
+      ]);
+    });
+
+    it('matches the Distribució tab layout for a fully-unplaced segment that includes a REMAT figure', async () => {
+      const { mapDistributionItemsToSlots } = await import('../utils/distribution-slot-mapping.util');
+
+      const figNodes = (idPrefix: string) => [
+        makeNode(`${idPrefix}-p1`, 'PINYA', { x: 200, y: 150, width: 400, height: 300 }),
+        makeNode(`${idPrefix}-b1`, 'BASE', { x: 200, y: 320, width: 100, height: 40 }),
+      ];
+      const modes: Record<string, 'COMPLETA' | 'REMAT'> = { a: 'COMPLETA', b: 'REMAT', c: 'COMPLETA' };
+      const ids = Object.keys(modes);
+      configure({
+        segment: makeSegment(ids.map((id, index) => makeInstance(id, { sortOrder: index, figureMode: modes[id] }))),
+        nodesByInstance: Object.fromEntries(ids.map((id) => [id, figNodes(id)])),
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+      const slots = mapDistributionItemsToSlots(
+        ids.map((id, index) =>
+          makeDistributionItem(id, {
+            sortOrder: index,
+            figureMode: modes[id],
+            troncGridRows: 1,
+            figureTemplate: { id: `tpl-${id}`, name: `Figura ${id}`, nodes: figNodes(id) },
+          }),
+        ),
+      );
+
+      const pinyaSlots = service.pinyaSlots();
+      for (const slot of slots) {
+        const pinyaSlot = pinyaSlots.find((s) => s.slotId === slot.slotId)!;
+        expect(pinyaSlot.offsetX).toBe(slot.offsetX);
+        expect(pinyaSlot.offsetY).toBe(slot.offsetY);
+      }
+    });
+  });
+
+  describe('hasPinyaCanvasNodes', () => {
+    it('is false when no figure draws anything on the pinya canvas (a lone REMAT figure)', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
+        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('t1', 'TRONC')] },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.hasPinyaCanvasNodes()).toBe(false);
+    });
+
+    it('is true once a REMAT figure carries a decoration node', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
+        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('d1', 'DECORATION', { isAdHoc: true })] },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.hasPinyaCanvasNodes()).toBe(true);
     });
 
     it('matches the Distribució tab layout exactly for a fully-unplaced segment (same pivot/occupancy, same cordons/mode filtering)', async () => {

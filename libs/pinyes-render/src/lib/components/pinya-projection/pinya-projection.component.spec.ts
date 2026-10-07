@@ -721,6 +721,57 @@ describe('PinyaProjectionComponent', () => {
     });
   });
 
+  // ── REMAT figures (no pinya drawn, decorations allowed) ──────────────────────
+
+  describe('REMAT figure pivot', () => {
+    // A REMAT figure keeps its (hidden) PINYA/BASE nodes. Distribució and the workspace pivot
+    // each figure on its *visible* PINYA+BASE nodes — none for REMAT, so the origin — and that is
+    // where the user placed its decoration nodes. The projection must use the same pivot, or every
+    // decoration on a REMAT figure lands offset by the hidden pinya's center.
+    const remat = (withHiddenPinya: boolean) =>
+      makeInstance(
+        [
+          ...(withHiddenPinya
+            ? [
+                makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 300, y: 400, width: 200, height: 100 }),
+                makeNode({ id: 'b1', zone: FigureZone.BASE, x: 300, y: 500, width: 80, height: 40 }),
+              ]
+            : []),
+          makeNode({ id: 'd1', zone: FigureZone.DECORATION, positionType: 'star', x: 0, y: 0, isAdHoc: true }),
+          makeNode({ id: 't1', zone: FigureZone.TRONC, z: 0, x: 0, width: 1 }),
+        ],
+        [],
+        {
+          id: 'r',
+          projectionX: 0,
+          projectionY: 0,
+          figureMode: 'REMAT',
+          figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: false },
+        },
+      );
+
+    it('draws a decoration where it was placed, ignoring the hidden pinya', () => {
+      setData(makeSegmentData([remat(false)], { hasDistribution: true }));
+      const expected = component.distributionNodes().find((n) => n.id === 'd1')!;
+
+      setData(makeSegmentData([remat(true)], { hasDistribution: true }));
+      const actual = component.distributionNodes().find((n) => n.id === 'd1')!;
+
+      expect(actual.x).toBeCloseTo(expected.x);
+      expect(actual.y).toBeCloseTo(expected.y);
+    });
+
+    it('floats a linked tronc panel at the figure position, ignoring the hidden pinya height', () => {
+      setData(makeSegmentData([remat(false)], { hasDistribution: true }));
+      const expected = component.distributionFitBounds()[0];
+
+      setData(makeSegmentData([remat(true)], { hasDistribution: true }));
+      const actual = component.distributionFitBounds()[0];
+
+      expect(actual.y).toBeCloseTo(expected.y);
+    });
+  });
+
   // ── distributionNodeOutlines ─────────────────────────────────────────────────
 
   describe('distributionNodeOutlines', () => {

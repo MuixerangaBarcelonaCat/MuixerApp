@@ -444,8 +444,9 @@ export function computeFigureBoundingBoxes(
     const nodes = slot.figureTemplate.nodes;
     if (nodes.length === 0) continue;
 
-    const pivotNodes = pivotNodesFor(nodes);
-    const pivotCenter = boundingBoxCenter(pivotNodes.length > 0 ? pivotNodes : nodes);
+    // Same pivot the canvas draws the slot with (`slotPivot`): the origin when there is no
+    // PINYA/BASE node, e.g. a REMAT figure carrying only decoration nodes.
+    const pivotCenter = boundingBoxCenter(pivotNodesFor(nodes));
     const nodesCenter = boundingBoxCenter(nodes);
     const { width, height } = figureExtentFromNodes(slot.slotId, nodes);
     boxes.push({

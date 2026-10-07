@@ -293,6 +293,64 @@ describe('NodesTabComponent', () => {
     });
   });
 
+  describe('figures with no pinya (REMAT/NETA)', () => {
+    const buttonByText = (text: string): HTMLButtonElement =>
+      Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>).find(
+        (b) => b.textContent?.trim() === text,
+      )!;
+    const buttonByLabel = (label: string): HTMLButtonElement =>
+      fixture.nativeElement.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement;
+
+    it('gives a REMAT figure a slot on the canvas even though it draws nothing yet', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA'), makeNode('t1', 'TRONC')] },
+      });
+
+      expect(canvasStub().compositionSlots().map((s) => s.slotId)).toEqual([INST_A]);
+    });
+
+    it('does not show the empty-segment message when the only figure is a REMAT', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA')] },
+      });
+
+      expect(fixture.nativeElement.textContent).not.toContain('Este segment no té cap figura');
+    });
+
+    it('shows the empty-segment message when the segment has no figures', async () => {
+      await setup({ instances: [] });
+
+      expect(fixture.nativeElement.textContent).toContain('Este segment no té cap figura.');
+    });
+
+    it.each(['REMAT', 'NETA'] as const)(
+      'disables the Pinya presets for a %s figure (they would be hidden) but keeps the decoration ones',
+      async (figureMode) => {
+        await setup({
+          instances: [makeInstance(INST_A, { figureMode })],
+          nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA'), makeNode('b1', 'BASE')] },
+        });
+        ws.selectInstance(INST_A);
+        fixture.detectChanges();
+
+        expect(buttonByText('AGULLA').disabled).toBe(true);
+        expect(buttonByLabel('Rectangle').disabled).toBe(false);
+        expect(fixture.nativeElement.textContent).toContain('Esta figura no té pinya.');
+      },
+    );
+
+    it('keeps the Pinya presets enabled for a COMPLETA figure', async () => {
+      await setup();
+      ws.selectInstance(INST_A);
+      fixture.detectChanges();
+
+      expect(buttonByText('AGULLA').disabled).toBe(false);
+      expect(fixture.nativeElement.textContent).not.toContain('Esta figura no té pinya.');
+    });
+  });
+
   describe('figure selection', () => {
     it('selecting a figure updates the workspace selection and clears the node selection', async () => {
       await setup({

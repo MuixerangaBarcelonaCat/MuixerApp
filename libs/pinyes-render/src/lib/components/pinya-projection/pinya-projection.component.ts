@@ -310,7 +310,7 @@ export class PinyaProjectionComponent {
       return new Map();
     }
     const specs = instances.map((inst) => {
-      const pivotNodes = pivotNodesFor(inst.nodes);
+      const pivotNodes = this.visiblePivotNodes(inst);
       const occupiedNodes = this.getInstanceProjectionNodes(inst);
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
       return {
@@ -401,7 +401,7 @@ export class PinyaProjectionComponent {
       // Compute the figure's rotation pivot — the center of its PINYA+BASE bounding box
       // (ad-hoc excluded — pivotNodesFor, same as everywhere else). This matches the
       // offsetX/Y the distribution editor applies to the Konva group.
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       let centerX = 0;
       let centerY = 0;
       if (pinyaBaseNodes.length > 0) {
@@ -469,7 +469,7 @@ export class PinyaProjectionComponent {
       // Linked: panel sits above the figure's pinya top edge (pivotNodesFor: ad-hoc
       // excluded — otherwise an extra node far from the real pinya inflates this
       // half-height and pushes the panel away from it).
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
       const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
       const figHalfH = (mxY - mnY) / 2;
@@ -519,7 +519,7 @@ export class PinyaProjectionComponent {
 
       // Figure visual half-height (world coords → screen via totalScale). pivotNodesFor:
       // ad-hoc excluded, same reasoning as distributionFitBounds above.
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
       const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
       const figHalfH = (mxY - mnY) / 2;
@@ -565,7 +565,7 @@ export class PinyaProjectionComponent {
 
       // pivotNodesFor: must match distributionNodes()'s pivot exactly, or the glow is
       // centered on a different point than the nodes it sits behind.
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       let centerX = 0, centerY = 0;
       if (pinyaBaseNodes.length > 0) {
         const mnX = Math.min(...pinyaBaseNodes.map((n) => n.x - n.width / 2));
@@ -665,6 +665,18 @@ export class PinyaProjectionComponent {
   }
 
   // ── Node data accessors ───────────────────────────────────────────────────
+
+  /**
+   * A figure's rotation pivot nodes: PINYA+BASE (`pivotNodesFor`) among those its `figureMode`
+   * shows — the same set Distribució and the segment workspace pivot on. A REMAT figure keeps its
+   * hidden PINYA/BASE nodes, so pivoting on all of them would shift its decoration nodes (and its
+   * linked tronc panel) away from where they were placed. Cordons aren't applied here: they never
+   * move a pinya's center.
+   */
+  private visiblePivotNodes(instance: ProjectionInstance): InstanceNodeItem[] {
+    const opts = { figureMode: instance.figureMode, numberOfCordons: null, cordonsObertsEnabled: true };
+    return pivotNodesFor(instance.nodes.filter((n) => isNodeVisibleByModeAndCordons(n, opts)));
+  }
 
   /** Nodes to render on the Konva canvas: PINYA + BASE + DECORATION (spatial x,y nodes).
    *  Excludes TRONC/DIRECTION (shown in tronc header) and unassigned PINYA nodes.

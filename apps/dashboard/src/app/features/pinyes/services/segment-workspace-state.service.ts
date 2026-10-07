@@ -119,16 +119,19 @@ export class SegmentWorkspaceStateService {
     () => this.instances().find((i) => i.instanceId === this.selectedInstanceId()) ?? null,
   );
 
-  /** Slots for the pinya canvas: one per instance with pinya-canvas nodes, at stored or auto-placed positions. */
+  /**
+   * Slots for the pinya canvas, at stored or auto-placed positions: one per instance, even one
+   * with nothing to draw (a REMAT figure before any decoration) — Nodes extra needs it to place
+   * decoration nodes, and Distribució's own auto-placement packs every figure too. The canvas
+   * skips drawing an empty slot.
+   */
   readonly pinyaSlots = computed<CompositionSlotWithNodes[]>(() => {
     const distribution = this.distributionByInstance();
 
-    const entries = this.instances()
-      .map((instance) => ({
-        instance,
-        nodes: this.pinyaCanvasNodesFor(instance),
-      }))
-      .filter((e) => e.nodes.length > 0);
+    const entries = this.instances().map((instance) => ({
+      instance,
+      nodes: this.pinyaCanvasNodesFor(instance),
+    }));
 
     const placedExtents: { x: number; width: number }[] = [];
     for (const { instance, nodes } of entries) {
@@ -200,6 +203,11 @@ export class SegmentWorkspaceStateService {
       };
     });
   });
+
+  /** Whether any figure draws something on the pinya canvas (`pinyaSlots()` may hold only empty slots). */
+  readonly hasPinyaCanvasNodes = computed(() =>
+    this.pinyaSlots().some((slot) => slot.figureTemplate.nodes.length > 0),
+  );
 
   /** Extent used for auto-placement, computed once per instance and reused thereafter. */
   private stableAutoPlacementExtent(

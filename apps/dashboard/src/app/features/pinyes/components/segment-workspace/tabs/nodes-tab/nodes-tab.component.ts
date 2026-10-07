@@ -14,7 +14,15 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { DECORATION_NODE_PRESETS, NodePreset, NodeShape, PINYA_NODE_PRESETS, EventPhase } from '@muixer/shared';
+import {
+  DECORATION_NODE_PRESETS,
+  FigureZone,
+  NodePreset,
+  NodeShape,
+  PINYA_NODE_PRESETS,
+  EventPhase,
+  isNodeVisibleByModeAndCordons,
+} from '@muixer/shared';
 import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -117,6 +125,19 @@ export class NodesTabComponent implements OnInit {
   readonly dimmedSlotIds = computed(() => {
     const selected = this.ws.selectedInstanceId();
     return new Set(this.ws.instances().map((i) => i.instanceId).filter((id) => id !== selected));
+  });
+
+  /**
+   * A REMAT/NETA figure shows no pinya, so a Pinya preset placed on it would be hidden the moment
+   * it's created — only decoration nodes make sense there.
+   */
+  readonly selectedFigureHidesPinya = computed(() => {
+    const instance = this.ws.instances().find((i) => i.instanceId === this.ws.selectedInstanceId());
+    if (!instance) return false;
+    return !isNodeVisibleByModeAndCordons(
+      { zone: FigureZone.PINYA },
+      { figureMode: instance.figureMode, numberOfCordons: null, cordonsObertsEnabled: true },
+    );
   });
 
   readonly selectedNode = computed<InstanceNodeItem | null>(() => {

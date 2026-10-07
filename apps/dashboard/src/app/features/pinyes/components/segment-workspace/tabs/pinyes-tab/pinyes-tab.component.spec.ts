@@ -296,6 +296,26 @@ describe('PinyesTabComponent', () => {
       expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);
     });
 
+    it('shows the no-pinya message when the only figure is a REMAT (its slot is empty)', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA'), makeNode('t1', 'TRONC')] },
+      });
+
+      expect(fixture.nativeElement.textContent).toContain('Este segment no té cap figura amb pinya.');
+    });
+
+    it('does not center the viewport while no figure draws anything (a lone REMAT)', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA')] },
+      });
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(canvasStub().centerOnContent).not.toHaveBeenCalled();
+    });
+
     it('refreshes the workspace on init so figures edited in other tabs show up-to-date', async () => {
       await setup();
 

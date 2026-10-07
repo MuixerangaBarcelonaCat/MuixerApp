@@ -707,6 +707,17 @@ describe('computeFigureBoundingBoxes', () => {
     renglaPosition: null,
   });
 
+  it('places a decoration-only slot (a REMAT figure) around the origin pivot the canvas draws it with', () => {
+    // No PINYA/BASE node: the canvas pivots the slot on local (0,0) (`boundingBoxCenter([])`),
+    // so world (500,300) is local (0,0) and the decoration at local (100,50) is drawn at (600,350).
+    const decoration = makeZonedSlotNode('DECORATION', 100, 50, 20, 20);
+    const slot = makeSlot('a', 500, 300, [decoration]);
+
+    const [box] = computeFigureBoundingBoxes([slot]);
+
+    expect(box).toEqual({ slotId: 'a', label: 'a', x: 590, y: 340, width: 20, height: 20 });
+  });
+
   it('places the box using the PINYA+BASE pivot, not the center of decoration-inclusive extents (offsetX/Y is the pivot, not the full-set center)', () => {
     // PINYA node at local (0,0) 40x20 defines the pivot: world (500,300) is
     // local (0,0). A DECORATION node sits far to the right of it. The full
