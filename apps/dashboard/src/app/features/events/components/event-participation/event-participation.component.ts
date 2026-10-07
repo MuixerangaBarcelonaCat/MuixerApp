@@ -25,6 +25,7 @@ import { ICON_FIGURA, ICON_XICALLA, DOMAIN_ICONS } from '../../../../shared/cons
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 import { ParticipationService } from '../../services/participation.service';
 import { TagService } from '../../../config/services/tag.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import {
   ParticipationMeta,
@@ -83,6 +84,21 @@ const EMPTY_META: ParticipationMeta = {
 type AreaFilter = 'TRONC' | 'PINYA' | null;
 
 /**
+ * The columns a user switched on/off by hand, remembered per browser and account. Stored as
+ * explicit choices, not as the visible list: every event brings its own segment columns, and
+ * the per-event and per-segment scopes have different sets, so only the choices travel.
+ */
+interface ColumnChoices {
+  shown: string[];
+  hidden: string[];
+}
+
+const COLUMNS_STORAGE_PREFIX = 'event-participation-columns';
+
+/** Matrix columns are keyed by segment id: a choice about one would mean nothing in another event. */
+const SEGMENT_COLUMN_PREFIX = 'segment-';
+
+/**
  * Person x segment participation matrix for one event: what each member does, across
  * every segment, searchable both by person and by what they do.
  *
@@ -122,6 +138,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   private readonly participationService = inject(ParticipationService);
   private readonly tagService = inject(TagService);
+  private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
   eventId = input.required<string>();
@@ -445,7 +462,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     // Per-event scope (the default): one column per segment.
     for (const segment of this.segments()) {
       cols.push({
-        key: `segment-${segment.id}`,
+        key: `${SEGMENT_COLUMN_PREFIX}${segment.id}`,
         label: this.segmentLabel(segment),
         defaultVisible: true,
         type: 'pills',
@@ -739,9 +756,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   toggleColumn(key: string): void {
-    this.visibleKeys.update((keys) =>
-      keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key],
-    );
+    const show = !this.visibleKeys().includes(key);
+    this.visibleKeys.update((keys) => (show ? [...keys, key] : keys.filter((k) => k !== key)));
+    if (!key.startsWith(SEGMENT_COLUMN_PREFIX)) this.rememberColumnChoice(key, show);
   }
 
   onLimitChange(limit: number): void {
@@ -755,8 +772,45 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.page.set(1);
   }
 
+  /** Defaults for the current scope, overridden by whatever the user chose by hand. */
   private seedVisibleColumns(): void {
-    this.visibleKeys.set(this.columns().filter((c) => c.defaultVisible).map((c) => c.key));
+    const { shown, hidden } = this.loadColumnChoices();
+    this.visibleKeys.set(
+      this.columns()
+        .filter((c) => shown.includes(c.key) || (c.defaultVisible && !hidden.includes(c.key)))
+        .map((c) => c.key),
+    );
+  }
+
+  private get columnsStorageKey(): string {
+    return `${COLUMNS_STORAGE_PREFIX}:${this.authService.currentUser()?.id ?? 'anonymous'}`;
+  }
+
+  /** Undoing a choice drops it rather than storing the opposite one: the default is back in charge. */
+  private rememberColumnChoice(key: string, show: boolean): void {
+    const { shown, hidden } = this.loadColumnChoices();
+    const wasChosen = shown.includes(key) || hidden.includes(key);
+    const next: ColumnChoices = {
+      shown: shown.filter((k) => k !== key),
+      hidden: hidden.filter((k) => k !== key),
+    };
+    if (!wasChosen) (show ? next.shown : next.hidden).push(key);
+
+    try {
+      localStorage.setItem(this.columnsStorageKey, JSON.stringify(next));
+    } catch {
+      // Storage full or blocked: the toggle still applies, it just won't be remembered.
+    }
+  }
+
+  private loadColumnChoices(): ColumnChoices {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(this.columnsStorageKey) ?? 'null');
+      if (Array.isArray(parsed?.shown) && Array.isArray(parsed?.hidden)) return parsed;
+    } catch {
+      // Unreadable value: fall back to the defaults.
+    }
+    return { shown: [], hidden: [] };
   }
 
   // ── Search ranking ───────────────────────────────────────────────────────────

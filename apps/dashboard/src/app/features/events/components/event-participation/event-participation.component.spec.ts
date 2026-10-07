@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -17,11 +18,20 @@ import {
 } from '../../models/participation.model';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { TagService } from '../../../config/services/tag.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import { conflictRelevantPlacements, EventPhase, TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const EVENT_ID = 'event-1';
+const USER_ID = 'user-1';
+const COLUMNS_STORAGE_KEY = `event-participation-columns:${USER_ID}`;
+
+/** Column choices are remembered per account, so the component reads who is logged in. */
+const authStub = (userId: string = USER_ID) => ({
+  provide: AuthService,
+  useValue: { currentUser: signal({ id: userId }) },
+});
 const SEG_A = 'seg-a';
 const SEG_B = 'seg-b';
 
@@ -282,16 +292,22 @@ describe('EventParticipationComponent', () => {
     { id: 'tag-unworn', name: 'Taps', slug: 'tap', shortDescription: null, longDescription: null, color: '#444', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
   ];
 
+  // Remembered column choices live in real jsdom `localStorage`; never let one test's
+  // choices leak into the next one's defaults.
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
   const setup = async (
     response: EventParticipation = buildResponse(),
     phase: EventPhase = 'before',
-    { failCatalog = false }: { failCatalog?: boolean } = {},
+    { failCatalog = false, userId = USER_ID }: { failCatalog?: boolean; userId?: string } = {},
   ): Promise<ComponentFixture<EventParticipationComponent>> => {
     await TestBed.configureTestingModule({
       imports: [EventParticipationComponent],
       providers: [
         provideRouter([]),
         allLucideIconsProvider,
+        authStub(userId),
         { provide: ParticipationService, useValue: { getByEvent: () => of(response) } },
         {
           provide: TagService,
@@ -1197,6 +1213,100 @@ describe('EventParticipationComponent', () => {
     });
   });
 
+  describe('remembered column choices', () => {
+    /** A second visit to the participation tab: a fresh component in the same browser. */
+    const revisit = (): ComponentFixture<EventParticipationComponent> => {
+      const fixture = TestBed.createComponent(EventParticipationComponent);
+      fixture.componentRef.setInput('eventId', EVENT_ID);
+      fixture.detectChanges();
+      return fixture;
+    };
+
+    it('shows again a column the user turned on, on the next visit', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('troncDetail');
+      fixture.componentInstance.toggleColumn('segmentPercent');
+
+      const again = revisit();
+      expect(again.componentInstance.visibleKeys()).toEqual(
+        expect.arrayContaining(['troncDetail', 'segmentPercent']),
+      );
+    });
+
+    it('keeps hidden a default column the user turned off', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('status');
+
+      expect(revisit().componentInstance.visibleKeys()).not.toContain('status');
+    });
+
+    it('forgets a choice the user undid', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('troncDetail');
+      fixture.componentInstance.toggleColumn('troncDetail');
+
+      expect(revisit().componentInstance.visibleKeys()).not.toContain('troncDetail');
+    });
+
+    it('does not remember per-event segment columns: their keys are that event\'s segment ids', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn(`segment-${SEG_A}`);
+
+      expect(localStorage.getItem(COLUMNS_STORAGE_KEY) ?? '').not.toContain(SEG_A);
+      expect(revisit().componentInstance.visibleKeys()).toContain(`segment-${SEG_A}`);
+    });
+
+    it('keeps the choices when the segment scope changes and when filters are cleared', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('segmentPercent');
+
+      fixture.componentInstance.onSegmentChange(SEG_A);
+      expect(fixture.componentInstance.visibleKeys()).toContain('segmentPercent');
+
+      fixture.componentInstance.clearAllFilters();
+      expect(fixture.componentInstance.visibleKeys()).toContain('segmentPercent');
+    });
+
+    it('applies a stored choice to a column that did not exist when it was made', async () => {
+      // `Tronc` only exists in per-event scope; the choice must survive a per-segment visit.
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('troncDetail');
+      fixture.componentInstance.onSegmentChange(SEG_A);
+      fixture.componentInstance.onSegmentChange('');
+
+      expect(fixture.componentInstance.visibleKeys()).toContain('troncDetail');
+    });
+
+    it('keeps each account\'s choices apart on a shared browser', async () => {
+      localStorage.setItem(
+        'event-participation-columns:someone-else',
+        JSON.stringify({ shown: ['troncDetail'], hidden: [] }),
+      );
+      const fixture = await setup();
+
+      expect(fixture.componentInstance.visibleKeys()).not.toContain('troncDetail');
+    });
+
+    it('falls back to the defaults when the stored value is unreadable', async () => {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, '{not json');
+      const fixture = await setup();
+
+      expect(fixture.componentInstance.visibleKeys()).toContain('status');
+      expect(fixture.componentInstance.visibleKeys()).not.toContain('troncDetail');
+    });
+
+    it('still toggles the column when storage is unavailable', async () => {
+      const fixture = await setup();
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('QuotaExceededError');
+      });
+
+      fixture.componentInstance.toggleColumn('troncDetail');
+      expect(fixture.componentInstance.visibleKeys()).toContain('troncDetail');
+      setItem.mockRestore();
+    });
+  });
+
   describe('empty and error states', () => {
     it('renders the empty state and no table when nobody participates', async () => {
       const fixture = await setup(
@@ -1216,6 +1326,7 @@ describe('EventParticipationComponent', () => {
         providers: [
           provideRouter([]),
           allLucideIconsProvider,
+          authStub(),
           {
             provide: ParticipationService,
             useValue: { getByEvent: () => throwError(() => new Error('boom')) },
