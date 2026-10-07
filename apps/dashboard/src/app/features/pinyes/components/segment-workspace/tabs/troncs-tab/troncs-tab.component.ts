@@ -2,7 +2,6 @@ import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, co
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
-import { forkJoin } from 'rxjs';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
@@ -10,8 +9,7 @@ import { FigurePickerModalComponent, InstanceSelection } from '../../../figure-p
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { FigureInstanceService } from '../../../../services/figure-instance.service';
-import { CompositionService } from '../../../../services/composition.service';
+import { SegmentFigureAddService } from '../../../../services/segment-figure-add.service';
 import { SegmentAssignmentActionsService } from '../../../../services/segment-assignment-actions.service';
 import { ButtonComponent, ModalComponent, ThemeScopeDirective, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
@@ -51,8 +49,7 @@ export class TroncsTabComponent implements OnInit {
   private readonly actions = inject(SegmentAssignmentActionsService);
   private readonly toast = inject(ToastService);
   private readonly undoRedo = inject(UndoRedoService);
-  private readonly instanceService = inject(FigureInstanceService);
-  private readonly compositionService = inject(CompositionService);
+  private readonly figureAdd = inject(SegmentFigureAddService);
 
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
@@ -542,28 +539,17 @@ export class TroncsTabComponent implements OnInit {
 
   onFiguresConfirmed(selections: InstanceSelection[]): void {
     if (selections.length === 0) return;
-    const eventId = this.ws.eventId();
-    const segmentId = this.ws.segmentId();
-
-    forkJoin(selections.map((sel) => this.instanceService.create(eventId, segmentId, sel))).subscribe({
-      next: (instances) => {
-        this.ws.reloadInstances();
-        const count = instances.length;
-        this.toast.success(count === 1 ? '1 figura afegida.' : `${count} figures afegides.`);
-        this.closeFigurePicker();
-      },
-      error: () => this.toast.error('Error en afegir les figures.'),
+    this.figureAdd.addFigures(this.ws.eventId(), this.ws.segmentId(), selections).subscribe((created) => {
+      if (created.length === 0) return;
+      this.ws.reloadInstances();
+      this.closeFigurePicker();
     });
   }
 
   onCompositionSelected(event: { compositionId: string; compositionName: string }): void {
-    this.compositionService.applyToSegment(this.ws.eventId(), this.ws.segmentId(), event.compositionId).subscribe({
-      next: () => {
-        this.ws.reloadInstances();
-        this.toast.success(`Composició «${event.compositionName}» aplicada.`);
-        this.closeFigurePicker();
-      },
-      error: () => this.toast.error('No s\'ha pogut aplicar la composició.'),
+    this.figureAdd.applyComposition(this.ws.eventId(), this.ws.segmentId(), event).subscribe(() => {
+      this.ws.reloadInstances();
+      this.closeFigurePicker();
     });
   }
 

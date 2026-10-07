@@ -813,7 +813,7 @@ describe('TroncsTabComponent', () => {
 
   describe('adding figures to the segment', () => {
     const addButton = () =>
-      fixture.debugElement.query(By.css('lib-button[ariaLabel="Afegir figura o composició al segment"]'));
+      fixture.debugElement.query(By.css('lib-button[ariaLabel="Afig una figura o composició al segment"]'));
     const picker = () => fixture.debugElement.query(By.directive(StubFigurePicker));
     const openPicker = () => {
       addButton().triggerEventHandler('clicked', undefined);
@@ -870,7 +870,7 @@ describe('TroncsTabComponent', () => {
       expect(instanceService.create).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-x' });
       expect(instanceService.create).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-y' });
       expect(reloadSpy).toHaveBeenCalled();
-      expect(toast.success).toHaveBeenCalledWith('2 figures afegides.');
+      expect(toast.success).toHaveBeenCalledWith("S'han afegit 2 figures.");
       expect(picker()).toBeNull();
     });
 
@@ -882,8 +882,37 @@ describe('TroncsTabComponent', () => {
       picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }]);
       fixture.detectChanges();
 
-      expect(toast.error).toHaveBeenCalledWith('Error en afegir les figures.');
+      expect(toast.error).toHaveBeenCalledWith("No s'han pogut afegir les figures.");
       expect(picker()).not.toBeNull();
+    });
+
+    it('creates the figures one after another, in pick order', async () => {
+      await setup();
+      const first = new Subject<unknown>();
+      instanceService.create.mockReturnValueOnce(first).mockReturnValueOnce(of({ id: 'i2' }));
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }, { figureTemplateId: 'tpl-y' }]);
+
+      expect(instanceService.create).toHaveBeenCalledTimes(1);
+      first.next({ id: 'i1' });
+      first.complete();
+      expect(instanceService.create).toHaveBeenNthCalledWith(2, EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-y' });
+    });
+
+    it('on a partial failure reloads the workspace and closes the picker, so a retry cannot duplicate figures', async () => {
+      await setup();
+      const reloadSpy = vi.spyOn(ws, 'reloadInstances');
+      instanceService.create
+        .mockReturnValueOnce(of({ id: 'i1' }))
+        .mockReturnValueOnce(throwError(() => new Error('boom')));
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }, { figureTemplateId: 'tpl-y' }]);
+      fixture.detectChanges();
+
+      expect(reloadSpy).toHaveBeenCalled();
+      expect(picker()).toBeNull();
     });
 
     it('applies a chosen composition to the segment and reloads the workspace', async () => {
@@ -896,7 +925,7 @@ describe('TroncsTabComponent', () => {
 
       expect(compositionService.applyToSegment).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, 'comp-1');
       expect(reloadSpy).toHaveBeenCalled();
-      expect(toast.success).toHaveBeenCalledWith('Composició «Diada» aplicada.');
+      expect(toast.success).toHaveBeenCalledWith("S'ha aplicat la composició «Diada».");
       expect(picker()).toBeNull();
     });
 

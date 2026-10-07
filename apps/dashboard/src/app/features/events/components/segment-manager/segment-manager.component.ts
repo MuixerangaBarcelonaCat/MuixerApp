@@ -23,11 +23,11 @@ import {
   DIRECCIO_PINYA_POSITION_TYPE,
   type EventPhase,
 } from '@muixer/shared';
-import { concatMap, forkJoin, from, toArray } from 'rxjs';
+import { forkJoin } from 'rxjs';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
-import { CompositionService } from '../../../pinyes/services/composition.service';
+import { SegmentFigureAddService } from '../../../pinyes/services/segment-figure-add.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService, AlertComponent, ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, ModalComponent, InputComponent, SelectComponent } from '@muixer/ui';
 import {
@@ -88,7 +88,7 @@ export class SegmentManagerComponent implements OnInit {
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
-  private readonly compositionService = inject(CompositionService);
+  private readonly figureAdd = inject(SegmentFigureAddService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -452,29 +452,12 @@ export class SegmentManagerComponent implements OnInit {
     const segmentId = this.pickerSegmentId();
     if (!segmentId || selections.length === 0) return;
 
-    // One at a time: the server appends each figure after the last, so the segment's order (and
-    // with it each figure's number and color) follows the order the figures were picked in.
-    from(selections).pipe(
-      concatMap((sel) => this.instanceService.create(this.eventId(), segmentId, sel)),
-      toArray(),
-    ).subscribe({
-      next: (instances) => {
-        this.segments.update((list) =>
-          list.map((s) =>
-            s.id === segmentId
-              ? { ...s, instances: [...s.instances, ...instances] }
-              : s,
-          ),
-        );
-        const count = instances.length;
-        this.toast.success(
-          count === 1
-            ? '1 figura afegida.'
-            : `${count} figures afegides.`,
-        );
-        this.closePicker();
-      },
-      error: () => this.toast.error('Error en afegir les figures.'),
+    this.figureAdd.addFigures(this.eventId(), segmentId, selections).subscribe((created) => {
+      if (created.length === 0) return;
+      this.segments.update((list) =>
+        list.map((s) => (s.id === segmentId ? { ...s, instances: [...s.instances, ...created] } : s)),
+      );
+      this.closePicker();
     });
   }
 
@@ -482,15 +465,9 @@ export class SegmentManagerComponent implements OnInit {
     const segmentId = this.pickerSegmentId();
     if (!segmentId) return;
 
-    this.compositionService.applyToSegment(this.eventId(), segmentId, event.compositionId).subscribe({
-      next: (updatedSegment) => {
-        this.segments.update((list) =>
-          list.map((s) => (s.id === segmentId ? updatedSegment : s)),
-        );
-        this.toast.success(`Composició «${event.compositionName}» aplicada.`);
-        this.closePicker();
-      },
-      error: () => this.toast.error('No s\'ha pogut aplicar la composició.'),
+    this.figureAdd.applyComposition(this.eventId(), segmentId, event).subscribe((updatedSegment) => {
+      this.segments.update((list) => list.map((s) => (s.id === segmentId ? updatedSegment : s)));
+      this.closePicker();
     });
   }
 

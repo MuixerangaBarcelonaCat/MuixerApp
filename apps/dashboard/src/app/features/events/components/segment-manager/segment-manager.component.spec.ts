@@ -569,7 +569,7 @@ describe('SegmentManagerComponent', () => {
         { figureTemplateId: 'f2' },
       ]);
 
-      expect(toastService.success).toHaveBeenCalledWith('2 figures afegides.');
+      expect(toastService.success).toHaveBeenCalledWith("S'han afegit 2 figures.");
     });
 
     it('shows singular toast for single item', () => {
@@ -582,7 +582,7 @@ describe('SegmentManagerComponent', () => {
 
       component.onInstancesConfirmed([{ figureTemplateId: 'f1' }]);
 
-      expect(toastService.success).toHaveBeenCalledWith('1 figura afegida.');
+      expect(toastService.success).toHaveBeenCalledWith("S'ha afegit 1 figura.");
     });
 
     it('closes picker after successful batch', () => {
@@ -610,7 +610,37 @@ describe('SegmentManagerComponent', () => {
 
       component.onInstancesConfirmed([{ figureTemplateId: 'f1' }]);
 
-      expect(toastService.error).toHaveBeenCalledWith('Error en afegir les figures.');
+      expect(toastService.error).toHaveBeenCalledWith("No s'han pogut afegir les figures.");
+    });
+
+    it('on a partial failure shows the figures already created and closes the picker, so a retry cannot duplicate them', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [] });
+      component.segments.set([seg]);
+      component.pickerOpen.set(true);
+      component.pickerSegmentId.set('seg-1');
+
+      (instanceService.create as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce(of(makeInstance({ id: 'inst-1' })))
+        .mockReturnValueOnce(throwError(() => new Error('API error')));
+
+      component.onInstancesConfirmed([{ figureTemplateId: 'f1' }, { figureTemplateId: 'f2' }]);
+
+      expect(component.segments()[0].instances.map((i) => i.id)).toEqual(['inst-1']);
+      expect(component.pickerOpen()).toBe(false);
+    });
+
+    it('keeps the picker open when nothing was created', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [] });
+      component.segments.set([seg]);
+      component.pickerOpen.set(true);
+      component.pickerSegmentId.set('seg-1');
+
+      (instanceService.create as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce(throwError(() => new Error('API error')));
+
+      component.onInstancesConfirmed([{ figureTemplateId: 'f1' }]);
+
+      expect(component.pickerOpen()).toBe(true);
     });
 
     it('does nothing when segmentId is null', () => {
@@ -659,7 +689,7 @@ describe('SegmentManagerComponent', () => {
 
       component.onCompositionSelected({ compositionId: 'comp-1', compositionName: 'Pilars de plaça' });
 
-      expect(toastService.success).toHaveBeenCalledWith('Composició «Pilars de plaça» aplicada.');
+      expect(toastService.success).toHaveBeenCalledWith("S'ha aplicat la composició «Pilars de plaça».");
       expect(component.pickerOpen()).toBe(false);
       expect(component.pickerSegmentId()).toBeNull();
     });
@@ -1749,7 +1779,7 @@ describe('SegmentManagerComponent', () => {
     it('hides "+ Figura" (blocks add-figure and apply-composition entry point)', () => {
       setLockedWithSegment();
 
-      const btn = fixture.nativeElement.querySelector('[aria-label="Afegir figura o composició al segment"]');
+      const btn = fixture.nativeElement.querySelector('[aria-label="Afig una figura o composició al segment"]');
       expect(btn).toBeNull();
     });
 
@@ -1817,7 +1847,7 @@ describe('SegmentManagerComponent', () => {
       fixture.detectChanges();
 
       const addFigureBtn = fixture.nativeElement.querySelector(
-        '[aria-label="Afegir figura o composició al segment"]',
+        '[aria-label="Afig una figura o composició al segment"]',
       );
       const deleteBtn = fixture.nativeElement.querySelector('[aria-label="Eliminar segment"]');
       expect(addFigureBtn).not.toBeNull();
@@ -1844,7 +1874,7 @@ describe('SegmentManagerComponent', () => {
       'Arrossega per reordenar el segment',
       'Arrossega per reordenar',
       'Eliminar segment',
-      'Afegir figura o composició al segment',
+      'Afig una figura o composició al segment',
       'Redueix els cordons',
       'Augmenta els cordons',
     ])('hides "%s"', (label) => {
