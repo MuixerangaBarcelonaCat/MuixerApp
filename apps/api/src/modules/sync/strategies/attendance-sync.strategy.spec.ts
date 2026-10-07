@@ -174,10 +174,11 @@ describe('AttendanceSyncStrategy', () => {
       const result = strategy.parseTimestamp('05/03/2026 12:59:18');
       expect(result).toBeInstanceOf(Date);
       if (!result) throw new Error('Expected a Date');
-      expect(result.getFullYear()).toBe(2026);
-      expect(result.getMonth()).toBe(2); // March = 2 (0-indexed)
-      expect(result.getDate()).toBe(5);
-      expect(result.getHours()).toBe(12);
+      expect(result.toISOString()).toBe('2026-03-05T11:59:18.000Z'); // 12:59 CET
+    });
+
+    it('interprets the legacy wall-clock time as Europe/Madrid, whatever the server timezone', () => {
+      expect(strategy.parseTimestamp('07/10/2026 19:16:55')?.toISOString()).toBe('2026-10-07T17:16:55.000Z');
     });
 
     it('returns null for null input', () => {
@@ -260,6 +261,48 @@ describe('AttendanceSyncStrategy', () => {
       expect(attendanceRepository.upsert).not.toHaveBeenCalled();
       const progressMsg = events.find((e) => e.current === 1);
       expect(progressMsg?.message).toContain('sense match');
+    });
+
+    describe('rehearsal in progress (server in UTC)', () => {
+      beforeEach(() => {
+        // 19:21 in Barcelona — the 18:45 rehearsal started 36 minutes ago
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] }).setSystemTime(new Date('2026-10-07T17:21:00Z'));
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('treats the event as past once its Europe/Madrid start time has passed', async () => {
+        const person = makePerson('100');
+        const event = makeEvent({ date: '2026-10-07' as unknown as Date, startTime: '18:45' });
+        personRepository.find.mockResolvedValue([person]);
+        (legacyApiClient.getAssistenciesXlsx as jest.Mock).mockResolvedValue([
+          makeRow({ legacyPersonId: '100', estat: 'Potser', instant: '07/10/2026 19:16:55' }),
+        ]);
+
+        await strategy.syncAll({ next: jest.fn() } as unknown as import('rxjs').Subscriber<SyncEvent>, [event]);
+
+        const upserted = attendanceRepository.upsert.mock.calls[0][0][0];
+        expect(upserted.status).toBe(AttendanceStatus.ASSISTIT);
+      });
+    });
+
+    it('never downgrades an ASSISTIT already marked in the app (passa llista)', async () => {
+      const person = makePerson('100');
+      const event = makeEvent({ date: '2999-01-01' as unknown as Date }); // still upcoming → legacy Vinc maps to ANIRE
+      personRepository.find.mockResolvedValue([person]);
+      (legacyApiClient.getAssistenciesXlsx as jest.Mock).mockResolvedValue([
+        makeRow({ legacyPersonId: '100', estat: 'Vinc' }),
+      ]);
+      attendanceRepository.find.mockResolvedValueOnce([
+        { status: AttendanceStatus.ASSISTIT, person: { id: person.id } },
+      ]);
+
+      await strategy.syncAll({ next: jest.fn() } as unknown as import('rxjs').Subscriber<SyncEvent>, [event]);
+
+      const upserted = attendanceRepository.upsert.mock.calls[0][0][0];
+      expect(upserted.status).toBe(AttendanceStatus.ASSISTIT);
     });
 
     it('does not overwrite user-edited notes on re-sync', async () => {

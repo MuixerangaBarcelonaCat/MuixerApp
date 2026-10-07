@@ -1,3 +1,6 @@
+// Run like the API container (UTC), so timezone bugs reproduce on any dev machine.
+process.env.TZ = 'UTC';
+
 export default {
   displayName: 'api',
   preset: '../../jest.preset.js',

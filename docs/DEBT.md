@@ -23,6 +23,7 @@ tags: [qa]
 | S2 | N+1 al `EventSyncStrategy`: 2 peticions HTTP per event (llista + detall) | ~178 peticions seqüencials; el legacy podria aplicar rate limiting |
 | S3 | No hi ha flag de "editat manualment": un re-sync pot sobreescriure estats editats a mà | Descartat a P4.2 per simplicitat; reconsiderar si el legacy conviu molt de temps |
 | S4 | `attendanceSummary` es recalcula sincrònicament a cada CRUD d'assistència | Acceptable ara; vigilar si creix el volum |
+| S5 | La sync mai rebaixa un `ASSISTIT` marcat a l'app (passa llista guanya sempre): si algú respon «No vinc» al legacy després de ser marcat, es queda `ASSISTIT` | Decisió deliberada (07/10/2026); valorar si cal deixar que un «No vinc» posterior el corregeixi |
 
 ## Seguretat i compliment
 
