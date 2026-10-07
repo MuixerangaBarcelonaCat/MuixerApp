@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { EventController } from './event.controller';
 import { EventService } from './event.service';
 import { AttendanceService } from './attendance.service';
@@ -82,10 +82,10 @@ describe('EventController', () => {
       expect(result.id).toBe('ev-uuid');
     });
 
-    it('propagates NotFoundException from service when seasonId invalid', async () => {
-      eventService.create.mockRejectedValueOnce(new NotFoundException('Season not found'));
-      await expect(controller.create({ title: 'X', eventType: EventType.ASSAIG, date: '2026-05-10', seasonId: 'bad-id' }))
-        .rejects.toThrow(NotFoundException);
+    it('propagates BadRequestException from service when the date is in no season', async () => {
+      eventService.create.mockRejectedValueOnce(new BadRequestException('fora de temporada'));
+      await expect(controller.create({ title: 'X', eventType: EventType.ASSAIG, date: '2030-08-01' }))
+        .rejects.toThrow(BadRequestException);
     });
   });
 

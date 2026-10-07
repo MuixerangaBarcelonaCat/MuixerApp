@@ -216,4 +216,23 @@ describe('NodeAssignmentService raw multi-join queries (integration)', () => {
     const targetAssignments = await assignmentRepo.find({ where: { figureInstance: { id: targetInstance.id } } });
     expect(targetAssignments).toHaveLength(3); // no duplicates, nothing lost
   });
+
+  it('filters getHistory and getPersonHistory by the season containing the event date', async () => {
+    const { template, instance } = await makeFigureWithNodesAndAssignments(2, 1); // event on 2099-01-01
+    const [{ personId }] = await db.dataSource.query(
+      `SELECT "personId" FROM "node_assignments" WHERE "figureInstanceId" = $1`,
+      [instance.id],
+    );
+    const [{ id: covering }] = await db.dataSource.query(
+      `INSERT INTO "seasons" (name, "startDate", "endDate") VALUES ('2098-2099', '2098-09-01', '2099-08-31') RETURNING "id"`,
+    );
+    const [{ id: other }] = await db.dataSource.query(
+      `INSERT INTO "seasons" (name, "startDate", "endDate") VALUES ('2099-2100', '2099-09-01', '2100-08-31') RETURNING "id"`,
+    );
+
+    expect((await service.getHistory(template.id, { seasonId: covering })).meta.total).toBe(1);
+    expect((await service.getHistory(template.id, { seasonId: other })).meta.total).toBe(0);
+    expect((await service.getPersonHistory(personId, { seasonId: covering })).meta.total).toBe(1);
+    expect((await service.getPersonHistory(personId, { seasonId: other })).meta.total).toBe(0);
+  });
 });

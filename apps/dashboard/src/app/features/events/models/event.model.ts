@@ -16,7 +16,10 @@ export interface Season {
   startDate: string;
   endDate: string;
   description: string | null;
+  /** All events in the season, whatever their type. */
   eventCount: number;
+  rehearsalCount: number;
+  performanceCount: number;
 }
 
 export interface SegmentsSummary {
@@ -74,7 +77,6 @@ export interface CreateEventPayload {
   information?: string;
   notes?: string;
   countsForStatistics?: boolean;
-  seasonId?: string;
 }
 
 export type UpdateEventPayload = {

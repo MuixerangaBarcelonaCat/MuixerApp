@@ -309,6 +309,10 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
 
 // ─── Service ────────────────────────────────────────────────────────────────
 
+/** The joined event `ev` falls in season `:seasonId`: an event's season is derived from its date. */
+const EVENT_IN_SEASON_FILTER =
+  'EXISTS (SELECT 1 FROM seasons hs WHERE hs.id = :seasonId AND ev.date BETWEEN hs."startDate" AND hs."endDate")';
+
 @Injectable()
 export class NodeAssignmentService {
   private readonly logger = new Logger(NodeAssignmentService.name);
@@ -1108,7 +1112,7 @@ export class NodeAssignmentService {
       .where('fi.figureTemplateId = :templateId', { templateId });
 
     if (query.seasonId) {
-      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+      qb.andWhere(EVENT_IN_SEASON_FILTER, { seasonId: query.seasonId });
     }
 
     const total = await qb.getCount();
@@ -1201,7 +1205,7 @@ export class NodeAssignmentService {
       ]);
 
     if (query.seasonId) {
-      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+      qb.andWhere(EVENT_IN_SEASON_FILTER, { seasonId: query.seasonId });
     }
 
     const total = await qb.getCount();

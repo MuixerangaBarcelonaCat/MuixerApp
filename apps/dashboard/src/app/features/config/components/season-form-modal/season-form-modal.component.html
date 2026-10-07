@@ -4,6 +4,11 @@
       <lib-alert variant="error" dense>{{ errorMessage() }}</lib-alert>
     </div>
   }
+  @if (uncoveredWarning()) {
+    <div class="mb-4">
+      <lib-alert variant="warning" dense>{{ uncoveredWarning() }}</lib-alert>
+    </div>
+  }
 
   <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col gap-4" novalidate>
 
@@ -55,7 +60,7 @@
       [loading]="saving()"
       (clicked)="onSave()"
     >
-      {{ isEditMode ? 'Alça' : 'Crea' }}
+      {{ uncoveredWarning() ? 'Alça igualment' : isEditMode ? 'Alça' : 'Crea' }}
     </lib-button>
   </div>
 </lib-modal>

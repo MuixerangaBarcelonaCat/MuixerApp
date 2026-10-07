@@ -320,7 +320,11 @@ describe('MeService', () => {
         name: 'Marta',
         firstSurname: 'Puig',
       } as Person);
-      seasonService.findCurrentEntity.mockResolvedValue({ id: 'season-1' } as never);
+      seasonService.findCurrentEntity.mockResolvedValue({
+        id: 'season-1',
+        startDate: '2025-09-06',
+        endDate: '2026-09-05',
+      } as never);
       const mockQb = {
         leftJoin: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
@@ -343,6 +347,10 @@ describe('MeService', () => {
         assajosTotal: 10,
         actuacionsAttended: 3,
         actuacionsTotal: 3,
+      });
+      expect(mockQb.where).toHaveBeenCalledWith('event.date BETWEEN :seasonStart AND :seasonEnd', {
+        seasonStart: '2025-09-06',
+        seasonEnd: '2026-09-05',
       });
     });
   });

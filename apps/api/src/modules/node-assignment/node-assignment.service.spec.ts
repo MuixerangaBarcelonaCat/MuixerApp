@@ -1678,7 +1678,7 @@ describe('NodeAssignmentService', () => {
       await service.getHistory(TEMPLATE_ID, { seasonId: 'season-1' });
 
       expect(mockHistoryQb.andWhere).toHaveBeenCalledWith(
-        'ev.seasonId = :seasonId',
+        'EXISTS (SELECT 1 FROM seasons hs WHERE hs.id = :seasonId AND ev.date BETWEEN hs."startDate" AND hs."endDate")',
         { seasonId: 'season-1' },
       );
     });
@@ -1853,7 +1853,7 @@ describe('NodeAssignmentService', () => {
       await service.getPersonHistory(PERSON_ID, { seasonId: 'season-x' });
 
       expect(mockPersonHistoryQb.andWhere).toHaveBeenCalledWith(
-        'ev.seasonId = :seasonId',
+        'EXISTS (SELECT 1 FROM seasons hs WHERE hs.id = :seasonId AND ev.date BETWEEN hs."startDate" AND hs."endDate")',
         { seasonId: 'season-x' },
       );
     });

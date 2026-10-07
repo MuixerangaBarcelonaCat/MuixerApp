@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
-import { DelegateType, UserRole } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, UserRole } from '@muixer/shared';
+import { addDaysToDateOnly, getLocalToday } from '../../common/utils/date.util';
 import { MeService } from './me.service';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
@@ -214,5 +215,36 @@ describe('MeService profile endpoints (integration)', () => {
 
     const list = await service.listPersonDelegates((user as User).id, person.id);
     expect(list.map((d) => d.id)).toContain(delegate.id);
+  });
+
+  it("counts season attendance from events whose date falls in today's season", async () => {
+    const { person, user } = await seedPerson('Comptes', true);
+    const today = getLocalToday();
+    const day = (offset: number) => addDaysToDateOnly(today, offset);
+    await db.dataSource.getRepository(Season).save([
+      { name: 'Actual', startDate: day(-60), endDate: day(60) },
+      { name: 'Passada', startDate: day(-400), endDate: day(-200) },
+    ] as unknown as Season[]);
+
+    const eventRepo = db.dataSource.getRepository(Event);
+    const attRepo = db.dataSource.getRepository(Attendance);
+    const seedEvent = async (offset: number, eventType: EventType, status?: AttendanceStatus) => {
+      const event = await eventRepo.save({ eventType, title: `E${offset}`, date: day(offset) } as unknown as Event);
+      if (status) await attRepo.save({ event: { id: event.id }, person: { id: person.id }, status });
+    };
+    await seedEvent(-10, EventType.ASSAIG, AttendanceStatus.ASSISTIT); // current season, attended
+    await seedEvent(-5, EventType.ASSAIG); // current season, missed
+    await seedEvent(-3, EventType.ACTUACIO, AttendanceStatus.ASSISTIT); // current season
+    await seedEvent(-300, EventType.ASSAIG, AttendanceStatus.ASSISTIT); // past season
+    await seedEvent(-100, EventType.ASSAIG, AttendanceStatus.ASSISTIT); // in no season
+
+    const summary = await service.getPersonSummary((user as User).id, person.id);
+
+    expect(summary.seasonAttendance).toEqual({
+      assajosAttended: 1,
+      assajosTotal: 2,
+      actuacionsAttended: 1,
+      actuacionsTotal: 1,
+    });
   });
 });

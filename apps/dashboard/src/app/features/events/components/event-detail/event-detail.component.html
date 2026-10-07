@@ -285,7 +285,6 @@
     @if (showEditModal()) {
       <app-event-form-modal
         [event]="ev"
-        [seasons]="seasons()"
         (saved)="onEventUpdated($event)"
         (closed)="showEditModal.set(false)"
       />

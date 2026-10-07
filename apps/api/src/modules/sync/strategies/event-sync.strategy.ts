@@ -33,6 +33,9 @@ const DEFAULT_SEASONS = [
  * JSON API (llista + detall), aplica la merge strategy i delega la sincronització d'assistència a
  * AttendanceSyncStrategy.
  *
+ * La temporada d'un event es deriva de la data (no es guarda): la importació no la valida i importa
+ * també els events fora de qualsevol temporada, però n'avisa del recompte.
+ *
  * Les temporades futures es creen via el CRUD de temporades del dashboard — no cal modificar el codi.
  */
 @Injectable()
@@ -106,7 +109,7 @@ export class EventSyncStrategy implements SyncStrategy {
           }
 
           const detail = await this.legacyApiClient.getAssaigDetail(eventId);
-          const isNew = await this.upsertRehearsalEvent(assaig, detail, eventId, seasons);
+          const isNew = await this.upsertRehearsalEvent(assaig, detail, eventId);
           if (isNew) counts.newEvents++; else counts.updatedEvents++;
 
           subscriber.next({
@@ -136,7 +139,7 @@ export class EventSyncStrategy implements SyncStrategy {
           }
 
           const detail = await this.legacyApiClient.getActuacioDetail(eventId);
-          const isNew = await this.upsertPerformanceEvent(actuacio, detail, eventId, seasons);
+          const isNew = await this.upsertPerformanceEvent(actuacio, detail, eventId);
           if (isNew) counts.newEvents++; else counts.updatedEvents++;
 
           subscriber.next({
@@ -156,11 +159,28 @@ export class EventSyncStrategy implements SyncStrategy {
       const allLegacyEvents = await this.eventRepository.find({ where: { legacyId: Not(IsNull()) } });
       await this.attendanceSyncStrategy.syncAll(subscriber, allLegacyEvents);
 
+      const uncoveredEvents = await this.countUncoveredLegacyEvents();
+      if (uncoveredEvents > 0) {
+        subscriber.next({
+          type: 'warn',
+          entity: 'season',
+          message:
+            uncoveredEvents === 1
+              ? '1 esdeveniment importat no és dins de cap temporada.'
+              : `${uncoveredEvents} esdeveniments importats no són dins de cap temporada.`,
+        });
+      }
+
       subscriber.next({
         type: 'complete',
         entity: 'event',
         message: `Sincronització completada. Nous: ${counts.newEvents}, Actualitzats: ${counts.updatedEvents}, Errors: ${counts.errors}`,
-        detail: { newEvents: counts.newEvents, updatedEvents: counts.updatedEvents, errors: counts.errors },
+        detail: {
+          newEvents: counts.newEvents,
+          updatedEvents: counts.updatedEvents,
+          errors: counts.errors,
+          uncoveredEvents,
+        },
       });
     } finally {
       this.isSyncing = false;
@@ -183,28 +203,20 @@ export class EventSyncStrategy implements SyncStrategy {
     return this.seasonRepository.find({ order: { startDate: 'ASC' } });
   }
 
-  /**
-   * Assigns an event to the season whose date range covers the event date.
-   * Returns the last season if no exact match (safety fallback for edge dates).
-   */
-  assignSeasonByDate(eventDate: Date, seasons: Season[]): Season | null {
-    if (seasons.length === 0) return null;
-
-    const match = seasons.find((s) => {
-      const start = new Date(s.startDate);
-      const end = new Date(s.endDate);
-      return eventDate >= start && eventDate <= end;
-    });
-
-    // Fallback: use the most recent season for dates outside all ranges
-    return match ?? seasons[seasons.length - 1];
+  /** Legacy events whose date falls in no season («Sense temporada»). */
+  private countUncoveredLegacyEvents(): Promise<number> {
+    return this.eventRepository
+      .createQueryBuilder('event')
+      .leftJoin(Season, 'season', 'event.date BETWEEN season.startDate AND season.endDate')
+      .where('season.id IS NULL')
+      .andWhere('event.legacyId IS NOT NULL')
+      .getCount();
   }
 
   private async upsertRehearsalEvent(
     assaig: LegacyAssaig,
     detail: LegacyAssaigDetail,
     eventId: string,
-    seasons: Season[],
   ): Promise<boolean> {
     const date = this.parseDate(assaig.data);
     const title = this.stripHtml(assaig.descripcio || detail.descripcio);
@@ -215,7 +227,6 @@ export class EventSyncStrategy implements SyncStrategy {
     const existing = await this.eventRepository.findOne({ where: { legacyId: eventId } });
 
     if (!existing) {
-      const season = this.assignSeasonByDate(date, seasons);
       const event = this.eventRepository.create({
         eventType: EventType.ASSAIG,
         title,
@@ -225,7 +236,6 @@ export class EventSyncStrategy implements SyncStrategy {
         information: this.stripHtml(detail.informacio) || null,
         countsForStatistics: true,
         metadata,
-        season: season ?? undefined,
         legacyId: eventId,
         legacyType: 'assaig',
         lastSyncedAt: new Date(),
@@ -234,7 +244,7 @@ export class EventSyncStrategy implements SyncStrategy {
       return true;
     }
 
-    // Update — never touch countsForStatistics or season
+    // Update — never touch countsForStatistics
     existing.title = title;
     existing.date = date;
     existing.startTime = assaig.hora_esdeveniment || null;
@@ -250,7 +260,6 @@ export class EventSyncStrategy implements SyncStrategy {
     actuacio: LegacyActuacio,
     detail: LegacyActuacioDetail,
     eventId: string,
-    seasons: Season[],
   ): Promise<boolean> {
     const date = this.parseDate(actuacio.data);
     const title = this.stripHtml(actuacio.descripcio || detail.descripcio);
@@ -263,7 +272,6 @@ export class EventSyncStrategy implements SyncStrategy {
     const existing = await this.eventRepository.findOne({ where: { legacyId: eventId } });
 
     if (!existing) {
-      const season = this.assignSeasonByDate(date, seasons);
       const event = this.eventRepository.create({
         eventType: EventType.ACTUACIO,
         title,
@@ -273,7 +281,6 @@ export class EventSyncStrategy implements SyncStrategy {
         information: this.stripHtml(detail.informacio) || null,
         countsForStatistics: true,
         metadata,
-        season: season ?? undefined,
         legacyId: eventId,
         legacyType: 'actuacio',
         lastSyncedAt: new Date(),

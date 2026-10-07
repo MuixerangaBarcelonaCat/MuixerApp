@@ -212,6 +212,7 @@ describe('EventDetailComponent — tabbed sections', () => {
   };
 
   let downloadSummaryPdf: ReturnType<typeof vi.fn>;
+  const seasonService = { getAll: vi.fn(() => of({ data: [] })) };
 
   beforeEach(() => {
     downloadSummaryPdf = vi.fn();
@@ -249,7 +250,7 @@ describe('EventDetailComponent — tabbed sections', () => {
               }),
           },
         },
-        { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
+        { provide: SeasonService, useValue: seasonService },
         { provide: AuthService, useValue: { userRole: () => UserRole.ADMIN } },
         {
           provide: NodeAssignmentService,
@@ -275,6 +276,12 @@ describe('EventDetailComponent — tabbed sections', () => {
 
   const panel = (fixture: ComponentFixture<EventDetailComponent>, tab: string): HTMLElement | null =>
     fixture.nativeElement.querySelector(`#event-tabpanel-${tab}`);
+
+  it("doesn't load seasons itself: the edit modal derives the season from the date", async () => {
+    seasonService.getAll.mockClear();
+    await setup();
+    expect(seasonService.getAll).not.toHaveBeenCalled();
+  });
 
   describe('notes panel', () => {
     it('renders the notes panel above the tabs', async () => {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Event } from './event.entity';
@@ -16,14 +16,16 @@ import {
   type EventSortOrder,
 } from './constants/event-sort.constants';
 import { SelectQueryBuilder } from 'typeorm';
+import { formatDateOnly } from '../../common/utils/date.util';
+
+/** An event with the season its date falls in (mapped by the query, never stored). */
+type EventWithSeason = Event & { season?: Season | null };
 
 @Injectable()
 export class EventService {
   constructor(
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
-    @InjectRepository(Season)
-    private readonly seasonRepository: Repository<Season>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
     @InjectRepository(EventSegment)
@@ -32,7 +34,7 @@ export class EventService {
     private readonly attendanceService: AttendanceService,
   ) {}
 
-  /** Retorna una llista paginada d'events amb filtres per temporada, tipus, rang de dates i text. Suporta el filtre `timeFilter` (upcoming/past). */
+  /** Retorna una llista paginada d'events (amb la temporada derivada de la data) i filtres per temporada, tipus, rang de dates i text. Suporta el filtre `timeFilter` (upcoming/past). */
   async findAll(filters: EventFilterDto): Promise<{ data: EventListItem[]; total: number }> {
     const {
       seasonId,
@@ -48,9 +50,10 @@ export class EventService {
       limit = 25,
     } = filters;
 
+    // Seasons never overlap (DB exclusion constraint), so this join adds at most one row per event.
     const qb = this.eventRepository
       .createQueryBuilder('event')
-      .leftJoinAndSelect('event.season', 'season');
+      .leftJoinAndMapOne('event.season', Season, 'season', 'event.date BETWEEN season.startDate AND season.endDate');
 
     if (seasonId) {
       qb.andWhere('season.id = :seasonId', { seasonId });
@@ -89,7 +92,7 @@ export class EventService {
 
     this.applySort(qb, sortBy, sortOrder);
 
-    const events = await qb
+    const events: EventWithSeason[] = await qb
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
@@ -103,22 +106,23 @@ export class EventService {
     return { data: events.map((e) => toListItem(e, summaryMap.get(e.id) ?? null)), total };
   }
 
-  /** Retorna el detall complet d'un event per ID incloent la temporada. Llança NotFoundException si no existeix. */
+  /** Retorna el detall complet d'un event per ID incloent la temporada derivada de la data. Llança NotFoundException si no existeix. */
   async findOne(id: string): Promise<EventDetailItem> {
-    const event = await this.eventRepository.findOne({
-      where: { id },
-      relations: ['season'],
-    });
+    const event = await this.eventRepository.findOne({ where: { id } });
 
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
+    const season = await this.seasonService.findByDate(formatDateOnly(event.date));
     await this.applyLivePending([event]);
-    return toDetailItem(event);
+    return toDetailItem(event, season);
   }
 
+  /** Crea un event. La data ha de ser dins d'alguna temporada (BadRequestException si no ho és). */
   async create(dto: CreateEventDto): Promise<EventDetailItem> {
+    const season = await this.assertDateInSeason(dto.date);
+
     const event = this.eventRepository.create({
       title: dto.title,
       eventType: dto.eventType,
@@ -132,38 +136,30 @@ export class EventService {
       countsForStatistics: dto.countsForStatistics ?? true,
     });
 
-    if (dto.seasonId) {
-      const season = await this.seasonRepository.findOne({ where: { id: dto.seasonId } });
-      if (!season) {
-        throw new NotFoundException(`Season with ID ${dto.seasonId} not found`);
-      }
-      event.season = season;
-    } else if (dto.seasonId === undefined) {
-      const currentSeason = await this.seasonService.findCurrentEntity();
-      if (currentSeason) {
-        event.season = currentSeason;
-      }
-    }
-
     const saved = await this.eventRepository.save(event);
-    const withRelations = await this.eventRepository.findOne({
-      where: { id: saved.id },
-      relations: ['season'],
-    });
-    await this.applyLivePending([withRelations!]);
-    return toDetailItem(withRelations!);
+    // Reload so `date` comes back as the column value (YYYY-MM-DD), as findOne returns it.
+    const reloaded = (await this.eventRepository.findOne({ where: { id: saved.id } })) ?? saved;
+    await this.applyLivePending([reloaded]);
+    return toDetailItem(reloaded, season);
   }
 
-  /** Actualitza parcialment un event. Només modifica els camps explícitament presents al DTO (undefined = no tocar). */
+  /**
+   * Actualitza parcialment un event. Només modifica els camps explícitament presents al DTO (undefined = no tocar).
+   * Una data nova ha de ser dins d'alguna temporada; si la data no canvia no es valida, perquè els events antics
+   * sense temporada es puguen continuar editant.
+   */
   async update(id: string, dto: UpdateEventDto): Promise<EventDetailItem> {
-    const event = await this.eventRepository.findOne({
-      where: { id },
-      relations: ['season'],
-    });
+    const event = await this.eventRepository.findOne({ where: { id } });
 
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
+
+    const newDate =
+      dto.date !== undefined && formatDateOnly(dto.date) !== formatDateOnly(event.date) ? dto.date : null;
+    const season = newDate
+      ? await this.assertDateInSeason(newDate)
+      : await this.seasonService.findByDate(formatDateOnly(event.date));
 
     if (dto.title !== undefined) event.title = dto.title;
     if (dto.date !== undefined) event.date = new Date(dto.date);
@@ -175,21 +171,18 @@ export class EventService {
     if (dto.notes !== undefined) event.notes = dto.notes || null;
     if (dto.countsForStatistics !== undefined) event.countsForStatistics = dto.countsForStatistics;
 
-    if (dto.seasonId !== undefined) {
-      if (!dto.seasonId) {
-        event.season = null;
-      } else {
-        const season = await this.seasonRepository.findOne({ where: { id: dto.seasonId } });
-        if (!season) {
-          throw new NotFoundException(`Season with ID ${dto.seasonId} not found`);
-        }
-        event.season = season;
-      }
-    }
-
     const saved = await this.eventRepository.save(event);
     await this.applyLivePending([saved]);
-    return toDetailItem(saved);
+    return toDetailItem(saved, season);
+  }
+
+  /** The season containing `date`; throws when there is none, since every new or moved event must belong to one. */
+  private async assertDateInSeason(date: string): Promise<Season> {
+    const season = await this.seasonService.findByDate(formatDateOnly(date));
+    if (!season) {
+      throw new BadRequestException("La data de l'esdeveniment no és dins de cap temporada.");
+    }
+    return season;
   }
 
   /** Elimina un event. Llança ConflictException si l'event té registres d'assistència associats (protecció d'integritat). */
@@ -328,12 +321,12 @@ export interface EventDetailItem extends EventListItem {
   isSynced: boolean;
 }
 
-function toSeasonRef(season: Season | null): SeasonRef | null {
+function toSeasonRef(season: Season | null | undefined): SeasonRef | null {
   if (!season) return null;
   return { id: season.id, name: season.name };
 }
 
-function toListItem(event: Event, segmentsSummary: SegmentsSummary | null): EventListItem {
+function toListItem(event: EventWithSeason, segmentsSummary: SegmentsSummary | null): EventListItem {
   return {
     id: event.id,
     eventType: event.eventType,
@@ -349,9 +342,9 @@ function toListItem(event: Event, segmentsSummary: SegmentsSummary | null): Even
   };
 }
 
-function toDetailItem(event: Event): EventDetailItem {
+function toDetailItem(event: Event, season: Season | null): EventDetailItem {
   return {
-    ...toListItem(event, null),
+    ...toListItem({ ...event, season }, null),
     description: event.description,
     locationUrl: event.locationUrl,
     information: event.information,

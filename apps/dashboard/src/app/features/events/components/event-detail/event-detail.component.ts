@@ -3,7 +3,6 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { LucideAngularModule, Info, UserCheck, Grid3X3 } from 'lucide-angular';
 import { ICON_XICALLA, ICON_PERSONA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
-import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { AlertComponent, ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, CardComponent } from '@muixer/ui';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
@@ -13,7 +12,7 @@ import { EventParticipationComponent } from '../event-participation/event-partic
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
 import { StatCardComponent } from '../../../../shared/components/data/stat-card/stat-card.component';
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
-import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
+import { EventDetail, EventType, AttendanceSummary, SyncEvent } from '../../models/event.model';
 import { getAdultsCount } from '../event-list/event-list.component';
 import { AttendanceStatus, attendanceGroupLabel, EventPhase, getEventPhase, isArrivalPhase, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
@@ -65,7 +64,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return this.event()?.eventType === EventType.ACTUACIO ? '/performances' : '/rehearsals';
   }
   private readonly eventService = inject(EventService);
-  private readonly seasonService = inject(SeasonService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
 
   readonly EventType = EventType;
@@ -76,7 +74,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   loading = signal(true);
 
   showEditModal = signal(false);
-  seasons = signal<Season[]>([]);
 
   deleting = signal(false);
   deleteError = signal<string | null>(null);
@@ -175,9 +172,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     }
 
     this.loadEvent(id);
-    this.seasonService.getAll().subscribe({
-      next: (resp) => this.seasons.set(resp.data),
-    });
   }
 
   setTab(tab: string): void {

@@ -37,7 +37,7 @@ import { EventSegmentService, SegmentWithInstances } from '../event-segment/even
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
-import { getLocalToday } from '../../common/utils/date.util';
+import { formatDateOnly, getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
 import { AttendanceService, withLivePending } from '../event/attendance.service';
 import { personPendingAtEventSql, resolveAttendanceStatus } from '../../common/utils/attendance-status.util';
@@ -497,7 +497,11 @@ export class MeService {
         'COUNT(DISTINCT CASE WHEN attendance.status = :assistit THEN event.id END)',
         'attended',
       )
-      .where('event."seasonId" = :seasonId', { seasonId: season.id })
+      // An event's season is derived from its date.
+      .where('event.date BETWEEN :seasonStart AND :seasonEnd', {
+        seasonStart: formatDateOnly(season.startDate),
+        seasonEnd: formatDateOnly(season.endDate),
+      })
       .andWhere('event."countsForStatistics" = true')
       .andWhere('event.date < :today', { today: getLocalToday() })
       .groupBy('event."eventType"')
