@@ -3,6 +3,7 @@ import { LegalDocumentType } from '@muixer/shared';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
 import { AlertComponent, ToastService } from '@muixer/ui';
+import { MarkdownViewComponent } from '@muixer/ui/markdown';
 
 /**
  * Blocking click-wrap consent gate. Rendered by the app shell whenever the authenticated user
@@ -13,7 +14,7 @@ import { AlertComponent, ToastService } from '@muixer/ui';
   selector: 'app-privacy-consent-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AlertComponent],
+  imports: [AlertComponent, MarkdownViewComponent],
   template: `
     <dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="privacy-consent-title">
       <div class="modal-box max-w-2xl">
@@ -29,7 +30,12 @@ import { AlertComponent, ToastService } from '@muixer/ui';
         @if (loading()) {
           <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
         } @else if (content()) {
-          <div class="max-h-[50vh] overflow-y-auto rounded-box bg-base-200 p-4 text-sm whitespace-pre-wrap mb-4">{{ content() }}</div>
+          <!-- Deferred so marked stays out of the initial bundle. -->
+          @defer (on immediate) {
+            <div class="max-h-96 overflow-y-auto rounded-box bg-base-200 p-4 mb-4">
+              <lib-markdown-view [content]="content()" />
+            </div>
+          }
         } @else {
           <div class="mb-4">
             <lib-alert variant="error" dense>No s'ha pogut carregar la política de privacitat.</lib-alert>

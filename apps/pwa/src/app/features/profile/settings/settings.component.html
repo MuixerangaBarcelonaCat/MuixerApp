@@ -119,9 +119,9 @@
                 <span class="loading loading-spinner loading-sm"></span>
               </div>
             } @else if (privacyPolicyContent(); as content) {
-              <div
-                class="max-h-80 overflow-y-auto rounded-box bg-base-200 p-3 text-sm whitespace-pre-wrap"
-              >{{ content }}</div>
+              <div class="max-h-80 overflow-y-auto rounded-box bg-base-200 p-3">
+                <lib-markdown-view [content]="content" />
+              </div>
             } @else {
               <p class="text-sm text-error">No s'ha pogut carregar la política de privacitat.</p>
             }

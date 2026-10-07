@@ -270,6 +270,17 @@ describe('SettingsComponent', () => {
       expect(fixture.nativeElement.textContent).toContain(PRIVACY_POLICY.content);
     });
 
+    it('renders the privacy policy as Markdown', () => {
+      legalDocumentService.getActive.mockReturnValue(
+        of({ ...PRIVACY_POLICY, content: '## Dades que tractem\n\nNom i correu.' }),
+      );
+      (fixture.nativeElement.querySelector('[data-testid="about-row-toggle"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      const viewer = fixture.nativeElement.querySelector('[data-testid="privacy-policy-viewer"]') as HTMLElement;
+      expect(viewer.querySelector('.prose h2')?.textContent).toBe('Dades que tractem');
+    });
+
     it('collapses the viewer when the row is clicked again', () => {
       const toggle = fixture.nativeElement.querySelector(
         '[data-testid="about-row-toggle"]',

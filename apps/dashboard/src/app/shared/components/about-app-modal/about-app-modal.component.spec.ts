@@ -21,11 +21,10 @@ describe('AboutAppModalComponent', () => {
   let fixture: ComponentFixture<AboutAppModalComponent>;
   let legalService: { getActive: ReturnType<typeof vi.fn> };
 
-  const create = async (opts: { open?: boolean; policyFails?: boolean } = {}) => {
+  const create = async (opts: { open?: boolean; policyFails?: boolean; policyContent?: string } = {}) => {
+    const policy = { ...PRIVACY_POLICY, content: opts.policyContent ?? PRIVACY_POLICY.content };
     legalService = {
-      getActive: vi
-        .fn()
-        .mockReturnValue(opts.policyFails ? throwError(() => new Error('boom')) : of(PRIVACY_POLICY)),
+      getActive: vi.fn().mockReturnValue(opts.policyFails ? throwError(() => new Error('boom')) : of(policy)),
     };
     await TestBed.configureTestingModule({
       imports: [AboutAppModalComponent],
@@ -33,6 +32,9 @@ describe('AboutAppModalComponent', () => {
     }).compileComponents();
     fixture = TestBed.createComponent(AboutAppModalComponent);
     fixture.componentRef.setInput('open', opts.open ?? true);
+    fixture.detectChanges();
+    // The policy renders inside a @defer block (marked stays out of the initial bundle).
+    await fixture.whenStable();
     fixture.detectChanges();
   };
 
@@ -59,10 +61,18 @@ describe('AboutAppModalComponent', () => {
     fixture.detectChanges();
     fixture.componentRef.setInput('open', true);
     fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(legalService.getActive).toHaveBeenCalledTimes(1);
     expect(legalService.getActive).toHaveBeenCalledWith(LegalDocumentType.PRIVACY_POLICY);
     expect(byTestId('privacy-policy-viewer').textContent).toContain(PRIVACY_POLICY.content);
+  });
+
+  it('renders the privacy policy as Markdown', async () => {
+    await create({ policyContent: '## Dades que tractem\n\nNom i correu.' });
+
+    expect(byTestId('privacy-policy-viewer').querySelector('.prose h2')?.textContent).toBe('Dades que tractem');
   });
 
   it('shows an error when the privacy policy cannot be loaded', async () => {

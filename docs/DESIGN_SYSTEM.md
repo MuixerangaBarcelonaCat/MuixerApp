@@ -127,7 +127,7 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 All shipped components live in `libs/ui/src/lib/components/`. Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
 
-All of them are exported from the `@muixer/ui` barrel except `lib-markdown-editor` and `MarkdownService`, which have their own entry points (`@muixer/ui/markdown-editor`, `@muixer/ui/markdown`) so that Tiptap and `marked` stay out of every app's initial bundle — see that section for the measurement.
+All of them are exported from the `@muixer/ui` barrel except `lib-markdown-editor`, `lib-markdown-view` and `MarkdownService`, which have their own entry points (`@muixer/ui/markdown-editor`, `@muixer/ui/markdown`) so that Tiptap and `marked` stay out of every app's initial bundle — see that section for the measurement.
 
 ### `lib-button`
 
@@ -475,6 +475,8 @@ Two things worth knowing before touching it:
 - **The emoji picker renders through a CDK overlay**, not in place: the editor's wrapper is `overflow-hidden` to round its corners and the app shell clips to the viewport, so an in-place panel is cut off whenever the editor is short. It needs `@angular/cdk/overlay-prebuilt.css`, imported in both apps' `styles.scss`. Its container's `z-index: 1000` is left as the library ships it — above the CSS-only `.modal-open` dialogs, below the `system` token (9999) that toasts use.
 
 Rendering stored Markdown for display is the matching `MarkdownService` (`@muixer/ui/markdown`, `render(markdown)`), which parses with `marked` and sanitizes with `DomSanitizer`. Sanitization lives inside the service rather than at each call site, because every consumer renders admin-authored content and skipping it anywhere would be an XSS hole.
+
+`lib-markdown-view` (same entry point, input `content`) wraps the service in a `prose prose-sm` block; the legal documents (privacy policy, transparency clause history) are shown through it in both apps. Plain text with no Markdown still reads fine — blank lines become paragraphs. On a screen that loads with the app (the consent modals, the Dashboard's «Sobre l'app»), put it behind `@defer (on immediate)` so `marked` stays in a lazy chunk.
 
 ### `lib-modal`
 

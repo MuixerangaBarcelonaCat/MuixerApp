@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { COPYRIGHT_HOLDER, LegalDocumentType, SOURCE_CODE_URL, formatCopyrightYears } from '@muixer/shared';
 import { AlertComponent, ModalComponent } from '@muixer/ui';
+import { MarkdownViewComponent } from '@muixer/ui/markdown';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
 
 /**
@@ -10,7 +11,7 @@ import { LegalDocumentService } from '../../../core/services/legal-document.serv
 @Component({
   selector: 'app-about-app-modal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalComponent, AlertComponent],
+  imports: [ModalComponent, AlertComponent, MarkdownViewComponent],
   template: `
     <lib-modal [open]="open()" title="Sobre l'app" size="2xl" (closed)="closed.emit()">
       <div class="flex flex-col gap-5">
@@ -28,7 +29,12 @@ import { LegalDocumentService } from '../../../core/services/legal-document.serv
               <span class="loading loading-spinner loading-sm"></span>
             </div>
           } @else if (policyContent(); as content) {
-            <div class="max-h-80 overflow-y-auto rounded-box bg-base-200 p-3 text-sm whitespace-pre-wrap">{{ content }}</div>
+            <!-- Deferred so marked stays out of the initial bundle. -->
+            @defer (on immediate) {
+              <div class="max-h-80 overflow-y-auto rounded-box bg-base-200 p-3">
+                <lib-markdown-view [content]="content" />
+              </div>
+            }
           } @else {
             <lib-alert variant="error" dense>No s'ha pogut carregar la política de privacitat.</lib-alert>
           }

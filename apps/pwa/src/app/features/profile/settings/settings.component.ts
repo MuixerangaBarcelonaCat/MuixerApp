@@ -15,6 +15,7 @@ import { PushSettingsComponent } from '../components/push-settings/push-settings
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { ProfileService } from '../services/profile.service';
 import { AlertComponent, ButtonComponent, InputComponent, ThemePickerComponent, ToastService } from '@muixer/ui';
+import { MarkdownViewComponent } from '@muixer/ui/markdown';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
 
 type SettingsSection = 'password' | 'about';
@@ -30,6 +31,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MarkdownViewComponent,
     LucideAngularModule,
     ReactiveFormsModule,
     MobileHeaderComponent,
