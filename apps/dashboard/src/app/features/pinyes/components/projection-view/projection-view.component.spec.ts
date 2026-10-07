@@ -1,4 +1,4 @@
-import { PinyaProjectionComponent } from '@muixer/pinyes-render';
+import { PinyaProjectionComponent, ProjectionInstance } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Component, input } from '@angular/core';
@@ -62,6 +62,33 @@ describe('ProjectionViewComponent', () => {
       const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
       expect(text).toContain('Pinça');
       expect(text.toLowerCase()).toContain('desplaç');
+    });
+  });
+
+  // ── HUD title ───────────────────────────────────────────────────────────────
+
+  describe('HUD title', () => {
+    const instance = (name: string, figureMode = 'COMPLETA') =>
+      ({ label: null, figureMode, figureTemplate: { id: name, name, hasPinya: true } }) as unknown as ProjectionInstance;
+
+    function hudText(): string {
+      fixture.detectChanges();
+      return (fixture.nativeElement as HTMLElement).textContent ?? '';
+    }
+
+    it('shows the user-assigned segment name when set', () => {
+      component.segmentData.set({ ...emptySegment(), segment: { ...emptySegment().segment, name: 'Entrada' } });
+
+      expect(hudText()).toContain('Entrada');
+    });
+
+    it('derives the title from the figures when the segment has no name', () => {
+      component.segmentData.set({
+        ...emptySegment(),
+        instances: [instance('Roscana'), instance('Roscana'), instance('Pilar', 'PEU')],
+      });
+
+      expect(hudText()).toContain('2 Roscana + Peu de Pilar');
     });
   });
 

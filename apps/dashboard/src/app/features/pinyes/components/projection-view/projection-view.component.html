@@ -47,7 +47,7 @@
 
         <span class="w-px h-4 bg-base-content/20" aria-hidden="true"></span>
 
-        <span class="truncate max-w-[200px]">{{ segmentData()!.segment.name ?? 'Segment' }}</span>
+        <span class="truncate max-w-[200px]">{{ segmentTitle() }}</span>
 
         @if (segmentData()!.segment.prevSegmentId) {
           <button
