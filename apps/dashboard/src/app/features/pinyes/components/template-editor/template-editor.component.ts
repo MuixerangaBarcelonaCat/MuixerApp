@@ -701,10 +701,18 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return Math.max(...siblings.map((n) => n.renglaPosition!));
   }
 
-  copySelectedNode(): void {
+  /** Returns whether the node landed in the clipboard. */
+  copySelectedNode(): boolean {
     const node = this.selectedNode();
-    if (!node) return;
+    if (!node) return false;
+    // A copied base would keep the source's label/sortOrder, so it would
+    // carry the wrong number — new bases must come from the BASE button.
+    if (node.zone === FigureZone.BASE) {
+      this.toast.warning('No es poden copiar les bases. Afegiu-ne una de nova amb el botó BASE.');
+      return false;
+    }
     this.clipboardNode.set(node);
+    return true;
   }
 
   pasteNode(): void {
@@ -735,7 +743,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   }
 
   duplicateSelectedNode(): void {
-    this.copySelectedNode();
+    if (!this.copySelectedNode()) return;
     this.pasteNode();
   }
 

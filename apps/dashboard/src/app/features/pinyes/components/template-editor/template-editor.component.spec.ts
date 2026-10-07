@@ -101,6 +101,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
   const mockToast = {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -587,6 +588,64 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       expect(original.renglaId).toBe('rengla-1');
       expect(original.renglaPosition).toBe(2);
       expect(original.ringLevel).toBe(2);
+    });
+  });
+
+  describe('copy/duplicate — BASE nodes are not copyable', () => {
+    const BASE_COPY_WARNING = 'No es poden copiar les bases. Afegiu-ne una de nova amb el botó BASE.';
+    const makeBaseNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'base-1',
+      label: 'Base 1',
+      zone: FigureZone.BASE,
+      positionType: 'base',
+      x: 0.5, y: 0, z: 0,
+      width: 0.2, height: 40, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      metadata: {},
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      mockToast.warning.mockClear();
+      component.templateId.set('template-1'); // bypass name prompt
+      component.nodes.set([makeBaseNode()]);
+      component.selectedNodeId.set('base-1');
+      fixture.detectChanges();
+    });
+
+    it('duplicateSelectedNode does not create a node and warns', () => {
+      component.duplicateSelectedNode();
+
+      expect(component.nodes().length).toBe(1);
+      expect(mockToast.warning).toHaveBeenCalledWith(BASE_COPY_WARNING);
+    });
+
+    it('copySelectedNode does not fill the clipboard, so a later paste does nothing', () => {
+      component.copySelectedNode();
+      component.pasteNode();
+
+      expect(component.nodes().length).toBe(1);
+      expect(mockToast.warning).toHaveBeenCalledWith(BASE_COPY_WARNING);
+    });
+
+    it('copying a base keeps a previously copied node in the clipboard', () => {
+      component.nodes.update((n) => [
+        ...n,
+        makeBaseNode({ id: 'pinya-1', label: 'AGULLA', zone: FigureZone.PINYA, positionType: 'agulla', x: 100, y: 100, width: 80 }),
+      ]);
+      component.selectedNodeId.set('pinya-1');
+      component.copySelectedNode();
+
+      component.selectedNodeId.set('base-1');
+      component.copySelectedNode();
+      component.pasteNode();
+
+      expect(component.nodes().length).toBe(3);
+      expect(component.nodes()[2].label).toBe('AGULLA');
     });
   });
 
