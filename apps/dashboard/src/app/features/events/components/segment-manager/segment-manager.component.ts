@@ -20,6 +20,7 @@ import {
   computeInstanceDisplayNames,
   getSegmentInstanceLabel,
   formatDirectionNames,
+  formatTroncSummary,
   DIRECCIO_PINYA_POSITION_TYPE,
 } from '@muixer/shared';
 import { forkJoin } from 'rxjs';
@@ -716,34 +717,7 @@ export class SegmentManagerComponent implements OnInit {
 
   troncSummaryText(instance: InstanceDetail): string | null {
     const floors = this.troncData().get(instance.id);
-    if (!floors || floors.length === 0) return null;
-
-    let displayFloors = [...floors].sort((a, b) => {
-      if (a.isBase && !b.isBase) return -1;
-      if (!a.isBase && b.isBase) return 1;
-      return a.z - b.z;
-    });
-
-    if (instance.figureMode === 'REMAT') {
-      displayFloors = displayFloors.filter((f) => !f.isBase);
-    }
-
-    if (instance.figureMode === 'PEU') {
-      let lastAssignedIdx = -1;
-      for (let i = displayFloors.length - 1; i >= 0; i--) {
-        if (displayFloors[i].slots.some((s) => s !== null)) {
-          lastAssignedIdx = i;
-          break;
-        }
-      }
-      displayFloors = lastAssignedIdx >= 0 ? displayFloors.slice(0, lastAssignedIdx + 1) : [];
-    }
-
-    if (displayFloors.length === 0) return null;
-
-    return displayFloors
-      .map((f) => f.slots.map((s) => s ?? '?').join(' - '))
-      .join(' // ');
+    return floors ? formatTroncSummary(floors, instance.figureMode) : null;
   }
 
   /**

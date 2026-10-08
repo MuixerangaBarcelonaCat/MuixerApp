@@ -72,6 +72,7 @@ export class EventController {
   @ApiParam({ name: 'id', description: 'UUID de l\'esdeveniment' })
   @ApiResponse({ status: 200, description: 'Esdeveniment actualitzat' })
   @ApiResponse({ status: 404, description: 'Esdeveniment no trobat' })
+  @ApiResponse({ status: 409, description: 'Les notes han canviat des que es van carregar (`expectedNotes`)' })
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateEventDto,

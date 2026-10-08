@@ -1,0 +1,149 @@
+<div class="rounded-box border border-base-300 bg-base-100 overflow-hidden">
+  <div
+    class="flex flex-wrap items-center gap-1 border-b border-base-300 bg-base-200/50 px-2 py-1"
+    role="toolbar"
+    aria-label="Format del text"
+  >
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      ariaLabel="Negreta"
+      data-testid="md-bold"
+      [disabled]="disabled()"
+      [active]="isActive('bold')"
+      [ariaPressed]="isActive('bold')"
+      (clicked)="toggleBold()"
+    >
+      <lucide-icon [img]="Bold" [size]="15" aria-hidden="true" />
+    </lib-button>
+
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      ariaLabel="Cursiva"
+      data-testid="md-italic"
+      [disabled]="disabled()"
+      [active]="isActive('italic')"
+      [ariaPressed]="isActive('italic')"
+      (clicked)="toggleItalic()"
+    >
+      <lucide-icon [img]="Italic" [size]="15" aria-hidden="true" />
+    </lib-button>
+
+    <div class="mx-1 h-4 w-px bg-base-300" aria-hidden="true"></div>
+
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      ariaLabel="Títol"
+      data-testid="md-h2"
+      [disabled]="disabled()"
+      [active]="isActive('heading', { level: 2 })"
+      [ariaPressed]="isActive('heading', { level: 2 })"
+      (clicked)="toggleHeading(2)"
+    >
+      <lucide-icon [img]="Heading2" [size]="15" aria-hidden="true" />
+    </lib-button>
+
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      ariaLabel="Subtítol"
+      data-testid="md-h3"
+      [disabled]="disabled()"
+      [active]="isActive('heading', { level: 3 })"
+      [ariaPressed]="isActive('heading', { level: 3 })"
+      (clicked)="toggleHeading(3)"
+    >
+      <lucide-icon [img]="Heading3" [size]="15" aria-hidden="true" />
+    </lib-button>
+
+    <div class="mx-1 h-4 w-px bg-base-300" aria-hidden="true"></div>
+
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      ariaLabel="Llista de punts"
+      data-testid="md-bullet-list"
+      [disabled]="disabled()"
+      [active]="isActive('bulletList')"
+      [ariaPressed]="isActive('bulletList')"
+      (clicked)="toggleBulletList()"
+    >
+      <lucide-icon [img]="List" [size]="15" aria-hidden="true" />
+    </lib-button>
+
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      ariaLabel="Llista numerada"
+      data-testid="md-ordered-list"
+      [disabled]="disabled()"
+      [active]="isActive('orderedList')"
+      [ariaPressed]="isActive('orderedList')"
+      (clicked)="toggleOrderedList()"
+    >
+      <lucide-icon [img]="ListOrdered" [size]="15" aria-hidden="true" />
+    </lib-button>
+
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      ariaLabel="Enllaç"
+      data-testid="md-link"
+      [disabled]="disabled()"
+      [active]="isActive('link')"
+      [ariaPressed]="isActive('link')"
+      (clicked)="openLinkModal()"
+    >
+      <lucide-icon [img]="LinkIcon" [size]="15" aria-hidden="true" />
+    </lib-button>
+
+    <lib-emoji-button [disabled]="disabled()" (picked)="insertEmoji($event)" />
+  </div>
+
+  <div #host data-testid="md-editable" class="max-h-96 overflow-y-auto"></div>
+</div>
+
+<lib-modal
+  title="Afig un enllaç"
+  size="sm"
+  [open]="linkModalOpen()"
+  (closed)="closeLinkModal()"
+>
+  <div class="flex flex-col gap-3">
+    <lib-input
+      label="Text"
+      hint="Si es deixa en blanc, es mostra l'adreça"
+      placeholder="Text visible"
+      data-testid="md-link-text"
+      [ngModel]="linkText()"
+      (ngModelChange)="linkText.set($event)"
+    />
+
+    <lib-input
+      label="Adreça"
+      type="url"
+      placeholder="https://"
+      data-testid="md-link-url"
+      [ngModel]="linkUrl()"
+      (ngModelChange)="linkUrl.set($event)"
+    />
+  </div>
+
+  <div class="flex justify-end gap-2 mt-4">
+    <lib-button variant="ghost" size="sm" data-testid="md-link-cancel" (clicked)="closeLinkModal()">
+      Cancel·la
+    </lib-button>
+    <lib-button variant="primary" size="sm" data-testid="md-link-confirm" (clicked)="confirmLink()">
+      Afig
+    </lib-button>
+  </div>
+</lib-modal>

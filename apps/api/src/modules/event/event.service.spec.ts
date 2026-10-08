@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventService } from './event.service';
 import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
@@ -19,6 +19,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   locationUrl: null,
   description: null,
   information: null,
+  notes: null,
   countsForStatistics: true,
   metadata: {},
   attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 69, lateCancel: 0, children: 11, childrenAttended: 0, total: 80 },
@@ -331,6 +332,146 @@ describe('EventService', () => {
       const svc = mod.get<EventService>(EventService);
       const result = await svc.update('evt-uuid', { seasonId: 's2' });
       expect(result.season?.id).toBe('s2');
+    });
+  });
+
+  /**
+   * Technician-only free-text field. Distinct from `information`, which the PWA shows to
+   * members and the legacy sync overwrites.
+   */
+  describe('notes', () => {
+    const makeService = async (eventRepo: Record<string, jest.Mock>): Promise<EventService> => {
+      const mod = await Test.createTestingModule({
+        providers: [
+          EventService,
+          { provide: getRepositoryToken(Event), useValue: eventRepo },
+          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
+        ],
+      }).compile();
+      return mod.get<EventService>(EventService);
+    };
+
+    it('returns notes on the detail item', async () => {
+      const event = makeEvent({ notes: 'Portar les faixes noves' });
+      const svc = await makeService({ findOne: jest.fn().mockResolvedValue(event) });
+      const result = await svc.findOne('evt-uuid');
+      expect(result.notes).toBe('Portar les faixes noves');
+    });
+
+    it('persists notes on create', async () => {
+      const created = makeEvent({ notes: 'Revisar el tram' });
+      const eventRepo = {
+        create: jest.fn((partial) => partial),
+        save: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn().mockResolvedValue(created),
+      };
+      const svc = await makeService(eventRepo);
+      const result = await svc.create({
+        title: 'ASSAIG',
+        eventType: EventType.ASSAIG,
+        date: '2026-03-26',
+        notes: 'Revisar el tram',
+        seasonId: 's1',
+      });
+      expect(eventRepo.create).toHaveBeenCalledWith(expect.objectContaining({ notes: 'Revisar el tram' }));
+      expect(result.notes).toBe('Revisar el tram');
+    });
+
+    it('defaults notes to null when create omits them', async () => {
+      const eventRepo = {
+        create: jest.fn((partial) => partial),
+        save: jest.fn().mockResolvedValue(makeEvent()),
+        findOne: jest.fn().mockResolvedValue(makeEvent()),
+      };
+      const svc = await makeService(eventRepo);
+      await svc.create({ title: 'ASSAIG', eventType: EventType.ASSAIG, date: '2026-03-26', seasonId: 's1' });
+      expect(eventRepo.create).toHaveBeenCalledWith(expect.objectContaining({ notes: null }));
+    });
+
+    it('updates notes when present in the DTO', async () => {
+      const event = makeEvent({ notes: 'Antic' });
+      const eventRepo = {
+        findOne: jest.fn().mockResolvedValue(event),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      };
+      const svc = await makeService(eventRepo);
+      const result = await svc.update('evt-uuid', { notes: 'Nou' });
+      expect(result.notes).toBe('Nou');
+    });
+
+    it('clears notes when the DTO sends an empty value', async () => {
+      const event = makeEvent({ notes: 'Antic' });
+      const eventRepo = {
+        findOne: jest.fn().mockResolvedValue(event),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      };
+      const svc = await makeService(eventRepo);
+      const result = await svc.update('evt-uuid', { notes: '' });
+      expect(result.notes).toBeNull();
+    });
+
+    it('leaves notes untouched when the DTO omits them', async () => {
+      const event = makeEvent({ notes: 'Es manté' });
+      const eventRepo = {
+        findOne: jest.fn().mockResolvedValue(event),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      };
+      const svc = await makeService(eventRepo);
+      const result = await svc.update('evt-uuid', { title: 'ALTRE TÍTOL' });
+      expect(result.notes).toBe('Es manté');
+    });
+
+    /**
+     * Two technicians routinely have the same rehearsal open. The notes panel sends the text it
+     * started from, so a save that would silently discard someone else's edit is refused instead.
+     * Compared on the notes themselves, not `updatedAt`: every attendance confirmation rewrites the
+     * event's `attendanceSummary`, and that would turn into a stream of false conflicts.
+     */
+    describe('concurrent edits (expectedNotes)', () => {
+      const makeRepo = (stored: string | null) => ({
+        findOne: jest.fn().mockResolvedValue(makeEvent({ notes: stored })),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      });
+
+      it('saves when the stored notes are still the ones the editor started from', async () => {
+        const eventRepo = makeRepo('Antic');
+        const svc = await makeService(eventRepo);
+        const result = await svc.update('evt-uuid', { notes: 'Nou', expectedNotes: 'Antic' });
+        expect(result.notes).toBe('Nou');
+      });
+
+      it('treats an empty expected text as matching notes that were never written', async () => {
+        const eventRepo = makeRepo(null);
+        const svc = await makeService(eventRepo);
+        const result = await svc.update('evt-uuid', { notes: 'Primeres', expectedNotes: '' });
+        expect(result.notes).toBe('Primeres');
+      });
+
+      it('refuses with 409 and writes nothing when someone else changed the notes meanwhile', async () => {
+        const eventRepo = makeRepo('Canvi d\'una altra persona');
+        const svc = await makeService(eventRepo);
+        await expect(svc.update('evt-uuid', { notes: 'Nou', expectedNotes: 'Antic' })).rejects.toBeInstanceOf(
+          ConflictException,
+        );
+        expect(eventRepo.save).not.toHaveBeenCalled();
+      });
+
+      it('keeps the unconditional overwrite for callers that send no expectedNotes', async () => {
+        const eventRepo = makeRepo('Canvi d\'una altra persona');
+        const svc = await makeService(eventRepo);
+        const result = await svc.update('evt-uuid', { notes: 'Nou' });
+        expect(result.notes).toBe('Nou');
+      });
+    });
+
+    it('omits notes from list items, which feed the events table', async () => {
+      eventQb.getMany.mockResolvedValue([makeEvent({ notes: 'Intern' })]);
+      eventQb.getCount.mockResolvedValue(1);
+      const { data } = await service.findAll({});
+      expect(data[0]).not.toHaveProperty('notes');
     });
   });
 });

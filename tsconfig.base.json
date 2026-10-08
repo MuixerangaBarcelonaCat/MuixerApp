@@ -19,7 +19,9 @@
       "@muixer/shared": ["libs/shared/src/index.ts"],
       "@app/*": ["apps/dashboard/src/app/*"],
       "@muixer/pinyes-render": ["libs/pinyes-render/src/index.ts"],
-      "@muixer/ui": ["libs/ui/src/index.ts"]
+      "@muixer/ui": ["libs/ui/src/index.ts"],
+      "@muixer/ui/markdown-editor": ["libs/ui/src/markdown-editor.ts"],
+      "@muixer/ui/markdown": ["libs/ui/src/markdown.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
