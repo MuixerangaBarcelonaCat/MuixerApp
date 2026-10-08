@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { EventFormModalComponent } from './event-form-modal.component';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventType } from '@muixer/shared';
 import { EventDetail } from '../../models/event.model';
 
-const mockSeason = { id: 'season-1', name: 'Temporada 2025-2026', startDate: '2025-09-01', endDate: '2026-08-31', description: null, eventCount: 5 };
+const mockSeason = { id: 'season-1', name: 'Temporada 2025-2026', startDate: '2025-09-01', endDate: '2026-08-31', description: null, eventCount: 5, rehearsalCount: 5, performanceCount: 0 };
 
 function makeEventService() {
   return {
@@ -26,9 +26,11 @@ function makeSeasonService() {
 async function buildFixture(inputs: {
   presetEventType?: EventType | null;
   event?: EventDetail | null;
+  eventService?: ReturnType<typeof makeEventService>;
+  seasonService?: ReturnType<typeof makeSeasonService>;
 } = {}): Promise<ComponentFixture<EventFormModalComponent>> {
-  const eventService = makeEventService();
-  const seasonService = makeSeasonService();
+  const eventService = inputs.eventService ?? makeEventService();
+  const seasonService = inputs.seasonService ?? makeSeasonService();
 
   await TestBed.configureTestingModule({
     imports: [EventFormModalComponent],
@@ -199,6 +201,88 @@ describe('EventFormModalComponent', () => {
       expect(eventService.updateFull).toHaveBeenCalledWith('ev-1', expect.objectContaining({
         location: 'Local',
       }));
+    });
+  });
+
+  describe('season derived from the date', () => {
+    const fillValid = (fixture: ComponentFixture<EventFormModalComponent>, date: string) => {
+      fixture.componentInstance.form.patchValue({ title: 'Assaig', eventType: EventType.ASSAIG, date });
+      fixture.componentInstance.form.get('date')?.markAsDirty();
+    };
+
+    it('has no season selector: only the event type select remains', async () => {
+      const fixture = await buildFixture();
+      expect(fixture.nativeElement.querySelectorAll('lib-select')).toHaveLength(1);
+      expect(fixture.componentInstance.form.contains('seasonId')).toBe(false);
+    });
+
+    it('shows the season the date falls in as a hint', async () => {
+      const fixture = await buildFixture();
+      fillValid(fixture, '2026-01-10');
+      expect(fixture.componentInstance.dateHint()).toBe('Temporada: Temporada 2025-2026');
+    });
+
+    it('marks a date outside every season invalid, with an explanation', async () => {
+      const fixture = await buildFixture();
+      fillValid(fixture, '2026-09-10');
+      expect(fixture.componentInstance.form.get('date')?.hasError('outsideSeason')).toBe(true);
+      expect(fixture.componentInstance.fieldError('date')).toBe('Esta data no és dins de cap temporada.');
+      expect(fixture.componentInstance.form.invalid).toBe(true);
+    });
+
+    it('creates the event without any seasonId', async () => {
+      const eventService = makeEventService();
+      const fixture = await buildFixture({ eventService });
+      fillValid(fixture, '2026-01-10');
+      fixture.componentInstance.onSubmit();
+      expect(eventService.create).toHaveBeenCalledTimes(1);
+      expect(eventService.create.mock.calls[0][0]).not.toHaveProperty('seasonId');
+    });
+
+    it('skips the client check when the seasons fail to load (the API still validates)', async () => {
+      const seasonService = makeSeasonService();
+      seasonService.getAll.mockReturnValue(throwError(() => new Error('offline')));
+      const fixture = await buildFixture({ seasonService });
+      fillValid(fixture, '2030-01-01');
+      expect(fixture.componentInstance.form.get('date')?.valid).toBe(true);
+      expect(fixture.componentInstance.dateHint()).toBeUndefined();
+    });
+
+    describe('editing an event whose date is in no season', () => {
+      const uncoveredEvent = {
+        id: 'ev-old',
+        title: 'Assaig antic',
+        eventType: EventType.ASSAIG,
+        date: '2019-05-01',
+        startTime: null,
+        location: null,
+        locationUrl: null,
+        description: null,
+        information: null,
+        countsForStatistics: true,
+        season: null,
+      } as unknown as EventDetail;
+
+      it('keeps the unchanged date valid and labels it «Sense temporada»', async () => {
+        const fixture = await buildFixture({ event: uncoveredEvent });
+        expect(fixture.componentInstance.form.get('date')?.valid).toBe(true);
+        expect(fixture.componentInstance.dateHint()).toBe('Sense temporada');
+      });
+
+      it('saves other changes without sending any seasonId', async () => {
+        const eventService = makeEventService();
+        const fixture = await buildFixture({ event: uncoveredEvent, eventService });
+        fixture.componentInstance.form.patchValue({ title: 'Assaig antic (revisat)' });
+        fixture.componentInstance.onSubmit();
+        expect(eventService.updateFull).toHaveBeenCalledTimes(1);
+        expect(eventService.updateFull.mock.calls[0][1]).not.toHaveProperty('seasonId');
+      });
+
+      it('rejects moving it to another date that is in no season', async () => {
+        const fixture = await buildFixture({ event: uncoveredEvent });
+        fixture.componentInstance.form.patchValue({ date: '2019-06-01' });
+        expect(fixture.componentInstance.form.get('date')?.hasError('outsideSeason')).toBe(true);
+      });
     });
   });
 });

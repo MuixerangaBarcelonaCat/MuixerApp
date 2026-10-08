@@ -25,16 +25,21 @@ export const CREASE = {
   dark: '#8A8070',
 } as const;
 
+// error/success are tuned for colorblind users, not just picked as "red" and "green": red-green
+// dichromats see mostly a blue↔yellow axis, so error leans scarlet (seen as amber) and success
+// leans jade (seen as slate). Scarlet is as red as error can go before protanopes lose it, which
+// keeps it apart from the categorical amber for everyone else. Both keep WCAG AA text contrast on
+// paper — see fixed-colors.spec.ts.
 export const SEMANTIC = {
-  error: '#C23B3B',
-  success: '#3B8C5A',
+  error: '#C74007',
+  success: '#277C64',
   warning: '#C9A84C',
   info: '#3B6FC2',
 } as const;
 
 export const SEMANTIC_LIGHT = {
-  error: '#E8A0A0',
-  success: '#A0D4B3',
+  error: '#EAA48E',
+  success: '#92B7AA',
   warning: '#E8D9A0',
   info: '#A0BDE8',
 } as const;
@@ -42,4 +47,4 @@ export const SEMANTIC_LIGHT = {
 // DaisyUI's accent slot — fixed, not colla-dependent, so it stays coherent no matter what
 // happens to touch it. Reuses the same orange already in the categorical palette rather than
 // introducing a new value.
-export const ACCENT = '#D4793B';
+export const ACCENT = '#DD8C46';

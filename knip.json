@@ -26,17 +26,26 @@
         "libs/pinyes-render/src/test-setup.ts",
         "libs/pinyes-render/eslint.config.mjs",
         "scripts/*.mjs",
-        "jest.preset.js"
+        "jest.preset.js",
+        "libs/ui/src/index.ts",
+        "libs/ui/src/markdown.ts",
+        "libs/ui/src/markdown-editor.ts",
+        "libs/ui/src/test-setup.ts",
+        "libs/ui/src/**/*.spec.ts",
+        "libs/ui/eslint.config.mjs"
       ],
       "project": [
         "apps/**/*.{ts,js,mjs}",
         "libs/pinyes-render/**/*.{ts,js,mjs}",
         "scripts/*.mjs",
-        "*.{ts,js,mjs}"
+        "*.{ts,js,mjs}",
+        "libs/ui/**/*.{ts,js,mjs}"
       ]
     },
     "libs/shared": {
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     }
   },
   "ignoreDependencies": [

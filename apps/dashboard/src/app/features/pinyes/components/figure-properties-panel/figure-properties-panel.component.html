@@ -79,7 +79,12 @@
         variant="neutral"
         [ngModel]="entry().cordonsObertsEnabled"
         (ngModelChange)="onCordonsObertsEnabledChange($event)"
-      >Cordons oberts</lib-checkbox>
+      >
+        <span class="inline-flex items-center gap-1">
+          <lucide-icon [img]="ICON_CORDONS_OBERTS" [size]="12" class="text-base-content/60 shrink-0" aria-hidden="true" />
+          Cordons oberts
+        </span>
+      </lib-checkbox>
     </div>
   }
 }
@@ -92,14 +97,14 @@
       type="number"
       size="sm"
       [ngModel]="entry().offsetX"
-      (ngModelChange)="onOffsetXChange('' + $event)"
+      (ngModelChange)="onOffsetXChange($event)"
     />
     <lib-input
       label="Y"
       type="number"
       size="sm"
       [ngModel]="entry().offsetY"
-      (ngModelChange)="onOffsetYChange('' + $event)"
+      (ngModelChange)="onOffsetYChange($event)"
     />
   </div>
 </div>

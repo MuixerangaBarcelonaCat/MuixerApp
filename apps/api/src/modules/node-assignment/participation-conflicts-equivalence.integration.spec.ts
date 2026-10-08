@@ -111,10 +111,12 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
       direction: 0,
     } as FigureTemplate);
 
-    const instance = await db.dataSource.getRepository(FigureInstance).save({
+    const instanceRepo = db.dataSource.getRepository(FigureInstance);
+    const instance = await instanceRepo.save({
       segment,
       figureTemplate: template,
-      sortOrder: 0,
+      // Next free slot: sortOrder is unique per segment (UQ_figure_instances_segment_sort_order).
+      sortOrder: await instanceRepo.count({ where: { segment: { id: segment.id } } }),
       snapshotted: true,
     } as unknown as FigureInstance);
 

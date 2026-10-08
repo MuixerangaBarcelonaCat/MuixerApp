@@ -8,83 +8,41 @@ import {
   inject,
   OnChanges,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AlertComponent, ButtonComponent, BadgeComponent, ModalComponent, TextareaComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, ModalComponent, TextareaComponent } from '@muixer/ui';
 import { AttendanceService } from '../../services/attendance.service';
-import { AttendanceItem, AttendanceCrudResponse, AttendanceDeleteResponse } from '../../models/attendance.model';
-import { AttendanceStatus } from '@muixer/shared';
+import { AttendanceItem, AttendanceCrudResponse } from '../../models/attendance.model';
 
+/**
+ * Notes-only editor for a person's attendance to an event. The status is changed inline in the
+ * attendance list; this modal only holds the free-text notes.
+ */
 @Component({
   selector: 'app-attendance-edit-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, AlertComponent, ButtonComponent, BadgeComponent, ModalComponent, TextareaComponent],
+  imports: [FormsModule, AlertComponent, ButtonComponent, ModalComponent, TextareaComponent],
   templateUrl: './attendance-edit-modal.component.html',
 })
 export class AttendanceEditModalComponent implements OnChanges {
   private readonly attendanceService = inject(AttendanceService);
 
-  readonly AttendanceStatus = AttendanceStatus;
-
   attendance = input.required<AttendanceItem>();
   eventId = input.required<string>();
-  isPast = input(false);
 
   saved = output<AttendanceCrudResponse>();
-  deleted = output<AttendanceDeleteResponse>();
   closed = output<void>();
 
-  selectedStatus = signal<AttendanceStatus>(AttendanceStatus.PENDENT);
   editedNotes = signal<string | null>(null);
   saving = signal(false);
-  deleting = signal(false);
-  showDeleteConfirm = signal(false);
   errorMessage = signal<string | null>(null);
 
   ngOnChanges() {
-    const att = this.attendance();
-    this.selectedStatus.set(att.status);
-    this.editedNotes.set(att.notes);
-    this.showDeleteConfirm.set(false);
+    this.editedNotes.set(this.attendance().notes);
     this.errorMessage.set(null);
   }
 
-  hasChanges = computed(() => {
-    const att = this.attendance();
-    return (
-      this.selectedStatus() !== att.status ||
-      this.editedNotes() !== att.notes
-    );
-  });
-
-  showWarning = computed(() =>
-    this.isPast() && this.selectedStatus() !== this.attendance().status,
-  );
-
-  statusButtonClass(status: AttendanceStatus): string {
-    const isSelected = this.selectedStatus() === status;
-    const past = this.isPast();
-    const base = 'btn btn-sm';
-    const map: Record<AttendanceStatus, string> = {
-      [AttendanceStatus.ANIRE]: past? (isSelected ? 'btn-warning' : 'btn-outline btn-warning') : (isSelected ? 'btn-success' : 'btn-outline btn-success'),
-      [AttendanceStatus.NO_VAIG]: isSelected ? 'btn-error' : 'btn-outline btn-error',
-      [AttendanceStatus.PENDENT]: isSelected ? 'btn-ghost btn-active' : 'btn-ghost',
-      [AttendanceStatus.ASSISTIT]: isSelected ? 'btn-success' : 'btn-outline btn-success',
-    };
-    return `${base} ${map[status] ?? ''}`;
-  }
-
-  statusLabel(status: AttendanceStatus): string {
-    const past = this.isPast();
-    const labels: Record<AttendanceStatus, string> = {
-      [AttendanceStatus.PENDENT]: 'Pendent',
-      [AttendanceStatus.ANIRE]: past ? 'No presentat' : 'Aniré',
-      [AttendanceStatus.NO_VAIG]: past ? 'No va anar' : 'No vaig',
-      [AttendanceStatus.ASSISTIT]: 'Assistit',
-    };
-    return labels[status] ?? status;
-  }
+  hasChanges = computed(() => this.editedNotes() !== this.attendance().notes);
 
   onSave() {
     if (!this.hasChanges() || this.saving()) return;
@@ -92,10 +50,7 @@ export class AttendanceEditModalComponent implements OnChanges {
     this.errorMessage.set(null);
 
     this.attendanceService
-      .update(this.eventId(), this.attendance().id, {
-        status: this.selectedStatus(),
-        notes: this.editedNotes(),
-      })
+      .set(this.eventId(), this.attendance().person.id, { notes: this.editedNotes() })
       .subscribe({
         next: (result) => {
           this.saving.set(false);
@@ -103,26 +58,9 @@ export class AttendanceEditModalComponent implements OnChanges {
         },
         error: (err) => {
           this.saving.set(false);
-          this.errorMessage.set(err?.error?.message ?? 'Error en desar els canvis');
+          this.errorMessage.set(err?.error?.message ?? "No s'han pogut alçar les notes.");
         },
       });
-  }
-
-  onDelete() {
-    if (this.deleting()) return;
-    this.deleting.set(true);
-    this.errorMessage.set(null);
-
-    this.attendanceService.remove(this.eventId(), this.attendance().id).subscribe({
-      next: (result) => {
-        this.deleting.set(false);
-        this.deleted.emit(result);
-      },
-      error: (err) => {
-        this.deleting.set(false);
-        this.errorMessage.set(err?.error?.message ?? 'Error en eliminar el registre');
-      },
-    });
   }
 
   onClose() {

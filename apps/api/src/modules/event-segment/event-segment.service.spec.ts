@@ -279,6 +279,26 @@ describe('EventSegmentService', () => {
       expect(result[0].instances[0].cordonsObertsEnabled).toBe(false);
     });
 
+    it('flags hasCordonsOberts only for the instances loadCordonsObertsInstanceIds returns', async () => {
+      const withOberts = { id: 'inst-uuid-1', snapshotted: false, figureTemplate: { id: 'fig-uuid-1', name: 'pd4' }, compositionTemplate: null, figureMode: 'COMPLETA', label: null, sortOrder: 0, numberOfCordons: null } as any;
+      const withoutOberts = { id: 'inst-uuid-2', snapshotted: false, figureTemplate: { id: 'fig-uuid-2', name: 'pd3' }, compositionTemplate: null, figureMode: 'COMPLETA', label: null, sortOrder: 1, numberOfCordons: null } as any;
+      const seg = makeSegment({ instances: [withOberts, withoutOberts] });
+
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockSegmentQb.getMany.mockResolvedValue([seg]);
+      mockDataSource.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ templateId: 'fig-uuid-1' }, { templateId: 'fig-uuid-2' }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ instanceId: 'inst-uuid-1' }]);   // loadCordonsObertsInstanceIds
+
+      const result = await service.findAllByEvent(EVENT_ID);
+
+      expect(result[0].instances[0].hasCordonsOberts).toBe(true);
+      expect(result[0].instances[1].hasCordonsOberts).toBe(false);
+    });
+
     it('returns null totalCordons for REMAT instances', async () => {
       const figTemplate = { id: 'fig-uuid-1', name: 'pd4' } as any;
       const instance = { id: 'inst-uuid-1', snapshotted: false, figureTemplate: figTemplate, compositionTemplate: null, figureMode: 'REMAT', label: null, sortOrder: 0, numberOfCordons: null } as any;

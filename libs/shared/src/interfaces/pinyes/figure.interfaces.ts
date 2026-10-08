@@ -20,6 +20,8 @@ export interface FigureNodeItem {
   originNodeId: string | null;
   renglaId: string | null;
   renglaPosition: number | null;
+  /** TRONC only: ids of the BASE/TRONC nodes on floor `z - 1` this person stands on. */
+  standsOnNodeIds: string[];
   metadata: Record<string, unknown>;
 }
 

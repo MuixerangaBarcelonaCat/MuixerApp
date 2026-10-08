@@ -121,7 +121,10 @@ export class InputComponent implements ControlValueAccessor {
       .join(' '),
   );
 
-  private onChange: (value: string) => void = () => undefined;
+  // type="number" models hold a number (or null when empty), like Angular's own
+  // NumberValueAccessor does for a native <input type="number">: callers bind straight to
+  // numeric FormControls and DTO fields, so emitting the raw string would leak "166" into them.
+  private onChange: (value: string | number | null) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
   constructor() {
@@ -131,11 +134,11 @@ export class InputComponent implements ControlValueAccessor {
     });
   }
 
-  writeValue(value: string | null): void {
-    this.value.set(value ?? '');
+  writeValue(value: string | number | null): void {
+    this.value.set(value === null || value === undefined ? '' : String(value));
   }
 
-  registerOnChange(fn: (value: string) => void): void {
+  registerOnChange(fn: (value: string | number | null) => void): void {
     this.onChange = fn;
   }
 
@@ -150,7 +153,8 @@ export class InputComponent implements ControlValueAccessor {
   protected onInput(event: Event): void {
     const newValue = (event.target as HTMLInputElement).value;
     this.value.set(newValue);
-    this.onChange(newValue);
+    // An unparsable entry (e.g. "+166") already reads back as "" from a native number input.
+    this.onChange(this.type() === 'number' ? (newValue === '' ? null : Number(newValue)) : newValue);
   }
 
   protected toggleReveal(): void {

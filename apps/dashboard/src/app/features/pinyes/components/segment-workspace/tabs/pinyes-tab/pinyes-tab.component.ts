@@ -23,7 +23,7 @@ import { SegmentAssignmentActionsService } from '../../../../services/segment-as
 import { ToastService, ButtonComponent, ModalComponent } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, EventPhase } from '@muixer/shared';
 import {
   buildPinyaBuckets,
   pickAdjacentNode,
@@ -62,7 +62,7 @@ export class PinyesTabComponent implements OnInit {
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
 
-  readonly isPast = input(false);
+  readonly phase = input<EventPhase>('before');
 
   /** Emitted when "Anar-hi" targets a node that only exists in the Troncs tab. */
   readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
@@ -90,7 +90,7 @@ export class PinyesTabComponent implements OnInit {
       // Wait for every figure's nodes to have loaded — fitting on an early,
       // partial pinyaSlots() emission freezes the viewport on an incomplete
       // layout, since nothing re-fits once the rest of the figures arrive.
-      if (this.ws.instancesHydrated() && this.ws.pinyaSlots().length > 0 && !this.initialCenterDone) {
+      if (this.ws.instancesHydrated() && this.ws.hasPinyaCanvasNodes() && !this.initialCenterDone) {
         this.initialCenterDone = true;
         setTimeout(() => this.canvasRef?.centerOnContent());
       }

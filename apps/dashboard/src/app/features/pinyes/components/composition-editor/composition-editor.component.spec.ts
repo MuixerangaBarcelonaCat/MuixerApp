@@ -1,4 +1,4 @@
-import { FigureTemplateListItem, FigureCanvasComponent, CompositionSlotWithNodes, CanvasMode } from '@muixer/pinyes-render';
+import { FigureTemplateListItem, FigureCanvasComponent, CompositionSlotWithNodes, CanvasMode, getFigureTint, isRematMarker } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -57,6 +57,7 @@ const makeNode = (
   originNodeId: null,
   renglaId,
   renglaPosition,
+  standsOnNodeIds: [],
   metadata: {},
   ...overrides,
 });
@@ -251,6 +252,23 @@ describe('CompositionEditorComponent', () => {
     // REMAT hides BASE too — its assignments are wiped on switching to REMAT (hiddenZonesForFigureModeChange).
     expect(slot?.figureTemplate.nodes.some((n) => n.zone === 'BASE')).toBe(false);
     expect(component.entries().find((e) => e.id === 'entry-1')?.numberOfCordons).toBeNull();
+  });
+
+  it('draws a REMAT entry as its marker, in the figure tint, instead of an empty placeholder', async () => {
+    const { component } = await setup(COMPOSITION_ID);
+
+    component.updateFigureMode('entry-1', 'REMAT');
+
+    const slot = component.compositionSlots().find((s) => s.slotId === 'entry-1')!;
+    const marker = slot.figureTemplate.nodes.find(isRematMarker);
+    expect(marker).toMatchObject({
+      shape: NodeShape.CIRCLE,
+      width: 240,
+      height: 240,
+      color: getFigureTint(slot.sortOrder),
+      label: '',
+    });
+    expect(slot.figureTemplate.nodes[0]).toBe(marker);
   });
 
 

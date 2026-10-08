@@ -21,7 +21,6 @@ const makePerson = (alias = 'Pepet'): AttendanceItem['person'] => ({
 });
 
 const makeAttendance = (status: AttendanceStatus = AttendanceStatus.ANIRE): AttendanceItem => ({
-  id: 'att-1',
   status,
   respondedAt: null,
   notes: null,
@@ -36,13 +35,13 @@ const makePaginatedResponse = (items: AttendanceItem[]) => ({
 describe('AttendanceConfirmationComponent', () => {
   let fixture: ComponentFixture<AttendanceConfirmationComponent>;
   let component: AttendanceConfirmationComponent;
-  let attendanceService: { getByEvent: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+  let attendanceService: { getByEvent: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> };
   let routerMock: { navigate: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     attendanceService = {
       getByEvent: vi.fn().mockReturnValue(of(makePaginatedResponse([]))),
-      update: vi.fn().mockReturnValue(of({ attendance: makeAttendance(), summary: {} })),
+      set: vi.fn().mockReturnValue(of({ attendance: makeAttendance(), summary: {} })),
     };
     routerMock = { navigate: vi.fn() };
 
@@ -122,8 +121,8 @@ describe('AttendanceConfirmationComponent', () => {
     it('filters out ASSISTIT results', () => {
       const items = [
         makeAttendance(AttendanceStatus.ANIRE),
-        { ...makeAttendance(AttendanceStatus.ASSISTIT), id: 'att-2' },
-        { ...makeAttendance(AttendanceStatus.NO_VAIG), id: 'att-3' },
+        { ...makeAttendance(AttendanceStatus.ASSISTIT), person: { ...makePerson(), id: 'person-2' } },
+        { ...makeAttendance(AttendanceStatus.NO_VAIG), person: { ...makePerson(), id: 'person-3' } },
       ];
       attendanceService.getByEvent.mockReturnValue(of(makePaginatedResponse(items)));
       component.onKey('A');
@@ -137,12 +136,12 @@ describe('AttendanceConfirmationComponent', () => {
   // ── confirm ────────────────────────────────────────────────────────────────
 
   describe('confirm', () => {
-    it('calls attendanceService.update with ASSISTIT status', () => {
-      const att = makeAttendance();
+    it('sets the person to ASSISTIT, keyed by person (works with or without a row)', () => {
+      const att = makeAttendance(AttendanceStatus.PENDENT);
       component.confirm(att);
-      expect(attendanceService.update).toHaveBeenCalledWith(
+      expect(attendanceService.set).toHaveBeenCalledWith(
         EVENT_ID,
-        att.id,
+        att.person.id,
         { status: AttendanceStatus.ASSISTIT },
       );
     });
@@ -163,15 +162,15 @@ describe('AttendanceConfirmationComponent', () => {
 
     it('does not call service when already confirming', () => {
       const att = makeAttendance();
-      attendanceService.update.mockReturnValue(of({ attendance: att, summary: {} }));
+      attendanceService.set.mockReturnValue(of({ attendance: att, summary: {} }));
 
       component.confirmingId.set('some-id');
       component.confirm(att);
-      expect(attendanceService.update).not.toHaveBeenCalled();
+      expect(attendanceService.set).not.toHaveBeenCalled();
     });
 
     it('clears confirmingId on error', () => {
-      attendanceService.update.mockReturnValue(throwError(() => new Error('fail')));
+      attendanceService.set.mockReturnValue(throwError(() => new Error('fail')));
       const att = makeAttendance();
       component.confirm(att);
       expect(component.confirmingId()).toBeNull();
@@ -179,6 +178,57 @@ describe('AttendanceConfirmationComponent', () => {
   });
 
   // ── goBack ────────────────────────────────────────────────────────────────
+
+  // ── physical keyboard ─────────────────────────────────────────────────────
+
+  describe('physical keyboard', () => {
+    const press = (key: string, init: KeyboardEventInit = {}) => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+      document.dispatchEvent(event);
+      return event;
+    };
+
+    it('appends a typed letter uppercased', () => {
+      press('a');
+      press('B');
+      expect(component.query()).toBe('AB');
+    });
+
+    it('accepts ç like the on-screen Ç key', () => {
+      press('ç');
+      expect(component.query()).toBe('Ç');
+    });
+
+    it('Backspace removes the last character and prevents default', () => {
+      press('a');
+      press('b');
+      const event = press('Backspace');
+      expect(component.query()).toBe('A');
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('triggers a search once two letters are typed', () => {
+      press('p');
+      press('e');
+      expect(attendanceService.getByEvent).toHaveBeenCalledWith(EVENT_ID, { search: 'PE', limit: 100 });
+    });
+
+    it('ignores keys the on-screen keypad does not offer', () => {
+      press('1');
+      press(' ');
+      press('Enter');
+      press('Shift');
+      press('ArrowLeft');
+      expect(component.query()).toBe('');
+    });
+
+    it('ignores letters typed with Ctrl/Meta/Alt (browser shortcuts)', () => {
+      press('r', { ctrlKey: true });
+      press('l', { metaKey: true });
+      press('a', { altKey: true });
+      expect(component.query()).toBe('');
+    });
+  });
 
   it('goBack navigates to parent route', () => {
     component.goBack();

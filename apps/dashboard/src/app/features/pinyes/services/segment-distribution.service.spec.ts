@@ -16,6 +16,7 @@ const mockDistributionData: SegmentDistributionData = {
   items: [
     {
       instanceId: INSTANCE_ID,
+      sortOrder: 0,
       label: null,
       figureMode: 'COMPLETA',
       numberOfCordons: null,

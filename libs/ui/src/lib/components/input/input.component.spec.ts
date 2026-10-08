@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { User } from 'lucide-angular';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { InputComponent } from './input.component';
@@ -411,6 +411,55 @@ describe('InputComponent', () => {
     });
   });
 
+  describe('type="number" — the model holds a number, not the raw string', () => {
+    const typeInto = (value: string) => {
+      const el = nativeInput();
+      el.value = value;
+      el.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      fixture.componentRef.setInput('type', 'number');
+      fixture.detectChanges();
+    });
+
+    it('emits the typed value as a number', () => {
+      const spy = jest.fn();
+      fixture.componentInstance.registerOnChange(spy);
+
+      typeInto('166');
+
+      expect(spy).toHaveBeenCalledWith(166);
+    });
+
+    it('emits null when the field is cleared', () => {
+      const spy = jest.fn();
+      fixture.componentInstance.registerOnChange(spy);
+
+      typeInto('');
+
+      expect(spy).toHaveBeenCalledWith(null);
+    });
+
+    it('writeValue renders a numeric model value', () => {
+      fixture.componentInstance.writeValue(145);
+      fixture.detectChanges();
+      expect(nativeInput().value).toBe('145');
+    });
+
+    it('keeps emitting strings for non-numeric types', () => {
+      fixture.componentRef.setInput('type', 'tel');
+      fixture.detectChanges();
+      const spy = jest.fn();
+      fixture.componentInstance.registerOnChange(spy);
+
+      typeInto('600');
+
+      expect(spy).toHaveBeenCalledWith('600');
+    });
+  });
+
   describe('blurred', () => {
     // Live-preview-then-commit-on-blur callers (e.g. the ad-hoc node label) need to know the
     // blur actually happened; (blur) placed directly on <lib-input> wouldn't fire — native
@@ -452,6 +501,33 @@ describe('InputComponent', () => {
       await hostFixture.whenStable();
 
       expect(hostFixture.componentInstance.value).toBe('ngmodel value');
+    });
+  });
+
+  describe('integration with reactive forms', () => {
+    @Component({
+      imports: [InputComponent, ReactiveFormsModule],
+      template: `<lib-input type="number" [formControl]="height" label="Alçada" />`,
+    })
+    class HostComponent {
+      height = new FormControl<number | null>(null);
+    }
+
+    it('stores a number in a numeric FormControl, as a native number input would', async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [HostComponent],
+        providers: [allLucideIconsProvider],
+      }).compileComponents();
+      const hostFixture = TestBed.createComponent(HostComponent);
+      hostFixture.detectChanges();
+
+      const input = hostFixture.debugElement.query(By.css('[data-testid="lib-input-native"]')).nativeElement;
+      input.value = '166';
+      input.dispatchEvent(new Event('input'));
+      hostFixture.detectChanges();
+
+      expect(hostFixture.componentInstance.height.value).toBe(166);
     });
   });
 });

@@ -16,7 +16,10 @@ export interface Season {
   startDate: string;
   endDate: string;
   description: string | null;
+  /** All events in the season, whatever their type. */
   eventCount: number;
+  rehearsalCount: number;
+  performanceCount: number;
 }
 
 export interface SegmentsSummary {
@@ -43,6 +46,8 @@ export interface EventDetail extends EventListItem {
   description: string | null;
   locationUrl: string | null;
   information: string | null;
+  /** Observacions internes: només visibles al dashboard, mai a la PWA. */
+  notes: string | null;
   metadata: RehearsalMetadata | PerformanceMetadata;
   isSynced: boolean;
 }
@@ -70,8 +75,8 @@ export interface CreateEventPayload {
   locationUrl?: string;
   description?: string;
   information?: string;
+  notes?: string;
   countsForStatistics?: boolean;
-  seasonId?: string;
 }
 
 export type UpdateEventPayload = {

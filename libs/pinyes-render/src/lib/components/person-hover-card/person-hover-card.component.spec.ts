@@ -36,6 +36,22 @@ describe('PersonHoverCardComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('cumulative height', () => {
+    const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    it('shows the cumulative height when it is known', () => {
+      fixture.componentRef.setInput('info', makeInfo({ shoulderHeight: 130, cumulativeHeight: 431 }));
+      fixture.detectChanges();
+      expect(text()).toContain('Alçada acumulada: 431 cm');
+    });
+
+    it.each([null, undefined])('shows nothing when it is %s', (cumulativeHeight) => {
+      fixture.componentRef.setInput('info', makeInfo({ shoulderHeight: 130, cumulativeHeight }));
+      fixture.detectChanges();
+      expect(text()).not.toContain('acumulada');
+    });
+  });
+
   describe('without an active node position type', () => {
     beforeEach(() => {
       fixture.componentRef.setInput('info', makeInfo({ positions: [posAgulla, posVents] }));
@@ -78,6 +94,23 @@ describe('PersonHoverCardComponent', () => {
 
       expect(filled?.parentElement?.parentElement?.classList.contains('opacity-50')).toBe(false);
       expect(faded?.parentElement?.parentElement?.classList.contains('opacity-50')).toBe(true);
+    });
+  });
+
+  describe('attendance status', () => {
+    it.each([
+      ['before', 'ANIRE', 'Ve', 'success'],
+      ['day', 'ASSISTIT', 'Ha arribat', 'success'],
+      ['day', 'ANIRE', 'No ha arribat', 'warning'],
+      ['day', 'NO_VAIG', 'No vindrà', 'error'],
+      ['after', 'ASSISTIT', 'Va vindre', 'success'],
+      ['after', 'ANIRE', 'No presentat', 'warning'],
+      ['after', 'PENDENT', 'Sense resposta', 'ghost'],
+    ] as const)('%s / %s → "%s" (%s)', (phase, status, label, variant) => {
+      fixture.componentRef.setInput('info', makeInfo({ attendanceStatus: status }));
+      fixture.componentRef.setInput('phase', phase);
+      expect(component.statusLabel()).toBe(label);
+      expect(component.statusBadgeVariant()).toBe(variant);
     });
   });
 });

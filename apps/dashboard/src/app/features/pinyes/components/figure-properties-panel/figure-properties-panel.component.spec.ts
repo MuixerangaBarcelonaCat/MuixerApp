@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { FigurePropertiesPanelComponent, FigurePropertiesEntry } from './figure-properties-panel.component';
 
 const makeEntry = (overrides: Partial<FigurePropertiesEntry> = {}): FigurePropertiesEntry => ({
@@ -193,13 +194,32 @@ describe('FigurePropertiesPanelComponent', () => {
     fixture.componentInstance.offsetYChanged.subscribe((e) => (y = e));
     fixture.componentInstance.angleChanged.subscribe((e) => (angle = e));
 
-    fixture.componentInstance.onOffsetXChange('100');
-    fixture.componentInstance.onOffsetYChange('200');
+    fixture.componentInstance.onOffsetXChange(100);
+    fixture.componentInstance.onOffsetYChange(200);
     fixture.componentInstance.onAngleChange('45');
 
     expect(x).toEqual({ id: 'entry-1', value: 100 });
     expect(y).toEqual({ id: 'entry-1', value: 200 });
     expect(angle).toEqual({ id: 'entry-1', value: 45 });
+  });
+
+  it('emits offset 0 (not NaN) when the X/Y fields are cleared', () => {
+    const fixture = create(makeEntry());
+    let x: { id: string; value: number } | undefined;
+    let y: { id: string; value: number } | undefined;
+    fixture.componentInstance.offsetXChanged.subscribe((e) => (x = e));
+    fixture.componentInstance.offsetYChanged.subscribe((e) => (y = e));
+
+    const [xInput, yInput] = fixture.debugElement
+      .queryAll(By.css('input[type="number"]'))
+      .map((d) => d.nativeElement as HTMLInputElement);
+    for (const input of [xInput, yInput]) {
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+    }
+
+    expect(x).toEqual({ id: 'entry-1', value: 0 });
+    expect(y).toEqual({ id: 'entry-1', value: 0 });
   });
 
   it('emits removeRequested with the entry id', () => {
@@ -221,6 +241,16 @@ describe('FigurePropertiesPanelComponent', () => {
     it('is shown when the figure has cordo-obert nodes', () => {
       const fixture = create(makeEntry({ hasCordoObertNodes: true }));
       expect(fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))).toBeTruthy();
+    });
+
+    it('carries the cordons oberts domain icon next to its label', () => {
+      const fixture = create(makeEntry({ hasCordoObertNodes: true }));
+      const paths = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('[data-cordons-oberts-checkbox] lucide-icon svg path'),
+      ).map((p) => p.getAttribute('d'));
+      const expected = DOMAIN_ICONS.CORDONS_OBERTS.filter(([tag]) => tag === 'path').map(([, attrs]) => attrs['d']);
+      expect(expected.length).toBeGreaterThan(0);
+      expect(paths).toEqual(expected);
     });
 
     // lib-checkbox's first ngModel write is a *new* standalone NgModel registration — Angular

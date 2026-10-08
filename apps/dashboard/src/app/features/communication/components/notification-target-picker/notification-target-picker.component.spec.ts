@@ -108,4 +108,12 @@ describe('NotificationTargetPickerComponent', () => {
     const html = fixture.nativeElement.innerHTML as string;
     expect(html).not.toContain('Totes les respostes');
   });
+
+  it('labels the response options with the shared attendance labels (as asked before the event)', async () => {
+    await setup({ type: NotificationTargetType.EVENT_ATTENDANCE }, true);
+    const options = Array.from(fixture.nativeElement.querySelectorAll('select option'))
+      .map((o) => (o as HTMLOptionElement).textContent?.trim())
+      .filter((t) => t !== 'Selecciona una resposta...');
+    expect(options).toEqual(['Ve', 'No ve', 'Pendent', 'Assistit']);
+  });
 });

@@ -1,5 +1,6 @@
 import { EventSyncStrategy } from './event-sync.strategy';
 import { Season } from '../../season/season.entity';
+import { SyncEvent } from '../interfaces/sync-event.interface';
 
 describe('EventSyncStrategy — unit helpers', () => {
   let strategy: EventSyncStrategy;
@@ -10,7 +11,6 @@ describe('EventSyncStrategy — unit helpers', () => {
       extractEventId: EventSyncStrategy.prototype.extractEventId,
       parseDate: EventSyncStrategy.prototype.parseDate,
       stripHtml: EventSyncStrategy.prototype.stripHtml,
-      assignSeasonByDate: EventSyncStrategy.prototype.assignSeasonByDate,
     } as unknown as EventSyncStrategy;
   });
 
@@ -49,90 +49,6 @@ describe('EventSyncStrategy — unit helpers', () => {
     it('returns empty string for falsy input', () => {
       expect(strategy.stripHtml('')).toBe('');
     });
-  });
-});
-
-describe('EventSyncStrategy — assignSeasonByDate', () => {
-  const makeSeasons = (): Season[] =>
-    [
-      {
-        id: 's1',
-        name: 'Temporada 2024-2025',
-        startDate: new Date('2024-09-01'),
-        endDate: new Date('2025-09-05'),
-        legacyId: '2025',
-        description: null,
-        events: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 's2',
-        name: 'Temporada 2025-2026',
-        startDate: new Date('2025-09-06'),
-        endDate: new Date('2026-09-05'),
-        legacyId: '2026',
-        description: null,
-        events: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ] as Season[];
-
-  let strategy: EventSyncStrategy;
-
-  beforeEach(() => {
-    strategy = {
-      assignSeasonByDate: EventSyncStrategy.prototype.assignSeasonByDate,
-    } as unknown as EventSyncStrategy;
-  });
-
-  it('assigns events within first season range to Temporada 2024-2025', () => {
-    const seasons = makeSeasons();
-    expect(strategy.assignSeasonByDate(new Date('2025-03-15'), seasons)?.id).toBe('s1');
-  });
-
-  it('assigns events on last day of first season to Temporada 2024-2025', () => {
-    const seasons = makeSeasons();
-    expect(strategy.assignSeasonByDate(new Date('2025-09-05'), seasons)?.id).toBe('s1');
-  });
-
-  it('assigns events on first day of second season to Temporada 2025-2026', () => {
-    const seasons = makeSeasons();
-    expect(strategy.assignSeasonByDate(new Date('2025-09-06'), seasons)?.id).toBe('s2');
-  });
-
-  it('assigns events within second season range to Temporada 2025-2026', () => {
-    const seasons = makeSeasons();
-    expect(strategy.assignSeasonByDate(new Date('2026-03-26'), seasons)?.id).toBe('s2');
-  });
-
-  it('falls back to last season for dates beyond all ranges', () => {
-    const seasons = makeSeasons();
-    // 2027 event — beyond all defined seasons, falls back to most recent
-    expect(strategy.assignSeasonByDate(new Date('2027-01-01'), seasons)?.id).toBe('s2');
-  });
-
-  it('returns null for empty seasons array', () => {
-    expect(strategy.assignSeasonByDate(new Date('2026-01-01'), [])).toBeNull();
-  });
-
-  it('assigns correctly with a third season added to DB', () => {
-    const seasons = [
-      ...makeSeasons(),
-      {
-        id: 's3',
-        name: 'Temporada 2026-2027',
-        startDate: new Date('2026-09-06'),
-        endDate: new Date('2027-09-05'),
-        legacyId: '2027',
-        description: null,
-        events: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      } as Season,
-    ];
-    expect(strategy.assignSeasonByDate(new Date('2026-12-01'), seasons)?.id).toBe('s3');
   });
 });
 
@@ -252,5 +168,83 @@ describe('EventSyncStrategy — loadOrCreateSeasons', () => {
 
     expect(mockSeasonRepo.upsert).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(2);
+  });
+});
+
+describe('EventSyncStrategy — full run', () => {
+  const ASSAIG = {
+    '0': '<a href="/llista/101">llista</a>',
+    data: '15/07/2031',
+    hora_esdeveniment: '19:00',
+    descripcio: 'Assaig d\'estiu',
+  };
+  const ASSAIG_DETAIL = { descripcio: 'Assaig d\'estiu', hora_final: '', lloc_esdeveniment: 'Plaça', informacio: '' };
+
+  const run = (uncovered: number) => {
+    const uncoveredQb = {
+      leftJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(uncovered),
+    };
+    const eventRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((e) => e),
+      save: jest.fn(async (e) => e),
+      find: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn(() => uncoveredQb),
+    };
+    const seasonRepo = { find: jest.fn().mockResolvedValue([{ id: 's1' }]), upsert: jest.fn() };
+    const legacy = {
+      login: jest.fn().mockResolvedValue(undefined),
+      getAssajos: jest.fn().mockResolvedValue([ASSAIG]),
+      getAssaigDetail: jest.fn().mockResolvedValue(ASSAIG_DETAIL),
+      getActuacions: jest.fn().mockResolvedValue([]),
+    };
+    const strategy = new EventSyncStrategy(
+      eventRepo as never,
+      seasonRepo as never,
+      legacy as never,
+      { syncAll: jest.fn().mockResolvedValue(undefined) } as never,
+    );
+    return new Promise<{ events: SyncEvent[]; eventRepo: typeof eventRepo; uncoveredQb: typeof uncoveredQb }>(
+      (resolve) => {
+        const events: SyncEvent[] = [];
+        strategy.execute().subscribe({
+          next: (e) => events.push(e),
+          complete: () => resolve({ events, eventRepo, uncoveredQb }),
+        });
+      },
+    );
+  };
+
+  it('imports an event whose date is in no season, without assigning any season', async () => {
+    const { eventRepo } = await run(1);
+    expect(eventRepo.save).toHaveBeenCalledTimes(1);
+    expect(eventRepo.create.mock.calls[0][0]).not.toHaveProperty('season');
+  });
+
+  it('warns how many legacy events fall in no season and reports it in the summary', async () => {
+    const { events, uncoveredQb } = await run(3);
+    expect(uncoveredQb.leftJoin).toHaveBeenCalledWith(
+      Season,
+      'season',
+      'event.date BETWEEN season.startDate AND season.endDate',
+    );
+    expect(uncoveredQb.where).toHaveBeenCalledWith('season.id IS NULL');
+    expect(uncoveredQb.andWhere).toHaveBeenCalledWith('event.legacyId IS NOT NULL');
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'warn',
+        entity: 'season',
+        message: '3 esdeveniments importats no són dins de cap temporada.',
+      }),
+    );
+    expect(events.at(-1)).toMatchObject({ type: 'complete', detail: { uncoveredEvents: 3 } });
+  });
+
+  it('emits no warning when every legacy event falls in a season', async () => {
+    const { events } = await run(0);
+    expect(events.some((e) => e.type === 'warn')).toBe(false);
   });
 });

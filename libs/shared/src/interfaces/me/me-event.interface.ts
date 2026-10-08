@@ -1,11 +1,15 @@
-import { AttendanceStatus } from '../../enums/attendance-status.enum';
+import { AttendanceStatus, ResolvedAttendanceStatus } from '../../enums/attendance-status.enum';
 import { EventType } from '../../enums/event-type.enum';
 import { AttendanceSummary } from '../attendance-summary.interface';
 import { ManagedPersonAttendance } from './managed-person.interface';
 
+/**
+ * A person's attendance to an event, always resolved: with no row it is PENDENT (or NO_REGISTRAT
+ * for someone created after the event day), with `id` and `respondedAt` null.
+ */
 export interface MyAttendanceInfo {
-  id: string;
-  status: AttendanceStatus;
+  id: string | null;
+  status: ResolvedAttendanceStatus;
   respondedAt: string | null;
 }
 
@@ -28,7 +32,8 @@ export interface MeEventDetail extends MeEvent {
 }
 
 export interface AttendanceResponse {
-  id: string;
+  /** `null` when setting PENDENT wrote nothing (no row ≡ PENDENT). */
+  id: string | null;
   status: AttendanceStatus;
-  respondedAt: string;
+  respondedAt: string | null;
 }

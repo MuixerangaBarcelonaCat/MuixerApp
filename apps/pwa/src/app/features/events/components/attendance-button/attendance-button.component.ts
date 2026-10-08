@@ -41,7 +41,7 @@ import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } f
           [ariaPressed]="displayStatus() === ANIRE"
           [ariaLabel]="ariaLabelFor(ANIRE)"
           (clicked)="setStatus(ANIRE)"
-        >Vinc</lib-button>
+        >Vaig</lib-button>
         <lib-button
           joinItem
           size="xs"
@@ -52,7 +52,7 @@ import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } f
           [ariaPressed]="displayStatus() === NO_VAIG"
           [ariaLabel]="ariaLabelFor(NO_VAIG)"
           (clicked)="setStatus(NO_VAIG)"
-        >No vinc</lib-button>
+        >No vaig</lib-button>
       </lib-button-group>
     }
   `,
@@ -87,8 +87,8 @@ export class AttendanceButtonComponent {
     () => this.disabled() || this.isPending(),
   );
   private static readonly STATUS_LABELS: Record<AttendanceStatus, string> = {
-    [AttendanceStatus.ANIRE]: 'Vinc',
-    [AttendanceStatus.NO_VAIG]: 'No vinc',
+    [AttendanceStatus.ANIRE]: 'Vaig',
+    [AttendanceStatus.NO_VAIG]: 'No vaig',
     [AttendanceStatus.PENDENT]: 'Pendent',
     [AttendanceStatus.ASSISTIT]: 'He assistit',
   };

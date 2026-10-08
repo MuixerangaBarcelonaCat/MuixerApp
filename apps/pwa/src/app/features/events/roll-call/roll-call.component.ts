@@ -194,13 +194,11 @@ export class RollCallComponent {
   }
 
   protected setStatus(item: AttendanceItem, status: AttendanceStatus, force = false): void {
-    this.rollCallService.updateAttendance(this.id(), item.id, force ? { status, force } : { status }).subscribe({
+    this.rollCallService.setAttendance(this.id(), item.person.id, force ? { status, force } : { status }).subscribe({
       next: (response) => {
         this.items.update((current) =>
           current.map((row) =>
-            row.person.id === item.person.id
-              ? { ...row, id: response.attendance.id, status: response.attendance.status }
-              : row,
+            row.person.id === item.person.id ? { ...row, status: response.attendance.status } : row,
           ),
         );
         this.overridePrompt.set(null);
@@ -237,11 +235,11 @@ export class RollCallComponent {
     this.isCreatingProvisional.set(true);
     this.rollCallService.createProvisionalPerson(alias).subscribe({
       next: (person) => {
-        this.rollCallService.createAttendance(this.id(), { personId: person.id, status: AttendanceStatus.ASSISTIT }).subscribe({
+        this.rollCallService.setAttendance(this.id(), person.id, { status: AttendanceStatus.ASSISTIT }).subscribe({
           next: (response) => {
             this.items.update((current) => [
               ...current,
-              { id: response.attendance.id, status: response.attendance.status, person, signedUpGroup: true },
+              { status: response.attendance.status, person, signedUpGroup: true },
             ]);
             this.isCreatingProvisional.set(false);
             this.showAddProvisional.set(false);

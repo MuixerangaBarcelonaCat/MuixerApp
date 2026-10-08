@@ -1,11 +1,10 @@
 export type {
-  EventAssignmentSummary,
   EventFigureSummary,
-  EventSegmentSummary,
   FigureAreaCount,
 } from '@muixer/shared';
 
 import { FigureZone, ImportScope, TagCategory } from '@muixer/shared';
+import type { EventSegmentSummary as SharedEventSegmentSummary } from '@muixer/shared';
 
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
@@ -61,6 +60,8 @@ export interface PersonHoverInfo {
   attendanceStatus: AttendanceStatus | null;
   isXicalla: boolean;
   shoulderHeight: number | null;
+  /** Tronc/base only: rounded cm of the person's shoulders once the figure is built (null while unknown). */
+  cumulativeHeight?: number | null;
   notes: string | null;
   notesEmoji: string | null;
   positions: AvailablePersonPosition[];
@@ -100,6 +101,15 @@ export interface SegmentConflict {
   placements: ConflictPlacement[];
   kind: SegmentConflictKind;
   suggestedRemovalAssignmentIds: string[];
+}
+
+/** The shared summary, with `conflictList` in this library's string-union conflict types. */
+export type EventSegmentSummary = Omit<SharedEventSegmentSummary, 'conflictList'> & {
+  conflictList: SegmentConflict[];
+};
+
+export interface EventAssignmentSummary {
+  segments: EventSegmentSummary[];
 }
 
 /** Dotació/conflict counters for a whole segment (over every assignment, not just conflicted ones). */
@@ -157,6 +167,9 @@ export interface FigureHistoryEntry {
   snapshotted: boolean;
   assignmentCount: number;
   totalNodes: number;
+  /** One-line tronc, base → top («Pepet - ? // Maria»), as the segment list's Troncs mode shows
+   *  it; null when the figure has no tronc nodes or nothing left to show for its mode. */
+  troncSummary: string | null;
   assignments: {
     nodeId: string;
     nodeLabel: string;

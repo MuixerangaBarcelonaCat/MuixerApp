@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, isRematMarker } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -32,7 +32,7 @@ class StubFigureCanvas {
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly gridEnabled = input<boolean>(true);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly personDragEnabled = input<boolean>(true);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
@@ -52,7 +52,7 @@ class StubPersonPanel {
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly searchOnly = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
@@ -103,6 +103,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -292,6 +293,33 @@ describe('PinyesTabComponent', () => {
       fixture.detectChanges();
       await new Promise(resolve => setTimeout(resolve, 50));
 
+      expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the no-pinya message when no figure draws anything (only tronc nodes)', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('t1', 'TRONC')] } });
+
+      expect(fixture.nativeElement.textContent).toContain('Este segment no té cap figura amb pinya.');
+    });
+
+    it('does not center the viewport while no figure draws anything', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('t1', 'TRONC')] } });
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(canvasStub().centerOnContent).not.toHaveBeenCalled();
+    });
+
+    it('shows a lone REMAT figure as its marker: centered on, not covered by the no-pinya message', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA')] },
+      });
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(canvasStub().compositionSlots()[0].figureTemplate.nodes.some(isRematMarker)).toBe(true);
+      expect(fixture.nativeElement.textContent).not.toContain('Este segment no té cap figura amb pinya.');
       expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);
     });
 

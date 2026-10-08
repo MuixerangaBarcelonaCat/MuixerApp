@@ -91,10 +91,7 @@ export class EventParticipationService {
   ) {}
 
   async getEventParticipation(eventId: string): Promise<EventParticipationOverview> {
-    const event = await this.eventRepository.findOne({
-      where: { id: eventId },
-      relations: ['season'],
-    });
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event no trobat.');
     }
@@ -109,15 +106,12 @@ export class EventParticipationService {
     const positionsByPerson =
       personIds.length > 0 ? await this.loadPositions(personIds) : new Map();
 
-    // Q4 — only meaningful for a rehearsal with somebody to describe and a season to
-    // scope the search: an actuació or a season-less event never gets one.
+    // Q4 — only meaningful for a rehearsal with somebody to describe: an actuació never gets one.
+    // A rehearsal whose date is in no season gets none either (Q4a finds no season to scope by).
     let nextPerformance: { id: string; title: string; date: string } | null = null;
     let nextPerformanceAttendance = new Map<string, AttendanceStatus>();
-    if (event.eventType === EventType.ASSAIG && personIds.length > 0 && event.season) {
-      nextPerformance = await this.resolveNextPerformance(
-        event.season.id,
-        this.toDateString(event.date),
-      );
+    if (event.eventType === EventType.ASSAIG && personIds.length > 0) {
+      nextPerformance = await this.resolveNextPerformance(this.toDateString(event.date));
       if (nextPerformance) {
         nextPerformanceAttendance = await this.loadNextPerformanceAttendance(
           nextPerformance.id,
@@ -142,18 +136,21 @@ export class EventParticipationService {
     };
   }
 
-  /** Q4a — the first future ACTUACIO in the same season as the rehearsal. */
+  /**
+   * Q4a — the first ACTUACIO after the rehearsal and within the season containing the rehearsal's
+   * date (seasons are derived from dates and never overlap). No season → no row.
+   */
   private async resolveNextPerformance(
-    seasonId: string,
     afterDate: string,
   ): Promise<{ id: string; title: string; date: string } | null> {
     // `date::text` avoids the pg driver parsing a bare 'date' column into a JS `Date`
     // at local midnight, which `toISOString()` can then shift a day off in a UTC+ zone.
     const rows: { id: string; title: string; date: string }[] = await this.dataSource.query(
-      `SELECT id, title, date::text AS date FROM events
-       WHERE "eventType" = 'ACTUACIO' AND "seasonId" = $1 AND date > $2
-       ORDER BY date ASC LIMIT 1`,
-      [seasonId, afterDate],
+      `SELECT e.id, e.title, e.date::text AS date FROM events e
+       JOIN seasons s ON $1::date BETWEEN s."startDate" AND s."endDate"
+       WHERE e."eventType" = 'ACTUACIO' AND e.date > $1 AND e.date <= s."endDate"
+       ORDER BY e.date ASC LIMIT 1`,
+      [afterDate],
     );
     const row = rows[0];
     return row ? { id: row.id, title: row.title, date: row.date } : null;

@@ -21,11 +21,14 @@ const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
 const DEFAULT_TAG_SLUG = 'persona-nova';
 
-/** La temporada que conté el dia d'avui; la més recent si n'hi haguera de solapades. */
-const CURRENT_SEASON_SUBQUERY = `(
-  SELECT s.id FROM seasons s
-  WHERE s."startDate" <= CURRENT_DATE AND s."endDate" >= CURRENT_DATE
-  ORDER BY s."startDate" DESC LIMIT 1
+/**
+ * L'event `e` és de la temporada en curs: la temporada que conté la seua data (derivada, no guardada)
+ * també conté el dia d'avui. Les temporades no se solapen, així que n'hi ha com a molt una.
+ */
+const EVENT_IN_CURRENT_SEASON = `EXISTS (
+  SELECT 1 FROM seasons cs
+  WHERE e.date BETWEEN cs."startDate" AND cs."endDate"
+    AND CURRENT_DATE BETWEEN cs."startDate" AND cs."endDate"
 )`;
 
 /**
@@ -38,7 +41,7 @@ const ATTENDED_COUNT_QUERY = `SELECT a."personId" AS "personId", COUNT(*)::int A
    JOIN events e ON e.id = a."eventId"
    WHERE a."personId" = ANY($1::uuid[])
      AND a.status = 'ASSISTIT'
-     AND e."seasonId" = ${CURRENT_SEASON_SUBQUERY}
+     AND ${EVENT_IN_CURRENT_SEASON}
    GROUP BY a."personId"`;
 
 /** La mateixa xifra com a expressió correlada, per poder-hi ordenar dins la consulta paginada. */
@@ -46,7 +49,7 @@ const ATTENDED_COUNT_EXPRESSION = `(SELECT COUNT(*)::int FROM attendances a
    JOIN events e ON e.id = a."eventId"
    WHERE a."personId" = person.id
      AND a.status = 'ASSISTIT'
-     AND e."seasonId" = ${CURRENT_SEASON_SUBQUERY})`;
+     AND ${EVENT_IN_CURRENT_SEASON})`;
 
 @Injectable()
 export class PersonService {

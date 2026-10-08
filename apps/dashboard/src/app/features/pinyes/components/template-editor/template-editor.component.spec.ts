@@ -11,6 +11,8 @@ import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
 import { TemplateEditorComponent, nodeToPayload } from './template-editor.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.component';
+import { TroncSupportEditorComponent } from './tronc-support-editor/tronc-support-editor.component';
+import { SupportLink } from './tronc-support-editor/tronc-support-editor.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -51,6 +53,16 @@ class StubTroncView {
   readonly floorRemoved = output<number>();
   readonly baseAdded = output<unknown>();
   readonly baseRemoved = output<string>();
+}
+
+@Component({ selector: 'app-tronc-support-editor', standalone: true, template: '' })
+class StubTroncSupportEditor {
+  readonly troncNodes = input<unknown[]>([]);
+  readonly baseNodes = input<unknown[]>([]);
+  readonly selectedNodeId = input<string | null>(null);
+  readonly linkAdded = output<SupportLink>();
+  readonly linkRemoved = output<SupportLink>();
+  readonly nodeSelected = output<string>();
 }
 
 @Component({ selector: 'app-template-editor-help-modal', standalone: true, template: '' })
@@ -101,6 +113,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
   const mockToast = {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -117,8 +130,8 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       ],
     })
       .overrideComponent(TemplateEditorComponent, {
-        remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent] },
-        add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay] },
+        remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent, TroncSupportEditorComponent] },
+        add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay, StubTroncSupportEditor] },
       })
       .compileComponents();
 
@@ -301,6 +314,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -358,6 +372,214 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('Tronc tab (full-view workspace)', () => {
+    const q = (selector: string): HTMLElement | null => fixture.nativeElement.querySelector(selector);
+
+    const troncNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'tronc-1',
+      label: 'Segon',
+      zone: FigureZone.TRONC,
+      positionType: 'segona',
+      x: 0, y: 0, z: 1,
+      width: 1, height: 40, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
+      metadata: {},
+      ...overrides,
+    });
+
+    const baseAt = (id: string, sortOrder: number, x: number, y: number): FigureNodeItem =>
+      troncNode({ id, zone: FigureZone.BASE, positionType: 'base', z: 0, sortOrder, x, y, width: 80 });
+
+    function openTroncTab(): void {
+      component.setEditorMode('tronc');
+      fixture.detectChanges();
+    }
+
+    it('replaces the toolbar, canvas and properties panel with the tronc workspace', () => {
+      openTroncTab();
+
+      expect(q('.tronc-workspace')).toBeTruthy();
+      expect(q('aside.editor-toolbar')).toBeNull();
+      expect(q('aside.editor-panel')).toBeNull();
+      expect(q('main.editor-canvas')?.hidden).toBe(true);
+    });
+
+    it('keeps the pinya canvas mounted while hidden, so its zoom and pan survive the tab switch', () => {
+      openTroncTab();
+
+      expect(fixture.debugElement.query(By.directive(StubFigureCanvas))).toBeTruthy();
+    });
+
+    it('puts the tronc panel in the left pane, in editor mode, fed with the tronc and base nodes', () => {
+      const base = baseAt('base-1', 0, 0, 0);
+      const tronc = troncNode();
+      component.nodes.set([base, tronc]);
+      openTroncTab();
+
+      const view = fixture.debugElement.query(By.css('.tronc-workspace-editor app-tronc-view'));
+      expect(view).toBeTruthy();
+      const stub = view.componentInstance as StubTroncView;
+      expect(stub.mode()).toBe('editor');
+      expect(stub.troncNodes()).toEqual([tronc]);
+      expect(stub.baseNodes()).toEqual([base]);
+    });
+
+    it('puts the stands-on editor in the right pane, sharing the selection with the left one', () => {
+      const base = baseAt('base-1', 0, 0, 0);
+      const tronc = troncNode();
+      component.nodes.set([base, tronc]);
+      component.selectedNodeId.set('tronc-1');
+      openTroncTab();
+
+      const editor = fixture.debugElement.query(
+        By.css('.tronc-workspace-structure[aria-label="Estructura del tronc"] app-tronc-support-editor'),
+      );
+      expect(editor).toBeTruthy();
+      const stub = editor.componentInstance as StubTroncSupportEditor;
+      expect(stub.troncNodes()).toEqual([tronc]);
+      expect(stub.baseNodes()).toEqual([base]);
+      expect(stub.selectedNodeId()).toBe('tronc-1');
+
+      stub.nodeSelected.emit('base-1');
+      expect(component.selectedNodeId()).toBe('base-1');
+    });
+
+    it('applies the links the stands-on editor adds and removes', () => {
+      component.templateId.set('template-1');
+      component.nodes.set([baseAt('base-1', 0, 0, 0), troncNode()]);
+      openTroncTab();
+      const stub = fixture.debugElement.query(By.directive(StubTroncSupportEditor))
+        .componentInstance as StubTroncSupportEditor;
+
+      stub.linkAdded.emit({ upperId: 'tronc-1', lowerId: 'base-1' });
+      expect(component.nodes()[1].standsOnNodeIds).toEqual(['base-1']);
+
+      stub.linkRemoved.emit({ upperId: 'tronc-1', lowerId: 'base-1' });
+      expect(component.nodes()[1].standsOnNodeIds).toEqual([]);
+    });
+
+    it('no longer renders the floating tronc panel', () => {
+      openTroncTab();
+
+      expect(q('.tronc-floating-panel')).toBeNull();
+    });
+
+    it('restores the toolbar, canvas and properties panel when going back to the Pinya tab', () => {
+      openTroncTab();
+      component.setEditorMode('pinya');
+      fixture.detectChanges();
+
+      expect(q('.tronc-workspace')).toBeNull();
+      expect(q('aside.editor-toolbar')).toBeTruthy();
+      expect(q('aside.editor-panel')).toBeTruthy();
+      expect(q('main.editor-canvas')?.hidden).toBe(false);
+    });
+
+    it('shows the base order warning in the workspace, since the toolbar is hidden', () => {
+      // CCW from top-left expects bottom-left next; Base 2 at top-right breaks it.
+      component.nodes.set([baseAt('b1', 0, 0, 0), baseAt('b2', 1, 100, 0), baseAt('b3', 2, 0, 100)]);
+      openTroncTab();
+
+      expect(q('.tronc-workspace [aria-label="Avís: ordre de bases incorrecte. Clica per veure l\'ajuda."]')).toBeTruthy();
+    });
+
+    it('arrow keys do not move a selected tronc node (its x is in relative units, not pixels)', () => {
+      component.templateId.set('template-1');
+      component.nodes.set([troncNode({ x: 1 })]);
+      component.selectedNodeId.set('tronc-1');
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+
+      expect(component.nodes()[0].x).toBe(1);
+      expect(component.nodes()[0].y).toBe(0);
+    });
+  });
+
+  describe('stands-on links (tronc structure)', () => {
+    const makeNode = (id: string, zone: FigureZone, z: number, standsOnNodeIds: string[] = []): FigureNodeItem => ({
+      id,
+      label: id,
+      zone,
+      positionType: zone === FigureZone.BASE ? 'base' : 'segona',
+      x: 0, y: 0, z,
+      width: 1, height: 40, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      standsOnNodeIds,
+      metadata: {},
+    });
+    const linksOf = (id: string) => component.nodes().find((n) => n.id === id)?.standsOnNodeIds;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mockFigureTemplateService.update.mockClear();
+      component.templateId.set('template-1');
+      component.templateName.set('Pilar de 4');
+      component.nodes.set([
+        makeNode('b1', FigureZone.BASE, 0),
+        makeNode('b2', FigureZone.BASE, 0),
+        makeNode('s1', FigureZone.TRONC, 1, ['b1']),
+      ]);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('adds a link, undoably, and autosaves it', () => {
+      component.onSupportLinkAdded({ upperId: 's1', lowerId: 'b2' });
+
+      expect(linksOf('s1')).toEqual(['b1', 'b2']);
+      expect(component.canUndo()).toBe(true);
+
+      vi.advanceTimersByTime(2000);
+      const sent = mockFigureTemplateService.update.mock.calls[0][1].nodes.find((n: { id: string }) => n.id === 's1');
+      expect(sent.standsOnNodeIds).toEqual(['b1', 'b2']);
+    });
+
+    it('ignores a link that already exists', () => {
+      component.onSupportLinkAdded({ upperId: 's1', lowerId: 'b1' });
+
+      expect(linksOf('s1')).toEqual(['b1']);
+      expect(component.canUndo()).toBe(false);
+    });
+
+    it('removes a link, undoably', () => {
+      component.onSupportLinkRemoved({ upperId: 's1', lowerId: 'b1' });
+      expect(linksOf('s1')).toEqual([]);
+
+      component.performUndo();
+      expect(linksOf('s1')).toEqual(['b1']);
+    });
+
+    it('sends only the links that still hold, so deleting a base never makes the save fail', () => {
+      component.onBaseNodeRemoved('b1');
+      vi.advanceTimersByTime(2000);
+
+      const sent = mockFigureTemplateService.update.mock.calls[0][1].nodes.find((n: { id: string }) => n.id === 's1');
+      expect(sent.standsOnNodeIds).toEqual([]);
+    });
+  });
+
+  describe('onTroncNodeAdded', () => {
+    it('creates the tronc node standing on nobody', () => {
+      component.templateId.set('template-1'); // bypass name prompt
+
+      component.onTroncNodeAdded({ z: 1, positionType: 'segona', label: 'Segon', sortOrder: 0 });
+
+      expect(component.nodes()[0].standsOnNodeIds).toEqual([]);
+    });
+  });
+
   describe('onTroncNodeUpdated — climbIndicator', () => {
     const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
       id: 'node-1',
@@ -371,6 +593,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -539,6 +762,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: 2, originNodeId: null,
       renglaId: 'rengla-1', renglaPosition: 2,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -570,6 +794,19 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       expect(pasted.ringLevel).toBeNull();
     });
 
+    it('copy then paste and duplicate leave the new node standing on nobody', () => {
+      component.nodes.set([makePinyaNode({ zone: FigureZone.TRONC, z: 1, standsOnNodeIds: ['base-1'] })]);
+
+      component.copySelectedNode();
+      component.pasteNode();
+      component.selectedNodeId.set('node-1');
+      component.duplicateSelectedNode();
+
+      expect(component.nodes()[0].standsOnNodeIds).toEqual(['base-1']);
+      expect(component.nodes()[1].standsOnNodeIds).toEqual([]);
+      expect(component.nodes()[2].standsOnNodeIds).toEqual([]);
+    });
+
     it('keeps other properties from the source (label, color, offset position)', () => {
       component.duplicateSelectedNode();
 
@@ -590,6 +827,65 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('copy/duplicate — BASE nodes are not copyable', () => {
+    const BASE_COPY_WARNING = 'No es poden copiar les bases. Afegiu-ne una de nova amb el botó BASE.';
+    const makeBaseNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'base-1',
+      label: 'Base 1',
+      zone: FigureZone.BASE,
+      positionType: 'base',
+      x: 0.5, y: 0, z: 0,
+      width: 0.2, height: 40, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
+      metadata: {},
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      mockToast.warning.mockClear();
+      component.templateId.set('template-1'); // bypass name prompt
+      component.nodes.set([makeBaseNode()]);
+      component.selectedNodeId.set('base-1');
+      fixture.detectChanges();
+    });
+
+    it('duplicateSelectedNode does not create a node and warns', () => {
+      component.duplicateSelectedNode();
+
+      expect(component.nodes().length).toBe(1);
+      expect(mockToast.warning).toHaveBeenCalledWith(BASE_COPY_WARNING);
+    });
+
+    it('copySelectedNode does not fill the clipboard, so a later paste does nothing', () => {
+      component.copySelectedNode();
+      component.pasteNode();
+
+      expect(component.nodes().length).toBe(1);
+      expect(mockToast.warning).toHaveBeenCalledWith(BASE_COPY_WARNING);
+    });
+
+    it('copying a base keeps a previously copied node in the clipboard', () => {
+      component.nodes.update((n) => [
+        ...n,
+        makeBaseNode({ id: 'pinya-1', label: 'AGULLA', zone: FigureZone.PINYA, positionType: 'agulla', x: 100, y: 100, width: 80 }),
+      ]);
+      component.selectedNodeId.set('pinya-1');
+      component.copySelectedNode();
+
+      component.selectedNodeId.set('base-1');
+      component.copySelectedNode();
+      component.pasteNode();
+
+      expect(component.nodes().length).toBe(3);
+      expect(component.nodes()[2].label).toBe('AGULLA');
+    });
+  });
+
   describe('onGhostCloneRequested — rengla membership', () => {
     const makePinyaNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
       id: 'node-1',
@@ -603,6 +899,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -894,6 +1191,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -1069,6 +1367,7 @@ describe('nodeToPayload', () => {
     sortOrder: 0,
     climbIndicator: null, ringLevel: null, originNodeId: null,
     renglaId: null, renglaPosition: null,
+    standsOnNodeIds: [],
     metadata: {},
   };
 
@@ -1096,5 +1395,9 @@ describe('nodeToPayload', () => {
     expect(payload.renglaId).toBe('rengla-1');
     expect(payload.renglaPosition).toBe(2);
     expect(payload.originNodeId).toBe('origin-1');
+  });
+
+  it('sends standsOnNodeIds', () => {
+    expect(nodeToPayload({ ...baseNode, standsOnNodeIds: ['base-1'] }).standsOnNodeIds).toEqual(['base-1']);
   });
 });

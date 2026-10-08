@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -13,7 +13,13 @@ import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ModalComponent, ToastService } from '@muixer/ui';
+import { FigureInstanceService } from '../../../../services/figure-instance.service';
+import { CompositionService } from '../../../../services/composition.service';
+import {
+  FigurePickerModalComponent,
+  InstanceSelection,
+} from '../../../figure-picker-modal/figure-picker-modal.component';
+import { ModalComponent, THEME_NAMES, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -32,7 +38,7 @@ class StubTroncView {
   readonly heightMode = input<string>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
@@ -58,13 +64,22 @@ class StubPersonPanel {
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly searchOnly = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
   readonly unassignRequested = output<AssignmentDetail>();
   readonly navigateNode = output<-1 | 1>();
   focusSearch = vi.fn();
+}
+
+@Component({ selector: 'app-figure-picker-modal', standalone: true, template: '' })
+class StubFigurePicker {
+  readonly open = input.required<boolean>();
+  readonly segmentId = input.required<string>();
+  readonly confirmed = output<InstanceSelection[]>();
+  readonly compositionSelected = output<{ compositionId: string; compositionName: string }>();
+  readonly closed = output<void>();
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -110,6 +125,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -202,6 +218,8 @@ describe('TroncsTabComponent', () => {
     deleteAdHocNode: MockFn;
   };
   let toast: { success: MockFn; error: MockFn; info: MockFn };
+  let instanceService: { create: MockFn };
+  let compositionService: { applyToSegment: MockFn };
   let refreshSpy: ReturnType<typeof vi.spyOn>;
 
   const setup = async (opts: {
@@ -243,6 +261,12 @@ describe('TroncsTabComponent', () => {
       deleteAdHocNode: vi.fn(),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    instanceService = {
+      create: vi.fn((_e: string, _s: string, sel: InstanceSelection) =>
+        of(makeInstance(`new-${sel.figureTemplateId}`)),
+      ),
+    };
+    compositionService = { applyToSegment: vi.fn().mockReturnValue(of(segment)) };
 
     await TestBed.configureTestingModule({
       imports: [TroncsTabComponent],
@@ -262,12 +286,14 @@ describe('TroncsTabComponent', () => {
         },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
+        { provide: FigureInstanceService, useValue: instanceService },
+        { provide: CompositionService, useValue: compositionService },
         { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false) } },
       ],
     })
       .overrideComponent(TroncsTabComponent, {
-        remove: { imports: [TroncViewComponent, PersonPanelComponent] },
-        add: { imports: [StubTroncView, StubPersonPanel] },
+        remove: { imports: [TroncViewComponent, PersonPanelComponent, FigurePickerModalComponent] },
+        add: { imports: [StubTroncView, StubPersonPanel, StubFigurePicker] },
       })
       .compileComponents();
 
@@ -785,6 +811,135 @@ describe('TroncsTabComponent', () => {
     });
   });
 
+  describe('adding figures to the segment', () => {
+    const addButton = () =>
+      fixture.debugElement.query(By.css('lib-button[ariaLabel="Afig una figura o composició al segment"]'));
+    const picker = () => fixture.debugElement.query(By.directive(StubFigurePicker));
+    const openPicker = () => {
+      addButton().triggerEventHandler('clicked', undefined);
+      fixture.detectChanges();
+    };
+
+    it('shows a "Figura" button that opens the figure picker for this segment', async () => {
+      await setup();
+      expect(picker()).toBeNull();
+
+      openPicker();
+
+      expect(picker()).not.toBeNull();
+      expect((picker().componentInstance as StubFigurePicker).segmentId()).toBe(SEGMENT_ID);
+    });
+
+    it('sits right after the last tronc view in the main area, not in the toolbar', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+      });
+
+      const views = fixture.debugElement.queryAll(By.directive(StubTroncView));
+      const lastCard = (views[views.length - 1].nativeElement as HTMLElement).parentElement;
+      const tile = Array.from(lastCard?.parentElement?.children ?? []).find((child) =>
+        child.contains(addButton().nativeElement),
+      );
+      expect(tile?.previousElementSibling).toBe(lastCard);
+    });
+
+    it('hides the button when the segment is locked', async () => {
+      await setup({ locked: true });
+
+      expect(addButton()).toBeNull();
+    });
+
+    it('shows the button even when no figure has a tronc yet', async () => {
+      await setup({ nodesByInstance: { [INST_A]: [makeNode('p1', 'PINYA')] } });
+
+      expect(addButton()).not.toBeNull();
+    });
+
+    it('creates one instance per chosen figure, reloads the workspace and closes the picker', async () => {
+      await setup();
+      const reloadSpy = vi.spyOn(ws, 'reloadInstances');
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }, { figureTemplateId: 'tpl-y' }]);
+      fixture.detectChanges();
+
+      expect(instanceService.create).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-x' });
+      expect(instanceService.create).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-y' });
+      expect(reloadSpy).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("S'han afegit 2 figures.");
+      expect(picker()).toBeNull();
+    });
+
+    it('keeps the picker open and reports an error when adding fails', async () => {
+      await setup();
+      instanceService.create.mockReturnValue(throwError(() => new Error('boom')));
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }]);
+      fixture.detectChanges();
+
+      expect(toast.error).toHaveBeenCalledWith("No s'han pogut afegir les figures.");
+      expect(picker()).not.toBeNull();
+    });
+
+    it('creates the figures one after another, in pick order', async () => {
+      await setup();
+      const first = new Subject<unknown>();
+      instanceService.create.mockReturnValueOnce(first).mockReturnValueOnce(of({ id: 'i2' }));
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }, { figureTemplateId: 'tpl-y' }]);
+
+      expect(instanceService.create).toHaveBeenCalledTimes(1);
+      first.next({ id: 'i1' });
+      first.complete();
+      expect(instanceService.create).toHaveBeenNthCalledWith(2, EVENT_ID, SEGMENT_ID, { figureTemplateId: 'tpl-y' });
+    });
+
+    it('on a partial failure reloads the workspace and closes the picker, so a retry cannot duplicate figures', async () => {
+      await setup();
+      const reloadSpy = vi.spyOn(ws, 'reloadInstances');
+      instanceService.create
+        .mockReturnValueOnce(of({ id: 'i1' }))
+        .mockReturnValueOnce(throwError(() => new Error('boom')));
+      openPicker();
+
+      picker().triggerEventHandler('confirmed', [{ figureTemplateId: 'tpl-x' }, { figureTemplateId: 'tpl-y' }]);
+      fixture.detectChanges();
+
+      expect(reloadSpy).toHaveBeenCalled();
+      expect(picker()).toBeNull();
+    });
+
+    it('applies a chosen composition to the segment and reloads the workspace', async () => {
+      await setup();
+      const reloadSpy = vi.spyOn(ws, 'reloadInstances');
+      openPicker();
+
+      picker().triggerEventHandler('compositionSelected', { compositionId: 'comp-1', compositionName: 'Diada' });
+      fixture.detectChanges();
+
+      expect(compositionService.applyToSegment).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, 'comp-1');
+      expect(reloadSpy).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("S'ha aplicat la composició «Diada».");
+      expect(picker()).toBeNull();
+    });
+
+    it('closes the picker when it is dismissed', async () => {
+      await setup();
+      openPicker();
+
+      picker().triggerEventHandler('closed', undefined);
+      fixture.detectChanges();
+
+      expect(picker()).toBeNull();
+    });
+  });
+
   describe('directions', () => {
     it('adds a direction node to the given figure', async () => {
       await setup();
@@ -834,19 +989,43 @@ describe('TroncsTabComponent', () => {
   });
 
   describe('figure colors', () => {
-    it('assigns a distinct color to each figure by segment order', async () => {
+    it('colors each figure by its sortOrder, like the Pinyes canvas and the projection', async () => {
       await setup({
-        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
         nodesByInstance: {
           [INST_A]: [makeNode('n1', 'TRONC')],
           [INST_B]: [makeNode('m1', 'TRONC')],
         },
       });
 
-      const [a, b] = component.figures();
-      expect(a.color).not.toBe(b.color);
+      expect(component.figures().map((f) => f.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
+    it('frames each tronc in a light card tinted with its figure color, which the tronc panel lets through', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')] },
+      });
+      fixture.detectChanges();
+
+      const tronc: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+      const card = tronc.closest('[data-figure-card]') as HTMLElement;
+      // Pinned light like the rest of the figure rendering, until the canvas is themed (DEBT F19).
+      expect(card.dataset['theme']).toBe(THEME_NAMES.light);
+      expect(tronc.classList).toContain('bg-transparent');
+    });
+
+    it('colors a minimap box by its figure\'s sortOrder even when that figure has no tronc', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'PINYA', { z: 0, width: 40, height: 40 })],
+        },
+      });
+
+      expect(component.minimapBoxes().map((b) => [b.slotId, b.color])).toEqual([[INST_B, FIGURE_PALETTE[1]]]);
+    });
   });
 
   describe('minimap', () => {

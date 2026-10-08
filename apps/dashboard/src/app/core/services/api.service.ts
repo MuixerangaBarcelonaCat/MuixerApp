@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpContext, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -28,6 +28,11 @@ export class ApiService {
   /** Realitza una petició GET a `{baseUrl}{path}`. */
   protected get<T>(path: string, options?: HttpOptions): Observable<T> {
     return this.http.get<T>(`${this.baseUrl}${path}`, options);
+  }
+
+  /** GET d'un fitxer binari: retorna la resposta sencera perquè cal llegir capçaleres com `Content-Disposition`. */
+  protected getBlob(path: string): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${this.baseUrl}${path}`, { responseType: 'blob', observe: 'response' });
   }
 
   /** Realitza una petició POST a `{baseUrl}{path}` amb el body indicat. */

@@ -1,5 +1,6 @@
 import type { Config } from 'tailwindcss';
 import { generateCollaTheme } from './libs/ui/src/lib/tokens/theme';
+import { THEME_NAMES } from './libs/ui/src/lib/tokens/theme-names';
 import { SHADOW } from './libs/ui/src/lib/tokens/shadow';
 import { DURATION, EASE } from './libs/ui/src/lib/tokens/motion';
 import { Z_INDEX } from './libs/ui/src/lib/tokens/z-index';
@@ -67,13 +68,12 @@ export default {
       },
     },
   },
-  plugins: [require('daisyui')],
+  plugins: [require('@tailwindcss/typography'), require('daisyui')],
   daisyui: {
-    themes: [
-      { 'colla-barcelona-light': barcelona.light },
-      { 'colla-barcelona-dark': barcelona.dark },
-    ],
-    darkTheme: 'colla-barcelona-dark',
+    // Light first: it becomes the bare :root theme, dark the prefers-color-scheme fallback — so
+    // with no data-theme on <html> (the "system" preference) the OS setting picks.
+    themes: [{ [THEME_NAMES.light]: barcelona.light }, { [THEME_NAMES.dark]: barcelona.dark }],
+    darkTheme: THEME_NAMES.dark,
     base: true,
     styled: true,
     utils: true,

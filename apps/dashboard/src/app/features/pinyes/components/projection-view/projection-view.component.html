@@ -12,8 +12,10 @@
     <span class="sr-only">S'està carregant la projecció...</span>
   </div>
 } @else if (segmentData()) {
+  <!-- The figure stays on the light theme it's drawn for; the HUD on top is always dark. -->
   <div
-    class="flex flex-col overflow-hidden bg-white"
+    libThemeScope="light"
+    class="flex flex-col overflow-hidden bg-base-100"
     [class.h-screen]="!embedded()"
     [class.w-screen]="!embedded()"
     [class.h-full]="embedded()"
@@ -29,12 +31,13 @@
     <!-- ── HUD flotant ────────────────────────────────────────────────────────── -->
     @if (!embedded()) {
       <nav
-        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"
+        libThemeScope="dark"
+        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-base-200/60 text-base-content/80 text-sm backdrop-blur-sm z-50"
         aria-label="Navegació de la projecció"
       >
         <button
           type="button"
-          class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
+          class="flex items-center justify-center rounded-full hover:bg-base-content/15 p-1 transition-colors"
           (click)="goBack()"
           aria-label="Torna a l'esdeveniment"
           title="Torna a l'esdeveniment (Escape)"
@@ -42,9 +45,9 @@
           <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
         </button>
 
-        <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
+        <span class="w-px h-4 bg-base-content/20" aria-hidden="true"></span>
 
-        <span class="truncate max-w-[200px]">{{ segmentData()!.segment.name ?? 'Segment' }}</span>
+        <span class="truncate max-w-[200px]">{{ segmentTitle() }}</span>
 
         @if (segmentData()!.segment.prevSegmentId) {
           <button
@@ -54,7 +57,7 @@
             aria-label="Segment anterior"
             title="Segment anterior (←)"
           >
-            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">←</kbd>
+            <kbd class="kbd kbd-sm bg-base-content/10 border-base-content/20 text-base-content/70 cursor-pointer hover:bg-base-content/20">←</kbd>
           </button>
         }
         @if (segmentData()!.segment.nextSegmentId) {
@@ -65,15 +68,15 @@
             aria-label="Segment següent"
             title="Segment següent (→)"
           >
-            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">→</kbd>
+            <kbd class="kbd kbd-sm bg-base-content/10 border-base-content/20 text-base-content/70 cursor-pointer hover:bg-base-content/20">→</kbd>
           </button>
         }
 
-        <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
+        <span class="w-px h-4 bg-base-content/20" aria-hidden="true"></span>
 
         <button
           type="button"
-          class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
+          class="flex items-center justify-center rounded-full hover:bg-base-content/15 p-1 transition-colors"
           (click)="helpModalOpen.set(true)"
           aria-label="Ajuda de dreceres de teclat"
           title="Ajuda (?)"

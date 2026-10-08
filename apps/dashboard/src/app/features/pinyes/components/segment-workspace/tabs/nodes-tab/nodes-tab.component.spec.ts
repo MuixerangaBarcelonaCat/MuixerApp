@@ -27,7 +27,7 @@ class StubFigureCanvas {
   readonly isPlacementMode = input<boolean>(false);
   readonly placementSlotId = input<string | null>(null);
   readonly adHocNodesEditable = input<boolean>(false);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly canvasClicked = output<{ x: number; y: number }>();
   readonly segmentAdHocNodeMoved = output<SegmentNodeRef & { x: number; y: number }>();
@@ -45,7 +45,7 @@ class StubAdHocNodeProperties {
   readonly assignment = input<AssignmentDetail | null>(null);
   readonly heightMode = input<HeightMode>('relative');
   readonly attendanceStatus = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly closed = output<void>();
   readonly nodeUpdated = output<void>();
   readonly deleteRequested = output<string>();
@@ -97,6 +97,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -178,6 +179,8 @@ describe('NodesTabComponent', () => {
     instances?: InstanceDetail[];
     nodesByInstance?: Record<string, InstanceNodeItem[]>;
     assignmentsByInstance?: Record<string, AssignmentDetail[]>;
+    /** Runs after the workspace loads and before the tab is created (simulates state left by another tab). */
+    beforeCreate?: () => void;
   } = {}) => {
     const segment = makeSegment(opts.instances ?? [makeInstance(INST_A)]);
     const defaultNodes: Record<string, InstanceNodeItem[]> = opts.nodesByInstance ?? {
@@ -236,6 +239,7 @@ describe('NodesTabComponent', () => {
     ws = TestBed.inject(SegmentWorkspaceStateService);
     state = TestBed.inject(AssignmentStateService);
     ws.load(EVENT_ID, SEGMENT_ID);
+    opts.beforeCreate?.();
 
     fixture = TestBed.createComponent(NodesTabComponent);
     component = fixture.componentInstance;
@@ -289,6 +293,64 @@ describe('NodesTabComponent', () => {
     });
   });
 
+  describe('figures with no pinya (REMAT/NETA)', () => {
+    const buttonByText = (text: string): HTMLButtonElement =>
+      Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>).find(
+        (b) => b.textContent?.trim() === text,
+      )!;
+    const buttonByLabel = (label: string): HTMLButtonElement =>
+      fixture.nativeElement.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement;
+
+    it('gives a REMAT figure a slot on the canvas even though it draws nothing yet', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA'), makeNode('t1', 'TRONC')] },
+      });
+
+      expect(canvasStub().compositionSlots().map((s) => s.slotId)).toEqual([INST_A]);
+    });
+
+    it('does not show the empty-segment message when the only figure is a REMAT', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { figureMode: 'REMAT' })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA')] },
+      });
+
+      expect(fixture.nativeElement.textContent).not.toContain('Este segment no té cap figura');
+    });
+
+    it('shows the empty-segment message when the segment has no figures', async () => {
+      await setup({ instances: [] });
+
+      expect(fixture.nativeElement.textContent).toContain('Este segment no té cap figura.');
+    });
+
+    it.each(['REMAT', 'NETA'] as const)(
+      'disables the Pinya presets for a %s figure (they would be hidden) but keeps the decoration ones',
+      async (figureMode) => {
+        await setup({
+          instances: [makeInstance(INST_A, { figureMode })],
+          nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA'), makeNode('b1', 'BASE')] },
+        });
+        ws.selectInstance(INST_A);
+        fixture.detectChanges();
+
+        expect(buttonByText('AGULLA').disabled).toBe(true);
+        expect(buttonByLabel('Rectangle').disabled).toBe(false);
+        expect(fixture.nativeElement.textContent).toContain('Esta figura no té pinya.');
+      },
+    );
+
+    it('keeps the Pinya presets enabled for a COMPLETA figure', async () => {
+      await setup();
+      ws.selectInstance(INST_A);
+      fixture.detectChanges();
+
+      expect(buttonByText('AGULLA').disabled).toBe(false);
+      expect(fixture.nativeElement.textContent).not.toContain('Esta figura no té pinya.');
+    });
+  });
+
   describe('figure selection', () => {
     it('selecting a figure updates the workspace selection and clears the node selection', async () => {
       await setup({
@@ -304,6 +366,40 @@ describe('NodesTabComponent', () => {
 
       expect(ws.selectedInstanceId()).toBe(INST_B);
       expect(component.selectedRef()).toBeNull();
+    });
+
+    it('selects the first figure on entry when no figure is selected', async () => {
+      await setup({ instances: [makeInstance(INST_A), makeInstance(INST_B)] });
+
+      expect(ws.selectedInstanceId()).toBe(INST_A);
+      expect(canvasStub().placementSlotId()).toBe(INST_A);
+    });
+
+    it('selects the first figure on entry when the selected figure is not in the segment', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        beforeCreate: () => ws.selectInstance('missing-instance'),
+      });
+
+      expect(ws.selectedInstanceId()).toBe(INST_A);
+    });
+
+    it('keeps an existing valid figure selection on entry', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        beforeCreate: () => ws.selectInstance(INST_B),
+      });
+
+      expect(ws.selectedInstanceId()).toBe(INST_B);
+    });
+
+    it('creates a decoration node on the first figure when none was selected before entering', async () => {
+      await setup({ instances: [makeInstance(INST_A), makeInstance(INST_B)] });
+      component.onPresetSelected({ ...component.decorationPresets[0], requiresCustomLabel: false });
+
+      component.onCanvasClicked({ x: 10, y: 20 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(INST_A, expect.anything());
     });
   });
 

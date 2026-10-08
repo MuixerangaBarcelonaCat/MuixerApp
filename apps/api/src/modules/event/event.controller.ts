@@ -21,7 +21,6 @@ import { EventFilterDto } from './dto/event-filter.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { AttendanceFilterDto } from './dto/attendance-filter.dto';
-import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 
 @ApiTags('events')
@@ -110,45 +109,24 @@ export class EventController {
     };
   }
 
-  @Post(':id/attendance')
-  @ApiOperation({ summary: 'Crear un registre d\'assistència' })
+  @Put(':id/attendance/:personId')
+  @ApiOperation({
+    summary: 'Establir l\'assistència d\'una persona a un esdeveniment',
+    description:
+      'L\'assistència és un estat de (persona, esdeveniment): no tindre registre equival a PENDENT. ' +
+      'PENDENT sense notes per a algú sense registre no escriu res.',
+  })
   @ApiParam({ name: 'id', description: 'UUID de l\'esdeveniment' })
-  @ApiResponse({ status: 201, description: 'Assistència creada' })
+  @ApiParam({ name: 'personId', description: 'UUID de la persona' })
+  @ApiResponse({ status: 200, description: 'Assistència establida, retorna l\'assistència i el summary actualitzat' })
   @ApiResponse({ status: 404, description: 'Esdeveniment o persona no trobats' })
-  @ApiResponse({ status: 409, description: 'Ja existeix un registre per esta persona' })
-  createAttendance(
-    @Param('id', ParseUUIDPipe) eventId: string,
-    @Body() dto: CreateAttendanceDto,
-  ) {
-    return this.attendanceService.create(eventId, dto);
-  }
-
-  @Put(':id/attendance/:attendanceId')
-  @ApiOperation({ summary: 'Actualitzar un registre d\'assistència' })
-  @ApiParam({ name: 'id', description: 'UUID de l\'esdeveniment' })
-  @ApiParam({ name: 'attendanceId', description: 'UUID del registre d\'assistència' })
-  @ApiResponse({ status: 200, description: 'Assistència actualitzada' })
-  @ApiResponse({ status: 404, description: 'Registre no trobat' })
   @ApiResponse({ status: 403, description: 'Event bloquejat (cal force per sobreescriure)' })
-  updateAttendance(
+  setAttendance(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseUUIDPipe) eventId: string,
-    @Param('attendanceId', ParseUUIDPipe) attendanceId: string,
+    @Param('personId', ParseUUIDPipe) personId: string,
     @Body() dto: UpdateAttendanceDto,
   ) {
-    return this.attendanceService.update(eventId, attendanceId, dto, user.sub);
-  }
-
-  @Delete(':id/attendance/:attendanceId')
-  @ApiOperation({ summary: 'Eliminar un registre d\'assistència' })
-  @ApiParam({ name: 'id', description: 'UUID de l\'esdeveniment' })
-  @ApiParam({ name: 'attendanceId', description: 'UUID del registre d\'assistència' })
-  @ApiResponse({ status: 200, description: 'Assistència eliminada, retorna summary actualitzat' })
-  @ApiResponse({ status: 404, description: 'Registre no trobat' })
-  removeAttendance(
-    @Param('id', ParseUUIDPipe) eventId: string,
-    @Param('attendanceId', ParseUUIDPipe) attendanceId: string,
-  ) {
-    return this.attendanceService.remove(eventId, attendanceId);
+    return this.attendanceService.set(eventId, personId, dto, user.sub);
   }
 }

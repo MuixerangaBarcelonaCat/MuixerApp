@@ -1,6 +1,6 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { AttendanceStatus, DelegateType, EventType, MeEvent, UserRole } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, MeEvent, NOT_REGISTERED_STATUS, UserRole } from '@muixer/shared';
 import { EventCardComponent } from './event-card.component';
 import { EventService } from '../../services/event.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
@@ -16,7 +16,7 @@ const MOCK_ASSAIG: MeEvent = {
   attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 0 },
   myAttendance: null,
   managedAttendances: [
-    { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null, attendance: null },
+    { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null, attendance: { id: null, status: AttendanceStatus.PENDENT, respondedAt: null } },
   ],
 };
 
@@ -122,7 +122,7 @@ describe('EventCardComponent', () => {
     const multiPersonEvent: MeEvent = {
       ...MOCK_ASSAIG,
       managedAttendances: [
-        { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null, attendance: null },
+        { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null, attendance: { id: null, status: AttendanceStatus.PENDENT, respondedAt: null } },
         {
           personId: 'p-2',
           displayName: 'JoanP',
@@ -139,6 +139,21 @@ describe('EventCardComponent', () => {
     const names = fixture.nativeElement.textContent;
     expect(names).toContain('MartaP');
     expect(names).toContain('JoanP');
+  });
+
+  it('shows NO_REGISTRAT as PENDENT on the attendance button', () => {
+    const fixture = createCard({
+      ...MOCK_ASSAIG,
+      managedAttendances: [
+        {
+          personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null,
+          attendance: { id: null, status: NOT_REGISTERED_STATUS, respondedAt: null },
+        },
+      ],
+    });
+
+    const button = fixture.debugElement.query((de) => de.name === 'app-attendance-button');
+    expect(button.componentInstance.status()).toBe(AttendanceStatus.PENDENT);
   });
 
   it('should emit attendanceChanged with the eventId and personId', () => {

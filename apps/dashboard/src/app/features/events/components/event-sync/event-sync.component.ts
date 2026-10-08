@@ -13,7 +13,7 @@ import {
 import { NgClass } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { AlertComponent, ButtonComponent, CardComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, CardComponent, ThemeScopeDirective } from '@muixer/ui';
 import { SyncEvent, EventType } from '../../models/event.model';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { environment } from '../../../../../environments/environment';
@@ -24,7 +24,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   selector: 'app-event-sync',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterModule, LucideAngularModule, NgClass, AlertComponent, ButtonComponent, CardComponent],
+  imports: [RouterModule, LucideAngularModule, NgClass, AlertComponent, ButtonComponent, CardComponent, ThemeScopeDirective],
   templateUrl: './event-sync.component.html',
 })
 export class EventSyncComponent implements AfterViewInit, OnDestroy {

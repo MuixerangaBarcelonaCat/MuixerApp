@@ -10,12 +10,15 @@
       aria-hidden="true"
     >
       <span class="relative flex h-16 w-16 items-center justify-center">
+        <!-- Dark-theme tokens: a paper ring with an ink edge, the same in either page theme. The
+             mask only reads alpha, so its color keyword is irrelevant. -->
         <span
+          libThemeScope="dark"
           class="absolute inline-flex h-full w-full animate-ping rounded-full shadow-md motion-reduce:animate-none"
           style="
-            background: radial-gradient(circle farthest-side, #ffffff 0%, #ffffff 80%, #000000 100%);
-            -webkit-mask-image: radial-gradient(circle farthest-side, transparent 82%, #ffffff 88%, #ffffff 100%);
-            mask-image: radial-gradient(circle farthest-side, transparent 82%, #ffffff 88%, #ffffff 100%);
+            background: radial-gradient(circle farthest-side, oklch(var(--bc)) 0%, oklch(var(--bc)) 80%, oklch(var(--b2)) 100%);
+            -webkit-mask-image: radial-gradient(circle farthest-side, transparent 82%, black 88%, black 100%);
+            mask-image: radial-gradient(circle farthest-side, transparent 82%, black 88%, black 100%);
           "
         ></span>
       </span>
@@ -24,7 +27,8 @@
     <button
       type="button"
       data-testid="own-position-chevron"
-      class="absolute z-30 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg animate-restless motion-reduce:animate-none"
+      libThemeScope="dark"
+      class="absolute z-30 flex items-center justify-center w-9 h-9 rounded-full bg-base-200/60 backdrop-blur-sm text-base-content shadow-lg animate-restless motion-reduce:animate-none"
       [style.left.px]="chevronPos.x"
       [style.top.px]="chevronPos.y"
       [style.transform]="'translate(-50%, -50%) rotate(' + chevronAngleDeg() + 'deg)'"

@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayUnique,
+  IsArray,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -99,6 +101,18 @@ export class CreateFigureNodeDto {
   @Min(1)
   @IsOptional()
   renglaPosition?: number | null;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'TRONC only: ids of the BASE/TRONC nodes of the floor directly below (z - 1) this person stands on. ' +
+      'They must belong to the same payload.',
+  })
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('all', { each: true })
+  @IsOptional()
+  standsOnNodeIds?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

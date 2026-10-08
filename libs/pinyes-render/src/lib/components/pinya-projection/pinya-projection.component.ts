@@ -10,14 +10,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  FigureZone,
-  ImportScope,
-  computeInstanceDisplayNames,
-  getSegmentInstanceLabel,
-  isNodeVisibleByModeAndCordons,
-  OwnPositionSubject,
-} from '@muixer/shared';
+import { THEME_NAMES } from '@muixer/ui';
+import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
@@ -25,6 +19,7 @@ import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.comp
 import { TroncPanelMeasurerComponent, TroncPanelMeasureSpec } from '../tronc-panel-measurer/tronc-panel-measurer.component';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 import { pivotNodesFor } from '../../utils/segment-assignment-render.util';
+import { rematMarkerNode } from '../../utils/remat-marker.util';
 import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
@@ -64,11 +59,14 @@ interface DistributionTroncPanel {
   selector: 'lib-pinya-projection',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'contents' },
+  host: { class: 'contents', '[attr.data-theme]': 'pinnedTheme' },
   imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
+  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
+  protected readonly pinnedTheme = THEME_NAMES.light;
+
   readonly data = input.required<ProjectionSegmentData>();
 
   /** Restricts rendering to a single figure. `null` renders the whole segment. */
@@ -76,6 +74,12 @@ export class PinyaProjectionComponent {
 
   /** Forwarded to FigureCanvasComponent — see its own doc comment. */
   readonly showZoomControls = input<boolean>(true);
+
+  /**
+   * Before / on / after the event day, for the attendance colours and hover labels. Defaults to
+   * 'after': a projection has always read attendance as arrivals.
+   */
+  readonly phase = input<EventPhase>('after');
 
   /**
    * The viewer's own `Person.id` — enables the "you are here" banner. `null` (the default, and
@@ -146,6 +150,13 @@ export class PinyaProjectionComponent {
   });
 
   /**
+   * The neutral single-figure colors are for a segment that holds one figure — not for the
+   * Dashboard's single-figure preview (`instanceId`) of a larger one, where the figure keeps the
+   * color it has everywhere else.
+   */
+  private readonly isSingleFigureSegment = computed(() => this.data().instances.length === 1);
+
+  /**
    * Per-instance display names for the whole segment: a figure sharing its name with another in
    * the same segment gets a trailing ordinal («Pilar 1», «Pilar 2»), a unique one stays bare.
    * Keyed off the raw `data().instances` (never `filteredInstances()`) so the Dashboard's
@@ -166,7 +177,7 @@ export class PinyaProjectionComponent {
    * Every assignment `highlightPersonId` holds in this segment, against the raw, unfiltered
    * `data()` — deliberately not `filteredInstances()`, which exists for the Dashboard's
    * single-figure preview route (`instanceId`) and would silently misreport
-   * `figureName`/`instanceIndex` if a placement happened to live outside the filter. The two
+   * `figureName`/`figureSortOrder` if a placement happened to live outside the filter. The two
    * inputs are never set together in practice (the Dashboard never passes `highlightPersonId`,
    * the PWA never sets `instanceId`), so this only matters for correctness, not behaviour today.
    */
@@ -300,7 +311,7 @@ export class PinyaProjectionComponent {
       return new Map();
     }
     const specs = instances.map((inst) => {
-      const pivotNodes = pivotNodesFor(inst.nodes);
+      const pivotNodes = this.visiblePivotNodes(inst);
       const occupiedNodes = this.getInstanceProjectionNodes(inst);
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
       return {
@@ -391,7 +402,7 @@ export class PinyaProjectionComponent {
       // Compute the figure's rotation pivot — the center of its PINYA+BASE bounding box
       // (ad-hoc excluded — pivotNodesFor, same as everywhere else). This matches the
       // offsetX/Y the distribution editor applies to the Konva group.
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       let centerX = 0;
       let centerY = 0;
       if (pinyaBaseNodes.length > 0) {
@@ -459,7 +470,7 @@ export class PinyaProjectionComponent {
       // Linked: panel sits above the figure's pinya top edge (pivotNodesFor: ad-hoc
       // excluded — otherwise an extra node far from the real pinya inflates this
       // half-height and pushes the panel away from it).
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
       const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
       const figHalfH = (mxY - mnY) / 2;
@@ -494,9 +505,9 @@ export class PinyaProjectionComponent {
     );
     const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
     const totalScale = distScale * stageScale;
-    const singleFigure = instances.length === 1;
+    const singleFigure = this.isSingleFigureSegment();
 
-    return instances.map((inst, instIndex) => {
+    return instances.map((inst) => {
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
 
       // Figure center in canvas-world coords (matches distributionNodes() computation).
@@ -509,7 +520,7 @@ export class PinyaProjectionComponent {
 
       // Figure visual half-height (world coords → screen via totalScale). pivotNodesFor:
       // ad-hoc excluded, same reasoning as distributionFitBounds above.
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
       const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
       const figHalfH = (mxY - mnY) / 2;
@@ -528,7 +539,7 @@ export class PinyaProjectionComponent {
         screenY = figScreenY - figHalfH * totalScale - naturalH * totalScale - TRONC_GAP_PX * totalScale;
       }
 
-      const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(instIndex);
+      const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(inst.sortOrder);
       const borderColor = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : color;
       return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color, borderColor };
     });
@@ -543,10 +554,10 @@ export class PinyaProjectionComponent {
       this.containerHeight(),
     );
 
-    const singleFigure = instances.length === 1;
+    const singleFigure = this.isSingleFigureSegment();
 
-    return instances.flatMap((inst, instIndex) => {
-      const color = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : getFigureColor(instIndex);
+    return instances.flatMap((inst) => {
+      const color = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : getFigureColor(inst.sortOrder);
       const projX = inst.projectionX ?? 0;
       const projY = inst.projectionY ?? 0;
       const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;
@@ -555,7 +566,7 @@ export class PinyaProjectionComponent {
 
       // pivotNodesFor: must match distributionNodes()'s pivot exactly, or the glow is
       // centered on a different point than the nodes it sits behind.
-      const pinyaBaseNodes = pivotNodesFor(inst.nodes);
+      const pinyaBaseNodes = this.visiblePivotNodes(inst);
       let centerX = 0, centerY = 0;
       if (pinyaBaseNodes.length > 0) {
         const mnX = Math.min(...pinyaBaseNodes.map((n) => n.x - n.width / 2));
@@ -656,6 +667,28 @@ export class PinyaProjectionComponent {
 
   // ── Node data accessors ───────────────────────────────────────────────────
 
+  /** The figure's own nodes plus, for a REMAT figure, the marker drawn where it stands (never stored). */
+  private nodesWithRematMarker(instance: ProjectionInstance): InstanceNodeItem[] {
+    const marker = rematMarkerNode({
+      instanceId: instance.id,
+      figureMode: instance.figureMode,
+      sortOrder: instance.sortOrder,
+      nodes: instance.nodes,
+    });
+    return marker ? [marker, ...instance.nodes] : instance.nodes;
+  }
+
+  /**
+   * A figure's rotation pivot nodes: PINYA+BASE (`pivotNodesFor`) among those its `figureMode`
+   * shows — the same set Distribució and the segment workspace pivot on. A REMAT figure shows
+   * neither, so it pivots on its marker instead. Cordons aren't applied here: they never move a
+   * pinya's center.
+   */
+  private visiblePivotNodes(instance: ProjectionInstance): InstanceNodeItem[] {
+    const opts = { figureMode: instance.figureMode, numberOfCordons: null, cordonsObertsEnabled: true };
+    return pivotNodesFor(this.nodesWithRematMarker(instance).filter((n) => isNodeVisibleByModeAndCordons(n, opts)));
+  }
+
   /** Nodes to render on the Konva canvas: PINYA + BASE + DECORATION (spatial x,y nodes).
    *  Excludes TRONC/DIRECTION (shown in tronc header) and unassigned PINYA nodes.
    *  BASE nodes are excluded for REMAT (kept for NETA — only PINYA strips there), via the
@@ -665,7 +698,8 @@ export class PinyaProjectionComponent {
    *  reducing cordons does not auto-unassign anyone server-side, but the
    *  structure physically doesn't have that cordon anymore. cordo-obert nodes
    *  are exempt (matches Distribució's filterNodesByFigureMode keepCordoObert).
-   *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
+   *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla.
+   *  A REMAT figure also gets its marker (`rematMarkerNode`). */
   getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
     const isBaseVisible = (n: InstanceNodeItem) =>
@@ -689,7 +723,7 @@ export class PinyaProjectionComponent {
           : undefined,
     );
 
-    return instance.nodes
+    return this.nodesWithRematMarker(instance)
       .filter((n) =>
         (n.zone === FigureZone.PINYA || (n.zone === FigureZone.BASE && isBaseVisible(n)) || n.zone === FigureZone.DECORATION) &&
         !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)) &&

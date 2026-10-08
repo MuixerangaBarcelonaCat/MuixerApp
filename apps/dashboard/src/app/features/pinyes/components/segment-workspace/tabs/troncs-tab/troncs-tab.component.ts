@@ -1,15 +1,17 @@
-import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, figureCardTint, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
-import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
+import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
+import { FigurePickerModalComponent, InstanceSelection } from '../../../figure-picker-modal/figure-picker-modal.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
+import { SegmentFigureAddService } from '../../../../services/segment-figure-add.service';
 import { SegmentAssignmentActionsService } from '../../../../services/segment-assignment-actions.service';
-import { ButtonComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, ModalComponent, ThemeScopeDirective, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import {
@@ -17,7 +19,7 @@ import {
   pickAdjacentNode,
   pickNextAssignableNode,
 } from '../../../../utils/assignment-order.util';
-import { DIRECTION_NODE_PRESETS, FigureZone, isNodeVisibleByModeAndCordons } from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, FigureZone, isNodeVisibleByModeAndCordons, EventPhase } from '@muixer/shared';
 
 interface TroncFigure {
   instance: WorkspaceInstance;
@@ -25,6 +27,7 @@ interface TroncFigure {
   baseNodes: TroncNodeItem[];
   directionNodes: TroncNodeItem[];
   color: string;
+  tint: { background: string; border: string };
 }
 
 /**
@@ -35,7 +38,7 @@ interface TroncFigure {
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, NgTemplateOutlet],
+  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet, ThemeScopeDirective],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -46,11 +49,12 @@ export class TroncsTabComponent implements OnInit {
   private readonly actions = inject(SegmentAssignmentActionsService);
   private readonly toast = inject(ToastService);
   private readonly undoRedo = inject(UndoRedoService);
+  private readonly figureAdd = inject(SegmentFigureAddService);
 
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
 
-  readonly isPast = input(false);
+  readonly phase = input<EventPhase>('before');
 
   /** Emitted when "Anar-hi" targets a node that only exists in the Pinyes tab. */
   readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
@@ -103,6 +107,7 @@ export class TroncsTabComponent implements OnInit {
   }
 
   readonly MapIcon = MapIcon;
+  readonly Plus = Plus;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
 
@@ -256,7 +261,7 @@ export class TroncsTabComponent implements OnInit {
   readonly figures = computed<TroncFigure[]>(() =>
     this.ws
       .instances()
-      .map((instance, index) => {
+      .map((instance) => {
         const visible = this.ws.visibleNodesFor(instance);
         return {
           instance,
@@ -267,7 +272,8 @@ export class TroncsTabComponent implements OnInit {
           directionNodes: visible.filter(
             (n) => n.zone === FigureZone.DIRECTION,
           ) as unknown as TroncNodeItem[],
-          color: getFigureColor(index),
+          color: getFigureColor(instance.sortOrder),
+          tint: figureCardTint(getFigureColor(instance.sortOrder)),
         };
       })
       .filter((f) => f.troncNodes.length > 0 || f.baseNodes.length > 0 || f.directionNodes.length > 0),
@@ -279,10 +285,12 @@ export class TroncsTabComponent implements OnInit {
   readonly minimapOpen = signal(!this.isTouch());
 
   readonly minimapBoxes = computed<(FigureBoundingBox & { color: string })[]>(() => {
-    const colorBySlot = new Map(this.figures().map((f) => [f.instance.instanceId, f.color]));
+    // From the pinya slots themselves, not `figures()`: a figure with a pinya but no tronc has a
+    // box here and no tronc panel, and must still get its own color.
+    const sortOrderBySlot = new Map(this.ws.pinyaSlots().map((slot) => [slot.slotId, slot.sortOrder]));
     return computeFigureBoundingBoxes(this.ws.pinyaSlots()).map((box) => ({
       ...box,
-      color: colorBySlot.get(box.slotId) ?? getFigureColor(0),
+      color: getFigureColor(sortOrderBySlot.get(box.slotId) ?? 0),
     }));
   });
 
@@ -514,6 +522,34 @@ export class TroncsTabComponent implements OnInit {
     this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
       next: () => this.ws.refreshInstance(instanceId),
       error: () => this.toast.error("No s'ha pogut eliminar la direcció."),
+    });
+  }
+
+  // ── Add figures (same picker as the segment summary's «+ Figura») ────────
+
+  readonly figurePickerOpen = signal(false);
+
+  openFigurePicker(): void {
+    this.figurePickerOpen.set(true);
+  }
+
+  closeFigurePicker(): void {
+    this.figurePickerOpen.set(false);
+  }
+
+  onFiguresConfirmed(selections: InstanceSelection[]): void {
+    if (selections.length === 0) return;
+    this.figureAdd.addFigures(this.ws.eventId(), this.ws.segmentId(), selections).subscribe((created) => {
+      if (created.length === 0) return;
+      this.ws.reloadInstances();
+      this.closeFigurePicker();
+    });
+  }
+
+  onCompositionSelected(event: { compositionId: string; compositionName: string }): void {
+    this.figureAdd.applyComposition(this.ws.eventId(), this.ws.segmentId(), event).subscribe(() => {
+      this.ws.reloadInstances();
+      this.closeFigurePicker();
     });
   }
 

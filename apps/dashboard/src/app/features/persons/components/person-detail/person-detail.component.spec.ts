@@ -684,15 +684,15 @@ describe('PersonDetailComponent', () => {
     it('shows a titled, comma-separated "Delegacions" list for secondary managers, with a remove action each when in edit mode', () => {
       component.delegates.set([
         makeDelegateItem(),
-        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.PARTNER, user: { id: 'u2', email: 'partner@test.com', person: null } }),
+        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.GUARDIAN, user: { id: 'u2', email: 'guardian@test.com', person: null } }),
         makeDelegateItem({ id: 'del-3', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u3', email: 'aunt@test.com', person: { id: 'aunt-person', alias: 'AuntAlias', phone: null } } }),
       ]);
       component.editing.set(true);
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
       expect(text).toContain('Delegacions');
-      expect(text).toContain('partner@test.com');
-      expect(text).toContain('Parella');
+      expect(text).toContain('guardian@test.com');
+      expect(text).toContain('Tutor/a');
       expect(text).toContain('AuntAlias');
       expect(text).not.toContain('aunt@test.com');
 
@@ -706,7 +706,7 @@ describe('PersonDetailComponent', () => {
     it('does not show remove actions for delegates when not in edit mode', () => {
       component.delegates.set([
         makeDelegateItem(),
-        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.PARTNER, user: { id: 'u2', email: 'partner@test.com', person: null } }),
+        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.GUARDIAN, user: { id: 'u2', email: 'guardian@test.com', person: null } }),
       ]);
       fixture.detectChanges();
       const removeButtons = fixture.nativeElement.querySelectorAll('[aria-label^="Elimina delegat "]');
@@ -837,7 +837,6 @@ describe('PersonDetailComponent', () => {
 
     it('getDelegateTypeLabel returns correct labels, including OTHER', () => {
       expect(component.getDelegateTypeLabel(DelegateType.PARENT)).toBe('Pare/Mare');
-      expect(component.getDelegateTypeLabel(DelegateType.PARTNER)).toBe('Parella');
       expect(component.getDelegateTypeLabel(DelegateType.GUARDIAN)).toBe('Tutor/a');
       expect(component.getDelegateTypeLabel(DelegateType.OTHER)).toBe('Altres');
     });

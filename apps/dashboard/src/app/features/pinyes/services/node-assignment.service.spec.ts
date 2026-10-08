@@ -26,6 +26,15 @@ describe('NodeAssignmentService', () => {
 
   afterEach(() => httpMock.verify());
 
+  it('previewCordonsObertsImpact sends GET to /figure-instances/:id/cordons-oberts/impact', () => {
+    let result: { affectedCount: number } | undefined;
+    service.previewCordonsObertsImpact(INSTANCE_ID).subscribe((r) => (result = r));
+    const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/cordons-oberts/impact`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ affectedCount: 2 });
+    expect(result).toEqual({ affectedCount: 2 });
+  });
+
   it('getInstanceNodes sends GET to /figure-instances/:id/nodes', () => {
     service.getInstanceNodes(INSTANCE_ID).subscribe();
     const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/nodes`);

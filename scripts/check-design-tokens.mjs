@@ -8,9 +8,9 @@
  * etc. — a hardcoded color in a different syntax is still a hardcoded color, not a token, so this
  * catches it same as hex; a color FUNCTION wrapping a token reference, e.g. DaisyUI v4's own
  * `oklch(var(--p))` convention, is explicitly not a finding — that *is* the correct consume-a-token
- * pattern), and color-related Tailwind arbitrary-value syntax (bg-[...], text-[...], etc.) found
- * outside libs/ui/src/lib/tokens/ — see DESIGN_SYSTEM.md's usage rules #2/#3. Warn-only by design
- * (like `pnpm run lint:dead` / knip): Tier 3 restyling
+ * pattern), color-related Tailwind arbitrary-value syntax (bg-[...], text-[...], etc.) and Tailwind's
+ * stock palette classes (bg-white, text-gray-900, …), which ignore light/dark mode, found outside
+ * libs/ui/src/lib/tokens/ — see DESIGN_SYSTEM.md's usage rules #2/#3. Warn-only by design (like `pnpm run lint:dead` / knip): Tier 3 restyling
  * (~25 existing components, per the plan's Phase 1 audit) hasn't happened yet, so a hard fail
  * right now would block unrelated PRs on pre-existing drift, not new regressions. Always exits 0.
  * Keep this dumb on purpose: it's a regex scan, not a real CSS/TS parser — false positives (a CSS
@@ -46,6 +46,12 @@ const COLOR_FUNCTION_PATTERN = /\b(?:oklch|oklab|lab|lch|rgba?|hsla?)\(\s*(?!var
 const ARBITRARY_TAILWIND_PATTERN =
   /\b(?:bg|text|border(?:-[trblxy])?|ring(?:-offset)?|divide|outline|decoration|accent|caret|fill|stroke|from|via|to|shadow)-\[[^\]]+\]/;
 
+// Tailwind's stock palette classes (bg-white, text-black/60, border-gray-300, …) bypass the theme
+// entirely: they stay the same in light and dark mode. Theme tokens (base-*, primary, …) are the
+// replacement; a fixed-dark/light surface pins its theme with libThemeScope instead.
+const PALETTE_TAILWIND_PATTERN =
+  /\b(?:bg|text|border(?:-[trblxy])?|ring(?:-offset)?|divide|outline|decoration|caret|fill|stroke|from|via|to|shadow)-(?:white|black|(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3})\b/;
+
 function* walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'coverage') continue;
@@ -58,7 +64,7 @@ function* walk(dir) {
   }
 }
 
-/** @type {Map<string, {line: number, snippet: string, kind: 'hex' | 'color-fn' | 'arbitrary'}[]>} */
+/** @type {Map<string, {line: number, snippet: string, kind: 'hex' | 'color-fn' | 'arbitrary' | 'palette'}[]>} */
 const findings = new Map();
 
 for (const root of SCAN_ROOTS) {
@@ -75,6 +81,7 @@ for (const root of SCAN_ROOTS) {
       if (HEX_PATTERN.test(line)) add(relPath, i + 1, line.trim(), 'hex');
       if (COLOR_FUNCTION_PATTERN.test(line)) add(relPath, i + 1, line.trim(), 'color-fn');
       if (ARBITRARY_TAILWIND_PATTERN.test(line)) add(relPath, i + 1, line.trim(), 'arbitrary');
+      if (PALETTE_TAILWIND_PATTERN.test(line)) add(relPath, i + 1, line.trim(), 'palette');
     });
   }
 }
@@ -89,11 +96,11 @@ const files = [...findings.keys()].sort();
 const total = files.reduce((sum, f) => sum + findings.get(f).length, 0);
 
 if (total === 0) {
-  console.log('[design-tokens] No raw hex colors, raw CSS color-function literals, or color-related Tailwind arbitrary values found outside libs/ui/src/lib/tokens/.');
+  console.log('[design-tokens] No raw hex colors, raw CSS color-function literals, color-related Tailwind arbitrary values or Tailwind palette colors found outside libs/ui/src/lib/tokens/.');
   process.exit(0);
 }
 
-console.log(`[design-tokens] ${total} finding(s) across ${files.length} file(s) — raw hex / color-function / arbitrary color values outside token files.`);
+console.log(`[design-tokens] ${total} finding(s) across ${files.length} file(s) — raw hex / color-function / arbitrary / palette color values outside token files.`);
 console.log('[design-tokens] Warn-only (Phase 6.1): does not fail CI. See docs/DESIGN_SYSTEM.md usage rules #2/#3.\n');
 
 for (const file of files) {

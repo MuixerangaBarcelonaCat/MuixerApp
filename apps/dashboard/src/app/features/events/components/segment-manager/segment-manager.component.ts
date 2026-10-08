@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceDetail, FigureMode, InstanceTroncSummary, TroncFloorData, MoveInstanceResult, EventFigureSummary, FigureAreaCount, SegmentPeopleCounters } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceDetail, FigureMode, InstanceTroncSummary, TroncFloorData, MoveInstanceResult, EventFigureSummary, FigureAreaCount, SegmentPeopleCounters, SegmentConflict } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,20 +13,21 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS, ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '../../../../shared/constants/domain-icons';
 import {
-  ICON_OBSERVACIONS,
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
   getSegmentInstanceLabel,
   formatDirectionNames,
+  formatTroncSummary,
   DIRECCIO_PINYA_POSITION_TYPE,
+  type EventPhase,
 } from '@muixer/shared';
 import { forkJoin } from 'rxjs';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
-import { CompositionService } from '../../../pinyes/services/composition.service';
+import { SegmentFigureAddService } from '../../../pinyes/services/segment-figure-add.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService, AlertComponent, ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, ModalComponent, InputComponent, SelectComponent } from '@muixer/ui';
 import {
@@ -35,6 +36,7 @@ import {
 } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
 import { FigureModeChangeComponent } from '../../../pinyes/components/figure-mode-change/figure-mode-change.component';
 import { CordonsChangeComponent } from '../../../pinyes/components/cordons-change/cordons-change.component';
+import { SegmentConflictPillComponent } from '../segment-conflict-pill/segment-conflict-pill.component';
 import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 export type ViewMode = FiguresViewMode;
@@ -65,13 +67,15 @@ interface PendingInstanceRemoval {
     FigurePickerModalComponent,
     FigureModeChangeComponent,
     CordonsChangeComponent,
+    SegmentConflictPillComponent,
   ],
   templateUrl: './segment-manager.component.html',
 })
 export class SegmentManagerComponent implements OnInit {
   eventId = input.required<string>();
   isLocked = input<boolean>(false);
-  isPast = input<boolean>(false);
+  /** Before / on / after the event day — handed to the assignment workshop. */
+  phase = input<EventPhase>('before');
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_PERSONA = ICON_PERSONA;
   readonly ICON_COMPOSITION = ICON_COMPOSITION;
@@ -79,12 +83,12 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
   readonly ICON_RENGLA = ICON_RENGLA;
+  readonly ICON_CORDONS_OBERTS = DOMAIN_ICONS.CORDONS_OBERTS;
   readonly ICON_DIRECCIO = ICON_DIRECCIO;
-  readonly ICON_CONFLICT = ICON_OBSERVACIONS;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
-  private readonly compositionService = inject(CompositionService);
+  private readonly figureAdd = inject(SegmentFigureAddService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -124,6 +128,8 @@ export class SegmentManagerComponent implements OnInit {
   private readonly figuresBySegment = signal<Map<string, EventFigureSummary[]>>(new Map());
   /** Segment-level dotació/conflict counters (Phase 3). Empty in production until Phase 5. */
   private readonly conflictsBySegment = signal<Map<string, SegmentPeopleCounters>>(new Map());
+  /** Who is in conflict and where, per segment — feeds the conflict pill's hover list. */
+  private readonly conflictListBySegment = signal<Map<string, SegmentConflict[]>>(new Map());
   private readonly figureSummaryByInstance = computed(() => {
     const map = new Map<string, EventFigureSummary>();
     for (const figures of this.figuresBySegment().values()) {
@@ -149,6 +155,7 @@ export class SegmentManagerComponent implements OnInit {
       next: (summary) => {
         this.figuresBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.figures])));
         this.conflictsBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.conflicts])));
+        this.conflictListBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.conflictList])));
       },
       error: () => undefined,
     });
@@ -445,28 +452,12 @@ export class SegmentManagerComponent implements OnInit {
     const segmentId = this.pickerSegmentId();
     if (!segmentId || selections.length === 0) return;
 
-    forkJoin(
-      selections.map((sel) =>
-        this.instanceService.create(this.eventId(), segmentId, sel),
-      ),
-    ).subscribe({
-      next: (instances) => {
-        this.segments.update((list) =>
-          list.map((s) =>
-            s.id === segmentId
-              ? { ...s, instances: [...s.instances, ...instances] }
-              : s,
-          ),
-        );
-        const count = instances.length;
-        this.toast.success(
-          count === 1
-            ? '1 figura afegida.'
-            : `${count} figures afegides.`,
-        );
-        this.closePicker();
-      },
-      error: () => this.toast.error('Error en afegir les figures.'),
+    this.figureAdd.addFigures(this.eventId(), segmentId, selections).subscribe((created) => {
+      if (created.length === 0) return;
+      this.segments.update((list) =>
+        list.map((s) => (s.id === segmentId ? { ...s, instances: [...s.instances, ...created] } : s)),
+      );
+      this.closePicker();
     });
   }
 
@@ -474,15 +465,9 @@ export class SegmentManagerComponent implements OnInit {
     const segmentId = this.pickerSegmentId();
     if (!segmentId) return;
 
-    this.compositionService.applyToSegment(this.eventId(), segmentId, event.compositionId).subscribe({
-      next: (updatedSegment) => {
-        this.segments.update((list) =>
-          list.map((s) => (s.id === segmentId ? updatedSegment : s)),
-        );
-        this.toast.success(`Composició «${event.compositionName}» aplicada.`);
-        this.closePicker();
-      },
-      error: () => this.toast.error('No s\'ha pogut aplicar la composició.'),
+    this.figureAdd.applyComposition(this.eventId(), segmentId, event).subscribe((updatedSegment) => {
+      this.segments.update((list) => list.map((s) => (s.id === segmentId ? updatedSegment : s)));
+      this.closePicker();
     });
   }
 
@@ -628,6 +613,11 @@ export class SegmentManagerComponent implements OnInit {
     this.cordonsChange.request(instance.id, next);
   }
 
+  /** On → off previews the impact and confirms if it would unassign people; off → on applies directly. */
+  onCordonsObertsToggle(instance: InstanceDetail): void {
+    this.cordonsChange.requestCordonsOberts(instance.id, !instance.cordonsObertsEnabled);
+  }
+
   onCordonsChangeApplied(): void {
     // assignedCount/pinyaAssignedCount/totalCordons and the per-figure "needed people" label
     // all depend on which nodes the new cordon count keeps visible — refresh both without
@@ -673,9 +663,8 @@ export class SegmentManagerComponent implements OnInit {
     return `${this.formatAreaCount(pinya)} pinyes, ${totalPart}`;
   }
 
-  /** People holding >1 placement in the segment (Phase 3). 0 in production until Phase 5. */
-  segmentConflictCount(segment: SegmentDetail): number {
-    return this.conflictsBySegment().get(segment.id)?.conflictPersonCount ?? 0;
+  segmentConflicts(segment: SegmentDetail): SegmentConflict[] {
+    return this.conflictListBySegment().get(segment.id) ?? [];
   }
 
   /** Tooltip with dotació per àrea (distinct people at tronc / pinya). Null when no summary. */
@@ -716,34 +705,7 @@ export class SegmentManagerComponent implements OnInit {
 
   troncSummaryText(instance: InstanceDetail): string | null {
     const floors = this.troncData().get(instance.id);
-    if (!floors || floors.length === 0) return null;
-
-    let displayFloors = [...floors].sort((a, b) => {
-      if (a.isBase && !b.isBase) return -1;
-      if (!a.isBase && b.isBase) return 1;
-      return a.z - b.z;
-    });
-
-    if (instance.figureMode === 'REMAT') {
-      displayFloors = displayFloors.filter((f) => !f.isBase);
-    }
-
-    if (instance.figureMode === 'PEU') {
-      let lastAssignedIdx = -1;
-      for (let i = displayFloors.length - 1; i >= 0; i--) {
-        if (displayFloors[i].slots.some((s) => s !== null)) {
-          lastAssignedIdx = i;
-          break;
-        }
-      }
-      displayFloors = lastAssignedIdx >= 0 ? displayFloors.slice(0, lastAssignedIdx + 1) : [];
-    }
-
-    if (displayFloors.length === 0) return null;
-
-    return displayFloors
-      .map((f) => f.slots.map((s) => s ?? '?').join(' - '))
-      .join(' // ');
+    return floors ? formatTroncSummary(floors, instance.figureMode) : null;
   }
 
   /**
@@ -807,7 +769,7 @@ export class SegmentManagerComponent implements OnInit {
       route.push(instanceId);
     }
     const qp: Record<string, string> = { returnUrl: this.currentReturnUrl() };
-    if (this.isPast()) qp['past'] = '1';
+    if (this.phase() !== 'before') qp['phase'] = this.phase();
     if (this.viewMode() === 'troncs') qp['tab'] = 'troncs';
     this.router.navigate(route, { queryParams: qp });
   }

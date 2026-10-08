@@ -12,6 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
@@ -19,10 +20,12 @@ import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
+import { SupportLink } from './tronc-support-editor/tronc-support-editor.model';
+import { TroncSupportEditorComponent } from './tronc-support-editor/tronc-support-editor.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
-import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS, sanitizeStandsOn } from '@muixer/shared';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { NodeDpadComponent } from '../../../../shared/components/controls/node-dpad/node-dpad.component';
 import { NodeActionsComponent } from '../../../../shared/components/controls/node-actions/node-actions.component';
@@ -52,10 +55,12 @@ const DEFAULT_NODE_HEIGHT = 40;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
+    NgTemplateOutlet,
     LucideAngularModule,
     TabsComponent,
     FigureCanvasComponent,
     TroncViewComponent,
+    TroncSupportEditorComponent,
     TemplateEditorHelpModalComponent,
     RenglaOverlayComponent,
     ColorPickerComponent,
@@ -147,6 +152,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
   troncEditMode = signal(false);
+  /** The Tronc tab takes the whole editor below the top bar (preview keeps showing the canvas). */
+  readonly troncWorkspaceOpen = computed(() => this.troncEditMode() && !this.previewMode());
 
   // Quick actions panel (tablet-sticky / desktop-collapsable).
   // Defaults to expanded; persisted per-browser via localStorage.
@@ -159,11 +166,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   // Ad-hoc instance awareness
   readonly adHocInstanceCount = signal(0);
   readonly adHocBannerDismissed = signal(false);
-
-  // Floating tronc panel drag state
-  readonly troncPanelPos = signal({ x: 16, y: 60 });
-  private troncDragging = false;
-  private troncDragOffset = { x: 0, y: 0 };
 
   // Icons
   readonly Undo2 = Undo2;
@@ -356,6 +358,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: null,
         renglaPosition: null,
+        standsOnNodeIds: [],
         metadata: {},
       };
       this.nodes.update((n) => [...n, newNode]);
@@ -394,6 +397,24 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     this.scheduleAutosave();
   }
 
+  // ── Tronc structure (who stands on whom) ──────────────────────────────────
+
+  onSupportLinkAdded({ upperId, lowerId }: SupportLink): void {
+    const upper = this.nodes().find((n) => n.id === upperId);
+    if (!upper || upper.standsOnNodeIds.includes(lowerId)) return;
+    this.pushSnapshot('Afegir enllaç del tronc');
+    this.updateNode(upperId, { standsOnNodeIds: [...upper.standsOnNodeIds, lowerId] });
+    this.scheduleAutosave();
+  }
+
+  onSupportLinkRemoved({ upperId, lowerId }: SupportLink): void {
+    const upper = this.nodes().find((n) => n.id === upperId);
+    if (!upper?.standsOnNodeIds.includes(lowerId)) return;
+    this.pushSnapshot('Eliminar enllaç del tronc');
+    this.updateNode(upperId, { standsOnNodeIds: upper.standsOnNodeIds.filter((id) => id !== lowerId) });
+    this.scheduleAutosave();
+  }
+
   // ── Base node events (from tronc widget bases section) ────────────────────
 
   onBaseNodeAdded(event: { sortOrder: number }): void {
@@ -421,6 +442,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: null,
         renglaPosition: null,
+        standsOnNodeIds: [],
         metadata: {},
       };
       this.nodes.update((n) => [...n, newNode]);
@@ -498,6 +520,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: null,
         renglaPosition: null,
+        standsOnNodeIds: [],
         metadata: {},
       };
       this.nodes.update((n) => [...n, newNode]);
@@ -507,33 +530,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
     if (!this.requireName(doAdd)) return;
     doAdd();
-  }
-
-  // ── Tronc panel drag ─────────────────────────────────────────────────────
-
-  onTroncDragStart(event: MouseEvent): void {
-    if ((event.target as HTMLElement).closest('button')) return;
-    this.troncDragging = true;
-    const pos = this.troncPanelPos();
-    this.troncDragOffset = {
-      x: event.clientX - pos.x,
-      y: event.clientY - pos.y,
-    };
-    event.preventDefault();
-  }
-
-  @HostListener('document:mousemove', ['$event'])
-  onTroncDragMove(event: MouseEvent): void {
-    if (!this.troncDragging) return;
-    this.troncPanelPos.set({
-      x: event.clientX - this.troncDragOffset.x,
-      y: event.clientY - this.troncDragOffset.y,
-    });
-  }
-
-  @HostListener('document:mouseup')
-  onTroncDragEnd(): void {
-    this.troncDragging = false;
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -616,8 +612,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
     const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
     if (ARROW_KEYS.includes(event.key)) {
-      const id = this.selectedNodeId();
-      if (!id) return;
+      const node = this.selectedNode();
+      // TRONC x/width are relative units, stepped by the tronc panel's own controls — moving them
+      // here by canvas pixels would push them off the grid.
+      if (!node || node.zone === FigureZone.TRONC) return;
       event.preventDefault();
       this.moveSelectedNodeByKey(event.key, event.shiftKey);
     }
@@ -701,10 +699,18 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return Math.max(...siblings.map((n) => n.renglaPosition!));
   }
 
-  copySelectedNode(): void {
+  /** Returns whether the node landed in the clipboard. */
+  copySelectedNode(): boolean {
     const node = this.selectedNode();
-    if (!node) return;
+    if (!node) return false;
+    // A copied base would keep the source's label/sortOrder, so it would
+    // carry the wrong number — new bases must come from the BASE button.
+    if (node.zone === FigureZone.BASE) {
+      this.toast.warning('No es poden copiar les bases. Afegiu-ne una de nova amb el botó BASE.');
+      return false;
+    }
     this.clipboardNode.set(node);
+    return true;
   }
 
   pasteNode(): void {
@@ -723,6 +729,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         renglaId: null,
         renglaPosition: null,
         ringLevel: null,
+        // The copy sits elsewhere, so it can't stand on whoever the source stands on.
+        standsOnNodeIds: [],
       };
       this.nodes.update((n) => [...n, newNode]);
       this.selectedNodeId.set(newNode.id);
@@ -735,7 +743,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   }
 
   duplicateSelectedNode(): void {
-    this.copySelectedNode();
+    if (!this.copySelectedNode()) return;
     this.pasteNode();
   }
 
@@ -1062,6 +1070,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: source.renglaId,
         renglaPosition: newRenglaPosition,
+        standsOnNodeIds: [],
         metadata: {},
       };
 
@@ -1165,7 +1174,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return {
       name: this.templateName().trim(),
       description: this.templateDescription().trim() || undefined,
-      nodes: this.nodes().map(nodeToPayload),
+      // Deleting or moving a node can leave links that no longer hold; drop them instead of
+      // letting the server reject the whole save.
+      nodes: sanitizeStandsOn(this.nodes()).map(nodeToPayload),
       rengles: this.rengles(),
     };
   }
@@ -1239,6 +1250,7 @@ export function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     originNodeId: node.originNodeId,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
+    standsOnNodeIds: node.standsOnNodeIds,
     metadata: node.metadata,
   };
 }

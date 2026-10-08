@@ -13,6 +13,8 @@ export interface InstanceDetail {
   totalCordons: number | null;
   numberOfCordons: number | null;
   cordonsObertsEnabled: boolean;
+  /** Whether the template has any cordo-obert nodes — false means there's nothing to toggle. */
+  hasCordonsOberts: boolean;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
@@ -62,9 +64,9 @@ export interface CreateInstancePayload {
   label?: string;
 }
 
+/** No `sortOrder`: order is only written through the reorder endpoint, which keeps it unique. */
 export interface UpdateInstancePayload {
   label?: string | null;
-  sortOrder?: number;
   figureMode?: FigureMode;
 }
 

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { CREASE, readableContentOn } from '@muixer/ui';
 import { ColorPickerComponent } from './color-picker.component';
 
 describe('ColorPickerComponent', () => {
@@ -28,6 +29,35 @@ describe('ColorPickerComponent', () => {
       const swatch = el.querySelector<HTMLElement>('[data-testid="color-picker-swatch"]');
       expect(swatch).toBeTruthy();
       expect(swatch!.style.backgroundColor).toBeTruthy();
+    });
+
+    it('fills the swatch with the crease token while no color is set', () => {
+      fixture.componentRef.setInput('color', null);
+      fixture.detectChanges();
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = CREASE.light;
+
+      const swatch = el.querySelector<HTMLElement>('[data-testid="color-picker-swatch"]');
+      expect(swatch!.style.backgroundColor).toBe(probe.style.backgroundColor);
+    });
+
+    it('draws the hover pencil in a color that stays readable on the current fill', () => {
+      // Normalize through the same style engine the template binding goes through.
+      const expected = (hex: string) => {
+        const probe = document.createElement('span');
+        probe.style.color = readableContentOn(hex);
+        return probe.style.color;
+      };
+      const pencil = () => el.querySelector('[data-testid="color-picker-pencil"]') as HTMLElement;
+
+      fixture.componentRef.setInput('color', '#F5E663');
+      fixture.detectChanges();
+      expect(pencil().style.color).not.toBe('');
+      expect(pencil().style.color).toBe(expected('#F5E663'));
+
+      fixture.componentRef.setInput('color', '#1E3A8A');
+      fixture.detectChanges();
+      expect(pencil().style.color).toBe(expected('#1E3A8A'));
     });
 
     it('opens the popover on click', () => {

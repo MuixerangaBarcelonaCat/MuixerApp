@@ -5,10 +5,8 @@ import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
   AttendanceItem,
   AttendanceFilterParams,
-  CreateAttendancePayload,
-  UpdateAttendancePayload,
+  SetAttendancePayload,
   AttendanceCrudResponse,
-  AttendanceDeleteResponse,
 } from '../models/attendance.model';
 import { PaginatedResponse } from '../models/event.model';
 
@@ -26,22 +24,11 @@ export class AttendanceService extends ApiService {
     return this.get<PaginatedResponse<AttendanceItem>>(`/events/${eventId}/attendance`, { params });
   }
 
-  /** Crea un registre d'assistència. Retorna el nou registre i el summary actualitzat. Falla si ja existeix (409). */
-  create(eventId: string, payload: CreateAttendancePayload): Observable<AttendanceCrudResponse> {
-    return this.post<AttendanceCrudResponse>(`/events/${eventId}/attendance`, payload);
-  }
-
-  /** Actualitza l'estat i/o les notes d'un registre. Retorna el registre modificat i el summary recalculat. */
-  update(
-    eventId: string,
-    attendanceId: string,
-    payload: UpdateAttendancePayload,
-  ): Observable<AttendanceCrudResponse> {
-    return this.put<AttendanceCrudResponse>(`/events/${eventId}/attendance/${attendanceId}`, payload);
-  }
-
-  /** Elimina un registre d'assistència. Retorna el summary actualitzat de l'event. */
-  remove(eventId: string, attendanceId: string): Observable<AttendanceDeleteResponse> {
-    return this.delete<AttendanceDeleteResponse>(`/events/${eventId}/attendance/${attendanceId}`);
+  /**
+   * Estableix l'assistència d'una persona a l'event (amb registre o sense: no tindre'n equival a
+   * PENDENT). Retorna l'assistència i el summary recalculat.
+   */
+  set(eventId: string, personId: string, payload: SetAttendancePayload): Observable<AttendanceCrudResponse> {
+    return this.put<AttendanceCrudResponse>(`/events/${eventId}/attendance/${personId}`, payload);
   }
 }

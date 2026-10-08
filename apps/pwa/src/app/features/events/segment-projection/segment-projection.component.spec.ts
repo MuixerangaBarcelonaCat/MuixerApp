@@ -10,6 +10,7 @@ import {
   ProjectionInstance,
   ProjectionSegmentData,
 } from '@muixer/pinyes-render';
+import { THEME_NAMES } from '@muixer/ui';
 import { SegmentProjectionComponent } from './segment-projection.component';
 import { ProjectionService } from '../services/projection.service';
 import { LayoutService } from '../../../core/services/layout.service';
@@ -262,6 +263,27 @@ describe('SegmentProjectionComponent', () => {
         ['/events', 'ev-1', 'segments', 'seg-2'],
         expect.objectContaining({ replaceUrl: true }),
       );
+    });
+  });
+
+  describe('theme', () => {
+    const themeOf = (el: Element | null) => el?.closest('[data-theme]')?.getAttribute('data-theme') ?? null;
+    const withPeople = () => of(makeData({ instances: [makeInstance([makeAssignment(makePerson({ id: 'p-x', alias: 'Xavi' }))])] }));
+
+    it('keeps the figure on the light theme, which the canvas is drawn for', async () => {
+      fixture = await setup(withPeople());
+      expect(themeOf(fixture.nativeElement.querySelector('lib-pinya-projection'))).toBe(THEME_NAMES.light);
+    });
+
+    it('draws the HUD controls dark in either page theme', async () => {
+      fixture = await setup(withPeople());
+      expect(themeOf(fixture.nativeElement.querySelector('nav[aria-label="Navegació de la projecció"]'))).toBe(THEME_NAMES.dark);
+      expect(themeOf(fixture.nativeElement.querySelector('[aria-label="Cerca una persona"]'))).toBe(THEME_NAMES.dark);
+    });
+
+    it('lets the person picker follow the page theme', async () => {
+      fixture = await setup(withPeople());
+      expect(themeOf(fixture.nativeElement.querySelector('lib-modal'))).toBeNull();
     });
   });
 

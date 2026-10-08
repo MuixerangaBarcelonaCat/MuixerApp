@@ -60,6 +60,7 @@ const mockAssignmentService: Partial<NodeAssignmentService> = {
   bulkImport: jest.fn().mockResolvedValue({ created: [mockAssignment], conflicts: [] }),
   getHistory: jest.fn().mockResolvedValue([mockHistoryEntry]),
   getSegmentConflicts: jest.fn().mockResolvedValue(mockConflictsResponse),
+  previewCordonsObertsDisable: jest.fn().mockResolvedValue(0),
 };
 
 const mockAvailablePersonsService: Partial<AvailablePersonsService> = {
@@ -215,6 +216,17 @@ describe('NodeAssignmentController', () => {
       // Single composite resource: no { data } envelope, no pagination meta.
       expect(result).toEqual(mockParticipationOverview);
       expect(mockParticipationService.getEventParticipation).toHaveBeenCalledWith(EVENT_ID);
+    });
+  });
+
+  describe('previewCordonsObertsImpact', () => {
+    it('delegates to service and wraps the count as { affectedCount }', async () => {
+      (mockAssignmentService.previewCordonsObertsDisable as jest.Mock).mockResolvedValue(3);
+
+      const result = await controller.previewCordonsObertsImpact(INSTANCE_ID);
+
+      expect(result).toEqual({ affectedCount: 3 });
+      expect(mockAssignmentService.previewCordonsObertsDisable).toHaveBeenCalledWith(INSTANCE_ID);
     });
   });
 });

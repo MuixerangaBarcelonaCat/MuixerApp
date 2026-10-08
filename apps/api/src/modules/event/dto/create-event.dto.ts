@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsEnum,
   IsBoolean,
-  IsUUID,
   IsDateString,
   IsUrl,
   MaxLength,
@@ -55,13 +54,13 @@ export class CreateEventDto {
   @IsString()
   information?: string;
 
+  @ApiPropertyOptional({ description: 'Notes internes, només visibles al dashboard' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
   @ApiPropertyOptional({ description: 'Compta per a estadístiques', default: true })
   @IsOptional()
   @IsBoolean()
   countsForStatistics?: boolean;
-
-  @ApiPropertyOptional({ description: 'UUID de la temporada associada' })
-  @IsOptional()
-  @IsUUID('4')
-  seasonId?: string;
 }

@@ -8,7 +8,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { SeasonService } from '../../../events/services/season.service';
 import { Season } from '../../../events/models/event.model';
-import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { SeasonFormModalComponent } from '../season-form-modal/season-form-modal.component';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
@@ -21,6 +21,7 @@ import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
     RouterLink,
     PageHeaderComponent,
     SeasonFormModalComponent,
+    AlertComponent,
     ButtonComponent,
     BadgeComponent,
     EmptyStateComponent,
@@ -41,6 +42,8 @@ export class SeasonListComponent {
   readonly selectedSeason = signal<Season | null>(null);
   readonly confirmDeleteTarget = signal<Season | null>(null);
   readonly deleting = signal(false);
+  /** Events whose date falls in no season («Sense temporada»). */
+  readonly uncoveredEventCount = signal(0);
 
   readonly formattedSeasons = computed(() =>
     this.seasons().map((s) => ({
@@ -54,6 +57,7 @@ export class SeasonListComponent {
   constructor() {
     this.loadSeasons();
     this.loadCurrentSeason();
+    this.loadUncoveredEventCount();
   }
 
   openCreateModal(): void {
@@ -71,6 +75,7 @@ export class SeasonListComponent {
     this.selectedSeason.set(null);
     this.loadSeasons();
     this.loadCurrentSeason();
+    this.loadUncoveredEventCount();
   }
 
   onModalCancelled(): void {
@@ -91,12 +96,18 @@ export class SeasonListComponent {
     if (!target || this.deleting()) return;
 
     this.deleting.set(true);
-    this.seasonService.remove(target.id).subscribe({
+    // The confirmation modal already warned that its events will be left without a season.
+    const request$ =
+      target.eventCount > 0
+        ? this.seasonService.remove(target.id, { allowUncovered: true })
+        : this.seasonService.remove(target.id);
+    request$.subscribe({
       next: () => {
         this.deleting.set(false);
         this.confirmDeleteTarget.set(null);
         this.toast.success(`Temporada "${target.name}" eliminada.`);
         this.loadSeasons();
+        this.loadUncoveredEventCount();
       },
       error: (err) => {
         this.deleting.set(false);
@@ -125,6 +136,13 @@ export class SeasonListComponent {
     this.seasonService.getCurrent().subscribe({
       next: (season) => this.currentSeasonId.set(season.id),
       error: () => this.currentSeasonId.set(null),
+    });
+  }
+
+  private loadUncoveredEventCount(): void {
+    this.seasonService.getUncoveredEventCount().subscribe({
+      next: ({ count }) => this.uncoveredEventCount.set(count),
+      error: () => this.uncoveredEventCount.set(0),
     });
   }
 

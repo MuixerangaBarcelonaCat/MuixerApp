@@ -53,6 +53,13 @@ import { AddPersonSearchTrigramIndexes1785400000000 } from './1785400000000-AddP
 import { CreateNotificationLogs1785500000000 } from './1785500000000-CreateNotificationLogs';
 import { CreateNotificationSchedules1785600000000 } from './1785600000000-CreateNotificationSchedules';
 import { AddNotificationLogScheduleIndexes1785700000000 } from './1785700000000-AddNotificationLogScheduleIndexes';
+import { DeleteEmptyPendingAttendances1785800000000 } from './1785800000000-DeleteEmptyPendingAttendances';
+import { RemovePartnerDelegateType1785900000000 } from './1785900000000-RemovePartnerDelegateType';
+import { AddEventNotes1785800000000 } from './1785800000000-AddEventNotes';
+import { UniqueFigureInstanceSortOrder1786000000000 } from './1786000000000-UniqueFigureInstanceSortOrder';
+import { AddSeasonConstraints1786100000000 } from './1786100000000-AddSeasonConstraints';
+import { DropEventSeasonId1786200000000 } from './1786200000000-DropEventSeasonId';
+import { AddNodeStandsOn1786300000000 } from './1786300000000-AddNodeStandsOn';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -109,4 +116,11 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreateNotificationLogs1785500000000,
   CreateNotificationSchedules1785600000000,
   AddNotificationLogScheduleIndexes1785700000000,
+  DeleteEmptyPendingAttendances1785800000000,
+  RemovePartnerDelegateType1785900000000,
+  AddEventNotes1785800000000,
+  UniqueFigureInstanceSortOrder1786000000000,
+  AddSeasonConstraints1786100000000,
+  DropEventSeasonId1786200000000,
+  AddNodeStandsOn1786300000000,
 ];
