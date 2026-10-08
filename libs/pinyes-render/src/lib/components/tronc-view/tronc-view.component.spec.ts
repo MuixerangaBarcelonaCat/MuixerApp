@@ -2035,6 +2035,38 @@ describe('TroncViewComponent', () => {
     });
   });
 
+  // ── Empty floors below the top one (editor mode) ─────────────────────────
+
+  describe('empty floor below the top one', () => {
+    const gapped = () => [makeNode({ id: 's1', z: 1 }), makeNode({ id: 'q1', z: 3, label: 'Quart' })];
+
+    it('is shown in editor mode with an add button that refills it with the floor default', () => {
+      const emitted: unknown[] = [];
+      component.nodeAdded.subscribe((e) => emitted.push(e));
+      fixture.componentRef.setInput('troncNodes', gapped());
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const labels = Array.from(fixture.nativeElement.querySelectorAll('.pis-code')).map((el) => (el as HTMLElement).textContent?.trim());
+      expect(labels).toEqual(['P4', 'P3', 'P2']);
+
+      const btn: HTMLButtonElement | null = fixture.nativeElement.querySelector('button[aria-label="Afegeix node a P3"]');
+      expect(btn).toBeTruthy();
+      btn?.click();
+
+      expect(emitted).toEqual([{ z: 2, positionType: 'terça', label: 'Terça', sortOrder: 0 }]);
+    });
+
+    it('is not shown outside editor mode', () => {
+      fixture.componentRef.setInput('troncNodes', gapped());
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const labels = Array.from(fixture.nativeElement.querySelectorAll('.pis-code')).map((el) => (el as HTMLElement).textContent?.trim());
+      expect(labels).toEqual(['P4', 'P2']);
+    });
+  });
+
   // ── Base controls (editor mode) ──────────────────────────────────────────
 
   describe('base controls (editor mode)', () => {

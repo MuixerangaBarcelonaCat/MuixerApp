@@ -32,10 +32,19 @@ export function sortTroncBases<T extends TroncLayoutNode>(bases: readonly T[]): 
   return [...bases].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+export interface TroncLayoutOptions {
+  /**
+   * Editor only: add an empty floor for every `z` left without nodes below the top floor, so a
+   * floor whose nodes were all deleted can be refilled without removing the floors above it.
+   */
+  fillGaps?: boolean;
+}
+
 /** One floor per `z`, top floor first, with the bases (if any) as the last floor at z=0. */
 export function layoutTroncFloors<T extends TroncLayoutNode>(
   troncNodes: readonly T[],
   baseNodes: readonly T[],
+  { fillGaps = false }: TroncLayoutOptions = {},
 ): TroncLayoutFloor<T>[] {
   const byZ = new Map<number, T[]>();
   for (const node of troncNodes) {
@@ -51,6 +60,15 @@ export function layoutTroncFloors<T extends TroncLayoutNode>(
     nodes: nodes.sort((a, b) => a.sortOrder - b.sortOrder || a.x - b.x),
     isBase: false,
   }));
+
+  if (fillGaps) {
+    const topZ = Math.max(0, ...byZ.keys());
+    for (let z = 1; z < topZ; z++) {
+      if (!byZ.has(z)) {
+        floors.push({ z, pisLabel: `P${z + 1}`, positionTypeLabel: 'Pis buit', nodes: [], isBase: false });
+      }
+    }
+  }
 
   const bases = sortTroncBases(baseNodes);
   if (bases.length > 0) {

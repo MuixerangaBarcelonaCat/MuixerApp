@@ -248,7 +248,7 @@ export class TroncViewComponent {
   );
 
   readonly floors = computed<TroncFloor[]>(() =>
-    layoutTroncFloors(this.troncNodes(), this.baseNodes()),
+    layoutTroncFloors(this.troncNodes(), this.baseNodes(), { fillGaps: this.mode() === 'editor' }),
   );
 
   readonly varianceByFloor = computed(() => {

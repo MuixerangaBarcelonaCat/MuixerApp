@@ -83,6 +83,29 @@ describe('layoutTroncFloors', () => {
   });
 });
 
+describe('layoutTroncFloors — fillGaps', () => {
+  const gapped = [node({ id: 's1', z: 1 }), node({ id: 'q1', z: 3 })];
+
+  it('leaves out floors with no nodes by default', () => {
+    expect(layoutTroncFloors(gapped, []).map((f) => f.z)).toEqual([3, 1]);
+  });
+
+  it('adds an empty floor for every z left without nodes below the top floor', () => {
+    const floors = layoutTroncFloors(gapped, [node({ id: 'b1', z: 0 })], { fillGaps: true });
+
+    expect(floors.map((f) => f.z)).toEqual([3, 2, 1, 0]);
+    expect(floors[1]).toEqual({ z: 2, pisLabel: 'P3', positionTypeLabel: 'Pis buit', nodes: [], isBase: false });
+  });
+
+  it('adds nothing above the top floor', () => {
+    expect(layoutTroncFloors([node({ id: 's1', z: 1 })], [], { fillGaps: true }).map((f) => f.z)).toEqual([1]);
+  });
+
+  it('fills from P2 when the lowest tronc floor is missing', () => {
+    expect(layoutTroncFloors([node({ id: 't1', z: 2 })], [], { fillGaps: true }).map((f) => f.z)).toEqual([2, 1]);
+  });
+});
+
 describe('troncTotalColumns', () => {
   it('counts half-unit columns from the widest tronc span', () => {
     expect(troncTotalColumns([node({ id: 'a', x: 1, width: 1.5 })], 0)).toBe(5);
