@@ -292,7 +292,7 @@ apps/dashboard/src/app/features/pinyes/
     ├── projection.model.ts         # P5.9
     └── composition.model.ts
 └── utils/
-    └── floor-variance.util.ts      # P5.6
+    └── figure-placement.util.ts    # Disposició de figures en files
 ```
 
 ### TemplateListComponent
@@ -495,14 +495,11 @@ Component Angular standalone reutilitzable que renderitza el tronc amb **CSS Gri
 
 **Modes d'operació**:
 - **`editor`**: Controls per editar posició X, amplada, afegir/eliminar nodes, afegir pisos
-- **`assignment`**: Visualització d'assignacions amb àlies, alçada, attendance status, variance per pis
+- **`assignment`**: Visualització d'assignacions amb àlies, alçada, attendance status i la columna d'alçades acumulades per pis
 
 **Característiques clau**:
 - **Toggle orientació**: P1 dalt (ascendent) ↔ P1 baix (descendent)
-- **Variance d'alçades per pis**: Mostra `Δ Xcm` amb color-coding:
-  - Verd: ≤5cm
-  - Groc: 6–10cm
-  - Vermell: >10cm
+- **Alçades acumulades** (només `assignment`): a la dreta de cada pis, la diferència d'alçada acumulada i els avisos de persones damunt de suports desnivellats — vegeu [Alçades acumulades](#alçades-acumulades)
 - **Grid doblejat intern**: Usa `x*2` i `width*2` internament per suportar 0.5u steps amb CSS Grid (que només accepta enters)
 - **Inline styling per colors**: `[style.color]` i `[style.background-color]` per evitar problemes de CSS specificity
 - **Add floor/node UX**: Botó `+` a la capçalera (pis nou damunt de tot) i botó `+` inline a cada pis (a la fila de bases, afegeix una base). En mode `editor`, un pis buit per davall del superior es continua mostrant (`fillGaps`) per poder tornar-lo a omplir sense eliminar els de damunt
@@ -511,23 +508,7 @@ Component Angular standalone reutilitzable que renderitza el tronc amb **CSS Gri
 
 **Integració**:
 - `TemplateEditorComponent`: pestanya Tronc → panell esquerre en mode editor
-- `SegmentWorkspaceComponent` (pestanya Troncs): botó floating "Tronc" sobre canvas → floating panel en mode assignment
-
-**Lògica de variance**:
-```typescript
-// floor-variance.util.ts
-export function floorVariance(z: number, assignments: Map<...>): number | null {
-  // Calcula la diferència entre altura màxima i mínima del pis
-  const heights = [...]; // assignacions del pis z
-  return heights.length >= 2 ? Math.max(...heights) - Math.min(...heights) : null;
-}
-
-export function varianceLevel(variance: number): 'success' | 'warning' | 'error' {
-  if (variance <= 5) return 'success';
-  if (variance <= 10) return 'warning';
-  return 'error';
-}
-```
+- `SegmentWorkspaceComponent` (pestanya Troncs): un panell per figura en mode assignment
 
 **Migració de dades**:
 Script `migrate-tronc-units.script.ts` actualitza valors existents de `x`/`width` per nodes TRONC/BASE a unitats relatives (defecte: `x=0..3`, `width=1`).
@@ -535,7 +516,7 @@ Script `migrate-tronc-units.script.ts` actualitza valors existents de `x`/`width
 ### Estructura del tronc (qui va damunt de qui)
 
 Cada node `TRONC` guarda a `standsOnNodeIds` els nodes sobre els quals va quan la figura està
-alçada (pensat per a càlculs d'alçades). Una persona pot anar damunt d'una o més i tindre una o
+alçada (és el que fa servir el càlcul d'[alçades acumulades](#alçades-acumulades)). Una persona pot anar damunt d'una o més i tindre una o
 més persones damunt.
 
 **Regla** (`isValidStandsOnTarget` / `sanitizeStandsOn` a `@muixer/shared`, l'única font):
@@ -560,6 +541,47 @@ no té nodes, el de damunt no pot indicar sobre qui va fins que s'omplin.
 - **Eliminar**: clic a la línia, o focus + Enter/Supr.
 - Pis de davall buit → nanses desactivades i un avís que indica quin pis cal omplir.
 - Cada canvi passa per `pushSnapshot` (desfer/refer) i l'autosave.
+
+### Alçades acumulades
+
+L'alçada acumulada d'una persona és l'alçada a què li queden les espatlles amb la figura alçada:
+- **Base**: la seua `shoulderHeight`.
+- **Tronc**: la seua `shoulderHeight` + la mitjana de les alçades acumulades dels nodes sobre els
+  quals va (`standsOnNodeIds`).
+
+**Càlcul** (`analyzeTroncHeights` a `@muixer/shared`, `tronc-height.util.ts`): funció pura que
+s'executa al frontend dins d'un `computed()` del `TroncViewComponent`, així que es recalcula a
+l'instant amb cada assignació. Com que els enllaços sempre apunten a `z - 1`, recórrer els nodes
+per `z` ascendent ja és un ordre d'avaluació vàlid: una sola passada, O(N + E). Viu a `shared`
+perquè l'API el puga reutilitzar (p. ex. al PDF del resum de l'event).
+
+**Valors desconeguts**: mai s'endevinen; es propaguen cap amunt amb un motiu, i un node amb
+diversos motius es queda amb el més útil per a resoldre'l, en este ordre:
+1. `missing-height`: la persona assignada no té alçada registrada.
+2. `unlinked`: la plantilla no diu sobre qui va el node.
+3. `unassigned`: no hi ha ningú assignat.
+
+**Avisos**: els llindars són la constant `TRONC_HEIGHT_THRESHOLDS` (input `heightThresholds` del
+`TroncViewComponent`). Encara no són configurables per colla (vegeu F20 a [[DEBT]]). El nivell es
+calcula sobre el valor arrodonit, que és el que es mostra.
+
+| Avís | Què compara | Groc | Vermell |
+|---|---|---|---|
+| Diferència del pis | màxim − mínim de les alçades acumulades conegudes del pis | ≥ 5 cm | ≥ 10 cm |
+| Suports desnivellats | màxim − mínim de les alçades acumulades dels nodes sobre els quals va una persona (≥ 2) | ≥ 3 cm | ≥ 5 cm |
+
+**On es veu** (pestanya Troncs del workspace, mode `assignment`): una columna a la dreta de cada pis.
+- **Diferència del pis**:
+  - Text atenuat («3 cm») si no passa cap llindar, o una insígnia groga o roja si en passa un.
+  - «?? cm» si algú assignat al pis, o davall, no té alçada registrada.
+  - «—» si no hi ha prou alçades conegudes per a comparar, o si falten enllaços a la plantilla.
+  - Els pisos amb un sol node no en mostren cap.
+- **Suports desnivellats**: una insígnia amb una balança al pis de la persona de damunt, encara
+  que no hi haja ningú assignat. En passar-hi el ratolí o el focus, s'hi ressalten la persona i
+  els seus suports.
+- **Textos**: cada valor té un tooltip (`title` + `aria-label`) que explica el número i diu entre qui
+  és la diferència.
+- **Targeta flotant**: l'alçada acumulada de cada persona es veu a la targeta flotant del node.
 
 ---
 

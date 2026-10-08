@@ -10,11 +10,28 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Scale } from 'lucide-angular';
 import { ButtonComponent, InputComponent, BadgeComponent, THEME_NAMES } from '@muixer/ui';
-import { DIRECTION_NODE_PRESETS, DIRECTION_SLOTS, DirectionAssignmentEntry, formatDirectionNames, ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM, TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, EventPhase, isArrivalPhase } from '@muixer/shared';
+import {
+  analyzeTroncHeights,
+  CumulativeHeight,
+  DIRECTION_NODE_PRESETS,
+  DIRECTION_SLOTS,
+  DirectionAssignmentEntry,
+  EventPhase,
+  FigureZone,
+  FloorHeightGap,
+  formatDirectionNames,
+  ICON_OBSERVACIONS,
+  isArrivalPhase,
+  SHOULDER_HEIGHT_BASELINE_CM,
+  TRONC_HEIGHT_THRESHOLDS,
+  TRONC_NODE_PRESETS,
+  TRONC_Z_DEFAULTS,
+  TroncHeightThresholds,
+  TroncNodePreset,
+} from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
-import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { FitTextDirective } from '../../directives/fit-text.directive';
@@ -48,6 +65,26 @@ export interface TroncNodeItem {
   color: string | null;
   /** Short marker shown next to the assigned person's name, e.g. "X". */
   climbIndicator: string | null;
+  /** TRONC only: the nodes of floor `z - 1` this person stands on (feeds the cumulative heights). */
+  standsOnNodeIds?: readonly string[];
+}
+
+/** One floor's entry in the right-hand height column (assignment mode). */
+export interface FloorGapView {
+  text: string;
+  tooltip: string;
+  /** Badge colour when the spread crosses a threshold; null renders muted text. */
+  badge: 'warning' | 'error' | null;
+}
+
+/** A person standing on nodes whose cumulative heights differ past the support threshold. */
+export interface SupportGapView {
+  nodeId: string;
+  text: string;
+  tooltip: string;
+  level: 'warning' | 'error';
+  /** The person's node and the nodes they stand on — outlined while the chip is hovered or focused. */
+  nodeIds: string[];
 }
 
 type TroncFloor = TroncLayoutFloor<TroncNodeItem>;
@@ -57,6 +94,11 @@ const MAX_TRONC_Z = 5;
 /** Minimum pointer movement (px) before a pointerdown is treated as a drag rather than a tap/click. */
 const DRAG_THRESHOLD_PX = 6;
 
+
+/** Sort key for heights known to be set (supporters of a reported support gap). */
+function knownCm(height: CumulativeHeight | undefined): number {
+  return height?.known ? height.cm : 0;
+}
 
 @Component({
   selector: 'app-tronc-view',
@@ -90,6 +132,8 @@ export class TroncViewComponent {
   /** Assignment mode: whether a placed person can be dragged onto another node. Off on touch, where a long press starts the move instead. */
   readonly personDragEnabled = input(true);
   readonly heightMode = input<HeightMode>('relative');
+  /** Where the floor spread and uneven-supporter warnings turn yellow / red. */
+  readonly heightThresholds = input<TroncHeightThresholds>(TRONC_HEIGHT_THRESHOLDS);
   readonly highlightedNodeIds = input<Set<string>>(new Set());
 
   /** personId → AttendanceStatus for the next actuació */
@@ -251,16 +295,78 @@ export class TroncViewComponent {
     layoutTroncFloors(this.troncNodes(), this.baseNodes(), { fillGaps: this.mode() === 'editor' }),
   );
 
-  readonly varianceByFloor = computed(() => {
-    const assignments = this.assignments();
-    const result = new Map<number, number | null>();
+  /** Assigned node id → person's shoulder height; an absent node is empty. */
+  private readonly heightByNodeId = computed(
+    () => new Map(this.assignments().map((a) => [a.node.id, a.person.shoulderHeight])),
+  );
 
-    for (const floor of this.floors()) {
-      const nodeIds = floor.nodes.map((n) => n.id);
-      result.set(floor.z, floorVariance(nodeIds, assignments));
+  private readonly aliasByNodeId = computed(
+    () => new Map(this.assignments().map((a) => [a.node.id, a.person.alias])),
+  );
+
+  /** Cumulative heights, floor spreads and uneven supporters — see `tronc-height.util`. */
+  readonly heightAnalysis = computed(() =>
+    analyzeTroncHeights(
+      [...this.troncNodes(), ...this.baseNodes()].map((n) => ({
+        id: n.id,
+        zone: n.zone as FigureZone,
+        z: n.z,
+        standsOnNodeIds: n.standsOnNodeIds,
+      })),
+      this.heightByNodeId(),
+      this.heightThresholds(),
+    ),
+  );
+
+  /** Floors with a single node are left out: there is nothing to compare them with. */
+  readonly floorGapViews = computed(() => {
+    const nodeCount = new Map<number, number>();
+    for (const n of [...this.troncNodes(), ...this.baseNodes()]) nodeCount.set(n.z, (nodeCount.get(n.z) ?? 0) + 1);
+
+    const views = new Map<number, FloorGapView>();
+    for (const [z, gap] of this.heightAnalysis().floors) {
+      if ((nodeCount.get(z) ?? 0) >= 2) views.set(z, this.toFloorGapView(gap));
     }
+    return views;
+  });
 
-    return result;
+  /** Keyed by the floor of the person standing on uneven supporters. */
+  readonly supportGapViews = computed(() => {
+    const { cumulativeByNodeId, supports } = this.heightAnalysis();
+    const nodeById = new Map(this.troncNodes().map((n) => [n.id, n]));
+    const views = new Map<number, SupportGapView[]>();
+
+    for (const [nodeId, gap] of supports) {
+      const node = nodeById.get(nodeId);
+      if (!node || gap.level === 'ok') continue;
+      const byHeight = [...gap.supporterIds].sort(
+        (a, b) => knownCm(cumulativeByNodeId.get(a)) - knownCm(cumulativeByNodeId.get(b)),
+      );
+      const cm = Math.round(gap.gapCm);
+      const upper = this.aliasByNodeId().get(nodeId) ?? node.label;
+      const view: SupportGapView = {
+        nodeId,
+        text: `${cm} cm`,
+        tooltip: `${this.gapSentence(cm, byHeight[0], byHeight[byHeight.length - 1])}, que porten ${upper}.`,
+        level: gap.level,
+        nodeIds: [nodeId, ...gap.supporterIds],
+      };
+      views.set(node.z, [...(views.get(node.z) ?? []), view]);
+    }
+    return views;
+  });
+
+  /** The uneven-supporter chip currently hovered or focused. */
+  readonly focusedSupportNodeId = signal<string | null>(null);
+
+  private readonly focusedSupport = computed(() => {
+    const id = this.focusedSupportNodeId();
+    if (!id) return null;
+    for (const views of this.supportGapViews().values()) {
+      const view = views.find((v) => v.nodeId === id);
+      if (view) return view;
+    }
+    return null;
   });
 
   readonly progressByFloor = computed(() => {
@@ -528,6 +634,7 @@ export class TroncViewComponent {
   // ── Presets exposed to template ──────────────────────────────────────────────
 
   readonly presets = TRONC_NODE_PRESETS;
+  readonly Scale = Scale;
 
   // ── Template helpers ───────────────────────────────────────────────────────
 
@@ -591,6 +698,7 @@ export class TroncViewComponent {
         attendanceStatus: this.getAttendanceStatus(assignment),
         isXicalla: details?.isXicalla ?? false,
         shoulderHeight: assignment.person.shoulderHeight,
+        cumulativeHeight: this.cumulativeCm(nodeId),
         notes: details?.notes ?? null,
         notesEmoji: details?.notesEmoji ?? null,
         positions: details?.positions ?? [],
@@ -615,30 +723,57 @@ export class TroncViewComponent {
     return 'oklch(var(--bc) / 0.2)';
   }
 
-  getVarianceColor(z: number): string {
-    const level = this.getVarianceLevel(z);
-    if (level === 'success') return 'oklch(var(--su))';
-    if (level === 'warning') return 'oklch(var(--wa))';
-    if (level === 'error') return 'oklch(var(--er))';
-    return 'oklch(var(--bc) / 0.4)';
+  /** Only the chip that set the highlight may clear it: leaving one chip must not undo focusing another. */
+  clearSupportFocus(nodeId: string): void {
+    if (this.focusedSupportNodeId() === nodeId) this.focusedSupportNodeId.set(null);
   }
 
-  getVarianceDisplay(z: number): string {
-    const v = this.varianceByFloor().get(z);
-    if (v == null) return '—';
-    return `Δ ${v}cm`;
+  isSupportFocused(nodeId: string): boolean {
+    return this.focusedSupport()?.nodeIds.includes(nodeId) ?? false;
   }
 
-  getVarianceLevel(z: number): VarianceLevel | null {
-    const v = this.varianceByFloor().get(z);
-    if (v == null) return null;
-    return varianceLevel(v);
+  isSupportFocusError(nodeId: string): boolean {
+    return this.focusedSupport()?.level === 'error' && this.isSupportFocused(nodeId);
   }
 
-  getVarianceAriaLabel(z: number): string {
-    const v = this.varianceByFloor().get(z);
-    if (v == null) return 'Variança no disponible';
-    return `Variança d'alçada: ${v} centímetres`;
+  private toFloorGapView(gap: FloorHeightGap): FloorGapView {
+    switch (gap.status) {
+      case 'ok': {
+        const cm = Math.round(gap.gapCm);
+        return {
+          text: `${cm} cm`,
+          tooltip: `${this.gapSentence(cm, gap.lowestNodeId, gap.highestNodeId)}.`,
+          badge: gap.level === 'ok' ? null : gap.level,
+        };
+      }
+      case 'missing-height':
+        return {
+          text: '?? cm',
+          tooltip: "No es pot calcular la diferència d'alçades perquè hi ha persones que no la tenen registrada.",
+          badge: null,
+        };
+      case 'insufficient':
+        return {
+          text: '—',
+          tooltip:
+            gap.reason === 'unlinked'
+              ? 'Falta indicar a la plantilla damunt de qui va cada persona.'
+              : "Cal assignar almenys dues persones en este pis per a calcular la diferència d'alçades.",
+          badge: null,
+        };
+    }
+  }
+
+  /** «La diferència d'alçades és 4 cm, entre Anna i Bea» — both nodes have a known height, so both are assigned. */
+  private gapSentence(cm: number, lowestNodeId: string, highestNodeId: string): string {
+    const aliases = this.aliasByNodeId();
+    return `La diferència d'alçades és ${cm} cm, entre ${aliases.get(lowestNodeId)} i ${aliases.get(highestNodeId)}`;
+  }
+
+  /** Rounded cumulative height of a node, null while unknown. */
+  private cumulativeCm(nodeId: string): number | null {
+    const height = this.heightAnalysis().cumulativeByNodeId.get(nodeId);
+    return height?.known ? Math.round(height.cm) : null;
   }
 
   getProgressDisplay(z: number): string {
@@ -682,7 +817,9 @@ export class TroncViewComponent {
     const assignment = this.getAssignment(node.id);
     if (!assignment) return `Node ${this.displayLabel(node)}, sense assignar`;
     const height = this.getHeightDisplay(assignment.person.shoulderHeight);
-    return `${node.label}: ${this.displayAlias(node, assignment)}, alçada ${height}`;
+    const label = `${node.label}: ${this.displayAlias(node, assignment)}, alçada ${height}`;
+    const cumulative = this.cumulativeCm(node.id);
+    return cumulative === null ? label : `${label}, alçada acumulada ${cumulative} cm`;
   }
 
   /** Person alias with the node's climb indicator appended, e.g. "Marta (X)". */

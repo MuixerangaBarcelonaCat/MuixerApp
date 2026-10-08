@@ -143,7 +143,7 @@ Full detail (endpoints, frontend architecture, error handling, guide for new wor
 | Concept | Description |
 |---------|-------------|
 | FigureTemplate / FigureNode | Reusable blueprint + nodes (PINYA, TRONC, BASE, directions, DECORATION) |
-| Stands-on (`standsOnNodeIds`) | TRONC only: the BASE/TRONC nodes on floor `z - 1` this person stands on (for height calculations). `uuid[]`, rule in `@muixer/shared` `tronc-support.util`, remapped on snapshot/duplicate/save-from-instance — see [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md) «Estructura del tronc» |
+| Stands-on (`standsOnNodeIds`) | TRONC only: the BASE/TRONC nodes on floor `z - 1` this person stands on. `uuid[]`, rule in `@muixer/shared` `tronc-support.util`, remapped on snapshot/duplicate/save-from-instance. Consumed by `analyzeTroncHeights` (`@muixer/shared` `tronc-height.util`): cumulative heights + floor/uneven-support warnings in the Troncs tab, thresholds in `TRONC_HEIGHT_THRESHOLDS` — see [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md) «Estructura del tronc» / «Alçades acumulades» |
 | Rengla | Radial sequence of pinya nodes per cordó |
 | Composition / CompositionEntry | Reusable multi-figure composition |
 | FigureInstance | A template/composition placed in a segment; lightweight until 1st assignment |

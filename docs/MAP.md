@@ -134,7 +134,7 @@ graph TD
 | [`event`](../apps/api/src/modules/event) | 13 | 1305 | [[DATA_MODEL]] |
 | [`event-segment`](../apps/api/src/modules/event-segment) | 20 | 2049 | [[PINYES_MODULE]] |
 | [`event-summary`](../apps/api/src/modules/event-summary) | 6 | 367 | [[EVENT_SUMMARY_PDF]] |
-| [`figure`](../apps/api/src/modules/figure) | 13 | 1490 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
+| [`figure`](../apps/api/src/modules/figure) | 13 | 1515 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
 | [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
 | [`mail`](../apps/api/src/modules/mail) | 6 | 146 | — |
 | [`me`](../apps/api/src/modules/me) | 8 | 955 | — |
@@ -182,7 +182,7 @@ Migracions TypeORM: **70** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`constants`](../libs/shared/src/constants) | 6 | 267 | — |
 | [`enums`](../libs/shared/src/enums) | 25 | 235 | — |
 | [`interfaces`](../libs/shared/src/interfaces) | 24 | 948 | — |
-| [`utils`](../libs/shared/src/utils) | 11 | 558 | — |
+| [`utils`](../libs/shared/src/utils) | 12 | 738 | — |
 
 ### Fitxers més grans (candidats a dividir)
 
@@ -191,7 +191,7 @@ Migracions TypeORM: **70** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`apps/api/src/modules/node-assignment/node-assignment.service.ts`](../apps/api/src/modules/node-assignment/node-assignment.service.ts) | 2287 |
 | [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts) | 1257 |
 | [`apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts`](../apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts) | 904 |
-| [`apps/api/src/modules/figure/figure-template.service.ts`](../apps/api/src/modules/figure/figure-template.service.ts) | 840 |
+| [`apps/api/src/modules/figure/figure-template.service.ts`](../apps/api/src/modules/figure/figure-template.service.ts) | 865 |
 | [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html) | 795 |
 | [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts) | 792 |
 | [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html) | 708 |

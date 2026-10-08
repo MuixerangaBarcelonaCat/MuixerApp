@@ -209,6 +209,8 @@
                   [class.assigned]="isAssigned(node.id)"
                   [class.conflict]="isConflict(node.id)"
                   [class.highlighted]="isHighlighted(node.id)"
+                  [class.support-focus]="isSupportFocused(node.id)"
+                  [class.support-focus-error]="isSupportFocusError(node.id)"
                   [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
                   [class.dragging]="isDragging(node.id)"
                   [class.drag-over-swap]="isDragOverSwap(node.id)"
@@ -273,6 +275,8 @@
                   [class.assigned]="isAssigned(node.id)"
                   [class.conflict]="isConflict(node.id)"
                   [class.highlighted]="isHighlighted(node.id)"
+                  [class.support-focus]="isSupportFocused(node.id)"
+                  [class.support-focus-error]="isSupportFocusError(node.id)"
                   [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
                   [class.type-colored]="mode() === 'editor' && !!getNodeColor(node)"
                   [class.dragging]="isDragging(node.id)"
@@ -364,14 +368,39 @@
           </button>
         }
 
-        <!-- Floor variance (assignment mode only) -->
+        <!-- Cumulative heights (assignment mode only): the floor's spread, then one chip per
+             person standing on uneven supporters. Hovering/focusing a chip outlines its nodes. -->
         @if (mode() === 'assignment') {
-          <div
-            class="floor-variance"
-            [style.color]="getVarianceColor(floor.z)"
-            [attr.aria-label]="getVarianceAriaLabel(floor.z)"
-          >
-            {{ getVarianceDisplay(floor.z) }}
+          <div class="floor-variance" [attr.data-floor-z]="floor.z">
+            @if (floorGapViews().get(floor.z); as gap) {
+              <span class="floor-gap" tabindex="0" role="img" [attr.aria-label]="gap.tooltip" [title]="gap.tooltip">
+                @if (gap.badge) {
+                  <lib-badge size="xs" [variant]="gap.badge">{{ gap.text }}</lib-badge>
+                } @else {
+                  {{ gap.text }}
+                }
+              </span>
+            }
+            @for (chip of supportGapViews().get(floor.z) ?? []; track chip.nodeId) {
+              <span
+                class="support-gap"
+                tabindex="0"
+                role="img"
+                [attr.aria-label]="chip.tooltip"
+                [title]="chip.tooltip"
+                (mouseenter)="focusedSupportNodeId.set(chip.nodeId)"
+                (mouseleave)="clearSupportFocus(chip.nodeId)"
+                (focus)="focusedSupportNodeId.set(chip.nodeId)"
+                (blur)="clearSupportFocus(chip.nodeId)"
+              >
+                <lib-badge size="xs" [variant]="chip.level">
+                  <span class="inline-flex items-center gap-0.5">
+                    <lucide-icon [img]="Scale" [size]="10" aria-hidden="true" />
+                    {{ chip.text }}
+                  </span>
+                </lib-badge>
+              </span>
+            }
           </div>
         }
 

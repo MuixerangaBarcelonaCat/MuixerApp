@@ -290,52 +290,272 @@ describe('TroncViewComponent', () => {
     expect(component.getHeightDisplay(165)).toBe('165');
   });
 
-  // ── Variance ──────────────────────────────────────────────────────────────
+  // ── Cumulative heights ────────────────────────────────────────────────────
 
-  it('getVarianceDisplay returns "—" when fewer than 2 assigned', () => {
-    fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
-    fixture.componentRef.setInput('assignments', [makeAssignment('n1', 'P', 160)]);
-    fixture.detectChanges();
-    expect(component.getVarianceDisplay(1)).toBe('—');
-  });
+  describe('cumulative heights', () => {
+    const b1 = () => makeBaseNode({ id: 'b1', sortOrder: 0 });
+    const b2 = () => makeBaseNode({ id: 'b2', sortOrder: 1 });
+    const b3 = () => makeBaseNode({ id: 'b3', sortOrder: 2 });
 
-  it('getVarianceDisplay returns Δ value when 2+ persons assigned', () => {
-    fixture.componentRef.setInput('troncNodes', [
-      makeNode({ id: 'n1', z: 1 }),
-      makeNode({ id: 'n2', z: 1 }),
-    ]);
-    fixture.componentRef.setInput('assignments', [
-      makeAssignment('n1', 'P1', 160),
-      makeAssignment('n2', 'P2', 165),
-    ]);
-    fixture.detectChanges();
-    expect(component.getVarianceDisplay(1)).toBe('Δ 5cm');
-  });
+    function render(
+      tronc: TroncNodeItem[],
+      bases: TroncNodeItem[],
+      assignments: AssignmentDetail[],
+    ): void {
+      fixture.componentRef.setInput('troncNodes', tronc);
+      fixture.componentRef.setInput('baseNodes', bases);
+      fixture.componentRef.setInput('assignments', assignments);
+      fixture.detectChanges();
+    }
 
-  it('getVarianceLevel returns success for ≤2cm variance', () => {
-    fixture.componentRef.setInput('troncNodes', [
-      makeNode({ id: 'n1', z: 1 }),
-      makeNode({ id: 'n2', z: 1 }),
-    ]);
-    fixture.componentRef.setInput('assignments', [
-      makeAssignment('n1', 'P1', 162),
-      makeAssignment('n2', 'P2', 164),
-    ]);
-    fixture.detectChanges();
-    expect(component.getVarianceLevel(1)).toBe('success');
-  });
+    const column = (z: number): HTMLElement =>
+      fixture.nativeElement.querySelector(`.floor-variance[data-floor-z="${z}"]`);
+    const floorGap = (z: number): HTMLElement => column(z).querySelector('.floor-gap') as HTMLElement;
+    const chips = (z: number): HTMLElement[] => Array.from(column(z).querySelectorAll('.support-gap'));
+    const nodeEl = (id: string): HTMLElement =>
+      fixture.nativeElement.querySelector(`[data-tronc-node-id="${id}"]`);
 
-  it('getVarianceLevel returns error for ≥5cm variance', () => {
-    fixture.componentRef.setInput('troncNodes', [
-      makeNode({ id: 'n1', z: 1 }),
-      makeNode({ id: 'n2', z: 1 }),
-    ]);
-    fixture.componentRef.setInput('assignments', [
-      makeAssignment('n1', 'P1', 155),
-      makeAssignment('n2', 'P2', 165),
-    ]);
-    fixture.detectChanges();
-    expect(component.getVarianceLevel(1)).toBe('error');
+    it('no longer shows the old «Δ» indicator', () => {
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 150)]);
+      expect(fixture.nativeElement.textContent).not.toContain('Δ');
+    });
+
+    it('shows a floor in range as a muted value, naming the lowest and highest person', () => {
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 142)]);
+      const gap = floorGap(0);
+      expect(gap.textContent?.trim()).toBe('2 cm');
+      expect(gap.querySelector('.badge')).toBeNull();
+      expect(gap.getAttribute('title')).toBe("La diferència d'alçades és 2 cm, entre Anna i Bea.");
+      expect(gap.getAttribute('aria-label')).toBe("La diferència d'alçades és 2 cm, entre Anna i Bea.");
+    });
+
+    it('shows a floor over the warning threshold as a warning badge', () => {
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 146)]);
+      const badge = floorGap(0).querySelector('.badge') as HTMLElement;
+      expect(badge.classList).toContain('badge-warning');
+      expect(badge.textContent?.trim()).toBe('6 cm');
+    });
+
+    it('shows a floor over the error threshold as an error badge', () => {
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 150)]);
+      expect((floorGap(0).querySelector('.badge') as HTMLElement).classList).toContain('badge-error');
+    });
+
+    it('compares cumulative heights, not own heights', () => {
+      render(
+        [
+          makeNode({ id: 's1', z: 1, x: 0, standsOnNodeIds: ['b1'] }),
+          makeNode({ id: 's2', z: 1, x: 1, standsOnNodeIds: ['b2'] }),
+        ],
+        [b1(), b2()],
+        [
+          makeAssignment('b1', 'Anna', 140),
+          makeAssignment('b2', 'Bea', 146),
+          makeAssignment('s1', 'Pau', 130),
+          makeAssignment('s2', 'Quim', 130),
+        ],
+      );
+      expect(floorGap(1).textContent?.trim()).toBe('6 cm');
+      expect(floorGap(1).getAttribute('title')).toBe("La diferència d'alçades és 6 cm, entre Pau i Quim.");
+    });
+
+    it('shows «?? cm» when an assigned person has no registered height', () => {
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', null)]);
+      expect(floorGap(0).textContent?.trim()).toBe('?? cm');
+      expect(floorGap(0).getAttribute('title')).toBe(
+        "No es pot calcular la diferència d'alçades perquè hi ha persones que no la tenen registrada.",
+      );
+    });
+
+    it('shows «—» when fewer than 2 people are assigned', () => {
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140)]);
+      expect(floorGap(0).textContent?.trim()).toBe('—');
+      expect(floorGap(0).getAttribute('title')).toBe(
+        "Cal assignar almenys dues persones en este pis per a calcular la diferència d'alçades.",
+      );
+    });
+
+    it('shows «—» when the template does not say who stands on whom', () => {
+      render(
+        [makeNode({ id: 's1', z: 1, x: 0 }), makeNode({ id: 's2', z: 1, x: 1 })],
+        [b1(), b2()],
+        [
+          makeAssignment('b1', 'Anna', 140),
+          makeAssignment('b2', 'Bea', 141),
+          makeAssignment('s1', 'Pau', 130),
+          makeAssignment('s2', 'Quim', 130),
+        ],
+      );
+      expect(floorGap(1).textContent?.trim()).toBe('—');
+      expect(floorGap(1).getAttribute('title')).toBe('Falta indicar a la plantilla damunt de qui va cada persona.');
+    });
+
+    it('shows no floor value on a floor with a single node, where there is nothing to compare', () => {
+      render(
+        [makeNode({ id: 's1', z: 1, standsOnNodeIds: ['b1'] })],
+        [b1()],
+        [makeAssignment('b1', 'Anna', 140), makeAssignment('s1', 'Pau', 130)],
+      );
+      expect(column(0).querySelector('.floor-gap')).toBeNull();
+      expect(column(1).querySelector('.floor-gap')).toBeNull();
+    });
+
+    it('lets keyboard users reach the floor value', () => {
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 142)]);
+      expect(floorGap(0).getAttribute('tabindex')).toBe('0');
+      expect(floorGap(0).getAttribute('role')).toBe('img');
+    });
+
+    describe('uneven supporters', () => {
+      const p2 = (standsOnNodeIds: string[]) => makeNode({ id: 's1', z: 1, x: 0, width: 2, standsOnNodeIds });
+
+      it('shows a chip on the floor of the person standing on uneven supporters', () => {
+        render(
+          [p2(['b1', 'b2'])],
+          [b1(), b2()],
+          [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 144), makeAssignment('s1', 'Pau', 130)],
+        );
+        expect(chips(0)).toHaveLength(0);
+        const [chip] = chips(1);
+        expect(chip.textContent?.trim()).toBe('4 cm');
+        expect(chip.querySelector('.badge')?.classList).toContain('badge-warning');
+        expect(chip.getAttribute('title')).toBe("La diferència d'alçades és 4 cm, entre Anna i Bea, que porten Pau.");
+        expect(chip.getAttribute('aria-label')).toBe(chip.getAttribute('title'));
+        expect(chip.getAttribute('tabindex')).toBe('0');
+      });
+
+      it('uses the error badge from the error threshold up', () => {
+        render([p2(['b1', 'b2'])], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 145)]);
+        expect(chips(1)[0].querySelector('.badge')?.classList).toContain('badge-error');
+      });
+
+      it('names the node instead of the person while nobody is assigned on top', () => {
+        render([p2(['b1', 'b2'])], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 145)]);
+        expect(chips(1)[0].getAttribute('title')).toBe(
+          "La diferència d'alçades és 5 cm, entre Anna i Bea, que porten Segon.",
+        );
+      });
+
+      it('names the lowest and highest of three supporters', () => {
+        render(
+          [makeNode({ id: 's1', z: 1, x: 0, width: 3, standsOnNodeIds: ['b1', 'b2', 'b3'] })],
+          [b1(), b2(), b3()],
+          [
+            makeAssignment('b1', 'Anna', 142),
+            makeAssignment('b2', 'Bea', 146),
+            makeAssignment('b3', 'Carla', 140),
+            makeAssignment('s1', 'Pau', 130),
+          ],
+        );
+        expect(chips(1)[0].getAttribute('title')).toBe(
+          "La diferència d'alçades és 6 cm, entre Carla i Bea, que porten Pau.",
+        );
+      });
+
+      it('shows no chip while the supporters are within range', () => {
+        render([p2(['b1', 'b2'])], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 142)]);
+        expect(chips(1)).toHaveLength(0);
+      });
+
+      it('shows no chip when a supporter has no registered height', () => {
+        render([p2(['b1', 'b2'])], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', null)]);
+        expect(chips(1)).toHaveLength(0);
+      });
+
+      it('keeps the outline of the chip just focused when the pointer leaves another chip', () => {
+        render(
+          [
+            makeNode({ id: 's1', z: 1, x: 0, width: 2, standsOnNodeIds: ['b1', 'b2'] }),
+            makeNode({ id: 's2', z: 1, x: 2, standsOnNodeIds: ['b3'] }),
+            makeNode({ id: 't1', z: 2, x: 0.5, width: 2, standsOnNodeIds: ['s1', 's2'] }),
+          ],
+          [b1(), b2(), b3()],
+          [
+            makeAssignment('b1', 'Anna', 140),
+            makeAssignment('b2', 'Bea', 146),
+            makeAssignment('b3', 'Carla', 141),
+            makeAssignment('s1', 'Pau', 130),
+            makeAssignment('s2', 'Quim', 128),
+          ],
+        );
+        const [p3Chip] = chips(2);
+        const [p2Chip] = chips(1);
+
+        p3Chip.dispatchEvent(new Event('mouseenter'));
+        p2Chip.dispatchEvent(new Event('focus'));
+        p3Chip.dispatchEvent(new Event('mouseleave'));
+        fixture.detectChanges();
+
+        expect(nodeEl('s1').classList).toContain('support-focus');
+        expect(nodeEl('b1').classList).toContain('support-focus');
+        expect(nodeEl('t1').classList).not.toContain('support-focus');
+      });
+
+      it('outlines the person and their supporters, and nobody else, while the chip is hovered or focused', () => {
+        render(
+          [p2(['b1', 'b2'])],
+          [b1(), b2(), b3()],
+          [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 145), makeAssignment('b3', 'Carla', 141)],
+        );
+        const outlined = () =>
+          Array.from(fixture.nativeElement.querySelectorAll('.support-focus') as NodeListOf<HTMLElement>)
+            .map((el) => el.dataset['troncNodeId'])
+            .sort();
+
+        chips(1)[0].dispatchEvent(new Event('mouseenter'));
+        fixture.detectChanges();
+        expect(outlined()).toEqual(['b1', 'b2', 's1']);
+        expect(nodeEl('s1').classList).toContain('support-focus-error');
+
+        chips(1)[0].dispatchEvent(new Event('mouseleave'));
+        fixture.detectChanges();
+        expect(outlined()).toEqual([]);
+
+        chips(1)[0].dispatchEvent(new Event('focus'));
+        fixture.detectChanges();
+        expect(outlined()).toEqual(['b1', 'b2', 's1']);
+
+        chips(1)[0].dispatchEvent(new Event('blur'));
+        fixture.detectChanges();
+        expect(outlined()).toEqual([]);
+      });
+    });
+
+    it('uses the thresholds given as input', () => {
+      fixture.componentRef.setInput('heightThresholds', {
+        floor: { warning: 1, error: 2 },
+        support: { warning: 3, error: 5 },
+      });
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 142)]);
+      expect((floorGap(0).querySelector('.badge') as HTMLElement).classList).toContain('badge-error');
+    });
+
+    it.each(['editor', 'projection'] as const)('shows no height column in %s mode', (mode) => {
+      fixture.componentRef.setInput('mode', mode);
+      render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 150)]);
+      expect(fixture.nativeElement.querySelector('.floor-variance')).toBeNull();
+    });
+
+    it('passes the rounded cumulative height to the hover card', () => {
+      render(
+        [makeNode({ id: 's1', z: 1, x: 0, width: 2, standsOnNodeIds: ['b1', 'b2'] })],
+        [b1(), b2()],
+        [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 141), makeAssignment('s1', 'Pau', 130)],
+      );
+      component.onNodeHover({ currentTarget: nodeEl('s1') } as unknown as MouseEvent, 's1');
+      expect(component.hoveredPerson()?.info.cumulativeHeight).toBe(271);
+    });
+
+    it('passes no cumulative height to the hover card while it is unknown', () => {
+      render([makeNode({ id: 's1', z: 1 })], [b1()], [makeAssignment('b1', 'Anna', 140), makeAssignment('s1', 'Pau', 130)]);
+      component.onNodeHover({ currentTarget: nodeEl('s1') } as unknown as MouseEvent, 's1');
+      expect(component.hoveredPerson()?.info.cumulativeHeight).toBeNull();
+    });
+
+    it('adds the cumulative height to the node aria label', () => {
+      render([makeNode({ id: 's1', z: 1, standsOnNodeIds: ['b1'] })], [b1()], [makeAssignment('b1', 'Anna', 140), makeAssignment('s1', 'Pau', 130)]);
+      expect(component.getNodeAriaLabel(component.troncNodes()[0])).toMatch(/, alçada acumulada 270 cm$/);
+    });
   });
 
   // ── Progress ──────────────────────────────────────────────────────────────

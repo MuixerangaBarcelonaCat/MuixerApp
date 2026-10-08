@@ -36,6 +36,22 @@ describe('PersonHoverCardComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('cumulative height', () => {
+    const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    it('shows the cumulative height when it is known', () => {
+      fixture.componentRef.setInput('info', makeInfo({ shoulderHeight: 130, cumulativeHeight: 431 }));
+      fixture.detectChanges();
+      expect(text()).toContain('Alçada acumulada: 431 cm');
+    });
+
+    it.each([null, undefined])('shows nothing when it is %s', (cumulativeHeight) => {
+      fixture.componentRef.setInput('info', makeInfo({ shoulderHeight: 130, cumulativeHeight }));
+      fixture.detectChanges();
+      expect(text()).not.toContain('acumulada');
+    });
+  });
+
   describe('without an active node position type', () => {
     beforeEach(() => {
       fixture.componentRef.setInput('info', makeInfo({ positions: [posAgulla, posVents] }));

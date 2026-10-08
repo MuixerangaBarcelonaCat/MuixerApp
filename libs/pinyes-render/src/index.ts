@@ -27,5 +27,4 @@ export * from './lib/utils/gesture-math.util';
 export * from './lib/utils/cordo-obert.util';
 export * from './lib/utils/projection-layout.util';
 export * from './lib/utils/figure-placement.util';
-export * from './lib/utils/floor-variance.util';
 export * from './lib/utils/own-position.util';

@@ -35,6 +35,7 @@ export * from './utils/own-position.util';
 export * from './utils/direction-summary.util';
 export * from './utils/tronc-summary.util';
 export * from './utils/tronc-support.util';
+export * from './utils/tronc-height.util';
 export * from './utils/text-search.util';
 export * from './utils/tag-category.util';
 export * from './utils/tag-compliance.util';
