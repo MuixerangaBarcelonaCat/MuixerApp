@@ -59,6 +59,7 @@ import { AddEventNotes1785800000000 } from './1785800000000-AddEventNotes';
 import { UniqueFigureInstanceSortOrder1786000000000 } from './1786000000000-UniqueFigureInstanceSortOrder';
 import { AddSeasonConstraints1786100000000 } from './1786100000000-AddSeasonConstraints';
 import { DropEventSeasonId1786200000000 } from './1786200000000-DropEventSeasonId';
+import { AddNodeStandsOn1786300000000 } from './1786300000000-AddNodeStandsOn';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -121,4 +122,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   UniqueFigureInstanceSortOrder1786000000000,
   AddSeasonConstraints1786100000000,
   DropEventSeasonId1786200000000,
+  AddNodeStandsOn1786300000000,
 ];

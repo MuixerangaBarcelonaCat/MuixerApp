@@ -99,7 +99,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-10-06 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-10-08 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -113,9 +113,9 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `event_segments` | `EventSegment` | 11 |
 | `events` | `Event` | 20 |
 | `figure_instances` | `FigureInstance` | 21 |
-| `figure_nodes` | `FigureNode` | 22 |
+| `figure_nodes` | `FigureNode` | 23 |
 | `figure_templates` | `FigureTemplate` | 11 |
-| `instance_nodes` | `InstanceNode` | 25 |
+| `instance_nodes` | `InstanceNode` | 26 |
 | `legal_documents` | `LegalDocument` | 9 |
 | `news` | `News` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
@@ -325,6 +325,7 @@ Definició: [`apps/api/src/modules/figure/entities/figure-node.entity.ts`](../ap
 | `originNodeId` | `uuid` | `string` | sí | — |
 | `renglaId` | `uuid` | `string` | sí | — |
 | `renglaPosition` | `int` | `number` | sí | — |
+| `standsOnNodeIds` | `uuid` | `string[]` | no | — |
 | `metadata` | `jsonb` | `Record<string, unknown>` | no | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
@@ -373,6 +374,7 @@ Definició: [`apps/api/src/modules/event-segment/entities/instance-node.entity.t
 | `ringLevel` | `int` | `number` | sí | — |
 | `renglaId` | `uuid` | `string` | sí | — |
 | `renglaPosition` | `int` | `number` | sí | — |
+| `standsOnNodeIds` | `uuid` | `string[]` | no | — |
 | `metadata` | `jsonb` | `Record<string, unknown>` | no | — |
 | `isAdHoc` | `boolean` | `boolean` | no | default `false` |
 | `createdBy` | `relation` | `User` | sí | ManyToOne → `undefined`, onDelete SET NULL |

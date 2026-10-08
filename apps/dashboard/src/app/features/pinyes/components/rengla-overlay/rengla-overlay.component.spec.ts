@@ -26,6 +26,7 @@ const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
   originNodeId: null,
   renglaId: null,
   renglaPosition: null,
+  standsOnNodeIds: [],
   metadata: {},
   ...overrides,
 });

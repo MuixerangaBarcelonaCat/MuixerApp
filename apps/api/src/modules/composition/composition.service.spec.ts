@@ -228,6 +228,23 @@ describe('CompositionService', () => {
       expect(result.entries[0].troncGridRows).toBe(1); // 1 distinct z-level, no direction nodes
     });
 
+    it('includes standsOnNodeIds in the entry nodes', async () => {
+      const troncNode = {
+        id: 'n1', zone: FigureZone.TRONC, x: 0, y: 0, z: 1, width: 1, height: 2, rotation: 0,
+        label: 'Segon', positionType: 'segona', color: null, shape: 'rectangle', sortOrder: 0,
+        climbIndicator: null, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+        standsOnNodeIds: ['b1'], metadata: {},
+      };
+      const template = makeTemplate({ nodes: [troncNode] as never });
+      mockCompositionRepo.findOne.mockResolvedValue(
+        makeComposition({ entries: [makeEntry({ figureTemplate: template })] }),
+      );
+
+      const result = await service.findOne('comp-1');
+
+      expect(result.entries[0].figureTemplate.nodes[0].standsOnNodeIds).toEqual(['b1']);
+    });
+
     it('includes figureTemplate nodes in entries', async () => {
       const template = makeTemplate({ nodes: [] });
       const entry = makeEntry({ figureTemplate: template });

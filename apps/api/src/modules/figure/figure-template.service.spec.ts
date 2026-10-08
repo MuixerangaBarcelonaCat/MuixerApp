@@ -50,6 +50,7 @@ const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
   originNodeId: null,
   renglaId: null,
   renglaPosition: null,
+  standsOnNodeIds: [],
   metadata: {},
   template: null as unknown as FigureTemplate,
   createdAt: new Date(),
@@ -475,6 +476,220 @@ describe('FigureTemplateService', () => {
     });
   });
 
+  describe('standsOnNodeIds', () => {
+    const BASE_DTO = { ...NODE_DTO, zone: FigureZone.BASE, positionType: 'base', z: 0 };
+    const TRONC_DTO = { ...NODE_DTO, zone: FigureZone.TRONC, positionType: 'segona', z: 1 };
+    const B1 = '00000000-0000-4000-8000-0000000000b1';
+    const B2 = '00000000-0000-4000-8000-0000000000b2';
+    const S1 = '00000000-0000-4000-8000-0000000000a1';
+    const T1 = '00000000-0000-4000-8000-0000000000c1';
+
+    // The rejecting cases never reach the final findOne, so drop any queued value they leave behind.
+    beforeEach(() => mockTemplateRepo.findOne.mockReset());
+
+    const arrangeUpdate = () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+    };
+
+    it('persists the links of a TRONC node on update', async () => {
+      arrangeUpdate();
+
+      await service.update('tmpl-uuid', {
+        nodes: [
+          { ...BASE_DTO, id: B1 },
+          { ...BASE_DTO, id: B2 },
+          { ...TRONC_DTO, id: S1, standsOnNodeIds: [B1, B2] },
+        ],
+      });
+
+      const created = mockNodeRepo.create.mock.calls.map(([n]) => n);
+      expect(created.find((n) => n.id === S1).standsOnNodeIds).toEqual([B1, B2]);
+      expect(created.find((n) => n.id === B1).standsOnNodeIds).toEqual([]);
+    });
+
+    it('updates the links of an existing node in place', async () => {
+      const existing = makeNode({ id: S1, zone: FigureZone.TRONC, z: 1, standsOnNodeIds: [] });
+      const base = makeNode({ id: B1, zone: FigureZone.BASE, z: 0 });
+      const tmpl = makeTemplate({ nodes: [existing, base] });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(tmpl).mockResolvedValueOnce(tmpl);
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [
+          { ...BASE_DTO, id: B1 },
+          { ...TRONC_DTO, id: S1, standsOnNodeIds: [B1] },
+        ],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0] as FigureNode[];
+      expect(saved.find((n) => n.id === S1)?.standsOnNodeIds).toEqual([B1]);
+    });
+
+    it('persists the links on create', async () => {
+      const saved = makeTemplate({ id: 'new-uuid' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...saved, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(saved);
+
+      await service.create({
+        name: 'Pilar de 4',
+        slug: 'pd4',
+        nodes: [{ ...BASE_DTO, id: B1 }, { ...TRONC_DTO, id: S1, standsOnNodeIds: [B1] }],
+      });
+
+      const created = mockNodeRepo.create.mock.calls.map(([n]) => n);
+      expect(created.find((n) => n.id === S1).standsOnNodeIds).toEqual([B1]);
+    });
+
+    it.each([
+      ['a node that is not in the payload', { ...TRONC_DTO, id: S1, standsOnNodeIds: [T1] }],
+      ['a node two floors below', { ...TRONC_DTO, id: S1, z: 2, standsOnNodeIds: [B1] }],
+      ['the node itself', { ...TRONC_DTO, id: S1, standsOnNodeIds: [S1] }],
+      ['a non-TRONC holder', { ...BASE_DTO, id: S1, z: 1, standsOnNodeIds: [B1] }],
+    ])('rejects an update whose links point at %s', async (_case, holder) => {
+      arrangeUpdate();
+
+      await expect(
+        service.update('tmpl-uuid', { nodes: [{ ...BASE_DTO, id: B1 }, holder] }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockNodeRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a link to a PINYA node', async () => {
+      arrangeUpdate();
+
+      await expect(
+        service.update('tmpl-uuid', {
+          nodes: [
+            { ...NODE_DTO, id: B1, z: 0 },
+            { ...TRONC_DTO, id: S1, standsOnNodeIds: [B1] },
+          ],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('names the offending node in the error', async () => {
+      arrangeUpdate();
+
+      await expect(
+        service.update('tmpl-uuid', {
+          nodes: [{ ...TRONC_DTO, id: S1, label: 'Segon 1', standsOnNodeIds: [T1] }],
+        }),
+      ).rejects.toThrow(/Segon 1/);
+    });
+
+    it('rejects invalid links on create before saving the template', async () => {
+      await expect(
+        service.create({
+          name: 'Pilar de 4',
+          slug: 'pd4',
+          nodes: [{ ...TRONC_DTO, id: S1, standsOnNodeIds: [T1] }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTemplateRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('returns the links in the node items', async () => {
+      mockTemplateRepo.findOne.mockResolvedValue(
+        makeTemplate({
+          nodes: [
+            makeNode({ id: B1, zone: FigureZone.BASE, z: 0 }),
+            makeNode({ id: S1, zone: FigureZone.TRONC, z: 1, standsOnNodeIds: [B1] }),
+          ],
+        }),
+      );
+
+      const result = await service.findOne('tmpl-uuid');
+
+      expect(result.nodes.find((n) => n.id === S1)?.standsOnNodeIds).toEqual([B1]);
+    });
+
+    it('remaps the links to the copied nodes when duplicating', async () => {
+      const original = makeTemplate({
+        nodes: [
+          makeNode({ id: B1, zone: FigureZone.BASE, z: 0 }),
+          makeNode({ id: S1, zone: FigureZone.TRONC, z: 1, standsOnNodeIds: [B1] }),
+        ],
+      });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(makeTemplate({ id: 'copy-uuid' }));
+      mockTemplateRepo.save.mockResolvedValue(makeTemplate({ id: 'copy-uuid' }));
+
+      await service.duplicate('tmpl-uuid');
+
+      const created = mockNodeRepo.create.mock.calls.map(([n]) => n);
+      const copiedBase = created.find((n) => n.zone === FigureZone.BASE);
+      const copiedTronc = created.find((n) => n.zone === FigureZone.TRONC);
+      expect(copiedTronc.standsOnNodeIds).toEqual([copiedBase.id]);
+    });
+
+    describe('saveFromInstance', () => {
+      const instanceNode = (id: string, zone: FigureZone, z: number, standsOnNodeIds: string[] = []) => ({
+        ...makeNode({ id, zone, z, standsOnNodeIds }),
+        isAdHoc: false,
+        sourceNodeId: null,
+        createdById: null,
+      });
+
+      const arrangeInstance = () =>
+        mockFigureInstanceRepo.findOne.mockResolvedValue({
+          id: 'inst-1',
+          snapshotted: true,
+          figureTemplate: { id: 'tmpl-uuid' },
+          instanceNodes: [
+            instanceNode('inode-b1', FigureZone.BASE, 0),
+            instanceNode('inode-s1', FigureZone.TRONC, 1, ['inode-b1']),
+          ],
+        });
+
+      const expectLinksRemapped = () => {
+        const created = mockNodeRepo.create.mock.calls.map(([n]) => n);
+        const base = created.find((n) => n.zone === FigureZone.BASE);
+        const tronc = created.find((n) => n.zone === FigureZone.TRONC);
+        expect(base.id).toEqual(expect.any(String));
+        expect(base.id).not.toBe('inode-b1');
+        expect(tronc.standsOnNodeIds).toEqual([base.id]);
+      };
+
+      it('remaps the links from instance node ids to the new template node ids (overwrite)', async () => {
+        const tmpl = makeTemplate({ nodes: [] });
+        mockTemplateRepo.findOne.mockResolvedValueOnce(tmpl).mockResolvedValueOnce(tmpl);
+        arrangeInstance();
+
+        await service.saveFromInstance('tmpl-uuid', { instanceId: 'inst-1', mode: 'overwrite' });
+
+        expectLinksRemapped();
+      });
+
+      it('remaps the links from instance node ids to the new template node ids (new_version)', async () => {
+        const tmpl = makeTemplate({ nodes: [], rengles: [] });
+        mockTemplateRepo.findOne
+          .mockResolvedValueOnce(tmpl)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(tmpl);
+        mockTemplateRepo.save.mockResolvedValue({ ...tmpl, id: 'new-tmpl' });
+        arrangeInstance();
+
+        await service.saveFromInstance('tmpl-uuid', {
+          instanceId: 'inst-1',
+          mode: 'new_version',
+          name: 'Pilar de 4 v2',
+        });
+
+        expectLinksRemapped();
+      });
+    });
+  });
+
   describe('remove', () => {
     it('removes template', async () => {
       const tmpl = makeTemplate();
@@ -827,6 +1042,7 @@ describe('FigureTemplateService', () => {
       ringLevel: 1,
       renglaId: null,
       renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       isAdHoc: false,
       sourceNodeId: null,

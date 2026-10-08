@@ -356,6 +356,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: null,
         renglaPosition: null,
+        standsOnNodeIds: [],
         metadata: {},
       };
       this.nodes.update((n) => [...n, newNode]);
@@ -421,6 +422,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: null,
         renglaPosition: null,
+        standsOnNodeIds: [],
         metadata: {},
       };
       this.nodes.update((n) => [...n, newNode]);
@@ -498,6 +500,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: null,
         renglaPosition: null,
+        standsOnNodeIds: [],
         metadata: {},
       };
       this.nodes.update((n) => [...n, newNode]);
@@ -731,6 +734,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         renglaId: null,
         renglaPosition: null,
         ringLevel: null,
+        // The copy sits elsewhere, so it can't stand on whoever the source stands on.
+        standsOnNodeIds: [],
       };
       this.nodes.update((n) => [...n, newNode]);
       this.selectedNodeId.set(newNode.id);
@@ -1070,6 +1075,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         originNodeId: null,
         renglaId: source.renglaId,
         renglaPosition: newRenglaPosition,
+        standsOnNodeIds: [],
         metadata: {},
       };
 

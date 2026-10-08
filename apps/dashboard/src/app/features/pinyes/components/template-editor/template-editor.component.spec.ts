@@ -302,6 +302,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -359,6 +360,16 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('onTroncNodeAdded', () => {
+    it('creates the tronc node standing on nobody', () => {
+      component.templateId.set('template-1'); // bypass name prompt
+
+      component.onTroncNodeAdded({ z: 1, positionType: 'segona', label: 'Segon', sortOrder: 0 });
+
+      expect(component.nodes()[0].standsOnNodeIds).toEqual([]);
+    });
+  });
+
   describe('onTroncNodeUpdated — climbIndicator', () => {
     const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
       id: 'node-1',
@@ -372,6 +383,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -540,6 +552,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: 2, originNodeId: null,
       renglaId: 'rengla-1', renglaPosition: 2,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -569,6 +582,19 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       expect(pasted.renglaId).toBeNull();
       expect(pasted.renglaPosition).toBeNull();
       expect(pasted.ringLevel).toBeNull();
+    });
+
+    it('copy then paste and duplicate leave the new node standing on nobody', () => {
+      component.nodes.set([makePinyaNode({ zone: FigureZone.TRONC, z: 1, standsOnNodeIds: ['base-1'] })]);
+
+      component.copySelectedNode();
+      component.pasteNode();
+      component.selectedNodeId.set('node-1');
+      component.duplicateSelectedNode();
+
+      expect(component.nodes()[0].standsOnNodeIds).toEqual(['base-1']);
+      expect(component.nodes()[1].standsOnNodeIds).toEqual([]);
+      expect(component.nodes()[2].standsOnNodeIds).toEqual([]);
     });
 
     it('keeps other properties from the source (label, color, offset position)', () => {
@@ -605,6 +631,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -662,6 +689,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -953,6 +981,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       sortOrder: 0,
       climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
       metadata: {},
       ...overrides,
     });
@@ -1128,6 +1157,7 @@ describe('nodeToPayload', () => {
     sortOrder: 0,
     climbIndicator: null, ringLevel: null, originNodeId: null,
     renglaId: null, renglaPosition: null,
+    standsOnNodeIds: [],
     metadata: {},
   };
 

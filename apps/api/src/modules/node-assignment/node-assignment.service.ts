@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
@@ -129,6 +130,7 @@ export interface InstanceNodeResponse {
   ringLevel: number | null;
   renglaId: string | null;
   renglaPosition: number | null;
+  standsOnNodeIds: string[];
   isSnapshotted: boolean;
   isAdHoc: boolean;
   createdById: string | null;
@@ -273,6 +275,7 @@ function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
+    standsOnNodeIds: node.standsOnNodeIds ?? [],
     isSnapshotted: true,
     isAdHoc: node.isAdHoc ?? false,
     createdById: node.createdById ?? null,
@@ -300,6 +303,7 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
+    standsOnNodeIds: node.standsOnNodeIds ?? [],
     isSnapshotted: false,
     isAdHoc: false,
     createdById: null,
@@ -2227,8 +2231,13 @@ export class NodeAssignmentService {
         throw new NotFoundException(`FigureTemplate ${figureTemplateId} not found`);
       }
 
-      const instanceNodes = (template.nodes ?? []).map((node) =>
+      // Ids up front so standsOnNodeIds can point at the copies instead of the template nodes.
+      const copies = (template.nodes ?? []).map((node) => ({ node, id: randomUUID() }));
+      const idMap = new Map(copies.map(({ node, id }) => [node.id, id]));
+
+      const instanceNodes = copies.map(({ node, id }) =>
         manager.create(InstanceNode, {
+          id,
           figureInstance: instance,
           sourceNodeId: node.id,
           originNodeId: node.originNodeId,
@@ -2248,6 +2257,7 @@ export class NodeAssignmentService {
           ringLevel: node.ringLevel,
           renglaId: node.renglaId,
           renglaPosition: node.renglaPosition,
+          standsOnNodeIds: (node.standsOnNodeIds ?? []).flatMap((id) => idMap.get(id) ?? []),
           metadata: node.metadata,
         }),
       );

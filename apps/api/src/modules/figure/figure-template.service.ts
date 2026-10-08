@@ -20,7 +20,7 @@ import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
 import { CreateRenglaDto } from './dto/create-rengla.dto';
 import { SaveFromInstanceDto } from './dto/save-from-instance.dto';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, sanitizeStandsOn } from '@muixer/shared';
 import { computeTroncProfileFromNodes, loadTroncProfiles } from './tronc-profile.util';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ export interface FigureNodeItem {
   originNodeId: string | null;
   renglaId: string | null;
   renglaPosition: number | null;
+  standsOnNodeIds: string[];
   metadata: Record<string, unknown>;
 }
 
@@ -161,6 +162,7 @@ export class FigureTemplateService {
     const name = dto.name.trim();
     await this.assertNameAvailable(name);
     const slug = await this.generateUniqueSlug(this.slugify(name));
+    const nodes = dto.nodes ? resolveStandsOn(dto.nodes) : [];
 
     const template = this.templateRepository.create({
       name,
@@ -177,8 +179,8 @@ export class FigureTemplateService {
       this.handleDbError(err);
     }
 
-    if (dto.nodes && dto.nodes.length > 0) {
-      await this.createNodes(saved!, dto.nodes);
+    if (nodes.length > 0) {
+      await this.createNodes(saved!, nodes);
     }
 
     return this.findOne(saved!.id);
@@ -193,6 +195,8 @@ export class FigureTemplateService {
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
+
+    const nodes = dto.nodes && resolveStandsOn(dto.nodes, template.nodes ?? []);
 
     if (dto.name !== undefined) {
       const trimmedName = dto.name.trim();
@@ -218,8 +222,8 @@ export class FigureTemplateService {
         this.handleDbError(err);
       }
 
-      if (dto.nodes !== undefined) {
-        await this.syncNodes(template, dto.nodes, nodeRepo);
+      if (nodes !== undefined) {
+        await this.syncNodes(template, nodes, nodeRepo);
       }
 
       if (dto.rengles !== undefined) {
@@ -278,7 +282,7 @@ export class FigureTemplateService {
       // Fresh ids: the originals still belong to the source template.
       await this.createNodes(
         savedCopy,
-        allNodes.map((n) => ({ ...nodeToCreateDto(n), id: randomUUID() })),
+        copyWithFreshIds(allNodes.map((n) => ({ sourceId: n.id, dto: nodeToCreateDto(n) }))),
       );
     }
 
@@ -327,7 +331,10 @@ export class FigureTemplateService {
       throw new BadRequestException('No saveable nodes in this instance');
     }
 
-    const nodeDtos = filteredNodes.map((n) => this.instanceNodeToCreateDto(n));
+    // Fresh ids up front so the links can point at the new template nodes, not the instance ones.
+    const nodeDtos = copyWithFreshIds(
+      filteredNodes.map((n) => ({ sourceId: n.id, dto: this.instanceNodeToCreateDto(n) })),
+    );
 
     if (dto.mode === 'overwrite') {
       // syncNodes issues several dependent writes (update/create/delete); they must
@@ -431,6 +438,7 @@ export class FigureTemplateService {
       ringLevel: n.ringLevel ?? undefined,
       renglaId: n.renglaId ?? undefined,
       renglaPosition: n.renglaPosition ?? undefined,
+      standsOnNodeIds: n.standsOnNodeIds ?? [],
       metadata: n.metadata,
     };
   }
@@ -555,6 +563,7 @@ export class FigureTemplateService {
         originNodeId: dto.originNodeId ?? null,
         renglaId: dto.renglaId ?? null,
         renglaPosition: dto.renglaPosition ?? null,
+        standsOnNodeIds: dto.standsOnNodeIds ?? [],
         metadata: dto.metadata ?? {},
       }),
     );
@@ -602,6 +611,7 @@ export class FigureTemplateService {
         if (dto.originNodeId !== undefined) node.originNodeId = dto.originNodeId;
         if (dto.renglaId !== undefined) node.renglaId = dto.renglaId;
         if (dto.renglaPosition !== undefined) node.renglaPosition = dto.renglaPosition;
+        if (dto.standsOnNodeIds !== undefined) node.standsOnNodeIds = dto.standsOnNodeIds;
         node.metadata = dto.metadata ?? {};
         toUpdate.push(node);
         incomingIds.add(dto.id);
@@ -697,6 +707,7 @@ function nodeToCreateDto(node: FigureNode): CreateFigureNodeDto {
     originNodeId: node.originNodeId ?? undefined,
     renglaId: node.renglaId ?? undefined,
     renglaPosition: node.renglaPosition ?? undefined,
+    standsOnNodeIds: node.standsOnNodeIds ?? [],
     metadata: node.metadata,
   };
 }
@@ -721,7 +732,67 @@ function nodeToItem(node: FigureNode): FigureNodeItem {
     originNodeId: node.originNodeId,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
+    standsOnNodeIds: node.standsOnNodeIds ?? [],
     metadata: node.metadata,
+  };
+}
+
+/**
+ * Checks the `standsOnNodeIds` the client sent against the payload itself — it is the template's
+ * full node list, so a link to a node left out of it is as invalid as one to the wrong floor —
+ * and throws naming the first offending node. An omitted field keeps the stored value, pruned of
+ * whatever the payload no longer satisfies (a deleted or moved node), so older clients that don't
+ * send it never trip the validation.
+ */
+function resolveStandsOn(
+  dtos: CreateFigureNodeDto[],
+  existingNodes: FigureNode[] = [],
+): CreateFigureNodeDto[] {
+  const storedById = new Map(existingNodes.map((n) => [n.id, n.standsOnNodeIds ?? []]));
+  const resolved = sanitizeStandsOn(dtos.map((dto, i) => toSupportNode(dto, i, storedById)));
+
+  dtos.forEach((dto, i) => {
+    const sent = dto.standsOnNodeIds;
+    if (sent && resolved[i].standsOnNodeIds.length !== new Set(sent).size) {
+      throw new BadRequestException(
+        `Node "${dto.label}" can only stand on base or tronc nodes of the floor directly below it`,
+      );
+    }
+  });
+
+  return dtos.map((dto, i) => ({ ...dto, standsOnNodeIds: resolved[i].standsOnNodeIds }));
+}
+
+/**
+ * Gives each copied node a fresh id and rewrites `standsOnNodeIds` from the source ids to the
+ * copies' — the remap the duplicate and save-from-instance paths need, since the source ids
+ * still belong to another template or instance. Links that don't survive the copy are dropped.
+ */
+function copyWithFreshIds(
+  sources: { sourceId: string; dto: CreateFigureNodeDto }[],
+): CreateFigureNodeDto[] {
+  const withIds = sources.map((s) => ({ ...s, id: randomUUID() }));
+  const idMap = new Map(withIds.map((s) => [s.sourceId, s.id]));
+  const copies = withIds.map(({ id, dto }) => ({
+    ...dto,
+    id,
+    standsOnNodeIds: (dto.standsOnNodeIds ?? []).flatMap((id) => idMap.get(id) ?? []),
+  }));
+  const sanitized = sanitizeStandsOn(copies.map((dto, i) => toSupportNode(dto, i)));
+  return copies.map((dto, i) => ({ ...dto, standsOnNodeIds: sanitized[i].standsOnNodeIds }));
+}
+
+function toSupportNode(
+  dto: CreateFigureNodeDto,
+  index: number,
+  storedById: Map<string, string[]> = new Map(),
+) {
+  return {
+    // A node with no id yet can't be referenced, but still needs a unique key to hold links.
+    id: dto.id ?? `new:${index}`,
+    zone: dto.zone,
+    z: dto.z ?? 0,
+    standsOnNodeIds: dto.standsOnNodeIds ?? (dto.id ? storedById.get(dto.id) : undefined) ?? [],
   };
 }
 
