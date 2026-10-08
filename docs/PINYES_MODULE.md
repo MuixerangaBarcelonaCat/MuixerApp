@@ -73,6 +73,7 @@ Cada posició dins d'un template. Camps clau:
 | `positionType` | Tipus semàntic. PINYA: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap`… · DIRECTION: `direccio-tronc`, `direccio-xicalla`, `direccio-pinya` (el «sabor» de la direcció viu al `positionType`, igual que a PINYA) |
 | `ringLevel` | Anell concèntric al qual pertany (1 = primer cordó). `null` per no-pinya i `cordo-obert` |
 | `originNodeId` | ID opcional per traçar llinatge quan es dupliquen o deriven nodes d'un altre template |
+| `standsOnNodeIds` | Només `TRONC`: IDs dels nodes `BASE`/`TRONC` del pis just de davall (`z - 1`) sobre els quals va aquesta persona quan la figura està alçada. `uuid[]` sense FK; `[]` a la resta de zones. Vegeu [Estructura del tronc](#estructura-del-tronc-qui-va-damunt-de-qui) |
 
 ### FigureInstance (Instància)
 
@@ -88,6 +89,7 @@ Còpia immutable d'un `FigureNode`, propietat d'una `FigureInstance`. Creada en 
 Camps addicionals respecte `FigureNode`:
 - `sourceNodeId` — ID del `FigureNode` original en el moment del snapshot (no FK)
 - `originNodeId` — copiat de `FigureNode.originNodeId`
+- `standsOnNodeIds` — copiat de `FigureNode.standsOnNodeIds` però **remapejat** als IDs dels `InstanceNode`s de la mateixa instància (sempre `[]` als nodes ad-hoc)
 
 ### NodeAssignment (Assignació)
 
@@ -162,7 +164,7 @@ POST /node-assignments/instances/:id/assign
 El backend executa el **lazy snapshot** en transacció:
 
 1. Llegeix tots els `FigureNode`s del template referit per la instància
-2. Crea N `InstanceNode`s (còpies) amb `sourceNodeId = figureNode.id` i `originNodeId = figureNode.originNodeId`
+2. Crea N `InstanceNode`s (còpies) amb `sourceNodeId = figureNode.id` i `originNodeId = figureNode.originNodeId`. Els IDs es generen abans d'inserir, perquè `standsOnNodeIds` apunte a les còpies i no als `FigureNode`s
 3. Actualitza la instància: `snapshotted = true`
 4. Crea la `NodeAssignment` apuntant a l'`InstanceNode` corresponent (matching per `sourceNodeId = nodeId`)
 5. Retorna el detall de l'assignació creada
@@ -194,7 +196,7 @@ Ara el backend fa un **upsert** per `FigureNode.id`:
 ```
 Per cada node al payload:
   - Si existeix (mateixa id): UPDATE (coords, label, color, ringLevel...)
-  - Si és nou (sense id al payload però retornat pel frontend com a nou): CREATE
+  - Si és nou (id generat pel client, encara no a la BD): CREATE amb aquell mateix id
   - Si existia però no apareix al payload: DELETE
 ```
 
@@ -202,6 +204,12 @@ Això garanteix:
 - **IDs estables** entre saves (útil per bulk import, analytics, references externes)
 - **Edició lliure del template** independentment de si té instàncies snapshotted (ja no hi ha guard per assignacions)
 - El guard de 409 per `figureNode` → `NodeAssignment` **ha estat eliminat** (ja no és necessari)
+
+L'editor genera l'UUID de cada node nou i el backend el respecta: si no, cada autosave (2s)
+tornaria a crear el node amb un id nou i qualsevol referència entre nodes (`standsOnNodeIds`)
+quedaria penjada. Un id que ja pertany a una altra plantilla retorna 409. Els camins que copien
+nodes (`duplicate`, `save-from-instance`) en canvi generen ids nous i remapegen `standsOnNodeIds`
+(`copyWithFreshIds` a `figure-template.service.ts`).
 
 ---
 
@@ -256,6 +264,7 @@ apps/dashboard/src/app/features/pinyes/
 ├── components/
 │   ├── template-list/           # Llistat principal: tab Figures / Composicions
 │   ├── template-editor/         # Editor Konva de template (pinya + tronc)
+│   │   └── tronc-support-editor/ # «Qui va damunt de qui» (pestanya Tronc, panell dret)
 │   ├── figure-canvas/           # Canvas Konva reutilitzable
 │   ├── composition-editor/      # Editor de composicions multi-figura
 │   ├── assignment-canvas/       # Canvas d'assignació (pàgina principal)
@@ -298,12 +307,23 @@ Vista principal del mòdul de pinyes, accessible via `/pinyes`.
 
 Editor de pàgina complet accessible via `/pinyes/templates/:id/edit`.
 
-- **FigureCanvasComponent** (Konva): canvas pinya amb nodes PINYA renderitzats
-- **TroncViewComponent** (P5.6): Floating draggable panel amb visualització CSS Grid del tronc, mode `editor`
-- **Toolbar lateral**: afegir nodes per zona + positionType, eliminar node seleccionat, **botó "Tronc"** (obre floating panel)
-- **Panel propietats**: label, zona, positionType, color, shape, ringLevel (P5.5), climbPath
-- **Auto-save** amb debounce 2s + indicador d'estat
-- **Upsert de nodes**: envia el payload complet al `PUT`; el backend fa upsert per ID
+Tres pestanyes a la barra superior (`lib-tabs`): **Pinya**, **Rengles** i **Tronc**.
+
+- **Pinya / Rengles**: toolbar lateral (afegir bases i nodes de pinya), `FigureCanvasComponent`
+  (Konva) i panell de propietats del node seleccionat.
+- **Tronc**: ocupa tota la vista sota la barra superior. El canvas de pinya queda muntat però
+  amagat (conserva zoom i desplaçament) i la toolbar i el panell de propietats desapareixen.
+  Dos panells:
+  - **Esquerre** — `TroncViewComponent` en mode `editor`: afegir/eliminar pisos, nodes i bases,
+    propietats del node (etiqueta, indicador, tipus, posició i amplada). L'avís d'ordre de bases
+    incorrecte també es mostra ací.
+  - **Dret** — `TroncSupportEditorComponent`: qui va damunt de qui (vegeu
+    [Estructura del tronc](#estructura-del-tronc-qui-va-damunt-de-qui)).
+  La selecció és compartida entre els dos panells. Les fletxes del teclat no mouen nodes `TRONC`
+  (les seues unitats són relatives; es mouen amb els controls del panell).
+- **Auto-save** amb debounce 2s + indicador d'estat; desfer/refer amb snapshots de tot l'estat.
+- **Upsert de nodes**: envia el payload complet al `PUT`; el backend fa upsert per ID. Abans
+  d'enviar-lo, `sanitizeStandsOn` descarta els enllaços que ja no es compleixen.
 
 ### SegmentWorkspaceComponent
 
@@ -483,14 +503,14 @@ Component Angular standalone reutilitzable que renderitza el tronc amb **CSS Gri
   - Verd: ≤5cm
   - Groc: 6–10cm
   - Vermell: >10cm
-- **Floating draggable panel**: Panell movible sobre el canvas (no modal), arrossegable amb mouse
 - **Grid doblejat intern**: Usa `x*2` i `width*2` internament per suportar 0.5u steps amb CSS Grid (que només accepta enters)
 - **Inline styling per colors**: `[style.color]` i `[style.background-color]` per evitar problemes de CSS specificity
-- **Add floor/node UX**: Botó `+` inline dins cada pis, dropdown per afegir qualsevol pis faltant
+- **Add floor/node UX**: Botó `+` a la capçalera (pis nou damunt de tot) i botó `+` inline a cada pis (a la fila de bases, afegeix una base). En mode `editor`, un pis buit per davall del superior es continua mostrant (`fillGaps`) per poder tornar-lo a omplir sense eliminar els de damunt
+- **Geometria compartida**: pisos, columnes i grid viuen a `tronc-layout.util.ts` (`layoutTroncFloors`, `troncTotalColumns`, `troncNodeGridColumn`, `baseNodeGridColumn`), que també fa servir l'editor d'estructura del tronc
 - **Columna extra grid**: Dedicada al botó + per evitar line-break quan totes les posicions estan ocupades
 
 **Integració**:
-- `TemplateEditorComponent`: Botó "Tronc" a topbar → floating panel en mode editor
+- `TemplateEditorComponent`: pestanya Tronc → panell esquerre en mode editor
 - `SegmentWorkspaceComponent` (pestanya Troncs): botó floating "Tronc" sobre canvas → floating panel en mode assignment
 
 **Lògica de variance**:
@@ -511,6 +531,35 @@ export function varianceLevel(variance: number): 'success' | 'warning' | 'error'
 
 **Migració de dades**:
 Script `migrate-tronc-units.script.ts` actualitza valors existents de `x`/`width` per nodes TRONC/BASE a unitats relatives (defecte: `x=0..3`, `width=1`).
+
+### Estructura del tronc (qui va damunt de qui)
+
+Cada node `TRONC` guarda a `standsOnNodeIds` els nodes sobre els quals va quan la figura està
+alçada (pensat per a càlculs d'alçades). Una persona pot anar damunt d'una o més i tindre una o
+més persones damunt.
+
+**Regla** (`isValidStandsOnTarget` / `sanitizeStandsOn` a `@muixer/shared`, l'única font):
+el node que porta l'enllaç és `TRONC` i el destí és un `BASE` o `TRONC` de la mateixa
+plantilla/instància amb `z` exactament `z - 1`. No es contemplen pisos buits: si el pis de davall
+no té nodes, el de damunt no pot indicar sobre qui va fins que s'omplin.
+
+**Backend**:
+- `create`/`update` validen els enllaços enviats contra el mateix payload (és la llista completa
+  de nodes) i retornen 400 amb el nom del node si n'hi ha cap d'invàlid. Si un node no envia el
+  camp, es manté el valor guardat (podat del que ja no es compleix).
+- `duplicate`, `save-from-instance` i el snapshot remapegen els IDs a les còpies.
+- Es retorna a templates, nodes d'instància, projecció i composicions (no a distribució).
+
+**Editor** (`TroncSupportEditorComponent`, panell dret de la pestanya Tronc):
+- Mateixa disposició de pisos que el panell esquerre, amb una línia (SVG) des de baix de cada
+  node fins a cada node sobre el qual va. Els extrems es calculen de la geometria del grid (files
+  d'alçada fixa, sense espai entre columnes), no es mesuren al DOM.
+- **Afegir**: arrossegar des de la nansa de baix d'un node fins a un node del pis de davall, o
+  clic a la nansa i després clic als nodes de davall (el mode continua actiu per afegir-ne més;
+  Esc o clic fora el cancel·la).
+- **Eliminar**: clic a la línia, o focus + Enter/Supr.
+- Pis de davall buit → nanses desactivades i un avís que indica quin pis cal omplir.
+- Cada canvi passa per `pushSnapshot` (desfer/refer) i l'autosave.
 
 ---
 
@@ -865,6 +914,8 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 15. **Bulk import matching (P5.11)**: El matching de nodes entre instàncies es fa per `renglaId + renglaPosition` com a clau primària, amb fallback a `sourceNodeId` directe.
 
+16. **Stands-on integrity**: Només els nodes `TRONC` tenen `standsOnNodeIds` no buit, i cada id apunta a un node `BASE`/`TRONC` de la mateixa plantilla (o instància) amb `z` exactament un menys. Els IDs es remapegen a les còpies al snapshot, a `duplicate` i a `save-from-instance`; l'editor descarta els enllaços que ja no es compleixen abans d'alçar.
+
 ---
 
 ## 15. Gestió d'errors i casos límit
@@ -877,6 +928,8 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 | Node ja ocupat | 409 | "Aquesta posició ja està ocupada." |
 | Persona ja assignada al segment | 409 | "Aquesta persona ja està assignada a una altra figura del segment." |
 | InstanceNode no trobat en snapshot | 404 | (missatge intern, no exposat a UI) |
+| Id de node nou que ja és d'una altra plantilla | 409 | (missatge intern, en anglés) |
+| `standsOnNodeIds` invàlid (pis, zona, node inexistent) | 400 | (missatge intern amb l'etiqueta del node; l'editor no l'envia mai perquè sanititza abans d'alçar) |
 
 ### Casos que ja NO generen 409 (canvi P5.5)
 

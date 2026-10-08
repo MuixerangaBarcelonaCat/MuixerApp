@@ -143,6 +143,7 @@ Full detail (endpoints, frontend architecture, error handling, guide for new wor
 | Concept | Description |
 |---------|-------------|
 | FigureTemplate / FigureNode | Reusable blueprint + nodes (PINYA, TRONC, BASE, directions, DECORATION) |
+| Stands-on (`standsOnNodeIds`) | TRONC only: the BASE/TRONC nodes on floor `z - 1` this person stands on (for height calculations). `uuid[]`, rule in `@muixer/shared` `tronc-support.util`, remapped on snapshot/duplicate/save-from-instance — see [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md) «Estructura del tronc» |
 | Rengla | Radial sequence of pinya nodes per cordó |
 | Composition / CompositionEntry | Reusable multi-figure composition |
 | FigureInstance | A template/composition placed in a segment; lightweight until 1st assignment |
@@ -159,7 +160,7 @@ Full detail (endpoints, frontend architecture, error handling, guide for new wor
 4. `NodeAssignment` uniqueness is per node only (`[figureInstance, instanceNode]`) — a person may legally hold ≥2 assignments in the same segment/instance since Fase 5; duplicates surface as soft conflicts (`TRONC_TRONC` / `TRONC_PINYA` / `PINYA_PINYA`, `classifyPlacementKind` in `@muixer/shared`), never rejected.
 5. TRONC/BASE: `x`/`width` in relative units; PINYA: pixels.
 
-**Key components:** `SegmentWorkspaceComponent` — unified per-segment workspace: 5 tabs (Pinyes, Troncs, Distribució, Nodes extra, Previsualitza) backed by `SegmentWorkspaceStateService` (per-instance), composing the root `AssignmentStateService`. Previsualitza embeds `ProjectionViewComponent` (`[embedded]="true"`) — no separate distribution route. `FigureCanvasComponent` Konva modes: `editor` | `assignment` | `segment-assignment` | `readonly` | `composition`. `placeFigures` (`utils/figure-placement.util.ts`) is a deterministic space-optimizing layout packing figures into rows.
+**Key components:** `TemplateEditorComponent` — tabs Pinya / Rengles / Tronc; the Tronc tab takes the whole view: `TroncViewComponent` (`editor` mode) on the left, `TroncSupportEditorComponent` (drag-to-connect stands-on links) on the right; both lay floors out with `tronc-layout.util` in `@muixer/pinyes-render`. `SegmentWorkspaceComponent` — unified per-segment workspace: 5 tabs (Pinyes, Troncs, Distribució, Nodes extra, Previsualitza) backed by `SegmentWorkspaceStateService` (per-instance), composing the root `AssignmentStateService`. Previsualitza embeds `ProjectionViewComponent` (`[embedded]="true"`) — no separate distribution route. `FigureCanvasComponent` Konva modes: `editor` | `assignment` | `segment-assignment` | `readonly` | `composition`. `placeFigures` (`utils/figure-placement.util.ts`) is a deterministic space-optimizing layout packing figures into rows.
 
 **Routes:**
 ```

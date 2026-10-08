@@ -67,7 +67,9 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
    persona no pot repetir-se dins d'una instància (`figureInstance + person`) ni dins d'un segment
    (`segment + person`).
 6. **IDs de node estables**: el `PUT` de templates fa upsert per ID (crea, actualitza, esborra els absents);
-   `FigureNode.id` no canvia entre saves. `originNodeId` traça el llinatge en duplicar.
+   `FigureNode.id` no canvia entre saves. Un node nou es crea amb l'id que envia el client (l'editor el
+   genera), així els autosaves següents l'actualitzen en lloc de recrear-lo. Duplicar una plantilla dona
+   ids nous a les còpies. `originNodeId` traça el llinatge en duplicar.
 7. **Zona BASE**: els nodes amb `zone = BASE` (z=0) surten tant a la vista de pinya com al tronc.
 8. **Protecció referencial**: no es pot esborrar un `FigureTemplate` amb `CompositionEntry`s o
    `FigureInstance`s (409).
@@ -92,6 +94,11 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
     (`code: SEASON_LEAVES_EVENTS_UNCOVERED`, `uncoveredCount`) llevat que es confirme amb
     `allowUncovered=true`; així es mou la frontera entre dues temporades contigües en dos passos. La
     sincronització del legacy importa igualment els events fora de temporada i n'avisa del recompte.
+13. **Qui va damunt de qui** (`standsOnNodeIds`, `uuid[]` sense FK a `figure_nodes` i `instance_nodes`):
+    només els nodes `TRONC` en tenen, i cada id apunta a un node `BASE`/`TRONC` de la mateixa plantilla
+    (o instància) amb `z` exactament un menys. El servei de plantilles ho valida en cada save (400);
+    el snapshot, `duplicate` i `save-from-instance` remapegen els ids a les còpies. Vegeu
+    [[PINYES_MODULE]] «Estructura del tronc».
 
 ---
 
