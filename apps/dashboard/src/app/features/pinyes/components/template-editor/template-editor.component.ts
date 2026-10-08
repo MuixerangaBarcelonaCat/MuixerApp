@@ -20,10 +20,12 @@ import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
+import { SupportLink } from './tronc-support-editor/tronc-support-editor.model';
+import { TroncSupportEditorComponent } from './tronc-support-editor/tronc-support-editor.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
-import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS, sanitizeStandsOn } from '@muixer/shared';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { NodeDpadComponent } from '../../../../shared/components/controls/node-dpad/node-dpad.component';
 import { NodeActionsComponent } from '../../../../shared/components/controls/node-actions/node-actions.component';
@@ -58,6 +60,7 @@ const DEFAULT_NODE_HEIGHT = 40;
     TabsComponent,
     FigureCanvasComponent,
     TroncViewComponent,
+    TroncSupportEditorComponent,
     TemplateEditorHelpModalComponent,
     RenglaOverlayComponent,
     ColorPickerComponent,
@@ -391,6 +394,24 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
       n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)),
     );
     this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  // ── Tronc structure (who stands on whom) ──────────────────────────────────
+
+  onSupportLinkAdded({ upperId, lowerId }: SupportLink): void {
+    const upper = this.nodes().find((n) => n.id === upperId);
+    if (!upper || upper.standsOnNodeIds.includes(lowerId)) return;
+    this.pushSnapshot('Afegir enllaç del tronc');
+    this.updateNode(upperId, { standsOnNodeIds: [...upper.standsOnNodeIds, lowerId] });
+    this.scheduleAutosave();
+  }
+
+  onSupportLinkRemoved({ upperId, lowerId }: SupportLink): void {
+    const upper = this.nodes().find((n) => n.id === upperId);
+    if (!upper?.standsOnNodeIds.includes(lowerId)) return;
+    this.pushSnapshot('Eliminar enllaç del tronc');
+    this.updateNode(upperId, { standsOnNodeIds: upper.standsOnNodeIds.filter((id) => id !== lowerId) });
     this.scheduleAutosave();
   }
 
@@ -1153,7 +1174,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return {
       name: this.templateName().trim(),
       description: this.templateDescription().trim() || undefined,
-      nodes: this.nodes().map(nodeToPayload),
+      // Deleting or moving a node can leave links that no longer hold; drop them instead of
+      // letting the server reject the whole save.
+      nodes: sanitizeStandsOn(this.nodes()).map(nodeToPayload),
       rengles: this.rengles(),
     };
   }
@@ -1227,6 +1250,7 @@ export function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     originNodeId: node.originNodeId,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
+    standsOnNodeIds: node.standsOnNodeIds,
     metadata: node.metadata,
   };
 }

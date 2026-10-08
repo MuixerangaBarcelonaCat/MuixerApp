@@ -1,0 +1,206 @@
+:host {
+  display: block;
+}
+
+.support-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.support-help {
+  font-size: 0.75rem;
+  color: oklch(var(--bc) / 0.6);
+  margin: 0;
+}
+
+.connect-status {
+  // Reserved even when empty, so the diagram doesn't jump when connecting starts.
+  min-height: 1rem;
+  line-height: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: oklch(var(--p));
+  margin: 0;
+}
+
+// ── Diagram: floor labels | board (rows + SVG links) ──────────────────────
+
+.diagram {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0.75rem;
+
+  &.connecting {
+    cursor: crosshair;
+  }
+}
+
+.floor-labels {
+  position: relative;
+  width: 2rem;
+  flex-shrink: 0;
+}
+
+.pis-code {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: oklch(var(--bc) / 0.5);
+}
+
+.board {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+// No column gap: a node's centre must be exactly its columns' centre (the links are computed so).
+.floor-grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+}
+
+.node-cell {
+  position: relative;
+  padding: 0 0.2rem;
+  min-width: 0;
+}
+
+.support-node {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.375rem;
+  border: 1px solid oklch(var(--b3));
+  border-left-width: 3px;
+  border-radius: 0.375rem;
+  background: oklch(var(--b1));
+  color: oklch(var(--bc));
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+
+  &.base {
+    background: oklch(var(--b2));
+    border-style: dashed;
+    border-left-width: 1px;
+  }
+
+  &.selected {
+    outline: 2px solid oklch(var(--p));
+    outline-offset: 1px;
+  }
+
+  &.source {
+    outline: 2px solid oklch(var(--p));
+    outline-offset: 1px;
+    background: oklch(var(--p) / 0.08);
+  }
+
+  &.target {
+    border-color: oklch(var(--p));
+    border-style: dashed;
+    background: oklch(var(--p) / 0.08);
+  }
+
+  &.dimmed {
+    opacity: 0.35;
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(var(--p));
+    outline-offset: 2px;
+  }
+}
+
+.node-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Bottom-centre handle: drag from it (or click it) to link the node to whoever it stands on.
+.handle {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  transform: translate(-50%, 50%);
+  border-radius: 999px;
+  border: 2px solid oklch(var(--p));
+  background: oklch(var(--b1));
+  cursor: grab;
+  touch-action: none;
+  padding: 0;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+
+  &:hover:not(:disabled),
+  &.active {
+    background: oklch(var(--p));
+    transform: translate(-50%, 50%) scale(1.15);
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(var(--p));
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    border-color: oklch(var(--bc) / 0.25);
+    cursor: not-allowed;
+  }
+}
+
+// ── Links ─────────────────────────────────────────────────────────────────
+
+.links {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.link {
+  stroke: oklch(var(--bc) / 0.45);
+  stroke-width: 2px;
+  stroke-linecap: round;
+
+  &.active {
+    stroke: oklch(var(--p));
+    stroke-width: 3px;
+  }
+}
+
+// Wide invisible stroke on top of each link: easy to hover, click and focus.
+.link-hit {
+  stroke: transparent;
+  stroke-width: 14px;
+  stroke-linecap: round;
+  pointer-events: stroke;
+  cursor: pointer;
+  outline: none;
+
+  &:hover,
+  &:focus-visible {
+    stroke: oklch(var(--er) / 0.35);
+  }
+}
+
+.rubber-band {
+  stroke: oklch(var(--p));
+  stroke-width: 2px;
+  stroke-dasharray: 4 4;
+}

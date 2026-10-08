@@ -11,6 +11,8 @@ import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
 import { TemplateEditorComponent, nodeToPayload } from './template-editor.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.component';
+import { TroncSupportEditorComponent } from './tronc-support-editor/tronc-support-editor.component';
+import { SupportLink } from './tronc-support-editor/tronc-support-editor.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -51,6 +53,16 @@ class StubTroncView {
   readonly floorRemoved = output<number>();
   readonly baseAdded = output<unknown>();
   readonly baseRemoved = output<string>();
+}
+
+@Component({ selector: 'app-tronc-support-editor', standalone: true, template: '' })
+class StubTroncSupportEditor {
+  readonly troncNodes = input<unknown[]>([]);
+  readonly baseNodes = input<unknown[]>([]);
+  readonly selectedNodeId = input<string | null>(null);
+  readonly linkAdded = output<SupportLink>();
+  readonly linkRemoved = output<SupportLink>();
+  readonly nodeSelected = output<string>();
 }
 
 @Component({ selector: 'app-template-editor-help-modal', standalone: true, template: '' })
@@ -118,8 +130,8 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       ],
     })
       .overrideComponent(TemplateEditorComponent, {
-        remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent] },
-        add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay] },
+        remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent, TroncSupportEditorComponent] },
+        add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay, StubTroncSupportEditor] },
       })
       .compileComponents();
 
@@ -417,10 +429,38 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       expect(stub.baseNodes()).toEqual([base]);
     });
 
-    it('has a right pane for the tronc structure', () => {
+    it('puts the stands-on editor in the right pane, sharing the selection with the left one', () => {
+      const base = baseAt('base-1', 0, 0, 0);
+      const tronc = troncNode();
+      component.nodes.set([base, tronc]);
+      component.selectedNodeId.set('tronc-1');
       openTroncTab();
 
-      expect(q('.tronc-workspace-structure[aria-label="Estructura del tronc"]')).toBeTruthy();
+      const editor = fixture.debugElement.query(
+        By.css('.tronc-workspace-structure[aria-label="Estructura del tronc"] app-tronc-support-editor'),
+      );
+      expect(editor).toBeTruthy();
+      const stub = editor.componentInstance as StubTroncSupportEditor;
+      expect(stub.troncNodes()).toEqual([tronc]);
+      expect(stub.baseNodes()).toEqual([base]);
+      expect(stub.selectedNodeId()).toBe('tronc-1');
+
+      stub.nodeSelected.emit('base-1');
+      expect(component.selectedNodeId()).toBe('base-1');
+    });
+
+    it('applies the links the stands-on editor adds and removes', () => {
+      component.templateId.set('template-1');
+      component.nodes.set([baseAt('base-1', 0, 0, 0), troncNode()]);
+      openTroncTab();
+      const stub = fixture.debugElement.query(By.directive(StubTroncSupportEditor))
+        .componentInstance as StubTroncSupportEditor;
+
+      stub.linkAdded.emit({ upperId: 'tronc-1', lowerId: 'base-1' });
+      expect(component.nodes()[1].standsOnNodeIds).toEqual(['base-1']);
+
+      stub.linkRemoved.emit({ upperId: 'tronc-1', lowerId: 'base-1' });
+      expect(component.nodes()[1].standsOnNodeIds).toEqual([]);
     });
 
     it('no longer renders the floating tronc panel', () => {
@@ -458,6 +498,75 @@ describe('TemplateEditorComponent — Preview Mode', () => {
 
       expect(component.nodes()[0].x).toBe(1);
       expect(component.nodes()[0].y).toBe(0);
+    });
+  });
+
+  describe('stands-on links (tronc structure)', () => {
+    const makeNode = (id: string, zone: FigureZone, z: number, standsOnNodeIds: string[] = []): FigureNodeItem => ({
+      id,
+      label: id,
+      zone,
+      positionType: zone === FigureZone.BASE ? 'base' : 'segona',
+      x: 0, y: 0, z,
+      width: 1, height: 40, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      standsOnNodeIds,
+      metadata: {},
+    });
+    const linksOf = (id: string) => component.nodes().find((n) => n.id === id)?.standsOnNodeIds;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mockFigureTemplateService.update.mockClear();
+      component.templateId.set('template-1');
+      component.templateName.set('Pilar de 4');
+      component.nodes.set([
+        makeNode('b1', FigureZone.BASE, 0),
+        makeNode('b2', FigureZone.BASE, 0),
+        makeNode('s1', FigureZone.TRONC, 1, ['b1']),
+      ]);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('adds a link, undoably, and autosaves it', () => {
+      component.onSupportLinkAdded({ upperId: 's1', lowerId: 'b2' });
+
+      expect(linksOf('s1')).toEqual(['b1', 'b2']);
+      expect(component.canUndo()).toBe(true);
+
+      vi.advanceTimersByTime(2000);
+      const sent = mockFigureTemplateService.update.mock.calls[0][1].nodes.find((n: { id: string }) => n.id === 's1');
+      expect(sent.standsOnNodeIds).toEqual(['b1', 'b2']);
+    });
+
+    it('ignores a link that already exists', () => {
+      component.onSupportLinkAdded({ upperId: 's1', lowerId: 'b1' });
+
+      expect(linksOf('s1')).toEqual(['b1']);
+      expect(component.canUndo()).toBe(false);
+    });
+
+    it('removes a link, undoably', () => {
+      component.onSupportLinkRemoved({ upperId: 's1', lowerId: 'b1' });
+      expect(linksOf('s1')).toEqual([]);
+
+      component.performUndo();
+      expect(linksOf('s1')).toEqual(['b1']);
+    });
+
+    it('sends only the links that still hold, so deleting a base never makes the save fail', () => {
+      component.onBaseNodeRemoved('b1');
+      vi.advanceTimersByTime(2000);
+
+      const sent = mockFigureTemplateService.update.mock.calls[0][1].nodes.find((n: { id: string }) => n.id === 's1');
+      expect(sent.standsOnNodeIds).toEqual([]);
     });
   });
 
@@ -1286,5 +1395,9 @@ describe('nodeToPayload', () => {
     expect(payload.renglaId).toBe('rengla-1');
     expect(payload.renglaPosition).toBe(2);
     expect(payload.originNodeId).toBe('origin-1');
+  });
+
+  it('sends standsOnNodeIds', () => {
+    expect(nodeToPayload({ ...baseNode, standsOnNodeIds: ['base-1'] }).standsOnNodeIds).toEqual(['base-1']);
   });
 });

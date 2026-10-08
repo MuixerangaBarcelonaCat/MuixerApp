@@ -308,7 +308,14 @@
         </section>
         <section class="tronc-workspace-pane tronc-workspace-structure" aria-label="Estructura del tronc">
           <h2 class="tronc-workspace-title">Estructura del tronc</h2>
-          <p class="text-sm text-base-content/60">Ací podreu indicar qui va damunt de qui.</p>
+          <app-tronc-support-editor
+            [troncNodes]="troncNodes()"
+            [baseNodes]="baseNodes()"
+            [selectedNodeId]="selectedNodeId()"
+            (nodeSelected)="onNodeSelected($event)"
+            (linkAdded)="onSupportLinkAdded($event)"
+            (linkRemoved)="onSupportLinkRemoved($event)"
+          />
         </section>
       </div>
     }
