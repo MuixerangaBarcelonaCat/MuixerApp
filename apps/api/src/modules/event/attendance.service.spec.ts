@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
@@ -19,6 +19,9 @@ const makeEvent = (overrides: Partial<Event> = {}): Partial<Event> => ({
   ...overrides,
 });
 
+/** A person as the attendance list loads it: with this event's row (or null) mapped onto it. */
+const toListedPerson = (a: Attendance) => ({ ...a.person, createdAt: new Date('2000-01-01'), attendance: a });
+
 const makeAttendance = (status: AttendanceStatus): Attendance =>
   ({
     id: 'att-1',
@@ -33,10 +36,10 @@ const makeAttendance = (status: AttendanceStatus): Attendance =>
     updatedAt: new Date(),
   } as Attendance);
 
-/** Mirrors what the GROUP BY status, isXicalla aggregate returns for a set of attendances. */
+/** Mirrors what the GROUP BY status, isXicalla aggregate (PENDENT rows excluded) returns for a set of attendances. */
 const toSummaryRows = (attendances: Attendance[]) => {
   const rows = new Map<string, { status: AttendanceStatus; isXicalla: boolean; count: string }>();
-  for (const a of attendances) {
+  for (const a of attendances.filter((att) => att.status !== AttendanceStatus.PENDENT)) {
     const key = `${a.status}|${a.person.isXicalla}`;
     const existing = rows.get(key);
     if (existing) existing.count = String(Number(existing.count) + 1);
@@ -59,8 +62,9 @@ describe('AttendanceService', () => {
     event: Partial<Event> | null = makeEvent(),
     person: Partial<Person> | null = makePerson(),
   ) => {
-    const attQb = {
+    const personQb = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
+      leftJoinAndMapOne: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       setParameter: jest.fn().mockReturnThis(),
@@ -70,10 +74,8 @@ describe('AttendanceService', () => {
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getCount: jest.fn().mockResolvedValue(attendances.length),
-      getMany: jest.fn().mockResolvedValue(attendances),
+      getMany: jest.fn().mockResolvedValue(attendances.map(toListedPerson)),
     };
-
-    const savedAtt = attendances[0] ?? makeAttendance(AttendanceStatus.ANIRE);
 
     const lockQb = {
       setLock: jest.fn().mockReturnThis(),
@@ -86,6 +88,7 @@ describe('AttendanceService', () => {
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
       groupBy: jest.fn().mockReturnThis(),
       addGroupBy: jest.fn().mockReturnThis(),
       getRawMany: jest.fn().mockResolvedValue(toSummaryRows(attendances)),
@@ -95,6 +98,10 @@ describe('AttendanceService', () => {
       createQueryBuilder: jest.fn((entity: unknown) => (entity === Event ? lockQb : aggQb)),
       find: jest.fn().mockResolvedValue(attendances),
       update: jest.fn().mockResolvedValue(undefined),
+      // Live pending count: here, the PENDENT rows (no person without a row in these fixtures).
+      query: jest.fn().mockResolvedValue([
+        { eventId: 'ev-1', pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length },
+      ]),
       lockQb,
       aggQb,
     };
@@ -106,13 +113,10 @@ describe('AttendanceService', () => {
 
     return {
       attendanceRepo: {
-        createQueryBuilder: jest.fn(() => attQb),
         find: jest.fn().mockResolvedValue(attendances),
         findOne: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockReturnValue(savedAtt),
-        save: jest.fn().mockResolvedValue(savedAtt),
-        remove: jest.fn().mockResolvedValue(undefined),
-        attQb,
+        create: jest.fn((fields: Partial<Attendance>) => ({ id: 'att-1', ...fields }) as Attendance),
+        save: jest.fn(async (att: Attendance) => att),
       },
       eventRepo: {
         findOne: jest.fn().mockResolvedValue(event),
@@ -120,6 +124,8 @@ describe('AttendanceService', () => {
       },
       personRepo: {
         findOne: jest.fn().mockResolvedValue(person),
+        createQueryBuilder: jest.fn(() => personQb),
+        personQb,
       },
       dataSource,
     };
@@ -161,12 +167,12 @@ describe('AttendanceService', () => {
       const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
       service = await buildModule(repos);
       await service.findByEvent('ev-1', {});
-      expect(repos.attendanceRepo.attQb.addSelect).toHaveBeenCalledWith(
+      expect(repos.personRepo.personQb.addSelect).toHaveBeenCalledWith(
         "unaccent(lower(regexp_replace(person.alias, '^~', '')))",
         'normalized_alias',
       );
-      expect(repos.attendanceRepo.attQb.orderBy).toHaveBeenCalledWith('normalized_alias', 'ASC');
-      expect(repos.attendanceRepo.attQb.addOrderBy).toHaveBeenCalledWith('person.alias', 'ASC');
+      expect(repos.personRepo.personQb.orderBy).toHaveBeenCalledWith('normalized_alias', 'ASC');
+      expect(repos.personRepo.personQb.addOrderBy).toHaveBeenCalledWith('person.alias', 'ASC');
     });
 
     it('maps isProvisional onto the person ref', async () => {
@@ -178,13 +184,37 @@ describe('AttendanceService', () => {
       expect(result.data[0].person.isProvisional).toBe(true);
     });
 
-    it('filters by status', async () => {
+    it('filters an answered status by its rows', async () => {
       const repos = makeRepos([makeAttendance(AttendanceStatus.ASSISTIT)]);
       service = await buildModule(repos);
       await service.findByEvent('ev-1', { status: AttendanceStatus.ASSISTIT });
-      expect(repos.attendanceRepo.attQb.andWhere).toHaveBeenCalledWith(
+      expect(repos.personRepo.personQb.andWhere).toHaveBeenCalledWith(
         'attendance.status = :status',
         { status: AttendanceStatus.ASSISTIT },
+      );
+    });
+
+    it('filters PENDENT as no row or a PENDENT row', async () => {
+      const repos = makeRepos([]);
+      service = await buildModule(repos);
+      await service.findByEvent('ev-1', { status: AttendanceStatus.PENDENT });
+      expect(repos.personRepo.personQb.andWhere).toHaveBeenCalledWith(
+        '(attendance.id IS NULL OR attendance.status = :pendent)',
+      );
+    });
+
+    it('lists a person without a row as PENDENT', async () => {
+      const repos = makeRepos([]);
+      repos.personRepo.personQb.getCount.mockResolvedValue(1);
+      repos.personRepo.personQb.getMany.mockResolvedValue([
+        { ...makePerson(), createdAt: new Date('2000-01-01'), attendance: null },
+      ]);
+      service = await buildModule(repos);
+
+      const { data } = await service.findByEvent('ev-1', {});
+
+      expect(data[0]).toEqual(
+        expect.objectContaining({ status: AttendanceStatus.PENDENT, respondedAt: null, notes: null }),
       );
     });
 
@@ -192,87 +222,91 @@ describe('AttendanceService', () => {
       const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
       service = await buildModule(repos);
       await service.findByEvent('ev-1', { positionIds: ['pos-1'] });
-      expect(repos.attendanceRepo.attQb.setParameter).toHaveBeenCalledWith('positionIds', ['pos-1']);
+      expect(repos.personRepo.personQb.setParameter).toHaveBeenCalledWith('positionIds', ['pos-1']);
     });
 
     it('does not add positionIds filter when array is empty', async () => {
       const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
       service = await buildModule(repos);
       await service.findByEvent('ev-1', { positionIds: [] });
-      expect(repos.attendanceRepo.attQb.setParameter).not.toHaveBeenCalled();
+      expect(repos.personRepo.personQb.setParameter).not.toHaveBeenCalled();
     });
   });
 
-  // --- create ---
-  describe('create', () => {
-    it('creates attendance and returns attendance + summary', async () => {
-      const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
-      // No existing attendance for the person
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(att);
-      service = await buildModule(repos);
-
-      const result = await service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE });
-      expect(result).toHaveProperty('attendance');
-      expect(result).toHaveProperty('summary');
-      expect(repos.attendanceRepo.save).toHaveBeenCalled();
-      expect(repos.dataSource.manager.update).toHaveBeenCalled();
-    });
+  // --- set ---
+  describe('set', () => {
+    const futureEvent = () => makeEvent({ date: new Date('2099-01-01') });
 
     it('throws NotFoundException when event does not exist', async () => {
       const repos = makeRepos([], null);
       service = await buildModule(repos);
-      await expect(service.create('missing', { personId: 'p1', status: AttendanceStatus.ANIRE }))
+      await expect(service.set('missing', 'p1', { status: AttendanceStatus.ANIRE }))
         .rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException when person does not exist', async () => {
-      const repos = makeRepos([], makeEvent(), null);
+      const repos = makeRepos([], futureEvent(), null);
       service = await buildModule(repos);
-      await expect(service.create('ev-1', { personId: 'bad', status: AttendanceStatus.ANIRE }))
+      await expect(service.set('ev-1', 'bad', { status: AttendanceStatus.ANIRE }))
         .rejects.toThrow(NotFoundException);
     });
 
-    it('throws ConflictException on duplicate person+event', async () => {
-      const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
-      service = await buildModule(repos);
-      await expect(service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE }))
-        .rejects.toThrow(ConflictException);
-    });
-
-    it('throws ForbiddenException when the event is past the lock window', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
-      const pastEvent = makeEvent({ date: new Date('2000-01-01') });
-      const repos = makeRepos([], pastEvent);
-      service = await buildModule(repos);
-      await expect(service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE }))
-        .rejects.toThrow(ForbiddenException);
-    });
-  });
-
-  // --- update ---
-  describe('update', () => {
-    it('updates status and notes and returns attendance + summary', async () => {
-      const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+    it('inserts a row with respondedAt when there is none and an answer is given', async () => {
+      const repos = makeRepos([], futureEvent());
       service = await buildModule(repos);
 
-      const result = await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' });
-      expect(result).toHaveProperty('attendance');
-      expect(result).toHaveProperty('summary');
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.ANIRE });
+
+      expect(repos.attendanceRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ status: AttendanceStatus.ANIRE, respondedAt: expect.any(Date) }),
+      );
       expect(repos.attendanceRepo.save).toHaveBeenCalled();
+    });
+
+    it('writes nothing when setting PENDENT with no notes and there is no row', async () => {
+      const repos = makeRepos([], futureEvent());
+      service = await buildModule(repos);
+
+      const result = await service.set('ev-1', 'p1', { status: AttendanceStatus.PENDENT });
+
+      expect(repos.attendanceRepo.save).not.toHaveBeenCalled();
+      expect(result.attendance).toEqual(
+        expect.objectContaining({ status: AttendanceStatus.PENDENT, respondedAt: null, notes: null }),
+      );
+    });
+
+    it('inserts a PENDENT row without respondedAt when only notes are given', async () => {
+      const repos = makeRepos([], futureEvent());
+      service = await buildModule(repos);
+
+      await service.set('ev-1', 'p1', { notes: 'Lesionada' });
+
+      expect(repos.attendanceRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ status: AttendanceStatus.PENDENT, respondedAt: null, notes: 'Lesionada' }),
+      );
+    });
+
+    it('updates status and notes of an existing row', async () => {
+      const att = makeAttendance(AttendanceStatus.ANIRE);
+      const repos = makeRepos([att], futureEvent());
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      const result = await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' });
+
+      expect(repos.attendanceRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' }),
+      );
+      expect(result).toHaveProperty('summary');
     });
 
     it('clears notes when passed null', async () => {
       const att = { ...makeAttendance(AttendanceStatus.ANIRE), notes: 'Nota prèvia' };
-      const repos = makeRepos([att as Attendance]);
+      const repos = makeRepos([att as Attendance], futureEvent());
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      await service.update('ev-1', 'att-1', { notes: null });
+      await service.set('ev-1', 'p1', { notes: null });
       expect(repos.attendanceRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ notes: null }),
       );
@@ -281,45 +315,37 @@ describe('AttendanceService', () => {
     it('does not touch respondedAt on a notes-only edit (SM-15)', async () => {
       const originalRespondedAt = new Date('2026-01-01T00:00:00Z');
       const att = { ...makeAttendance(AttendanceStatus.ANIRE), respondedAt: originalRespondedAt };
-      const repos = makeRepos([att as Attendance]);
+      const repos = makeRepos([att as Attendance], futureEvent());
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      await service.update('ev-1', 'att-1', { notes: 'Només una nota' });
+      await service.set('ev-1', 'p1', { notes: 'Només una nota' });
 
       expect(repos.attendanceRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ respondedAt: originalRespondedAt }),
       );
     });
 
-    it('bumps respondedAt when the status changes', async () => {
+    it('keeps the row and bumps respondedAt when an answer goes back to PENDENT', async () => {
       const originalRespondedAt = new Date('2026-01-01T00:00:00Z');
       const att = { ...makeAttendance(AttendanceStatus.ANIRE), respondedAt: originalRespondedAt };
-      const repos = makeRepos([att as Attendance]);
+      const repos = makeRepos([att as Attendance], futureEvent());
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.PENDENT });
 
       const saved = repos.attendanceRepo.save.mock.calls[0][0];
+      expect(saved.status).toBe(AttendanceStatus.PENDENT);
       expect(saved.respondedAt).not.toEqual(originalRespondedAt);
-    });
-
-    it('throws NotFoundException when attendance not found', async () => {
-      const repos = makeRepos([]);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(null);
-      service = await buildModule(repos);
-      await expect(service.update('ev-1', 'bad-att', {})).rejects.toThrow(NotFoundException);
     });
 
     it('throws ForbiddenException when locked and force is not set', async () => {
       process.env.ASSIGNMENT_LOCK_DAYS = '2';
-      const att = makeAttendance(AttendanceStatus.ANIRE);
       const pastEvent = makeEvent({ date: new Date('2000-01-01') });
-      const repos = makeRepos([att], pastEvent);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      const repos = makeRepos([], pastEvent);
       service = await buildModule(repos);
-      await expect(service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT }))
+      await expect(service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT }))
         .rejects.toThrow(ForbiddenException);
       expect(repos.attendanceRepo.save).not.toHaveBeenCalled();
     });
@@ -332,7 +358,7 @@ describe('AttendanceService', () => {
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT, force: true }, 'user-1');
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT, force: true }, 'user-1');
 
       expect(repos.attendanceRepo.save).toHaveBeenCalled();
       expect(auditService.record).toHaveBeenCalledWith(
@@ -341,67 +367,57 @@ describe('AttendanceService', () => {
           action: 'ATTENDANCE_LOCK_OVERRIDE',
           targetType: 'Attendance',
           targetId: 'att-1',
-          metadata: expect.objectContaining({ eventId: 'ev-1', previousStatus: AttendanceStatus.ANIRE, newStatus: AttendanceStatus.ASSISTIT }),
+          metadata: expect.objectContaining({ eventId: 'ev-1', personId: 'p1', previousStatus: AttendanceStatus.ANIRE, newStatus: AttendanceStatus.ASSISTIT }),
         }),
       );
     });
 
-    it('does not record an audit entry for an unlocked update', async () => {
+    it('audits a forced insert with PENDENT as the previous status', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const pastEvent = makeEvent({ date: new Date('2000-01-01') });
+      const repos = makeRepos([], pastEvent);
+      service = await buildModule(repos);
+
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT, force: true }, 'user-1');
+
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ previousStatus: AttendanceStatus.PENDENT, newStatus: AttendanceStatus.ASSISTIT }),
+        }),
+      );
+    });
+
+    it('does not record an audit entry for an unlocked change', async () => {
       const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
+      const repos = makeRepos([att], futureEvent());
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT });
 
       expect(auditService.record).not.toHaveBeenCalled();
     });
 
-    it('recalculates summary after update', async () => {
+    it('recalculates the summary after a change', async () => {
       const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
+      const repos = makeRepos([att], futureEvent());
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT });
       expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
-  });
 
-  // --- remove ---
-  describe('remove', () => {
-    it('removes attendance and returns summary', async () => {
+    it('returns the attendance without an id, keyed by person', async () => {
       const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
+      const repos = makeRepos([att], futureEvent());
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      const result = await service.remove('ev-1', 'att-1');
-      expect(result).toHaveProperty('summary');
-      expect(repos.attendanceRepo.remove).toHaveBeenCalledWith(att);
-    });
+      const result = await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT });
 
-    it('throws NotFoundException when event not found', async () => {
-      const repos = makeRepos([], null);
-      service = await buildModule(repos);
-      await expect(service.remove('missing', 'att-1')).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws NotFoundException when attendance not found', async () => {
-      const repos = makeRepos([]);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(null);
-      service = await buildModule(repos);
-      await expect(service.remove('ev-1', 'bad-att')).rejects.toThrow(NotFoundException);
-    });
-
-    it('recalculates summary after deletion', async () => {
-      const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
-      service = await buildModule(repos);
-
-      await service.remove('ev-1', 'att-1');
-      expect(repos.dataSource.manager.update).toHaveBeenCalled();
+      expect(result.attendance).not.toHaveProperty('id');
+      expect(result.attendance.person.id).toBe('p1');
     });
   });
 
@@ -490,50 +506,17 @@ describe('AttendanceService', () => {
 
   // --- round trips ---
   describe('round trips per write', () => {
-    it('update reads the attendance once and the event once', async () => {
+    it('set reads the event, the person and the attendance once each', async () => {
       const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
+      const repos = makeRepos([att], makeEvent({ date: new Date('2099-01-01') }));
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT });
 
-      expect(repos.attendanceRepo.findOne).toHaveBeenCalledTimes(1);
       expect(repos.eventRepo.findOne).toHaveBeenCalledTimes(1);
-    });
-
-    it('update returns the summary without re-reading the event row', async () => {
-      const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
-      service = await buildModule(repos);
-
-      const result = await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
-
-      expect(result.summary.total).toBe(1);
-      expect(result.attendance.person.id).toBe('p1');
-    });
-
-    it('create does not re-read the row it just saved', async () => {
-      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
-      service = await buildModule(repos);
-
-      const result = await service.create('ev-1', { personId: 'p1', status: AttendanceStatus.ANIRE });
-
+      expect(repos.personRepo.findOne).toHaveBeenCalledTimes(1);
       expect(repos.attendanceRepo.findOne).toHaveBeenCalledTimes(1);
-      expect(result.attendance.person.id).toBe('p1');
-    });
-
-    it('remove reads the attendance once and the event once', async () => {
-      const att = makeAttendance(AttendanceStatus.ANIRE);
-      const repos = makeRepos([att]);
-      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
-      service = await buildModule(repos);
-
-      await service.remove('ev-1', 'att-1');
-
-      expect(repos.attendanceRepo.findOne).toHaveBeenCalledTimes(1);
-      expect(repos.eventRepo.findOne).toHaveBeenCalledTimes(1);
     });
   });
 });

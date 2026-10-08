@@ -26,7 +26,6 @@ import {
 
 const DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
   [DelegateType.PARENT]: 'Pare/Mare',
-  [DelegateType.PARTNER]: 'Parella',
   [DelegateType.GUARDIAN]: 'Tutor/a',
   [DelegateType.OTHER]: 'Altres',
 };

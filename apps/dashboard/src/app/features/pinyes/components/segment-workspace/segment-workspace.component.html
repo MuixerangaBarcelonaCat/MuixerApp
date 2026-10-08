@@ -140,16 +140,16 @@
     } @else {
       @switch (activeTab()) {
         @case ('pinyes') {
-          <app-pinyes-tab class="block h-full min-h-0" [isPast]="isPast()" (crossTabSelect)="onCrossTabSelect($event)" />
+          <app-pinyes-tab class="block h-full min-h-0" [phase]="phase()" (crossTabSelect)="onCrossTabSelect($event)" />
         }
         @case ('troncs') {
-          <app-troncs-tab class="block h-full min-h-0" [isPast]="isPast()" (crossTabSelect)="onCrossTabSelect($event)" />
+          <app-troncs-tab class="block h-full min-h-0" [phase]="phase()" (crossTabSelect)="onCrossTabSelect($event)" />
         }
         @case ('distribucio') {
           <app-distribucio-tab class="block h-full min-h-0" />
         }
         @case ('nodes') {
-          <app-nodes-tab class="block h-full min-h-0" [isPast]="isPast()" />
+          <app-nodes-tab class="block h-full min-h-0" [phase]="phase()" />
         }
         @case ('previsualitza') {
           <app-previsualitza-tab class="block h-full min-h-0" />

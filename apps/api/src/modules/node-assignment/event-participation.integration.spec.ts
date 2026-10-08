@@ -351,8 +351,9 @@ describe('EventParticipationService (integration)', () => {
 
     await service.getEventParticipation(event.id);
 
-    // Segments + matrix + tags. The event lookup goes through the repository.
-    expect(spy).toHaveBeenCalledTimes(3);
+    // Segments + matrix + tags + next performance (an assaig with participants always looks one
+    // up, scoped by its date's season). The event lookup goes through the repository.
+    expect(spy).toHaveBeenCalledTimes(4);
     spy.mockRestore();
   });
 
@@ -373,7 +374,7 @@ describe('EventParticipationService (integration)', () => {
 
   describe('next performance (Task 4.2)', () => {
     it('resolves the next same-season actuació and its per-person attendance', async () => {
-      const season = await db.dataSource.getRepository(Season).save({
+      await db.dataSource.getRepository(Season).save({
         name: `Temporada-${shortId()}`,
         startDate: new Date('2026-01-01'),
         endDate: new Date('2026-12-31'),
@@ -383,14 +384,12 @@ describe('EventParticipationService (integration)', () => {
         eventType: EventType.ASSAIG,
         title: 'Assaig previ',
         date: new Date('2026-05-01'),
-        season,
       } as unknown as Event);
 
       const actuacio = await db.dataSource.getRepository(Event).save({
         eventType: EventType.ACTUACIO,
         title: 'Actuació Firal',
         date: new Date('2026-06-15'),
-        season,
       } as unknown as Event);
 
       const p1 = await makePerson('PERSIANA');
@@ -414,7 +413,7 @@ describe('EventParticipationService (integration)', () => {
     });
 
     it('returns null and no nextPerformanceStatus for an actuació event', async () => {
-      const season = await db.dataSource.getRepository(Season).save({
+      await db.dataSource.getRepository(Season).save({
         name: `Temporada-${shortId()}`,
         startDate: new Date('2026-01-01'),
         endDate: new Date('2026-12-31'),
@@ -423,7 +422,6 @@ describe('EventParticipationService (integration)', () => {
         eventType: EventType.ACTUACIO,
         title: 'Actuació',
         date: new Date('2026-05-01'),
-        season,
       } as unknown as Event);
       const p1 = await makePerson('PERSIANA');
       await setAttendance(actuacio, p1, AttendanceStatus.ANIRE);
@@ -432,6 +430,46 @@ describe('EventParticipationService (integration)', () => {
 
       expect(result.nextPerformance).toBeNull();
       expect(result.persons[0].nextPerformanceStatus).toBeNull();
+    });
+
+    it("ignores an actuació past the end of the assaig's season", async () => {
+      await db.dataSource.getRepository(Season).save([
+        { name: `T1-${shortId()}`, startDate: '2027-01-01', endDate: '2027-06-30' },
+        { name: `T2-${shortId()}`, startDate: '2027-07-01', endDate: '2027-12-31' },
+      ] as unknown as Season[]);
+      const assaig = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ASSAIG,
+        title: 'Assaig de juny',
+        date: '2027-06-20',
+      } as unknown as Event);
+      await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ACTUACIO,
+        title: 'Actuació de juliol',
+        date: '2027-07-05',
+      } as unknown as Event);
+      await setAttendance(assaig, await makePerson('PERSIANA'), AttendanceStatus.ANIRE);
+
+      const result = await service.getEventParticipation(assaig.id);
+
+      expect(result.nextPerformance).toBeNull();
+    });
+
+    it('returns null for an assaig whose date is in no season', async () => {
+      const assaig = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ASSAIG,
+        title: 'Assaig orfe',
+        date: '2031-03-01',
+      } as unknown as Event);
+      await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ACTUACIO,
+        title: 'Actuació posterior',
+        date: '2031-03-10',
+      } as unknown as Event);
+      await setAttendance(assaig, await makePerson('GRILLAT'), AttendanceStatus.ANIRE);
+
+      const result = await service.getEventParticipation(assaig.id);
+
+      expect(result.nextPerformance).toBeNull();
     });
   });
 });

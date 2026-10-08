@@ -45,8 +45,8 @@ describe('AdHocNodePropertiesComponent', () => {
 
   // ── attendanceBadgeVariant ───────────────────────────────────────────────
 
-  describe('attendanceBadgeVariant (isPast=false)', () => {
-    beforeEach(() => fixture.componentRef.setInput('isPast', false));
+  describe('attendanceBadgeVariant (before the event day)', () => {
+    beforeEach(() => fixture.componentRef.setInput('phase', 'before'));
 
     it.each([
       ['ASSISTIT', 'success'],
@@ -61,8 +61,8 @@ describe('AdHocNodePropertiesComponent', () => {
     });
   });
 
-  describe('attendanceBadgeVariant (isPast=true)', () => {
-    beforeEach(() => fixture.componentRef.setInput('isPast', true));
+  describe('attendanceBadgeVariant (from the event day on)', () => {
+    beforeEach(() => fixture.componentRef.setInput('phase', 'day'));
 
     it('ANIRE → warning (no presentat)', () => {
       fixture.componentRef.setInput('attendanceStatus', 'ANIRE');
@@ -79,35 +79,26 @@ describe('AdHocNodePropertiesComponent', () => {
 
   // ── attendanceLabel ────────────────────────────────────────────────────
 
-  describe('attendanceLabel (isPast=false)', () => {
-    beforeEach(() => fixture.componentRef.setInput('isPast', false));
-
+  describe('attendanceLabel (shared phase labels)', () => {
     it.each([
-      ['ASSISTIT', 'Assistit'],
-      ['ANIRE', 'Vinc'],
-      ['NO_VAIG', 'No vinc'],
-      ['PENDENT', 'Pendent'],
-      [null, 'Assignat/da'],
-    ])('status=%s → "%s"', (status, expected) => {
+      ['before', 'ANIRE', 'Ve'],
+      ['before', 'NO_VAIG', 'No ve'],
+      ['before', 'PENDENT', 'Pendent'],
+      ['day', 'ASSISTIT', 'Ha arribat'],
+      ['day', 'ANIRE', 'No ha arribat'],
+      ['after', 'ASSISTIT', 'Va vindre'],
+      ['after', 'NO_VAIG', 'No va vindre'],
+    ] as const)('%s / %s → "%s"', (phase, status, expected) => {
+      fixture.componentRef.setInput('phase', phase);
       fixture.componentRef.setInput('attendanceStatus', status);
       fixture.detectChanges();
       expect(component.attendanceLabel()).toBe(expected);
     });
-  });
 
-  describe('attendanceLabel (isPast=true)', () => {
-    beforeEach(() => fixture.componentRef.setInput('isPast', true));
-
-    it('ANIRE → No presentat', () => {
-      fixture.componentRef.setInput('attendanceStatus', 'ANIRE');
+    it('reads "Assignat/da" with no attendance status', () => {
+      fixture.componentRef.setInput('attendanceStatus', null);
       fixture.detectChanges();
-      expect(component.attendanceLabel()).toBe('No presentat');
-    });
-
-    it('ASSISTIT → Assistit', () => {
-      fixture.componentRef.setInput('attendanceStatus', 'ASSISTIT');
-      fixture.detectChanges();
-      expect(component.attendanceLabel()).toBe('Assistit');
+      expect(component.attendanceLabel()).toBe('Assignat/da');
     });
   });
 

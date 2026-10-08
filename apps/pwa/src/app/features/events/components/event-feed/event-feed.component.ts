@@ -129,7 +129,7 @@ export class EventFeedComponent {
           ? {
               ...m,
               attendance: {
-                id: m.attendance?.id ?? '',
+                id: m.attendance.id,
                 status: change.status,
                 respondedAt: new Date().toISOString(),
               },

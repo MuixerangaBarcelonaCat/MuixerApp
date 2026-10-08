@@ -27,7 +27,7 @@ const MOCK_EVENT: MeEvent = {
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
   managedAttendances: [
-    { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null, attendance: null },
+    { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null, attendance: { id: null, status: AttendanceStatus.PENDENT, respondedAt: null } },
   ],
 };
 

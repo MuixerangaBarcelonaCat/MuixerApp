@@ -130,6 +130,11 @@ export class EventListComponent implements OnInit {
       this.eventType.set(type);
     }
     this.visibleColumnKeys.set(this.loadVisibleColumns(this.eventType()));
+    // A season picked by the link that opened the list (e.g. the season counts in Config) wins over the current one.
+    const seasonId = this.route.snapshot.queryParamMap.get('seasonId');
+    if (seasonId) {
+      this.selectedSeasonId.set(seasonId);
+    }
     this.loadSeasons();
     this.loadEvents();
   }
@@ -267,7 +272,9 @@ export class EventListComponent implements OnInit {
     this.seasonService.getAll().subscribe({
       next: (resp) => {
         this.seasons.set(resp.data);
-        this.selectActiveSeason(resp.data);
+        if (!this.selectedSeasonId()) {
+          this.selectActiveSeason(resp.data);
+        }
         this.loadEvents();
       },
     });

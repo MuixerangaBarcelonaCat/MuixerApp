@@ -199,10 +199,10 @@ describe('PersonDelegateModalComponent', () => {
     expect(component.selectedType()).toBe(DelegateType.PARENT);
   });
 
-  it('renders all four delegate type options by default', () => {
+  it('renders every delegate type option by default, without a partner option', () => {
     const options = fixture.nativeElement.querySelectorAll('#delegate-type option');
     const labels = Array.from(options).map((o) => (o as HTMLOptionElement).textContent?.trim());
-    expect(labels).toEqual(['Pare/Mare', 'Parella', 'Tutor/a', 'Altres']);
+    expect(labels).toEqual(['Pare/Mare', 'Tutor/a', 'Altres']);
   });
 
   it('restricts type options to PARENT/GUARDIAN when isXicalla and isPrimary are both set', () => {
@@ -221,6 +221,6 @@ describe('PersonDelegateModalComponent', () => {
     fixture.detectChanges();
 
     const options = fixture.nativeElement.querySelectorAll('#delegate-type option');
-    expect(options.length).toBe(4);
+    expect(options.length).toBe(3);
   });
 });

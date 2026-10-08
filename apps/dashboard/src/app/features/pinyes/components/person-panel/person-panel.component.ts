@@ -1,4 +1,4 @@
-import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
+import { AssignmentArea, AttendanceStatus, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { Subscription } from 'rxjs';
-import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM, attendanceGroupLabel, EventPhase, isArrivalPhase } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
@@ -62,7 +62,14 @@ export class PersonPanelComponent {
   readonly heightMode = input<HeightMode>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  /** Before / on / after the event day: groups by arrival from the event day on. */
+  readonly phase = input<EventPhase>('before');
+  readonly arrivals = computed(() => isArrivalPhase(this.phase()));
+
+  /** Header of a person group, with the shared phase labels («Aniré», «Ha vingut», «Pendents»…). */
+  groupLabel(status: AttendanceStatus): string {
+    return attendanceGroupLabel(status, this.phase());
+  }
   /** Which area this panel instance serves (§5.4) — Pinyes tab passes PINYA, Troncs passes TRONC. */
   readonly area = input<AssignmentArea>('PINYA');
   /**
@@ -266,7 +273,7 @@ export class PersonPanelComponent {
   });
 
   readonly confirmedPersons = computed(() =>
-    this.isPast()
+    this.arrivals()
       ? this.freePersons().filter((p) => p.attendanceStatus === 'ASSISTIT')
       : this.freePersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)),
   );
@@ -303,7 +310,7 @@ export class PersonPanelComponent {
   );
 
   readonly noShowPersons = computed(() =>
-    this.isPast()
+    this.arrivals()
       ? this.freePersons().filter((p) => p.attendanceStatus === 'ANIRE')
       : [],
   );
@@ -313,13 +320,13 @@ export class PersonPanelComponent {
   );
 
   readonly pendingPersons = computed(() =>
-    this.isPast()
+    this.arrivals()
       ? []
       : this.freePersons().filter((p) => p.attendanceStatus === 'PENDENT'),
   );
 
   readonly declinedPersons = computed(() =>
-    this.isPast()
+    this.arrivals()
       ? this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG' || p.attendanceStatus === 'PENDENT')
       : this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
   );

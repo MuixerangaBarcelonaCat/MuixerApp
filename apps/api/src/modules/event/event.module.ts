@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
-import { Season } from '../season/season.entity';
 import { Person } from '../person/person.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { SeasonModule } from '../season/season.module';
@@ -14,7 +13,7 @@ import { AttendanceSweepService } from './attendance-sweep.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Event, Attendance, Season, Person, EventSegment]),
+    TypeOrmModule.forFeature([Event, Attendance, Person, EventSegment]),
     SeasonModule,
     AuditModule,
   ],

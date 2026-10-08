@@ -109,7 +109,7 @@ export class HomeComponent {
         return {
           ...ev,
           myAttendance: {
-            id: ev.myAttendance?.id ?? '',
+            id: ev.myAttendance?.id ?? null,
             status: change.status,
             respondedAt: new Date().toISOString(),
           },

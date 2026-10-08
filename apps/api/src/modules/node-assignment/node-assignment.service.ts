@@ -36,12 +36,15 @@ import {
   ImportScope,
   zonesForScope,
   getSegmentInstanceLabel,
+  computeInstanceDisplayNames,
+  formatTroncSummary,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
+import { fetchTroncFloors } from '../event-segment/tronc-floors.util';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { Person } from '../person/person.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -145,6 +148,9 @@ export interface FigureHistoryEntry {
   snapshotted: boolean;
   assignmentCount: number;
   totalNodes: number;
+  /** One-line tronc, base → top («Pepet - ? // Maria»), as the segment list's Troncs mode shows
+   *  it; null when the figure has no tronc nodes or nothing left to show for its mode. */
+  troncSummary: string | null;
   assignments: {
     nodeId: string;
     nodeLabel: string;
@@ -302,6 +308,10 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
 
 
 // ─── Service ────────────────────────────────────────────────────────────────
+
+/** The joined event `ev` falls in season `:seasonId`: an event's season is derived from its date. */
+const EVENT_IN_SEASON_FILTER =
+  'EXISTS (SELECT 1 FROM seasons hs WHERE hs.id = :seasonId AND ev.date BETWEEN hs."startDate" AND hs."endDate")';
 
 @Injectable()
 export class NodeAssignmentService {
@@ -1102,7 +1112,7 @@ export class NodeAssignmentService {
       .where('fi.figureTemplateId = :templateId', { templateId });
 
     if (query.seasonId) {
-      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+      qb.andWhere(EVENT_IN_SEASON_FILTER, { seasonId: query.seasonId });
     }
 
     const total = await qb.getCount();
@@ -1111,6 +1121,10 @@ export class NodeAssignmentService {
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
+
+    const troncFloors = await fetchTroncFloors(this.dataSource, {
+      instanceIds: instances.map((i) => i.id),
+    });
 
     const data = instances.map((instance) => {
       const event = instance.segment.event as Event;
@@ -1138,6 +1152,7 @@ export class NodeAssignmentService {
         snapshotted: instance.snapshotted,
         assignmentCount: instance.assignments?.length ?? 0,
         totalNodes: (instance as FigureInstance & { instanceNodeCount?: number }).instanceNodeCount ?? 0,
+        troncSummary: formatTroncSummary(troncFloors.get(instance.id) ?? [], figureMode),
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
@@ -1190,7 +1205,7 @@ export class NodeAssignmentService {
       ]);
 
     if (query.seasonId) {
-      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+      qb.andWhere(EVENT_IN_SEASON_FILTER, { seasonId: query.seasonId });
     }
 
     const total = await qb.getCount();
@@ -1320,9 +1335,34 @@ export class NodeAssignmentService {
       else assignmentsBySegment.set(segmentId, [a]);
     }
 
+    // The assignments above load `figureInstance` without its template (classifySegmentConflicts
+    // would name every placement "Sense plantilla"), so names come from the instances instead,
+    // numbered per segment like the segment list («Pilar 1», «Pilar 2»).
+    const figureNameByInstanceId = new Map<string, string>();
+    for (const segmentInstances of instancesBySegment.values()) {
+      const names = computeInstanceDisplayNames(
+        [...segmentInstances]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((fi) => ({
+            id: fi.id,
+            label: fi.label,
+            figureMode: fi.figureMode,
+            // hasPinya is unused by getSegmentInstanceLabel (see its doc comment).
+            figureTemplate: fi.figureTemplate ? { name: fi.figureTemplate.name, hasPinya: false } : null,
+          })),
+      );
+      for (const [id, name] of names) figureNameByInstanceId.set(id, name);
+    }
+
     const result: EventSegmentSummary[] = segments.map((segment) => {
       const segmentAssignments = assignmentsBySegment.get(segment.id) ?? [];
-      const segmentConflicts = this.classifySegmentConflicts(segmentAssignments);
+      const segmentConflicts = this.classifySegmentConflicts(segmentAssignments).map((conflict) => ({
+        ...conflict,
+        placements: conflict.placements.map((p) => ({
+          ...p,
+          figureName: figureNameByInstanceId.get(p.figureInstanceId) ?? p.figureName,
+        })),
+      }));
       const conflictAssignmentIdsByInstance = new Map<string, Set<string>>();
       for (const conflict of segmentConflicts) {
         for (const placement of conflict.placements) {
@@ -1353,6 +1393,7 @@ export class NodeAssignmentService {
         sortOrder: segment.sortOrder,
         figures,
         conflicts: this.computeSegmentPeopleCounters(segmentAssignments, segmentConflicts),
+        conflictList: segmentConflicts,
       };
     });
 
@@ -1868,14 +1909,32 @@ export class NodeAssignmentService {
   }
 
   /**
+   * Read-only counterpart to removeCordoObertAssignments(): how many assignments turning
+   * cordonsObertsEnabled off WOULD remove. Both go through cordoObertNodeIds() so the count
+   * shown in the confirmation and what actually gets removed can never diverge.
+   */
+  async previewCordonsObertsDisable(instanceId: string): Promise<number> {
+    const cordoObertNodeIds = await this.cordoObertNodeIds(instanceId);
+    if (cordoObertNodeIds.length === 0) return 0;
+
+    return this.assignmentRepository.count({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(cordoObertNodeIds) } },
+    });
+  }
+
+  private async cordoObertNodeIds(instanceId: string): Promise<string[]> {
+    const nodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    return nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id);
+  }
+
+  /**
    * Deletes assignments on cordo-obert nodes — called when cordonsObertsEnabled
    * is turned off, since those nodes become hidden from the assignment UI.
    */
   private async removeCordoObertAssignments(instanceId: string): Promise<number> {
-    const nodes = await this.instanceNodeRepository.find({
-      where: { figureInstance: { id: instanceId } },
-    });
-    const cordoObertNodeIds = nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id);
+    const cordoObertNodeIds = await this.cordoObertNodeIds(instanceId);
     if (cordoObertNodeIds.length === 0) return 0;
 
     const assignments = await this.assignmentRepository.find({

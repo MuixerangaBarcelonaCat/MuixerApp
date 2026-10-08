@@ -1,6 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { FigureMode } from '@muixer/shared';
 
 export class UpdateInstanceDto {
@@ -8,13 +7,6 @@ export class UpdateInstanceDto {
   @IsString()
   @IsOptional()
   label?: string | null;
-
-  @ApiPropertyOptional({ description: 'Sort order within the segment' })
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  @Type(() => Number)
-  sortOrder?: number;
 
   @ApiPropertyOptional({ enum: FigureMode, description: 'Build mode for the figure' })
   @IsEnum(FigureMode)

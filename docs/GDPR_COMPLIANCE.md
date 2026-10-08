@@ -77,7 +77,7 @@ Raons per posar el consentiment a `User` i no a `Person`:
 
 La delegació té dues peces al model actual:
 
-- **`person_delegates`** (`person-delegate.entity.ts`) — enllaç `User → Person` amb `delegateType` (`PARENT | PARTNER | GUARDIAN`), únic per `[user, person]`.
+- **`person_delegates`** (`person-delegate.entity.ts`) — enllaç `User → Person` amb `delegateType` (`PARENT | GUARDIAN | OTHER` — sense «parella»: revelaria l'orientació sexual, una dada de categoria especial), únic per `[user, person]`.
 - **`persons.managedBy: User`** i **`persons.mentor: Person`** — camps a la mateixa `Person`.
 
 Cas típic: un **pare/mare (User)** gestiona l'assistència d'una **xicalla (Person sense compte)**.

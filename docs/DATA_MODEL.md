@@ -29,7 +29,7 @@ User >──< Person (person_delegates)   : delegació d'assistència (unique us
 **Events i assistència**
 
 ```
-Season ──< Event                      : temporada → events
+Season ··· Event                      : derivada per data (sense FK): la que conté event.date
 Event ──< Attendance                  : unique (person, event)
 Event ──< EventSegment                : CASCADE
 ```
@@ -74,6 +74,24 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 9. **Traçabilitat del legacy**: `legacyId` + `lastSyncedAt` a `Person` (vegeu [[SYNC_ARCHITECTURE]]).
 10. **Alçada relativa**: al tronc, si la persona té `shoulderHeight`, es mostra la diferència respecte al
     baseline de 140 cm ("+3" / "-5").
+11. **Assistència = estat de (persona, event)**, no una entitat: no tindre fila a `attendances` equival a
+    `PENDENT`. Només es desa una fila `PENDENT` quan algú havia respost i torna a Pendent (`respondedAt`
+    en marca el moment) o quan l'equip hi deixa una nota. Hi ha un sol endpoint d'escriptura,
+    `PUT /events/:id/attendance/:personId`, i no se'n pot esborrar el registre. Tota persona (activa o
+    no) compta per a un event; la que no té resposta i es va crear després del dia de l'event
+    (`createdAt` en hora de Madrid) té l'estat derivat `NO_REGISTRAT` (mai desat): les llistes i
+    recomptes de l'event l'exclouen, i `/me` el retorna (la PWA el mostra com a Pendent).
+    `attendanceSummary.pending`/`total` es calculen en llegir (canvien en crear persones).
+12. **Temporada d'un event = la que conté la seua data**, mai desada (no hi ha `events.seasonId`). Les
+    temporades són rangs inclusius `[startDate, endDate]` que no se solapen (restricció d'exclusió
+    `EX_seasons_no_overlap` i `CHECK endDate > startDate`), així que n'hi ha com a molt una. Un event
+    la data del qual no és dins de cap temporada té `season: null` («Sense temporada»): no compta per
+    a cap estadística de temporada. Crear un event, o canviar-ne la data, a una data fora de qualsevol
+    temporada dona 400; editar un event antic sense temporada sense tocar-ne la data sí que es permet.
+    Editar o esborrar una temporada que deixaria events sense temporada dona 409
+    (`code: SEASON_LEAVES_EVENTS_UNCOVERED`, `uncoveredCount`) llevat que es confirme amb
+    `allowUncovered=true`; així es mou la frontera entre dues temporades contigües en dos passos. La
+    sincronització del legacy importa igualment els events fora de temporada i n'avisa del recompte.
 
 ---
 
@@ -81,7 +99,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-09-28 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-10-06 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -109,7 +127,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `push_subscriptions` | `PushSubscription` | 10 |
 | `refresh_tokens` | `RefreshToken` | 10 |
 | `rengles` | `Rengla` | 5 |
-| `seasons` | `Season` | 9 |
+| `seasons` | `Season` | 8 |
 | `users` | `User` | 14 |
 
 ### Enums (`libs/shared/src/enums`)
@@ -122,7 +140,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `BeforeEventOffsetUnit` | `DAYS` · `HOURS` |
 | `ClientType` | `dashboard` · `pwa` |
-| `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` · `OTHER` |
+| `DelegateType` | `PARENT` · `GUARDIAN` · `OTHER` |
 | `EventReferenceKind` | `SPECIFIC` · `NEXT_ACTUACIO` · `NEXT_ASSAIG` · `NEXT_ACTUACIO_OR_ASSAIG` · `TRIGGERING_EVENT` |
 | `EventType` | `ASSAIG` · `ACTUACIO` |
 | `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
@@ -242,10 +260,10 @@ Definició: [`apps/api/src/modules/event/event.entity.ts`](../apps/api/src/modul
 | `location` | `varchar` | `string` | sí | — |
 | `locationUrl` | `varchar` | `string` | sí | — |
 | `information` | `text` | `string` | sí | — |
+| `notes` | `text` | `string` | sí | — |
 | `countsForStatistics` | `—` | `boolean` | no | default `true` |
 | `metadata` | `jsonb` | `RehearsalMetadata \| PerformanceMetadata` | no | — |
 | `attendanceSummary` | `jsonb` | `AttendanceSummary` | no | default `DEFAULT_ATTENDANCE_SUMMARY` |
-| `season` | `relation` | `Season` | sí | ManyToOne → `Season` |
 | `attendances` | `relation` | `Attendance[]` | no | OneToMany → `Attendance` |
 | `segments` | `relation` | `EventSegment[]` | no | OneToMany → `EventSegment` |
 | `legacyId` | `varchar` | `string` | sí | unique |
@@ -572,7 +590,6 @@ Definició: [`apps/api/src/modules/season/season.entity.ts`](../apps/api/src/mod
 | `endDate` | `date` | `Date` | no | — |
 | `description` | `text` | `string` | sí | — |
 | `legacyId` | `varchar` | `string` | sí | unique |
-| `events` | `relation` | `Event[]` | no | OneToMany → `Event` |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 

@@ -1,6 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { OWN_POSITION_MULTIPLE_PLACEMENTS, OWN_POSITION_NO_PLACEMENT, OwnPositionSubject } from '@muixer/shared';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from './own-position-banner.component';
+import { FIGURE_PALETTE } from '../../utils/figure-palette.util';
+import { THEME_NAMES } from '@muixer/ui';
+
+/** jsdom normalizes inline colors to `rgb(r, g, b)`. */
+const hexToRgb = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgb(${r}, ${g}, ${b})`;
+};
 
 describe('OwnPositionBannerComponent', () => {
   let fixture: ComponentFixture<OwnPositionBannerComponent>;
@@ -32,10 +40,18 @@ describe('OwnPositionBannerComponent', () => {
     fixture = TestBed.createComponent(OwnPositionBannerComponent);
   });
 
+  it('is always a dark HUD, drawn from the dark theme tokens whatever the page theme', () => {
+    setState({ kind: 'NONE' });
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.dataset['theme']).toBe(THEME_NAMES.dark);
+    expect(host.className).toContain('bg-base-200/60');
+    expect(host.className).not.toMatch(/\b(bg|text)-(black|white)\b/);
+  });
+
   it('renders a PINYA placement with every clause', () => {
     setState({
       kind: 'PINYA',
-      instanceIndex: 0,
+      figureSortOrder: 0,
       nodeLabel: 'Lateral',
       cordon: 2,
       figureName: 'Roscana',
@@ -51,8 +67,17 @@ describe('OwnPositionBannerComponent', () => {
     expect(boldTexts()).toEqual(['Lateral', 'Roscana', 'Marta']);
   });
 
+  it('colors the figure name with its figure\'s palette color, by sortOrder', () => {
+    setState({ kind: 'PINYA', figureSortOrder: 2, nodeLabel: 'Lateral', cordon: null, figureName: 'Pilar 3', behind: null });
+
+    const figure = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[style]')).find(
+      (el) => el.textContent === 'Pilar 3',
+    );
+    expect(figure?.style.color).toBe(hexToRgb(FIGURE_PALETTE[2]));
+  });
+
   it('renders a PINYA placement with every optional clause omitted', () => {
-    setState({ kind: 'PINYA', instanceIndex: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
+    setState({ kind: 'PINYA', figureSortOrder: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
 
     expect(sentence()).toBe('Sou Lateral.');
     expect(buttonText()).toBe("Troba'm");
@@ -61,7 +86,7 @@ describe('OwnPositionBannerComponent', () => {
   it('renders a TRONC placement with both neighbour halves', () => {
     setState({
       kind: 'TRONC',
-      instanceIndex: 1,
+      figureSortOrder: 1,
       nodeLabel: 'Segons',
       figureName: 'Roscana',
       below: ['Joan', 'Pere'],
@@ -87,7 +112,7 @@ describe('OwnPositionBannerComponent', () => {
   });
 
   it("emits troba when the Troba'm button is clicked", () => {
-    setState({ kind: 'PINYA', instanceIndex: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
+    setState({ kind: 'PINYA', figureSortOrder: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
     const spy = jest.fn();
     fixture.componentInstance.troba.subscribe(spy);
 
@@ -98,7 +123,7 @@ describe('OwnPositionBannerComponent', () => {
 
   describe('looking up another person', () => {
     it('renders the third-person sentence and swaps the action label to «On està»', () => {
-      setState({ kind: 'PINYA', instanceIndex: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
+      setState({ kind: 'PINYA', figureSortOrder: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
       setSubject({ kind: 'other', alias: 'Marta' });
 
       expect(sentence()).toBe('Marta és Lateral.');
@@ -124,7 +149,7 @@ describe('OwnPositionBannerComponent', () => {
       setSubject({ kind: 'other', alias: 'Marta' });
       expect(backButton()).not.toBeNull();
 
-      setState({ kind: 'PINYA', instanceIndex: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
+      setState({ kind: 'PINYA', figureSortOrder: 0, nodeLabel: 'Lateral', cordon: null, figureName: null, behind: null });
       expect(backButton()).not.toBeNull();
     });
 

@@ -26,7 +26,10 @@ FROM node:22-alpine AS prod-deps
 WORKDIR /app
 RUN corepack enable
 COPY --from=build /app/dist/apps/api/package.json ./
-RUN pnpm install --prod
+# Without `supportedArchitectures`, pnpm doesn't filter optional deps by their `libc` field, so
+# native packages that ship per-libc builds (e.g. @myriaddreamin/typst-ts-node-compiler, 50 MB
+# each) install both the glibc and musl variants. This image is Alpine: keep only musl.
+RUN npm pkg set "pnpm.supportedArchitectures.libc[0]=musl" && pnpm install --prod
 
 # Stage 4: Final lightweight runner image
 FROM node:22-alpine AS runner

@@ -2,11 +2,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Event } from '../event/event.entity';
 
 @Entity('seasons')
 export class Season {
@@ -27,9 +25,6 @@ export class Season {
 
   @Column({ type: 'varchar', nullable: true, unique: true })
   legacyId: string | null;
-
-  @OneToMany(() => Event, (event) => event.season)
-  events: Event[];
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

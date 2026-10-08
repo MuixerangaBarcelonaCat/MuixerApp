@@ -100,7 +100,7 @@
           <app-attendance-button
             [eventId]="ev.id"
             [personId]="row.personId"
-            [status]="row.attendance?.status ?? null"
+            [status]="memberAttendanceStatus(row.attendance.status)"
             [disabled]="isPast()"
             [ariaContext]="ev.title + ' — ' + row.displayName"
           />

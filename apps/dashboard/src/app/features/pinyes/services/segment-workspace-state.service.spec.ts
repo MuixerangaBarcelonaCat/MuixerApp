@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict, getFigureTint, isRematMarker } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -49,6 +49,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -73,6 +74,7 @@ const makeDistributionItem = (
   overrides: Partial<SegmentDistributionData['items'][number]> = {},
 ): SegmentDistributionData['items'][number] => ({
   instanceId,
+  sortOrder: 0,
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
@@ -521,6 +523,26 @@ describe('SegmentWorkspaceStateService', () => {
       expect(slotB?.offsetX).toBeGreaterThan(400 + 50);
     });
 
+    it('keeps each figure\'s own sortOrder (its color index) when an earlier figure draws nothing on the pinya canvas', () => {
+      configure({
+        segment: makeSegment([
+          makeInstance('inst-a', { sortOrder: 0, figureMode: 'REMAT' }),
+          makeInstance('inst-b', { sortOrder: 1 }),
+        ]),
+        nodesByInstance: {
+          'inst-a': [makeNode('p1', 'PINYA')],
+          'inst-b': [makeNode('p2', 'PINYA')],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.pinyaSlots().map((s) => [s.slotId, s.sortOrder])).toEqual([
+        ['inst-a', 0],
+        ['inst-b', 1],
+      ]);
+    });
+
     it('includes PINYA, BASE and DECORATION nodes but never TRONC nodes', () => {
       configure({
         nodesByInstance: {
@@ -539,7 +561,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(ids).toEqual(['b1', 'd1', 'p1']);
     });
 
-    it('hides PINYA and BASE nodes for REMAT instances', () => {
+    it('hides PINYA and BASE nodes for REMAT instances, drawing the REMAT marker instead (first, so behind its decorations)', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
         nodesByInstance: {
@@ -549,8 +571,44 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
-      expect(ids).toEqual(['d1']);
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => (isRematMarker(n) ? 'marker' : n.id));
+      expect(ids).toEqual(['marker', 'd1']);
+    });
+
+    it('draws the REMAT marker in the figure tint, with no text, centered where its hidden pinya was', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT', sortOrder: 2 })]),
+        nodesByInstance: {
+          'inst-a': [
+            makeNode('p1', 'PINYA', { x: 100, y: 100, width: 100, height: 100 }),
+            makeNode('b1', 'BASE', { x: 300, y: 300, width: 100, height: 100 }),
+          ],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const marker = service.pinyaSlots()[0].figureTemplate.nodes.find(isRematMarker)!;
+      expect(marker).toMatchObject({
+        x: 200,
+        y: 200,
+        width: 240,
+        height: 240,
+        color: getFigureTint(2),
+        label: '',
+      });
+    });
+
+    it('never counts the REMAT marker as a node to fill', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
+        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('t1', 'TRONC')] },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.instances()[0].nodes.some(isRematMarker)).toBe(false);
+      expect(service.instances()[0].totalCount).toBe(1);
     });
 
     it('hides PINYA nodes but keeps BASE nodes for NETA instances', () => {
@@ -567,7 +625,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(ids).toEqual(['b1']);
     });
 
-    it('produces no pinya slot for a REMAT instance with only PINYA/BASE nodes', () => {
+    it('gives a REMAT instance with only PINYA/BASE nodes a slot holding just its marker', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
         nodesByInstance: {
@@ -577,7 +635,10 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      expect(service.pinyaSlots()).toEqual([]);
+      const slots = service.pinyaSlots();
+      expect(slots.map((s) => s.slotId)).toEqual(['inst-a']);
+      expect(slots[0].figureTemplate.nodes.every(isRematMarker)).toBe(true);
+      expect(slots[0].figureTemplate.nodes).toHaveLength(1);
     });
 
     it('hides PINYA nodes beyond the instance numberOfCordons and repositions cordo-obert nodes', () => {
@@ -646,7 +707,7 @@ describe('SegmentWorkspaceStateService', () => {
       expect(offsetXAfter).toBe(initialOffsetX);
     });
 
-    it('skips instances with no pinya-canvas nodes', () => {
+    it('keeps a slot for every instance, even one with no pinya-canvas nodes (like Distribució does)', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]),
         nodesByInstance: {
@@ -657,7 +718,68 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      expect(service.pinyaSlots().map((s) => s.slotId)).toEqual(['inst-b']);
+      expect(service.pinyaSlots().map((s) => [s.slotId, s.figureTemplate.nodes.length])).toEqual([
+        ['inst-a', 0],
+        ['inst-b', 1],
+      ]);
+    });
+
+    it('matches the Distribució tab layout for a fully-unplaced segment that includes a REMAT figure', async () => {
+      const { mapDistributionItemsToSlots } = await import('../utils/distribution-slot-mapping.util');
+
+      const figNodes = (idPrefix: string) => [
+        makeNode(`${idPrefix}-p1`, 'PINYA', { x: 200, y: 150, width: 400, height: 300 }),
+        makeNode(`${idPrefix}-b1`, 'BASE', { x: 200, y: 320, width: 100, height: 40 }),
+      ];
+      const modes: Record<string, 'COMPLETA' | 'REMAT'> = { a: 'COMPLETA', b: 'REMAT', c: 'COMPLETA' };
+      const ids = Object.keys(modes);
+      configure({
+        segment: makeSegment(ids.map((id, index) => makeInstance(id, { sortOrder: index, figureMode: modes[id] }))),
+        nodesByInstance: Object.fromEntries(ids.map((id) => [id, figNodes(id)])),
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+      const slots = mapDistributionItemsToSlots(
+        ids.map((id, index) =>
+          makeDistributionItem(id, {
+            sortOrder: index,
+            figureMode: modes[id],
+            troncGridRows: 1,
+            figureTemplate: { id: `tpl-${id}`, name: `Figura ${id}`, nodes: figNodes(id) },
+          }),
+        ),
+      );
+
+      const pinyaSlots = service.pinyaSlots();
+      for (const slot of slots) {
+        const pinyaSlot = pinyaSlots.find((s) => s.slotId === slot.slotId)!;
+        expect(pinyaSlot.offsetX).toBe(slot.offsetX);
+        expect(pinyaSlot.offsetY).toBe(slot.offsetY);
+      }
+    });
+  });
+
+  describe('hasPinyaCanvasNodes', () => {
+    it('is false when no figure draws anything on the pinya canvas (a figure with only tronc nodes)', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a')]),
+        nodesByInstance: { 'inst-a': [makeNode('t1', 'TRONC')] },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.hasPinyaCanvasNodes()).toBe(false);
+    });
+
+    it('is true for a lone REMAT figure — its marker is drawn', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
+        nodesByInstance: { 'inst-a': [makeNode('p1', 'PINYA'), makeNode('t1', 'TRONC')] },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.hasPinyaCanvasNodes()).toBe(true);
     });
 
     it('matches the Distribució tab layout exactly for a fully-unplaced segment (same pivot/occupancy, same cordons/mode filtering)', async () => {
@@ -677,8 +799,9 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
       const slots = mapDistributionItemsToSlots(
-        ids.map((id) => ({
+        ids.map((id, index) => ({
           instanceId: id,
+          sortOrder: index,
           label: null,
           figureMode: 'COMPLETA',
           numberOfCordons: 1,
@@ -757,6 +880,26 @@ describe('SegmentWorkspaceStateService', () => {
       expect(inst.nodes).toHaveLength(1);
     });
 
+    it('re-fetches sortOrder, so a reorder made elsewhere recolors the figures', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { sortOrder: 0 }), makeInstance('inst-b', { sortOrder: 1 })]),
+      });
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      segmentService.getByEvent.mockReturnValue(
+        of({
+          data: [makeSegment([makeInstance('inst-b', { sortOrder: 0 }), makeInstance('inst-a', { sortOrder: 1 })])],
+        }),
+      );
+      service.markTabSwitched();
+      service.refresh();
+
+      expect(service.instances().map((i) => [i.instanceId, i.sortOrder])).toEqual([
+        ['inst-a', 1],
+        ['inst-b', 0],
+      ]);
+    });
+
     it('re-fetches distribution positions', () => {
       configure();
       service.load(EVENT_ID, SEGMENT_ID);
@@ -791,6 +934,71 @@ describe('SegmentWorkspaceStateService', () => {
       configure();
 
       expect(() => service.refresh()).not.toThrow();
+      expect(segmentService.getByEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reloadInstances', () => {
+    const addInstanceToSegment = () => {
+      const segment = makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]);
+      segmentService.getByEvent.mockReturnValue(of({ data: [segment] }));
+      assignmentService.getSegmentAssignmentState.mockReturnValue(
+        of({
+          data: [
+            { instanceId: 'inst-a', nodes: [makeNode('n1', 'TRONC')], assignments: [makeAssignment('as-1', 'inst-a', 'n1')] },
+            { instanceId: 'inst-b', nodes: [makeNode('m1', 'TRONC'), makeNode('m2', 'TRONC')], assignments: [] },
+          ],
+        }),
+      );
+    };
+
+    it('picks up figures added to the segment since load, with their nodes', () => {
+      configure({ nodesByInstance: { 'inst-a': [makeNode('n1', 'TRONC')] } });
+      service.load(EVENT_ID, SEGMENT_ID);
+      addInstanceToSegment();
+
+      service.reloadInstances();
+
+      expect(service.instances().map((i) => i.instanceId)).toEqual(['inst-a', 'inst-b']);
+      expect(service.instances()[1].nodes).toHaveLength(2);
+      expect(state.assignments().map((a) => a.id)).toEqual(['as-1']);
+    });
+
+    it('keeps the workspace on screen: no loading spinner, selection kept', () => {
+      configure({ nodesByInstance: { 'inst-a': [makeNode('n1', 'TRONC')] } });
+      service.load(EVENT_ID, SEGMENT_ID);
+      state.setSelectedNodeId('n1');
+      addInstanceToSegment();
+      const loadingStates: boolean[] = [];
+      const original = service.loading.set.bind(service.loading);
+      vi.spyOn(service.loading, 'set').mockImplementation((v) => {
+        loadingStates.push(v);
+        original(v);
+      });
+
+      service.reloadInstances();
+
+      expect(loadingStates).not.toContain(true);
+      expect(state.selectedNodeId()).toBe('n1');
+    });
+
+    it('re-fetches distribution positions and conflicts', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      distributionService.getDistribution.mockClear();
+      assignmentService.getSegmentConflicts.mockClear();
+
+      service.reloadInstances();
+
+      expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(assignmentService.getSegmentConflicts).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+    });
+
+    it('does nothing when called before load (no event/segment id yet)', () => {
+      configure();
+
+      service.reloadInstances();
+
       expect(segmentService.getByEvent).not.toHaveBeenCalled();
     });
   });

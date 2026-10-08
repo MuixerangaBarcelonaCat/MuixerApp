@@ -4,8 +4,7 @@ import { RouterLink } from '@angular/router';
 import type { LucideIconData } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
 import { LiftHoverDirective } from '../../directives/lift-hover.directive';
-import { contrastContent, formatOklch, hexToOklch } from '../../tokens/color';
-import { INK, PAPER } from '../../tokens/fixed-colors';
+import { readableContentOn } from '../../tokens/color';
 import { generateFringeThreads } from './sash-fringe.util';
 
 export type CardSash = 'none' | 'thin' | 'title';
@@ -27,9 +26,6 @@ const TONE_CLASSES: Record<CardTone, string> = {
   warning: 'bg-warning/10 border border-warning/30',
   error: 'bg-error/10 border border-error/30',
 };
-
-const INK_BLACK = hexToOklch(INK.black);
-const PAPER_WHITE = hexToOklch(PAPER.white);
 
 // Band heights per sash mode — 'title' is tall enough to hold icon+text comfortably (approved
 // after an earlier 30px pass felt cramped), 'thin' stays close to the border-l-4 it replaces.
@@ -102,6 +98,6 @@ export class CardComponent {
     if (!color) {
       return null;
     }
-    return formatOklch(contrastContent(hexToOklch(color), INK_BLACK, PAPER_WHITE));
+    return readableContentOn(color);
   });
 }

@@ -63,7 +63,6 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
 
   private readonly allDelegateTypes: { value: DelegateType; label: string }[] = [
     { value: DelegateType.PARENT, label: 'Pare/Mare' },
-    { value: DelegateType.PARTNER, label: 'Parella' },
     { value: DelegateType.GUARDIAN, label: 'Tutor/a' },
     { value: DelegateType.OTHER, label: 'Altres' },
   ];

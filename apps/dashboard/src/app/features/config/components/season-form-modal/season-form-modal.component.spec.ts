@@ -5,6 +5,7 @@ import { SeasonFormModalComponent } from './season-form-modal.component';
 import { SeasonService } from '../../../events/services/season.service';
 import { ToastService } from '@muixer/ui';
 import { Season } from '../../../events/models/event.model';
+import { SEASON_LEAVES_EVENTS_UNCOVERED } from '@muixer/shared';
 
 const mockSeason: Season = {
   id: 's1',
@@ -13,6 +14,8 @@ const mockSeason: Season = {
   endDate: '2026-09-05',
   description: 'Test description',
   eventCount: 10,
+  rehearsalCount: 10,
+  performanceCount: 0,
 };
 
 describe('SeasonFormModalComponent', () => {
@@ -70,7 +73,7 @@ describe('SeasonFormModalComponent', () => {
 
     it('submits valid form and emits saved', () => {
       const savedSpy = vi.fn();
-      component.saved.subscribe(savedSpy);
+      component.saved.subscribe(() => savedSpy());
 
       component.form.patchValue({
         name: 'Nova temporada',
@@ -144,6 +147,64 @@ describe('SeasonFormModalComponent', () => {
       component.cancelled.subscribe(cancelledSpy);
       component.onCancel();
       expect(cancelledSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('edit that would leave events in no season', () => {
+    const uncovered409 = (count: number) =>
+      throwError(() => ({
+        status: 409,
+        error: {
+          statusCode: 409,
+          code: SEASON_LEAVES_EVENTS_UNCOVERED,
+          uncoveredCount: count,
+          message: `${count} esdeveniments quedarien fora de qualsevol temporada.`,
+        },
+      }));
+    let savedSpy: ReturnType<typeof vi.fn<() => void>>;
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(SeasonFormModalComponent);
+      component = fixture.componentInstance;
+      fixture.componentRef.setInput('season', mockSeason);
+      savedSpy = vi.fn();
+      component.saved.subscribe(() => savedSpy());
+      fixture.detectChanges();
+      seasonService.update.mockReturnValueOnce(uncovered409(3));
+      component.form.patchValue({ startDate: '2025-09-10' });
+      component.onSave();
+      fixture.detectChanges();
+    });
+
+    it('asks to confirm instead of showing an error', () => {
+      expect(component.uncoveredWarning()).toBe('3 esdeveniments quedaran sense temporada. Voleu continuar?');
+      expect(component.errorMessage()).toBeNull();
+      expect(savedSpy).not.toHaveBeenCalled();
+      expect(fixture.nativeElement.textContent).toContain('Alça igualment');
+    });
+
+    it('resubmits with allowUncovered once confirmed', () => {
+      component.onSave();
+      expect(seasonService.update).toHaveBeenLastCalledWith(
+        's1',
+        expect.objectContaining({ startDate: '2025-09-10' }),
+        { allowUncovered: true },
+      );
+      expect(savedSpy).toHaveBeenCalled();
+    });
+
+    it('drops the pending confirmation when the form is edited again', () => {
+      component.form.patchValue({ startDate: '2025-09-12' });
+      expect(component.uncoveredWarning()).toBeNull();
+      component.onSave();
+      expect(seasonService.update).toHaveBeenLastCalledWith('s1', expect.objectContaining({ startDate: '2025-09-12' }));
+    });
+
+    it('uses the singular for a single event', () => {
+      component.form.patchValue({ startDate: '2025-09-08' });
+      seasonService.update.mockReturnValueOnce(uncovered409(1));
+      component.onSave();
+      expect(component.uncoveredWarning()).toBe('1 esdeveniment quedarà sense temporada. Voleu continuar?');
     });
   });
 });

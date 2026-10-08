@@ -5,6 +5,7 @@ import {
   HostListener,
   OnDestroy,
   OnInit,
+  computed,
   inject,
   input,
   signal,
@@ -13,7 +14,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '@muixer/ui';
+import { ThemeScopeDirective, ToastService } from '@muixer/ui';
+import { computeSegmentDisplayName } from '@muixer/shared';
 import { ProjectionService } from '../../services/projection.service';
 
 @Component({
@@ -24,6 +26,7 @@ import { ProjectionService } from '../../services/projection.service';
     CommonModule,
     LucideAngularModule,
     PinyaProjectionComponent,
+    ThemeScopeDirective,
   ],
   templateUrl: './projection-view.component.html',
 })
@@ -44,6 +47,12 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   readonly segmentData = signal<ProjectionSegmentData | null>(null);
   readonly cursorVisible = signal(true);
   readonly helpModalOpen = signal(false);
+
+  readonly segmentTitle = computed(() => {
+    const data = this.segmentData();
+    if (!data) return '';
+    return computeSegmentDisplayName(data.segment.name, data.instances);
+  });
 
   /** Restricts the projection to a single figure. A real signal (not a plain
    *  field) so `PinyaProjectionComponent`'s `filteredInstances` computed tracks

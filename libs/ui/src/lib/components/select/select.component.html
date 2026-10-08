@@ -2,7 +2,7 @@
   <div class="relative">
     @if (!multiple() && swatchColor()) {
       <span
-        class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 border border-black/10"
+        class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 border border-base-content/10"
         [class.rounded-full]="swatchShape() === 'circle'"
         [class.rounded-sm]="swatchShape() === 'square'"
         [style.backgroundColor]="swatchColor()"

@@ -344,50 +344,8 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     this.loadDistribution();
   }
 
-  readonly pendingCordonsObertsChange = signal<{ id: string; affectedCount: number } | null>(null);
-
   onCordonsObertsEnabledChanged(event: { id: string; value: boolean }): void {
-    if (event.value) {
-      this.applyCordonsObertsChange(event.id, true);
-      return;
-    }
-    const affectedCount = this.countCordoObertAssignments(event.id);
-    if (affectedCount > 0) {
-      this.pendingCordonsObertsChange.set({ id: event.id, affectedCount });
-      return;
-    }
-    this.applyCordonsObertsChange(event.id, false);
-  }
-
-  confirmCordonsObertsChange(): void {
-    const pending = this.pendingCordonsObertsChange();
-    if (!pending) return;
-    this.applyCordonsObertsChange(pending.id, false);
-    this.pendingCordonsObertsChange.set(null);
-  }
-
-  cancelCordonsObertsChange(): void {
-    this.pendingCordonsObertsChange.set(null);
-  }
-
-  private applyCordonsObertsChange(id: string, value: boolean): void {
-    this.assignmentService.updateCordons(id, { cordonsObertsEnabled: value }).subscribe({
-      next: () => this.loadDistribution(),
-      error: () => this.toast.error("No s'han pogut actualitzar els cordons oberts."),
-    });
-  }
-
-  /** Number of existing assignments on cordo-obert nodes for this instance. */
-  private countCordoObertAssignments(instanceId: string): number {
-    const item = this.items().find((i) => i.instanceId === instanceId);
-    if (!item) return 0;
-
-    const cordoObertNodeIds = new Set(
-      item.figureTemplate.nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id),
-    );
-    if (cordoObertNodeIds.size === 0) return 0;
-
-    return item.assignments.filter((a) => cordoObertNodeIds.has(a.figureNodeId)).length;
+    this.cordonsChange.requestCordonsOberts(event.id, event.value);
   }
 
   private currentSlotTransform(slotId: string): { offsetX: number; offsetY: number; angle: number } {

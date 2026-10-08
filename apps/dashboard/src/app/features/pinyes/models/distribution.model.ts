@@ -27,6 +27,8 @@ export interface DistributionAssignment {
 
 export interface DistributionItem {
   instanceId: string;
+  /** Position in the segment, unique 0..n-1 — also the figure's color index on every view. */
+  sortOrder: number;
   label: string | null;
   figureMode: string;
   numberOfCordons: number | null;

@@ -66,7 +66,7 @@
               >
                 <app-person-hover-card
                   [info]="toHoverInfo(result.person)"
-                  [isPast]="isPast()"
+                  [phase]="phase()"
                   [heightMode]="heightMode()"
                   [activeNodePositionType]="activeNodePositionType()"
                   [bare]="true"
@@ -95,7 +95,7 @@
           size="sm"
           [placeholder]="heightMode() === 'relative' ? 'Alçada relativa (ex: +5, -10)' : 'Alçada absoluta (cm)'"
           [ngModel]="height()"
-          (ngModelChange)="onHeightChange($event ? +$event : null)"
+          (ngModelChange)="onHeightChange($event)"
           [ariaLabel]="'Filtra per alçada ' + (heightMode() === 'relative' ? 'relativa' : 'absoluta')"
           [min]="heightMode() === 'relative' ? -50 : 100"
           [max]="heightMode() === 'relative' ? 50 : 200"
@@ -244,11 +244,11 @@
         <p class="text-xs text-base-content/40 px-4 py-3" data-testid="no-search-matches">Cap coincidència</p>
       }
 
-      <!-- Confirmades / Assistits -->
+      <!-- Confirmed (ANIRE) before the event day / arrived (ASSISTIT) from the event day on -->
       @if (!searchActive() || sortedConfirmedPersons().length > 0) {
       <div class="px-2 pt-2 pb-1">
         <p class="text-xs font-semibold text-success mb-1">
-          Confirmades ({{ sortedConfirmedPersons().length }})
+          {{ groupLabel(arrivals() ? 'ASSISTIT' : 'ANIRE') }} ({{ sortedConfirmedPersons().length }})
         </p>
         @for (person of sortedConfirmedPersons(); track person.id) {
           @let posType = activeNodePositionType();
@@ -298,11 +298,11 @@
       </div>
       }
 
-      <!-- No presentades (only when isPast, ANIRE) -->
-      @if (isPast() && sortedNoShowPersons().length > 0) {
+      <!-- No-shows (from the event day on, ANIRE) -->
+      @if (arrivals() && sortedNoShowPersons().length > 0) {
         <div class="px-2 pb-1 border-t border-base-200">
           <p class="text-xs font-semibold text-warning mt-1.5 mb-1">
-            No presentades ({{ sortedNoShowPersons().length }})
+            {{ groupLabel('ANIRE') }} ({{ sortedNoShowPersons().length }})
           </p>
           @for (person of sortedNoShowPersons(); track person.id) {
             @let posType = activeNodePositionType();
@@ -459,7 +459,7 @@
         </div>
       }
 
-      <!-- Altres / No van venir -->
+      <!-- Altres: declined and pending -->
       @if (!searchActive() || visiblePendingPersons().length + visibleDeclinedPersons().length > 0) {
       <div class="border-t border-base-200">
         <lib-button
@@ -472,7 +472,7 @@
         >
           <span class="flex items-center justify-between w-full text-xs font-semibold text-base-content/60">
             <span>
-              {{ isPast() ? 'No van venir' : 'Altres' }}
+              Altres
               ({{ visiblePendingPersons().length + visibleDeclinedPersons().length }})
             </span>
             <i-lucide [img]="altresOpen() ? ChevronUp : ChevronDown" class="size-3" />
@@ -482,10 +482,10 @@
         @if (altresOpen()) {
           <div id="altres-panel" class="px-2 pb-2">
 
-            <!-- No vindran / No van venir (NO_VAIG; post-event also PENDENT) -->
+            <!-- NO_VAIG; from the event day on also PENDENT -->
             @if (visibleDeclinedPersons().length > 0) {
               <p class="text-xs font-medium text-error mt-1.5 mb-1">
-                {{ isPast() ? 'No van venir' : 'No vindran' }} ({{ visibleDeclinedPersons().length }})
+                {{ groupLabel('NO_VAIG') }} ({{ visibleDeclinedPersons().length }})
               </p>
               @for (person of visibleDeclinedPersons(); track person.id) {
                 <button
@@ -522,7 +522,7 @@
             <!-- Pendents (pre-event only) -->
             @if (visiblePendingPersons().length > 0) {
               <p class="text-xs font-medium text-warning mt-1.5 mb-1">
-                Pendents ({{ visiblePendingPersons().length }})
+                {{ groupLabel('PENDENT') }} ({{ visiblePendingPersons().length }})
               </p>
               @for (person of visiblePendingPersons(); track person.id) {
                 <button
@@ -572,7 +572,7 @@
     >
       <app-person-hover-card
         [info]="hovered.info"
-        [isPast]="isPast()"
+        [phase]="phase()"
         [heightMode]="heightMode()"
         [activeNodePositionType]="activeNodePositionType()"
       />

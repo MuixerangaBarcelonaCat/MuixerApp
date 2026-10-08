@@ -13,7 +13,7 @@ import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular'
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService, TextareaComponent, InputComponent, SelectComponent, ButtonComponent, BadgeComponent, BadgeVariant } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
-import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isArrivalPhase } from '@muixer/shared';
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 
 @Component({
@@ -40,8 +40,8 @@ export class AdHocNodePropertiesComponent {
   readonly instanceId = input.required<string>();
   readonly assignment = input<AssignmentDetail | null>(null);
   readonly heightMode = input<HeightMode>('relative');
-  readonly attendanceStatus = input<string | null>(null);
-  readonly isPast = input<boolean>(false);
+  readonly attendanceStatus = input<AttendanceStatusValue | null>(null);
+  readonly phase = input<EventPhase>('before');
   readonly closed = output<void>();
   readonly nodeUpdated = output<void>();
   readonly deleteRequested = output<string>();
@@ -84,7 +84,7 @@ export class AdHocNodePropertiesComponent {
   readonly attendanceBadgeVariant = computed<BadgeVariant>(() => {
     const status = this.attendanceStatus();
     if (status === 'ASSISTIT') return 'success';
-    if (status === 'ANIRE') return this.isPast() ? 'warning' : 'success';
+    if (status === 'ANIRE') return isArrivalPhase(this.phase()) ? 'warning' : 'success';
     if (status === 'NO_VAIG') return 'error';
     if (status === 'PENDENT') return 'warning';
     return 'ghost';
@@ -92,11 +92,7 @@ export class AdHocNodePropertiesComponent {
 
   readonly attendanceLabel = computed(() => {
     const status = this.attendanceStatus();
-    if (status === 'ASSISTIT') return 'Assistit';
-    if (status === 'ANIRE') return this.isPast() ? 'No presentat' : 'Vinc';
-    if (status === 'NO_VAIG') return 'No vinc';
-    if (status === 'PENDENT') return 'Pendent';
-    return 'Assignat/da';
+    return status ? attendanceStatusLabel(status, this.phase()) : 'Assignat/da';
   });
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;

@@ -246,10 +246,10 @@ describe('MeController', () => {
 
   describe('createPersonDelegate', () => {
     it('delegates to MeService and shapes the response via PersonDelegateResponseDto', async () => {
-      const dto = { alias: 'JoanP', delegateType: DelegateType.PARTNER };
+      const dto = { alias: 'JoanP', delegateType: DelegateType.OTHER };
       meService.createPersonDelegate.mockResolvedValue({
         id: 'del-new',
-        delegateType: DelegateType.PARTNER,
+        delegateType: DelegateType.OTHER,
         isActive: true,
         isPrimary: false,
         createdAt: new Date('2026-01-01'),
@@ -260,7 +260,7 @@ describe('MeController', () => {
       const result = await controller.createPersonDelegate(mockUser, 'p-1', dto as never);
 
       expect(meService.createPersonDelegate).toHaveBeenCalledWith('user-1', 'p-1', dto);
-      expect(result).toEqual(expect.objectContaining({ id: 'del-new', delegateType: DelegateType.PARTNER }));
+      expect(result).toEqual(expect.objectContaining({ id: 'del-new', delegateType: DelegateType.OTHER }));
     });
   });
 

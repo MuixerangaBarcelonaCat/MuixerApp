@@ -2,14 +2,11 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
-  JoinColumn,
 } from 'typeorm';
 import { EventType, AttendanceSummary, RehearsalMetadata, PerformanceMetadata } from '@muixer/shared';
-import { Season } from '../season/season.entity';
 import { Attendance } from './attendance.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 
@@ -53,6 +50,13 @@ export class Event {
   @Column({ type: 'text', nullable: true })
   information: string | null;
 
+  /**
+   * Internal technician notes. Unlike `information`, these never reach the PWA and the
+   * legacy sync never overwrites them.
+   */
+  @Column({ type: 'text', nullable: true })
+  notes: string | null;
+
   @Column({ default: true })
   countsForStatistics: boolean;
 
@@ -61,10 +65,6 @@ export class Event {
 
   @Column({ type: 'jsonb', default: DEFAULT_ATTENDANCE_SUMMARY })
   attendanceSummary: AttendanceSummary;
-
-  @ManyToOne(() => Season, (season) => season.events, { nullable: true })
-  @JoinColumn()
-  season: Season | null;
 
   @OneToMany(() => Attendance, (attendance) => attendance.event)
   attendances: Attendance[];

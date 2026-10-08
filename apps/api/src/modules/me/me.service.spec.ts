@@ -38,6 +38,7 @@ const mockEvent: Partial<Event> = {
   description: 'Desc',
   locationUrl: null,
   information: 'Info',
+  notes: 'Observacions internes',
   attendanceSummary: {
     confirmed: 0, declined: 0, pending: 0, attended: 0,
     lateCancel: 0, children: 0, childrenAttended: 0, total: 0,
@@ -82,6 +83,10 @@ describe('MeService', () => {
           provide: getRepositoryToken(Person),
           useValue: {
             findOne: jest.fn(),
+            // Managed persons all predate the events in these fixtures.
+            find: jest.fn(async ({ where }: { where: { id: { _value: string[] } } }) =>
+              (where.id._value ?? []).map((id) => ({ id, createdAt: new Date('2000-01-01') })),
+            ),
             createQueryBuilder: jest.fn(),
           },
         },
@@ -106,7 +111,10 @@ describe('MeService', () => {
         },
         {
           provide: AttendanceService,
-          useValue: { recalculateSummary: jest.fn() },
+          useValue: {
+            recalculateSummary: jest.fn(),
+            livePendingCounts: jest.fn(async (ids: string[]) => new Map(ids.map((id) => [id, 0]))),
+          },
         },
         {
           provide: PersonDelegateService,
@@ -312,7 +320,11 @@ describe('MeService', () => {
         name: 'Marta',
         firstSurname: 'Puig',
       } as Person);
-      seasonService.findCurrentEntity.mockResolvedValue({ id: 'season-1' } as never);
+      seasonService.findCurrentEntity.mockResolvedValue({
+        id: 'season-1',
+        startDate: '2025-09-06',
+        endDate: '2026-09-05',
+      } as never);
       const mockQb = {
         leftJoin: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
@@ -335,6 +347,10 @@ describe('MeService', () => {
         assajosTotal: 10,
         actuacionsAttended: 3,
         actuacionsTotal: 3,
+      });
+      expect(mockQb.where).toHaveBeenCalledWith('event.date BETWEEN :seasonStart AND :seasonEnd', {
+        seasonStart: '2025-09-06',
+        seasonEnd: '2026-09-05',
       });
     });
   });
@@ -360,7 +376,7 @@ describe('MeService', () => {
   });
 
   describe('createPersonDelegate', () => {
-    const dto = { alias: 'JoanP', delegateType: DelegateType.PARTNER };
+    const dto = { alias: 'JoanP', delegateType: DelegateType.OTHER };
 
     function mockPersonQb(targetPerson: unknown) {
       const qb = {
@@ -374,7 +390,7 @@ describe('MeService', () => {
 
     it('creates a delegate for the account linked to the matching alias, always as non-primary', async () => {
       const qb = mockPersonQb({ id: 'p-target', alias: 'JoanP', user: { id: 'user-target' } });
-      const created = { id: 'del-new', delegateType: DelegateType.PARTNER, isPrimary: false };
+      const created = { id: 'del-new', delegateType: DelegateType.OTHER, isPrimary: false };
       personDelegateService.create.mockResolvedValue(created as never);
 
       const result = await service.createPersonDelegate('user-1', 'p-1', dto);
@@ -383,7 +399,7 @@ describe('MeService', () => {
       expect(qb.where).toHaveBeenCalledWith('LOWER(person.alias) = LOWER(:alias)', { alias: 'JoanP' });
       expect(personDelegateService.create).toHaveBeenCalledWith('p-1', {
         userId: 'user-target',
-        delegateType: DelegateType.PARTNER,
+        delegateType: DelegateType.OTHER,
         isPrimary: false,
       });
       expect(result).toEqual(created);
@@ -478,7 +494,10 @@ describe('MeService', () => {
       expect(result.data).toHaveLength(1);
       expect(result.meta.total).toBe(1);
       expect(result.data[0].managedAttendances).toEqual([
-        { personId: 'p-2', displayName: 'JoanP', isSelf: false, delegateType: DelegateType.PARENT, attendance: null },
+        {
+          personId: 'p-2', displayName: 'JoanP', isSelf: false, delegateType: DelegateType.PARENT,
+          attendance: { id: null, status: AttendanceStatus.PENDENT, respondedAt: null },
+        },
       ]);
     });
 
@@ -527,13 +546,24 @@ describe('MeService', () => {
       expect(mockQb.orderBy).toHaveBeenCalledWith('event.date', 'DESC');
     });
 
-    it('should return events with null attendance when no record exists', async () => {
+    it('should return events with a PENDENT attendance when no record exists', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
       mockListQb([mockEvent as Event], 1);
 
       const result = await service.findEvents(mockUser, {});
-      expect(result.data[0].myAttendance).toBeNull();
-      expect(result.data[0].managedAttendances[0].attendance).toBeNull();
+      const pendent = { id: null, status: AttendanceStatus.PENDENT, respondedAt: null };
+      expect(result.data[0].myAttendance).toEqual(pendent);
+      expect(result.data[0].managedAttendances[0].attendance).toEqual(pendent);
+    });
+
+    it('lays the live pending count over each event summary', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
+      mockListQb([{ ...mockEvent, attendanceSummary: { ...EMPTY_SUMMARY, confirmed: 2, total: 2 } } as Event], 1);
+      attendanceService.livePendingCounts.mockResolvedValueOnce(new Map([['event-1', 7]]));
+
+      const result = await service.findEvents(mockUser, {});
+
+      expect(result.data[0].attendanceSummary).toEqual(expect.objectContaining({ pending: 7, total: 9, confirmed: 2 }));
     });
 
     it('should respect pagination params', async () => {
@@ -570,6 +600,15 @@ describe('MeService', () => {
       expect(result.description).toBe('Desc');
       expect(result.information).toBe('Info');
       expect(result.myAttendance?.status).toBe(AttendanceStatus.ANIRE);
+    });
+
+    it('should never expose the technician-only notes to members', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
+
+      const result = await service.findEventDetail(mockUser, 'event-1');
+
+      expect(result).not.toHaveProperty('notes');
     });
 
     it('should return event without attendance when no person linked', async () => {
@@ -622,7 +661,7 @@ describe('MeService', () => {
       ]);
     });
 
-    it('should include a delegate row with null attendance when no record exists', async () => {
+    it('should include a delegate row with a PENDENT attendance when no record exists', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
       personDelegateService.findByUser.mockResolvedValue([
         { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig', alias: 'JoanP' }, delegateType: DelegateType.PARENT },
@@ -637,7 +676,7 @@ describe('MeService', () => {
           displayName: 'JoanP',
           isSelf: false,
           delegateType: DelegateType.PARENT,
-          attendance: null,
+          attendance: { id: null, status: AttendanceStatus.PENDENT, respondedAt: null },
         },
       ]);
     });
@@ -921,18 +960,17 @@ describe('MeService', () => {
       await expect(service.getEventAttendanceStats('event-1')).rejects.toThrow(NotFoundException);
     });
 
-    it('groups attendance counts by status and adult/xicalla, deriving the coming totals', async () => {
+    it('groups answered rows by status and adult/xicalla, counts pending over people, and derives coming', async () => {
       eventRepo.findOne.mockResolvedValue(mockEvent as Event);
-      const mockQb = {
+      const rowsQb = {
         leftJoin: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
         addGroupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([
-          { status: AttendanceStatus.PENDENT, isXicalla: false, count: '3' },
-          { status: AttendanceStatus.PENDENT, isXicalla: true, count: '1' },
           { status: AttendanceStatus.ANIRE, isXicalla: false, count: '10' },
           { status: AttendanceStatus.ANIRE, isXicalla: true, count: '2' },
           { status: AttendanceStatus.NO_VAIG, isXicalla: false, count: '1' },
@@ -940,10 +978,23 @@ describe('MeService', () => {
           { status: AttendanceStatus.ASSISTIT, isXicalla: true, count: '1' },
         ]),
       };
-      attendanceRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      const pendingQb = {
+        innerJoin: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { isXicalla: false, count: '3' },
+          { isXicalla: true, count: '1' },
+        ]),
+      };
+      attendanceRepo.createQueryBuilder.mockReturnValue(rowsQb as never);
+      personRepo.createQueryBuilder.mockReturnValue(pendingQb as never);
 
       const result = await service.getEventAttendanceStats('event-1');
 
+      expect(rowsQb.andWhere).toHaveBeenCalledWith('attendance.status <> :pendent', { pendent: AttendanceStatus.PENDENT });
       expect(result).toEqual({
         byStatus: {
           PENDENT: { adults: 3, xicalla: 1 },
@@ -1007,6 +1058,35 @@ describe('MeService', () => {
       });
 
       expect(result.status).toBe(AttendanceStatus.NO_VAIG);
+    });
+
+    it('writes nothing when setting PENDENT and there is no row (no row ≡ PENDENT)', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      eventRepo.findOne.mockResolvedValue({ ...mockEvent, date: new Date('2099-12-01') } as Event);
+      attendanceRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.PENDENT });
+
+      expect(attendanceRepo.upsert).not.toHaveBeenCalled();
+      expect(result).toEqual({ id: null, status: AttendanceStatus.PENDENT, respondedAt: null });
+    });
+
+    it('keeps the row when an answer goes back to PENDENT', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      eventRepo.findOne.mockResolvedValue({ ...mockEvent, date: new Date('2099-12-01') } as Event);
+      attendanceRepo.findOne.mockResolvedValue({ id: 'att-1', status: AttendanceStatus.ANIRE } as Attendance);
+      attendanceRepo.findOneOrFail.mockResolvedValue({
+        id: 'att-1', status: AttendanceStatus.PENDENT, respondedAt: new Date(),
+      } as never);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
+
+      const result = await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.PENDENT });
+
+      expect(attendanceRepo.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ status: AttendanceStatus.PENDENT }),
+        expect.anything(),
+      );
+      expect(result.status).toBe(AttendanceStatus.PENDENT);
     });
 
     it('should throw ForbiddenException when user has no person', async () => {

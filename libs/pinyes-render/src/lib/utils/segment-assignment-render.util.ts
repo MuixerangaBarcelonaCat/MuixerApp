@@ -1,5 +1,6 @@
 import { FigureZone } from '@muixer/shared';
 import { AssignmentDetail } from '../models/assignment.model';
+import { isRematMarker } from './remat-marker.util';
 import {
   CanvasNode,
   CompositionSlotWithNodes,
@@ -38,6 +39,8 @@ export interface SegmentRenderNode {
   isSelected: boolean;
   isDimmed: boolean;
   isHighlighted: boolean;
+  /** False for a REMAT marker: drawn only, never a click, hover, drag or drop target. */
+  isInteractive: boolean;
 }
 
 /** Flattens slots into per-node render descriptors for the segment-assignment canvas mode. */
@@ -68,6 +71,7 @@ export function buildSegmentRenderNodes(
         isSelected: selected?.slotId === slot.slotId && selected?.nodeId === node.id,
         isDimmed,
         isHighlighted: highlightedNodeIds.has(node.id),
+        isInteractive: !isRematMarker(node),
       });
     }
   }
@@ -84,9 +88,14 @@ export function buildSegmentRenderNodes(
  * Ad-hoc ("extra") nodes are excluded for the same reason: creating one in the
  * assignment view must not move the figure's centre or reflow the distribution.
  * Like decoration, they are still drawn — just kept out of the pivot bbox.
+ *
+ * The one decoration-zone exception is a REMAT figure's marker (`rematMarkerNode`): it stands
+ * in for the hidden pinya, so it is the pivot (centered where the pinya was).
  */
-export function pivotNodesFor<T extends { zone: string; isAdHoc?: boolean }>(nodes: T[]): T[] {
-  return nodes.filter((n) => (n.zone === 'PINYA' || n.zone === 'BASE') && !n.isAdHoc);
+export function pivotNodesFor<T extends { zone: string; isAdHoc?: boolean; positionType?: string | null }>(
+  nodes: T[],
+): T[] {
+  return nodes.filter((n) => ((n.zone === 'PINYA' || n.zone === 'BASE') && !n.isAdHoc) || isRematMarker(n));
 }
 
 /** Center of the bounding box of a set of nodes (each x/y is its own center). */

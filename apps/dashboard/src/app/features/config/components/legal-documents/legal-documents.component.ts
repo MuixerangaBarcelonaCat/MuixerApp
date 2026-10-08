@@ -5,6 +5,7 @@ import {
   PublishLegalDocumentDto,
 } from '../../../../core/services/legal-document.service';
 import { AlertComponent, BadgeComponent, ButtonComponent, CardComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { MarkdownViewComponent } from '@muixer/ui/markdown';
 
 interface EditableType {
   type: LegalDocumentType;
@@ -27,7 +28,7 @@ type VersionRow = LegalDocument;
   selector: 'app-legal-documents',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AlertComponent, BadgeComponent, ButtonComponent, CardComponent, ModalComponent],
+  imports: [AlertComponent, BadgeComponent, ButtonComponent, CardComponent, ModalComponent, MarkdownViewComponent],
   template: `
     <div class="flex flex-col gap-4 max-w-3xl mx-auto">
       <div>
@@ -181,7 +182,9 @@ type VersionRow = LegalDocument;
       (closed)="viewingVersion.set(null)"
     >
       @if (viewingVersion(); as v) {
-        <div class="max-h-[50vh] overflow-y-auto rounded-box bg-base-200 p-4 text-sm whitespace-pre-wrap">{{ v.content }}</div>
+        <div class="max-h-96 overflow-y-auto rounded-box bg-base-200 p-4">
+          <lib-markdown-view [content]="v.content" />
+        </div>
       }
       <div modalFooter>
         <lib-button variant="ghost" size="sm" (clicked)="viewingVersion.set(null)">Tanca</lib-button>

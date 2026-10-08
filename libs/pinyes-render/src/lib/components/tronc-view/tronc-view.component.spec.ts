@@ -1,3 +1,4 @@
+import { THEME_NAMES } from '@muixer/ui';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ButtonComponent } from '@muixer/ui';
@@ -83,6 +84,11 @@ describe('TroncViewComponent', () => {
   });
 
   // ── Floor grouping ────────────────────────────────────────────────────────
+
+  it('is pinned to the light theme until figure rendering is themed for dark mode', () => {
+    expect(fixture.nativeElement.dataset['theme']).toBe(THEME_NAMES.light);
+  });
+
 
   it('shows no floors when no nodes are provided', () => {
     expect(component.floors().length).toBe(0);
@@ -547,7 +553,7 @@ describe('TroncViewComponent', () => {
   // ── getAttendanceColor ────────────────────────────────────────────────────
 
   describe('getAttendanceColor', () => {
-    it('ASSISTIT → green regardless of isPast', () => {
+    it('ASSISTIT → green regardless of the phase', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ASSISTIT']]));
@@ -555,25 +561,25 @@ describe('TroncViewComponent', () => {
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
     });
 
-    it('ANIRE → green for future event (isPast=false)', () => {
+    it('ANIRE → green for future event (before the event day)', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
-      fixture.componentRef.setInput('isPast', false);
+      fixture.componentRef.setInput('phase', 'before');
       fixture.detectChanges();
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
     });
 
-    it('ANIRE → amber for past event (isPast=true)', () => {
+    it('ANIRE → amber for past event (from the event day on)', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
-      fixture.componentRef.setInput('isPast', true);
+      fixture.componentRef.setInput('phase', 'after');
       fixture.detectChanges();
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--wa))');
     });
 
-    it('NO_VAIG → red regardless of isPast', () => {
+    it('NO_VAIG → red regardless of the phase', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'NO_VAIG']]));
@@ -581,20 +587,20 @@ describe('TroncViewComponent', () => {
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
     });
 
-    it('PENDENT → muted for future event (isPast=false)', () => {
+    it('PENDENT → muted for future event (before the event day)', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
-      fixture.componentRef.setInput('isPast', false);
+      fixture.componentRef.setInput('phase', 'before');
       fixture.detectChanges();
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
     });
 
-    it('PENDENT → red for past event (isPast=true)', () => {
+    it('PENDENT → red for past event (from the event day on)', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
-      fixture.componentRef.setInput('isPast', true);
+      fixture.componentRef.setInput('phase', 'after');
       fixture.detectChanges();
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
     });

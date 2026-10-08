@@ -7,6 +7,7 @@ import {
   OnInit,
   ViewChild,
   computed,
+  effect,
   inject,
   input,
   signal,
@@ -15,9 +16,12 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import {
   DECORATION_NODE_PRESETS,
+  FigureZone,
   NodePreset,
   NodeShape,
   PINYA_NODE_PRESETS,
+  EventPhase,
+  isNodeVisibleByModeAndCordons,
 } from '@muixer/shared';
 import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
@@ -66,7 +70,7 @@ export class NodesTabComponent implements OnInit {
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
 
-  readonly isPast = input(false);
+  readonly phase = input<EventPhase>('before');
 
   // Queried by template ref (not by type) so tests can substitute a stub component.
   @ViewChild('canvas') private canvasRef?: FigureCanvasComponent;
@@ -106,11 +110,34 @@ export class NodesTabComponent implements OnInit {
       mql.addEventListener('change', listener);
       inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
     }
+
+    // Placing a node needs a target figure: another tab may have left the selection
+    // empty (or pointing at a figure no longer in the segment), so fall back to the first.
+    effect(() => {
+      const instances = this.ws.instances();
+      const selected = this.ws.selectedInstanceId();
+      if (instances.length > 0 && !instances.some((i) => i.instanceId === selected)) {
+        this.ws.selectInstance(instances[0].instanceId);
+      }
+    });
   }
 
   readonly dimmedSlotIds = computed(() => {
     const selected = this.ws.selectedInstanceId();
     return new Set(this.ws.instances().map((i) => i.instanceId).filter((id) => id !== selected));
+  });
+
+  /**
+   * A REMAT/NETA figure shows no pinya, so a Pinya preset placed on it would be hidden the moment
+   * it's created — only decoration nodes make sense there.
+   */
+  readonly selectedFigureHidesPinya = computed(() => {
+    const instance = this.ws.instances().find((i) => i.instanceId === this.ws.selectedInstanceId());
+    if (!instance) return false;
+    return !isNodeVisibleByModeAndCordons(
+      { zone: FigureZone.PINYA },
+      { figureMode: instance.figureMode, numberOfCordons: null, cordonsObertsEnabled: true },
+    );
   });
 
   readonly selectedNode = computed<InstanceNodeItem | null>(() => {

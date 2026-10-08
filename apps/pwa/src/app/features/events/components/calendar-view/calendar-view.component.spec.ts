@@ -116,7 +116,7 @@ describe('CalendarViewComponent', () => {
     ]);
     fixture.detectChanges();
 
-    const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
+    const dots = fixture.nativeElement.querySelectorAll('[role="gridcell"] .rounded-full');
     const dot = Array.from(dots).find((d: any) => d.classList.contains('bg-success'));
     expect(dot).toBeTruthy();
   });
@@ -131,12 +131,12 @@ describe('CalendarViewComponent', () => {
     ]);
     fixture.detectChanges();
 
-    const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
+    const dots = fixture.nativeElement.querySelectorAll('[role="gridcell"] .rounded-full');
     const dot = Array.from(dots).find((d: any) => d.classList.contains('bg-success'));
     expect(dot).toBeTruthy();
   });
 
-  it('should apply a filled error dot for an assaig event marked NO_VAIG', () => {
+  it('should strike through an outlined error dot for an assaig event marked NO_VAIG', () => {
     host.events.set([
       makeEvent({
         date: '2026-07-16',
@@ -146,16 +146,41 @@ describe('CalendarViewComponent', () => {
     ]);
     fixture.detectChanges();
 
-    const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
-    const dot = Array.from(dots).find((d: any) => d.classList.contains('bg-error'));
+    const cell = fixture.nativeElement.querySelector('[data-date="2026-07-16"]');
+    const dot = cell.querySelector('.rounded-full.border-error');
     expect(dot).toBeTruthy();
+    expect(dot.classList.contains('bg-error')).toBe(false);
+    expect(cell.querySelector('[data-testid="calendar-declined-slash"]')).toBeTruthy();
+  });
+
+  it.each([
+    ['ANIRE', AttendanceStatus.ANIRE],
+    ['ASSISTIT', AttendanceStatus.ASSISTIT],
+    ['no answer', null],
+  ])('should not strike through the marker for an event with %s', (_label, status) => {
+    host.events.set([
+      makeEvent({
+        date: '2026-07-16',
+        myAttendance: status ? { id: 'a1', status, respondedAt: null } : null,
+      }),
+      makeEvent({
+        id: 'ev-2',
+        date: '2026-07-16',
+        eventType: EventType.ACTUACIO,
+        myAttendance: status ? { id: 'a2', status, respondedAt: null } : null,
+      }),
+    ]);
+    fixture.detectChanges();
+
+    const cell = fixture.nativeElement.querySelector('[data-date="2026-07-16"]');
+    expect(cell.querySelector('[data-testid="calendar-declined-slash"]')).toBeNull();
   });
 
   it('should apply an empty primary-colored dot for an assaig event with no answer yet', () => {
     host.events.set([makeEvent({ date: '2026-07-16', myAttendance: null })]);
     fixture.detectChanges();
 
-    const dots = fixture.nativeElement.querySelectorAll('.rounded-full');
+    const dots = fixture.nativeElement.querySelectorAll('[role="gridcell"] .rounded-full');
     const dot: any = Array.from(dots).find((d: any) => d.classList.contains('border-primary'));
     expect(dot).toBeTruthy();
     expect(dot.classList.contains('bg-success')).toBe(false);
@@ -186,7 +211,7 @@ describe('CalendarViewComponent', () => {
     expect(star.classList.contains('text-success')).toBe(true);
   });
 
-  it('should fill the star error-colored for an actuació event marked NO_VAIG', () => {
+  it('should strike through an unfilled error-colored star for an actuació event marked NO_VAIG', () => {
     host.events.set([
       makeEvent({
         date: '2026-07-16',
@@ -196,9 +221,11 @@ describe('CalendarViewComponent', () => {
     ]);
     fixture.detectChanges();
 
-    const star = fixture.nativeElement.querySelector('[role="gridcell"] [data-testid="calendar-actuacio-star"] svg');
-    expect(star.classList.contains('fill-error')).toBe(true);
+    const cell = fixture.nativeElement.querySelector('[data-date="2026-07-16"]');
+    const star = cell.querySelector('[data-testid="calendar-actuacio-star"] svg');
     expect(star.classList.contains('text-error')).toBe(true);
+    expect(star.classList.contains('fill-error')).toBe(false);
+    expect(cell.querySelector('[data-testid="calendar-declined-slash"]')).toBeTruthy();
   });
 
   it('should leave the star unfilled (empty), primary-colored, for an actuació event with no answer yet', () => {
@@ -211,6 +238,20 @@ describe('CalendarViewComponent', () => {
     expect(star.classList.contains('text-primary')).toBe(true);
     expect(star.classList.contains('fill-success')).toBe(false);
     expect(star.classList.contains('fill-error')).toBe(false);
+  });
+
+  it('should explain every marker in a legend below the grid', () => {
+    const legend = fixture.nativeElement.querySelector('[data-testid="calendar-legend"]');
+    expect(legend).toBeTruthy();
+    const labels = Array.from(legend.querySelectorAll('li')).map((li: any) => li.textContent.trim());
+    expect(labels).toEqual(['Vaig', 'No vaig', 'Pendent', 'Assaig', 'Actuació']);
+  });
+
+  it('should strike through only the «No vaig» marker in the legend', () => {
+    const legend = fixture.nativeElement.querySelector('[data-testid="calendar-legend"]');
+    const items = Array.from(legend.querySelectorAll('li')) as HTMLElement[];
+    const struck = items.filter((li) => li.querySelector('[data-testid="calendar-declined-slash"]'));
+    expect(struck.map((li) => li.textContent?.trim())).toEqual(['No vaig']);
   });
 
   it('should emit selectedDateChange when tapping a day', () => {

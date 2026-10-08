@@ -20,12 +20,16 @@ const KEYBOARD_ROWS = [
   ['', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫', ''],
 ];
 
+/** Physical-keyboard keys accepted: exactly the letters the on-screen keypad offers. */
+const KEYPAD_LETTERS = new Set(KEYBOARD_ROWS.flat().filter((k) => k !== '' && k !== '⌫'));
+
 @Component({
   selector: 'app-attendance-confirmation',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BadgeComponent, ButtonComponent, CardComponent],
   templateUrl: './attendance-confirmation.component.html',
+  host: { '(document:keydown)': 'onPhysicalKey($event)' },
 })
 export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
   private readonly attendanceService = inject(AttendanceService);
@@ -81,6 +85,21 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
     this.loadResults();
   }
 
+  /** Mirrors the on-screen keypad for a hardware keyboard: letters append, Backspace deletes. */
+  onPhysicalKey(event: KeyboardEvent) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      this.onKey('⌫');
+      return;
+    }
+    const letter = event.key.toUpperCase();
+    if (KEYPAD_LETTERS.has(letter)) {
+      event.preventDefault();
+      this.onKey(letter);
+    }
+  }
+
   private loadResults() {
     const q = this.query();
     if (q.length < 2) {
@@ -105,10 +124,11 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
 
   confirm(att: AttendanceItem) {
     if (this.confirmingId()) return;
-    this.confirmingId.set(att.id);
+    this.confirmingId.set(att.person.id);
 
+    // Keyed by person: someone still PENDENT may have no attendance row yet.
     this.attendanceService
-      .update(this.eventId, att.id, { status: AttendanceStatus.ASSISTIT })
+      .set(this.eventId, att.person.id, { status: AttendanceStatus.ASSISTIT })
       .subscribe({
         next: () => {
           this.recentlyConfirmed.set(att.person.alias);

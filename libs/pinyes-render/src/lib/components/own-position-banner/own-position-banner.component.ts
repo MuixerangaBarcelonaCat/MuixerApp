@@ -6,6 +6,7 @@ import {
   OwnPositionSegment,
   OwnPositionSubject,
 } from '@muixer/shared';
+import { THEME_NAMES } from '@muixer/ui';
 import { getFigureColor } from '../../utils/figure-palette.util';
 import { OwnPlacementDescription } from '../../utils/own-position.util';
 
@@ -20,13 +21,16 @@ export type OwnPositionBannerState = OwnPlacementDescription | { kind: 'MULTIPLE
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'block rounded-2xl bg-black/60 backdrop-blur-sm shadow-lg px-4 py-2.5 text-sm text-white',
+    // A HUD over the figure: always dark, so it reads the same over the light canvas in either mode.
+    '[attr.data-theme]': 'hudTheme',
+    class: 'block rounded-2xl bg-base-200/60 backdrop-blur-sm shadow-lg px-4 py-2.5 text-sm text-base-content',
     '[class.text-error]': "state().kind === 'MULTIPLE'",
     'aria-live': 'polite',
   },
   templateUrl: './own-position-banner.component.html',
 })
 export class OwnPositionBannerComponent {
+  protected readonly hudTheme = THEME_NAMES.dark;
   readonly state = input.required<OwnPositionBannerState>();
 
   /** Who the banner is about — the caller by default, or someone they looked up via the PWA's
@@ -65,6 +69,6 @@ export class OwnPositionBannerComponent {
   /** The figure's palette colour — matches its canvas silhouette and tronc panel border. */
   protected readonly figureColor = computed(() => {
     const s = this.state();
-    return s.kind === 'PINYA' || s.kind === 'TRONC' ? getFigureColor(s.instanceIndex) : null;
+    return s.kind === 'PINYA' || s.kind === 'TRONC' ? getFigureColor(s.figureSortOrder) : null;
   });
 }

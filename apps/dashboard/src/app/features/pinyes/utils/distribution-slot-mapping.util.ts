@@ -1,4 +1,4 @@
-import { CompositionSlotWithNodes, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, repositionCordoObertNodes, computeTroncNaturalSize, TroncNodeItem, AssignmentDetail } from '@muixer/pinyes-render';
+import { CompositionSlotWithNodes, figureExtentFromNodes, pivotNodesFor, rematMarkerNode, placeFigures, placeNewFigure, PlacedFigurePosition, repositionCordoObertNodes, computeTroncNaturalSize, TroncNodeItem, AssignmentDetail } from '@muixer/pinyes-render';
 import { computeInstanceDisplayNames, isNodeVisibleByModeAndCordons } from '@muixer/shared';
 import { DistributionItem, DistributionNodeItem, DistributionAssignment } from '../models/distribution.model';
 import { filterNodesByFigureMode } from './figure-mode-filter.util';
@@ -40,7 +40,14 @@ export function mapDistributionItemsToSlots(
       const visibleNodes = item.cordonsObertsEnabled
         ? positionedNodes
         : positionedNodes.filter((n) => n.positionType !== 'cordo-obert');
-      return [item.instanceId, visibleNodes] as const;
+      // A REMAT figure shows neither pinya nor base: its marker stands in for them (drawn, never stored).
+      const marker = rematMarkerNode({
+        instanceId: item.instanceId,
+        figureMode: item.figureMode,
+        sortOrder: item.sortOrder,
+        nodes: item.figureTemplate.nodes,
+      });
+      return [item.instanceId, marker ? [marker, ...visibleNodes] : visibleNodes] as const;
     }),
   );
 
@@ -49,10 +56,11 @@ export function mapDistributionItemsToSlots(
   if (items.length > 0 && items.every((item) => item.projectionX === null)) {
     const specs = items.map((item) => {
       const positionedNodes = nodesByInstance.get(item.instanceId) ?? [];
-      // Pivot: PINYA+BASE only, matching the Konva composition-slot renderer's
-      // own rotation pivot exactly (see pinyaBaseNodes doc). Occupancy adds
-      // DECORATION, which is rendered but must not shift the pivot.
-      const pivotNodes = pinyaBaseNodes(positionedNodes);
+      // Pivot: `pivotNodesFor` (PINYA+BASE, or a REMAT figure's marker), the very set the
+      // Konva composition-slot renderer pivots on (`slotGroup.offsetX/Y`) — placing by any
+      // other set renders the figure shifted from where placement assumed, misaligning the
+      // tronc panel. Occupancy adds DECORATION, which is rendered but must not shift the pivot.
+      const pivotNodes = pivotNodesFor(positionedNodes);
       const occupiedNodes = pinyaCanvasNodes(positionedNodes);
       const measured = troncSizeByInstance.get(item.instanceId);
       const { naturalW, naturalH } = measured
@@ -77,9 +85,9 @@ export function mapDistributionItemsToSlots(
     })),
   );
 
-  return items.map((item, index) => {
+  return items.map((item) => {
     const positionedNodes = nodesByInstance.get(item.instanceId) ?? [];
-    const extent = figureExtentFromNodes(item.instanceId, pinyaBaseNodes(positionedNodes));
+    const extent = figureExtentFromNodes(item.instanceId, pivotNodesFor(positionedNodes));
 
     let offsetX: number;
     let offsetY: number;
@@ -110,7 +118,7 @@ export function mapDistributionItemsToSlots(
       label: displayNames.get(item.instanceId) ?? computeSlotLabel(item),
       offsetX,
       offsetY,
-      sortOrder: index,
+      sortOrder: item.sortOrder,
       angle,
       assignments: item.assignments,
       troncGridCols: item.troncGridCols,
@@ -128,22 +136,10 @@ export function mapDistributionItemsToSlots(
 }
 
 /**
- * PINYA+BASE only — matches exactly the node set the Konva composition-slot
- * renderer uses to compute its rotation pivot (`slotGroup.offsetX/Y` in
- * figure-canvas.component.ts's renderCompositionSlots/renderTroncPanel). This
- * must be the basis for a figure's placed position, or the figure will render
- * shifted from where placement assumed — misaligning the tronc panel against
- * real nodes (including its own BASE row).
- */
-function pinyaBaseNodes<T extends { zone: string; isAdHoc?: boolean }>(nodes: T[]): T[] {
-  return nodes.filter((n) => (n.zone === 'PINYA' || n.zone === 'BASE') && !n.isAdHoc);
-}
-
-/**
  * Nodes actually rendered on the pinya canvas — used only to block tronc
  * placement. Includes DECORATION and ad-hoc ("extra") nodes: they are drawn,
  * so a tronc panel must avoid them, but (like DECORATION) they never move the
- * pivot — see `pinyaBaseNodes`.
+ * pivot — see `pivotNodesFor`.
  */
 function pinyaCanvasNodes<T extends { zone: string }>(nodes: T[]): T[] {
   return nodes.filter((n) => n.zone === 'PINYA' || n.zone === 'BASE' || n.zone === 'DECORATION');

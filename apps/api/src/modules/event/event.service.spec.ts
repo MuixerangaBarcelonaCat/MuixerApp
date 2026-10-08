@@ -1,12 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EventService } from './event.service';
 import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { SeasonService } from '../season/season.service';
+import { AttendanceService } from './attendance.service';
 import { EventType } from '@muixer/shared';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
@@ -19,10 +20,10 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   locationUrl: null,
   description: null,
   information: null,
+  notes: null,
   countsForStatistics: true,
   metadata: {},
   attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 69, lateCancel: 0, children: 11, childrenAttended: 0, total: 80 },
-  season: { id: 's1', name: 'Temporada 2025-2026' } as Season,
   legacyId: '1',
   legacyType: 'assaig',
   lastSyncedAt: null,
@@ -32,16 +33,24 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   ...overrides,
 } as Event);
 
+const SEASON_2526 = { id: 's1', name: 'Temporada 2025-2026' } as Season;
+
 describe('EventService', () => {
   let service: EventService;
   let eventQb: Record<string, jest.Mock>;
 
-  const mockSeasonRepo = {
-    findOne: jest.fn(),
-  };
-
   const mockAttendanceRepo = {
     count: jest.fn().mockResolvedValue(0),
+  };
+
+  /** Live pending counts: nobody pending unless a test says otherwise. */
+  const mockAttendanceService = {
+    livePendingCounts: jest.fn(async (ids: string[]) => new Map(ids.map((id) => [id, 0]))),
+  };
+
+  /** Every date falls in «Temporada 2025-2026» unless a test says otherwise. */
+  const mockSeasonService = {
+    findByDate: jest.fn(),
   };
 
   const segmentQb = {
@@ -56,9 +65,24 @@ describe('EventService', () => {
     createQueryBuilder: jest.fn(() => segmentQb),
   };
 
+  /** Builds an EventService whose event repository is `eventRepo`; everything else uses the shared mocks. */
+  const makeService = async (eventRepo: Record<string, jest.Mock>): Promise<EventService> => {
+    const mod = await Test.createTestingModule({
+      providers: [
+        EventService,
+        { provide: getRepositoryToken(Event), useValue: eventRepo },
+        { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+        { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+        { provide: SeasonService, useValue: mockSeasonService },
+        { provide: AttendanceService, useValue: mockAttendanceService },
+      ],
+    }).compile();
+    return mod.get<EventService>(EventService);
+  };
+
   beforeEach(async () => {
     eventQb = {
-      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      leftJoinAndMapOne: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
@@ -70,6 +94,7 @@ describe('EventService', () => {
     };
 
     jest.clearAllMocks();
+    mockSeasonService.findByDate.mockResolvedValue(SEASON_2526);
     mockSegmentRepo.createQueryBuilder.mockReturnValue(segmentQb);
     segmentQb.leftJoinAndSelect.mockReturnThis();
     segmentQb.where.mockReturnThis();
@@ -77,25 +102,36 @@ describe('EventService', () => {
     segmentQb.addOrderBy.mockReturnThis();
     segmentQb.getMany.mockResolvedValue([]);
 
-    const mockEventRepo = {
+    service = await makeService({
       createQueryBuilder: jest.fn(() => eventQb),
       findOne: jest.fn(),
       save: jest.fn(),
       update: jest.fn(),
-    };
+    });
+  });
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EventService,
-        { provide: getRepositoryToken(Event), useValue: mockEventRepo },
-        { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
-        { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
-        { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
-        { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
-      ],
-    }).compile();
+  describe('live pending count', () => {
+    const stored = { confirmed: 5, declined: 1, pending: 2, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 8 };
 
-    service = module.get<EventService>(EventService);
+    it('lays the live pending count over each listed summary and adjusts total', async () => {
+      eventQb.getCount.mockResolvedValue(1);
+      eventQb.getMany.mockResolvedValue([makeEvent({ attendanceSummary: stored })]);
+      mockAttendanceService.livePendingCounts.mockResolvedValueOnce(new Map([['evt-uuid', 10]]));
+
+      const result = await service.findAll({});
+
+      expect(mockAttendanceService.livePendingCounts).toHaveBeenCalledWith(['evt-uuid']);
+      expect(result.data[0].attendanceSummary).toEqual(expect.objectContaining({ pending: 10, total: 16, confirmed: 5 }));
+    });
+
+    it('lays the live pending count over the detail summary', async () => {
+      const svc = await makeService({ findOne: jest.fn().mockResolvedValue(makeEvent({ attendanceSummary: stored })) });
+      mockAttendanceService.livePendingCounts.mockResolvedValueOnce(new Map([['evt-uuid', 3]]));
+
+      const detail = await svc.findOne('evt-uuid');
+
+      expect(detail.attendanceSummary).toEqual(expect.objectContaining({ pending: 3, total: 9 }));
+    });
   });
 
   describe('findAll', () => {
@@ -117,7 +153,27 @@ describe('EventService', () => {
       );
     });
 
-    it('applies seasonId filter', async () => {
+    it('joins each event to the season whose date range contains its date', async () => {
+      await service.findAll({});
+      expect(eventQb.leftJoinAndMapOne).toHaveBeenCalledWith(
+        'event.season',
+        Season,
+        'season',
+        'event.date BETWEEN season.startDate AND season.endDate',
+      );
+    });
+
+    it('returns the date-derived season on each list item, or null when the date is in no season', async () => {
+      eventQb.getCount.mockResolvedValue(2);
+      eventQb.getMany.mockResolvedValue([
+        Object.assign(makeEvent({ id: 'a' }), { season: SEASON_2526 }),
+        Object.assign(makeEvent({ id: 'b' }), { season: null }),
+      ]);
+      const { data } = await service.findAll({});
+      expect(data.map((e) => e.season)).toEqual([{ id: 's1', name: 'Temporada 2025-2026' }, null]);
+    });
+
+    it('applies seasonId filter on the date-joined season', async () => {
       await service.findAll({ seasonId: 's1' });
       expect(eventQb.andWhere).toHaveBeenCalledWith('season.id = :seasonId', { seasonId: 's1' });
     });
@@ -232,35 +288,12 @@ describe('EventService', () => {
 
   describe('findOne', () => {
     it('throws NotFoundException when not found', async () => {
-      const eventRepo = { findOne: jest.fn().mockResolvedValue(null) };
-      const mod = await Test.createTestingModule({
-        providers: [
-          EventService,
-          { provide: getRepositoryToken(Event), useValue: eventRepo },
-          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
-          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
-          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
-          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
-        ],
-      }).compile();
-      const svc = mod.get<EventService>(EventService);
+      const svc = await makeService({ findOne: jest.fn().mockResolvedValue(null) });
       await expect(svc.findOne('missing-id')).rejects.toThrow(NotFoundException);
     });
 
     it('returns detail item with isSynced=true and no legacyId', async () => {
-      const event = makeEvent();
-      const eventRepo = { findOne: jest.fn().mockResolvedValue(event) };
-      const mod = await Test.createTestingModule({
-        providers: [
-          EventService,
-          { provide: getRepositoryToken(Event), useValue: eventRepo },
-          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
-          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
-          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
-          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
-        ],
-      }).compile();
-      const svc = mod.get<EventService>(EventService);
+      const svc = await makeService({ findOne: jest.fn().mockResolvedValue(makeEvent()) });
       const result = await svc.findOne('evt-uuid');
       expect(result.id).toBe('evt-uuid');
       expect(result.isSynced).toBe(true);
@@ -268,69 +301,177 @@ describe('EventService', () => {
     });
 
     it('returns isSynced=false for events without legacyId', async () => {
-      const event = makeEvent({ legacyId: null });
-      const eventRepo = { findOne: jest.fn().mockResolvedValue(event) };
-      const mod = await Test.createTestingModule({
-        providers: [
-          EventService,
-          { provide: getRepositoryToken(Event), useValue: eventRepo },
-          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
-          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
-          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
-          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
-        ],
-      }).compile();
-      const svc = mod.get<EventService>(EventService);
+      const svc = await makeService({ findOne: jest.fn().mockResolvedValue(makeEvent({ legacyId: null })) });
       const result = await svc.findOne('evt-uuid');
       expect(result.isSynced).toBe(false);
+    });
+
+    it("derives the season from the event's date", async () => {
+      // pg hands `date` columns back as YYYY-MM-DD strings despite the Date typing
+      const svc = await makeService({
+        findOne: jest.fn().mockResolvedValue(makeEvent({ date: '2026-03-26' as unknown as Date })),
+      });
+      const result = await svc.findOne('evt-uuid');
+      expect(mockSeasonService.findByDate).toHaveBeenCalledWith('2026-03-26');
+      expect(result.season).toEqual({ id: 's1', name: 'Temporada 2025-2026' });
+    });
+
+    it('returns season null when the date is in no season', async () => {
+      mockSeasonService.findByDate.mockResolvedValue(null);
+      const svc = await makeService({ findOne: jest.fn().mockResolvedValue(makeEvent()) });
+      await expect(svc.findOne('evt-uuid')).resolves.toMatchObject({ season: null });
+    });
+  });
+
+  describe('create', () => {
+    const makeCreateRepo = () => ({
+      create: jest.fn((partial) => ({ id: 'evt-uuid', ...partial })),
+      save: jest.fn((e) => Promise.resolve(e)),
+      findOne: jest.fn().mockResolvedValue(makeEvent()),
+    });
+
+    it('creates an event whose date falls in a season and returns that season', async () => {
+      const repo = makeCreateRepo();
+      const svc = await makeService(repo);
+      const result = await svc.create({ title: 'ASSAIG', eventType: EventType.ASSAIG, date: '2026-03-26' });
+      expect(mockSeasonService.findByDate).toHaveBeenCalledWith('2026-03-26');
+      expect(repo.save).toHaveBeenCalled();
+      expect(result.season).toEqual({ id: 's1', name: 'Temporada 2025-2026' });
+    });
+
+    it('rejects a date that falls in no season, without saving', async () => {
+      mockSeasonService.findByDate.mockResolvedValue(null);
+      const repo = makeCreateRepo();
+      const svc = await makeService(repo);
+      await expect(
+        svc.create({ title: 'ASSAIG', eventType: EventType.ASSAIG, date: '2030-08-01' }),
+      ).rejects.toThrow(new BadRequestException("La data de l'esdeveniment no és dins de cap temporada."));
+      expect(repo.save).not.toHaveBeenCalled();
     });
   });
 
   describe('update', () => {
-    it('updates countsForStatistics without touching season', async () => {
-      const event = makeEvent();
-      const saveResult = { ...event, countsForStatistics: false };
-      const eventRepo = {
-        findOne: jest.fn().mockResolvedValue(event),
-        save: jest.fn().mockResolvedValue(saveResult),
-      };
-      const mod = await Test.createTestingModule({
-        providers: [
-          EventService,
-          { provide: getRepositoryToken(Event), useValue: eventRepo },
-          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
-          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
-          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
-          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
-        ],
-      }).compile();
-      const svc = mod.get<EventService>(EventService);
-      const result = await svc.update('evt-uuid', { countsForStatistics: false });
-      expect(result.countsForStatistics).toBe(false);
-      expect(mockSeasonRepo.findOne).not.toHaveBeenCalled();
+    const makeUpdateRepo = (event: Event) => ({
+      findOne: jest.fn().mockResolvedValue(event),
+      save: jest.fn((e) => Promise.resolve(e)),
     });
 
-    it('reassigns season when seasonId is provided', async () => {
-      const event = makeEvent();
-      const newSeason = { id: 's2', name: 'Temporada 2025-2026' } as Season;
+    it('updates countsForStatistics', async () => {
+      const svc = await makeService(makeUpdateRepo(makeEvent()));
+      const result = await svc.update('evt-uuid', { countsForStatistics: false });
+      expect(result.countsForStatistics).toBe(false);
+    });
+
+    it('moves the event to a date inside a season and returns the new season', async () => {
+      const season2627 = { id: 's2', name: 'Temporada 2026-2027' } as Season;
+      mockSeasonService.findByDate.mockResolvedValue(season2627);
+      const repo = makeUpdateRepo(makeEvent());
+      const svc = await makeService(repo);
+      const result = await svc.update('evt-uuid', { date: '2026-10-01' });
+      expect(mockSeasonService.findByDate).toHaveBeenCalledWith('2026-10-01');
+      expect(repo.save).toHaveBeenCalled();
+      expect(result.season).toEqual({ id: 's2', name: 'Temporada 2026-2027' });
+    });
+
+    it('rejects moving the event to a date in no season, without saving', async () => {
+      mockSeasonService.findByDate.mockResolvedValue(null);
+      const repo = makeUpdateRepo(makeEvent());
+      const svc = await makeService(repo);
+      await expect(svc.update('evt-uuid', { date: '2030-08-01' })).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('saves other changes to an event with no season when its date is unchanged', async () => {
+      mockSeasonService.findByDate.mockResolvedValue(null);
+      const repo = makeUpdateRepo(makeEvent({ date: '2019-05-01' as unknown as Date }));
+      const svc = await makeService(repo);
+      // The dashboard sends every field on PUT, so the unchanged date comes along too
+      const result = await svc.update('evt-uuid', { title: 'ALTRE TÍTOL', date: '2019-05-01' });
+      expect(repo.save).toHaveBeenCalled();
+      expect(result.title).toBe('ALTRE TÍTOL');
+      expect(result.season).toBeNull();
+    });
+  });
+
+  /**
+   * Technician-only free-text field. Distinct from `information`, which the PWA shows to
+   * members and the legacy sync overwrites.
+   */
+  describe('notes', () => {
+    it('returns notes on the detail item', async () => {
+      const event = makeEvent({ notes: 'Portar les faixes noves' });
+      const svc = await makeService({ findOne: jest.fn().mockResolvedValue(event) });
+      const result = await svc.findOne('evt-uuid');
+      expect(result.notes).toBe('Portar les faixes noves');
+    });
+
+    it('persists notes on create', async () => {
+      const created = makeEvent({ notes: 'Revisar el tram' });
+      const eventRepo = {
+        create: jest.fn((partial) => partial),
+        save: jest.fn().mockResolvedValue(created),
+        findOne: jest.fn().mockResolvedValue(created),
+      };
+      const svc = await makeService(eventRepo);
+      const result = await svc.create({
+        title: 'ASSAIG',
+        eventType: EventType.ASSAIG,
+        date: '2026-03-26',
+        notes: 'Revisar el tram',
+      });
+      expect(eventRepo.create).toHaveBeenCalledWith(expect.objectContaining({ notes: 'Revisar el tram' }));
+      expect(result.notes).toBe('Revisar el tram');
+    });
+
+    it('defaults notes to null when create omits them', async () => {
+      const eventRepo = {
+        create: jest.fn((partial) => partial),
+        save: jest.fn().mockResolvedValue(makeEvent()),
+        findOne: jest.fn().mockResolvedValue(makeEvent()),
+      };
+      const svc = await makeService(eventRepo);
+      await svc.create({ title: 'ASSAIG', eventType: EventType.ASSAIG, date: '2026-03-26' });
+      expect(eventRepo.create).toHaveBeenCalledWith(expect.objectContaining({ notes: null }));
+    });
+
+    it('updates notes when present in the DTO', async () => {
+      const event = makeEvent({ notes: 'Antic' });
       const eventRepo = {
         findOne: jest.fn().mockResolvedValue(event),
-        save: jest.fn().mockResolvedValue({ ...event, season: newSeason }),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
       };
-      mockSeasonRepo.findOne.mockResolvedValue(newSeason);
-      const mod = await Test.createTestingModule({
-        providers: [
-          EventService,
-          { provide: getRepositoryToken(Event), useValue: eventRepo },
-          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
-          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
-          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
-          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
-        ],
-      }).compile();
-      const svc = mod.get<EventService>(EventService);
-      const result = await svc.update('evt-uuid', { seasonId: 's2' });
-      expect(result.season?.id).toBe('s2');
+      const svc = await makeService(eventRepo);
+      const result = await svc.update('evt-uuid', { notes: 'Nou' });
+      expect(result.notes).toBe('Nou');
+    });
+
+    it('clears notes when the DTO sends an empty value', async () => {
+      const event = makeEvent({ notes: 'Antic' });
+      const eventRepo = {
+        findOne: jest.fn().mockResolvedValue(event),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      };
+      const svc = await makeService(eventRepo);
+      const result = await svc.update('evt-uuid', { notes: '' });
+      expect(result.notes).toBeNull();
+    });
+
+    it('leaves notes untouched when the DTO omits them', async () => {
+      const event = makeEvent({ notes: 'Es manté' });
+      const eventRepo = {
+        findOne: jest.fn().mockResolvedValue(event),
+        save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+      };
+      const svc = await makeService(eventRepo);
+      const result = await svc.update('evt-uuid', { title: 'ALTRE TÍTOL' });
+      expect(result.notes).toBe('Es manté');
+    });
+
+    it('omits notes from list items, which feed the events table', async () => {
+      eventQb.getMany.mockResolvedValue([makeEvent({ notes: 'Intern' })]);
+      eventQb.getCount.mockResolvedValue(1);
+      const { data } = await service.findAll({});
+      expect(data[0]).not.toHaveProperty('notes');
     });
   });
 });

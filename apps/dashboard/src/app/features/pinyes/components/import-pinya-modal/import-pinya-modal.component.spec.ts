@@ -45,6 +45,7 @@ const makeHistoryEntry = (instanceId = SOURCE_INSTANCE_ID): FigureHistoryEntry =
   snapshotted: true,
   assignmentCount: 5,
   totalNodes: 8,
+  troncSummary: null,
   assignments: [
     { nodeId: 'node-1', nodeLabel: 'pd4-1', zone: FigureZone.PINYA, personId: 'person-1', personAlias: 'Pepet' },
   ],
@@ -180,6 +181,42 @@ describe('ImportPinyaModalComponent', () => {
 
     it('is empty when neither exists', () => {
       expect(component.entrySubtitle({ ...makeHistoryEntry(), segmentName: null, figureName: null })).toBe('');
+    });
+  });
+
+  // ── tronc summary ──────────────────────────────────────────────────────────
+
+  describe('tronc summary', () => {
+    const summaries = () =>
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="history-tronc-summary"]'),
+        (el) => el.textContent?.trim(),
+      );
+
+    it('shows each figure\'s tronc summary in the list, before selecting it', () => {
+      assignmentService.getHistory.mockReturnValue(
+        of({ data: [{ ...makeHistoryEntry('inst-1'), troncSummary: 'Pepet - ? // Maria' }] }),
+      );
+      fixture.componentRef.setInput('open', true);
+      fixture.detectChanges();
+
+      expect(component.selectedEntry()).toBeNull();
+      expect(summaries()).toEqual(['Pepet - ? // Maria']);
+    });
+
+    it('shows nothing for a figure with no tronc summary', () => {
+      assignmentService.getHistory.mockReturnValue(
+        of({
+          data: [
+            { ...makeHistoryEntry('inst-1'), troncSummary: null },
+            { ...makeHistoryEntry('inst-2'), troncSummary: 'Joan' },
+          ],
+        }),
+      );
+      fixture.componentRef.setInput('open', true);
+      fixture.detectChanges();
+
+      expect(summaries()).toEqual(['Joan']);
     });
   });
 
@@ -354,6 +391,7 @@ describe('ImportPinyaModalComponent', () => {
       snapshotted: true,
       assignmentCount: 3,
       totalNodes: 5,
+      troncSummary: null,
       assignments: [
         { nodeId: 'n1', nodeLabel: 'Segones', zone: FigureZone.PINYA, personId: 'p1', personAlias: 'Guille' },
         { nodeId: 'n2', nodeLabel: 'Base 2', zone: FigureZone.BASE, personId: 'p2', personAlias: 'Amparo' },
@@ -420,6 +458,7 @@ describe('ImportPinyaModalComponent', () => {
       snapshotted: true,
       assignmentCount: 3,
       totalNodes: 5,
+      troncSummary: null,
       assignments: [
         { nodeId: 'n1', nodeLabel: 'Segones', zone: FigureZone.PINYA, personId: 'p1', personAlias: 'Guille' },
         { nodeId: 'n2', nodeLabel: 'Base 2', zone: FigureZone.BASE, personId: 'p2', personAlias: 'Amparo' },
