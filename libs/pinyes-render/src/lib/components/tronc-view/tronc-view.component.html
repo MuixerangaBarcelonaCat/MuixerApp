@@ -163,11 +163,19 @@
   @if (!hasTronc() && mode() === 'editor') {
     <p class="text-xs text-base-content/40 px-2 mt-2 italic">
       @if (baseNodes().length === 0) {
-        Afegiu bases (botons a baix) per poder configurar el tronc.
+        Afegiu bases per poder configurar el tronc.
       } @else {
         Afegiu un pis per configurar el tronc.
       }
     </p>
+    @if (baseNodes().length === 0) {
+      <div class="px-2 mt-2">
+        <lib-button variant="ghost" size="xs" (clicked)="onAddBase()" ariaLabel="Afegeix la primera base">
+          <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+          Afegeix base
+        </lib-button>
+      </div>
+    }
   }
 
   <!-- ── Floors ──────────────────────────────────────────────────────────── -->
@@ -327,15 +335,15 @@
             }
           }
 
-          <!-- Inline + button per floor (editor only, non-base) -->
-          @if (mode() === 'editor' && !floor.isBase) {
+          <!-- Inline + button per floor (editor only): a node on tronc floors, a base on the base row -->
+          @if (mode() === 'editor') {
             <button
               type="button"
               class="floor-add-node-btn"
               [style.grid-column]="getAddNodeButtonGridColumn()"
-              (click)="onAddNodeToFloor(floor)"
-              [attr.aria-label]="'Afegeix node a ' + floor.pisLabel"
-              title="Afegeix node"
+              (click)="floor.isBase ? onAddBase() : onAddNodeToFloor(floor)"
+              [attr.aria-label]="floor.isBase ? 'Afegeix base' : 'Afegeix node a ' + floor.pisLabel"
+              [title]="floor.isBase ? 'Afegeix base' : 'Afegeix node'"
             >
               <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
             </button>
@@ -506,6 +514,22 @@
                 (clicked)="onNodeDelete(node)"
                 ariaLabel="Elimina node"
                 title="Elimina node"
+              >
+                <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+              </lib-button>
+            </div>
+          </div>
+          } @else {
+          <div class="node-props-row">
+            <div class="self-end">
+              <lib-button
+                variant="error"
+                outline
+                size="xs"
+                shape="square"
+                (clicked)="onRemoveBase(node.id)"
+                ariaLabel="Elimina base"
+                title="Elimina base"
               >
                 <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
               </lib-button>

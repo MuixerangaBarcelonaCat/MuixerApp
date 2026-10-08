@@ -360,6 +360,107 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('Tronc tab (full-view workspace)', () => {
+    const q = (selector: string): HTMLElement | null => fixture.nativeElement.querySelector(selector);
+
+    const troncNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'tronc-1',
+      label: 'Segon',
+      zone: FigureZone.TRONC,
+      positionType: 'segona',
+      x: 0, y: 0, z: 1,
+      width: 1, height: 40, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      standsOnNodeIds: [],
+      metadata: {},
+      ...overrides,
+    });
+
+    const baseAt = (id: string, sortOrder: number, x: number, y: number): FigureNodeItem =>
+      troncNode({ id, zone: FigureZone.BASE, positionType: 'base', z: 0, sortOrder, x, y, width: 80 });
+
+    function openTroncTab(): void {
+      component.setEditorMode('tronc');
+      fixture.detectChanges();
+    }
+
+    it('replaces the toolbar, canvas and properties panel with the tronc workspace', () => {
+      openTroncTab();
+
+      expect(q('.tronc-workspace')).toBeTruthy();
+      expect(q('aside.editor-toolbar')).toBeNull();
+      expect(q('aside.editor-panel')).toBeNull();
+      expect(q('main.editor-canvas')?.hidden).toBe(true);
+    });
+
+    it('keeps the pinya canvas mounted while hidden, so its zoom and pan survive the tab switch', () => {
+      openTroncTab();
+
+      expect(fixture.debugElement.query(By.directive(StubFigureCanvas))).toBeTruthy();
+    });
+
+    it('puts the tronc panel in the left pane, in editor mode, fed with the tronc and base nodes', () => {
+      const base = baseAt('base-1', 0, 0, 0);
+      const tronc = troncNode();
+      component.nodes.set([base, tronc]);
+      openTroncTab();
+
+      const view = fixture.debugElement.query(By.css('.tronc-workspace-editor app-tronc-view'));
+      expect(view).toBeTruthy();
+      const stub = view.componentInstance as StubTroncView;
+      expect(stub.mode()).toBe('editor');
+      expect(stub.troncNodes()).toEqual([tronc]);
+      expect(stub.baseNodes()).toEqual([base]);
+    });
+
+    it('has a right pane for the tronc structure', () => {
+      openTroncTab();
+
+      expect(q('.tronc-workspace-structure[aria-label="Estructura del tronc"]')).toBeTruthy();
+    });
+
+    it('no longer renders the floating tronc panel', () => {
+      openTroncTab();
+
+      expect(q('.tronc-floating-panel')).toBeNull();
+    });
+
+    it('restores the toolbar, canvas and properties panel when going back to the Pinya tab', () => {
+      openTroncTab();
+      component.setEditorMode('pinya');
+      fixture.detectChanges();
+
+      expect(q('.tronc-workspace')).toBeNull();
+      expect(q('aside.editor-toolbar')).toBeTruthy();
+      expect(q('aside.editor-panel')).toBeTruthy();
+      expect(q('main.editor-canvas')?.hidden).toBe(false);
+    });
+
+    it('shows the base order warning in the workspace, since the toolbar is hidden', () => {
+      // CCW from top-left expects bottom-left next; Base 2 at top-right breaks it.
+      component.nodes.set([baseAt('b1', 0, 0, 0), baseAt('b2', 1, 100, 0), baseAt('b3', 2, 0, 100)]);
+      openTroncTab();
+
+      expect(q('.tronc-workspace [aria-label="Avís: ordre de bases incorrecte. Clica per veure l\'ajuda."]')).toBeTruthy();
+    });
+
+    it('arrow keys do not move a selected tronc node (its x is in relative units, not pixels)', () => {
+      component.templateId.set('template-1');
+      component.nodes.set([troncNode({ x: 1 })]);
+      component.selectedNodeId.set('tronc-1');
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+
+      expect(component.nodes()[0].x).toBe(1);
+      expect(component.nodes()[0].y).toBe(0);
+    });
+  });
+
   describe('onTroncNodeAdded', () => {
     it('creates the tronc node standing on nobody', () => {
       component.templateId.set('template-1'); // bypass name prompt

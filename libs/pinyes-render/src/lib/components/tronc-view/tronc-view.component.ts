@@ -19,6 +19,14 @@ import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { FitTextDirective } from '../../directives/fit-text.directive';
 import { LongPressDetector } from '../../utils/long-press.util';
+import {
+  baseNodeGridColumn,
+  layoutTroncFloors,
+  sortTroncBases,
+  troncNodeGridColumn,
+  troncTotalColumns,
+  TroncLayoutFloor,
+} from '../../utils/tronc-layout.util';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -42,13 +50,7 @@ export interface TroncNodeItem {
   climbIndicator: string | null;
 }
 
-interface TroncFloor {
-  z: number;
-  pisLabel: string;
-  positionTypeLabel: string;
-  nodes: TroncNodeItem[];
-  isBase: boolean;
-}
+type TroncFloor = TroncLayoutFloor<TroncNodeItem>;
 
 const MAX_TRONC_Z = 5;
 
@@ -238,53 +240,16 @@ export class TroncViewComponent {
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
-  readonly sortedBases = computed(() =>
-    [...this.baseNodes()].sort((a, b) => a.sortOrder - b.sortOrder),
+  readonly sortedBases = computed(() => sortTroncBases(this.baseNodes()));
+
+  /** Grid columns in half-units (0.5u = 1 CSS column) — see `tronc-layout.util`. */
+  readonly totalColumns = computed(() =>
+    troncTotalColumns(this.troncNodes(), this.sortedBases().length),
   );
 
-  /**
-   * Grid columns in half-units (0.5u = 1 CSS column).
-   * Doubled internally so fractional x/width map to integer grid lines.
-   */
-  readonly totalColumns = computed(() => {
-    const troncMax = this.troncNodes().reduce(
-      (max, n) => Math.max(max, Math.round((n.x + n.width) * 2)),
-      0,
-    );
-    const baseCount = this.sortedBases().length * 2;
-    return Math.max(troncMax, baseCount, 2);
-  });
-
-  readonly floors = computed<TroncFloor[]>(() => {
-    const byZ = new Map<number, TroncNodeItem[]>();
-
-    for (const node of this.troncNodes()) {
-      if (!byZ.has(node.z)) byZ.set(node.z, []);
-      byZ.get(node.z)!.push(node);
-    }
-
-    for (const [, nodes] of byZ) {
-      nodes.sort((a, b) => a.sortOrder - b.sortOrder || a.x - b.x);
-    }
-
-    const troncFloors: TroncFloor[] = Array.from(byZ.entries()).map(
-      ([z, nodes]) => ({
-        z,
-        pisLabel: `P${z + 1}`,
-        positionTypeLabel: this.getDominantPositionType(nodes),
-        nodes,
-        isBase: false,
-      }),
-    );
-
-    const sortedBases = this.sortedBases();
-    const baseFloor: TroncFloor | null = sortedBases.length > 0
-      ? { z: 0, pisLabel: 'P1', positionTypeLabel: 'Bases', nodes: sortedBases, isBase: true }
-      : null;
-
-    const allFloors = baseFloor ? [...troncFloors, baseFloor] : troncFloors;
-    return allFloors.sort((a, b) => b.z - a.z);
-  });
+  readonly floors = computed<TroncFloor[]>(() =>
+    layoutTroncFloors(this.troncNodes(), this.baseNodes()),
+  );
 
   readonly varianceByFloor = computed(() => {
     const assignments = this.assignments();
@@ -732,14 +697,12 @@ export class TroncViewComponent {
 
   /** CSS grid-column for a TRONC node (doubled grid: 0.5u = 1 column). */
   getTroncNodeGridColumn(node: TroncNodeItem): string {
-    const start = Math.round(node.x * 2) + 1;
-    const span = Math.round(node.width * 2);
-    return `${start} / span ${span}`;
+    return troncNodeGridColumn(node);
   }
 
   /** CSS grid-column for a BASE node by its sorted index (each base = 2 half-cols). */
   getBaseNodeGridColumn(index: number): string {
-    return `${index * 2 + 1} / span 2`;
+    return baseNodeGridColumn(index);
   }
 
   gridTemplateColumns(): string {
@@ -789,20 +752,4 @@ export class TroncViewComponent {
     return TRONC_NODE_PRESETS.some((p) => p.label === node.label);
   }
 
-  private getDominantPositionType(nodes: TroncNodeItem[]): string {
-    const counts = new Map<string, number>();
-    for (const node of nodes) {
-      const label = node.label || node.positionType || 'desconegut';
-      counts.set(label, (counts.get(label) ?? 0) + 1);
-    }
-    let dominant = 'desconegut';
-    let maxCount = 0;
-    for (const [label, count] of counts) {
-      if (count > maxCount) {
-        maxCount = count;
-        dominant = label;
-      }
-    }
-    return dominant;
-  }
 }

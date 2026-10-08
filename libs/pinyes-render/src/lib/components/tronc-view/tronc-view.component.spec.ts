@@ -2035,6 +2035,75 @@ describe('TroncViewComponent', () => {
     });
   });
 
+  // ── Base controls (editor mode) ──────────────────────────────────────────
+
+  describe('base controls (editor mode)', () => {
+    function libButton(ariaLabel: string) {
+      return fixture.debugElement
+        .queryAll(By.directive(ButtonComponent))
+        .find((el) => (el.componentInstance as ButtonComponent).ariaLabel() === ariaLabel);
+    }
+
+    it('the base row has an add button that appends a base after the existing ones', () => {
+      const emitted: { sortOrder: number }[] = [];
+      component.baseAdded.subscribe((e) => emitted.push(e));
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'b1' }), makeBaseNode({ id: 'b2', sortOrder: 1 })]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const btn: HTMLButtonElement | null = fixture.nativeElement.querySelector('button[aria-label="Afegeix base"]');
+      expect(btn).toBeTruthy();
+      btn?.click();
+
+      expect(emitted).toEqual([{ sortOrder: 2 }]);
+    });
+
+    it('has no base add button outside editor mode', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('button[aria-label="Afegeix base"]')).toBeNull();
+    });
+
+    it('offers a lib-button to add the first base when there is none', () => {
+      const emitted: { sortOrder: number }[] = [];
+      component.baseAdded.subscribe((e) => emitted.push(e));
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const btn = libButton('Afegeix la primera base');
+      expect(btn).toBeTruthy();
+      (btn?.componentInstance as ButtonComponent).clicked.emit();
+
+      expect(emitted).toEqual([{ sortOrder: 0 }]);
+    });
+
+    it('a selected base shows a lib-button that removes it', () => {
+      const emitted: string[] = [];
+      component.baseRemoved.subscribe((id) => emitted.push(id));
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'b1' })]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'b1');
+      fixture.detectChanges();
+
+      const btn = libButton('Elimina base');
+      expect(btn).toBeTruthy();
+      (btn?.componentInstance as ButtonComponent).clicked.emit();
+
+      expect(emitted).toEqual(['b1']);
+    });
+
+    it('a selected tronc node has no base delete button', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+
+      expect(libButton('Elimina base')).toBeUndefined();
+    });
+  });
+
   // ── gridTemplateColumns ──────────────────────────────────────────────────
 
   describe('gridTemplateColumns', () => {

@@ -19,6 +19,7 @@ export * from './lib/utils/fit-to-bounds.util';
 export * from './lib/utils/fit-font-size.util';
 export * from './lib/utils/assigned-label.util';
 export * from './lib/utils/tronc-size.util';
+export * from './lib/utils/tronc-layout.util';
 export * from './lib/utils/figure-palette.util';
 export * from './lib/utils/segment-assignment-render.util';
 export * from './lib/utils/remat-marker.util';

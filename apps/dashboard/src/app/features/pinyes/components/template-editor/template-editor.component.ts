@@ -12,6 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
@@ -52,6 +53,7 @@ const DEFAULT_NODE_HEIGHT = 40;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
+    NgTemplateOutlet,
     LucideAngularModule,
     TabsComponent,
     FigureCanvasComponent,
@@ -147,6 +149,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
   troncEditMode = signal(false);
+  /** The Tronc tab takes the whole editor below the top bar (preview keeps showing the canvas). */
+  readonly troncWorkspaceOpen = computed(() => this.troncEditMode() && !this.previewMode());
 
   // Quick actions panel (tablet-sticky / desktop-collapsable).
   // Defaults to expanded; persisted per-browser via localStorage.
@@ -159,11 +163,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   // Ad-hoc instance awareness
   readonly adHocInstanceCount = signal(0);
   readonly adHocBannerDismissed = signal(false);
-
-  // Floating tronc panel drag state
-  readonly troncPanelPos = signal({ x: 16, y: 60 });
-  private troncDragging = false;
-  private troncDragOffset = { x: 0, y: 0 };
 
   // Icons
   readonly Undo2 = Undo2;
@@ -512,33 +511,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     doAdd();
   }
 
-  // ── Tronc panel drag ─────────────────────────────────────────────────────
-
-  onTroncDragStart(event: MouseEvent): void {
-    if ((event.target as HTMLElement).closest('button')) return;
-    this.troncDragging = true;
-    const pos = this.troncPanelPos();
-    this.troncDragOffset = {
-      x: event.clientX - pos.x,
-      y: event.clientY - pos.y,
-    };
-    event.preventDefault();
-  }
-
-  @HostListener('document:mousemove', ['$event'])
-  onTroncDragMove(event: MouseEvent): void {
-    if (!this.troncDragging) return;
-    this.troncPanelPos.set({
-      x: event.clientX - this.troncDragOffset.x,
-      y: event.clientY - this.troncDragOffset.y,
-    });
-  }
-
-  @HostListener('document:mouseup')
-  onTroncDragEnd(): void {
-    this.troncDragging = false;
-  }
-
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     const target = event.target as HTMLElement;
@@ -619,8 +591,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
     const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
     if (ARROW_KEYS.includes(event.key)) {
-      const id = this.selectedNodeId();
-      if (!id) return;
+      const node = this.selectedNode();
+      // TRONC x/width are relative units, stepped by the tronc panel's own controls — moving them
+      // here by canvas pixels would push them off the grid.
+      if (!node || node.zone === FigureZone.TRONC) return;
       event.preventDefault();
       this.moveSelectedNodeByKey(event.key, event.shiftKey);
     }
