@@ -757,6 +757,69 @@ describe('FigureTemplateService', () => {
       expect(savedNodes[0].id).not.toBe(savedNodes[1].id);
     });
 
+    it('copies the rengles with fresh ids and points the copied nodes at them', async () => {
+      const original = makeTemplate({
+        rengles: [
+          makeRengla({ id: 'orig-r1', name: 'Mans Nord', sortOrder: 0 }),
+          makeRengla({ id: 'orig-r2', name: 'Mans Sud', sortOrder: 1 }),
+        ],
+        nodes: [
+          makeNode({ id: 'orig-a', renglaId: 'orig-r1', renglaPosition: 1 }),
+          makeNode({ id: 'orig-b', renglaId: 'orig-r2', renglaPosition: 1 }),
+          makeNode({ id: 'orig-c', renglaId: null }),
+        ],
+      });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(null) // "(còpia)" name is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      mockRenglaRepo.save.mockResolvedValue([]);
+      mockNodeRepo.save.mockResolvedValue([]);
+
+      await service.duplicate('tmpl-uuid');
+
+      expect(mockTemplateRepo.findOne.mock.calls[0][0].relations).toContain('rengles');
+      const savedRengles = mockRenglaRepo.save.mock.calls[0][0] as Partial<Rengla>[];
+      expect(savedRengles.map((r) => [r.name, r.sortOrder])).toEqual([
+        ['Mans Nord', 0],
+        ['Mans Sud', 1],
+      ]);
+      expect(savedRengles.map((r) => r.template)).toEqual([copyTemplate, copyTemplate]);
+      const [r1, r2] = savedRengles.map((r) => r.id);
+      expect([r1, r2]).not.toContain('orig-r1');
+      expect([r1, r2]).not.toContain('orig-r2');
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0] as Partial<FigureNode>[];
+      expect(savedNodes.map((n) => [n.renglaId, n.renglaPosition])).toEqual([
+        [r1, 1],
+        [r2, 1],
+        [null, null],
+      ]);
+    });
+
+    it('drops a node rengla link whose rengla no longer exists in the original', async () => {
+      const original = makeTemplate({
+        rengles: [],
+        nodes: [makeNode({ id: 'orig-a', renglaId: 'deleted-rengla', renglaPosition: 2 })],
+      });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(null) // "(còpia)" name is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      mockNodeRepo.save.mockResolvedValue([]);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0] as Partial<FigureNode>[];
+      expect(savedNodes[0].renglaId).toBeNull();
+    });
+
     it('throws NotFoundException when original not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.duplicate('bad-uuid')).rejects.toThrow(NotFoundException);

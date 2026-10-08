@@ -118,6 +118,24 @@ describe('FigureTemplate standsOnNodeIds (integration)', () => {
     expect(copyTronc.standsOnNodeIds.sort()).toEqual(copyBaseIds.sort());
   });
 
+  it('points the duplicate nodes at its own copied rengles', async () => {
+    const R1 = randomUUID();
+    const created = await templates.create({
+      name: 'Pilar de 4',
+      nodes: [{ ...node(B1, FigureZone.BASE, 0), renglaId: R1, renglaPosition: 1 }],
+    });
+    await templates.update(created.id, { rengles: [{ id: R1, name: 'Mans Nord', sortOrder: 0 }] });
+
+    const copy = await templates.duplicate(created.id);
+
+    expect(copy.rengles).toHaveLength(1);
+    expect(copy.rengles[0].id).not.toBe(R1);
+    expect(copy.rengles[0].name).toBe('Mans Nord');
+    expect(copy.nodes[0].renglaId).toBe(copy.rengles[0].id);
+    const original = await templates.findOne(created.id);
+    expect(original.rengles.map((r) => r.id)).toEqual([R1]);
+  });
+
   it('points the snapshot links at the new instance nodes', async () => {
     const template = await templates.create({ name: 'Pilar de 4', nodes: payload() });
     const event = await db.dataSource

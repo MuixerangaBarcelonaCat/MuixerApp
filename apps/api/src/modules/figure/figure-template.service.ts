@@ -257,7 +257,7 @@ export class FigureTemplateService {
   async duplicate(id: string): Promise<FigureTemplateDetailItem> {
     const original = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes'],
+      relations: ['nodes', 'rengles'],
     });
 
     if (!original) {
@@ -267,24 +267,40 @@ export class FigureTemplateService {
     const name = await this.generateCopyName(original.name);
     const slug = await this.generateUniqueSlug(this.slugify(name));
 
-    const copy = this.templateRepository.create({
-      name,
-      slug,
-      description: original.description,
-      direction: original.direction,
-      metadata: original.metadata,
-    });
+    // Template + rengles + nodes must commit or roll back together (see SM-11).
+    let savedCopy!: FigureTemplate;
+    await this.dataSource.transaction(async (manager) => {
+      const templateRepo = manager.getRepository(FigureTemplate);
 
-    const savedCopy = await this.templateRepository.save(copy);
-
-    const allNodes = original.nodes ?? [];
-    if (allNodes.length > 0) {
-      // Fresh ids: the originals still belong to the source template.
-      await this.createNodes(
-        savedCopy,
-        copyWithFreshIds(allNodes.map((n) => ({ sourceId: n.id, dto: nodeToCreateDto(n) }))),
+      savedCopy = await templateRepo.save(
+        templateRepo.create({
+          name,
+          slug,
+          description: original.description,
+          direction: original.direction,
+          metadata: original.metadata,
+        }),
       );
-    }
+
+      const renglaIdMap = await this.copyRengles(
+        savedCopy,
+        original.rengles ?? [],
+        manager.getRepository(Rengla),
+      );
+
+      const allNodes = original.nodes ?? [];
+      if (allNodes.length > 0) {
+        // Fresh ids: the originals still belong to the source template.
+        const nodeDtos = copyWithFreshIds(
+          allNodes.map((n) => ({ sourceId: n.id, dto: nodeToCreateDto(n) })),
+        );
+        await this.createNodes(
+          savedCopy,
+          remapRenglaIds(nodeDtos, renglaIdMap),
+          manager.getRepository(FigureNode),
+        );
+      }
+    });
 
     return this.findOne(savedCopy.id);
   }
@@ -373,31 +389,9 @@ export class FigureTemplateService {
         this.handleDbError(err);
       }
 
-      // Copy rengles with new UUIDs, build mapping
-      const existingRengles = template.rengles ?? [];
-      const renglaIdMap = new Map<string, string>();
+      const renglaIdMap = await this.copyRengles(savedTemplate, template.rengles ?? [], renglaRepo);
 
-      if (existingRengles.length > 0) {
-        const newRengles = existingRengles.map((r) => {
-          const newId = randomUUID();
-          renglaIdMap.set(r.id, newId);
-          return renglaRepo.create({
-            id: newId,
-            template: savedTemplate,
-            name: r.name,
-            sortOrder: r.sortOrder,
-          });
-        });
-        await renglaRepo.save(newRengles);
-      }
-
-      // Remap renglaIds in node DTOs
-      const remappedDtos = nodeDtos.map((d) => ({
-        ...d,
-        renglaId: d.renglaId ? (renglaIdMap.get(d.renglaId) ?? null) : null,
-      }));
-
-      await this.createNodes(savedTemplate, remappedDtos as CreateFigureNodeDto[], nodeRepo);
+      await this.createNodes(savedTemplate, remapRenglaIds(nodeDtos, renglaIdMap), nodeRepo);
     });
 
     return this.findOne(savedTemplate.id);
@@ -534,6 +528,26 @@ export class FigureTemplateService {
     }
     this.logger.error(err);
     throw new InternalServerErrorException('Unexpected database error');
+  }
+
+  /**
+   * Copies `sources` into `template` with fresh ids and returns the source → copy id map, so the
+   * copied nodes can be pointed at their own template's rengles instead of the source's.
+   */
+  private async copyRengles(
+    template: FigureTemplate,
+    sources: Rengla[],
+    renglaRepo: Repository<Rengla>,
+  ): Promise<Map<string, string>> {
+    const idMap = new Map(sources.map((r) => [r.id, randomUUID()]));
+    if (sources.length > 0) {
+      await renglaRepo.save(
+        sources.map((r) =>
+          renglaRepo.create({ id: idMap.get(r.id), template, name: r.name, sortOrder: r.sortOrder }),
+        ),
+      );
+    }
+    return idMap;
   }
 
   private async createNodes(
@@ -780,6 +794,17 @@ function copyWithFreshIds(
   }));
   const sanitized = sanitizeStandsOn(copies.map((dto, i) => toSupportNode(dto, i)));
   return copies.map((dto, i) => ({ ...dto, standsOnNodeIds: sanitized[i].standsOnNodeIds }));
+}
+
+/** Rewrites each node's `renglaId` through `idMap`; a link to a rengla that wasn't copied is dropped. */
+function remapRenglaIds(
+  dtos: CreateFigureNodeDto[],
+  idMap: Map<string, string>,
+): CreateFigureNodeDto[] {
+  return dtos.map((dto) => ({
+    ...dto,
+    renglaId: dto.renglaId ? (idMap.get(dto.renglaId) ?? null) : null,
+  }));
 }
 
 function toSupportNode(
