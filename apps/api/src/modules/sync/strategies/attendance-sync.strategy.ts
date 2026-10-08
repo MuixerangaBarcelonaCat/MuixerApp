@@ -9,6 +9,7 @@ import { Person } from '../../person/person.entity';
 import { LegacyApiClient } from '../legacy-api.client';
 import { SyncEvent } from '../interfaces/sync-event.interface';
 import { XlsxAttendanceRow } from '../interfaces/legacy-event.interface';
+import { zonedTimeToUtc } from '../../../common/utils/date.util';
 
 const LATE_CANCEL_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours in ms
 
@@ -141,6 +142,7 @@ export class AttendanceSyncStrategy {
     const rows = await this.legacyApiClient.getAssistenciesXlsx(event.legacyId!);
     const isPast = this.isEventPast(event);
     const syncTimestamp = new Date();
+    const attendedPersonIds = await this.findAttendedPersonIds(event.id);
 
     // Use Map to deduplicate by personId (last entry wins — most recent response)
     const attendanceMap = new Map<
@@ -165,7 +167,10 @@ export class AttendanceSyncStrategy {
       }
 
       const respondedAt = this.parseTimestamp(row.instant);
-      const status = this.mapAttendanceStatus(row.estat, event.eventType, isPast);
+      // An ASSISTIT marked in the app (passa llista) is ground truth — the legacy never downgrades it.
+      const status = attendedPersonIds.has(person.id)
+        ? AttendanceStatus.ASSISTIT
+        : this.mapAttendanceStatus(row.estat, event.eventType, isPast);
 
       // Overwrites if duplicate — last entry wins
       attendanceMap.set(person.id, {
@@ -191,6 +196,14 @@ export class AttendanceSyncStrategy {
     await this.updateNotesOnCreate(event.id, rows, legacyIdMap);
     const lateCancel = await this.recalculateSummary(event);
     return { matched, unmatched, lateCancel };
+  }
+
+  private async findAttendedPersonIds(eventId: string): Promise<Set<string>> {
+    const attended = await this.attendanceRepository.find({
+      where: { event: { id: eventId }, status: AttendanceStatus.ASSISTIT },
+      relations: ['person'],
+    });
+    return new Set(attended.map((a) => a.person.id));
   }
 
   /**
@@ -319,8 +332,8 @@ export class AttendanceSyncStrategy {
       ? event.date.toISOString().split('T')[0]
       : String(event.date);
 
-    const timeStr = event.startTime || '23:59';
-    const dt = new Date(`${dateStr}T${timeStr}:00`);
+    // startTime is a Europe/Madrid wall-clock time; the server runs in UTC.
+    const dt = zonedTimeToUtc(dateStr, event.startTime || '23:59');
     return isNaN(dt.getTime()) ? null : dt.getTime();
   }
 
@@ -334,7 +347,8 @@ export class AttendanceSyncStrategy {
     const match = timestamp.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
     if (!match) return null;
     const [, day, month, year, hours, minutes, seconds] = match;
-    return new Date(`${year}-${month}-${day}T${hours}:${minutes}:${seconds}`);
+    // The legacy exports Europe/Madrid wall-clock times.
+    return new Date(zonedTimeToUtc(`${year}-${month}-${day}`, `${hours}:${minutes}`).getTime() + Number(seconds) * 1000);
   }
 
   private async recalculateSummary(event: Event): Promise<number> {
