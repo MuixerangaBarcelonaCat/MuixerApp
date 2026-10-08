@@ -275,7 +275,11 @@ export class FigureTemplateService {
 
     const allNodes = original.nodes ?? [];
     if (allNodes.length > 0) {
-      await this.createNodes(savedCopy, allNodes.map(nodeToCreateDto));
+      // Fresh ids: the originals still belong to the source template.
+      await this.createNodes(
+        savedCopy,
+        allNodes.map((n) => ({ ...nodeToCreateDto(n), id: randomUUID() })),
+      );
     }
 
     return this.findOne(savedCopy.id);
@@ -508,6 +512,10 @@ export class FigureTemplateService {
           `The name "${nameMatch[1]}" is already in use by another figure template`,
         );
       }
+      const idMatch = pgErr.detail?.match(/Key \(id\)=\(([^)]+)\)/);
+      if (idMatch) {
+        throw new ConflictException(`The node id "${idMatch[1]}" is already in use`);
+      }
       const slugMatch = pgErr.detail?.match(/Key \(slug\)=\(([^)]+)\)/);
       if (slugMatch) {
         throw new ConflictException(
@@ -527,6 +535,8 @@ export class FigureTemplateService {
   ): Promise<void> {
     const nodes = dtos.map((dto) =>
       nodeRepo.create({
+        // Keep the client's id: the editor references nodes by it between autosaves.
+        ...(dto.id ? { id: dto.id } : {}),
         template,
         label: dto.label,
         zone: dto.zone,
@@ -548,7 +558,11 @@ export class FigureTemplateService {
         metadata: dto.metadata ?? {},
       }),
     );
-    await nodeRepo.save(nodes);
+    try {
+      await nodeRepo.save(nodes);
+    } catch (err) {
+      this.handleDbError(err);
+    }
   }
 
   /**

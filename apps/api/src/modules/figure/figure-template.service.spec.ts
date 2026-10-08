@@ -314,6 +314,24 @@ describe('FigureTemplateService', () => {
       ).rejects.toThrow(InternalServerErrorException);
       expect(errorSpy).toHaveBeenCalledWith(dbError);
     });
+
+    it('keeps the client-provided node ids so later autosaves match them', async () => {
+      const saved = makeTemplate({ id: 'new-uuid' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(null) // assertNameAvailable: name not taken
+        .mockResolvedValueOnce(null) // generateUniqueSlug: slug not taken
+        .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
+      mockTemplateRepo.save.mockResolvedValue(saved);
+
+      await service.create({
+        name: 'Pilar de 4',
+        slug: 'pd4',
+        nodes: [{ ...NODE_DTO, id: 'client-node-id' }],
+      });
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
+      expect(savedNodes[0].id).toBe('client-node-id');
+    });
   });
 
   describe('update — upsert sync', () => {
@@ -347,6 +365,46 @@ describe('FigureTemplateService', () => {
       await service.update('tmpl-uuid', { nodes: [NODE_DTO] });
 
       expect(mockNodeRepo.save).toHaveBeenCalled();
+    });
+
+    it('creates a new node under the client-provided id, so the next autosave updates it in place', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', { nodes: [{ ...NODE_DTO, id: 'client-node-id' }] });
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
+      expect(savedNodes[0].id).toBe('client-node-id');
+    });
+
+    it('lets the database generate the id when a new node comes without one', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', { nodes: [NODE_DTO] });
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
+      expect(savedNodes[0]).not.toHaveProperty('id');
+    });
+
+    it('throws ConflictException when a new node id is already used by another template', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(tmpl);
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockNodeRepo.save.mockRejectedValueOnce({
+        code: '23505',
+        detail: 'Key (id)=(foreign-node-id) already exists.',
+      });
+
+      await expect(
+        service.update('tmpl-uuid', { nodes: [{ ...NODE_DTO, id: 'foreign-node-id' }] }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('deletes nodes not in the incoming list', async () => {
@@ -458,6 +516,30 @@ describe('FigureTemplateService', () => {
       expect(result.id).toBe('copy-uuid');
       const savedArg = mockTemplateRepo.save.mock.calls[0][0];
       expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia)');
+    });
+
+    it('gives every copied node a fresh id instead of reusing the original one', async () => {
+      const original = makeTemplate({
+        nodes: [makeNode({ id: 'orig-a' }), makeNode({ id: 'orig-b' })],
+      });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(null) // "(còpia)" name is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      mockNodeRepo.save.mockResolvedValue([]);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0] as { id?: string }[];
+      expect(savedNodes).toHaveLength(2);
+      for (const node of savedNodes) {
+        expect(node.id).toEqual(expect.any(String));
+        expect(['orig-a', 'orig-b']).not.toContain(node.id);
+      }
+      expect(savedNodes[0].id).not.toBe(savedNodes[1].id);
     });
 
     it('throws NotFoundException when original not found', async () => {
