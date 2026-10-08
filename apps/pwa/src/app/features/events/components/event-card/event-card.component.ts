@@ -57,6 +57,7 @@ export class EventCardComponent {
     return s.confirmed + s.attended;
   });
   protected readonly comingXicalla = computed(() => this.event().attendanceSummary.children);
+  protected readonly comingAdults = computed(() => this.comingTotal() - this.comingXicalla());
 
   protected readonly isAssaig = computed(
     () => this.event().eventType === EventType.ASSAIG,

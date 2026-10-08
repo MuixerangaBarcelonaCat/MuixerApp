@@ -229,7 +229,8 @@ describe('EventCardComponent', () => {
       mockRole = UserRole.TECHNICAL;
       const fixture = createCard(eventWithSummary);
       const el = fixture.nativeElement.querySelector('[data-testid="event-card-attendance-count"]');
-      expect(el.textContent).toContain('7');
+      expect(el.textContent).toContain('5 adults');
+      expect(el.textContent).toContain('7 total');
       expect(el.textContent).toContain('2 xicalla');
     });
 

@@ -2,10 +2,30 @@
 
   <!-- Capçalera -->
   <app-page-header title="Etiquetes" [count]="tags().length">
+    @if (pendingCount(); as pending) {
+      <span data-testid="pending-hint" class="flex items-center gap-1.5 text-xs sm:text-sm text-base-content/70">
+        <span class="inline-block h-2 w-2 rounded-full bg-warning" aria-hidden="true"></span>
+        {{ pending }} {{ pending === 1 ? 'persona pendent' : 'persones pendents' }} d'etiquetar
+      </span>
+    }
+    <lib-button variant="ghost" size="sm" (clicked)="openWizard()">Etiqueta persones</lib-button>
     <lib-button variant="primary" size="sm" (clicked)="openCreateModal()">
       Etiqueta nova
     </lib-button>
   </app-page-header>
+
+  <!-- Filtre per categoria -->
+  <div class="flex gap-1" role="group" aria-label="Filtra per categoria">
+    @for (opt of filterOptions; track opt.label) {
+      <lib-button
+        size="xs"
+        [variant]="categoryFilter() === opt.value ? 'primary' : 'ghost'"
+        (clicked)="categoryFilter.set(opt.value)"
+      >
+        {{ opt.label }}
+      </lib-button>
+    }
+  </div>
 
   <!-- Taula -->
   <div class="overflow-x-auto">
@@ -33,7 +53,7 @@
             </tr>
           }
         } @else {
-          @for (pos of tags(); track pos.id) {
+          @for (pos of filteredTags(); track pos.id) {
             <tr class="hover cursor-pointer" (click)="onRowClick(pos)">
               <td>
                 @if (pos.color) {
@@ -131,3 +151,8 @@
     </lib-button>
   </div>
 </lib-modal>
+
+<!-- Modal: Assistent d'etiquetatge -->
+@if (wizardOpen()) {
+  <app-tagging-wizard-modal (closed)="onWizardClosed()" />
+}

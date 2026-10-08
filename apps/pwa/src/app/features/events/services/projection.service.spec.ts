@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { ProjectionService } from './projection.service';
+import { PROJECTION_TIMEOUT_MS, ProjectionService } from './projection.service';
 
 describe('ProjectionService', () => {
   let service: ProjectionService;
@@ -31,5 +31,20 @@ describe('ProjectionService', () => {
       hasDistribution: false,
       conflicts: [],
     });
+  });
+
+  it('should error out instead of spinning forever when the server never answers', () => {
+    vi.useFakeTimers();
+    try {
+      let error: unknown;
+      service.getProjection('ev-1', 'seg-1').subscribe({ error: (e) => (error = e) });
+      httpMock.expectOne('/api/me/events/ev-1/segments/seg-1/projection');
+
+      vi.advanceTimersByTime(PROJECTION_TIMEOUT_MS + 1);
+
+      expect(error).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

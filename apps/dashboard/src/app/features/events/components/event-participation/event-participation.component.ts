@@ -82,6 +82,7 @@ const EMPTY_META: ParticipationMeta = {
 };
 
 type AreaFilter = 'TRONC' | 'PINYA' | null;
+type XicallaFilter = 'ONLY' | 'EXCLUDE' | null;
 
 /**
  * The columns a user switched on/off by hand, remembered per browser and account. Stored as
@@ -97,6 +98,10 @@ const COLUMNS_STORAGE_PREFIX = 'event-participation-columns';
 
 /** Matrix columns are keyed by segment id: a choice about one would mean nothing in another event. */
 const SEGMENT_COLUMN_PREFIX = 'segment-';
+
+/** Columns that depend on the scope/segments: always seeded from their defaults, never remembered. */
+const isScopedColumn = (key: string): boolean =>
+  key.startsWith(SEGMENT_COLUMN_PREFIX) || ['segFigure', 'segPosition', 'segZone'].includes(key);
 
 /**
  * Person x segment participation matrix for one event: what each member does, across
@@ -165,6 +170,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   onlyConflicts = signal(false);
   /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
   areaFilter = signal<AreaFilter>(null);
+  xicallaFilter = signal<XicallaFilter>(null);
 
   sortBy = signal<SortField>('alias');
   sortOrder = signal<SortOrder | undefined>('ASC');
@@ -211,12 +217,14 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     const status = this.statusFilter();
     const position = this.positionFilter();
     const conflictsOnly = this.onlyConflicts();
+    const xicalla = this.xicallaFilter();
     const term = normalizeForSearch(this.search());
 
     let rows = this.persons();
     if (status) rows = rows.filter((r) => r.attendanceStatus === status);
     if (position) rows = rows.filter((r) => r.positions.some((p) => p.id === position.id));
     if (conflictsOnly) rows = rows.filter((r) => r.conflictSegmentIds.length > 0);
+    if (xicalla) rows = rows.filter((r) => r.isXicalla === (xicalla === 'ONLY'));
     if (term) rows = this.rankByMatch(rows, term);
     return rows;
   });
@@ -284,6 +292,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
     const area = this.areaFilter();
     if (area) filters.push({ key: 'area', label: `Àrea: ${area === 'TRONC' ? 'Troncs' : 'Pinyes'}` });
+
+    const xicalla = this.xicallaFilter();
+    if (xicalla) filters.push({ key: 'xicalla', label: xicalla === 'ONLY' ? 'Només xicalla' : 'Sense xicalla' });
 
     return filters;
   });
@@ -402,7 +413,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       cols.push({
         key: 'nextPerformanceStatus',
         label: `Pròxima actuació (${nextPerformance.date})`,
-        defaultVisible: false,
+        defaultVisible: true,
         type: 'badge',
         value: (r) => this.statusLabel(r.nextPerformanceStatus ?? 'PENDENT'),
         badgeClass: (r) => this.statusBadgeClass(r.nextPerformanceStatus ?? 'PENDENT'),
@@ -706,6 +717,11 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.resetPage();
   }
 
+  onXicallaChange(value: string): void {
+    this.xicallaFilter.set(value === 'ONLY' || value === 'EXCLUDE' ? value : null);
+    this.resetPage();
+  }
+
   onAreaChange(value: string): void {
     this.areaFilter.set(value === 'TRONC' || value === 'PINYA' ? value : null);
     this.resetPage();
@@ -733,6 +749,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       case 'area':
         this.areaFilter.set(null);
         break;
+      case 'xicalla':
+        this.xicallaFilter.set(null);
+        break;
     }
     this.resetPage();
   }
@@ -745,6 +764,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.positionFilter.set(null);
     this.onlyConflicts.set(false);
     this.areaFilter.set(null);
+    this.xicallaFilter.set(null);
     this.seedVisibleColumns();
     this.resetPage();
   }
@@ -758,7 +778,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   toggleColumn(key: string): void {
     const show = !this.visibleKeys().includes(key);
     this.visibleKeys.update((keys) => (show ? [...keys, key] : keys.filter((k) => k !== key)));
-    if (!key.startsWith(SEGMENT_COLUMN_PREFIX)) this.rememberColumnChoice(key, show);
+    if (!isScopedColumn(key)) this.rememberColumnChoice(key, show);
   }
 
   onLimitChange(limit: number): void {
@@ -777,7 +797,11 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     const { shown, hidden } = this.loadColumnChoices();
     this.visibleKeys.set(
       this.columns()
-        .filter((c) => shown.includes(c.key) || (c.defaultVisible && !hidden.includes(c.key)))
+        .filter((c) =>
+          isScopedColumn(c.key)
+            ? c.defaultVisible
+            : shown.includes(c.key) || (c.defaultVisible && !hidden.includes(c.key)),
+        )
         .map((c) => c.key),
     );
   }

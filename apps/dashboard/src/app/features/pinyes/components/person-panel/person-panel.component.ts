@@ -142,9 +142,6 @@ export class PersonPanelComponent {
   /** Person picked to be assigned to the next node click — drives the row highlight below. */
   readonly selectedPersonId = computed(() => this.state.selectedPersonId());
 
-  /** True while a height filter or Max/Min sort is active — used to exclude persons with no shoulder height set. */
-  readonly heightSelectionActive = computed(() => this.height() !== null || this.heightSortMode() !== null);
-
   /** Absolute shoulder height the list is ordered by (closest first), or null when no height selection is active. */
   private readonly heightTarget = computed<number | null>(() => {
     const sortMode = this.heightSortMode();
@@ -271,11 +268,8 @@ export class PersonPanelComponent {
       ...this.pinyaAssignedPersons().map((p) => p.id),
       ...this.troncAssignedPersons().map((p) => p.id),
     ]);
-    const free = this.filteredPersons().filter((p) => !assignedIds.has(p.id));
-    if (!this.heightSelectionActive()) return free;
-    // A shoulderHeight of null/0 means "not set" — coalesced to 0 server-side, which would
-    // otherwise sort these persons as the shortest possible match when ordering by min height.
-    return free.filter((p) => p.shoulderHeight !== null && p.shoulderHeight !== 0);
+    // Persons with no height set sort last in filteredPersons — never dropped (not measured yet).
+    return this.filteredPersons().filter((p) => !assignedIds.has(p.id));
   });
 
   readonly confirmedPersons = computed(() =>

@@ -126,25 +126,9 @@ describe('AttendanceButtonComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('button').length).toBe(0);
   });
 
-  it('should still offer Vaig / No vaig when ASSISTIT and the event is within its window', () => {
+  it('should show only the badge (no buttons) when ASSISTIT, even if editable', () => {
     const fixture = createButton(AttendanceStatus.ASSISTIT, undefined, false);
-    const buttons: HTMLButtonElement[] = fixture.nativeElement.querySelectorAll('button');
-    expect(buttons.length).toBe(2);
-    expect(buttons[0].textContent).toContain('Vaig');
-    expect(buttons[1].textContent).toContain('No vaig');
-  });
-
-  it('should show a "He assistit" indicator alongside the buttons when ASSISTIT and editable', () => {
-    const fixture = createButton(AttendanceStatus.ASSISTIT, undefined, false);
-    const badge = fixture.nativeElement.querySelector('.badge');
-    expect(badge).toBeTruthy();
-    expect(badge.textContent).toContain('He assistit');
-  });
-
-  it('should let a member revert ASSISTIT to NO_VAIG', () => {
-    const fixture = createButton(AttendanceStatus.ASSISTIT, undefined, false);
-    const noVaigBtn = fixture.nativeElement.querySelectorAll('button')[1];
-    noVaigBtn.click();
-    expect(eventService.updateAttendance).toHaveBeenCalledWith('ev-1', AttendanceStatus.NO_VAIG, undefined);
+    expect(fixture.nativeElement.querySelector('.badge').textContent).toContain('He assistit');
+    expect(fixture.nativeElement.querySelectorAll('button').length).toBe(0);
   });
 });

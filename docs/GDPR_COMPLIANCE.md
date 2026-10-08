@@ -284,6 +284,11 @@ contingut es mostra sempre en text pla (`whitespace-pre-wrap`).
   `GET /legal/TRANSPARENCY_CLAUSE/active`. Així no és text hardcodejat.
 - És **informatiu** (no un segon click-wrap): es mostra en el moment de recollir les dades,
   complint el principi de transparència (art. 13 RGPD).
+- **Canvi (octubre 2026):** a la UI ara es diu **«Avís de confidencialitat»** i s'adreça a l'equip
+  tècnic (deure de confidencialitat, art. 5 LOPDGDD). Qui el llig és el tècnic, no la persona afectada,
+  així que no complia l'art. 13. La transparència cap al membre la cobreixen la Política de Privacitat
+  (click-wrap a la PWA) i el full d'alta signat (persones sense compte). L'enum continua sent
+  `TRANSPARENCY_CLAUSE` per no migrar dades.
 
 ---
 

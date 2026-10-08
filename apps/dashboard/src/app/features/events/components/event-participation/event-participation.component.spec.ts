@@ -490,6 +490,7 @@ describe('EventParticipationComponent', () => {
       const col = columnByKey(fixture, 'nextPerformanceStatus');
       expect(col).toBeDefined();
       expect(col!.label).toContain('2026-09-12');
+      expect(col!.defaultVisible).toBe(true);
 
       const row = fixture.componentInstance.persons()[0];
       expect(col!.value!(row)).toBe(fixture.componentInstance.statusLabel('ANIRE'));
@@ -631,6 +632,40 @@ describe('EventParticipationComponent', () => {
   });
 
   describe('filters', () => {
+    it('filters xicalla in and out', async () => {
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'PERSIANA', {}, { isXicalla: true }),
+          makePerson('p2', 'GRILLAT', {}),
+        ],
+      });
+      const fixture = await setup(response);
+
+      fixture.componentInstance.onXicallaChange('ONLY');
+      expect(fixture.componentInstance.filteredRows().map((r) => r.alias)).toEqual(['PERSIANA']);
+
+      fixture.componentInstance.onXicallaChange('EXCLUDE');
+      expect(fixture.componentInstance.filteredRows().map((r) => r.alias)).toEqual(['GRILLAT']);
+
+      fixture.componentInstance.removeFilter('xicalla');
+      expect(fixture.componentInstance.filteredRows()).toHaveLength(2);
+    });
+
+    it('remembers fixed column choices across visits, but not scoped ones', async () => {
+      localStorage.clear();
+      const first = await setup();
+      first.componentInstance.toggleColumn('shoulderHeight'); // off by default → on
+      first.componentInstance.toggleColumn('status'); // on by default → off
+      TestBed.resetTestingModule();
+
+      const second = await setup();
+      const keys = second.componentInstance.visibleKeys();
+      expect(keys).toContain('shoulderHeight');
+      expect(keys).not.toContain('status');
+      expect(keys).toContain(`segment-${SEG_A}`);
+      localStorage.clear();
+    });
+
     it('narrows by attendance status', async () => {
       const response = buildResponse({
         persons: [

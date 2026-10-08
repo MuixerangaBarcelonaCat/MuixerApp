@@ -23,6 +23,7 @@ tags: [qa]
 | S2 | N+1 al `EventSyncStrategy`: 2 peticions HTTP per event (llista + detall) | ~178 peticions seqüencials; el legacy podria aplicar rate limiting |
 | S3 | No hi ha flag de "editat manualment": un re-sync pot sobreescriure estats editats a mà | Descartat a P4.2 per simplicitat; reconsiderar si el legacy conviu molt de temps |
 | S4 | `attendanceSummary` es recalcula sincrònicament a cada CRUD d'assistència | Acceptable ara; vigilar si creix el volum |
+| S5 | La sync mai rebaixa un `ASSISTIT` marcat a l'app (passa llista guanya sempre): si algú respon «No vinc» al legacy després de ser marcat, es queda `ASSISTIT` | Decisió deliberada (07/10/2026); valorar si cal deixar que un «No vinc» posterior el corregeixi |
 
 ## Seguretat i compliment
 
@@ -32,7 +33,7 @@ tags: [qa]
 | SEC2 | `CORS_ORIGINS` no ha de contenir `localhost` en producció | Verificar a cada desplegament |
 | SEC3 | Camps sensibles de `persons` (`email`, `phone`, `birthDate`) sense encriptar en repòs | RGPD. Decisió pendent: columnes encriptades vs. encriptació de disc |
 | SEC4 | Multi-tenant no implementat | Quan s'implemente caldrà `collaId` al JWT i als guards de tots els mòduls |
-| SEC5 | Dret a l'oblit no implementat: falta l'anonimització de `persons` (nom, cognoms, email, telèfon) conservant l'històric de pinyes i assistència de forma anònima, i el filtre de re-importació al `SyncModule` perquè el legacy no ressuscite la persona | RGPD/LOPDGDD. Ajornat conscientment del sprint de compliment. Cal marca `anonymizedAt` a `Person` (no reutilitzar `isActive`, per BUG-9 a `person-sync.strategy.ts:380`). Pla a [[GDPR_COMPLIANCE]] §11 |
+| SEC5 | Esborrat després de la baixa i dret a l'oblit no implementats: la Política de privacitat v2 promet que, passat `[TERMINI]` des de la baixa (o a petició de supressió), s'esborren totes les dades de `persons` **excepte l'àlies** (pertany a la colla) i l'històric de pinyes i assistència. Avui no s'esborra res: només es marca `isActive`. Falta també el filtre de re-importació al `SyncModule` perquè el legacy no ressuscite la persona | RGPD/LOPDGDD. Ajornat conscientment. El termini encara no està decidit: quan es fixe, cal publicar-lo a la política (sense re-consentiment) i fer el cron. Cal marca `anonymizedAt` a `Person` (no reutilitzar `isActive`, per BUG-9 a `person-sync.strategy.ts:380`). Pla a [[GDPR_COMPLIANCE]] §11 |
 | SEC6 | `audit_logs` no té cron de retenció/neteja (creix indefinidament) | Definir període (p. ex. 1-2 anys) i afegir un cron com el que ja neteja `refresh_tokens` |
 | SEC7 | `AuditAction.SENSITIVE_DATA_EXPORT` definit a l'enum però sense cap punt de crida | No hi ha encara cap endpoint d'exportació de PII de `persons`; registrar-lo quan n'hi haja un |
 

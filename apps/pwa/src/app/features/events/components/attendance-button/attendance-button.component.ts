@@ -30,7 +30,6 @@ import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } f
         </span>
       </lib-badge>
     } @else {
-      <div class="flex items-center gap-2">
       <lib-button-group>
         <lib-button
           joinItem
@@ -55,13 +54,6 @@ import { BadgeComponent, ButtonComponent, ButtonGroupComponent, ToastService } f
           (clicked)="setStatus(NO_VAIG)"
         >No vaig</lib-button>
       </lib-button-group>
-      @if (displayStatus() === ASSISTIT) {
-        <span class="badge badge-info badge-sm gap-1 py-3">
-          <lucide-angular [img]="Check" class="size-3" />
-          He assistit
-        </span>
-      }
-      </div>
     }
   `,
 })
@@ -75,7 +67,6 @@ export class AttendanceButtonComponent {
 
   protected readonly ANIRE = AttendanceStatus.ANIRE;
   protected readonly NO_VAIG = AttendanceStatus.NO_VAIG;
-  protected readonly ASSISTIT = AttendanceStatus.ASSISTIT;
   protected readonly Check = Check;
 
   private readonly eventService = inject(EventService);
@@ -88,14 +79,9 @@ export class AttendanceButtonComponent {
   protected readonly displayStatus = computed(
     () => this.localStatus() ?? AttendanceStatus.PENDENT,
   );
-  /**
-   * `ASSISTIT` no longer hard-locks the control: a member who was marked as attended (by the
-   * rehearsal tablet, by staff, or by the performance auto-sweep) can still move back to «No
-   * vaig» while the event is editable. Only once the parent disables the control (event out of
-   * its editing window) does `ASSISTIT` collapse to a read-only badge.
-   */
+  /** Once attended (tablet, staff or performance sweep) the selector is moot: show only the badge. */
   protected readonly isLockedBadgeOnly = computed(
-    () => this.displayStatus() === AttendanceStatus.ASSISTIT && this.disabled(),
+    () => this.displayStatus() === AttendanceStatus.ASSISTIT,
   );
   protected readonly isEffectivelyDisabled = computed(
     () => this.disabled() || this.isPending(),

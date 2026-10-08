@@ -735,20 +735,43 @@ export class PinyaProjectionComponent {
       });
   }
 
+  /**
+   * The template re-evaluates on every pan/zoom frame (the tronc overlay follows the stage), so
+   * these must return the *same array* for the same instance — a fresh `filter()` per call would
+   * hand `TroncViewComponent` new input identities every frame and defeat its OnPush.
+   */
+  private readonly zoneNodesCache = new WeakMap<
+    ProjectionInstance,
+    { tronc: TroncNodeItem[]; base: TroncNodeItem[]; direction: TroncNodeItem[] }
+  >();
+
+  private zoneNodes(instance: ProjectionInstance) {
+    let cached = this.zoneNodesCache.get(instance);
+    if (!cached) {
+      // `cordonsObertsEnabled` isn't on ProjectionInstance, but the BASE branch never reads it.
+      const opts = { figureMode: instance.figureMode, numberOfCordons: instance.numberOfCordons, cordonsObertsEnabled: true };
+      cached = {
+        tronc: instance.nodes.filter((n) => n.zone === FigureZone.TRONC) as TroncNodeItem[],
+        base: instance.nodes.filter(
+          (n) => n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, opts),
+        ) as TroncNodeItem[],
+        direction: instance.nodes.filter((n) => n.zone === FigureZone.DIRECTION) as TroncNodeItem[],
+      };
+      this.zoneNodesCache.set(instance, cached);
+    }
+    return cached;
+  }
+
   getInstanceTroncNodes(instance: ProjectionInstance): TroncNodeItem[] {
-    return instance.nodes.filter((n) => n.zone === FigureZone.TRONC) as TroncNodeItem[];
+    return this.zoneNodes(instance).tronc;
   }
 
   getInstanceBaseNodes(instance: ProjectionInstance): TroncNodeItem[] {
-    // `cordonsObertsEnabled` isn't on ProjectionInstance, but the BASE branch never reads it.
-    const opts = { figureMode: instance.figureMode, numberOfCordons: instance.numberOfCordons, cordonsObertsEnabled: true };
-    return instance.nodes.filter(
-      (n) => n.zone === FigureZone.BASE && isNodeVisibleByModeAndCordons(n, opts),
-    ) as TroncNodeItem[];
+    return this.zoneNodes(instance).base;
   }
 
   getInstanceDirectionNodes(instance: ProjectionInstance): TroncNodeItem[] {
-    return instance.nodes.filter((n) => n.zone === FigureZone.DIRECTION) as TroncNodeItem[];
+    return this.zoneNodes(instance).direction;
   }
 
   getInstanceName(instance: ProjectionInstance): string {
