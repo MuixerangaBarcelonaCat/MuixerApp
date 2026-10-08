@@ -9,11 +9,12 @@ import { LegalDocumentService } from '../../../core/services/legal-document.serv
 import { ConsentModalComponent } from './consent-modal.component';
 
 describe('ConsentModalComponent', () => {
-  it('renders the privacy policy as Markdown', async () => {
+  async function setup() {
+    const acceptPrivacyConsent = vi.fn().mockReturnValue(of(undefined));
     await TestBed.configureTestingModule({
       imports: [ConsentModalComponent],
       providers: [
-        { provide: AuthService, useValue: { currentUser: signal(null), acceptPrivacyConsent: vi.fn() } },
+        { provide: AuthService, useValue: { currentUser: signal(null), acceptPrivacyConsent } },
         {
           provide: LegalDocumentService,
           useValue: {
@@ -29,7 +30,22 @@ describe('ConsentModalComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+    return { fixture, acceptPrivacyConsent };
+  }
+
+  it('renders the privacy policy as Markdown', async () => {
+    const { fixture } = await setup();
 
     expect(fixture.nativeElement.querySelector('.prose h2')?.textContent).toBe('Dades que tractem');
+  });
+
+  it('accepts the policy through the shared lib-button', async () => {
+    const { fixture, acceptPrivacyConsent } = await setup();
+
+    const button: HTMLButtonElement | null = fixture.nativeElement.querySelector('lib-button button');
+    expect(button?.textContent?.trim()).toBe('Accepte');
+    button?.click();
+
+    expect(acceptPrivacyConsent).toHaveBeenCalledOnce();
   });
 });

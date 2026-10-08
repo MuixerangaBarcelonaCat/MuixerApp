@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@a
 import { LegalDocumentType } from '@muixer/shared';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
-import { AlertComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, ToastService } from '@muixer/ui';
 import { MarkdownViewComponent } from '@muixer/ui/markdown';
 
 /**
@@ -14,7 +14,7 @@ import { MarkdownViewComponent } from '@muixer/ui/markdown';
   selector: 'app-privacy-consent-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AlertComponent, MarkdownViewComponent],
+  imports: [AlertComponent, ButtonComponent, MarkdownViewComponent],
   template: `
     <dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="privacy-consent-title">
       <div class="modal-box max-w-2xl">
@@ -43,15 +43,11 @@ import { MarkdownViewComponent } from '@muixer/ui/markdown';
         }
 
         <div class="modal-action">
-          <button
-            type="button"
-            class="btn btn-primary"
-            [disabled]="loading() || !content() || submitting()"
-            (click)="accept()"
-          >
-            @if (submitting()) { <span class="loading loading-spinner loading-xs"></span> }
-            Accepte
-          </button>
+          <lib-button
+            [disabled]="loading() || !content()"
+            [loading]="submitting()"
+            (clicked)="accept()"
+          >Accepte</lib-button>
         </div>
       </div>
     </dialog>

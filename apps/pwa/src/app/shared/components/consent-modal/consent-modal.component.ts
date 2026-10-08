@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@a
 import { LegalDocumentType } from '@muixer/shared';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
-import { ToastService } from '@muixer/ui';
+import { ButtonComponent, ToastService } from '@muixer/ui';
 import { MarkdownViewComponent } from '@muixer/ui/markdown';
 
 /**
@@ -14,7 +14,7 @@ import { MarkdownViewComponent } from '@muixer/ui/markdown';
   selector: 'app-consent-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarkdownViewComponent],
+  imports: [ButtonComponent, MarkdownViewComponent],
   template: `
     <dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="consent-modal-title">
       <div class="modal-box max-w-lg">
@@ -41,15 +41,12 @@ import { MarkdownViewComponent } from '@muixer/ui/markdown';
         }
 
         <div class="modal-action">
-          <button
-            type="button"
-            class="btn btn-primary btn-block"
-            [disabled]="loading() || !content() || submitting()"
-            (click)="accept()"
-          >
-            @if (submitting()) { <span class="loading loading-spinner loading-xs"></span> }
-            Accepte
-          </button>
+          <lib-button
+            [disabled]="loading() || !content()"
+            [loading]="submitting()"
+            fullWidth
+            (clicked)="accept()"
+          >Accepte</lib-button>
         </div>
       </div>
     </dialog>
