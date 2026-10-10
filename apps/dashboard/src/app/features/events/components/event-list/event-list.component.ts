@@ -9,8 +9,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { ButtonComponent, InputComponent, SelectComponent, EmptyStateComponent } from '@muixer/ui';
-import { ICON_FIGURA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { ButtonComponent, InputComponent, SelectComponent, EmptyStateComponent, ICON_FIGURA, DOMAIN_ICONS } from '@muixer/ui';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';

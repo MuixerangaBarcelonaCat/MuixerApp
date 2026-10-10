@@ -98,18 +98,20 @@
       }
     </div>
 
-    <!-- Color / fill: only for decoration nodes and the PINYA "comodin" wildcard — every other type's color is fixed by its node type -->
+    <!-- Color / fill: editable for every zone except BASE. With no color of its own a node takes its type's color; a decoration, none. -->
     @if (isColorEditable()) {
       <div class="form-control">
         <span class="label-text text-xs font-medium mb-1 block">Color</span>
         <div class="flex items-center gap-2">
           <app-color-picker
             [color]="colorDisplay() ?? null"
-            [presetColors]="colorPresetColors()"
+            [fallbackColor]="colorFallback()"
+            (colorReset)="onColorReset()"
+            [presetColors]="colorPresetColors"
             (colorChange)="onColorCommit($event)"
           />
           <span class="text-xs font-mono text-base-content/60">
-            {{ colorDisplay() ?? 'Sense fons' }}
+            {{ colorDisplay() ?? (isDecoration() ? 'Sense fons' : 'Color per defecte') }}
           </span>
           @if (isDecoration() && node().color) {
             <lib-button variant="ghost" size="xs" (clicked)="clearDecorationFill()">

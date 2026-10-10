@@ -5,10 +5,11 @@ import {
   baseNodeGridColumn,
   FigureNodeItem,
   layoutTroncFloors,
+  resolveNodeTones,
   troncNodeGridColumn,
   troncTotalColumns,
 } from '@muixer/pinyes-render';
-import { FigureZone, isValidStandsOnTarget, TRONC_NODE_PRESETS } from '@muixer/shared';
+import { FigureZone, isValidStandsOnTarget } from '@muixer/shared';
 import { SupportLink } from './tronc-support-editor.model';
 
 /** Height of a floor row. Fixed, so line endpoints can be computed instead of measured. */
@@ -173,7 +174,7 @@ export class TroncSupportEditorComponent {
 
   nodeColor(node: FigureNodeItem): string | null {
     if (node.zone !== FigureZone.TRONC) return null;
-    return node.color ?? TRONC_NODE_PRESETS.find((p) => p.positionType === node.positionType)?.color ?? null;
+    return resolveNodeTones(node).pencil;
   }
 
   handleDisabled(node: FigureNodeItem): boolean {

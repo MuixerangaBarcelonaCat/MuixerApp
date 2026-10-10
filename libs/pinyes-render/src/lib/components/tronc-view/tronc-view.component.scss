@@ -172,17 +172,16 @@
     background: oklch(var(--b1));
   }
 
-  // Phase 3 — single conflict style for a person assigned >1 time in the segment.
-  // Same rose/magenta cue everywhere (canvas, tronc-view): "un conflicte és un conflicte", no per-kind styling.
+  // Single conflict style for a person assigned >1 time in the segment, in the error token the
+  // canvas also draws conflicts with: "un conflicte és un conflicte", no per-kind styling.
   &.conflict {
-    border-color: var(--conflict);
-    box-shadow: 0 0 0 2px rgb(225 29 72 / 0.55);
-    background: rgb(225 29 72 / 0.14);
+    border-color: oklch(var(--er));
+    box-shadow: 0 0 0 2px oklch(var(--er) / 0.55);
+    background: oklch(var(--er) / 0.14);
   }
 
-  // Green outline + glow, like the Konva canvas draws for a highlighted node (shadowBlur 12), so
-  // both tabs mark e.g. "person being moved" alike. Uses the theme's success token; the canvas
-  // still has a hard-coded emerald (`#10b981`) until it is adapted to the theme.
+  // Success outline + glow, like the Konva canvas draws for a highlighted node (shadowBlur 12), so
+  // both tabs mark e.g. "person being moved" alike.
   &.highlighted {
     border-color: oklch(var(--su));
     background: oklch(var(--su) / 0.08);
@@ -497,6 +496,13 @@
   opacity: 0.8;
 }
 
+// Observation emoji. Colour emoji are bitmap glyphs, so a text stroke draws nothing: the shadow
+// follows the glyph's silhouette and acts as the outline.
+.notes-emoji {
+  font-size: 1rem;
+  text-shadow: 0 0 5px oklch(var(--bc));
+}
+
 // -- Preset tags 
 
 .preset-tags {
@@ -504,60 +510,6 @@
   flex-wrap: wrap;
   gap: 0.25rem;
   padding: 0.15rem 0;
-}
-
-.preset-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.25rem;
-  border: 1px solid oklch(var(--b3));
-  background: oklch(var(--b2));
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: oklch(var(--bc) / 0.7);
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--preset-color, oklch(var(--bc) / 0.3));
-    background: color-mix(in srgb, var(--preset-color, transparent) 10%, oklch(var(--b2)));
-  }
-
-  &:focus-visible {
-    outline: 2px solid oklch(var(--p));
-    outline-offset: 1px;
-  }
-
-  &.active {
-    background: var(--preset-color);
-    border-color: var(--preset-color);
-    color: #fff;
-  }
-}
-
-// -- Color indicator row 
-
-.color-indicator-row {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.15rem 0.25rem;
-}
-
-.color-swatch {
-  display: inline-block;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
-  border: 1px solid oklch(var(--bc) / 0.15);
-  flex-shrink: 0;
-}
-
-.color-value {
-  color: oklch(var(--bc) / 0.5);
-  font-family: monospace;
 }
 
 // -- Directions section (collapsible, figures netes) 

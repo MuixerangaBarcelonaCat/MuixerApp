@@ -1,4 +1,4 @@
-import { buildCategoricalPalette, formatHex } from '@muixer/ui';
+import { INK, PAPER, buildCategoricalPalette, formatHex } from '@muixer/ui';
 
 /** Per-figure colors, in sortOrder: the theme's categorical palette (normal hues are mode-independent). */
 export const FIGURE_PALETTE: readonly string[] = buildCategoricalPalette('light').normal.map(formatHex);
@@ -12,13 +12,14 @@ const FIGURE_TINT_ALPHA = 0x33 / 0xff;
 
 /**
  * Light version of a figure's color: what the projection's tronc panel background looks like (the
- * color at `0x33` alpha over the pinned-light white backdrop), baked into an opaque hex so a canvas
- * shape filled with it doesn't let what's behind show through.
+ * color at `0x33` alpha over the paper backdrop), baked into an opaque hex so a canvas shape filled
+ * with it doesn't let what's behind show through.
  */
 export function getFigureTint(index: number): string {
   const color = getFigureColor(index);
+  const at = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
   const channel = (i: number) =>
-    Math.round(255 * (1 - FIGURE_TINT_ALPHA) + parseInt(color.slice(1 + i * 2, 3 + i * 2), 16) * FIGURE_TINT_ALPHA)
+    Math.round(at(PAPER.white, i) * (1 - FIGURE_TINT_ALPHA) + at(color, i) * FIGURE_TINT_ALPHA)
       .toString(16)
       .padStart(2, '0');
   return `#${channel(0)}${channel(1)}${channel(2)}`;
@@ -35,8 +36,8 @@ export function figureCardTint(color: string): { background: string; border: str
   };
 }
 
-/** Tronc panel color when a segment has a single figure — white instead of the palette color. */
-export const SINGLE_FIGURE_PANEL_COLOR = '#ffffff';
+/** Tronc panel color when a segment has a single figure — paper instead of the palette color. */
+export const SINGLE_FIGURE_PANEL_COLOR = PAPER.white;
 
-/** Figure shadow/silhouette color when a segment has a single figure — gray instead of the palette color. */
-export const SINGLE_FIGURE_SHADOW_COLOR = '#4b5563';
+/** Figure shadow/silhouette color when a segment has a single figure — ink instead of the palette color. */
+export const SINGLE_FIGURE_SHADOW_COLOR = INK.mid;

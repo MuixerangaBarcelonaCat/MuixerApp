@@ -28,3 +28,7 @@ export * from './lib/utils/cordo-obert.util';
 export * from './lib/utils/projection-layout.util';
 export * from './lib/utils/figure-placement.util';
 export * from './lib/utils/own-position.util';
+
+export * from './lib/theme/canvas-theme';
+export * from './lib/theme/node-color';
+export * from './lib/theme/node-paint';

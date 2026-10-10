@@ -1,5 +1,6 @@
 export * from './lib/tokens/color';
 export * from './lib/tokens/categorical';
+export * from './lib/tokens/node-types';
 export * from './lib/tokens/fixed-colors';
 export * from './lib/tokens/radius';
 export * from './lib/tokens/motion';
@@ -8,6 +9,8 @@ export * from './lib/tokens/shadow';
 export * from './lib/tokens/typography';
 export * from './lib/tokens/theme';
 export * from './lib/tokens/theme-names';
+
+export * from './lib/icons/domain-icons';
 
 export * from './lib/components/button/button.component';
 export * from './lib/components/button-group/button-group.component';

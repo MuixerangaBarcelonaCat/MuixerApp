@@ -1,4 +1,4 @@
-import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload } from '@muixer/pinyes-render';
+import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload, nodeFill } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -14,7 +14,7 @@ import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService, TextareaComponent, InputComponent, SelectComponent, ButtonComponent, BadgeComponent, BadgeVariant } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isArrivalPhase } from '@muixer/shared';
-import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
+import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-presets.util';
 
 @Component({
   selector: 'app-ad-hoc-node-properties',
@@ -65,7 +65,7 @@ export class AdHocNodePropertiesComponent {
     isNodeColorEditable({ zone: this.node().zone as FigureZone, positionType: this.node().positionType }),
   );
 
-  readonly colorPresetColors = computed(() => getPresetColorsForZone(this.node().zone as FigureZone));
+  readonly colorPresetColors = nodeColorPresets();
 
   readonly isDirection = computed(
     () => (DIRECTION_ZONES as readonly string[]).includes(this.node().zone),
@@ -108,6 +108,11 @@ export class AdHocNodePropertiesComponent {
   );
 
   readonly colorDisplay = computed(() => this.node().color);
+  /** What a missing color resolves to on the canvas: the type's fill, or none for a decoration. */
+  readonly colorFallback = computed(() => {
+    const { zone, positionType } = this.node();
+    return zone === FigureZone.DECORATION ? null : nodeFill({ zone, positionType, color: null });
+  });
 
   close(): void {
     this.closed.emit();
@@ -144,6 +149,11 @@ export class AdHocNodePropertiesComponent {
     const payload: UpdateAdHocNodePayload = { [key]: value };
     this.propertyChanged.emit({ nodeId: this.node().id, patch: payload });
     this.debouncedUpdate(payload);
+  }
+
+  /** Back to the type color: an empty color follows the node's type. */
+  onColorReset(): void {
+    this.commitProperty('color', null);
   }
 
   clearDecorationFill(): void {

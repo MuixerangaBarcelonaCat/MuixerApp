@@ -49,6 +49,20 @@ describe('NewsListComponent', () => {
     fixture.detectChanges();
   });
 
+  it('marks the push state with the bell icon, not an emoji', () => {
+    newsService.getAll.mockReturnValue(
+      of([mockNews({ id: 'a', sendPush: true, pushSentAt: '2026-01-02T10:00:00.000Z' }), mockNews({ id: 'b', sendPush: true })]),
+    );
+    component.reload();
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Enviada');
+    expect(text).toContain('Pendent');
+    expect(text).not.toContain('🔔');
+    expect(fixture.nativeElement.querySelectorAll('.badge svg').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('loads news items on init', () => {
     expect(newsService.getAll).toHaveBeenCalledTimes(1);
     expect(component.newsItems().length).toBe(1);

@@ -17,8 +17,8 @@
         }
         <lib-badge size="sm">{{ categoryLabels[t.category] }}</lib-badge>
         @for (pt of t.positionTypes; track pt) {
-          @let meta = positionTypeMeta[pt];
-          <lib-badge size="sm" [color]="meta?.color ?? '#64748b'">{{ meta?.label ?? pt }}</lib-badge>
+          @let chip = positionTypeChip(pt);
+          <lib-badge size="sm" [color]="chip.color">{{ chip.label }}</lib-badge>
         }
         <lib-badge variant="neutral" size="sm">{{ t.personCount }} persones</lib-badge>
       </span>

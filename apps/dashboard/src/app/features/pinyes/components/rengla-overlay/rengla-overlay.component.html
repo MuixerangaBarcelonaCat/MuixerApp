@@ -50,7 +50,7 @@
           [attr.cy]="pt.cy - pt.height / 2 + 4"
           r="12"
           [attr.fill]="line.color"
-          stroke="white"
+          [attr.stroke]="theme.onInk"
           stroke-width="1.5"
         />
         <text
@@ -58,7 +58,7 @@
           [attr.y]="pt.cy - pt.height / 2 + 4"
           text-anchor="middle"
           dominant-baseline="central"
-          fill="white"
+          [attr.fill]="theme.onInk"
           font-size="11"
           font-weight="bold"
           font-family="Inter, sans-serif"
@@ -72,7 +72,7 @@
   @if (pendingLine()) {
     <polyline
       [attr.points]="pendingLine()"
-      stroke="#6366f1"
+      [attr.stroke]="theme.focus"
       stroke-width="3"
       fill="none"
       opacity="0.8"
@@ -87,8 +87,8 @@
           [attr.cx]="sn.cx + sn.width / 2 - 4"
           [attr.cy]="sn.cy - sn.height / 2 + 4"
           r="13"
-          fill="#6366f1"
-          stroke="white"
+          [attr.fill]="theme.focus"
+          [attr.stroke]="theme.onInk"
           stroke-width="2"
         />
         <text
@@ -96,7 +96,7 @@
           [attr.y]="sn.cy - sn.height / 2 + 4"
           text-anchor="middle"
           dominant-baseline="central"
-          fill="white"
+          [attr.fill]="theme.onInk"
           font-size="11"
           font-weight="bold"
           font-family="Inter, sans-serif"
@@ -117,7 +117,7 @@
         [attr.width]="sn.width"
         [attr.height]="sn.height"
         fill="transparent"
-        [attr.stroke]="creatingRengla() ? '#6366f1' : 'transparent'"
+        [attr.stroke]="creatingRengla() ? theme.focus : 'transparent'"
         stroke-width="1.5"
         stroke-dasharray="4 3"
         [attr.opacity]="creatingRengla() ? 0.4 : 0"

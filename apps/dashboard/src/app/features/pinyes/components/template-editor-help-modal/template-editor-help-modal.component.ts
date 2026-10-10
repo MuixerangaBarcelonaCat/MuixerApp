@@ -16,7 +16,7 @@ import {
   ChevronDown,
   Tablet,
 } from 'lucide-angular';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS } from '@muixer/ui';
 import { normalizeForSearch } from '@muixer/shared';
 
 const STORAGE_KEY = 'muixer_template_editor_help_dismissed';

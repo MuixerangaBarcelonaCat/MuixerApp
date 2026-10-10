@@ -36,6 +36,25 @@ describe('PersonHoverCardComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('marks a xicalla with the xicalla icon, not an emoji', () => {
+    fixture.componentRef.setInput('info', makeInfo({ isXicalla: true }));
+    fixture.detectChanges();
+    const mark: HTMLElement = fixture.nativeElement.querySelector('[aria-label="Xicalla"]');
+    expect(mark.querySelector('svg')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).not.toContain('👶');
+  });
+
+  it('shows a tag with no color of its own as a neutral badge, not in a made-up gray', () => {
+    const uncolored: AvailablePersonPosition = { ...posVents, id: 'pos-x', color: null };
+    fixture.componentRef.setInput('info', makeInfo({ positions: [uncolored] }));
+    fixture.detectChanges();
+    const tag = [...fixture.nativeElement.querySelectorAll('lib-badge .badge')].find((b: HTMLElement) =>
+      b.textContent?.includes('Vents'),
+    ) as HTMLElement;
+    expect(tag.classList).toContain('badge-neutral');
+    expect(tag.style.backgroundColor).toBe('');
+  });
+
   describe('cumulative height', () => {
     const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
 

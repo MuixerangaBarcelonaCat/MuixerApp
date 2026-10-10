@@ -15,7 +15,7 @@ import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { THEME_NAMES } from '@muixer/ui';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, DIRECTION_NODE_PRESETS, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, EventPhase, isArrivalPhase } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, EventPhase, isArrivalPhase } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
@@ -29,6 +29,8 @@ import { fitFontSize } from '../../utils/fit-font-size.util';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor } from '../../utils/figure-palette.util';
+import { buildCanvasTheme, contentOn, withAlpha } from '../../theme/canvas-theme';
+import { attendanceDotColor, nodeFill, nodeLabelColor } from '../../theme/node-paint';
 import {
   boundingBoxCenter,
   buildSegmentRenderNodes,
@@ -111,37 +113,8 @@ export interface CompositionSlotWithNodes {
 }
 
 
-const GRID_COLOR = '#e5e7eb';
-const NODE_COLORS: Record<string, string> = {
-  [FigureZone.BASE]: '#EEEEEE',
-  [FigureZone.PINYA]: '#3b82f6',
-  [FigureZone.TRONC]: '#8b5cf6',
-  // Zone-level fallback for a direction node with no `color` of its own; the per-flavour
-  // colour (tronc / xicalla / pinya) normally comes from `node.color`, set from the preset.
-  [FigureZone.DIRECTION]: DIRECTION_NODE_PRESETS[0].color ?? '#d97706',
-  [FigureZone.DECORATION]: '#999999',
-};
-const DEFAULT_NODE_COLOR = '#6b7280';
-
-/** The per-flavour direction colour by `positionType`, falling back to the zone colour. */
-function directionColorFor(positionType: string | null | undefined): string {
-  return (
-    DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.color ??
-    NODE_COLORS[FigureZone.DIRECTION]
-  );
-}
-
-/** Zone-derived fill for a node with no `color` of its own — DIRECTION resolves per `positionType`. */
-function nodeZoneColor(node: { zone: string; positionType?: string | null }): string {
-  return node.zone === FigureZone.DIRECTION
-    ? directionColorFor(node.positionType)
-    : (NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
-}
-const DECORATION_STROKE = NODE_COLORS[FigureZone.DECORATION];
-
-function decorationFill(color: string | null | undefined): string {
-  return color ?? 'transparent';
-}
+const THEME = buildCanvasTheme();
+const DECORATION_STROKE = THEME.inkFaint;
 
 function createNodeShape(
   shape: string,
@@ -304,10 +277,9 @@ function createNodeShape(
     opacity: opts.opacity,
   });
 }
-const SELECTED_STROKE = '#f59e0b';
-const NORMAL_STROKE = '#1e1b4b';
-/** Amber conflict outline (Phase 3), matching the observation badge / tronc-view warning hue. */
-const CONFLICT_STROKE = '#e11d48';
+const SELECTED_STROKE = THEME.focus;
+const NORMAL_STROKE = THEME.ink;
+const CONFLICT_STROKE = THEME.danger;
 /** Matches the min/max of the zoom-selector dropdown (25%–500%). */
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 5;
@@ -1245,7 +1217,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.gridLayer.add(
         new Konva.Line({
           points: [x, top, x, bottom],
-          stroke: GRID_COLOR,
+          stroke: THEME.crease,
           strokeWidth: 1,
           listening: false,
         }),
@@ -1256,7 +1228,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.gridLayer.add(
         new Konva.Line({
           points: [left, y, right, y],
-          stroke: GRID_COLOR,
+          stroke: THEME.crease,
           strokeWidth: 1,
           listening: false,
         }),
@@ -1351,12 +1323,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             y: -phH / 2,
             width: phW,
             height: phH,
-            stroke: isSelected ? SELECTED_STROKE : '#94a3b8',
+            stroke: isSelected ? SELECTED_STROKE : THEME.inkFaint,
             strokeWidth: isSelected ? 2 : 1,
             dash: [6, 3],
-            fill: isSelected
-              ? 'rgba(245,158,11,0.05)'
-              : 'rgba(148,163,184,0.05)',
+            fill: withAlpha(isSelected ? SELECTED_STROKE : THEME.inkFaint, 0.05),
             cornerRadius: 6,
             listening: true,
           }),
@@ -1369,7 +1339,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             text: slot.figureTemplate.name,
             fontSize: 11,
             fontFamily: 'Inter, sans-serif',
-            fill: isSelected ? SELECTED_STROKE : '#64748b',
+            fill: isSelected ? SELECTED_STROKE : THEME.inkMuted,
             align: 'center',
             listening: false,
           }),
@@ -1382,7 +1352,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             text: 'Carregant...',
             fontSize: 10,
             fontFamily: 'Inter, sans-serif',
-            fill: '#94a3b8',
+            fill: THEME.inkFaint,
             align: 'center',
             listening: false,
           }),
@@ -1428,7 +1398,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             stroke: isSelected ? SELECTED_STROKE : figColor,
             strokeWidth: isSelected ? 2 : 1,
             dash: [6, 3],
-            fill: isSelected ? 'rgba(245,158,11,0.05)' : figColor + '14',
+            fill: isSelected ? withAlpha(SELECTED_STROKE, 0.05) : withAlpha(figColor, 0x14 / 0xff),
             cornerRadius: 6,
             listening: true,
           }),
@@ -1444,7 +1414,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             text: labelText,
             fontSize: 11,
             fontFamily: 'Inter, sans-serif',
-            fill: isSelected ? SELECTED_STROKE : '#64748b',
+            fill: isSelected ? SELECTED_STROKE : THEME.inkMuted,
             align: 'center',
             verticalAlign: 'middle',
             height: labelHeight,
@@ -1462,8 +1432,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         // Render pinya-view nodes (read-only)
         for (const node of pinyaNodes) {
           const personAlias = assignmentMap.get(node.id);
-          const fill =
-            node.color ?? nodeZoneColor(node);
+          const fill = nodeFill(node);
           const nodeGroup = new Konva.Group({
             x: node.x,
             y: node.y,
@@ -1480,7 +1449,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           });
           nodeGroup.add(shape);
 
-          const textFill = this.getContrastColor(fill);
+          const textFill = nodeLabelColor(node);
           nodeGroup.add(
             new Konva.Text({
               text: personAlias
@@ -1687,8 +1656,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       x,
       y,
       radius: 10,
-      fill: '#f59e0b',
-      stroke: '#ffffff',
+      fill: THEME.focus,
+      stroke: THEME.onInk,
       strokeWidth: 3,
       draggable: false,
       listening: true,
@@ -1755,7 +1724,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       fontSize: NOTES_EMOJI_FONT_SIZE,
       x: x - NOTES_EMOJI_FONT_SIZE / 2,
       y: -NOTES_EMOJI_FONT_SIZE / 2,
-      shadowColor: '#000000',
+      shadowColor: THEME.ink,
       shadowBlur: 5,
       shadowOffset: { x: 0, y: 0 },
       shadowOpacity: 1,
@@ -1769,20 +1738,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     group.add(
       new Konva.Circle({
         radius: 5,
-        fill: '#f59e0b',
-        stroke: '#ffffff',
+        fill: THEME.warning,
+        stroke: THEME.paper,
         strokeWidth: 1,
       }),
       new Konva.Line({
         points: [0, -2, 0, 0.5],
-        stroke: '#ffffff',
+        stroke: contentOn(THEME.warning),
         strokeWidth: 1,
         lineCap: 'round',
       }),
       new Konva.Circle({
         y: 2.3,
         radius: 0.6,
-        fill: '#ffffff',
+        fill: contentOn(THEME.warning),
       }),
     );
     return group;
@@ -1821,12 +1790,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const highlighted = this.highlightedNodeIds();
 
     const past = isArrivalPhase(this.phase());
-    const ATTENDANCE_COLORS: Record<string, string> = {
-      ANIRE: past ? '#f59e0b' : '#22c55e',
-      ASSISTIT: '#22c55e',
-      PENDENT: past ? '#ef4444' : '#f59e0b',
-      NO_VAIG: '#ef4444',
-    };
 
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
@@ -1837,18 +1800,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isDirection = (DIRECTION_ZONES as readonly string[]).includes(
         node.zone,
       );
-      const fill = isDecoration
-        ? decorationFill(node.color)
-        : (node.color ?? nodeZoneColor(node));
+      const fill = nodeFill(node);
       const stroke = isSelected
         ? SELECTED_STROKE
         : isHighlighted
-          ? '#10b981'
+          ? THEME.success
           : isDecoration
             ? DECORATION_STROKE
-            : isDirection
-              ? '#1e1b4b'
-              : NORMAL_STROKE;
+            : NORMAL_STROKE;
       const strokeWidth = isSelected
         ? 3
         : isHighlighted
@@ -1875,7 +1834,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         { fill, stroke, strokeWidth, dash: isAdHoc ? [6, 3] : undefined },
       );
       if (isHighlighted) {
-        shape.shadowColor('#10b981');
+        shape.shadowColor(THEME.success);
         shape.shadowBlur(12);
         shape.shadowOpacity(0.7);
         shape.shadowEnabled(true);
@@ -1887,9 +1846,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       if (assignment) {
         const alias = assignment.person.alias;
-        const textFill = isDecoration
-          ? (node.color ? this.getContrastColor(node.color) : '#000000')
-          : this.getContrastColor(fill);
+        const textFill = nodeLabelColor(node);
         const shoulderH = assignment.person.shoulderHeight;
         const hasValidHeight =
           shoulderH !== null && shoulderH !== 0;
@@ -1946,8 +1903,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         }
 
         const attendanceStatus = attendanceMap.get(assignment.person.id);
-        const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
-        if (badgeColor && attendanceStatus !== 'ASSISTIT') {
+        const badgeColor = attendanceDotColor(attendanceStatus, past, THEME);
+        if (badgeColor) {
           // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
           // small nodes (e.g. densely packed mobile projections) and cover the name.
           const badgeRadius = Math.max(2, node.height * 0.125);
@@ -1957,7 +1914,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
               y: -node.height / 2 + badgeRadius,
               radius: badgeRadius,
               fill: badgeColor,
-              stroke: '#ffffff',
+              stroke: THEME.paper,
               strokeWidth: 1,
               listening: false,
             }),
@@ -2003,9 +1960,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           this.hoveredPerson.set(null);
         });
       } else {
-        const textFill = isDecoration
-          ? (node.color ? this.getContrastColor(node.color) : '#000000')
-          : this.getContrastColor(fill);
+        const textFill = nodeLabelColor(node);
         group.add(
           new Konva.Text({
             text: formatAssignedLabel(node.label, node.climbIndicator),
@@ -2206,7 +2161,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           text: slot.label ?? slot.figureTemplate.name,
           fontSize: 11,
           fontFamily: 'Inter, sans-serif',
-          fill: '#64748b',
+          fill: THEME.inkMuted,
           opacity: isDimmedSlot ? 0.25 : 1,
           align: 'center',
           verticalAlign: 'middle',
@@ -2250,22 +2205,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const ref: SegmentNodeRef = { slotId: rn.slotId, nodeId: node.id };
 
     const past = isArrivalPhase(this.phase());
-    const ATTENDANCE_COLORS: Record<string, string> = {
-      ANIRE: past ? '#f59e0b' : '#22c55e',
-      ASSISTIT: '#22c55e',
-      PENDENT: past ? '#ef4444' : '#f59e0b',
-      NO_VAIG: '#ef4444',
-    };
 
     const isAdHoc = !!node.isAdHoc;
     const isDecoration = node.zone === FigureZone.DECORATION;
-    const fill = isDecoration
-      ? decorationFill(node.color)
-      : (node.color ?? nodeZoneColor(node));
+    const fill = nodeFill(node);
     const stroke = rn.isSelected
       ? SELECTED_STROKE
       : rn.isHighlighted
-        ? '#10b981'
+        ? THEME.success
         : isDecoration
           ? DECORATION_STROKE
           : NORMAL_STROKE;
@@ -2289,7 +2236,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       dash: isAdHoc ? [6, 3] : undefined,
     });
     if (rn.isHighlighted) {
-      shape.shadowColor('#10b981');
+      shape.shadowColor(THEME.success);
       shape.shadowBlur(12);
       shape.shadowOpacity(0.7);
       shape.shadowEnabled(true);
@@ -2302,9 +2249,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     if (assignment) {
       const alias = formatAssignedLabel(assignment.person.alias, node.climbIndicator);
-      const textFill = isDecoration
-        ? (node.color ? this.getContrastColor(node.color) : '#000000')
-        : this.getContrastColor(fill);
+      const textFill = nodeLabelColor(node);
       const shoulderH = assignment.person.shoulderHeight;
       const hasValidHeight = shoulderH !== null && shoulderH !== 0;
       const nextStatus = nextPerformanceMap.get(assignment.person.id);
@@ -2360,8 +2305,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
 
       const attendanceStatus = attendanceMap.get(assignment.person.id);
-      const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
-      if (badgeColor && attendanceStatus !== 'ASSISTIT') {
+      const badgeColor = attendanceDotColor(attendanceStatus, past, THEME);
+      if (badgeColor) {
         // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
         // small nodes (e.g. densely packed mobile projections) and cover the name.
         const badgeRadius = Math.max(2, node.height * 0.125);
@@ -2371,7 +2316,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             y: -node.height / 2 + badgeRadius,
             radius: badgeRadius,
             fill: badgeColor,
-            stroke: '#ffffff',
+            stroke: THEME.paper,
             strokeWidth: 1,
             listening: false,
           }),
@@ -2418,9 +2363,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         this.hoveredPerson.set(null);
       });
     } else {
-      const textFill = isDecoration
-        ? (node.color ? this.getContrastColor(node.color) : '#000000')
-        : this.getContrastColor(fill);
+      const textFill = nodeLabelColor(node);
       group.add(
         new Konva.Text({
           text: formatAssignedLabel(node.label, node.climbIndicator),
@@ -2581,19 +2524,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
     const attendanceMap = this.attendanceMap();
     const past = isArrivalPhase(this.phase());
-    const ATTENDANCE_COLORS: Record<string, string> = {
-      ANIRE: past ? '#f59e0b' : '#22c55e',
-      ASSISTIT: '#22c55e',
-      PENDENT: past ? '#ef4444' : '#f59e0b',
-      NO_VAIG: '#ef4444',
-    };
 
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
       const isDecoration = node.zone === FigureZone.DECORATION;
-      const fill = isDecoration
-        ? decorationFill(node.color)
-        : (node.color ?? nodeZoneColor(node));
+      const fill = nodeFill(node);
 
       const group = new Konva.Group({
         id: node.id,
@@ -2630,9 +2565,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
       group.add(shape);
 
-      const textFill = isDecoration
-        ? (node.color ? this.getContrastColor(node.color) : '#000000')
-        : this.getContrastColor(fill);
+      const textFill = nodeLabelColor(node);
       const displayText = formatAssignedLabel(
         assignment ? assignment.person.alias : node.label,
         node.climbIndicator,
@@ -2678,8 +2611,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       if (assignment) {
         const attendanceStatus = attendanceMap.get(assignment.person.id);
-        const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
-        if (badgeColor && attendanceStatus !== 'ASSISTIT') {
+        const badgeColor = attendanceDotColor(attendanceStatus, past, THEME);
+        if (badgeColor) {
           // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
           // small nodes (e.g. densely packed mobile projections) and cover the name.
           const badgeRadius = Math.max(2, node.height * 0.125);
@@ -2689,7 +2622,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
               y: -node.height / 2 + badgeRadius,
               radius: badgeRadius,
               fill: badgeColor,
-              stroke: '#ffffff',
+              stroke: THEME.paper,
               strokeWidth: 1,
               listening: false,
             }),
@@ -2741,7 +2674,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     isSelected: boolean,
     renglaMaxPosition: Map<string, number> = new Map(),
   ): Konva.Group {
-    const fill = node.color ?? nodeZoneColor(node);
+    const fill = nodeFill(node);
     const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
     const strokeWidth = isSelected ? 3 : 1.5;
 
@@ -2761,7 +2694,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     group.add(shape);
 
     // Label
-    const textFill = this.getContrastColor(fill);
+    const textFill = nodeLabelColor(node);
     const text = new Konva.Text({
       text: formatAssignedLabel(node.label, node.climbIndicator),
       fontSize: 10,
@@ -2795,7 +2728,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: badgeY,
         width: badgeW,
         height: badgeH,
-        fill: 'rgba(0,0,0,0.55)',
+        fill: withAlpha(THEME.ink, 0.55),
         cornerRadius: 2,
         listening: false,
       });
@@ -2805,7 +2738,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         text: badgeText,
         fontSize: badgeFontSize,
         fontFamily: 'Inter, monospace',
-        fill: '#ffffff',
+        fill: THEME.onInk,
         fontStyle: 'bold',
         x: badgeX + badgePadX,
         y: badgeY + badgePadY,
@@ -2914,8 +2847,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const pos = calculateGhostPosition(node);
     if (isGhostPositionOccupied(pos, this.nodes())) return;
-    const nodeColor =
-      node.color ?? nodeZoneColor(node);
+    const nodeColor = nodeFill(node);
 
     const ghost = new Konva.Group({
       x: pos.x,
@@ -2926,7 +2858,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {
       fill: nodeColor,
-      stroke: 'black',
+      stroke: THEME.ink,
       strokeWidth: 2,
       dash: [6, 4],
       opacity: 0.4,
@@ -2938,7 +2870,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         text: '+',
         fontSize: 24,
         fontFamily: 'Inter, sans-serif',
-        fill: 'black',
+        fill: THEME.ink,
         opacity: 0.4,
         align: 'center',
         verticalAlign: 'middle',
@@ -3130,16 +3062,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     return { fontSize, wrap };
   }
 
-  /** Returns #000 or #fff depending on background luminance */
-  private getContrastColor(hex: string): string {
-    const c = hex.replace('#', '');
-    const r = parseInt(c.slice(0, 2), 16);
-    const g = parseInt(c.slice(2, 4), 16);
-    const b = parseInt(c.slice(4, 6), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.5 ? '#000000' : '#ffffff';
-  }
-
   private showAdHocTooltip(group: Konva.Group): void {
     this.hideAdHocTooltip();
     // Absolute position relative to pinyaLayer: identical to group.x()/y() for
@@ -3151,8 +3073,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       y: pos.y - 28,
       opacity: 0.85,
     });
-    label.add(new Konva.Tag({ fill: '#1f2937', cornerRadius: 4, pointerDirection: 'down', pointerWidth: 8, pointerHeight: 4 }));
-    label.add(new Konva.Text({ text: 'Node creat manualment', fontSize: 11, fontFamily: 'Inter, sans-serif', fill: '#ffffff', padding: 4 }));
+    label.add(new Konva.Tag({ fill: THEME.ink, cornerRadius: 4, pointerDirection: 'down', pointerWidth: 8, pointerHeight: 4 }));
+    label.add(new Konva.Text({ text: 'Node creat manualment', fontSize: 11, fontFamily: 'Inter, sans-serif', fill: THEME.onInk, padding: 4 }));
     this.adHocTooltip = label;
     this.pinyaLayer.add(label);
     this.pinyaLayer.batchDraw();
@@ -3171,9 +3093,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const label = new Konva.Label({ opacity: 0.95, scaleX: 1.15, scaleY: 1.15, listening: false });
     label.add(
       new Konva.Tag({
-        fill: '#1f2937',
+        fill: THEME.ink,
         cornerRadius: 6,
-        shadowColor: 'black',
+        shadowColor: THEME.ink,
         shadowBlur: 8,
         shadowOpacity: 0.35,
         shadowOffsetY: 2,
@@ -3184,7 +3106,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         text: alias,
         fontSize: 12,
         fontFamily: 'Inter, sans-serif',
-        fill: '#ffffff',
+        fill: THEME.onInk,
         padding: 6,
       }),
     );
@@ -3241,7 +3163,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     if (target) {
       const entry = this.segmentNodeGroupsByKey.get(`${target.slotId}:${target.nodeId}`);
-      entry?.shape.fill(entry.hasAssignment ? '#f59e0b' : '#22c55e');
+      entry?.shape.fill(entry.hasAssignment ? THEME.warning : THEME.success);
       this.personDragGhost?.moveToTop();
     }
     this.pinyaLayer.batchDraw();

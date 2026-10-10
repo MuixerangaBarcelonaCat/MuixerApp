@@ -1,4 +1,4 @@
-import { FigureNodeItem, RenglaModel, StageTransform, stageToScreen, isCentralNode, getFigureColor } from '@muixer/pinyes-render';
+import { FigureNodeItem, RenglaModel, StageTransform, stageToScreen, isCentralNode, getFigureColor, buildCanvasTheme } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -49,6 +49,8 @@ interface ScreenNode {
   host: { class: 'block absolute inset-0 pointer-events-none z-10' },
 })
 export class RenglaOverlayComponent {
+  /** Drawn on top of the canvas, so it takes the canvas's own colors, not the page theme's. */
+  protected readonly theme = buildCanvasTheme();
   readonly nodes = input.required<FigureNodeItem[]>();
   readonly rengles = input.required<RenglaModel[]>();
   readonly stageTransform = input<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });

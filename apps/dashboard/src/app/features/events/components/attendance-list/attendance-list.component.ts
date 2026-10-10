@@ -24,8 +24,8 @@ import {
   SelectComponent,
   ToastService,
   type BadgeVariant,
+  ICON_XICALLA,
 } from '@muixer/ui';
-import { ICON_XICALLA } from '../../../../shared/constants/domain-icons';
 import { AttendanceService } from '../../services/attendance.service';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import {

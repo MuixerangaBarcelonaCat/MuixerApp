@@ -606,12 +606,14 @@ describe('PersonPanelComponent', () => {
       expect(component.altresExpanded()).toBe(true);
     });
 
-    it('persons show 🎭 indicator when nextPerformanceStatus is ANIRE', () => {
+    it('marks persons coming to the next actuació with the actuació star icon, not an emoji', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', { nextPerformanceStatus: 'ANIRE' });
       component.persons.set([person]);
       fixture.detectChanges();
-      const html = fixture.nativeElement.innerHTML;
-      expect(html).toContain('🎭');
+      const marks = fixture.nativeElement.querySelectorAll('[aria-label="Vindrà a la propera actuació"]');
+      expect(marks.length).toBeGreaterThan(0);
+      for (const mark of marks) expect(mark.querySelector('svg')).toBeTruthy();
+      expect(fixture.nativeElement.innerHTML).not.toContain('🎭');
     });
 
     it('formatHeight returns relative height string when heightMode is relative', () => {

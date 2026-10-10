@@ -13,7 +13,7 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { AlertComponent, ButtonComponent, EmptyStateComponent, InputComponent, SelectComponent } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, CREASE, EmptyStateComponent, InputComponent, SelectComponent, ICON_FIGURA, ICON_XICALLA, DOMAIN_ICONS } from '@muixer/ui';
 import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
 import { FilterBarComponent } from '../../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent, ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
@@ -21,7 +21,6 @@ import { ColumnToggleComponent } from '../../../../shared/components/data/column
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { SortChange, SortOrder } from '../../../../shared/models/sort.model';
-import { ICON_FIGURA, ICON_XICALLA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 import { ParticipationService } from '../../services/participation.service';
 import { TagService } from '../../../config/services/tag.service';
@@ -343,6 +342,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         primary: true,
         sortField: 'alias',
         value: (r) => this.personLabel(r),
+        suffixIcons: (r) => this.personIcons(r),
         prefix: (r) => (r.conflictSegmentIds.length > 0 ? { text: CONFLICT_GLYPH, class: 'text-error font-bold' } : null),
       },
       {
@@ -370,7 +370,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         type: 'colorBadges',
         colorBadges: (r) => [...r.positions]
           .sort((a, b) => a.name.localeCompare(b.name, 'ca'))
-          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+          .map((p) => ({ text: p.name, color: p.color ?? CREASE.dark })),
       },
       {
         key: 'shoulderHeight',
@@ -638,17 +638,17 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The conflict mark itself is rendered separately (`prefix` on the `person` column, in the
-   * theme's error color) rather than folded into this plain-text label — it's the only one of
-   * the three per-row marks that also survives horizontal scrolling, since this is the sticky
-   * column, so it earns the extra visual weight the other two (👶, notes) don't need.
+   * The alias plus the observation emoji. The conflict mark is rendered separately (`prefix` on
+   * the `person` column, in the theme's error color) and the xicalla mark as an icon after the
+   * label (`personIcons`): emojis only stand for observations.
    */
   personLabel(row: ParticipationRow): string {
-    const marks = [
-      row.isXicalla ? '👶' : '',
-      row.notes ? (row.notesEmoji ?? '⚠️') : '',
-    ].filter(Boolean).join(' ');
-    return marks ? `${row.alias} ${marks}` : row.alias;
+    return row.notes ? `${row.alias} ${row.notesEmoji ?? '⚠️'}` : row.alias;
+  }
+
+  /** Icons after the person's label: the xicalla mark. */
+  personIcons(row: ParticipationRow): { icon: string; label: string }[] {
+    return row.isXicalla ? [{ icon: ICON_XICALLA, label: 'Xicalla' }] : [];
   }
 
   /** Mirrors segment-manager's naming, but falls back to a short ordinal: a column header

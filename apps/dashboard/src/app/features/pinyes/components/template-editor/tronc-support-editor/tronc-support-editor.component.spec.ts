@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
-import { EmptyStateComponent } from '@muixer/ui';
+import { EmptyStateComponent, NODE_TYPE_PALETTE } from '@muixer/ui';
 import { FigureNodeItem } from '@muixer/pinyes-render';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../../testing/lucide-test-provider';
@@ -101,6 +101,20 @@ describe('TroncSupportEditorComponent', () => {
   });
 
   afterEach(() => vi.restoreAllMocks());
+
+  describe('node colors', () => {
+    it('marks a tronc node with no stored color in the pencil tone of its type', () => {
+      expect(component.nodeColor(T1)).toBe(NODE_TYPE_PALETTE['terça'].pencil);
+    });
+
+    it('marks a customized tronc node in its own color', () => {
+      expect(component.nodeColor({ ...T1, color: '#123456' })).toBe('#123456');
+    });
+
+    it('leaves the base unmarked', () => {
+      expect(component.nodeColor(B1)).toBeNull();
+    });
+  });
 
   describe('rendering', () => {
     it('shows one row per floor, top floor first', () => {

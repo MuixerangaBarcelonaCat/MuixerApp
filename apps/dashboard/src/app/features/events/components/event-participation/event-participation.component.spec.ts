@@ -1,3 +1,4 @@
+import { CREASE, ICON_XICALLA } from '@muixer/ui';
 import { vi } from 'vitest';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -229,7 +230,7 @@ describe('EventParticipationComponent — segmentLabel', () => {
 });
 
 describe('EventParticipationComponent — personLabel', () => {
-  let component: Pick<EventParticipationComponent, 'personLabel'>;
+  let component: Pick<EventParticipationComponent, 'personLabel' | 'personIcons'>;
 
   beforeEach(() => {
     component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
@@ -239,8 +240,11 @@ describe('EventParticipationComponent — personLabel', () => {
     expect(component.personLabel(makePerson('p1', 'PERSIANA'))).toBe('PERSIANA');
   });
 
-  it('marks xicalla', () => {
-    expect(component.personLabel(makePerson('p1', 'PERSIANA', {}, { isXicalla: true }))).toContain('👶');
+  it('marks xicalla with the xicalla icon after the label, not an emoji in it', () => {
+    const row = makePerson('p1', 'PERSIANA', {}, { isXicalla: true });
+    expect(component.personLabel(row)).toBe('PERSIANA');
+    expect(component.personIcons(row)).toEqual([{ icon: ICON_XICALLA, label: 'Xicalla' }]);
+    expect(component.personIcons(makePerson('p2', 'ANNA'))).toEqual([]);
   });
 
   it('shows the notes emoji when the person has observations', () => {
@@ -400,14 +404,14 @@ describe('EventParticipationComponent', () => {
       }
     });
 
-    it('falls back to the #888 color when a tag has none', async () => {
+    it('falls back to the crease gray token when a tag has no color', async () => {
       const response = buildResponse({
         persons: [makePerson('p1', 'PERSIANA', {}, { positions: [{ ...troncTag, color: null }] })],
       });
       const fixture = await setup(response);
       const row = fixture.componentInstance.persons()[0];
 
-      expect(columnByKey(fixture, 'tags')!.colorBadges!(row)).toEqual([{ text: 'Segones', color: '#888' }]);
+      expect(columnByKey(fixture, 'tags')!.colorBadges!(row)).toEqual([{ text: 'Segones', color: CREASE.dark }]);
     });
   });
 

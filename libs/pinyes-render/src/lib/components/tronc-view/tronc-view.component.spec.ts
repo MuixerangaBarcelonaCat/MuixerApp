@@ -1,4 +1,4 @@
-import { THEME_NAMES } from '@muixer/ui';
+import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, THEME_NAMES } from '@muixer/ui';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ButtonComponent } from '@muixer/ui';
@@ -972,16 +972,38 @@ describe('TroncViewComponent', () => {
   // ── Z-level color coding ──────────────────────────────────────────────
 
   describe('getZLevelColor', () => {
-    it('returns blue for z=1', () => {
-      expect(component.getZLevelColor(1)).toBe('#1E88E5');
+    it('returns the pencil tone of the conventional type of each floor', () => {
+      expect(component.getZLevelColor(1)).toBe(NODE_TYPE_PALETTE['segona'].pencil);
+      expect(component.getZLevelColor(2)).toBe(NODE_TYPE_PALETTE['terça'].pencil);
     });
 
-    it('returns green for z=2', () => {
-      expect(component.getZLevelColor(2)).toBe('#43A047');
+    it('returns the neutral pencil for the base and for a floor with no conventional type', () => {
+      expect(component.getZLevelColor(0)).toBe(NODE_TYPE_NEUTRAL.pencil);
+      expect(component.getZLevelColor(99)).toBe(NODE_TYPE_NEUTRAL.pencil);
+    });
+  });
+
+  describe('getNodeColor', () => {
+    it('draws a node with no stored color in the pencil tone of its type', () => {
+      expect(component.getNodeColor(makeNode({ positionType: 'puntal', color: null }))).toBe(NODE_TYPE_PALETTE['puntal'].pencil);
     });
 
-    it('returns fallback for unknown z', () => {
-      expect(component.getZLevelColor(99)).toBe('#78909C');
+    it('draws a customized color as it is', () => {
+      expect(component.getNodeColor(makeNode({ positionType: 'puntal', color: '#123456' }))).toBe('#123456');
+    });
+
+    it('has no color for a node with neither a stored color nor a known type', () => {
+      expect(component.getNodeColor(makeNode({ positionType: 'segon', color: null }))).toBeNull();
+    });
+  });
+
+  describe('getDirectionColor', () => {
+    it('returns the pencil tone of the direction flavour', () => {
+      expect(component.getDirectionColor('direccio-xicalla')).toBe(NODE_TYPE_PALETTE['direccio-xicalla'].pencil);
+    });
+
+    it('returns the neutral pencil for an unknown flavour', () => {
+      expect(component.getDirectionColor(null)).toBe(NODE_TYPE_NEUTRAL.pencil);
     });
   });
 
@@ -1236,17 +1258,17 @@ describe('TroncViewComponent', () => {
       expect(activeTags[0].textContent.trim()).toContain('Terça');
     });
 
-    it('onPositionTypeChange emits nodeUpdated with positionType and color', () => {
+    it('onPositionTypeChange emits the new positionType and clears the color, so the node follows its type', () => {
       const emitted: { nodeId: string; positionType?: string; color?: string | null }[] = [];
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
-      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
+      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#123456' });
+      const preset = { positionType: 'puntal', label: 'Puntal', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted.length).toBe(1);
       expect(emitted[0].positionType).toBe('puntal');
-      expect(emitted[0].color).toBe('#795548');
+      expect(emitted[0].color).toBeNull();
     });
 
     it('onPositionTypeChange updates label when it is a default preset label', () => {
@@ -1254,7 +1276,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
       const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
+      const preset = { positionType: 'puntal', label: 'Puntal', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBe('Puntal');
@@ -1265,7 +1287,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
       const node = makeNode({ id: 'n1', label: 'Mon node custom', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
+      const preset = { positionType: 'puntal', label: 'Puntal', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBeUndefined();
@@ -1287,7 +1309,19 @@ describe('TroncViewComponent', () => {
       expect(colored.length).toBe(1);
     });
 
-    it('does not render type-colored class when color is null', () => {
+    it('renders type-colored class when the color is null but the type has a palette tone', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, positionType: 'segona', color: null }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.type-colored');
+      expect(colored.length).toBe(1);
+    });
+
+    it('does not render type-colored class when there is neither a color nor a known type', () => {
       fixture.componentRef.setInput('troncNodes', [
         makeNode({ id: 'n1', z: 1, color: null }),
       ]);
@@ -2386,7 +2420,7 @@ describe('TroncViewComponent', () => {
   });
 
   describe('observation emoji size', () => {
-    it('renders the emoji at a fixed size with a black outline', () => {
+    it('renders the emoji with the stylesheet\'s fixed size and ink outline, not an inline raw color', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
       fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
       fixture.componentRef.setInput('personDetailsMap', new Map([
@@ -2397,8 +2431,8 @@ describe('TroncViewComponent', () => {
       const emoji = Array.from(fixture.nativeElement.querySelectorAll('span'))
         .find((el) => (el as HTMLElement).textContent?.trim() === '🤕') as HTMLElement;
       expect(emoji).toBeTruthy();
-      expect(emoji.style.fontSize).toBe('1rem');
-      expect(emoji.style.textShadow).toContain('#000');
+      expect(emoji.classList).toContain('notes-emoji');
+      expect(emoji.getAttribute('style')).toBeNull();
     });
   });
 });

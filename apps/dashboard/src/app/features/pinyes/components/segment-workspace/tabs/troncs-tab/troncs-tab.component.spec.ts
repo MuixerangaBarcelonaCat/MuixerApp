@@ -954,6 +954,15 @@ describe('TroncsTabComponent', () => {
       );
     });
 
+    it('sends no color for a new direction node: it follows the palette of its type', async () => {
+      await setup();
+      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
+
+      component.onDirectionAdded(INST_A, { positionType: 'direccio-tronc' });
+
+      expect(assignmentService.createAdHocNode.mock.calls[0][1].color).toBeUndefined();
+    });
+
     it('selects the newly created direction node so the person search auto-focuses', async () => {
       await setup();
       assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
