@@ -1,7 +1,7 @@
 import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { FigureZone } from '@muixer/shared';
 import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK } from '@muixer/ui';
-import { buildCanvasTheme, fade } from '../theme/canvas-theme';
+import { buildCanvasTheme, contentOn, fade } from '../theme/canvas-theme';
 import { NodeAppearanceInput, formatShoulderHeight, resolveNodeAppearance } from './appearance';
 
 const theme = buildCanvasTheme();
@@ -111,6 +111,43 @@ describe('resolveNodeAppearance', () => {
 
     it('draws a customized node in its own color', () => {
       expect(appearance({ color: '#123456', attendance: 'pending' }).fill).toEqual({ style: 'hatch', color: '#123456' });
+    });
+  });
+
+  describe('display-mode tones', () => {
+    const mode = { wash: '#d6d1ff', pencil: '#61529f' };
+
+    it('replace the type, the custom color and the neutral palette', () => {
+      for (const input of [{}, { color: '#123456' }, { palette: 'neutral' as const }, { zone: FigureZone.BASE, positionType: 'base' }]) {
+        const a = appearance({ ...input, tones: mode });
+        expect(a.fill).toEqual({ style: 'solid', color: mode.wash });
+        expect(a.outline.color).toBe(mode.pencil);
+      }
+    });
+
+    it('still follow the attendance fill by default (Alçada, Gènere)', () => {
+      expect(appearance({ tones: mode, attendance: 'pending' }).fill).toEqual({ style: 'hatch', color: mode.pencil });
+      expect(appearance({ tones: mode, attendance: 'absent' }).fill).toEqual({ style: 'none' });
+    });
+  });
+
+  describe('solid fill policy (Assistència: color carries attendance)', () => {
+    it('fills a pending person solid, the name read on the wash', () => {
+      const a = appearance({ fillPolicy: 'solid', attendance: 'pending' });
+      expect(a.fill).toEqual({ style: 'solid', color: vents.wash });
+      expect(a.text).toMatchObject({ kind: 'name', color: contentOn(vents.wash), halo: null, strike: false });
+      expect(a.outline.color).toBe(vents.pencil);
+    });
+
+    it('fills an absent person solid too, but strikes the name', () => {
+      const a = appearance({ fillPolicy: 'solid', attendance: 'absent' });
+      expect(a.fill).toEqual({ style: 'solid', color: vents.wash });
+      expect(a.text).toMatchObject({ color: contentOn(vents.wash), strike: true });
+      expect(a.outline.color).toBe(vents.pencil);
+    });
+
+    it('leaves an empty position as an outline', () => {
+      expect(resolveNodeAppearance({ ...empty, fillPolicy: 'solid' }, theme).fill).toEqual({ style: 'none' });
     });
   });
 

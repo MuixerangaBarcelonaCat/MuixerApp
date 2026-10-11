@@ -16,6 +16,7 @@ import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
 import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearance, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
+import { DisplayMode, HeightDomain, displayModeOverrides, personDisplayFacts } from '../../node-render/display-mode';
 import {
   analyzeTroncHeights,
   attendanceStatusLabel,
@@ -24,6 +25,7 @@ import {
   DirectionAssignmentEntry,
   EventPhase,
   FigureZone,
+  Gender,
   FloorHeightGap,
   formatDirectionNames,
   TRONC_HEIGHT_THRESHOLDS,
@@ -151,8 +153,13 @@ export class TroncViewComponent {
   /** personId → attendance status for the next actuació: `ANIRE` shows the star. */
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
 
-  /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes. */
-  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
+  /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes; gender feeds the Gènere mode. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null; gender?: Gender | null }>>(new Map());
+
+  /** Staffing: what the node colors stand for. `position` (the default) draws as always. */
+  readonly displayMode = input<DisplayMode>('position');
+  /** Alçada: the shortest → tallest assigned person the ramp stretches over (the whole tab, not this panel). */
+  readonly heightDomain = input<HeightDomain | null>(null);
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
@@ -401,12 +408,15 @@ export class TroncViewComponent {
     const heightMode = this.heightMode();
     // Staffing and the projection draw the panel on a tronc card; the template editor on the page.
     const canvasTheme = this.theme();
+    const display = { mode: this.displayMode(), phase, heightDomain: this.heightDomain(), themeMode: canvasTheme.mode };
+    const sources = { attendance, nextPerformance, details };
     const theme = mode === 'editor' ? canvasTheme : { ...canvasTheme, paper: canvasTheme.card };
 
     const map = new Map<string, NodeAppearance>();
     for (const node of [...this.troncNodes(), ...this.baseNodes(), ...this.directionNodes()]) {
       const person = assignmentByNodeId.get(node.id)?.person;
       const notes = person ? details.get(person.id) : undefined;
+      const overrides = displayModeOverrides(person ? personDisplayFacts(person, sources) : null, display);
       map.set(
         node.id,
         resolveNodeAppearance(
@@ -430,6 +440,7 @@ export class TroncViewComponent {
             conflict: !!person && conflicts.has(person.id),
             palette: mode === 'editor' ? 'type' : 'neutral',
             mode: APPEARANCE_MODE[mode],
+            ...overrides,
           },
           theme,
         ),

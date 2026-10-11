@@ -1,4 +1,5 @@
-import { NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
+import { ATTENDANCE_TONES, GENDER_TONES, NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService, heightRampTones } from '@muixer/ui';
+import { Gender } from '@muixer/shared';
 import { buildCanvasTheme } from '../../theme/canvas-theme';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -2398,6 +2399,46 @@ describe('TroncViewComponent', () => {
         fixture.componentRef.setInput('mode', 'editor');
         fixture.detectChanges();
         expect(appearance().fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE_DARK['segona'].wash });
+      });
+    });
+
+    describe('display modes', () => {
+      it('draws exactly as before in Posició (the default)', () => {
+        const before = appearance();
+        fixture.componentRef.setInput('displayMode', 'position');
+        fixture.detectChanges();
+        expect(appearance()).toEqual(before);
+      });
+
+      it('recolors the person by gender (from the roster) and keeps empty floors neutral', () => {
+        fixture.componentRef.setInput('personDetailsMap', new Map([
+          ['person-node-1', { positions: [], isXicalla: false, notes: null, notesEmoji: null, gender: Gender.FEMALE }],
+        ]));
+        fixture.componentRef.setInput('displayMode', 'gender');
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: GENDER_TONES.female.wash });
+        expect(appearance('node-2').outline.color).toBe(NODE_TYPE_NEUTRAL.pencil);
+      });
+
+      it('places the person on the height ramp of the domain it is given', () => {
+        fixture.componentRef.setInput('displayMode', 'height');
+        fixture.componentRef.setInput('heightDomain', { min: 150, max: 170 });
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: heightRampTones(1, 'light').wash });
+      });
+
+      it('in Assistència fills solid in the semantic color and keeps the star, the height and the observation', () => {
+        fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+        fixture.componentRef.setInput('nextPerformanceMap', new Map([['person-node-1', 'ANIRE']]));
+        fixture.componentRef.setInput('phase', 'started');
+        fixture.componentRef.setInput('displayMode', 'attendance');
+        fixture.detectChanges();
+        fixture.componentRef.setInput('personDetailsMap', new Map([
+          ['person-node-1', { positions: [], isXicalla: false, notes: 'Lesió', notesEmoji: '🤕' }],
+        ]));
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: ATTENDANCE_TONES.warning.strong.wash });
+        expect(appearance()).toMatchObject({ star: true, height: '+30', observation: { emoji: '🤕' } });
       });
     });
 

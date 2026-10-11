@@ -1,6 +1,7 @@
 export * from './lib/tokens/color';
 export * from './lib/tokens/categorical';
 export * from './lib/tokens/node-types';
+export * from './lib/tokens/display-modes';
 export * from './lib/tokens/fixed-colors';
 export * from './lib/tokens/radius';
 export * from './lib/tokens/motion';
