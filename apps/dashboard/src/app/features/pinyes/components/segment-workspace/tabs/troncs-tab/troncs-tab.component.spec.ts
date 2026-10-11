@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent, PinnedCardComponent, getFigureBand } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -839,7 +839,7 @@ describe('TroncsTabComponent', () => {
       });
 
       const views = fixture.debugElement.queryAll(By.directive(StubTroncView));
-      const lastCard = (views[views.length - 1].nativeElement as HTMLElement).parentElement;
+      const lastCard = (views[views.length - 1].nativeElement as HTMLElement).closest('lib-pinned-card');
       const tile = Array.from(lastCard?.parentElement?.children ?? []).find((child) =>
         child.contains(addButton().nativeElement),
       );
@@ -1009,18 +1009,45 @@ describe('TroncsTabComponent', () => {
       expect(component.figures().map((f) => f.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
-    it('frames each tronc in a light card tinted with its figure color, which the tronc panel lets through', async () => {
+    it('lays each tronc on a paper card pinned at the top in its figure colour, alternately askew', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+      });
+      fixture.detectChanges();
+
+      const cards = fixture.debugElement.queryAll(By.directive(PinnedCardComponent));
+      expect(cards.map((d) => d.componentInstance as PinnedCardComponent).map((c) => [c.color(), c.edge(), c.tilt()])).toEqual([
+        [FIGURE_PALETTE[0], 'top', -1],
+        [FIGURE_PALETTE[1], 'top', 1],
+      ]);
+      // The figure name on a band in the figure colour, closed by a rule in the pin's dark tone.
+      const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+      const name: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(name.style.backgroundColor).toBe(rgb(getFigureBand(0).fill));
+      expect(name.style.borderBottomColor).toBe(rgb(getFigureBand(0).rule));
+      const tronc: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+      const card = tronc.closest('lib-pinned-card') as HTMLElement;
+      // Pinned light like the rest of the figure rendering, until the canvas is themed (DEBT F19).
+      expect(card.dataset['theme']).toBe(THEME_NAMES.light);
+    });
+
+    it('pins no card when the segment holds a single figure (nothing to tell it apart from), but keeps its name band', async () => {
       await setup({
         instances: [makeInstance(INST_A, { sortOrder: 0 })],
         nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')] },
       });
       fixture.detectChanges();
 
-      const tronc: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
-      const card = tronc.closest('[data-figure-card]') as HTMLElement;
-      // Pinned light like the rest of the figure rendering, until the canvas is themed (DEBT F19).
-      expect(card.dataset['theme']).toBe(THEME_NAMES.light);
-      expect(tronc.classList).toContain('bg-transparent');
+      const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
+      expect(card.color()).toBeNull();
+      // The name band stays: it's the card's colour, not a link to tell figures apart.
+      const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+      const name: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(name.style.backgroundColor).toBe(rgb(getFigureBand(0).fill));
     });
 
     it('colors a minimap box by its figure\'s sortOrder even when that figure has no tronc', async () => {

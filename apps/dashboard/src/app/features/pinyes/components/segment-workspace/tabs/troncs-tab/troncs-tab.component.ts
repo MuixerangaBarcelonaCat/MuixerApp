@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, figureCardTint, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, getFigureBand, FigureBand, PinnedCardComponent, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
@@ -27,7 +27,10 @@ interface TroncFigure {
   baseNodes: TroncNodeItem[];
   directionNodes: TroncNodeItem[];
   color: string;
-  tint: { background: string; border: string };
+  /** The band behind the figure name at the top of its card. */
+  band: FigureBand;
+  /** Degrees its card turns around the pin: −1 and +1 by turns, as in the projection. */
+  tilt: number;
 }
 
 /**
@@ -41,7 +44,7 @@ const NO_NODES = new Set<string>();
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NodeLegendComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet, ThemeScopeDirective],
+  imports: [NodeLegendComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet, ThemeScopeDirective],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -268,6 +271,9 @@ export class TroncsTabComponent implements OnInit {
     return ref && this.actions.assignmentFor(ref) ? 'Canvia la persona' : 'Assigna una persona';
   });
 
+  /** A segment's lone figure gets no pin on its card: there is no other panel to tell it from. */
+  readonly singleFigure = computed(() => this.ws.instances().length === 1);
+
   readonly figures = computed<TroncFigure[]>(() =>
     this.ws
       .instances()
@@ -283,7 +289,8 @@ export class TroncsTabComponent implements OnInit {
             (n) => n.zone === FigureZone.DIRECTION,
           ) as unknown as TroncNodeItem[],
           color: getFigureColor(instance.sortOrder),
-          tint: figureCardTint(getFigureColor(instance.sortOrder)),
+          band: getFigureBand(instance.sortOrder),
+          tilt: instance.sortOrder % 2 === 0 ? -1 : 1,
         };
       })
       .filter((f) => f.troncNodes.length > 0 || f.baseNodes.length > 0 || f.directionNodes.length > 0),

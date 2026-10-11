@@ -33,6 +33,11 @@ describe('buildCanvasTheme', () => {
     expect(theme.stickerEdge).toBe(CREASE.mid);
   });
 
+  it('lays a tronc panel card on a flat edge of darker paper, framed in a crease tone', () => {
+    expect(theme.cardEdge).toBe(PAPER.washiDark);
+    expect(theme.cardBorder).toBe(CREASE.light);
+  });
+
   it('gives untyped nodes (BASE, tronc panel) the neutral paper tones', () => {
     expect(theme.neutralNode).toEqual(NODE_TYPE_NEUTRAL);
   });

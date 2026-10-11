@@ -7,8 +7,10 @@ import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projec
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import {
   FIGURE_PALETTE,
-  SINGLE_FIGURE_PANEL_COLOR,
-  SINGLE_FIGURE_SHADOW_COLOR,
+  FigureLink,
+  FigureBand,
+  getFigureBand,
+  PinnedCardComponent,
   ProjectionInstance,
   ProjectionSegmentData,
   InstanceNodeItem,
@@ -40,6 +42,7 @@ class FigureCanvasStub {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly phase = input<string>('before');
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
+  readonly figureLinks = input<FigureLink[]>([]);
   readonly showZoomControls = input<boolean>(true);
   readonly flightLanded = output<void>();
   readonly flyToBounds = jest.fn();
@@ -57,9 +60,8 @@ class TroncViewStub {
   readonly isNetaFigure = input<boolean>(false);
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly phase = input<string>('before');
-  readonly panelColor = input<string>('');
-  readonly panelBorderColor = input<string>('');
   readonly figureName = input<string>('');
+  readonly nameBand = input<FigureBand | null>(null);
 }
 
 @Component({ selector: 'lib-tronc-panel-measurer', standalone: true, template: '' })
@@ -226,10 +228,105 @@ describe('PinyaProjectionComponent', () => {
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[1]]);
     });
 
-    it('uses the neutral single-figure color only when the segment itself has one figure', () => {
+    it('gives a figure no color when the segment itself has only it: nothing to tell it apart from', () => {
       setData(makeSegmentData([figure('a', 0)]));
 
-      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([SINGLE_FIGURE_PANEL_COLOR]);
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([null]);
+    });
+  });
+
+  // ── tronc panel ↔ pinya link ────────────────────────────────────────────────
+
+  describe('figure links', () => {
+    const pinyaNode = (id: string, extra: Partial<InstanceNodeItem> = {}) =>
+      makeNode({ id, zone: FigureZone.PINYA, x: 0, y: 0, width: 200, height: 100, ...extra });
+    const troncNode = (id: string) => makeNode({ id, zone: FigureZone.TRONC, z: 0, x: 0, width: 1 });
+    const corner = (n: InstanceNodeItem, sx: 1 | -1, sy: 1 | -1) => ({ x: n.x + (sx * n.width) / 2, y: n.y + (sy * n.height) / 2 });
+    /** A second figure far to the right, so the segment holds more than one. */
+    const far = () => makeInstance([pinyaNode('far-p'), troncNode('far-t')], ['far-p'], { id: 'far', sortOrder: 1, projectionX: 3000, projectionY: 0 });
+
+    it('ties a panel above its figure to the figure corner nearest the panel, from a pin on the card bottom', () => {
+      setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 }), far()]));
+
+      const [link] = component.figureLinks();
+      const [node] = component.distributionNodes();
+      // The panel floats centred above: both top corners are as close, and the first one wins.
+      expect(link.pin).toEqual(corner(node, -1, -1));
+      expect(link.cardEdge).toBe('bottom');
+      expect(link.color).toBe(FIGURE_PALETTE[0]);
+    });
+
+    it('pins a panel stored to the right of its figure from the card\'s left edge', () => {
+      setData(
+        makeSegmentData([
+          makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0, troncPanelX: 600, troncPanelY: -60 }),
+          far(),
+        ]),
+      );
+
+      const [link] = component.figureLinks();
+      const [node] = component.distributionNodes();
+      expect(link.pin).toEqual(corner(node, 1, -1));
+      expect(link.cardEdge).toBe('left');
+    });
+
+    it('pins only nodes someone stands on, and only in the panel\'s own figure', () => {
+      const a = makeInstance(
+        [pinyaNode('a-empty', { y: -300 }), pinyaNode('a-p'), troncNode('a-t')],
+        ['a-p'],
+        { id: 'a', sortOrder: 0, projectionX: 0, projectionY: 0 },
+      );
+      const b = makeInstance([pinyaNode('b-p'), troncNode('b-t')], ['b-p'], { id: 'b', sortOrder: 1, projectionX: 900, projectionY: 0 });
+      setData(makeSegmentData([a, b]));
+
+      const nodes = component.distributionNodes();
+      const aNode = nodes.find((n) => n.id === 'a-p') as InstanceNodeItem;
+      const bNode = nodes.find((n) => n.id === 'b-p') as InstanceNodeItem;
+      const [linkA, linkB] = component.figureLinks();
+      expect(linkA.pin).toEqual(corner(aNode, -1, -1));
+      expect(linkB.pin).toEqual(corner(bNode, -1, -1));
+      expect([linkA.color, linkB.color]).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
+    });
+
+    it('hands the links to the canvas, which draws the strings behind the nodes', () => {
+      setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 }), far()]));
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub)).componentInstance as FigureCanvasStub;
+      expect(canvas.figureLinks()).toEqual(component.figureLinks());
+    });
+
+    it('draws no pin and no string when the segment holds a single figure (its panel can only be its own), but keeps the name band', () => {
+      setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 })]));
+
+      expect(component.figureLinks()).toEqual([]);
+      const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
+      expect(card.color()).toBeNull();
+      // The name band stays: it's the card's colour, not a link to tell figures apart.
+      const view = fixture.debugElement.query(By.directive(TroncViewStub)).componentInstance as TroncViewStub;
+      expect(view.nameBand()).toEqual(getFigureBand(0));
+    });
+
+    it('draws no link when the tronc panels are hidden', () => {
+      setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 }), far()]));
+      fixture.componentRef.setInput('scope', ImportScope.PINYA);
+      fixture.detectChanges();
+
+      expect(component.figureLinks()).toEqual([]);
+    });
+
+    it('lays each panel on a card pinned in the figure colour on the edge facing its figure, alternately askew', () => {
+      const a = makeInstance([pinyaNode('a-p'), troncNode('a-t')], ['a-p'], { id: 'a', sortOrder: 0, projectionX: 0, projectionY: 0 });
+      const b = makeInstance([pinyaNode('b-p'), troncNode('b-t')], ['b-p'], { id: 'b', sortOrder: 1, projectionX: 900, projectionY: 0 });
+      setData(makeSegmentData([a, b]));
+
+      const cards = fixture.debugElement.queryAll(By.directive(PinnedCardComponent)).map((d) => d.componentInstance as PinnedCardComponent);
+      expect(cards.map((c) => [c.color(), c.edge(), c.tilt()])).toEqual([
+        [FIGURE_PALETTE[0], 'bottom', -1],
+        [FIGURE_PALETTE[1], 'bottom', 1],
+      ]);
+      expect(fixture.debugElement.queryAll(By.css('lib-pinned-card app-tronc-view'))).toHaveLength(2);
+      const views = fixture.debugElement.queryAll(By.directive(TroncViewStub)).map((d) => d.componentInstance as TroncViewStub);
+      expect(views.map((v) => v.nameBand())).toEqual([getFigureBand(0), getFigureBand(1)]);
     });
   });
 

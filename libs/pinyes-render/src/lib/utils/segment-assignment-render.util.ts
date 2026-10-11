@@ -138,3 +138,25 @@ export function stageToSlotLocal(
     y: Math.round(pivot.y + dx * sin + dy * cos),
   };
 }
+
+/**
+ * The inverse of `stageToSlotLocal`: where a point of a slot's figure (template coordinates) sits on
+ * the stage — rotated by the slot angle around the figure pivot, then moved to the slot offset, as
+ * the Konva slot group draws it. Unrounded, for geometry drawn over the canvas.
+ */
+export function slotLocalToStage(
+  point: { x: number; y: number },
+  slot: Pick<CompositionSlotWithNodes, 'offsetX' | 'offsetY' | 'angle'>,
+  pivot: { x: number; y: number },
+): { x: number; y: number } {
+  const angleRad = ((slot.angle ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  const dx = point.x - pivot.x;
+  const dy = point.y - pivot.y;
+
+  return {
+    x: slot.offsetX + dx * cos - dy * sin,
+    y: slot.offsetY + dx * sin + dy * cos,
+  };
+}

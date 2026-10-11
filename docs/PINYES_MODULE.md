@@ -393,6 +393,18 @@ attendanceVisual(estat, fase) → confirmed | pending | absent
 
 **Llegenda.** `NodeLegendComponent` (`app-node-legend`, botó «Llegenda» a les pestanyes Pinyes i Troncs) explica els ompliments amb les paraules de la fase (`attendanceLegend(phase)`) i les marques; cada mostra és un `app-node-drawing`, així que no es pot desfasar del dibuix.
 
+### Panell del tronc: targeta amb xinxeta i fil
+
+Un panell de tronc (projecció, Previsualitza, PWA, la capa de Distribució i les targetes de la pestanya Troncs) va sobre una **targeta de paper**: `PinnedCardComponent` (`lib-pinned-card`), una cara de paper (`paper`, vora `cardBorder`) damunt d'un cant pla de paper més fosc (`cardEdge`, desplaçat 4/5 px avall a la dreta, sense ombra), subjecta per una **xinxeta** del color de la figura al mig d'una vora i un pèl torta (−1° o +1° per torns segons `sortOrder`) al voltant de la xinxeta. El nom de la figura va sobre una **franja** del color clar de la figura, d'una vora a l'altra de la targeta, tancada per una ratlla de 2 px en el to fosc de la xinxeta (`getFigureBand()`; al `tronc-view`, l'entrada `nameBand`; a la pestanya Troncs, l'`h2` de la targeta). Les direccions i els pisos queden sobre paper blanc. El `tronc-view` ja no pinta fons ni vora de color (`panelColor`/`panelBorderColor` han desaparegut).
+
+A la projecció i a Distribució, un **fil** que penja una mica uneix cada targeta amb la seua pinya (`figureLink()`, `utils/figure-link.util.ts`, tot en coordenades del món del canvas):
+- La **xinxeta de la pinya** va a la cantonada més pròxima al panell d'entre els nodes ocupats de la figura (de tots els nodes si encara no hi ha ningú), amb la rotació del node aplicada (`nearestFigureCorner()`).
+- La **xinxeta de la targeta** va al mig de la vora que mira cap a la xinxeta de la pinya (`cardPin()`), amb el centre damunt de la vora: el fil sempre ix cap a fora i no travessa mai els noms.
+- El fil és una corba quadràtica que penja un 10% de la seua llargària (`stringCurve()`), del color de la figura mesclat un 20% cap a la tinta, de 2 px a mida natural.
+- El canvas (`figureLinks`, en qualsevol mode) dibuixa els fils en una capa entre la quadrícula i els nodes, i la xinxeta de la pinya en una capa damunt dels nodes, amb un `effect` propi: redibuixar un fil no reconstrueix les figures. La xinxeta de la targeta la dibuixa la targeta. Totes dues surten de `pinDiscs()`.
+- A Distribució, el fil segueix la figura mentre s'arrossega o es gira (`slotDragMoved`) i el panell mentre s'arrossega (`troncPanelMoved`); els nodes passen a coordenades de l'escenari amb `slotLocalToStage()`. Espera que el panell estiga col·locat i mesurat.
+- Una figura sola en el segment no té xinxeta ni fil (el seu panell només pot ser el seu), però sí la franja del nom. La paleta de figures (`FIGURE_PALETTE`) posa l'escarlata al final perquè és el roig dels conflictes.
+
 ### PinyesOnboardingModalComponent (P5.5)
 
 Modal informatiu que explica conceptes al Cap de Pinyes:

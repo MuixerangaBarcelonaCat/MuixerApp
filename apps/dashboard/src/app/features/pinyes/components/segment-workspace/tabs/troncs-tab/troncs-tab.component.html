@@ -54,42 +54,43 @@
     } @else {
       <div class="flex flex-wrap content-start items-start gap-6 p-4">
         @for (figure of figures(); track figure.instance.instanceId) {
-          <!-- Pinned light with the tronc panel it frames (figure rendering isn't themed for dark
-               yet, DEBT F19); the panel is transparent so the figure tint shows through it. -->
-          <div
-            libThemeScope="light"
-            data-figure-card
-            class="flex flex-col gap-2 shrink-0 p-3 rounded-lg border-2"
-            [style.border-color]="figure.tint.border"
-            [style.background-color]="figure.tint.background"
-          >
-            <h2 class="text-lg font-semibold text-base-content/70 text-center">
+          <!-- A paper card pinned in the figure colour, like the projection's tronc panels. Pinned
+               light with the tronc panel on it (figure rendering isn't themed for dark yet, DEBT F19). -->
+          <lib-pinned-card libThemeScope="light" class="shrink-0" [color]="singleFigure() ? null : figure.color" [tilt]="figure.tilt">
+            <!-- The name on a band in the figure colour, across the card, closed by a rule in the pin's dark tone. -->
+            <h2
+              data-role="figure-name"
+              class="px-3 py-1.5 text-lg font-semibold text-base-content/70 text-center border-b-2"
+              [style.background-color]="figure.band.fill"
+              [style.border-bottom-color]="figure.band.rule"
+            >
               {{ figure.instance.label }}
             </h2>
-            <app-tronc-view
-              class="bg-transparent"
-              [instanceId]="figure.instance.instanceId"
-              [troncNodes]="figure.troncNodes"
-              [baseNodes]="figure.baseNodes"
-              [directionNodes]="figure.directionNodes"
-              [assignments]="state.assignments()"
-              [conflictPersonIds]="ws.conflictPersonIds()"
-              [selectedNodeId]="ws.selectedInstanceId() === figure.instance.instanceId ? state.selectedNodeId() : null"
-              mode="assignment"
-              [heightMode]="state.heightMode()"
-              [highlightedNodeIds]="highlightedNodeIds(figure.instance.instanceId)"
-              [attendanceMap]="attendanceMap()"
-              [phase]="phase()"
-              [nextPerformanceMap]="state.nextPerformanceRegistry()"
-              [personDetailsMap]="personDetailsMap()"
-              [personDragEnabled]="!isTouch()"
-              (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
-              (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
-              (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
-              (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
-              (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
-            />
-          </div>
+            <div class="p-3">
+              <app-tronc-view
+                [instanceId]="figure.instance.instanceId"
+                [troncNodes]="figure.troncNodes"
+                [baseNodes]="figure.baseNodes"
+                [directionNodes]="figure.directionNodes"
+                [assignments]="state.assignments()"
+                [conflictPersonIds]="ws.conflictPersonIds()"
+                [selectedNodeId]="ws.selectedInstanceId() === figure.instance.instanceId ? state.selectedNodeId() : null"
+                mode="assignment"
+                [heightMode]="state.heightMode()"
+                [highlightedNodeIds]="highlightedNodeIds(figure.instance.instanceId)"
+                [attendanceMap]="attendanceMap()"
+                [phase]="phase()"
+                [nextPerformanceMap]="state.nextPerformanceRegistry()"
+                [personDetailsMap]="personDetailsMap()"
+                [personDragEnabled]="!isTouch()"
+                (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
+                (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
+                (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
+                (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
+                (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
+              />
+            </div>
+          </lib-pinned-card>
         }
         @if (!ws.isLocked()) {
           <div class="self-stretch flex items-center justify-center min-w-40 p-3 rounded-lg border-2 border-dashed border-base-300">
