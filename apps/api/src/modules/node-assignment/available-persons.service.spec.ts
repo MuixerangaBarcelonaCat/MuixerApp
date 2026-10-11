@@ -7,7 +7,7 @@ import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AttendanceStatus, EventType, FigureZone, TagCategory } from '@muixer/shared';
+import { AttendanceStatus, EventType, FigureZone, Gender, TagCategory } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -482,6 +482,20 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
 
       expect(result[0].positions).toEqual([]);
+    });
+
+    it('returns each person gender, null when unknown (staff-only: feeds the workspace Gènere mode)', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([
+        makePerson(PERSON_ID_1, { gender: Gender.FEMALE }),
+        makePerson(PERSON_ID_2, { gender: null }),
+      ]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
+
+      expect(result.map((p) => p.gender)).toEqual([Gender.FEMALE, null]);
     });
 
     it('calls leftJoinAndSelect for person.positions', async () => {

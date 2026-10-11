@@ -233,6 +233,8 @@ export class PersonPanelComponent {
           name: assignment.person.name,
           firstSurname: assignment.person.firstSurname,
           shoulderHeight: assignment.person.shoulderHeight,
+          // The assignment carries no gender (members' projection reads it too): unknown until the roster reloads.
+          gender: null,
           notes: assignment.person.notes,
           notesEmoji: assignment.person.notesEmoji,
           isXicalla: false,
