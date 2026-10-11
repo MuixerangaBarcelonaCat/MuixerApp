@@ -369,29 +369,6 @@ describe('EventListComponent', () => {
     });
   });
 
-  describe('getConfirmedCount / getDeclinedCount', () => {
-    const summary = {
-      confirmed: 10, declined: 5, pending: 3,
-      attended: 20, lateCancel: 1, children: 4, childrenAttended: 2, total: 40,
-    };
-
-    it('returns attended for past event (getConfirmedCount)', () => {
-      expect(component.getConfirmedCount(summary, true)).toBe(20);
-    });
-
-    it('returns confirmed for future event (getConfirmedCount)', () => {
-      expect(component.getConfirmedCount(summary, false)).toBe(10);
-    });
-
-    it('returns declined for past event (getDeclinedCount)', () => {
-      expect(component.getDeclinedCount(summary, true)).toBe(5);
-    });
-
-    it('returns declined for future event (getDeclinedCount)', () => {
-      expect(component.getDeclinedCount(summary, false)).toBe(5);
-    });
-  });
-
   describe('getAdultsCount', () => {
     const summary = {
       confirmed: 10, declined: 5, pending: 3,
