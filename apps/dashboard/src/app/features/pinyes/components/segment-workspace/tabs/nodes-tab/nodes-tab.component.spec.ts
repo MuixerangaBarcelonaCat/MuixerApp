@@ -12,7 +12,7 @@ import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService, NODE_TYPE_PALETTE } from '@muixer/ui';
+import { ToastService, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 
@@ -397,6 +397,19 @@ describe('NodesTabComponent', () => {
       await setup({ instances: [makeInstance(INST_A)] });
       const vents = component.adHocPresets.find((p) => p.positionType === 'vents')!;
       expect(component.presetSwatch(vents)).toBe(NODE_TYPE_PALETTE['vents'].wash);
+    });
+
+    it('shows the dark fill in each preset swatch when the app is dark', async () => {
+      await setup({ instances: [makeInstance(INST_A)] });
+      const [vents] = component.adHocPresets.filter((p) => p.positionType === 'vents');
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        expect(component.presetSwatch(vents)).toBe(NODE_TYPE_PALETTE_DARK['vents'].wash);
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
     });
 
     it('sends no color for a new node: it follows the palette of its type', async () => {

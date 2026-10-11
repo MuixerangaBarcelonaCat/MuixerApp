@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
-import { FONT_FAMILY, THEME_NAMES } from '@muixer/ui';
+import { FONT_FAMILY } from '@muixer/ui';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, EventPhase } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
@@ -28,7 +28,8 @@ import { BoundsNode, computeFitTransform } from '../../utils/fit-to-bounds.util'
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor } from '../../utils/figure-palette.util';
-import { buildCanvasTheme, withAlpha } from '../../theme/canvas-theme';
+import { withAlpha } from '../../theme/canvas-theme';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { nodeFill } from '../../theme/node-color';
 import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
@@ -108,11 +109,9 @@ export interface CompositionSlotWithNodes {
 }
 
 
-const THEME = buildCanvasTheme();
 /** Canvas text outside the node drawing (slot labels, tooltips, the drag pill): Quicksand. */
 const SANS_FONT = FONT_FAMILY.sans.join(', ');
 
-const SELECTED_STROKE = THEME.focus;
 /** Matches the min/max of the zoom-selector dropdown (25%–500%). */
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 5;
@@ -122,15 +121,12 @@ const ZOOM_MAX = 5;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, PersonHoverCardComponent],
-  // bg-transparent: undo DaisyUI's base-100 fill on [data-theme] elements, so the rounded
-  // wrapper's corners keep showing the page behind them.
-  host: { class: 'bg-transparent', '[attr.data-theme]': 'pinnedTheme' },
   templateUrl: './figure-canvas.component.html',
   styleUrl: './figure-canvas.component.scss',
 })
 export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
-  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
-  protected readonly pinnedTheme = THEME_NAMES.light;
+  /** The canvas colours for the theme on screen; a change redraws everything. */
+  private readonly theme = injectCanvasTheme();
 
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
 
@@ -370,6 +366,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (this.mode() === 'readonly') {
         untracked(() => this.renderReadonlyNodes());
       }
+    });
+
+    // A theme change recolours everything, the grid included.
+    effect(() => {
+      this.theme();
+      if (!this.stage) return;
+      untracked(() => this.renderAll());
     });
 
     // The tronc panel strings redraw on their own layers, apart from the figures: in Distribució
@@ -1030,7 +1033,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.gridLayer.add(
         new Konva.Line({
           points: [x, top, x, bottom],
-          stroke: THEME.crease,
+          stroke: this.theme().crease,
           strokeWidth: 1,
           listening: false,
         }),
@@ -1041,7 +1044,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.gridLayer.add(
         new Konva.Line({
           points: [left, y, right, y],
-          stroke: THEME.crease,
+          stroke: this.theme().crease,
           strokeWidth: 1,
           listening: false,
         }),
@@ -1136,10 +1139,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             y: -phH / 2,
             width: phW,
             height: phH,
-            stroke: isSelected ? SELECTED_STROKE : THEME.inkFaint,
+            stroke: isSelected ? this.theme().focus : this.theme().inkFaint,
             strokeWidth: isSelected ? 2 : 1,
             dash: [6, 3],
-            fill: withAlpha(isSelected ? SELECTED_STROKE : THEME.inkFaint, 0.05),
+            fill: withAlpha(isSelected ? this.theme().focus : this.theme().inkFaint, 0.05),
             cornerRadius: 6,
             listening: true,
           }),
@@ -1152,7 +1155,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             text: slot.figureTemplate.name,
             fontSize: 11,
             fontFamily: SANS_FONT,
-            fill: isSelected ? SELECTED_STROKE : THEME.inkMuted,
+            fill: isSelected ? this.theme().focus : this.theme().inkMuted,
             align: 'center',
             listening: false,
           }),
@@ -1165,7 +1168,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             text: 'Carregant...',
             fontSize: 10,
             fontFamily: SANS_FONT,
-            fill: THEME.inkFaint,
+            fill: this.theme().inkFaint,
             align: 'center',
             listening: false,
           }),
@@ -1208,10 +1211,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             y: minY - padding - labelHeight,
             width: maxX - minX + padding * 2,
             height: maxY - minY + padding * 2 + labelHeight,
-            stroke: isSelected ? SELECTED_STROKE : figColor,
+            stroke: isSelected ? this.theme().focus : figColor,
             strokeWidth: isSelected ? 2 : 1,
             dash: [6, 3],
-            fill: isSelected ? withAlpha(SELECTED_STROKE, 0.05) : withAlpha(figColor, 0x14 / 0xff),
+            fill: isSelected ? withAlpha(this.theme().focus, 0.05) : withAlpha(figColor, 0x14 / 0xff),
             cornerRadius: 6,
             listening: true,
           }),
@@ -1227,7 +1230,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             text: labelText,
             fontSize: 11,
             fontFamily: SANS_FONT,
-            fill: isSelected ? SELECTED_STROKE : THEME.inkMuted,
+            fill: isSelected ? this.theme().focus : this.theme().inkMuted,
             align: 'center',
             verticalAlign: 'middle',
             height: labelHeight,
@@ -1444,8 +1447,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       x,
       y,
       radius: 10,
-      fill: THEME.focus,
-      stroke: THEME.onInk,
+      fill: this.theme().focus,
+      stroke: this.theme().onInk,
       strokeWidth: 3,
       draggable: false,
       listening: true,
@@ -1516,9 +1519,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     input: NodeAppearanceInput,
     raisedGroup?: Konva.Group,
   ): Konva.Shape {
-    const appearance = resolveNodeAppearance(input, THEME);
+    const appearance = resolveNodeAppearance(input, this.theme());
     const size = { width: node.width, height: node.height, shape: node.shape ?? NodeShape.RECTANGLE };
-    const { shape, nodes, raised } = drawNodePlan(nodeDrawPlan(appearance, size, THEME, measureText));
+    const { shape, nodes, raised } = drawNodePlan(nodeDrawPlan(appearance, size, this.theme(), measureText));
     group.add(...nodes);
     if (raised.length > 0) (raisedGroup ?? group).add(...raised);
     return shape;
@@ -1659,7 +1662,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           text: slot.label ?? slot.figureTemplate.name,
           fontSize: 11,
           fontFamily: SANS_FONT,
-          fill: THEME.inkMuted,
+          fill: this.theme().inkMuted,
           opacity: isDimmedSlot ? 0.25 : 1,
           align: 'center',
           verticalAlign: 'middle',
@@ -1899,7 +1902,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.linkLayer.destroyChildren();
     this.pinLayer.destroyChildren();
     for (const link of links) {
-      const { string, pin } = drawFigureLink(link);
+      const { string, pin } = drawFigureLink(link, this.theme());
       this.linkLayer.add(string);
       this.pinLayer.add(pin);
     }
@@ -1973,7 +1976,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: badgeY,
         width: badgeW,
         height: badgeH,
-        fill: withAlpha(THEME.ink, 0.55),
+        fill: withAlpha(this.theme().ink, 0.55),
         cornerRadius: 2,
         listening: false,
       });
@@ -1983,7 +1986,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         text: badgeText,
         fontSize: badgeFontSize,
         fontFamily: SANS_FONT,
-        fill: THEME.onInk,
+        fill: this.theme().onInk,
         fontStyle: 'bold',
         x: badgeX + badgePadX,
         y: badgeY + badgePadY,
@@ -2092,7 +2095,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const pos = calculateGhostPosition(node);
     if (isGhostPositionOccupied(pos, this.nodes())) return;
-    const nodeColor = nodeFill(node);
+    const nodeColor = nodeFill(node, this.theme().mode);
 
     const ghost = new Konva.Group({
       x: pos.x,
@@ -2103,7 +2106,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {
       fill: nodeColor,
-      stroke: THEME.ink,
+      stroke: this.theme().ink,
       strokeWidth: 2,
       dash: [6, 4],
       opacity: 0.4,
@@ -2115,7 +2118,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         text: '+',
         fontSize: 24,
         fontFamily: SANS_FONT,
-        fill: THEME.ink,
+        fill: this.theme().ink,
         opacity: 0.4,
         align: 'center',
         verticalAlign: 'middle',
@@ -2268,8 +2271,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       y: pos.y - 28,
       opacity: 0.85,
     });
-    label.add(new Konva.Tag({ fill: THEME.ink, cornerRadius: 4, pointerDirection: 'down', pointerWidth: 8, pointerHeight: 4 }));
-    label.add(new Konva.Text({ text: 'Node creat manualment', fontSize: 11, fontFamily: SANS_FONT, fill: THEME.onInk, padding: 4 }));
+    label.add(new Konva.Tag({ fill: this.theme().ink, cornerRadius: 4, pointerDirection: 'down', pointerWidth: 8, pointerHeight: 4 }));
+    label.add(new Konva.Text({ text: 'Node creat manualment', fontSize: 11, fontFamily: SANS_FONT, fill: this.theme().onInk, padding: 4 }));
     this.adHocTooltip = label;
     this.pinyaLayer.add(label);
     this.pinyaLayer.batchDraw();
@@ -2311,15 +2314,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       fontSize: 12,
       fontFamily: SANS_FONT,
       fontStyle: 'bold',
-      fill: THEME.onInk,
+      fill: this.theme().onInk,
     });
     group.add(
       new Konva.Rect({
         width: textX + text.width() + padX,
         height,
         cornerRadius: height / 2,
-        fill: THEME.nodeOutline,
-        shadowColor: THEME.ink,
+        fill: this.theme().nodeOutline,
+        shadowColor: this.theme().ink,
         shadowBlur: 8,
         shadowOpacity: 0.35,
         shadowOffsetY: 2,
@@ -2333,7 +2336,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           x: padX + iconSize / 2,
           y: height / 2,
           size: iconSize,
-          color: THEME.onInk,
+          color: this.theme().onInk,
           filled: false,
           strokeWidth: 2.4,
         }),

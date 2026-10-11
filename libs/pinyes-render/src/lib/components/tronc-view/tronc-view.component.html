@@ -1,3 +1,16 @@
+<!-- ── Figure name, heading the card in every mode that has one (projection, Distribució, the Troncs
+     tab): outside the padded section, so its band runs edge to edge. ── -->
+@if (figureName()) {
+  <div
+    data-role="figure-name"
+    class="figure-name"
+    [style.background-color]="nameBand()?.fill ?? null"
+    [style.border-bottom-color]="nameBand()?.rule ?? null"
+  >
+    <span class="text-sm font-semibold text-base-content truncate block">{{ figureName() }}</span>
+  </div>
+}
+
 <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
 <section
   class="tronc-view"
@@ -110,18 +123,6 @@
 
         </div>
       }
-    </div>
-  }
-
-  <!-- ── Figure name header (projection mode) ─────────────────────────── -->
-  @if (mode() === 'projection' && figureName()) {
-    <div
-      data-role="figure-name"
-      class="figure-name"
-      [style.background-color]="nameBand()?.fill ?? null"
-      [style.border-bottom-color]="nameBand()?.rule ?? null"
-    >
-      <span class="text-sm font-semibold text-base-content truncate block">{{ figureName() }}</span>
     </div>
   }
 

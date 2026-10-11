@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
-import { EmptyStateComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE } from '@muixer/ui';
+import { EmptyStateComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
 import { FigureNodeItem } from '@muixer/pinyes-render';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../../testing/lucide-test-provider';
@@ -114,6 +114,18 @@ describe('TroncSupportEditorComponent', () => {
     it('fills a tronc node with the wash of its type and the base with the neutral paper tone', () => {
       expect(appearance('t1').fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE['terça'].wash });
       expect(appearance('b1').fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL.wash });
+    });
+
+    it('follows the app theme instead of pinning the light one', () => {
+      expect(fixture.nativeElement.hasAttribute('data-theme')).toBe(false);
+    });
+
+    it('draws in the dark palette when the app is dark', () => {
+      TestBed.inject(ThemeService).setPreference('dark');
+      expect(appearance('t1').fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE_DARK['terça'].wash });
+      expect(appearance('b1').fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL_DARK.wash });
+      TestBed.inject(ThemeService).setPreference('system');
+      localStorage.clear();
     });
 
     it('draws a customized tronc node in its own color', () => {

@@ -1,4 +1,4 @@
-import { CREASE, INK, NODE_TYPE_NEUTRAL, PAPER, SEMANTIC, hexToOklch } from '@muixer/ui';
+import { CREASE, INK, NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, PAPER, SEMANTIC, hexToOklch } from '@muixer/ui';
 import { buildCanvasTheme, contentOn, fade, withAlpha } from './canvas-theme';
 
 describe('buildCanvasTheme', () => {
@@ -42,8 +42,81 @@ describe('buildCanvasTheme', () => {
     expect(theme.neutralNode).toEqual(NODE_TYPE_NEUTRAL);
   });
 
+  it('is the light theme unless asked otherwise', () => {
+    expect(theme.mode).toBe('light');
+    expect(buildCanvasTheme('light')).toEqual(theme);
+  });
+
+  it('cuts a tronc card from the same paper as the canvas', () => {
+    expect(theme.card).toBe(PAPER.white);
+  });
+
+  it('lays a pin on a flat paper shadow and darkens its string toward ink', () => {
+    expect(theme.pinShadow).toBe(PAPER.washiDark);
+    expect(theme.thread).toBe(INK.dark);
+  });
+
   it('returns only hex colors, which Konva and rough.js both parse', () => {
-    const values = Object.values(theme).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v)));
+    const values = Object.entries(theme).filter(([k]) => k !== 'mode').flatMap(([, v]) => (typeof v === 'string' ? [v] : Object.values(v)));
+    for (const value of values) expect(value).toMatch(/^#[0-9a-fA-F]{6}$/);
+  });
+});
+
+describe('buildCanvasTheme dark', () => {
+  // The D2 option of the Dark Pinya Canvas preview.
+  const theme = buildCanvasTheme('dark');
+  const l = (hex: string) => hexToOklch(hex).l;
+  const canvasL = l(INK.dark);
+
+  it('draws on the dark card colour, with the grid a step lighter', () => {
+    expect(theme.mode).toBe('dark');
+    expect(theme.paper).toBe(INK.dark);
+    expect(l(theme.crease)).toBeCloseTo(canvasL + 0.1, 2);
+  });
+
+  it('writes in paper white, with faint inks for secondary text', () => {
+    expect(theme.ink).toBe(PAPER.white);
+    expect(theme.inkMuted).toBe(INK.faint);
+    expect(theme.inkFaint).toBe(INK.light);
+    expect(theme.onInk).toBe(INK.black);
+  });
+
+  it('marks the node being acted on in paper white', () => {
+    expect(theme.focus).toBe(PAPER.white);
+  });
+
+  it('lifts the conflict red so it does not sink into the dark canvas', () => {
+    const danger = hexToOklch(theme.danger);
+    expect(danger.l).toBeCloseTo(0.68, 2);
+    expect(danger.h).toBeCloseTo(hexToOklch(SEMANTIC.error).h, 0);
+  });
+
+  it('draws the dark marks on a node in faint ink', () => {
+    expect(theme.nodeOutline).toBe(INK.faint);
+  });
+
+  it('puts observations on a sticker a step above the canvas, its edge a step further', () => {
+    expect(l(theme.sticker)).toBeCloseTo(canvasL + 0.12, 2);
+    expect(l(theme.stickerEdge)).toBeCloseTo(canvasL + 0.25, 2);
+  });
+
+  it('lifts a tronc card a step above the canvas, on an edge a step below it', () => {
+    expect(l(theme.card)).toBeCloseTo(canvasL + 0.07, 2);
+    expect(l(theme.cardEdge)).toBeCloseTo(canvasL - 0.07, 2);
+    expect(l(theme.cardBorder)).toBeCloseTo(canvasL + 0.16, 2);
+  });
+
+  it('lays a pin on a shadow below the canvas and lightens its string toward paper', () => {
+    expect(l(theme.pinShadow)).toBeCloseTo(canvasL - 0.08, 2);
+    expect(theme.thread).toBe(PAPER.white);
+  });
+
+  it('gives untyped nodes the dark neutral tones', () => {
+    expect(theme.neutralNode).toEqual(NODE_TYPE_NEUTRAL_DARK);
+  });
+
+  it('returns only hex colors', () => {
+    const values = Object.entries(theme).filter(([k]) => k !== 'mode').flatMap(([, v]) => (typeof v === 'string' ? [v] : Object.values(v)));
     for (const value of values) expect(value).toMatch(/^#[0-9a-fA-F]{6}$/);
   });
 });

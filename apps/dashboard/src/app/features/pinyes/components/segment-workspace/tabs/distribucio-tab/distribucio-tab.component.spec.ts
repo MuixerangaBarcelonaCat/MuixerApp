@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, CanvasMode, InstanceDetail, SegmentDetail, TroncNodeItem, AssignmentDetail, FIGURE_PALETTE, PinnedCardComponent, FigureLink, FigureBand, getFigureBand } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, CanvasMode, InstanceDetail, SegmentDetail, TroncNodeItem, AssignmentDetail, FIGURE_PALETTE, PinnedCardComponent, FigureLink, FigureBand, getFigureBand, fade } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -19,7 +19,7 @@ import { EventSegmentService } from '../../../../services/event-segment.service'
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
-import { ToastService } from '@muixer/ui';
+import { PAPER, ThemeService, ToastService } from '@muixer/ui';
 import { SegmentDistributionData } from '../../../../models/distribution.model';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -496,6 +496,21 @@ describe('DistribucioTabComponent', () => {
         expect([card.color(), card.edge(), card.tilt()]).toEqual([FIGURE_PALETTE[0], 'bottom', -1]);
         expect(fixture.debugElement.query(By.css('lib-pinned-card app-tronc-view'))).not.toBeNull();
         expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0));
+      });
+
+      it('lightens the string and darkens the name band when the app is dark', async () => {
+        await twoFigures();
+        const theme = TestBed.inject(ThemeService);
+        try {
+          theme.setPreference('dark');
+          placePanelA();
+
+          expect(linkA()?.stringColor).toBe(fade(FIGURE_PALETTE[0], 0.2, PAPER.white));
+          expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0, 'dark'));
+        } finally {
+          theme.setPreference('system');
+          localStorage.clear();
+        }
       });
 
       it('pins only nodes someone stands on', async () => {

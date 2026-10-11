@@ -91,7 +91,7 @@ export function resolveNodeAppearance(input: NodeAppearanceInput, theme: CanvasT
 }
 
 function nodeAppearance(input: NodeAppearanceInput, theme: CanvasTheme): NodeAppearance {
-  const tones = input.palette === 'neutral' ? theme.neutralNode : resolveNodeTones(input);
+  const tones = input.palette === 'neutral' ? theme.neutralNode : resolveNodeTones(input, theme.mode);
   const person = input.person ?? null;
   const showsEditBadges = input.mode === 'workspace';
 

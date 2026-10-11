@@ -1,6 +1,6 @@
 import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { FigureZone } from '@muixer/shared';
-import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE } from '@muixer/ui';
+import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK } from '@muixer/ui';
 import { buildCanvasTheme, fade } from '../theme/canvas-theme';
 import { NodeAppearanceInput, formatShoulderHeight, resolveNodeAppearance } from './appearance';
 
@@ -98,6 +98,15 @@ describe('resolveNodeAppearance', () => {
     it('draws every node in the neutral tones when asked to (the tronc panel)', () => {
       const a = appearance({ palette: 'neutral', attendance: 'pending' });
       expect(a.fill).toEqual({ style: 'hatch', color: NODE_TYPE_NEUTRAL.pencil });
+    });
+
+    it('draws in the dark palette on the dark canvas, the pending name on a dark halo', () => {
+      const dark = buildCanvasTheme('dark');
+      const ventsDark = NODE_TYPE_PALETTE_DARK['vents'];
+      expect(resolveNodeAppearance(empty, dark).outline.color).toBe(ventsDark.pencil);
+      expect(resolveNodeAppearance(marta, dark).fill).toEqual({ style: 'solid', color: ventsDark.wash });
+      expect(resolveNodeAppearance({ ...marta, attendance: 'pending' }, dark).text.halo).toBe(dark.paper);
+      expect(resolveNodeAppearance({ ...marta, attendance: 'absent' }, dark).outline.color).toBe(fade(ventsDark.pencil, 0.45, dark.paper));
     });
 
     it('draws a customized node in its own color', () => {

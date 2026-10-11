@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { NodeShape } from '@muixer/shared';
-import { buildCanvasTheme } from '../../theme/canvas-theme';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { NodeAppearance } from '../../node-render/appearance';
 import { DrawPrimitive, nodeDrawPlan } from '../../node-render/draw-plan';
 import { NodeOutline, nodeOutline } from '../../node-render/outline';
@@ -34,7 +34,6 @@ export const NODE_NAME_MEASURE = new InjectionToken<NameMeasure>('NODE_NAME_MEAS
   },
 });
 
-const THEME = buildCanvasTheme();
 /** Hatching for a pending node, as a Phase 2 stand-in for rough.js: lines 6 apart at −41°, as on the canvas. */
 const HATCH_GAP = 6;
 const HATCH_WEIGHT = 1;
@@ -233,13 +232,14 @@ export class NodeDrawingComponent {
   protected readonly hatchTransform = `rotate(${HATCH_ANGLE})`;
 
   private readonly measure = inject(NODE_NAME_MEASURE);
+  private readonly theme = injectCanvasTheme();
   private readonly size = signal<{ width: number; height: number } | null>(null);
 
   protected readonly view = computed(() => {
     const size = this.size();
     if (!size) return null;
     const { width, height } = size;
-    const plan = nodeDrawPlan(this.appearance(), { width, height, shape: this.shape() }, THEME, this.measure);
+    const plan = nodeDrawPlan(this.appearance(), { width, height, shape: this.shape() }, this.theme(), this.measure);
     const hatch = plan.find((p) => p.kind === 'shape' && p.fill.style === 'hatch');
     return {
       width,

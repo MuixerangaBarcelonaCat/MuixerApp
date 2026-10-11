@@ -1,5 +1,5 @@
 import { INK, PAPER } from '@muixer/ui';
-import { buildCanvasTheme, fade } from '../theme/canvas-theme';
+import { CanvasTheme, buildCanvasTheme, fade } from '../theme/canvas-theme';
 import { DrawPrimitive } from '../node-render/draw-plan';
 
 /**
@@ -14,7 +14,7 @@ const STRING_WIDTH = 2;
 /** How far the string sags: its control point drops this share of its length. */
 const STRING_SAG = 0.1;
 
-const THEME = buildCanvasTheme();
+const LIGHT = buildCanvasTheme();
 
 export interface Point {
   x: number;
@@ -104,14 +104,14 @@ export function stringCurve(from: Point, to: Point): FigureLink['string'] {
  * The link from a panel card to its figure, `scale` being canvas-world units per panel pixel.
  * `null` for a figure with no nodes, which has nothing to pin.
  */
-export function figureLink(nodes: LinkNode[], card: LinkRect, color: string, scale: number): FigureLink | null {
+export function figureLink(nodes: LinkNode[], card: LinkRect, color: string, scale: number, theme: CanvasTheme = LIGHT): FigureLink | null {
   const pin = nearestFigureCorner(nodes, card);
   if (!pin) return null;
   const { edge, x, y } = cardPin(card, pin);
   return {
     cardEdge: edge,
     string: stringCurve({ x, y }, pin),
-    stringColor: fade(color, 0.2, INK.dark),
+    stringColor: fade(color, 0.2, theme.thread),
     stringWidth: STRING_WIDTH * scale,
     pin,
     pinRadius: PIN_RADIUS * scale,
@@ -122,13 +122,14 @@ export function figureLink(nodes: LinkNode[], card: LinkRect, color: string, sca
 /**
  * A pin head drawn flat: a paper shadow offset down-right, the head in the figure colour with a
  * darker rim, and a small highlight. Both painters draw it: Konva on the canvas, SVG on the card.
+ * The highlight is light in both modes; the shadow follows the canvas.
  */
-export function pinDiscs(x: number, y: number, radius: number, color: string): Extract<DrawPrimitive, { kind: 'disc' }>[] {
+export function pinDiscs(x: number, y: number, radius: number, color: string, theme: CanvasTheme = LIGHT): Extract<DrawPrimitive, { kind: 'disc' }>[] {
   const k = radius / PIN_RADIUS;
   return [
-    { kind: 'disc', x: x + 1.5 * k, y: y + 2.2 * k, radius, fill: PAPER.washiDark, stroke: null, strokeWidth: 0 },
+    { kind: 'disc', x: x + 1.5 * k, y: y + 2.2 * k, radius, fill: theme.pinShadow, stroke: null, strokeWidth: 0 },
     { kind: 'disc', x, y, radius, fill: color, stroke: pinRimColor(color), strokeWidth: k },
-    { kind: 'disc', x: x - 3 * k, y: y - 3 * k, radius: 2.6 * k, fill: fade(color, 0.8, THEME.paper), stroke: null, strokeWidth: 0 },
+    { kind: 'disc', x: x - 3 * k, y: y - 3 * k, radius: 2.6 * k, fill: fade(color, 0.8, PAPER.white), stroke: null, strokeWidth: 0 },
   ];
 }
 

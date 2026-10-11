@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, FigureMode, TroncNodeItem, AssignmentDetail, getFigureColor, PinnedCardComponent, FigureLink, CardEdge, figureLink, pivotNodesFor, slotLocalToStage, FigureBand, getFigureBand } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, FigureMode, TroncNodeItem, AssignmentDetail, getFigureColor, PinnedCardComponent, FigureLink, CardEdge, figureLink, pivotNodesFor, slotLocalToStage, FigureBand, getFigureBand, injectCanvasTheme } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -88,6 +88,7 @@ interface PendingSave extends SaveTarget {
 })
 export class DistribucioTabComponent implements OnInit, OnDestroy {
   readonly ws = inject(SegmentWorkspaceStateService);
+  private readonly canvasTheme = injectCanvasTheme();
   private readonly canvasState = inject(CanvasStateService);
   private readonly distributionService = inject(SegmentDistributionService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -154,6 +155,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     const positions = this.troncPanelPositions();
     const sizes = this.measuredTroncSizes();
     const live = this.liveSlotTransforms();
+    const theme = this.canvasTheme();
 
     for (const slot of this.slots()) {
       const pos = positions.get(slot.slotId);
@@ -175,7 +177,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
         occupied: occupied.has(n.id),
       }));
       const card = { x: pos.x, y: pos.y, width: size.width, height: size.height };
-      const link = figureLink(nodes, card, getFigureColor(slot.sortOrder), 1);
+      const link = figureLink(nodes, card, getFigureColor(slot.sortOrder), 1, theme);
       if (link) links.set(slot.slotId, link);
     }
     return links;
@@ -219,7 +221,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
         assignments: troncViewAssignmentsFor(item?.assignments ?? [], slot.figureTemplate.nodes),
         figureName: slot.label ?? slot.figureTemplate.name,
         color: singleFigure ? null : getFigureColor(slot.sortOrder),
-        nameBand: getFigureBand(slot.sortOrder),
+        nameBand: getFigureBand(slot.sortOrder, this.canvasTheme().mode),
         pinEdge: links.get(slot.slotId)?.cardEdge ?? 'top',
         tilt: slot.sortOrder % 2 === 0 ? -1 : 1,
       });

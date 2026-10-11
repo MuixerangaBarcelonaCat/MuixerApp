@@ -1,4 +1,5 @@
-import { PAPER, buildCategoricalPalette, formatHex } from '@muixer/ui';
+import { PAPER, ThemeMode, buildCategoricalPalette, formatHex } from '@muixer/ui';
+import { fade } from '../theme/canvas-theme';
 import { pinRimColor } from './figure-link.util';
 
 const CATEGORICAL_PALETTE = buildCategoricalPalette('light');
@@ -11,23 +12,30 @@ const CATEGORICAL_LIGHT = CATEGORICAL_PALETTE.light.map(formatHex);
  * first figure of every segment would otherwise get it.
  */
 export const FIGURE_PALETTE: readonly string[] = [...CATEGORICAL.slice(1), CATEGORICAL[0]];
-/** Each figure color's light variant, in the same order. */
+/** Each figure color's light variant, in the same order: a paler tone in light mode, a receding dark one in dark mode. */
 const FIGURE_PALETTE_LIGHT: readonly string[] = [...CATEGORICAL_LIGHT.slice(1), CATEGORICAL_LIGHT[0]];
+const CATEGORICAL_LIGHT_DARK = buildCategoricalPalette('dark').light.map(formatHex);
+const FIGURE_PALETTE_LIGHT_DARK: readonly string[] = [...CATEGORICAL_LIGHT_DARK.slice(1), CATEGORICAL_LIGHT_DARK[0]];
 
 export function getFigureColor(index: number): string {
   return FIGURE_PALETTE[index % FIGURE_PALETTE.length];
 }
 
-/** The band heading a figure's tronc card: its light color, closed by a rule in its pin's rim tone. */
+/**
+ * The band heading a figure's tronc card: its light color, closed by a rule in its pin's rim tone. On
+ * the dark canvas the band recedes and the rule lightens instead, so it still reads on the dark card.
+ */
 export interface FigureBand {
   fill: string;
   rule: string;
 }
 
-export function getFigureBand(index: number): FigureBand {
+export function getFigureBand(index: number, mode: ThemeMode = 'light'): FigureBand {
+  const color = getFigureColor(index);
+  const fills = mode === 'dark' ? FIGURE_PALETTE_LIGHT_DARK : FIGURE_PALETTE_LIGHT;
   return {
-    fill: FIGURE_PALETTE_LIGHT[index % FIGURE_PALETTE_LIGHT.length],
-    rule: pinRimColor(getFigureColor(index)),
+    fill: fills[index % fills.length],
+    rule: mode === 'dark' ? fade(color, 0.25, PAPER.white) : pinRimColor(color),
   };
 }
 

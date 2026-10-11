@@ -1,8 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { buildCanvasTheme } from '../../theme/canvas-theme';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { CardEdge, PIN_RADIUS, pinDiscs } from '../../utils/figure-link.util';
-
-const THEME = buildCanvasTheme();
 
 /** Where the pin sits on the card, as a CSS position: the middle of an edge. */
 const PIN_AT: Record<CardEdge, { left: string; top: string }> = {
@@ -15,8 +13,9 @@ const PIN_AT: Record<CardEdge, { left: string; top: string }> = {
 /**
  * A tronc panel as a paper card pinned to the page: a clean-cut paper face on a flat edge of darker
  * paper (no shadow), held by one pin in the figure colour on the middle of an edge, slightly askew
- * around that pin. A segment's lone figure gets no pin: there is no other panel to tell it from. In the projection the pin is the string's first end, so it goes on the edge
- * facing the figure (`cardPin`).
+ * around that pin. A segment's lone figure gets no pin: there is no other panel to tell it from. In
+ * the projection the pin is the string's first end, so it goes on the edge facing the figure
+ * (`cardPin`). On the dark canvas the card is a step lighter than the canvas, on a darker edge.
  */
 @Component({
   selector: 'lib-pinned-card',
@@ -34,13 +33,13 @@ const PIN_AT: Record<CardEdge, { left: string; top: string }> = {
         data-role="edge"
         aria-hidden="true"
         style="position: absolute; inset: 0; transform: translate(4px, 5px)"
-        [style.background-color]="theme.cardEdge"
+        [style.background-color]="theme().cardEdge"
       ></div>
       <div
         data-role="face"
         style="position: relative; height: 100%; border-width: 1px; border-style: solid"
-        [style.background-color]="theme.paper"
-        [style.border-color]="theme.cardBorder"
+        [style.background-color]="theme().card"
+        [style.border-color]="theme().cardBorder"
       >
         <ng-content />
       </div>
@@ -72,10 +71,10 @@ export class PinnedCardComponent {
   /** Degrees the card turns around its pin; a degree or so reads as pinned by hand. */
   readonly tilt = input(0);
 
-  protected readonly theme = THEME;
+  protected readonly theme = injectCanvasTheme();
   protected readonly pinAt = computed(() => PIN_AT[this.edge()]);
   protected readonly discs = computed(() => {
     const color = this.color();
-    return color ? pinDiscs(0, 0, PIN_RADIUS, color) : null;
+    return color ? pinDiscs(0, 0, PIN_RADIUS, color, this.theme()) : null;
   });
 }

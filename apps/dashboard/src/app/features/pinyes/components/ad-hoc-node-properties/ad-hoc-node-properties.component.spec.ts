@@ -7,7 +7,7 @@ import { AdHocNodePropertiesComponent } from './ad-hoc-node-properties.component
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { By } from '@angular/platform-browser';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { NODE_TYPE_PALETTE, ToastService } from '@muixer/ui';
+import { NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService, ToastService } from '@muixer/ui';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem => ({
@@ -55,6 +55,18 @@ describe('AdHocNodePropertiesComponent', () => {
       fixture.detectChanges();
       expect(component.colorFallback()).toBe(NODE_TYPE_PALETTE['comodin'].wash);
       expect(text()).toContain('Color per defecte');
+    });
+
+    it('shows the dark type color when the app is dark, as the canvas then draws it', () => {
+      fixture.componentRef.setInput('node', makeNode({ positionType: 'comodin', color: null }));
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        expect(component.colorFallback()).toBe(NODE_TYPE_PALETTE_DARK['comodin'].wash);
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
     });
 
     it('puts a customized node back on its type color when the color picker resets it', () => {

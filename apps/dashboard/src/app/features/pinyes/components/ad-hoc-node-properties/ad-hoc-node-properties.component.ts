@@ -11,7 +11,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { ToastService, TextareaComponent, InputComponent, SelectComponent, ButtonComponent, BadgeComponent, BadgeVariant } from '@muixer/ui';
+import { ToastService, TextareaComponent, InputComponent, SelectComponent, ButtonComponent, BadgeComponent, BadgeVariant, ThemeService } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isStartedPhase } from '@muixer/shared';
 import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-presets.util';
@@ -35,6 +35,7 @@ import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-pr
 export class AdHocNodePropertiesComponent {
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
+  private readonly themeMode = inject(ThemeService).mode;
 
   readonly node = input.required<InstanceNodeItem>();
   readonly instanceId = input.required<string>();
@@ -111,7 +112,7 @@ export class AdHocNodePropertiesComponent {
   /** What a missing color resolves to on the canvas: the type's fill, or none for a decoration. */
   readonly colorFallback = computed(() => {
     const { zone, positionType } = this.node();
-    return zone === FigureZone.DECORATION ? null : nodeFill({ zone, positionType, color: null });
+    return zone === FigureZone.DECORATION ? null : nodeFill({ zone, positionType, color: null }, this.themeMode());
   });
 
   close(): void {

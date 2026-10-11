@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ThemeService } from '@muixer/ui';
 import { buildCanvasTheme } from '../../theme/canvas-theme';
 import { CardEdge } from '../../utils/figure-link.util';
 import { PinnedCardComponent } from './pinned-card.component';
@@ -20,6 +21,11 @@ class HostComponent {
 }
 
 describe('PinnedCardComponent', () => {
+  afterEach(() => {
+    TestBed.inject(ThemeService).setPreference('system');
+    localStorage.clear();
+  });
+
   function render(set: Partial<{ color: string | null; edge: CardEdge; tilt: number }> = {}) {
     const fixture = TestBed.createComponent(HostComponent);
     if (set.color !== undefined) fixture.componentInstance.color.set(set.color);
@@ -38,7 +44,7 @@ describe('PinnedCardComponent', () => {
   it('lays the content on a paper face, framed in a crease tone', () => {
     const { face } = render();
     expect(face.querySelector('[data-content]')?.textContent).toBe('Pilar');
-    expect(face.style.backgroundColor).toBe(rgb(theme.paper));
+    expect(face.style.backgroundColor).toBe(rgb(theme.card));
     expect(face.style.borderColor).toBe(rgb(theme.cardBorder));
   });
 
@@ -70,6 +76,16 @@ describe('PinnedCardComponent', () => {
     const { card } = render({ edge: 'bottom', tilt: -1 });
     expect(card.style.transform).toBe('rotate(-1deg)');
     expect(card.style.transformOrigin).toBe('50% 100%');
+  });
+
+  it('turns into a dark card, a step above the dark canvas, when the app is dark', () => {
+    TestBed.inject(ThemeService).setPreference('dark');
+    const dark = buildCanvasTheme('dark');
+    const { face, edge, pin } = render();
+    expect(face.style.backgroundColor).toBe(rgb(dark.card));
+    expect(face.style.borderColor).toBe(rgb(dark.cardBorder));
+    expect(edge.style.backgroundColor).toBe(rgb(dark.cardEdge));
+    expect(pin.querySelectorAll('circle')[0].getAttribute('fill')).toBe(dark.pinShadow);
   });
 
   it('stays straight by default', () => {

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { FONT_FAMILY } from '@muixer/ui';
+import { FONT_FAMILY, ThemeService } from '@muixer/ui';
 import { FigureZone } from '@muixer/shared';
 import { buildCanvasTheme } from '../../theme/canvas-theme';
 import { NodeAppearanceInput, resolveNodeAppearance } from '../../node-render/appearance';
@@ -144,6 +144,17 @@ describe('NodeDrawingComponent', () => {
     const { raised } = render();
     expect(raised?.querySelector('circle')?.getAttribute('fill')).toBe(theme.sticker);
     expect(raised?.querySelector('text[data-role="emoji"]')?.textContent).toBe('🤕');
+  });
+
+  it('draws its marks in the dark theme when the app is dark', () => {
+    TestBed.inject(ThemeService).setPreference('dark');
+    const dark = buildCanvasTheme('dark');
+    const { svg, raised } = render({ conflict: true });
+    expect(svg?.querySelector('g[data-icon="star"] path')?.getAttribute('fill')).toBe(dark.nodeOutline);
+    expect(raised?.querySelector('ellipse[data-role="loop"]')?.getAttribute('stroke')).toBe(dark.danger);
+    expect(raised?.querySelector('circle')?.getAttribute('fill')).toBe(dark.sticker);
+    TestBed.inject(ThemeService).setPreference('system');
+    localStorage.clear();
   });
 
   it('draws what reaches past the cell (the conflict loop, the sticker) on a layer above every other cell', () => {

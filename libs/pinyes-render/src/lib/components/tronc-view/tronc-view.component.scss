@@ -419,7 +419,7 @@
 // The figure name on a band across the whole card: the negative margins reach through the panel's
 // padding to the card edges. The rule's room is reserved with no band too, so sizes match.
 .figure-name {
-  margin: -0.25rem -0.75rem 0.1rem -0.25rem;
+  flex-shrink: 0;
   padding: 0.3rem 0.75rem 0.25rem 0.75rem;
   border-bottom: 2px solid transparent;
 }

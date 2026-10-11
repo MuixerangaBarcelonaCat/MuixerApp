@@ -11,9 +11,9 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Scale } from 'lucide-angular';
-import { ButtonComponent, InputComponent, BadgeComponent, NODE_TYPE_PALETTE, THEME_NAMES } from '@muixer/ui';
+import { ButtonComponent, InputComponent, BadgeComponent, NODE_TYPE_PALETTE } from '@muixer/ui';
 import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
-import { buildCanvasTheme } from '../../theme/canvas-theme';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearance, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
 import {
@@ -93,8 +93,6 @@ type TroncFloor = TroncLayoutFloor<TroncNodeItem>;
 
 const MAX_TRONC_Z = 5;
 
-const THEME = buildCanvasTheme();
-
 /** How each panel mode draws its nodes: the template editor shows types, staffing and projection the shared paper tone. */
 const APPEARANCE_MODE: Record<'editor' | 'assignment' | 'projection', NodeAppearanceMode> = {
   editor: 'template',
@@ -116,13 +114,11 @@ function knownCm(height: CumulativeHeight | undefined): number {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, NodeDrawingComponent, ButtonComponent, InputComponent, BadgeComponent],
-  host: { '[attr.data-theme]': 'pinnedTheme' },
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
 export class TroncViewComponent {
-  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
-  protected readonly pinnedTheme = THEME_NAMES.light;
+  private readonly theme = injectCanvasTheme();
 
   // ── Inputs ─────────────────────────────────────────────────────────────────
 
@@ -160,10 +156,10 @@ export class TroncViewComponent {
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
-  /** Projection mode only: figure name shown as a header inside the panel. */
+  /** The figure name heading the panel, in any mode; `null` draws no heading (the template editor). */
   readonly figureName = input<string | null>(null);
 
-  /** Projection mode only: the band in the figure colour behind the name (`getFigureBand`); `null` leaves plain paper. */
+  /** The band in the figure colour behind the name (`getFigureBand`); `null` leaves plain paper. */
   readonly nameBand = input<FigureBand | null>(null);
 
   // ── Outputs ────────────────────────────────────────────────────────────────
@@ -403,6 +399,9 @@ export class TroncViewComponent {
     const dragOverId = this.dragOverNodeId();
     const phase = this.phase();
     const heightMode = this.heightMode();
+    // Staffing and the projection draw the panel on a tronc card; the template editor on the page.
+    const canvasTheme = this.theme();
+    const theme = mode === 'editor' ? canvasTheme : { ...canvasTheme, paper: canvasTheme.card };
 
     const map = new Map<string, NodeAppearance>();
     for (const node of [...this.troncNodes(), ...this.baseNodes(), ...this.directionNodes()]) {
@@ -432,7 +431,7 @@ export class TroncViewComponent {
             palette: mode === 'editor' ? 'type' : 'neutral',
             mode: APPEARANCE_MODE[mode],
           },
-          THEME,
+          theme,
         ),
       );
     }
@@ -877,12 +876,12 @@ export class TroncViewComponent {
   /** A customized color as it is, else the pencil tone of the node's type; null when neither exists. */
   getNodeColor(node: TroncNodeItem): string | null {
     if (node.color) return node.color;
-    return node.positionType && NODE_TYPE_PALETTE[node.positionType] ? positionTypeColor(node.positionType) : null;
+    return node.positionType && NODE_TYPE_PALETTE[node.positionType] ? positionTypeColor(node.positionType, this.theme().mode) : null;
   }
 
   /** Border/accent colour for a direction flavour, by `positionType`. */
   getDirectionColor(positionType: string | null): string {
-    return positionTypeColor(positionType ?? '');
+    return positionTypeColor(positionType ?? '', this.theme().mode);
   }
 
   getPositionTypeBadge(node: TroncNodeItem): string {
