@@ -28,6 +28,11 @@ export interface ProjectionSegmentData {
     prevSegmentId: string | null;
     nextSegmentId: string | null;
   };
+  /**
+   * The event's day and start time, for the attendance phase. Optional: a payload cached offline
+   * by the PWA before the API sent it has none.
+   */
+  event?: { date: string; startTime: string | null };
   instances: ProjectionInstance[];
   personAttendance: Record<string, AttendanceStatus>;
   hasDistribution: boolean;

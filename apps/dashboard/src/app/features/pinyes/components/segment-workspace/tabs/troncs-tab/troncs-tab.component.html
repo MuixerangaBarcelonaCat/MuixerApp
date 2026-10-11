@@ -1,8 +1,9 @@
 <div class="flex h-full min-h-0">
   <!-- Troncs, wrapping into new rows -->
   <div class="relative flex-1 min-w-0 overflow-y-auto">
-    <!-- Undo/redo -->
+    <!-- Legend, undo/redo -->
     <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+      <app-node-legend [phase]="phase()" palette="neutral" />
       <lib-button
         variant="ghost"
         size="xs"
@@ -76,15 +77,14 @@
               [selectedNodeId]="ws.selectedInstanceId() === figure.instance.instanceId ? state.selectedNodeId() : null"
               mode="assignment"
               [heightMode]="state.heightMode()"
-              [highlightedNodeIds]="highlightedNodeIds()"
+              [highlightedNodeIds]="highlightedNodeIds(figure.instance.instanceId)"
               [attendanceMap]="attendanceMap()"
               [phase]="phase()"
+              [nextPerformanceMap]="state.nextPerformanceRegistry()"
               [personDetailsMap]="personDetailsMap()"
               [personDragEnabled]="!isTouch()"
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
               (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
-              (nodeClicked)="onTroncNodeClicked($event)"
-              (nodeUnassigned)="onTroncNodeUnassigned(figure.instance.instanceId, $event)"
               (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
               (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
               (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"

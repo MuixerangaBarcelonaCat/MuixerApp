@@ -23,6 +23,7 @@ module.exports = {
     // Konva wiring with no meaningful jsdom signal — characterized by the Playwright
     // gesture-audit golden baseline instead (docs/AUDIT_SUITE.md), not a unit spec.
     '!src/lib/components/figure-canvas/figure-canvas.component.ts',
+    '!src/lib/node-render/konva-painter.ts',
   ],
   coverageThreshold: {
     global: {

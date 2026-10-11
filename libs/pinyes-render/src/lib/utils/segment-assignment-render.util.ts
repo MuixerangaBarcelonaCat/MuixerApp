@@ -38,7 +38,8 @@ export interface SegmentRenderNode {
   assignment: AssignmentDetail | null;
   isSelected: boolean;
   isDimmed: boolean;
-  isHighlighted: boolean;
+  /** The node whose person is being moved (right-click / long press). */
+  isMoveSource: boolean;
   /** False for a REMAT marker: drawn only, never a click, hover, drag or drop target. */
   isInteractive: boolean;
 }
@@ -49,7 +50,7 @@ export function buildSegmentRenderNodes(
   assignments: AssignmentDetail[],
   selected: SegmentNodeRef | null,
   dimmedSlotIds: Set<string>,
-  highlightedNodeIds: Set<string>,
+  moveSource: SegmentNodeRef | null,
 ): SegmentRenderNode[] {
   const assignmentByRef = new Map<string, AssignmentDetail>();
   for (const a of assignments) {
@@ -70,7 +71,7 @@ export function buildSegmentRenderNodes(
         assignment: assignmentByRef.get(key) ?? null,
         isSelected: selected?.slotId === slot.slotId && selected?.nodeId === node.id,
         isDimmed,
-        isHighlighted: highlightedNodeIds.has(node.id),
+        isMoveSource: moveSource?.slotId === slot.slotId && moveSource?.nodeId === node.id,
         isInteractive: !isRematMarker(node),
       });
     }
