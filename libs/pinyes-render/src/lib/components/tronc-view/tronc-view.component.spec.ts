@@ -5,6 +5,7 @@ import { By } from '@angular/platform-browser';
 import { ButtonComponent } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
+import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
 function makeNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
@@ -2321,6 +2322,15 @@ describe('TroncViewComponent', () => {
 
     it('draws every node with the shared node drawing', () => {
       expect(fixture.nativeElement.querySelectorAll('.tronc-node app-node-drawing').length).toBe(3);
+    });
+
+    it('seeds each node\'s pen with its id, so every cell keeps its own strokes', () => {
+      const cells = fixture.debugElement.queryAll(By.css('[data-tronc-node-id]'));
+      expect(cells.length).toBe(3);
+      for (const cell of cells) {
+        const drawing = cell.query(By.directive(NodeDrawingComponent)).componentInstance as NodeDrawingComponent;
+        expect(drawing.sketchKey()).toBe(cell.nativeElement.getAttribute('data-tronc-node-id'));
+      }
     });
 
     it('draws every floor in the neutral paper tones while staffing', () => {

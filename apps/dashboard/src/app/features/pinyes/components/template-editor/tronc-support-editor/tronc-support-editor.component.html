@@ -47,7 +47,7 @@
                   [attr.aria-label]="node.label"
                   (click)="onNodeClick(node, $event)"
                 >
-                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" />
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" [sketchKey]="node.id" />
                 </button>
                 @if (!floor.isBase) {
                   <button

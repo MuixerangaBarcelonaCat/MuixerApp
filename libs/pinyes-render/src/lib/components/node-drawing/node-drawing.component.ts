@@ -14,8 +14,8 @@ import { NodeShape } from '@muixer/shared';
 import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { NodeAppearance } from '../../node-render/appearance';
 import { DrawPrimitive, nodeDrawPlan } from '../../node-render/draw-plan';
-import { NodeOutline, nodeOutline } from '../../node-render/outline';
 import { NODE_ICON_PATHS } from '../../node-render/icons';
+import { SketchPath, hashSeed } from '../../node-render/sketch';
 
 /** Width of a text drawn bold at a font size in a font family, for fitting names to a node. */
 export type NameMeasure = (text: string, fontSize: number, fontFamily: string) => number;
@@ -34,24 +34,13 @@ export const NODE_NAME_MEASURE = new InjectionToken<NameMeasure>('NODE_NAME_MEAS
   },
 });
 
-/** Hatching for a pending node, as a Phase 2 stand-in for rough.js: lines 6 apart at −41°, as on the canvas. */
-const HATCH_GAP = 6;
-const HATCH_WEIGHT = 1;
-const HATCH_ANGLE = -41;
-
-let nextDrawingId = 0;
-
-type ShapeItem = {
-  kind: 'shape';
-  outline: NodeOutline;
-  points: string;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-  dash: string | null;
+/** Pen-drawn paths (`SketchPath`): a node's fill and outline, the conflict loop, the sticker. */
+type SketchItem = {
+  kind: 'sketch';
+  paths: { role: string; d: string; fill: string; stroke: string; strokeWidth: number; dash: string | null }[];
 };
 type IconItem = Extract<DrawPrimitive, { kind: 'icon' }> & { transform: string; paths: string[]; scale: number };
-type Item = ShapeItem | IconItem | Exclude<DrawPrimitive, { kind: 'shape' } | { kind: 'icon' }>;
+type Item = SketchItem | IconItem | Exclude<DrawPrimitive, { kind: 'shape' } | { kind: 'loop' } | { kind: 'icon' }>;
 
 /**
  * SVG side of the node renderer: fills its (positioned) parent and paints the node draw plan
@@ -77,19 +66,6 @@ type Item = ShapeItem | IconItem | Exclude<DrawPrimitive, { kind: 'shape' } | { 
         focusable="false"
         style="display: block"
       >
-        @if (v.hatch) {
-          <defs>
-            <pattern
-              [attr.id]="hatchId"
-              patternUnits="userSpaceOnUse"
-              [attr.width]="hatchGap"
-              [attr.height]="hatchGap"
-              [attr.patternTransform]="hatchTransform"
-            >
-              <rect [attr.y]="(hatchGap - hatchWeight) / 2" [attr.width]="hatchGap" [attr.height]="hatchWeight" [attr.fill]="v.hatch" />
-            </pattern>
-          </defs>
-        }
         <ng-container *ngTemplateOutlet="primitives; context: { $implicit: v.items, v }" />
       </svg>
       <!-- What reaches past the cell (the conflict loop, the sticker, the move badge). Positioned
@@ -115,48 +91,19 @@ type Item = ShapeItem | IconItem | Exclude<DrawPrimitive, { kind: 'shape' } | { 
       <svg:g>
   @for (item of items; track $index) {
         @switch (item.kind) {
-          @case ('shape') {
-            @switch (item.outline.kind) {
-              @case ('rect') {
-                <rect
-                  data-role="outline"
-                  [attr.x]="-v.width / 2"
-                  [attr.y]="-v.height / 2"
-                  [attr.width]="v.width"
-                  [attr.height]="v.height"
-                  [attr.rx]="$any(item.outline).cornerRadius"
-                  [attr.fill]="item.fill"
-                  [attr.stroke]="item.stroke"
-                  [attr.stroke-width]="item.strokeWidth"
-                  [attr.stroke-dasharray]="item.dash"
-                />
-              }
-              @case ('ellipse') {
-                <ellipse
-                  data-role="outline"
-                  [attr.rx]="$any(item.outline).radiusX"
-                  [attr.ry]="$any(item.outline).radiusY"
-                  [attr.fill]="item.fill"
-                  [attr.stroke]="item.stroke"
-                  [attr.stroke-width]="item.strokeWidth"
-                  [attr.stroke-dasharray]="item.dash"
-                />
-              }
-              @case ('polygon') {
-                <polygon
-                  data-role="outline"
-                  [attr.points]="item.points"
-                  [attr.fill]="item.fill"
-                  [attr.stroke]="item.stroke"
-                  [attr.stroke-width]="item.strokeWidth"
-                  [attr.stroke-dasharray]="item.dash"
-                  stroke-linejoin="round"
-                />
-              }
+          @case ('sketch') {
+            @for (path of item.paths; track $index) {
+              <path
+                [attr.data-role]="path.role"
+                [attr.d]="path.d"
+                [attr.fill]="path.fill"
+                [attr.stroke]="path.stroke"
+                [attr.stroke-width]="path.strokeWidth"
+                [attr.stroke-dasharray]="path.dash"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             }
-          }
-          @case ('loop') {
-            <ellipse data-role="loop" [attr.rx]="item.radiusX" [attr.ry]="item.radiusY" fill="none" [attr.stroke]="item.color" [attr.stroke-width]="item.width" />
           }
           @case ('text') {
             @if (item.wrap) {
@@ -225,11 +172,8 @@ type Item = ShapeItem | IconItem | Exclude<DrawPrimitive, { kind: 'shape' } | { 
 export class NodeDrawingComponent {
   readonly appearance = input.required<NodeAppearance>();
   readonly shape = input<string>(NodeShape.RECTANGLE);
-
-  protected readonly hatchId = `node-hatch-${nextDrawingId++}`;
-  protected readonly hatchGap = HATCH_GAP;
-  protected readonly hatchWeight = HATCH_WEIGHT;
-  protected readonly hatchTransform = `rotate(${HATCH_ANGLE})`;
+  /** Seeds the pen: the node's id, so its strokes stay the same from one render to the next. */
+  readonly sketchKey = input<string>('');
 
   private readonly measure = inject(NODE_NAME_MEASURE);
   private readonly theme = injectCanvasTheme();
@@ -239,13 +183,12 @@ export class NodeDrawingComponent {
     const size = this.size();
     if (!size) return null;
     const { width, height } = size;
-    const plan = nodeDrawPlan(this.appearance(), { width, height, shape: this.shape() }, this.theme(), this.measure);
-    const hatch = plan.find((p) => p.kind === 'shape' && p.fill.style === 'hatch');
+    const seed = hashSeed(this.sketchKey());
+    const plan = nodeDrawPlan(this.appearance(), { width, height, shape: this.shape(), seed }, this.theme(), this.measure);
     return {
       width,
       height,
       viewBox: `${-width / 2} ${-height / 2} ${width} ${height}`,
-      hatch: hatch?.kind === 'shape' && hatch.fill.style === 'hatch' ? hatch.fill.color : null,
       items: plan.filter((p) => !p.raised).map((p) => this.toItem(p)),
       raised: plan.filter((p) => p.raised).map((p) => this.toItem(p)),
     };
@@ -262,18 +205,9 @@ export class NodeDrawingComponent {
   }
 
   private toItem(p: DrawPrimitive): Item {
-    if (p.kind === 'shape') {
-      const outline = nodeOutline(p.shape, p.width, p.height);
-      return {
-        kind: 'shape',
-        outline,
-        points: outline.kind === 'polygon' ? outline.points.join(' ') : '',
-        fill: p.fill.style === 'none' ? 'none' : p.fill.style === 'hatch' ? `url(#${this.hatchId})` : p.fill.color,
-        stroke: p.stroke,
-        strokeWidth: p.strokeWidth,
-        dash: p.dash ? p.dash.join(' ') : null,
-      };
-    }
+    if (p.kind === 'shape') return sketchItem(p.sketch);
+    if (p.kind === 'loop') return sketchItem(p.sketch, 'loop');
+    if (p.kind === 'disc' && p.sketch) return sketchItem(p.sketch, 'sticker');
     if (p.kind === 'icon') {
       const scale = p.size / 24;
       return {
@@ -285,4 +219,19 @@ export class NodeDrawingComponent {
     }
     return p;
   }
+}
+
+/** SVG attributes for pen-drawn paths; `role` replaces a path's own (fill/outline) when the whole sketch is one mark. */
+function sketchItem(sketch: SketchPath[], role?: string): SketchItem {
+  return {
+    kind: 'sketch',
+    paths: sketch.map((path) => ({
+      role: role ?? path.role,
+      d: path.d,
+      fill: path.fill ?? 'none',
+      stroke: path.stroke ?? 'none',
+      strokeWidth: path.strokeWidth,
+      dash: path.dash ? path.dash.join(' ') : null,
+    })),
+  };
 }

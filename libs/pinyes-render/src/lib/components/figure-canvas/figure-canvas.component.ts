@@ -5,6 +5,7 @@ import {
   ViewChild,
   AfterViewInit,
   OnDestroy,
+  computed,
   effect,
   input,
   output,
@@ -35,6 +36,9 @@ import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
 import { nodeDrawPlan } from '../../node-render/draw-plan';
 import { loadCanvasFonts } from '../../node-render/fonts';
+import { hashSeed } from '../../node-render/sketch';
+import { dotGrid } from '../../utils/dot-grid.util';
+import { paperGrain } from '../../theme/paper-grain';
 import { createNodeShape, drawFigureLink, drawIcon, drawNodePlan, measureText } from '../../node-render/konva-painter';
 import { FigureLink } from '../../utils/figure-link.util';
 import {
@@ -123,10 +127,13 @@ const ZOOM_MAX = 5;
   imports: [FormsModule, PersonHoverCardComponent],
   templateUrl: './figure-canvas.component.html',
   styleUrl: './figure-canvas.component.scss',
+  // The paper's grain, painted by the wrapper (CSS, under the Konva stage).
+  host: { '[style.--paper-grain]': 'paperGrain()' },
 })
 export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   /** The canvas colours for the theme on screen; a change redraws everything. */
   private readonly theme = injectCanvasTheme();
+  protected readonly paperGrain = computed(() => paperGrain(this.theme().mode));
 
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
 
@@ -994,9 +1001,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Draws grid lines covering the currently visible world-space rect (derived from the stage's
-   * pan/zoom transform), so the grid always fills the viewport instead of being anchored to a
-   * fixed area around world (0,0).
+   * Draws the dot grid (`dotGrid`) over the currently visible world-space rect (derived from the
+   * stage's pan/zoom transform), so the paper always fills the viewport instead of being anchored
+   * to a fixed area around world (0,0). One shape for every dot: this runs on every pan frame.
    */
   private renderGrid(): void {
     // Nothing to erase or draw (e.g. projection, `[gridEnabled]="false"`): skip the redraw.
@@ -1008,48 +1015,30 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const spacing = this.gridSpacing();
     const scale = this.stage.scaleX() || 1;
-    const width = this.stage.width();
-    const height = this.stage.height();
+    const left = -this.stage.x() / scale;
+    const top = -this.stage.y() / scale;
+    const view = { left, top, right: left + this.stage.width() / scale, bottom: top + this.stage.height() / scale };
+    const { xs, ys, radius } = dotGrid(view, this.gridSpacing(), scale);
 
-    const worldLeft = -this.stage.x() / scale;
-    const worldTop = -this.stage.y() / scale;
-    const worldRight = worldLeft + width / scale;
-    const worldBottom = worldTop + height / scale;
-
-    const startCol = Math.floor(worldLeft / spacing) - 1;
-    const endCol = Math.ceil(worldRight / spacing) + 1;
-    const startRow = Math.floor(worldTop / spacing) - 1;
-    const endRow = Math.ceil(worldBottom / spacing) + 1;
-
-    const top = startRow * spacing;
-    const bottom = endRow * spacing;
-    const left = startCol * spacing;
-    const right = endCol * spacing;
-
-    for (let i = startCol; i <= endCol; i++) {
-      const x = i * spacing;
-      this.gridLayer.add(
-        new Konva.Line({
-          points: [x, top, x, bottom],
-          stroke: this.theme().crease,
-          strokeWidth: 1,
-          listening: false,
-        }),
-      );
-    }
-    for (let j = startRow; j <= endRow; j++) {
-      const y = j * spacing;
-      this.gridLayer.add(
-        new Konva.Line({
-          points: [left, y, right, y],
-          stroke: this.theme().crease,
-          strokeWidth: 1,
-          listening: false,
-        }),
-      );
-    }
+    this.gridLayer.add(
+      new Konva.Shape({
+        listening: false,
+        perfectDrawEnabled: false,
+        sceneFunc: (context) => {
+          const ctx = context._context;
+          ctx.beginPath();
+          for (const x of xs) {
+            for (const y of ys) {
+              ctx.moveTo(x + radius, y);
+              ctx.arc(x, y, radius, 0, Math.PI * 2);
+            }
+          }
+          ctx.fillStyle = this.theme().crease;
+          ctx.fill();
+        },
+      }),
+    );
 
     this.gridLayer.batchDraw();
   }
@@ -1506,21 +1495,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     return handle;
   }
 
-  /** Draws a node into `group` through the shared pipeline (appearance → draw plan → Konva); returns its outline shape. */
   /**
    * Draws a node into `group` through the shared pipeline (appearance → draw plan → Konva); returns
    * its outline shape. What the plan raises (the observation sticker, the move badge) goes into
    * `raisedGroup` when given — a group with the node's own transform on a layer above every node —
-   * so a neighbouring node never covers it.
+   * so a neighbouring node never covers it. The node's id seeds its pen strokes.
    */
   private paintNode(
     group: Konva.Group,
-    node: { width: number; height: number; shape?: string | null },
+    node: { id: string; width: number; height: number; shape?: string | null },
     input: NodeAppearanceInput,
     raisedGroup?: Konva.Group,
   ): Konva.Shape {
     const appearance = resolveNodeAppearance(input, this.theme());
-    const size = { width: node.width, height: node.height, shape: node.shape ?? NodeShape.RECTANGLE };
+    const size = { width: node.width, height: node.height, shape: node.shape ?? NodeShape.RECTANGLE, seed: hashSeed(node.id) };
     const { shape, nodes, raised } = drawNodePlan(nodeDrawPlan(appearance, size, this.theme(), measureText));
     group.add(...nodes);
     if (raised.length > 0) (raisedGroup ?? group).add(...raised);
@@ -2322,10 +2310,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         height,
         cornerRadius: height / 2,
         fill: this.theme().nodeOutline,
-        shadowColor: this.theme().ink,
-        shadowBlur: 8,
-        shadowOpacity: 0.35,
-        shadowOffsetY: 2,
       }),
       text,
     );

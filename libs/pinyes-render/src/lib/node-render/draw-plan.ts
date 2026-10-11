@@ -1,6 +1,8 @@
 import { FONT_FAMILY } from '@muixer/ui';
 import { CanvasTheme } from '../theme/canvas-theme';
 import { NodeAppearance, NodeFill } from './appearance';
+import { nodeOutline } from './outline';
+import { SketchPath, sketchDisc, sketchLoop, sketchShape } from './sketch';
 
 /**
  * Sizes on a figure node, as fractions of the node's height, so a node reads the same at every
@@ -83,6 +85,8 @@ export type DrawPrimitive = (
       stroke: string;
       strokeWidth: number;
       dash: number[] | null;
+      /** The fill and the outline drawn with the pen: what a painter draws. */
+      sketch: SketchPath[];
     }
   | {
       kind: 'text';
@@ -106,9 +110,10 @@ export type DrawPrimitive = (
   | { kind: 'strike'; x1: number; x2: number; y: number; color: string; width: number }
   /** A Lucide icon centred on (x, y), `size` wide; `strokeWidth` is on Lucide's 24-unit grid. */
   | { kind: 'icon'; icon: NodeIcon; x: number; y: number; size: number; color: string; filled: boolean; strokeWidth: number }
-  | { kind: 'disc'; x: number; y: number; radius: number; fill: string; stroke: string | null; strokeWidth: number }
-  /** An ellipse around the node. */
-  | { kind: 'loop'; radiusX: number; radiusY: number; color: string; width: number }
+  /** A clean disc, or, with a `sketch`, a pen-drawn one (the observation sticker). */
+  | { kind: 'disc'; x: number; y: number; radius: number; fill: string; stroke: string | null; strokeWidth: number; sketch?: SketchPath[] }
+  /** An ellipse around the node, drawn with the pen (`sketch`). */
+  | { kind: 'loop'; radiusX: number; radiusY: number; color: string; width: number; sketch: SketchPath[] }
 ) & {
   /**
    * Straddles the node's edge (the observation sticker, the move badge): a painter draws it on a
@@ -116,6 +121,12 @@ export type DrawPrimitive = (
    */
   raised?: true;
 };
+
+/**
+ * How far inside its footprint a standard node's outline is drawn, on each side: about the reach of
+ * the pen's wobble, so two neighbouring nodes never touch. The footprint (clicks, drops, text) stays.
+ */
+export const NODE_SKETCH_INSET = 2;
 
 const NAME_FONT = FONT_FAMILY.legible.join(', ');
 const SANS_FONT = FONT_FAMILY.sans.join(', ');
@@ -127,33 +138,52 @@ const HALO = 0.32;
 /**
  * Lays a node's appearance out as primitives, with the anatomy every view shares: height top-left,
  * observation sticker on the top-right corner, name centred, star bottom-left, conflict icon
- * bottom-right, the move badge on the top edge.
+ * bottom-right, the move badge on the top edge. The outline is drawn `NODE_SKETCH_INSET` inside the
+ * node, and the sticker and the badge sit on that drawn edge.
+ *
+ * Shapes, the conflict loop and the sticker are drawn with the pen (`sketch`), seeded by `size.seed`
+ * (a hash of the node's id), so a node's strokes stay the same from one render to the next.
  *
  * @param measure - the width of `text` drawn bold at `fontSize` in `fontFamily`; the renderer supplies it.
  */
 export function nodeDrawPlan(
   appearance: NodeAppearance,
-  size: { width: number; height: number; shape: string },
+  size: { width: number; height: number; shape: string; seed?: number },
   theme: CanvasTheme,
   measure: (text: string, fontSize: number, fontFamily: string) => number,
 ): DrawPrimitive[] {
-  const { width: w, height: h } = size;
+  const { width: w, height: h, seed = 1 } = size;
   const lineScale = Math.min(1, h / REFERENCE_HEIGHT);
+  const inset = NODE_SKETCH_INSET * lineScale;
+  const outline = {
+    fill: appearance.fill,
+    stroke: appearance.outline.color,
+    strokeWidth: appearance.outline.width * lineScale,
+    dash: appearance.outline.dash,
+  };
   const plan: DrawPrimitive[] = [
     {
       kind: 'shape',
       shape: size.shape,
       width: w,
       height: h,
-      fill: appearance.fill,
-      stroke: appearance.outline.color,
-      strokeWidth: appearance.outline.width * lineScale,
-      dash: appearance.outline.dash,
+      ...outline,
+      sketch: sketchShape(nodeOutline(size.shape, w - 2 * inset, h - 2 * inset), outline, seed),
     },
   ];
 
   if (appearance.conflictLoop) {
-    plan.push({ kind: 'loop', radiusX: (w + 22) / 2, radiusY: (h + 24) / 2, color: theme.danger, width: 2 * lineScale, raised: true });
+    // Close around the node and thin: it marks the node without shouting over its neighbours.
+    const [radiusX, radiusY, width] = [(w + 14) / 2, (h + 16) / 2, 1.4 * lineScale];
+    plan.push({
+      kind: 'loop',
+      radiusX,
+      radiusY,
+      color: theme.danger,
+      width,
+      raised: true,
+      sketch: sketchLoop(radiusX, radiusY, theme.danger, width, seed + 6),
+    });
   }
 
   const { text } = appearance;
@@ -284,9 +314,10 @@ export function nodeDrawPlan(
 
   if (appearance.observation) {
     const r = h * NODE_TEXT_SCALE.stickerRadius;
-    const x = w / 2 - r * 0.95;
-    const y = -h / 2 + r * 0.12;
-    plan.push({ kind: 'disc', x, y, radius: r, fill: theme.sticker, stroke: theme.stickerEdge, strokeWidth: 1, raised: true });
+    const x = w / 2 - inset - r * 0.95;
+    const y = -h / 2 + inset + r * 0.12;
+    const sticker = { x, y, radius: r, fill: theme.sticker, stroke: theme.stickerEdge, strokeWidth: 1 };
+    plan.push({ kind: 'disc', ...sticker, raised: true, sketch: sketchDisc(sticker, seed + 3) });
     const emoji = appearance.observation.emoji;
     if (emoji) {
       const fontSize = r * NODE_TEXT_SCALE.stickerEmoji;
@@ -314,7 +345,7 @@ export function nodeDrawPlan(
 
   if (appearance.moveBadge) {
     const r = h * NODE_TEXT_SCALE.moveBadge;
-    const y = -h / 2 - 1;
+    const y = -h / 2 + inset - 1;
     plan.push({ kind: 'disc', x: 0, y, radius: r, fill: theme.focus, stroke: null, strokeWidth: 0, raised: true });
     plan.push({ kind: 'icon', icon: 'move', x: 0, y, size: r * 1.35, color: theme.onInk, filled: false, strokeWidth: 2.6, raised: true });
   }

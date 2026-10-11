@@ -95,7 +95,7 @@
                   [attr.aria-label]="getNodeAriaLabel(dirNode)"
                   [attr.aria-pressed]="isSelected(dirNode.id)"
                 >
-                  <app-node-drawing [appearance]="appearanceByNodeId().get(dirNode.id)!" />
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(dirNode.id)!" [sketchKey]="dirNode.id" />
                 </button>
                 @if (!isAssigned(dirNode.id)) {
                   <button
@@ -205,7 +205,7 @@
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
-                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" />
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" [sketchKey]="node.id" />
                 </button>
               </div>
             }
@@ -233,7 +233,7 @@
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
-                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" />
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" [sketchKey]="node.id" />
                   @if (mode() === 'editor' && getPositionTypeBadge(node)) {
                     <span class="type-badge" [style.color]="getNodeColor(node)" aria-hidden="true">
                       {{ getPositionTypeBadge(node) }}

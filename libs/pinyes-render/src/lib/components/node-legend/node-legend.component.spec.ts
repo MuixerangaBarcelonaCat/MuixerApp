@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ButtonComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
-import { NODE_NAME_MEASURE } from '../node-drawing/node-drawing.component';
+import { NODE_NAME_MEASURE, NodeDrawingComponent } from '../node-drawing/node-drawing.component';
 import { NodeLegendComponent } from './node-legend.component';
 
 describe('NodeLegendComponent', () => {
@@ -76,6 +76,16 @@ describe('NodeLegendComponent', () => {
     const rows = panel()!.querySelectorAll('li');
     expect(rows.length).toBe(9);
     rows.forEach((row) => expect(row.querySelector('app-node-drawing')).not.toBeNull());
+  });
+
+  it('gives each sample a pen of its own, so they don\'t all wobble alike', () => {
+    const { fixture, toggle } = setup();
+    toggle();
+    const keys = fixture.debugElement
+      .queryAll(By.directive(NodeDrawingComponent))
+      .map((d) => (d.componentInstance as NodeDrawingComponent).sketchKey());
+    expect(keys.length).toBe(9);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('draws its samples in the palette of the view: type colors on the pinya, paper on the tronc', () => {
