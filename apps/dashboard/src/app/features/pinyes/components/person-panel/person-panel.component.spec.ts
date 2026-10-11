@@ -20,6 +20,7 @@ const makeAvailablePerson = (
   name: 'Pere',
   firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
+  gender: null,
   isXicalla: false,
   notes: null,
   notesEmoji: null,

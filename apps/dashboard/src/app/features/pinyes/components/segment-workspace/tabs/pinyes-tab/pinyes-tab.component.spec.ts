@@ -162,6 +162,7 @@ const makePerson = (id: string): AvailablePerson => ({
   name: 'Nom',
   firstSurname: 'Cognom',
   shoulderHeight: null,
+  gender: null,
   isXicalla: false,
   notes: null,
   notesEmoji: null,
