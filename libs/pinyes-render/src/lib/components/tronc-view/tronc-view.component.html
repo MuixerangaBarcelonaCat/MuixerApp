@@ -68,12 +68,8 @@
                 <button
                   type="button"
                   class="tronc-node direction-node"
-                  [class.selected]="isSelected(dirNode.id)"
-                  [class.assigned]="isAssigned(dirNode.id)"
+                  [class.conflict]="isConflict(dirNode.id)"
                   [class.dragging]="isDragging(dirNode.id)"
-                  [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
-                  [class.drag-over-move]="isDragOverMove(dirNode.id)"
-                  [style.border-left-color]="getDirectionColor(dirNode.positionType)"
                   [attr.data-tronc-node-id]="dirNode.id"
                   [attr.data-instance-id]="instanceId()"
                   [attr.data-draggable]="isDraggableNode(dirNode.id) ? '' : null"
@@ -88,25 +84,7 @@
                   [attr.aria-label]="getNodeAriaLabel(dirNode)"
                   [attr.aria-pressed]="isSelected(dirNode.id)"
                 >
-                  @if (getAssignment(dirNode.id); as assignment) {
-                    <span class="alias-row">
-                      <span class="person-alias">{{ assignment.person.alias }}</span>
-                      @if (getNotes(assignment); as notes) {
-                        @if (getNotesEmoji(assignment); as emoji) {
-                          <span class="notes-emoji leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
-                        } @else {
-                          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
-                        }
-                      }
-                    </span>
-                    <span
-                      class="attendance-dot"
-                      [style.background-color]="getAttendanceColor(assignment)"
-                      aria-hidden="true"
-                    ></span>
-                  } @else {
-                    <span class="node-label text-base-content/40">Sense assignar</span>
-                  }
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(dirNode.id)!" />
                 </button>
                 @if (!isAssigned(dirNode.id)) {
                   <button
@@ -205,17 +183,10 @@
                 <button
                   type="button"
                   class="tronc-node"
-                  [class.selected]="isSelected(node.id)"
-                  [class.assigned]="isAssigned(node.id)"
                   [class.conflict]="isConflict(node.id)"
-                  [class.highlighted]="isHighlighted(node.id)"
                   [class.support-focus]="isSupportFocused(node.id)"
                   [class.support-focus-error]="isSupportFocusError(node.id)"
-                  [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
                   [class.dragging]="isDragging(node.id)"
-                  [class.drag-over-swap]="isDragOverSwap(node.id)"
-                  [class.drag-over-move]="isDragOverMove(node.id)"
-                  [style.border-left-color]="mode() !== 'editor' ? (getNodeColor(node) ?? getZLevelColor(node.z)) : null"
                   [attr.data-tronc-node-id]="node.id"
                   [attr.data-instance-id]="instanceId()"
                   [attr.data-draggable]="isDraggableNode(node.id) ? '' : null"
@@ -230,38 +201,7 @@
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
-                  @if (getAssignment(node.id); as assignment) {
-                    @if (mode() !== 'projection') {
-                      <span class="height-badge" aria-hidden="true">
-                        {{ getHeightDisplay(assignment.person.shoulderHeight) }}
-                      </span>
-                    }
-                    <span class="alias-row">
-                      <span
-                        class="person-alias"
-                        [class.text-base]="mode() === 'projection'"
-                        appFitText
-                        [fitTextEnabled]="mode() === 'projection'"
-                        [fitTextValue]="displayAlias(node, assignment)"
-                      >{{ displayAlias(node, assignment) }}</span>
-                      @if (mode() !== 'projection' && getNotes(assignment); as notes) {
-                        @if (getNotesEmoji(assignment); as emoji) {
-                          <span class="notes-emoji leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
-                        } @else {
-                          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
-                        }
-                      }
-                    </span>
-                    @if (mode() !== 'projection') {
-                      <span
-                        class="attendance-dot"
-                        [style.background-color]="getAttendanceColor(assignment)"
-                        aria-hidden="true"
-                      ></span>
-                    }
-                  } @else {
-                    <span class="node-label">{{ displayLabel(node) }}</span>
-                  }
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" />
                 </button>
               </div>
             }
@@ -271,18 +211,10 @@
                 <button
                   type="button"
                   class="tronc-node"
-                  [class.selected]="isSelected(node.id)"
-                  [class.assigned]="isAssigned(node.id)"
                   [class.conflict]="isConflict(node.id)"
-                  [class.highlighted]="isHighlighted(node.id)"
                   [class.support-focus]="isSupportFocused(node.id)"
                   [class.support-focus-error]="isSupportFocusError(node.id)"
-                  [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
-                  [class.type-colored]="mode() === 'editor' && !!getNodeColor(node)"
                   [class.dragging]="isDragging(node.id)"
-                  [class.drag-over-swap]="isDragOverSwap(node.id)"
-                  [class.drag-over-move]="isDragOverMove(node.id)"
-                  [style.border-left-color]="getNodeColor(node) ?? (mode() !== 'editor' ? getZLevelColor(node.z) : null)"
                   [attr.data-tronc-node-id]="node.id"
                   [attr.data-instance-id]="instanceId()"
                   [attr.data-draggable]="isDraggableNode(node.id) ? '' : null"
@@ -297,42 +229,11 @@
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" />
                   @if (mode() === 'editor' && getPositionTypeBadge(node)) {
                     <span class="type-badge" [style.color]="getNodeColor(node)" aria-hidden="true">
                       {{ getPositionTypeBadge(node) }}
                     </span>
-                  }
-                  @if (getAssignment(node.id); as assignment) {
-                    @if (mode() !== 'projection') {
-                      <span class="height-badge" aria-hidden="true">
-                        {{ getHeightDisplay(assignment.person.shoulderHeight) }}
-                      </span>
-                    }
-                    <span class="alias-row">
-                      <span
-                        class="person-alias"
-                        [class.text-base]="mode() === 'projection'"
-                        appFitText
-                        [fitTextEnabled]="mode() === 'projection'"
-                        [fitTextValue]="displayAlias(node, assignment)"
-                      >{{ displayAlias(node, assignment) }}</span>
-                      @if (mode() !== 'projection' && getNotes(assignment); as notes) {
-                        @if (getNotesEmoji(assignment); as emoji) {
-                          <span class="notes-emoji leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
-                        } @else {
-                          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
-                        }
-                      }
-                    </span>
-                    @if (mode() !== 'projection') {
-                      <span
-                        class="attendance-dot"
-                        [style.background-color]="getAttendanceColor(assignment)"
-                        aria-hidden="true"
-                      ></span>
-                    }
-                  } @else {
-                    <span class="node-label">{{ displayLabel(node) }}</span>
                   }
                 </button>
               </div>

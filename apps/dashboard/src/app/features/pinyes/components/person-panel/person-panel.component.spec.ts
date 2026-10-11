@@ -668,6 +668,15 @@ describe('PersonPanelComponent', () => {
       expect(fixture.nativeElement.innerHTML).not.toContain('🎭');
     });
 
+    it('fills the actuació star, like the one on the canvas nodes', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', { nextPerformanceStatus: 'ANIRE' });
+      component.persons.set([person]);
+      fixture.detectChanges();
+      const marks = [...fixture.nativeElement.querySelectorAll('[aria-label="Vindrà a la propera actuació"]')] as HTMLElement[];
+      expect(marks.length).toBeGreaterThan(0);
+      for (const mark of marks) expect(mark.classList).toContain('fill-current');
+    });
+
     it('formatHeight returns relative height string when heightMode is relative', () => {
       fixture.componentRef.setInput('heightMode', 'relative');
       const person = makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 142 });

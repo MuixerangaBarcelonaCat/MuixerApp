@@ -8,8 +8,9 @@
       </div>
     }
 
-    <!-- Undo/redo -->
+    <!-- Legend, undo/redo -->
     <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+      <app-node-legend [phase]="phase()" />
       <lib-button
         variant="ghost"
         size="xs"
@@ -52,7 +53,7 @@
       [attendanceMap]="attendanceMap()"
       [nextPerformanceMap]="nextPerformanceMap()"
       [personDetailsMap]="personDetailsMap()"
-      [highlightedNodeIds]="highlightedNodeIds()"
+      [moveSourceNode]="moveSourceNode()"
       [phase]="phase()"
       [personDragEnabled]="!isTouch()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"

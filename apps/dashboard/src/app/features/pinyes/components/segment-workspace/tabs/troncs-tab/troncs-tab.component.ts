@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, figureCardTint, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, figureCardTint, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
@@ -34,11 +34,14 @@ interface TroncFigure {
  * Troncs tab of the segment workspace: one tronc-view per figure that has a
  * tronc, side by side, with a single shared person panel.
  */
+/** Shared empty set, so an unmarked tronc view keeps the same input between change detections. */
+const NO_NODES = new Set<string>();
+
 @Component({
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet, ThemeScopeDirective],
+  imports: [NodeLegendComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet, ThemeScopeDirective],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -189,11 +192,18 @@ export class TroncsTabComponent implements OnInit {
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
-  /** Marks the node whose person is being moved (right-click / long-press), if any. */
-  readonly highlightedNodeIds = computed(() => {
+  /**
+   * Marks the node whose person is being moved (right-click / long-press), if any — in its own
+   * figure only: pre-snapshot copies of one template share node ids.
+   */
+  private readonly moveSourceByInstance = computed(() => {
     const moving = this.actions.movingAssignment();
-    return moving ? new Set([moving.node.id]) : new Set<string>();
+    return moving ? new Map([[moving.figureInstanceId, new Set([moving.node.id])]]) : new Map<string, Set<string>>();
   });
+
+  highlightedNodeIds(instanceId: string): Set<string> {
+    return this.moveSourceByInstance().get(instanceId) ?? NO_NODES;
+  }
 
   readonly movingAlias = this.actions.movingAlias;
 
@@ -358,15 +368,6 @@ export class TroncsTabComponent implements OnInit {
   /** Drag-and-drop: a person was dragged from `source` and dropped on `target`. */
   onNodeDropped(source: SegmentNodeRef, target: SegmentNodeRef): void {
     this.actions.drop(source, target);
-  }
-
-  onTroncNodeClicked(_event: { nodeId: string; event: MouseEvent }): void {
-    // Popover positioning is handled elsewhere; the tronc panel shows unassign inline.
-  }
-
-  onTroncNodeUnassigned(instanceId: string, nodeId: string): void {
-    const assignment = this.assignmentFor({ slotId: instanceId, nodeId });
-    if (assignment) this.onUnassign(assignment);
   }
 
   onPersonSelected(person: AvailablePerson): void {

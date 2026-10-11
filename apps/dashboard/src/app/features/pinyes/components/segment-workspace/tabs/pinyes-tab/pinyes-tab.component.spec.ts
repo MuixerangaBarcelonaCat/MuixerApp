@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, isRematMarker } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, isRematMarker, NodeLegendComponent } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -30,7 +30,7 @@ class StubFigureCanvas {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
-  readonly highlightedNodeIds = input<Set<string>>(new Set());
+  readonly moveSourceNode = input<SegmentNodeRef | null>(null);
   readonly gridEnabled = input<boolean>(true);
   readonly phase = input<string>('before');
   readonly personDragEnabled = input<boolean>(true);
@@ -1120,6 +1120,16 @@ describe('PinyesTabComponent', () => {
     });
   });
 
+  it('offers the legend, worded for the event phase', async () => {
+    await setup();
+    fixture.componentRef.setInput('phase', 'started');
+    fixture.detectChanges();
+
+    const legend = fixture.debugElement.query(By.directive(NodeLegendComponent)).componentInstance as NodeLegendComponent;
+    expect(legend.phase()).toBe('started');
+    expect(legend.palette()).toBe('type');
+  });
+
   // ── move mode: right-click a person, then press the destination ───────────────
 
   describe('move mode', () => {
@@ -1166,13 +1176,13 @@ describe('PinyesTabComponent', () => {
         expect(banner()).toBeNull();
       });
 
-      it('marks the node being moved on the canvas, and nothing otherwise', async () => {
+      it('marks the node being moved on the canvas, in its own figure only, and nothing otherwise', async () => {
         await setup({ assignmentsByInstance: placed() });
-        expect([...canvasStub().highlightedNodeIds()]).toEqual([]);
+        expect(canvasStub().moveSourceNode()).toBeNull();
 
         rightClick('n1');
 
-        expect([...canvasStub().highlightedNodeIds()]).toEqual(['n1']);
+        expect(canvasStub().moveSourceNode()).toEqual({ slotId: INST_A, nodeId: 'n1' });
       });
 
       it('drops the current selection', async () => {

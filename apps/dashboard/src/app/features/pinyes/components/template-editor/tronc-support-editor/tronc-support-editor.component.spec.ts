@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
-import { EmptyStateComponent, NODE_TYPE_PALETTE } from '@muixer/ui';
+import { EmptyStateComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE } from '@muixer/ui';
 import { FigureNodeItem } from '@muixer/pinyes-render';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../../testing/lucide-test-provider';
@@ -102,17 +102,38 @@ describe('TroncSupportEditorComponent', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  describe('node colors', () => {
-    it('marks a tronc node with no stored color in the pencil tone of its type', () => {
-      expect(component.nodeColor(T1)).toBe(NODE_TYPE_PALETTE['terça'].pencil);
+  describe('node drawing (shared with the tronc panel)', () => {
+    const appearance = (id: string) => component.appearanceByNodeId().get(id)!;
+
+    beforeEach(() => render());
+
+    it('draws every node with the shared node drawing', () => {
+      expect(qa('.support-node app-node-drawing').length).toBe(5);
     });
 
-    it('marks a customized tronc node in its own color', () => {
-      expect(component.nodeColor({ ...T1, color: '#123456' })).toBe('#123456');
+    it('fills a tronc node with the wash of its type and the base with the neutral paper tone', () => {
+      expect(appearance('t1').fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE['terça'].wash });
+      expect(appearance('b1').fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL.wash });
     });
 
-    it('leaves the base unmarked', () => {
-      expect(component.nodeColor(B1)).toBeNull();
+    it('draws a customized tronc node in its own color', () => {
+      render([S1, S2, { ...T1, color: '#123456' }]);
+      expect(appearance('t1').fill).toEqual({ style: 'solid', color: '#123456' });
+    });
+
+    it('writes the label as typed', () => {
+      expect(appearance('t1').text).toMatchObject({ kind: 'label', value: 'T1', uppercase: false });
+    });
+
+    it('outlines the selected node and the node being connected in ink, the targets dashed', () => {
+      fixture.componentRef.setInput('selectedNodeId', 't1');
+      component.onHandleClick(S2, click());
+      fixture.detectChanges();
+
+      expect(appearance('t1').outline.width).toBe(3.2);
+      expect(appearance('s2').outline.width).toBe(3.2);
+      expect(appearance('b1').outline.dash).toEqual([5, 4]);
+      expect(appearance('s1').outline.dash).toBeNull();
     });
   });
 

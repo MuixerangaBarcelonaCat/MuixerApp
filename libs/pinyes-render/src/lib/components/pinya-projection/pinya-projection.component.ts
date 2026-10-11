@@ -11,10 +11,10 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { THEME_NAMES } from '@muixer/ui';
-import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase } from '@muixer/shared';
+import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase, getEventPhase } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
-import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
+import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { TroncPanelMeasurerComponent, TroncPanelMeasureSpec } from '../tronc-panel-measurer/tronc-panel-measurer.component';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
@@ -76,10 +76,15 @@ export class PinyaProjectionComponent {
   readonly showZoomControls = input<boolean>(true);
 
   /**
-   * Before / on / after the event day, for the attendance colours and hover labels. Defaults to
-   * 'after': a projection has always read attendance as arrivals.
+   * Before / on / after the event day, for the attendance fills and hover labels, from the event
+   * in the payload — the same rule as the workspace. Worked out when the data arrives (each
+   * prev/next fetch). A payload with no event reads attendance as answers: drawing a confirmed
+   * person as a no-show is worse than the reverse.
    */
-  readonly phase = input<EventPhase>('after');
+  readonly phase = computed<EventPhase>(() => {
+    const event = this.data().event;
+    return event ? getEventPhase(event.date, event.startTime) : 'before';
+  });
 
   /**
    * The viewer's own `Person.id` — enables the "you are here" banner. `null` (the default, and
@@ -270,9 +275,16 @@ export class PinyaProjectionComponent {
     () => new Set((this.data().conflicts ?? []).map((c) => c.personId)),
   );
 
-  /** personId → attendanceStatus, derived from the projection response. */
+  /**
+   * personId → attendanceStatus, derived from the projection response. The response only carries
+   * stored answers, and no row means PENDENT: every placed person starts as PENDENT, as the
+   * workspace's roster does, so someone who never answered is drawn pending, not confirmed.
+   */
   readonly attendanceMap = computed(() => {
     const map = new Map<string, AttendanceStatus>();
+    for (const inst of this.data().instances) {
+      for (const a of inst.assignments) map.set(a.person.id, 'PENDENT');
+    }
     const pa = this.data().personAttendance;
     if (pa) {
       for (const [personId, status] of Object.entries(pa)) {
@@ -542,64 +554,6 @@ export class PinyaProjectionComponent {
       const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(inst.sortOrder);
       const borderColor = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : color;
       return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color, borderColor };
-    });
-  });
-
-  /** Canvas-space outlines for each pinya/base node, rendered inside Konva below the node layer. */
-  readonly distributionNodeOutlines = computed((): OutlineBox[] => {
-    const instances = this.effectiveInstances();
-    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
-
-    const singleFigure = this.isSingleFigureSegment();
-
-    return instances.flatMap((inst) => {
-      const color = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : getFigureColor(inst.sortOrder);
-      const projX = inst.projectionX ?? 0;
-      const projY = inst.projectionY ?? 0;
-      const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;
-      const cosA = Math.cos(angleRad);
-      const sinA = Math.sin(angleRad);
-
-      // pivotNodesFor: must match distributionNodes()'s pivot exactly, or the glow is
-      // centered on a different point than the nodes it sits behind.
-      const pinyaBaseNodes = this.visiblePivotNodes(inst);
-      let centerX = 0, centerY = 0;
-      if (pinyaBaseNodes.length > 0) {
-        const mnX = Math.min(...pinyaBaseNodes.map((n) => n.x - n.width / 2));
-        const mxX = Math.max(...pinyaBaseNodes.map((n) => n.x + n.width / 2));
-        const mnY = Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2));
-        const mxY = Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2));
-        centerX = (mnX + mxX) / 2;
-        centerY = (mnY + mxY) / 2;
-      }
-
-      // Decoration and ad-hoc nodes are excluded: this glow is the figure's own per-instance
-      // color, applied uniformly to every occupying node's silhouette — a decoration node keeps
-      // its own independent color (including "sense fons"/null, rendered as a transparent
-      // fill), and an ad-hoc ("extra") node is likewise not part of the figure's own structure,
-      // so painting the figure's color behind either made it look tinted with whichever figure
-      // it happened to sit on.
-      return this.getInstanceProjectionNodes(inst)
-        .filter((node) => node.zone !== FigureZone.DECORATION && !node.isAdHoc)
-        .map((node): OutlineBox => {
-          const relX = node.x - centerX;
-          const relY = node.y - centerY;
-          const rotX = cosA * relX - sinA * relY;
-          const rotY = sinA * relX + cosA * relY;
-          return {
-            x: (projX + rotX) * distScale + offsetX,
-            y: (projY + rotY) * distScale + offsetY,
-            width: node.width * distScale,
-            height: node.height * distScale,
-            rotation: (inst.projectionAngle ?? 0) + (node.rotation ?? 0),
-            color,
-            shape: (node as { shape?: string }).shape ?? 'RECTANGLE',
-          };
-        });
     });
   });
 

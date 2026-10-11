@@ -40,7 +40,6 @@ class FigureCanvasStub {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly phase = input<string>('before');
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
-  readonly outlineBoxes = input<unknown[]>([]);
   readonly showZoomControls = input<boolean>(true);
   readonly flightLanded = output<void>();
   readonly flyToBounds = jest.fn();
@@ -213,11 +212,10 @@ describe('PinyaProjectionComponent', () => {
         { id, sortOrder, projectionX: sortOrder * 400, projectionY: 0 },
       );
 
-    it('colors each figure\'s tronc panel and glow by its sortOrder', () => {
+    it('colors each figure\'s tronc panel by its sortOrder', () => {
       setData(makeSegmentData([figure('a', 0), figure('b', 1)]));
 
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
-      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
     it('keeps a figure\'s own color in the single-figure preview of a multi-figure segment', () => {
@@ -226,14 +224,12 @@ describe('PinyaProjectionComponent', () => {
       fixture.detectChanges();
 
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[1]]);
-      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([FIGURE_PALETTE[1]]);
     });
 
-    it('uses the neutral single-figure colors only when the segment itself has one figure', () => {
+    it('uses the neutral single-figure color only when the segment itself has one figure', () => {
       setData(makeSegmentData([figure('a', 0)]));
 
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([SINGLE_FIGURE_PANEL_COLOR]);
-      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([SINGLE_FIGURE_SHADOW_COLOR]);
     });
   });
 
@@ -255,16 +251,21 @@ describe('PinyaProjectionComponent', () => {
   });
 
   describe('phase', () => {
-    it("defaults to 'after' (a projection reads attendance as arrivals), forwarded to the figure canvas", () => {
-      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
-      expect(canvas.componentInstance.phase()).toBe('after');
+    const canvasPhase = () => fixture.debugElement.query(By.directive(FigureCanvasStub)).componentInstance.phase();
+
+    it('reads attendance as answers before the event day, from the event in the payload', () => {
+      setData(makeSegmentData([], { event: { date: '2999-01-01', startTime: '19:30' } }));
+      expect(canvasPhase()).toBe('before');
     });
 
-    it('forwards the given phase to the figure canvas', () => {
-      fixture.componentRef.setInput('phase', 'day');
-      fixture.detectChanges();
-      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
-      expect(canvas.componentInstance.phase()).toBe('day');
+    it('reads attendance as arrivals once the event is over', () => {
+      setData(makeSegmentData([], { event: { date: '2000-01-01', startTime: '19:30' } }));
+      expect(canvasPhase()).toBe('after');
+    });
+
+    it("falls back to 'before' for a payload with no event (cached offline before it carried one)", () => {
+      setData(makeSegmentData([], { event: undefined }));
+      expect(canvasPhase()).toBe('before');
     });
   });
 
@@ -286,6 +287,18 @@ describe('PinyaProjectionComponent', () => {
     it('returns an empty map when personAttendance is empty', () => {
       setData(makeSegmentData([], { personAttendance: {} }));
       expect(component.attendanceMap().size).toBe(0);
+    });
+
+    it('counts a placed person with no attendance row as PENDENT (no row ≡ PENDENT), like the workspace', () => {
+      const instance = makeInstance([makeNode({ id: 'n1', zone: FigureZone.PINYA })], ['n1']);
+      setData(makeSegmentData([instance], { personAttendance: {} }));
+      expect(component.attendanceMap().get('p1')).toBe('PENDENT');
+    });
+
+    it('keeps the stored answer of a placed person', () => {
+      const instance = makeInstance([makeNode({ id: 'n1', zone: FigureZone.PINYA })], ['n1']);
+      setData(makeSegmentData([instance], { personAttendance: { p1: 'ANIRE' } }));
+      expect(component.attendanceMap().get('p1')).toBe('ANIRE');
     });
   });
 
@@ -817,56 +830,6 @@ describe('PinyaProjectionComponent', () => {
         getFigureTint(0),
         getFigureTint(1),
       ]);
-    });
-  });
-
-  // ── distributionNodeOutlines ─────────────────────────────────────────────────
-
-  describe('distributionNodeOutlines', () => {
-    // Was including DECORATION nodes in the per-figure colored glow — a decoration node keeps
-    // its own independent color (including "sense fons"/null → a transparent fill on the real
-    // node layer), so painting the figure's color as a solid, blurred glow behind it made a
-    // colorless decoration look tinted with whichever figure it sat on.
-    it('excludes DECORATION nodes — they keep their own color, not the figure glow', () => {
-      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0 });
-      const deco = makeNode({
-        id: 'd1',
-        zone: FigureZone.DECORATION,
-        positionType: 'star',
-        x: 50, y: 50, width: 111, height: 222,
-      });
-      setData(makeSegmentData([makeInstance([pinya, deco], ['n1'], { projectionX: 0, projectionY: 0 })]));
-
-      const outlines = component.distributionNodeOutlines();
-      expect(outlines.length).toBe(1);
-      expect(outlines.some((o) => o.width === 111 || o.height === 222)).toBe(false);
-    });
-
-    it('excludes ad-hoc nodes — same treatment as DECORATION, no figure glow behind them', () => {
-      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0 });
-      const extra = makeNode({ id: 'extra', zone: FigureZone.PINYA, x: 50, y: 50, isAdHoc: true });
-      setData(makeSegmentData([makeInstance([pinya, extra], ['n1', 'extra'], { projectionX: 0, projectionY: 0 })]));
-
-      const outlines = component.distributionNodeOutlines();
-
-      expect(outlines.length).toBe(1);
-    });
-
-    it('centers the glow on the same pivot as the nodes themselves, even with an ad-hoc node present', () => {
-      // The ad-hoc node sits far outside the real pinya bbox — if it leaked into this
-      // glow's own pivot calculation (unlike distributionNodes(), which already excludes
-      // it), the glow would render offset from the node it is supposed to sit behind.
-      const pinya = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0, width: 200, height: 100 });
-      const extra = makeNode({
-        id: 'extra', zone: FigureZone.PINYA, x: 900, y: 900, width: 100, height: 100, isAdHoc: true,
-      });
-      setData(makeSegmentData([makeInstance([pinya, extra], ['n1'], { projectionX: 0, projectionY: 0 })]));
-
-      const drawnNode = component.distributionNodes().find((n) => n.id === 'n1')!;
-      const outline = component.distributionNodeOutlines()[0];
-
-      expect(outline.x).toBeCloseTo(drawnNode.x);
-      expect(outline.y).toBeCloseTo(drawnNode.y);
     });
   });
 

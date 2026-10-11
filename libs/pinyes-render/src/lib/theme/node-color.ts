@@ -16,3 +16,11 @@ export function resolveNodeTones(node: { zone: string; positionType: string | nu
 export function positionTypeColor(positionType: string): string {
   return (NODE_TYPE_PALETTE[positionType] ?? NODE_TYPE_NEUTRAL).pencil;
 }
+
+type PaintableNode = { zone: string; positionType: string | null | undefined; color: string | null };
+
+/** A node's fill: the wash of its type, its customized color, or nothing for an uncolored decoration. */
+export function nodeFill(node: PaintableNode): string {
+  if (node.zone === FigureZone.DECORATION) return node.color ?? 'transparent';
+  return resolveNodeTones(node).wash;
+}

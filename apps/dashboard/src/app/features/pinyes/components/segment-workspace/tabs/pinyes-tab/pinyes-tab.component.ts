@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -39,7 +39,7 @@ import {
   selector: 'app-pinyes-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [NodeLegendComponent, 
     LucideAngularModule,
     ButtonComponent,
     ModalComponent,
@@ -111,9 +111,9 @@ export class PinyesTabComponent implements OnInit {
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
   /** Marks the node whose person is being moved (right-click / long-press), if any. */
-  readonly highlightedNodeIds = computed(() => {
+  readonly moveSourceNode = computed<SegmentNodeRef | null>(() => {
     const moving = this.actions.movingAssignment();
-    return moving ? new Set([moving.node.id]) : new Set<string>();
+    return moving ? { slotId: moving.figureInstanceId, nodeId: moving.node.id } : null;
   });
 
   readonly movingAlias = this.actions.movingAlias;

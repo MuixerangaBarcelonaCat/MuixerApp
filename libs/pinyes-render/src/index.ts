@@ -5,8 +5,9 @@ export * from './lib/components/pinya-projection/pinya-projection.component';
 export * from './lib/components/own-position-banner/own-position-banner.component';
 export * from './lib/components/own-position-marker/own-position-marker.component';
 export * from './lib/components/tronc-panel-measurer/tronc-panel-measurer.component';
-
-export * from './lib/directives/fit-text.directive';
+export * from './lib/components/node-legend/node-legend.component';
+export * from './lib/components/node-drawing/node-drawing.component';
+export { type NodeAppearance, resolveNodeAppearance } from './lib/node-render/appearance';
 
 export * from './lib/models/assignment.model';
 export * from './lib/models/figure-template.model';
@@ -16,7 +17,6 @@ export * from './lib/models/segment.model';
 export * from './lib/utils/ghost-clone.util';
 export * from './lib/utils/rengla-coordinates.util';
 export * from './lib/utils/fit-to-bounds.util';
-export * from './lib/utils/fit-font-size.util';
 export * from './lib/utils/assigned-label.util';
 export * from './lib/utils/tronc-size.util';
 export * from './lib/utils/tronc-layout.util';
@@ -31,4 +31,3 @@ export * from './lib/utils/own-position.util';
 
 export * from './lib/theme/canvas-theme';
 export * from './lib/theme/node-color';
-export * from './lib/theme/node-paint';

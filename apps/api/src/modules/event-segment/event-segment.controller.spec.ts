@@ -47,6 +47,7 @@ const mockSegmentService: Partial<EventSegmentService> = {
 
 const mockProjectionData: ProjectionData = {
   segment: { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-next' },
+  event: { date: '2026-10-17', startTime: null },
   instances: [],
   hasDistribution: false,
   personAttendance: {},

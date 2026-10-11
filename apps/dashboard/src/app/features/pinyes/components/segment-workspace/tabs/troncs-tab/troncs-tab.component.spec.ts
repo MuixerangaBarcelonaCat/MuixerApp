@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -39,10 +39,9 @@ class StubTroncView {
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly phase = input<string>('before');
+  readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly nodeSelected = output<string | null>();
-  readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
-  readonly nodeUnassigned = output<string>();
   readonly nodeContextMenu = output<string>();
   readonly nodeDropped = output<{
     sourceInstanceId: string;
@@ -1273,6 +1272,24 @@ describe('TroncsTabComponent', () => {
     });
   });
 
+  it('passes the next-actuació answers to the tronc views, for the star', async () => {
+    await setup();
+    state.nextPerformanceRegistry.set(new Map([['p-1', 'ANIRE']]));
+    fixture.detectChanges();
+
+    expect(troncStubs()[0].nextPerformanceMap().get('p-1')).toBe('ANIRE');
+  });
+
+  it('offers the legend, worded for the event phase and in the paper tone of the tronc', async () => {
+    await setup();
+    fixture.componentRef.setInput('phase', 'started');
+    fixture.detectChanges();
+
+    const legend = fixture.debugElement.query(By.directive(NodeLegendComponent)).componentInstance as NodeLegendComponent;
+    expect(legend.phase()).toBe('started');
+    expect(legend.palette()).toBe('neutral');
+  });
+
   // ── move mode: right-click a person, then press the destination ───────────────
 
   describe('move mode', () => {
@@ -1328,6 +1345,20 @@ describe('TroncsTabComponent', () => {
         rightClick('n1');
 
         expect([...troncStubs()[0].highlightedNodeIds()]).toEqual(['n1']);
+      });
+
+      it('marks the node only in its own figure, not in another copy of the same template', async () => {
+        // Pre-snapshot instances of one template share node ids.
+        await setup({
+          instances: [makeInstance(INST_A), makeInstance(INST_B)],
+          nodesByInstance: { [INST_A]: nodes[INST_A], [INST_B]: nodes[INST_A] },
+          assignmentsByInstance: placed(),
+        });
+
+        rightClick('n1');
+
+        expect([...troncStubs()[0].highlightedNodeIds()]).toEqual(['n1']);
+        expect([...troncStubs()[1].highlightedNodeIds()]).toEqual([]);
       });
 
       it('drops the current selection', async () => {

@@ -3,19 +3,24 @@ import { LucideAngularModule } from 'lucide-angular';
 import { AlertComponent, EmptyStateComponent, THEME_NAMES } from '@muixer/ui';
 import {
   baseNodeGridColumn,
+  buildCanvasTheme,
   FigureNodeItem,
   layoutTroncFloors,
-  resolveNodeTones,
+  NodeAppearance,
+  NodeDrawingComponent,
+  resolveNodeAppearance,
   troncNodeGridColumn,
   troncTotalColumns,
 } from '@muixer/pinyes-render';
-import { FigureZone, isValidStandsOnTarget } from '@muixer/shared';
+import { isValidStandsOnTarget } from '@muixer/shared';
 import { SupportLink } from './tronc-support-editor.model';
 
 /** Height of a floor row. Fixed, so line endpoints can be computed instead of measured. */
 export const ROW_HEIGHT_REM = 2.75;
 /** Vertical room between floors, where the links are drawn. */
 export const FLOOR_GAP_REM = 2.5;
+
+const THEME = buildCanvasTheme();
 
 /** Minimum pointer travel (px) before a press on a handle becomes a drag rather than a click. */
 const DRAG_THRESHOLD_PX = 6;
@@ -47,7 +52,7 @@ interface PendingDrag {
 @Component({
   selector: 'app-tronc-support-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, AlertComponent, EmptyStateComponent],
+  imports: [LucideAngularModule, AlertComponent, EmptyStateComponent, NodeDrawingComponent],
   host: {
     '[attr.data-theme]': 'pinnedTheme',
     '(document:keydown.escape)': 'cancelConnect()',
@@ -172,10 +177,36 @@ export class TroncSupportEditorComponent {
     return row * (ROW_HEIGHT_REM + FLOOR_GAP_REM);
   }
 
-  nodeColor(node: FigureNodeItem): string | null {
-    if (node.zone !== FigureZone.TRONC) return null;
-    return resolveNodeTones(node).pencil;
-  }
+  /**
+   * How every node is drawn (`app-node-drawing`), as in the tronc panel next to it: type colors and
+   * the label as typed. The selected node and the one being connected get the ink outline, the
+   * nodes it can stand on the dashed one.
+   */
+  readonly appearanceByNodeId = computed(() => {
+    const selectedId = this.selectedNodeId();
+    const sourceId = this.connectFrom();
+    const source = this.sourceNode();
+    const map = new Map<string, NodeAppearance>();
+    for (const node of [...this.troncNodes(), ...this.baseNodes()]) {
+      map.set(
+        node.id,
+        resolveNodeAppearance(
+          {
+            zone: node.zone,
+            positionType: node.positionType,
+            color: node.color,
+            label: node.label,
+            person: null,
+            selected: node.id === selectedId || node.id === sourceId,
+            dropTarget: source && isValidStandsOnTarget(source, node) ? 'move' : null,
+            mode: 'template',
+          },
+          THEME,
+        ),
+      );
+    }
+    return map;
+  });
 
   handleDisabled(node: FigureNodeItem): boolean {
     return this.unsupportedFloors().has(node.z);

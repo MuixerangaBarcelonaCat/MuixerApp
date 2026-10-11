@@ -1,6 +1,6 @@
 import { DIRECTION_NODE_PRESETS, FigureZone, PINYA_NODE_PRESETS, TRONC_NODE_PRESETS } from '@muixer/shared';
 import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE } from '@muixer/ui';
-import { positionTypeColor, resolveNodeTones } from './node-color';
+import { nodeFill, positionTypeColor, resolveNodeTones } from './node-color';
 
 describe('resolveNodeTones', () => {
   it('uses the type palette for a node whose color was never customized', () => {
@@ -43,5 +43,24 @@ describe('positionTypeColor', () => {
   it('uses the neutral pencil for the base and for unknown types', () => {
     expect(positionTypeColor('base')).toBe(NODE_TYPE_NEUTRAL.pencil);
     expect(positionTypeColor('unknown')).toBe(NODE_TYPE_NEUTRAL.pencil);
+  });
+});
+
+describe('nodeFill', () => {
+  it('fills a typed node with the wash of its type', () => {
+    expect(nodeFill({ zone: FigureZone.PINYA, positionType: 'mans', color: null })).toBe(NODE_TYPE_PALETTE['mans'].wash);
+  });
+
+  it('fills BASE nodes with the neutral wash', () => {
+    expect(nodeFill({ zone: FigureZone.BASE, positionType: 'base', color: null })).toBe(NODE_TYPE_NEUTRAL.wash);
+  });
+
+  it('fills a customized node with its own color', () => {
+    expect(nodeFill({ zone: FigureZone.PINYA, positionType: 'mans', color: '#123456' })).toBe('#123456');
+  });
+
+  it('leaves a decoration with no color unfilled, and fills one that has a color', () => {
+    expect(nodeFill({ zone: FigureZone.DECORATION, positionType: 'circle', color: null })).toBe('transparent');
+    expect(nodeFill({ zone: FigureZone.DECORATION, positionType: 'circle', color: '#123456' })).toBe('#123456');
   });
 });

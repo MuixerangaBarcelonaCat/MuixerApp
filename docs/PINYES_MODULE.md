@@ -245,7 +245,7 @@ nodes (`duplicate`, `save-from-instance`) en canvi generen ids nous i remapegen 
 | Mètode | Ruta | Descripció |
 |--------|------|-----------|
 | `GET` | `/node-assignments/available-persons` | Membres filtrats per `search`, `height±2`, `isXicalla`, `excludeAssigned`, ordenats per proximitat d'alçada |
-| `GET` | `/node-assignments/next-performance` | Propera `ACTUACIO` (per als assajos, mostra 🎭) |
+| `GET` | `/node-assignments/next-performance` | Propera `ACTUACIO` (per als assajos, mostra ★) |
 
 ### Projecció (`/events/:eventId/segments/:segmentId`)
 
@@ -363,6 +363,35 @@ pendingOperations: signal<PendingOp[]>
 freePersonsCount: computed<number>
 totalConfirmedCount: computed<number>
 ```
+
+### Dibuix dels nodes (canvas i tronc)
+
+Un node es dibuixa igual al canvas de la pinya (Konva) i als panells de tronc (DOM), en quatre passos. Tot el camí viu a `libs/pinyes-render/src/lib/node-render/` (`attendance`, `appearance`, `draw-plan`, `outline`, `icons`, `fonts`, `konva-painter`); els tres primers passos són funcions pures, amb tests:
+
+```
+dades + estat ─▶ resolveNodeAppearance() ─▶ nodeDrawPlan(mida) ─┬─▶ drawNodePlan()        (Konva, canvas)
+                 → NodeAppearance             → DrawPrimitive[]  └─▶ <app-node-drawing>    (SVG, cel·la del tronc)
+attendanceVisual(estat, fase) → confirmed | pending | absent
+```
+
+1. **`attendanceVisual(status, phase)`** (`attendance.ts`): abans de l'hora d'inici, `ANIRE` és confirmat, `PENDENT` pendent i `NO_VAIG` absent; des de l'hora d'inici, `ANIRE` (no ha arribat) és pendent i `PENDENT`/`NO_VAIG` absents. `ASSISTIT` sempre és confirmat, i un estat desconegut també (sense informació no hi ha marca).
+2. **`resolveNodeAppearance(input, theme)`** decideix *què* es veu, sense coordenades. Un canal visual per tipus d'estat:
+   - **Ompliment = assistència.** Confirmat: aiguada sòlida del tipus, contorn de tinta. Pendent: tramat en el to llapis del tipus, el nom amb un halo de paper. Absent: sense ompliment, contorn esvaït i el nom ratllat. Posició buida: contorn llapis i l'etiqueta de la posició en majúscules.
+   - **Contorn = tipus**, o tinta mentre s'actua sobre el node: seleccionat o origen d'un moviment (3,2), destí d'un arrossegament (discontinu). Els nodes extra (`isAdHoc`) sempre són discontinus.
+   - **Conflicte**: un llaç roig al voltant del node i la icona `CircleAlert` (la de conflictes de tota l'app); a la projecció, només la icona.
+   - Modes: `workspace` (totes les insígnies), `projection` (sense alçada ni observació), `template` (editor de plantilles: tots els nodes amb l'aiguada del tipus i l'etiqueta tal com s'ha escrit). `palette: 'neutral'` dibuixa en el to de paper (`NODE_TYPE_NEUTRAL`).
+3. **`nodeDrawPlan(appearance, mida, theme, measure)`** decideix *on*: primitives (`shape`, `text`, `strike`, `icon`, `disc`, `loop`) amb (0, 0) al centre del node. Anatomia: alçada a dalt a l'esquerra, adhesiu d'observació sobre la vora de dalt a la dreta, nom al centre, ★ (ve a la propera actuació) a baix a l'esquerra, icona de conflicte a baix a la dreta, insígnia de moviment al mig de la vora de dalt. Les mides són fraccions de l'alçada del node (`NODE_TEXT_SCALE`). El nom va en Quicksand 700 a una sola mida (0,28 de l'alçada) i es talla amb «…» si no hi cap; a la projecció (`mode: 'projection'`: Previsualitza, la PWA, la previsualització de l'editor) va en Atkinson 700 i s'ajusta entre 0,42 i 0,26 de l'alçada amb `fitNodeName()`. El text d'una decoració segueix la mateixa regla: a la projecció, Atkinson tan gran com hi càpia (fins a 0,45 de l'alçada, partint línies); a la resta, Quicksand a la mida d'un nom en un node estàndard, per gran que siga la decoració. El llaç de conflicte, l'adhesiu d'observació i la insígnia de moviment surten de la vora del node: el pla els marca `raised` i els pintors els posen per damunt de tots els nodes (al canvas, una capa per figura damunt dels nodes; al tronc, un segon `<svg>` posicionat amb `z-index: 1` dins de cada cel·la, que no en té cap, així que queda per damunt del cos de totes les cel·les). Les línies s'aprimen en nodes de menys de 40 d'alçada. La geometria del contorn (`nodeOutline()`) i les icones (`lucidePaths()`, de Lucide) són compartides.
+4. **Pintors**, sense decisions: `drawNodePlan()` (`konva-painter.ts`) crea les formes Konva; `NodeDrawingComponent` (`app-node-drawing`) omple la cel·la del tronc amb un `<svg>` que mesura amb un `ResizeObserver`. El tramat de la fase 2 és un patró pla a −41° (Konva i `<pattern>` SVG); la fase 3 el canviarà per rough.js.
+
+**Canvas.** `FigureCanvasComponent.paintNode()` passa per aquest camí en tots els modes (`segment-assignment`, `readonly`, `editor` en mode `template`, `composition`). L'origen d'un moviment és `moveSourceNode` (`{ slotId, nodeId }`): les còpies d'una mateixa plantilla abans del snapshot comparteixen ids de node. En arrossegar, el node destí es redibuixa com a destí (contorn discontinu) i la píndola de l'arrossegament mostra `ArrowLeftRight` (intercanvi) o `ArrowDown` (moure a un node buit). El canvas espera les fonts (`loadCanvasFonts()`) i redibuixa una vegada quan arriben.
+
+**Tronc.** Cada cel·la continua sent un `<button>` (focus, `aria-label`, arrossegament, targeta de la persona); dins, `app-node-drawing` és decoratiu (`aria-hidden`), i l'`aria-label` diu també l'assistència i el conflicte. En `assignment` i `projection` tots els pisos van en el to de paper; en `editor`, amb els colors del tipus.
+
+**Estructura del tronc.** L'editor de qui va damunt de qui (`TroncSupportEditorComponent`, pestanya Tronc de l'editor de plantilles) també dibuixa els nodes amb `app-node-drawing`, en mode `template`: el node seleccionat i el que s'està connectant amb contorn de tinta, els nodes on pot anar amb contorn discontinu.
+
+**Fase de l'assistència a la projecció.** La projecció (`/events/:eventId/segments/:segmentId/projection` i la de `/me`) retorna `event: { date, startTime }`, i `PinyaProjectionComponent` en calcula la fase amb `getEventPhase()`, la mateixa regla que el workspace. Una resposta sense `event` (guardada a la memòria cau de la PWA abans d'aquest canvi) es llig com a `after`.
+
+**Llegenda.** `NodeLegendComponent` (`app-node-legend`, botó «Llegenda» a les pestanyes Pinyes i Troncs) explica els ompliments amb les paraules de la fase (`attendanceLegend(phase)`) i les marques; cada mostra és un `app-node-drawing`, així que no es pot desfasar del dibuix.
 
 ### PinyesOnboardingModalComponent (P5.5)
 
@@ -496,13 +525,15 @@ Component Angular standalone reutilitzable que renderitza el tronc amb **CSS Gri
 
 **Modes d'operació**:
 - **`editor`**: Controls per editar posició X, amplada, afegir/eliminar nodes, afegir pisos
-- **`assignment`**: Visualització d'assignacions amb àlies, alçada, attendance status i la columna d'alçades acumulades per pis
+- **`assignment`**: Visualització d'assignacions i la columna d'alçades acumulades per pis
+- **`projection`**: Panell compacte de la projecció
+
+Els nodes es dibuixen amb `app-node-drawing`, igual que al canvas — vegeu [Dibuix dels nodes](#dibuix-dels-nodes-canvas-i-tronc).
 
 **Característiques clau**:
 - **Toggle orientació**: P1 dalt (ascendent) ↔ P1 baix (descendent)
 - **Alçades acumulades** (només `assignment`): a la dreta de cada pis, la diferència d'alçada acumulada i els avisos de persones damunt de suports desnivellats — vegeu [Alçades acumulades](#alçades-acumulades)
 - **Grid doblejat intern**: Usa `x*2` i `width*2` internament per suportar 0.5u steps amb CSS Grid (que només accepta enters)
-- **Inline styling per colors**: `[style.color]` i `[style.background-color]` per evitar problemes de CSS specificity
 - **Add floor/node UX**: Botó `+` a la capçalera (pis nou damunt de tot) i botó `+` inline a cada pis (a la fila de bases, afegeix una base). En mode `editor`, un pis buit per davall del superior es continua mostrant (`fillGaps`) per poder tornar-lo a omplir sense eliminar els de damunt
 - **Geometria compartida**: pisos, columnes i grid viuen a `tronc-layout.util.ts` (`layoutTroncFloors`, `troncTotalColumns`, `troncNodeGridColumn`, `baseNodeGridColumn`), que també fa servir l'editor d'estructura del tronc
 - **Columna extra grid**: Dedicada al botó + per evitar line-break quan totes les posicions estan ocupades
@@ -709,7 +740,7 @@ Els `<kbd>←</kbd>` / `<kbd>→</kbd>` del HUD passen de ser decoratius a `<but
 
 #### 6. Ellipsis als noms de nodes Konva
 
-A `FigureCanvasComponent`, els labels en mode projecció/readonly usaven `wrap: 'word'`, cosa que permetia desbordament multilínia sense retallar. Es va canviar a `wrap: 'none'` (posteriorment evolucionat a `fitFontSizeForNode()` per reduir la font abans de truncar).
+A `FigureCanvasComponent`, els labels en mode projecció/readonly usaven `wrap: 'word'`, cosa que permetia desbordament multilínia sense retallar. Es va canviar a `wrap: 'none'` (posteriorment evolucionat a `fitFontSizeForNode()`, i ara a `fitNodeName()`, que redueix la font abans de truncar).
 
 #### 7. Fons configurable (blanc / negre)
 
@@ -872,7 +903,7 @@ En mode projecció, el cursor s'amaga després de 3s d'inactivitat (`cursor-none
 | `projection-view.component.ts/html` | Grid CSS, `viewMode`, panells flotants, HUD |
 | `figure-projection.component.ts/html` | Bases incloses, mode standalone per ruta |
 | `figure-projection.component.spec.ts` | Tests `pinyaNodes` inclou BASE |
-| `figure-canvas.component.ts` | Ellipsis / `fitFontSizeForNode` en mode readonly |
+| `figure-canvas.component.ts` | Ellipsis / ajust de la font en mode readonly (ara `fitNodeName()`) |
 | `segment-canvas.component.ts` | BASE incloses a mini-previews (legacy edit mode) |
 | `pinyes.routes.ts` | Rutes `/project` i `/project/:instanceId` |
 | `assignment-canvas.component.html` | Botó "Projectar" per figura activa |
@@ -1166,7 +1197,8 @@ l'amplada) decideix el layout del workspace (`segment-workspace`):
   comença amb un clic dret sobre una persona col·locada (`contextmenu`: `segmentNodeContextMenu`
   al canvas, `nodeContextMenu` a `tronc-view`) o, en tàctil, amb un toc mantingut sobre ella (pel
   mateix camí, via `LongPressDetector`; en tàctil l'arrossegament de persones està desactivat). Apareix el bàner `app-move-banner` («S'està movent <ÀLIES>», amb una ✕) i el node origen es
-  ressalta amb `highlightedNodeIds`. El següent node premut és el destí: buit → la mou, ocupat →
+  marca amb la insígnia de moviment (`moveSourceNode` al canvas, `highlightedNodeIds` per instància a
+  cada `tronc-view`). El següent node premut és el destí: buit → la mou, ocupat →
   s'intercanvien (inclòs entre figures), reutilitzant `drop()`, així que és el mateix pas de
   desfer que un arrossegament. Cancel·len el mode: prémer fora d'un node, la ✕, Escape, prémer
   el mateix node, o desaparèixer l'assignació (p. ex. en desfer-la). Un node decoratiu es
