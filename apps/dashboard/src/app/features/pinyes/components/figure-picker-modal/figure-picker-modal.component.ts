@@ -7,11 +7,11 @@ import {
   ModalComponent,
   TabsComponent,
   type TabDef,
+  DOMAIN_ICONS,
 } from '@muixer/ui';
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { normalizeForSearch } from '@muixer/shared';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CompositionService } from '../../services/composition.service';

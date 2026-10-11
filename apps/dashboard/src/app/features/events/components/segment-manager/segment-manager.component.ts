@@ -13,7 +13,6 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { DOMAIN_ICONS, ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '../../../../shared/constants/domain-icons';
 import {
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
@@ -29,7 +28,7 @@ import { EventSegmentService } from '../../../pinyes/services/event-segment.serv
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { SegmentFigureAddService } from '../../../pinyes/services/segment-figure-add.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
-import { ToastService, AlertComponent, ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, ModalComponent, InputComponent, SelectComponent } from '@muixer/ui';
+import { ToastService, AlertComponent, ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, ModalComponent, InputComponent, SelectComponent, DOMAIN_ICONS, ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_RENGLA, ICON_DIRECCIO } from '@muixer/ui';
 import {
   FigurePickerModalComponent,
   InstanceSelection,

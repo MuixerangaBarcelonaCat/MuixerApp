@@ -4,8 +4,10 @@ import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { AdHocNodePropertiesComponent } from './ad-hoc-node-properties.component';
+import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
+import { By } from '@angular/platform-browser';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { NODE_TYPE_PALETTE, ToastService } from '@muixer/ui';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem => ({
@@ -41,6 +43,37 @@ describe('AdHocNodePropertiesComponent', () => {
     fixture.componentRef.setInput('node', makeNode());
     fixture.componentRef.setInput('instanceId', 'inst-1');
     fixture.detectChanges();
+  });
+
+  // ── color ──────────────────────────────────────────────────────────────
+
+  describe('color', () => {
+    const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    it('shows the type color in the swatch while the node has no color of its own', () => {
+      fixture.componentRef.setInput('node', makeNode({ positionType: 'comodin', color: null }));
+      fixture.detectChanges();
+      expect(component.colorFallback()).toBe(NODE_TYPE_PALETTE['comodin'].wash);
+      expect(text()).toContain('Color per defecte');
+    });
+
+    it('puts a customized node back on its type color when the color picker resets it', () => {
+      const service = TestBed.inject(NodeAssignmentService) as unknown as { updateAdHocNode: ReturnType<typeof vi.fn> };
+      fixture.componentRef.setInput('node', makeNode({ positionType: 'comodin', color: '#123456' }));
+      fixture.detectChanges();
+      const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
+
+      picker.colorReset.emit();
+
+      expect(service.updateAdHocNode).toHaveBeenCalledWith('inst-1', 'node-1', { color: null });
+    });
+
+    it('says an uncolored decoration has no fill', () => {
+      fixture.componentRef.setInput('node', makeNode({ zone: FigureZone.DECORATION, positionType: 'circle', color: null }));
+      fixture.detectChanges();
+      expect(component.colorFallback()).toBeNull();
+      expect(text()).toContain('Sense fons');
+    });
   });
 
   // ── attendanceBadgeVariant ───────────────────────────────────────────────

@@ -495,7 +495,6 @@ export class TroncsTabComponent implements OnInit {
         width: preset.width,
         height: preset.height,
         shape: preset.shape,
-        color: preset.color ?? undefined,
       })
       .subscribe({
         next: (created) => {

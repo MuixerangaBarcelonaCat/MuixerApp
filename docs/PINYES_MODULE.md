@@ -73,6 +73,7 @@ Cada posició dins d'un template. Camps clau:
 | `positionType` | Tipus semàntic. PINYA: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap`… · DIRECTION: `direccio-tronc`, `direccio-xicalla`, `direccio-pinya` (el «sabor» de la direcció viu al `positionType`, igual que a PINYA) |
 | `ringLevel` | Anell concèntric al qual pertany (1 = primer cordó). `null` per no-pinya i `cordo-obert` |
 | `originNodeId` | ID opcional per traçar llinatge quan es dupliquen o deriven nodes d'un altre template |
+| `color` | Color personalitzat, o `null` si no s'ha personalitzat. Amb `null` el node es pinta amb els colors del seu tipus (`NODE_TYPE_PALETTE` de `@muixer/ui`, resolt amb `resolveNodeTones` de `@muixer/pinyes-render`), de manera que un canvi de paleta arriba a totes les plantilles i instàncies. Cap escriptura no copia el color del preset: ni l'editor de plantilles, ni els nodes ad-hoc, ni el snapshot (que copia el `null`). Els nodes `BASE` sempre es pinten neutres: el seu color no es pot editar |
 | `standsOnNodeIds` | Només `TRONC`: IDs dels nodes `BASE`/`TRONC` del pis just de davall (`z - 1`) sobre els quals va aquesta persona quan la figura està alçada. `uuid[]` sense FK; `[]` a la resta de zones. Vegeu [Estructura del tronc](#estructura-del-tronc-qui-va-damunt-de-qui) |
 
 ### FigureInstance (Instància)
@@ -393,7 +394,7 @@ SegmentWorkspaceComponent inicialitza:
         │
         ▼
 Renderitza canvas Konva:
-  - Nodes buits: color de zona, clickables
+  - Nodes buits: color del tipus (o el personalitzat), clickables
   - Nodes ocupats: foto/alias de persona, popover en click
   - PersonPanel lateral: llista persones filtrades (ANIRE/PENDENT/NO_VAIG)
         │

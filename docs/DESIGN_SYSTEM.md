@@ -121,7 +121,21 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 `CategoricalPalette` in `categorical.ts` — 10 hues for domain data that needs many distinguishable colors at once (tags, figure-node presets), not a small closed set of semantic roles. The first 6 reuse the fixed accent/semantic hues (error/success/info/warning red/green/blue/gold, plus purple and orange); the last 4 (teal, pink, brown, olive) fill genuine gaps in the hue wheel. Light-mode variants close 55% of each color's own lightness gap to the paper at 60% of its chroma (a fixed lightness step clipped the already-light gold and orange to near-white). Every pair of normal colors stays at OKLab ΔE ≥ 10 except gold/orange (≈ 9.3, accepted by eye), and red vs orange stays ≥ 15 — all enforced in `categorical.spec.ts`; dark mode always computes via `tone()` rather than reusing pale light-mode values unmodified (which would read as a glow, not a receding shadow).
 
-**Defined now; not yet consumed anywhere.** Its intended consumer is the Konva canvas (`libs/pinyes-render`) — Tier 5 of the component-library plan, not yet built.
+Consumed by the per-figure colors (`figure-palette.util.ts` in `libs/pinyes-render`) and by the tag and node color pickers' swatches.
+
+### Node-type colors
+
+`NODE_TYPE_PALETTE` in `node-types.ts` — a scheme of its own, separate from the categorical palette, because people already know each position type by its color. Every pinya, tronc and direction `positionType` gets two tones: a light **wash** (L 0.88 / C 0.065) for fills and a stronger **pencil** (L 0.49 / C 0.12) for outlines, hatching and chips. Each type keeps the hue of the preset color it had before the canvas moved to these tokens; near-gray sources (comodí, sisena) keep 35% of the chroma. Agulla takes quinta's purple, since its old teal sat too close to the laterals. The yellows sit higher than the shared levels, because a yellow there reads as beige and brown: mans at wash L 0.91 / C 0.10, pencil L 0.58; cordó obert gets its own lemon, lighter and cooler (hue 104°, wash L 0.95 / C 0.10, pencil L 0.64), so the two stay apart. The cost is a pencil at about 3:1 against the paper instead of the others' 5.6:1. `NODE_TYPE_NEUTRAL` (`PAPER.washiDark` / `CREASE.dark`) is for nodes with no type color: BASE nodes, and later the tronc panel. The approved values are pinned in `node-types.spec.ts`.
+
+A node's stored `color` is `null` unless the user customized it; `resolveNodeTones()` (`libs/pinyes-render`) resolves `null` to the palette at render time, and `positionTypeColor()` gives the pencil tone that stands for a type outside the canvas (tag chips). Node presets in `@muixer/shared` carry no color.
+
+### Canvas theme
+
+Konva can't read CSS variables, so the figure canvas draws with `buildCanvasTheme()` (`libs/pinyes-render/src/lib/theme/`): token values by role, all 6-digit hex (Konva and rough.js both parse it). `paper` (background), `crease` (grid), `ink`/`inkMuted`/`inkFaint` (outlines and text), `onInk` (text on ink surfaces), `focus` (the node being acted on — ink, not a colla color), `danger`/`success`/`warning` (the semantic tokens), `neutralNode`. `contentOn(hex)` picks ink or paper by APCA, `withAlpha(hex, a)` gives a translucent fill. DOM pieces that draw on top of the canvas (the rengla overlay) take the same roles. Light only until the canvas gets a dark look (DEBT F19).
+
+### Icons
+
+`DOMAIN_ICONS` (`libs/ui/src/lib/icons/domain-icons.ts`, exported from `@muixer/ui`) is the one Lucide vocabulary for domain concepts in both apps and `libs/pinyes-render`: `ACTUACIO` (Star) for "comes to the next actuació", `XICALLA` (Baby), `BELL`, and so on. Emojis only ever stand for observations (a person's notes emoji); anything else that reads as an icon is a Lucide icon.
 
 ## Component library
 
@@ -362,7 +376,7 @@ The closed control has always been stylable with plain CSS — the *dropdown pan
 **`swatchColor`/`swatchShape`** (single mode only) — a decorative leading dot (`'circle'`, the default, or `'square'`) rendered as `lib-select`'s own overlay, independent of the projected `<option>` content above. Rich `<option>` content (an icon, a swatch) already shows inside the *open* dropdown everywhere, and inside the *closed* control too, but only in browsers supporting `appearance: base-select` — Firefox/Safari fall back to plain option text there, silently dropping it. `swatchColor` renders reliably in the closed control regardless of that support, for a field whose currently-selected color needs to stay visible either way (the template editor's "tipus de posició" picker):
 
 ```html
-<lib-select label="Tipus de posició" [swatchColor]="preset.color" [swatchShape]="preset.shape === NodeShape.ELLIPSE ? 'circle' : 'square'" ...>
+<lib-select label="Tipus de posició" [swatchColor]="typeSwatch(node.zone, node.positionType)" [swatchShape]="preset.shape === NodeShape.ELLIPSE ? 'circle' : 'square'" ...>
   @for (preset of presets; track preset.positionType) {
     <option [value]="preset.positionType">{{ preset.label }}</option>
   }
@@ -642,7 +656,7 @@ DaisyUI paints `background-color: base-100` and `color: base-content` on every `
 
 This doc covers what's shipped: tokens, the `libs/ui` component library (14 components as of writing — `alert`, `badge`, `button`, `button-group`, `card`, `checkbox`, `empty-state`, `form-field`, `input`, `modal`, `select`, `tabs`, `textarea`, `toast`), the live style guide, and the drift check. **Phase 7's page-by-page rollout onto this library is complete for both apps** (7.2 dashboard, 7.3 PWA) — every hand-rolled `.btn`/`.card`/`.badge`/`.modal`/etc. across `apps/dashboard` and `apps/pwa` has had its turn through the per-page checklist (Tier 1/2 primitive swap, Tier 3 restyle, hardcoded-value hunt, typography review, component-API gap flagging); genuine gaps found along the way stayed raw on purpose and are named where they live, not hidden. Not yet built, and not documented here until it lands:
 
-- **Tier 5 (7.3.5)** — pointing the Konva canvas (`libs/pinyes-render`) at these same tokens instead of its own literal values (colors, categorical palette, motion) — `lint:tokens`' single biggest remaining source of findings (`figure-canvas.component.ts` alone). Its own phase, scheduled after the full PWA rollout rather than folded into it.
+- **Tier 5 (7.3.5)** — the canvas overhaul. Its colors are done: `libs/pinyes-render` draws only with the canvas theme and the node-type palette above, and `lint:tokens` reports nothing there. Still to come: the paper look (sketched shapes, fills that carry attendance, one node anatomy shared with the tronc panel), canvas typography (`legible` on names) and motion.
 - **7.4** — ratcheting `lint:tokens` from warn-only to a real failing check, gated on 7.3.5 clearing the canvas findings above.
 
 Full detail on all of the above, plus the reasoning behind every decision already made — [docs/superpowers/specs/2026-08-16-design-system-plan-design.md](superpowers/specs/2026-08-16-design-system-plan-design.md).

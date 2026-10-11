@@ -283,6 +283,16 @@ describe('EventDetailComponent — tabbed sections', () => {
     expect(seasonService.getAll).not.toHaveBeenCalled();
   });
 
+  it('reports a sync that cannot start without an emoji: the error alert already marks it', async () => {
+    const fixture = await setup({ isSynced: true });
+    (TestBed.inject(AuthService) as unknown as { getAccessToken: () => string | null }).getAccessToken = () => null;
+
+    fixture.componentInstance.syncAttendance();
+
+    expect(fixture.componentInstance.syncState()).toBe('error');
+    expect(fixture.componentInstance.syncMessage()).toBe("No s'ha pogut obtenir el token d'autenticació.");
+  });
+
   describe('notes panel', () => {
     it('renders the notes panel above the tabs', async () => {
       const fixture = await setup();

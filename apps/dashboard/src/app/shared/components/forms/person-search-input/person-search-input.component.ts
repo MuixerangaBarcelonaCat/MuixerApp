@@ -10,7 +10,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { BadgeComponent } from '@muixer/ui';
+import { BadgeComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { PersonService } from '../../../../features/persons/services/person.service';
 import { Person } from '../../../../features/persons/models/person.model';
 
@@ -25,6 +25,7 @@ export class PersonSearchInputComponent implements OnDestroy {
   private readonly personService = inject(PersonService);
 
   protected readonly SearchIcon = Search;
+  protected readonly ICON_XICALLA = DOMAIN_ICONS.XICALLA;
 
   placeholder = input('Cerca persona...');
   excludeIds = input<string[]>([]);

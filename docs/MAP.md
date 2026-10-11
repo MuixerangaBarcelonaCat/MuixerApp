@@ -121,7 +121,7 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-10-08 amb `pnpm run docs:map`.
+> Generat el 2026-10-10 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
@@ -139,7 +139,7 @@ graph TD
 | [`mail`](../apps/api/src/modules/mail) | 6 | 146 | — |
 | [`me`](../apps/api/src/modules/me) | 8 | 955 | — |
 | [`news`](../apps/api/src/modules/news) | 6 | 224 | — |
-| [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3619 | [[PINYES_MODULE]] |
+| [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3616 | [[PINYES_MODULE]] |
 | [`person`](../apps/api/src/modules/person) | 12 | 1160 | [[DATA_MODEL]] |
 | [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 528 | [[DATA_MODEL]] |
 | [`push-notification`](../apps/api/src/modules/push-notification) | 28 | 2053 | — |
@@ -148,21 +148,21 @@ graph TD
 | [`tag`](../apps/api/src/modules/tag) | 8 | 321 | [[TAGS]] · [[DATA_MODEL]] |
 | [`user`](../apps/api/src/modules/user) | 12 | 854 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **70** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **72** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`auth`](../apps/dashboard/src/app/features/auth) | 3 | 185 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`communication`](../apps/dashboard/src/app/features/communication) | 14 | 1370 | — |
-| [`config`](../apps/dashboard/src/app/features/config) | 16 | 2525 | [[DASHBOARD_UI]] |
+| [`communication`](../apps/dashboard/src/app/features/communication) | 14 | 1367 | — |
+| [`config`](../apps/dashboard/src/app/features/config) | 17 | 2513 | [[DASHBOARD_UI]] |
 | [`design-system`](../apps/dashboard/src/app/features/design-system) | 6 | 346 | — |
-| [`events`](../apps/dashboard/src/app/features/events) | 21 | 4237 | [[DASHBOARD_UI]] |
-| [`home`](../apps/dashboard/src/app/features/home) | 2 | 115 | [[DASHBOARD_UI]] |
-| [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1622 | [[DASHBOARD_UI]] |
-| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 54 | 10953 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
-| [`sync`](../apps/dashboard/src/app/features/sync) | 2 | 69 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
+| [`events`](../apps/dashboard/src/app/features/events) | 21 | 4234 | [[DASHBOARD_UI]] |
+| [`home`](../apps/dashboard/src/app/features/home) | 2 | 114 | [[DASHBOARD_UI]] |
+| [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1621 | [[DASHBOARD_UI]] |
+| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 54 | 10942 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
+| [`sync`](../apps/dashboard/src/app/features/sync) | 2 | 68 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 
 ### Features de la PWA (`apps/pwa/src/app/features`)
 
@@ -179,7 +179,7 @@ Migracions TypeORM: **70** a [`apps/api/src/migrations`](../apps/api/src/migrati
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
-| [`constants`](../libs/shared/src/constants) | 6 | 267 | — |
+| [`constants`](../libs/shared/src/constants) | 6 | 265 | — |
 | [`enums`](../libs/shared/src/enums) | 25 | 235 | — |
 | [`interfaces`](../libs/shared/src/interfaces) | 24 | 948 | — |
 | [`utils`](../libs/shared/src/utils) | 12 | 738 | — |
@@ -188,12 +188,12 @@ Migracions TypeORM: **70** a [`apps/api/src/migrations`](../apps/api/src/migrati
 
 | Fitxer | Línies |
 |--------|-------:|
-| [`apps/api/src/modules/node-assignment/node-assignment.service.ts`](../apps/api/src/modules/node-assignment/node-assignment.service.ts) | 2287 |
-| [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts) | 1257 |
+| [`apps/api/src/modules/node-assignment/node-assignment.service.ts`](../apps/api/src/modules/node-assignment/node-assignment.service.ts) | 2284 |
+| [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts) | 1261 |
 | [`apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts`](../apps/dashboard/src/app/features/events/components/event-participation/event-participation.component.ts) | 904 |
 | [`apps/api/src/modules/figure/figure-template.service.ts`](../apps/api/src/modules/figure/figure-template.service.ts) | 865 |
-| [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html) | 795 |
-| [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts) | 792 |
+| [`apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html`](../apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html) | 797 |
+| [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts) | 791 |
 | [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html) | 708 |
 | [`apps/api/src/modules/event-segment/figure-instance.service.ts`](../apps/api/src/modules/event-segment/figure-instance.service.ts) | 698 |
 | [`apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.ts`](../apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.ts) | 686 |

@@ -10,11 +10,10 @@ import {
   NotificationTarget,
   NotificationTargetType,
 } from '@muixer/shared';
-import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent, ToastService, DOMAIN_ICONS } from '@muixer/ui';
 import { NotificationService } from '../../services/notification.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { WEEKDAY_NAMES } from '../../utils/weekday-names';
 
 type ActiveFilter = 'pending' | 'all';

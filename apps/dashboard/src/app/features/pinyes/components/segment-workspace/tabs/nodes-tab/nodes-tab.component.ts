@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, SegmentNodeRef, AssignmentDetail, CreateAdHocNodePayload, InstanceNodeItem, UpdateAdHocNodePayload } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, SegmentNodeRef, AssignmentDetail, CreateAdHocNodePayload, InstanceNodeItem, UpdateAdHocNodePayload, nodeFill } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -78,6 +78,11 @@ export class NodesTabComponent implements OnInit {
   readonly adHocPresets = PINYA_NODE_PRESETS;
   readonly decorationPresets = DECORATION_NODE_PRESETS;
   readonly NodeShape = NodeShape;
+
+  /** Swatch for a preset: the fill its nodes get on the canvas. */
+  presetSwatch(preset: NodePreset): string {
+    return nodeFill({ zone: preset.zone, positionType: preset.positionType, color: null });
+  }
 
   // Content equality avoids re-rendering the canvas (and breaking dblclick) on re-selection.
   readonly selectedRef = signal<SegmentNodeRef | null>(null, {
@@ -342,7 +347,6 @@ export class NodesTabComponent implements OnInit {
       width: preset.width,
       height: preset.height,
       shape: preset.shape,
-      color: preset.color ?? undefined,
     };
 
     this.assignmentService.createAdHocNode(instanceId, payload).subscribe({

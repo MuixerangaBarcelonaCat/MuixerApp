@@ -3,11 +3,10 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { NotificationLogEntry, NotificationSource, NotificationTargetType } from '@muixer/shared';
-import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent } from '@muixer/ui';
+import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { NotificationService } from '../../services/notification.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 const SOURCE_LABELS: Record<NotificationSource, string> = {
   [NotificationSource.MANUAL]: 'Manual',

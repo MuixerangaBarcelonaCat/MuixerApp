@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Scale } from 'lucide-angular';
-import { ButtonComponent, InputComponent, BadgeComponent, THEME_NAMES } from '@muixer/ui';
+import { ButtonComponent, InputComponent, BadgeComponent, NODE_TYPE_PALETTE, THEME_NAMES } from '@muixer/ui';
 import {
   analyzeTroncHeights,
   CumulativeHeight,
@@ -34,6 +34,7 @@ import {
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
+import { positionTypeColor } from '../../theme/node-color';
 import { FitTextDirective } from '../../directives/fit-text.directive';
 import { LongPressDetector } from '../../utils/long-press.util';
 import {
@@ -578,7 +579,8 @@ export class TroncViewComponent {
       x: node.x,
       width: node.width,
       positionType: preset.positionType,
-      color: preset.color,
+      // Clears a customized color: the node follows the palette of its new type.
+      color: null,
       ...(isLabelDefault ? { label: preset.label } : {}),
     });
   }
@@ -634,6 +636,7 @@ export class TroncViewComponent {
   // ── Presets exposed to template ──────────────────────────────────────────────
 
   readonly presets = TRONC_NODE_PRESETS;
+  protected readonly positionTypeColor = positionTypeColor;
   readonly Scale = Scale;
 
   // ── Template helpers ───────────────────────────────────────────────────────
@@ -782,8 +785,9 @@ export class TroncViewComponent {
     return `${p.assigned}/${p.total}`;
   }
 
+  /** Pencil tone of a floor's conventional type; neutral for the base and unconventional floors. */
   getZLevelColor(z: number): string {
-    return TRONC_Z_DEFAULTS[z]?.color ?? (z === 0 ? '#607D8B' : '#78909C');
+    return positionTypeColor(TRONC_Z_DEFAULTS[z]?.positionType ?? '');
   }
 
   onUnassignNode(nodeId: string): void {
@@ -860,13 +864,15 @@ export class TroncViewComponent {
     return `${halfCols + 1} / span 2`;
   }
 
+  /** A customized color as it is, else the pencil tone of the node's type; null when neither exists. */
   getNodeColor(node: TroncNodeItem): string | null {
-    return node.color ?? null;
+    if (node.color) return node.color;
+    return node.positionType && NODE_TYPE_PALETTE[node.positionType] ? positionTypeColor(node.positionType) : null;
   }
 
   /** Border/accent colour for a direction flavour, by `positionType`. */
   getDirectionColor(positionType: string | null): string {
-    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.color ?? '#64748b';
+    return positionTypeColor(positionType ?? '');
   }
 
   /** Short row caption for a direction flavour, by `positionType`. */
