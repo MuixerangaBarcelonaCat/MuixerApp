@@ -1,8 +1,8 @@
 import Konva from 'konva';
 import { DrawPrimitive } from './draw-plan';
-import { NodeFill } from './appearance';
 import { CanvasIcon, NODE_ICON_PATHS } from './icons';
-import { nodeOutline } from './outline';
+import { NodeOutline, nodeOutline } from './outline';
+import { SketchPath } from './sketch';
 import { FigureLink, pinDiscs } from '../utils/figure-link.util';
 import { CanvasTheme } from '../theme/canvas-theme';
 
@@ -16,45 +16,91 @@ import { CanvasTheme } from '../theme/canvas-theme';
 /** Lucide draws on a 24-unit grid. */
 const ICON_GRID = 24;
 
-/** Hatching for a pending node, as a Phase 2 stand-in for rough.js: lines 6 apart at −41°. */
-const HATCH_GAP = 6;
-const HATCH_WEIGHT = 1;
-const HATCH_ANGLE = -41;
-/** The hatch tile is drawn this many times larger and scaled down, so it stays crisp when zoomed in. */
-const HATCH_RESOLUTION = 4;
-const hatchTiles = new Map<string, HTMLCanvasElement>();
+/** Parsed path data, by its `d`: a node redrawn unchanged doesn't parse its strokes again. */
+const paths2d = new Map<string, Path2D>();
+const PATH_CACHE_LIMIT = 8000;
 
-function hatchTile(color: string): HTMLCanvasElement {
-  const cached = hatchTiles.get(color);
-  if (cached) return cached;
-  const size = HATCH_GAP * HATCH_RESOLUTION;
-  const tile = document.createElement('canvas');
-  tile.width = size;
-  tile.height = size;
-  const ctx = tile.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = color;
-    ctx.fillRect(0, (size - HATCH_WEIGHT * HATCH_RESOLUTION) / 2, size, HATCH_WEIGHT * HATCH_RESOLUTION);
+function path2d(d: string): Path2D {
+  let path = paths2d.get(d);
+  if (!path) {
+    if (paths2d.size >= PATH_CACHE_LIMIT) paths2d.delete(paths2d.keys().next().value as string);
+    path = new Path2D(d);
+    paths2d.set(d, path);
   }
-  hatchTiles.set(color, tile);
-  return tile;
+  return path;
 }
 
-function fillConfig(fill: NodeFill): Konva.ShapeConfig {
-  switch (fill.style) {
-    case 'solid':
-      return { fill: fill.color };
-    case 'hatch':
-      return {
-        fillPatternImage: hatchTile(fill.color) as unknown as HTMLImageElement,
-        fillPatternRepeat: 'repeat',
-        fillPatternRotation: HATCH_ANGLE,
-        fillPatternScale: { x: 1 / HATCH_RESOLUTION, y: 1 / HATCH_RESOLUTION },
-      };
-    case 'none':
-      // Transparent, not absent: the node's inside must still catch clicks and drops.
-      return { fill: 'transparent' };
+function paintSketch(ctx: CanvasRenderingContext2D, sketch: SketchPath[]): void {
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const p of sketch) {
+    const path = path2d(p.d);
+    if (p.fill) {
+      ctx.fillStyle = p.fill;
+      ctx.fill(path);
+    }
+    if (p.stroke) {
+      ctx.strokeStyle = p.stroke;
+      ctx.lineWidth = p.strokeWidth;
+      ctx.setLineDash(p.dash ?? []);
+      ctx.stroke(path);
+    }
   }
+  ctx.setLineDash([]);
+}
+
+function traceOutline(ctx: Konva.Context, outline: NodeOutline): void {
+  ctx.beginPath();
+  switch (outline.kind) {
+    case 'rect':
+      ctx.rect(-outline.width / 2, -outline.height / 2, outline.width, outline.height);
+      break;
+    case 'ellipse':
+      ctx.ellipse(0, 0, outline.radiusX, outline.radiusY, 0, 0, Math.PI * 2, false);
+      break;
+    case 'polygon':
+      ctx.moveTo(outline.points[0], outline.points[1]);
+      for (let i = 2; i < outline.points.length; i += 2) ctx.lineTo(outline.points[i], outline.points[i + 1]);
+      break;
+  }
+  ctx.closePath();
+}
+
+/**
+ * Pen-drawn paths (centred on (0, 0)) as one Konva shape. It sits at the corner of `box` and is
+ * `box` big, so the group's bounds (fit to screen, drop targets) see the node's real size. With a
+ * `hit` outline it listens to the pointer over that plain outline, inside included, never over the
+ * wobbly strokes: a node with no fill still catches clicks and drops, and hit-testing stays cheap.
+ */
+function sketchNode(sketch: SketchPath[], box: { width: number; height: number }, hit?: { outline: NodeOutline; strokeWidth: number }): Konva.Shape {
+  const [dx, dy] = [box.width / 2, box.height / 2];
+  return new Konva.Shape({
+    x: -dx,
+    y: -dy,
+    width: box.width,
+    height: box.height,
+    perfectDrawEnabled: false,
+    sceneFunc: (context) => {
+      const ctx = context._context;
+      ctx.translate(dx, dy);
+      paintSketch(ctx, sketch);
+      ctx.translate(-dx, -dy);
+    },
+    ...(hit
+      ? {
+          hitFunc: (context: Konva.Context, shape: Konva.Shape) => {
+            context.translate(dx, dy);
+            traceOutline(context, hit.outline);
+            context.fillStrokeShape(shape);
+            context.translate(-dx, -dy);
+          },
+          // Read by the hit graph only: the scene is the sketch.
+          fill: 'black',
+          stroke: 'black',
+          strokeWidth: hit.strokeWidth,
+        }
+      : { listening: false }),
+  });
 }
 
 /** A node's outline shape, centred on (0, 0), from the geometry both painters share. */
@@ -131,16 +177,11 @@ export function drawNodePlan(plan: DrawPrimitive[]): {
     const nodes = p.raised ? raised : flat;
     switch (p.kind) {
       case 'shape':
-        shape = createNodeShape(p.shape, p.width, p.height, {
-          ...fillConfig(p.fill),
-          stroke: p.stroke,
-          strokeWidth: p.strokeWidth,
-          dash: p.dash ?? undefined,
-        });
+        shape = sketchNode(p.sketch, p, { outline: nodeOutline(p.shape, p.width, p.height), strokeWidth: p.strokeWidth });
         nodes.push(shape);
         break;
       case 'loop':
-        nodes.push(new Konva.Ellipse({ radiusX: p.radiusX, radiusY: p.radiusY, stroke: p.color, strokeWidth: p.width, listening: false }));
+        nodes.push(sketchNode(p.sketch, { width: p.radiusX * 2, height: p.radiusY * 2 }));
         break;
       case 'text':
         nodes.push(drawText(p));
@@ -154,7 +195,8 @@ export function drawNodePlan(plan: DrawPrimitive[]): {
         nodes.push(drawIcon(p));
         break;
       case 'disc':
-        nodes.push(drawDisc(p));
+        // The sticker is drawn with the pen; the move badge stays a clean ink disc.
+        nodes.push(p.sketch ? sketchNode(p.sketch, { width: 0, height: 0 }) : drawDisc(p));
         break;
     }
   }

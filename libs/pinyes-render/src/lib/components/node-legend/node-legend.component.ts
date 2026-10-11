@@ -68,7 +68,7 @@ export interface LegendEntry {
             @for (entry of entriesOf(section.key); track entry.label) {
               <li class="flex items-center gap-3">
                 <span class="relative shrink-0 w-16 h-8 m-3" aria-hidden="true">
-                  <app-node-drawing [appearance]="entry.appearance" />
+                  <app-node-drawing [appearance]="entry.appearance" [sketchKey]="entry.label" />
                 </span>
                 <span>{{ entry.label }}</span>
               </li>

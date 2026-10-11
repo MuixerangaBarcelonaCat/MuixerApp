@@ -74,29 +74,45 @@ describe('NodeDrawingComponent', () => {
     expect(svg?.getAttribute('overflow')).toBe('visible');
   });
 
-  it('draws a confirmed node as a solid wash with the pencil outline', () => {
-    const rect = render({ attendance: 'confirmed' }).svg?.querySelector('rect[data-role="outline"]');
-    expect(rect?.getAttribute('fill')).toBe(theme.neutralNode.wash);
-    expect(rect?.getAttribute('stroke')).toBe(theme.neutralNode.pencil);
-    expect(rect?.getAttribute('x')).toBe('-40');
-    expect(rect?.getAttribute('rx')).toBe('4.800000000000001');
+  it('draws a confirmed node as a pen-drawn solid wash under the pencil outline', () => {
+    const { svg } = render({ attendance: 'confirmed' });
+    const fill = svg?.querySelector('path[data-role="fill"]');
+    const outline = svg?.querySelector('path[data-role="outline"]');
+    expect(fill?.getAttribute('fill')).toBe(theme.neutralNode.wash);
+    expect(fill?.getAttribute('stroke')).toBe('none');
+    expect(outline?.getAttribute('stroke')).toBe(theme.neutralNode.pencil);
+    expect(outline?.getAttribute('fill')).toBe('none');
+    expect(outline?.getAttribute('d')).toMatch(/C/);
+    // The wash first, the outline over it.
+    expect(fill?.compareDocumentPosition(outline as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(svg?.querySelector('rect')).toBeNull();
   });
 
-  it('hatches a pending node with a pattern in the pencil tone', () => {
+  it('hatches a pending node with pen lines in the pencil tone', () => {
     const { svg } = render({ attendance: 'pending' });
-    const rect = svg?.querySelector('rect[data-role="outline"]');
-    const fill = rect?.getAttribute('fill') ?? '';
-    const id = /^url\(#(.+)\)$/.exec(fill)?.[1];
-    expect(id).toBeTruthy();
-    const pattern = svg?.querySelector(`pattern[id="${id}"]`);
-    expect(pattern?.getAttribute('patternTransform')).toBe('rotate(-41)');
-    expect(pattern?.querySelector('rect')?.getAttribute('fill')).toBe(theme.neutralNode.pencil);
+    const hatch = svg?.querySelector('path[data-role="fill"]');
+    expect(hatch?.getAttribute('stroke')).toBe(theme.neutralNode.pencil);
+    expect(hatch?.getAttribute('fill')).toBe('none');
+    expect(svg?.querySelector('pattern')).toBeNull();
   });
 
-  it('gives every drawing its own pattern id', () => {
-    const a = render({ attendance: 'pending' }).svg?.querySelector('pattern')?.id;
-    const b = render({ attendance: 'pending' }).svg?.querySelector('pattern')?.id;
-    expect(a).not.toBe(b);
+  it('dashes the outline of an ad-hoc node', () => {
+    const outline = render({ isAdHoc: true }).svg?.querySelector('path[data-role="outline"]');
+    expect(outline?.getAttribute('stroke-dasharray')).toBeTruthy();
+  });
+
+  it('draws the same strokes for the same sketch key, other strokes for another key', () => {
+    const outlineFor = (key: string) => {
+      const fixture = TestBed.createComponent(NodeDrawingComponent);
+      fixture.componentRef.setInput('appearance', resolveNodeAppearance(marta, theme));
+      fixture.componentRef.setInput('sketchKey', key);
+      fixture.detectChanges();
+      reportSize(80, 48);
+      fixture.detectChanges();
+      return fixture.nativeElement.querySelector('path[data-role="outline"]')?.getAttribute('d');
+    };
+    expect(outlineFor('node-a')).toBe(outlineFor('node-a'));
+    expect(outlineFor('node-a')).not.toBe(outlineFor('node-b'));
   });
 
   it('draws the name in the typeface of the mode: Quicksand while staffing, Atkinson in the projection', () => {
@@ -137,12 +153,13 @@ describe('NodeDrawingComponent', () => {
     const { svg, raised } = render({ conflict: true });
     expect(svg?.querySelector('g[data-icon="star"] path')?.getAttribute('fill')).toBe(theme.nodeOutline);
     expect(svg?.querySelector('g[data-icon="conflict"] path')?.getAttribute('stroke')).toBe(theme.danger);
-    expect(raised?.querySelector('ellipse[data-role="loop"]')?.getAttribute('stroke')).toBe(theme.danger);
+    expect(raised?.querySelector('path[data-role="loop"]')?.getAttribute('stroke')).toBe(theme.danger);
   });
 
-  it('sets the observation emoji on a paper sticker', () => {
+  it('sets the observation emoji on a pen-drawn paper sticker', () => {
     const { raised } = render();
-    expect(raised?.querySelector('circle')?.getAttribute('fill')).toBe(theme.sticker);
+    expect(raised?.querySelector('path[data-role="sticker"][fill]:not([fill="none"])')?.getAttribute('fill')).toBe(theme.sticker);
+    expect(raised?.querySelector('path[data-role="sticker"][fill="none"]')?.getAttribute('stroke')).toBe(theme.stickerEdge);
     expect(raised?.querySelector('text[data-role="emoji"]')?.textContent).toBe('🤕');
   });
 
@@ -151,15 +168,15 @@ describe('NodeDrawingComponent', () => {
     const dark = buildCanvasTheme('dark');
     const { svg, raised } = render({ conflict: true });
     expect(svg?.querySelector('g[data-icon="star"] path')?.getAttribute('fill')).toBe(dark.nodeOutline);
-    expect(raised?.querySelector('ellipse[data-role="loop"]')?.getAttribute('stroke')).toBe(dark.danger);
-    expect(raised?.querySelector('circle')?.getAttribute('fill')).toBe(dark.sticker);
+    expect(raised?.querySelector('path[data-role="loop"]')?.getAttribute('stroke')).toBe(dark.danger);
+    expect(raised?.querySelector('path[data-role="sticker"]')?.getAttribute('fill')).toBe(dark.sticker);
     TestBed.inject(ThemeService).setPreference('system');
     localStorage.clear();
   });
 
   it('draws what reaches past the cell (the conflict loop, the sticker) on a layer above every other cell', () => {
     const { svg, raised } = render({ conflict: true });
-    expect(svg?.querySelector('ellipse[data-role="loop"], text[data-role="emoji"]')).toBeNull();
+    expect(svg?.querySelector('[data-role="loop"], [data-role="sticker"], text[data-role="emoji"]')).toBeNull();
     expect(raised?.getAttribute('viewBox')).toBe(svg?.getAttribute('viewBox'));
     expect(raised?.getAttribute('overflow')).toBe('visible');
     // Positioned with a z-index while the cell itself sets none: it stacks above every cell's body.

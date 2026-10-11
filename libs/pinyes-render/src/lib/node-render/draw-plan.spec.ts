@@ -2,7 +2,9 @@ import { FONT_FAMILY } from '@muixer/ui';
 import { FigureZone } from '@muixer/shared';
 import { buildCanvasTheme } from '../theme/canvas-theme';
 import { NodeAppearanceInput, resolveNodeAppearance } from './appearance';
-import { DrawPrimitive, NODE_TEXT_SCALE, fitNodeName, nodeDrawPlan } from './draw-plan';
+import { DrawPrimitive, NODE_SKETCH_INSET, NODE_TEXT_SCALE, fitNodeName, nodeDrawPlan } from './draw-plan';
+import { nodeOutline } from './outline';
+import { sketchShape } from './sketch';
 
 const theme = buildCanvasTheme();
 const measure = (text: string, fontSize: number, _fontFamily?: string) => text.length * fontSize * 0.6;
@@ -18,8 +20,17 @@ const marta: NodeAppearanceInput = {
   person: { name: 'Marta', height: '+4', nextActuacio: true, observation: { emoji: '🤕' } },
 };
 
-const plan = (input: Partial<NodeAppearanceInput>, shape = 'RECTANGLE') =>
-  nodeDrawPlan(resolveNodeAppearance({ ...marta, ...input }, theme), { width: W, height: H, shape }, theme, measure);
+const SEED = 7;
+const plan = (input: Partial<NodeAppearanceInput>, shape = 'RECTANGLE', seed = SEED) =>
+  nodeDrawPlan(resolveNodeAppearance({ ...marta, ...input }, theme), { width: W, height: H, shape, seed }, theme, measure);
+
+/** Bounding box of every point in a path's data (end and control points alike). */
+function bounds(d: string) {
+  const n = (d.match(/-?\d+(\.\d+)?(e-?\d+)?/g) ?? []).map(Number);
+  const xs = n.filter((_, i) => i % 2 === 0);
+  const ys = n.filter((_, i) => i % 2 === 1);
+  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+}
 
 function only<K extends DrawPrimitive['kind']>(items: DrawPrimitive[], kind: K, role?: string) {
   return items.filter((p) => p.kind === kind && (!role || ('role' in p && p.role === role))) as Extract<
@@ -40,13 +51,62 @@ describe('nodeDrawPlan', () => {
       stroke: expect.any(String),
       strokeWidth: 1.3,
       dash: null,
+      sketch: expect.any(Array),
     });
+  });
+
+  it('sketches the shape with the pen: its fill and outline, seeded by the node', () => {
+    const [shape] = only(plan({ attendance: 'pending', dropTarget: 'swap' }), 'shape');
+    expect(shape.sketch).toEqual(
+      sketchShape(
+        nodeOutline('RECTANGLE', W - 2 * NODE_SKETCH_INSET, H - 2 * NODE_SKETCH_INSET),
+        { fill: shape.fill, stroke: shape.stroke, strokeWidth: shape.strokeWidth, dash: shape.dash },
+        SEED,
+      ),
+    );
+  });
+
+  it('draws the pen outline a few units inside the node, so the wobble of two neighbours never meets', () => {
+    const [shape] = only(plan({ attendance: 'confirmed' }), 'shape');
+    // The node keeps its footprint (clicks, drops, text); only the drawing is inset.
+    expect([shape.width, shape.height]).toEqual([W, H]);
+    const outline = shape.sketch.find((p) => p.role === 'outline');
+    const box = bounds(outline?.d ?? '');
+    expect(box.maxX).toBeLessThan(W / 2);
+    expect(box.minX).toBeGreaterThan(-W / 2);
+    expect(box.maxY).toBeLessThan(H / 2);
+    expect(box.minY).toBeGreaterThan(-H / 2);
+    expect(shape.sketch).toEqual(
+      sketchShape(
+        nodeOutline('RECTANGLE', W - 2 * NODE_SKETCH_INSET, H - 2 * NODE_SKETCH_INSET),
+        { fill: shape.fill, stroke: shape.stroke, strokeWidth: shape.strokeWidth, dash: shape.dash },
+        SEED,
+      ),
+    );
+  });
+
+  it('insets the outline less on a node smaller than the standard 40-unit height', () => {
+    const small = nodeDrawPlan(resolveNodeAppearance(marta, theme), { width: 40, height: 20, shape: 'RECTANGLE', seed: SEED }, theme, measure);
+    const [shape] = only(small, 'shape');
+    expect(shape.sketch).toEqual(
+      sketchShape(
+        nodeOutline('RECTANGLE', 40 - NODE_SKETCH_INSET, 20 - NODE_SKETCH_INSET),
+        { fill: shape.fill, stroke: shape.stroke, strokeWidth: shape.strokeWidth, dash: shape.dash },
+        SEED,
+      ),
+    );
+  });
+
+  it('draws the same strokes for the same node every time, other strokes for another node', () => {
+    const sketches = (seed: number) => plan({ conflict: true }, 'RECTANGLE', seed).flatMap((p) => ('sketch' in p && p.sketch ? p.sketch : []));
+    expect(sketches(SEED)).toEqual(sketches(SEED));
+    expect(sketches(SEED)[0].d).not.toBe(sketches(SEED + 1)[0].d);
   });
 
   it('thins the outline and the loop on nodes smaller than the standard 40-unit height, never thickens them', () => {
     const small = nodeDrawPlan(resolveNodeAppearance({ ...marta, conflict: true }, theme), { width: 40, height: 20, shape: 'RECTANGLE' }, theme, measure);
     expect(only(small, 'shape')[0].strokeWidth).toBeCloseTo(1.3 / 2);
-    expect(only(small, 'loop')[0].width).toBeCloseTo(1);
+    expect(only(small, 'loop')[0].width).toBeCloseTo(0.7);
     const large = nodeDrawPlan(resolveNodeAppearance(marta, theme), { width: 160, height: 80, shape: 'RECTANGLE' }, theme, measure);
     expect(only(large, 'shape')[0].strokeWidth).toBeCloseTo(1.3);
   });
@@ -190,9 +250,19 @@ describe('nodeDrawPlan', () => {
     });
   });
 
-  it('draws a red loop around a node in conflict, outside the node', () => {
+  it('draws a thin red loop close around a node in conflict, outside the node', () => {
     const [loop] = only(plan({ conflict: true }), 'loop');
-    expect(loop).toEqual({ kind: 'loop', radiusX: (W + 22) / 2, radiusY: (H + 24) / 2, color: theme.danger, width: 2, raised: true });
+    expect(loop).toEqual({
+      kind: 'loop',
+      radiusX: (W + 14) / 2,
+      radiusY: (H + 16) / 2,
+      color: theme.danger,
+      width: 1.4,
+      raised: true,
+      sketch: expect.any(Array),
+    });
+    expect(loop.sketch.length).toBeGreaterThan(0);
+    expect(loop.sketch.every((p) => p.stroke === theme.danger && p.strokeWidth === 1.4)).toBe(true);
   });
 
   it('sets the observation on a paper sticker straddling the top edge at the right', () => {
@@ -200,14 +270,19 @@ describe('nodeDrawPlan', () => {
     const [sticker] = only(plan({}), 'disc');
     expect(sticker).toEqual({
       kind: 'disc',
-      x: W / 2 - r * 0.95,
-      y: -H / 2 + r * 0.12,
+      // On the drawn edge, inset from the node's.
+      x: W / 2 - NODE_SKETCH_INSET - r * 0.95,
+      y: -H / 2 + NODE_SKETCH_INSET + r * 0.12,
       radius: r,
       fill: theme.sticker,
       stroke: theme.stickerEdge,
       strokeWidth: 1,
       raised: true,
+      sketch: expect.any(Array),
     });
+    // A sketched paper sticker; the move badge stays a clean ink disc.
+    expect(sticker.sketch?.find((p) => p.role === 'fill')?.fill).toBe(theme.sticker);
+    expect(sticker.sketch?.find((p) => p.role === 'outline')?.stroke).toBe(theme.stickerEdge);
     const [emoji] = only(plan({}), 'text', 'emoji');
     expect(emoji).toMatchObject({ text: '🤕', x: sticker.x, y: sticker.y, fontSize: r * NODE_TEXT_SCALE.stickerEmoji });
   });
@@ -221,8 +296,9 @@ describe('nodeDrawPlan', () => {
   it('puts the move badge, an ink disc with the move icon, on the middle of the top edge', () => {
     const items = plan({ moveSource: true });
     const r = H * NODE_TEXT_SCALE.moveBadge;
-    expect(only(items, 'disc')).toContainEqual({ kind: 'disc', x: 0, y: -H / 2 - 1, radius: r, fill: theme.focus, stroke: null, strokeWidth: 0, raised: true });
-    expect(only(items, 'icon').find((i) => i.icon === 'move')).toMatchObject({ x: 0, y: -H / 2 - 1, color: theme.onInk });
+    const y = -H / 2 + NODE_SKETCH_INSET - 1;
+    expect(only(items, 'disc')).toContainEqual({ kind: 'disc', x: 0, y, radius: r, fill: theme.focus, stroke: null, strokeWidth: 0, raised: true });
+    expect(only(items, 'icon').find((i) => i.icon === 'move')).toMatchObject({ x: 0, y, color: theme.onInk });
   });
 
   it('draws the badges above the text, and the move badge last', () => {
