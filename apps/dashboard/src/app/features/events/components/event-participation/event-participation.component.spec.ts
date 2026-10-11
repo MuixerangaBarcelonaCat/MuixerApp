@@ -183,8 +183,9 @@ describe('EventParticipationComponent — status labels and badges', () => {
     ['before', 'ANIRE', 'Ve'],
     ['before', 'PENDENT', 'Pendent'],
     ['day', 'ASSISTIT', 'Ha arribat'],
-    ['day', 'ANIRE', 'No ha arribat'],
+    ['day', 'ANIRE', 'Ve'],
     ['day', 'NO_VAIG', 'No vindrà'],
+    ['started', 'ANIRE', 'No ha arribat'],
     ['after', 'ASSISTIT', 'Va vindre'],
     ['after', 'ANIRE', 'No presentat'],
     ['after', 'PENDENT', 'Sense resposta'],
@@ -192,11 +193,11 @@ describe('EventParticipationComponent — status labels and badges', () => {
     expect(withPhase(phase).statusLabel(status)).toBe(expected);
   });
 
-  it('ANIRE reads as success before the event day', () => {
-    expect(withPhase('before').statusBadgeClass('ANIRE')).toBe('badge-success');
+  it.each(['before', 'day'] as const)('ANIRE reads as success until the start time (%s)', (phase) => {
+    expect(withPhase(phase).statusBadgeClass('ANIRE')).toBe('badge-success');
   });
 
-  it.each(['day', 'after'] as const)('ANIRE becomes a warning from the event day on (%s)', (phase) => {
+  it.each(['started', 'after'] as const)('ANIRE becomes a warning from the start time on (%s)', (phase) => {
     expect(withPhase(phase).statusBadgeClass('ANIRE')).toBe('badge-warning');
   });
 });
@@ -919,7 +920,7 @@ describe('EventParticipationComponent', () => {
       );
     });
 
-    it('passes the event phase to the workshop', async () => {
+    it('does not pass the event phase to the workshop (it works it out itself)', async () => {
       const fixture = await setup(buildResponse(), 'after');
       const router = TestBed.inject(Router);
       vi.spyOn(router, 'url', 'get').mockReturnValue('/events/event-1?tab=participacio');
@@ -930,7 +931,7 @@ describe('EventParticipationComponent', () => {
 
       expect(navigate).toHaveBeenCalledWith(
         expect.anything(),
-        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes', phase: 'after' } },
+        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes' } },
       );
     });
 

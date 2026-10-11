@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { Subscription } from 'rxjs';
-import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM, attendanceGroupLabel, EventPhase, isArrivalPhase } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM, attendanceGroupLabel, EventPhase, isArrivalPhase, isStartedPhase } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
@@ -64,6 +64,8 @@ export class PersonPanelComponent {
   /** Before / on / after the event day: groups by arrival from the event day on. */
   readonly phase = input<EventPhase>('before');
   readonly arrivals = computed(() => isArrivalPhase(this.phase()));
+  /** From the start time on, those still to come are late and the unanswered count as not coming. */
+  readonly started = computed(() => isStartedPhase(this.phase()));
 
   /** Header of a person group, with the shared phase labels («Aniré», «Ha vingut», «Pendents»…). */
   groupLabel(status: AttendanceStatus): string {
@@ -320,13 +322,13 @@ export class PersonPanelComponent {
   );
 
   readonly pendingPersons = computed(() =>
-    this.arrivals()
+    this.started()
       ? []
       : this.freePersons().filter((p) => p.attendanceStatus === 'PENDENT'),
   );
 
   readonly declinedPersons = computed(() =>
-    this.arrivals()
+    this.started()
       ? this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG' || p.attendanceStatus === 'PENDENT')
       : this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
   );

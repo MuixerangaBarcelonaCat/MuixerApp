@@ -120,8 +120,11 @@ describe('PersonHoverCardComponent', () => {
     it.each([
       ['before', 'ANIRE', 'Ve', 'success'],
       ['day', 'ASSISTIT', 'Ha arribat', 'success'],
-      ['day', 'ANIRE', 'No ha arribat', 'warning'],
+      ['day', 'ANIRE', 'Ve', 'success'],
       ['day', 'NO_VAIG', 'No vindrà', 'error'],
+      ['started', 'ASSISTIT', 'Ha arribat', 'success'],
+      ['started', 'ANIRE', 'No ha arribat', 'warning'],
+      ['started', 'NO_VAIG', 'No vindrà', 'error'],
       ['after', 'ASSISTIT', 'Va vindre', 'success'],
       ['after', 'ANIRE', 'No presentat', 'warning'],
       ['after', 'PENDENT', 'Sense resposta', 'ghost'],

@@ -15,7 +15,7 @@ import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { THEME_NAMES } from '@muixer/ui';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, EventPhase, isArrivalPhase } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, EventPhase } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
@@ -1789,7 +1789,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     );
     const highlighted = this.highlightedNodeIds();
 
-    const past = isArrivalPhase(this.phase());
+    const phase = this.phase();
 
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
@@ -1903,7 +1903,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         }
 
         const attendanceStatus = attendanceMap.get(assignment.person.id);
-        const badgeColor = attendanceDotColor(attendanceStatus, past, THEME);
+        const badgeColor = attendanceDotColor(attendanceStatus, phase, THEME);
         if (badgeColor) {
           // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
           // small nodes (e.g. densely packed mobile projections) and cover the name.
@@ -2204,7 +2204,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const nextPerformanceMap = this.nextPerformanceMap();
     const ref: SegmentNodeRef = { slotId: rn.slotId, nodeId: node.id };
 
-    const past = isArrivalPhase(this.phase());
+    const phase = this.phase();
 
     const isAdHoc = !!node.isAdHoc;
     const isDecoration = node.zone === FigureZone.DECORATION;
@@ -2305,7 +2305,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
 
       const attendanceStatus = attendanceMap.get(assignment.person.id);
-      const badgeColor = attendanceDotColor(attendanceStatus, past, THEME);
+      const badgeColor = attendanceDotColor(attendanceStatus, phase, THEME);
       if (badgeColor) {
         // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
         // small nodes (e.g. densely packed mobile projections) and cover the name.
@@ -2523,7 +2523,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const assignments = this.assignments();
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
     const attendanceMap = this.attendanceMap();
-    const past = isArrivalPhase(this.phase());
+    const phase = this.phase();
 
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
@@ -2611,7 +2611,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       if (assignment) {
         const attendanceStatus = attendanceMap.get(assignment.person.id);
-        const badgeColor = attendanceDotColor(attendanceStatus, past, THEME);
+        const badgeColor = attendanceDotColor(attendanceStatus, phase, THEME);
         if (badgeColor) {
           // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
           // small nodes (e.g. densely packed mobile projections) and cover the name.

@@ -23,7 +23,7 @@ import {
   FloorHeightGap,
   formatDirectionNames,
   ICON_OBSERVACIONS,
-  isArrivalPhase,
+  isStartedPhase,
   SHOULDER_HEIGHT_BASELINE_CM,
   TRONC_HEIGHT_THRESHOLDS,
   TRONC_NODE_PRESETS,
@@ -718,11 +718,11 @@ export class TroncViewComponent {
 
   getAttendanceColor(assignment: AssignmentDetail): string {
     const status = this.getAttendanceStatus(assignment);
-    const past = isArrivalPhase(this.phase());
+    const started = isStartedPhase(this.phase());
     if (status === 'ASSISTIT') return 'oklch(var(--su))';
-    if (status === 'ANIRE') return past ? 'oklch(var(--wa))' : 'oklch(var(--su))';
+    if (status === 'ANIRE') return started ? 'oklch(var(--wa))' : 'oklch(var(--su))';
     if (status === 'NO_VAIG') return 'oklch(var(--er))';
-    if (status === 'PENDENT') return past ? 'oklch(var(--er))' : 'oklch(var(--bc) / 0.2)';
+    if (status === 'PENDENT') return started ? 'oklch(var(--er))' : 'oklch(var(--bc) / 0.2)';
     return 'oklch(var(--bc) / 0.2)';
   }
 

@@ -13,7 +13,7 @@ import { StatCardComponent } from '../../../../shared/components/data/stat-card/
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent } from '../../models/event.model';
 import { getAdultsCount } from '../event-list/event-list.component';
-import { AttendanceStatus, attendanceGroupLabel, EventPhase, getEventPhase, isArrivalPhase, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
+import { AttendanceStatus, attendanceGroupLabel, EventPhase, getEventPhase, isArrivalPhase, isStartedPhase, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
 import { saveBlob } from '../../../../core/utils/save-blob.util';
 
@@ -110,25 +110,24 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return this.visitedTabs().has(tab);
   }
 
-  isPast = computed(() => {
-    const ev = this.event();
-    if (!ev) return false;
-    const timeStr = ev.startTime ?? '23:59';
-    return new Date(`${ev.date}T${timeStr}:00`) < new Date();
-  });
+  /** The event day is over. */
+  isPast = computed(() => this.phase() === 'after');
 
-  /** Before / on / after the event day (Madrid): drives the attendance labels and controls. */
+  /** Before the event day / on it before the start / started / after it (Valencia time): drives the attendance labels and controls. */
   phase = computed<EventPhase>(() => {
     const ev = this.event();
-    return ev ? getEventPhase(ev.date) : 'before';
+    return ev ? getEventPhase(ev.date, ev.startTime) : 'before';
   });
+
+  /** From the event day on the counts are arrivals; before it, confirmations. */
+  arrivals = computed(() => isArrivalPhase(this.phase()));
 
   /** The main stat card: arrivals from the event day on, confirmations before it. */
   mainStat = computed(() => {
     const ev = this.event();
     if (!ev) return null;
     const phase = this.phase();
-    const arrivals = isArrivalPhase(phase);
+    const arrivals = this.arrivals();
     return {
       label: attendanceGroupLabel(arrivals ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE, phase),
       value: arrivals ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed,
@@ -138,14 +137,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   attendanceRatio = computed(() => {
     const ev = this.event();
     if (!ev || ev.attendanceSummary.total === 0) return 0;
-    const numerator = this.isPast() ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed;
+    const numerator = this.arrivals() ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed;
     return Math.round((numerator / ev.attendanceSummary.total) * 100);
   });
 
   adultsCount = computed(() => {
     const ev = this.event();
     if (!ev) return 0;
-    return getAdultsCount(ev.attendanceSummary, this.isPast());
+    return getAdultsCount(ev.attendanceSummary, this.arrivals());
   });
 
   rehearsalMetadata = computed((): RehearsalMetadata | null => {
@@ -343,7 +342,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const phase = this.phase();
     const arrivals = isArrivalPhase(phase);
     const label = (status: AttendanceStatus) => attendanceGroupLabel(status, phase);
-    const adults = getAdultsCount(summary, this.isPast());
+    const adults = getAdultsCount(summary, arrivals);
     return [
       {
         label: label(arrivals ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE),
@@ -356,7 +355,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         label: label(AttendanceStatus.ANIRE),
         value: summary.confirmed,
         icon: 'UserMinus',
-        iconClass: 'text-warning',
+        iconClass: isStartedPhase(phase) ? 'text-warning' : 'text-success',
         hidden: !arrivals,
       },
       {

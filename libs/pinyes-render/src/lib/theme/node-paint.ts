@@ -1,4 +1,4 @@
-import { FigureZone } from '@muixer/shared';
+import { EventPhase, FigureZone, isStartedPhase } from '@muixer/shared';
 import { CanvasTheme, buildCanvasTheme, contentOn } from './canvas-theme';
 import { resolveNodeTones } from './node-color';
 
@@ -19,15 +19,16 @@ export function nodeLabelColor(node: PaintableNode): string {
 }
 
 /**
- * The attendance dot of an assigned node. Before the arrival phase it says whether the person said
- * they'd come; during it, whether they're here yet. No dot once they're here.
+ * The attendance dot of an assigned node. Until the event starts it says whether the person said
+ * they'd come; from then on, whether they're here yet. No dot once they're here.
  */
-export function attendanceDotColor(status: string | undefined, arrivalPhase: boolean, theme: CanvasTheme): string | null {
+export function attendanceDotColor(status: string | undefined, phase: EventPhase, theme: CanvasTheme): string | null {
+  const started = isStartedPhase(phase);
   switch (status) {
     case 'ANIRE':
-      return arrivalPhase ? theme.warning : theme.success;
+      return started ? theme.warning : theme.success;
     case 'PENDENT':
-      return arrivalPhase ? theme.danger : theme.warning;
+      return started ? theme.danger : theme.warning;
     case 'NO_VAIG':
       return theme.danger;
     default:

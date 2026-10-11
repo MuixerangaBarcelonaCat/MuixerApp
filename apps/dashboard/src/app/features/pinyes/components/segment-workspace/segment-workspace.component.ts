@@ -32,7 +32,6 @@ import { PrevisualitzaTabComponent } from './tabs/previsualitza-tab/previsualitz
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { SegmentConflictPanelComponent } from '../segment-conflict-panel/segment-conflict-panel.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
-import { EventPhase } from '@muixer/shared';
 
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
 
@@ -89,8 +88,8 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
 
   readonly activeTab = signal<WorkspaceTab>('pinyes');
-  /** Before / on / after the event day, from the `phase` query param. */
-  readonly phase = signal<EventPhase>('before');
+  /** Where the event is in time: drives the attendance labels and colours of the tabs. */
+  readonly phase = this.ws.phase;
 
   private readonly allTabDefs: TabDef[] = [
     { id: 'pinyes', label: 'Pinyes', icon: DOMAIN_ICONS.PINYA },
@@ -152,9 +151,6 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
       this.activeTab.set(this.viewModeService.mode());
     }
 
-    const phaseParam = queryParams['phase'];
-    this.phase.set(phaseParam === 'day' || phaseParam === 'after' ? phaseParam : 'before');
-
     const figureId = queryParams['figure'] ?? this.route.snapshot.params['instanceId'] ?? null;
     if (figureId) {
       this.explicitFigureRequested = true;
@@ -181,7 +177,6 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   navigateToSegment(segmentId: string | null): void {
     if (!segmentId) return;
     const queryParams: Record<string, string> = { tab: this.activeTab() };
-    if (this.phase() !== 'before') queryParams['phase'] = this.phase();
     const returnUrl = this.route.snapshot.queryParams['returnUrl'];
     if (returnUrl) queryParams['returnUrl'] = returnUrl;
     this.router.navigate(
