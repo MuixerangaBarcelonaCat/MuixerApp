@@ -35,6 +35,7 @@ import {
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
+import { FigureBand } from '../../utils/figure-palette.util';
 import { positionTypeColor } from '../../theme/node-color';
 import { LongPressDetector } from '../../utils/long-press.util';
 import {
@@ -159,14 +160,11 @@ export class TroncViewComponent {
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
-  /** Projection mode only: color used for the panel border and tinted background. */
-  readonly panelColor = input<string | null>(null);
-
-  /** Projection mode only: color used for the panel border, if different from panelColor. */
-  readonly panelBorderColor = input<string | null>(null);
-
   /** Projection mode only: figure name shown as a header inside the panel. */
   readonly figureName = input<string | null>(null);
+
+  /** Projection mode only: the band in the figure colour behind the name (`getFigureBand`); `null` leaves plain paper. */
+  readonly nameBand = input<FigureBand | null>(null);
 
   // ── Outputs ────────────────────────────────────────────────────────────────
 

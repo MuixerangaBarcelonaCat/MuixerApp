@@ -416,10 +416,17 @@
 
 // -- Projection mode (compact) 
 
+// The figure name on a band across the whole card: the negative margins reach through the panel's
+// padding to the card edges. The rule's room is reserved with no band too, so sizes match.
+.figure-name {
+  margin: -0.25rem -0.75rem 0.1rem -0.25rem;
+  padding: 0.3rem 0.75rem 0.25rem 0.75rem;
+  border-bottom: 2px solid transparent;
+}
+
 .tronc-view.projection-mode {
   gap: 0.15rem;
   height: auto;
-  border-radius: 0.375rem;
   padding: 0.25rem 0.75rem 0.5rem 0.25rem;
 
   // Projection panels size to their content, so any residual vertical overflow is

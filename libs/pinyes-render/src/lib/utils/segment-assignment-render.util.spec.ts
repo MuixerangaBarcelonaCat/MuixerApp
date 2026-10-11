@@ -2,6 +2,7 @@ import {
   boundingBoxCenter,
   buildSegmentRenderNodes,
   pivotNodesFor,
+  slotLocalToStage,
   stageToSlotLocal,
   targetTabForZone,
 } from './segment-assignment-render.util';
@@ -229,6 +230,26 @@ describe('stageToSlotLocal', () => {
     const result = stageToSlotLocal({ x: 0, y: 10 }, slot, { x: 0, y: 0 });
 
     expect(result).toEqual({ x: 10, y: 0 });
+  });
+});
+
+describe('slotLocalToStage', () => {
+  it('places a point of the figure on the stage: rotated around the pivot, then moved to the slot offset', () => {
+    const slot = makeSlot('inst-a', [], { offsetX: 500, offsetY: 300, angle: 90 });
+
+    const result = slotLocalToStage({ x: 110, y: 100 }, slot, { x: 100, y: 100 });
+
+    expect(result.x).toBeCloseTo(500);
+    expect(result.y).toBeCloseTo(310);
+  });
+
+  it('undoes stageToSlotLocal', () => {
+    const slot = makeSlot('inst-a', [], { offsetX: 40, offsetY: -20, angle: 30 });
+    const pivot = { x: 12, y: 7 };
+
+    const back = stageToSlotLocal(slotLocalToStage({ x: 80, y: 50 }, slot, pivot), slot, pivot);
+
+    expect(back).toEqual({ x: 80, y: 50 });
   });
 });
 

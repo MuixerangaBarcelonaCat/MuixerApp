@@ -23,7 +23,9 @@ import { rematMarkerNode } from '../../utils/remat-marker.util';
 import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
-import { getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '../../utils/figure-palette.util';
+import { FigureBand, getFigureBand, getFigureColor } from '../../utils/figure-palette.util';
+import { CardEdge, FigureLink, figureLink } from '../../utils/figure-link.util';
+import { PinnedCardComponent } from '../pinned-card/pinned-card.component';
 import { describeOwnPlacement, findOwnPlacements, findOwnTroncCellRect } from '../../utils/own-position.util';
 import { BoundsNode } from '../../utils/fit-to-bounds.util';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from '../own-position-banner/own-position-banner.component';
@@ -44,8 +46,14 @@ interface DistributionTroncPanel {
   naturalW: number;
   naturalH: number;
   scale: number;
-  color: string;
-  borderColor: string;
+  /** The figure colour, for the card pin; `null` for a segment's lone figure, which gets no pin. */
+  color: string | null;
+  /** The band behind the figure name on the card, in the figure colour — a lone figure's too. */
+  nameBand: FigureBand;
+  /** The card edge holding its pin: the one facing the figure, where the string leaves. */
+  pinEdge: CardEdge;
+  /** Degrees the card turns around its pin: −1 and +1 by turns, so neighbouring cards differ. */
+  tilt: number;
 }
 
 /**
@@ -60,7 +68,7 @@ interface DistributionTroncPanel {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents', '[attr.data-theme]': 'pinnedTheme' },
-  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
+  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, PinnedCardComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
@@ -395,15 +403,17 @@ export class PinyaProjectionComponent {
    * projectionX/Y therefore represents the world position of that center, not the
    * top-left corner. Rotation must be applied around the same center.
    */
-  readonly distributionNodes = computed((): InstanceNodeItem[] => {
+  private readonly distributionNodesByInstance = computed((): Map<string, InstanceNodeItem[]> => {
     const instances = this.effectiveInstances();
     const { scale, offsetX, offsetY } = computeDistributionTransform(
       instances,
       this.containerWidth(),
       this.containerHeight(),
     );
-    const result: InstanceNodeItem[] = [];
+    const result = new Map<string, InstanceNodeItem[]>();
     for (const inst of instances) {
+      const placed: InstanceNodeItem[] = [];
+      result.set(inst.id, placed);
       const projX = inst.projectionX ?? 0;
       const projY = inst.projectionY ?? 0;
       const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;
@@ -430,7 +440,7 @@ export class PinyaProjectionComponent {
         const relY = node.y - centerY;
         const rotX = cosA * relX - sinA * relY;
         const rotY = sinA * relX + cosA * relY;
-        result.push({
+        placed.push({
           ...node,
           x: (projX + rotX) * scale + offsetX,
           y: (projY + rotY) * scale + offsetY,
@@ -442,6 +452,9 @@ export class PinyaProjectionComponent {
     }
     return result;
   });
+
+  /** Every figure's nodes in one list, for the canvas: see `distributionNodesByInstance`. */
+  readonly distributionNodes = computed((): InstanceNodeItem[] => [...this.distributionNodesByInstance().values()].flat());
 
   /** Combined assignments from all instances for the unified distribution canvas. */
   readonly distributionAssignments = computed((): AssignmentDetail[] =>
@@ -493,6 +506,51 @@ export class PinyaProjectionComponent {
   });
 
   /**
+   * A figure's colour, for its pin and string: `null` when the segment holds only it — its panel can
+   * only be its own, so it gets no pin and no string.
+   */
+  private figureColor(inst: ProjectionInstance): string | null {
+    return this.isSingleFigureSegment() ? null : getFigureColor(inst.sortOrder);
+  }
+
+  /**
+   * The string tying each tronc panel to its pinya, in canvas-world units like the nodes (so it
+   * pans and zooms with them and never depends on the live stage transform): from a pin on the
+   * card edge facing the figure to the corner of the figure's occupied nodes nearest the panel
+   * (`figureLink`). Empty while the panels are hidden, and for a segment's lone figure.
+   */
+  private readonly figureLinksByInstance = computed((): Map<string, FigureLink> => {
+    const links = new Map<string, FigureLink>();
+    const bounds = this.distributionFitBounds();
+    if (bounds.length === 0) return links;
+    const instances = this.effectiveInstances();
+    const { scale: distScale } = computeDistributionTransform(instances, this.containerWidth(), this.containerHeight());
+    const nodesByInstance = this.distributionNodesByInstance();
+
+    instances.forEach((inst, i) => {
+      const color = this.figureColor(inst);
+      if (!color) return;
+      const b = bounds[i];
+      const occupied = new Set(inst.assignments.map((a) => a.node.id));
+      const nodes = (nodesByInstance.get(inst.id) ?? []).map((n) => ({
+        x: n.x,
+        y: n.y,
+        width: n.width,
+        height: n.height,
+        rotation: n.rotation,
+        occupied: occupied.has(n.id),
+      }));
+      const card = { x: b.x - b.width / 2, y: b.y - b.height / 2, width: b.width, height: b.height };
+      const link = figureLink(nodes, card, color, distScale);
+      if (link) links.set(inst.id, link);
+    });
+    return links;
+  });
+
+  /** Handed to the canvas, which draws each string behind the nodes and its pin above them. */
+  readonly figureLinks = computed((): FigureLink[] => [...this.figureLinksByInstance().values()]);
+
+  /**
    * Tronc panels for the distribution view.
    *
    * Positioning uses two stacked transforms:
@@ -516,7 +574,7 @@ export class PinyaProjectionComponent {
     );
     const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
     const totalScale = distScale * stageScale;
-    const singleFigure = this.isSingleFigureSegment();
+    const links = this.figureLinksByInstance();
 
     return instances.map((inst) => {
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
@@ -550,9 +608,18 @@ export class PinyaProjectionComponent {
         screenY = figScreenY - figHalfH * totalScale - naturalH * totalScale - TRONC_GAP_PX * totalScale;
       }
 
-      const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(inst.sortOrder);
-      const borderColor = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : color;
-      return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color, borderColor };
+      return {
+        instance: inst,
+        screenX,
+        screenY,
+        naturalW,
+        naturalH,
+        scale: totalScale,
+        color: this.figureColor(inst),
+        nameBand: getFigureBand(inst.sortOrder),
+        pinEdge: links.get(inst.id)?.cardEdge ?? 'top',
+        tilt: inst.sortOrder % 2 === 0 ? -1 : 1,
+      };
     });
   });
 

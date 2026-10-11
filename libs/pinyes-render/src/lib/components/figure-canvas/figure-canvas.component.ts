@@ -34,7 +34,8 @@ import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
 import { nodeDrawPlan } from '../../node-render/draw-plan';
 import { loadCanvasFonts } from '../../node-render/fonts';
-import { createNodeShape, drawIcon, drawNodePlan, measureText } from '../../node-render/konva-painter';
+import { createNodeShape, drawFigureLink, drawIcon, drawNodePlan, measureText } from '../../node-render/konva-painter';
+import { FigureLink } from '../../utils/figure-link.util';
 import {
   boundingBoxCenter,
   buildSegmentRenderNodes,
@@ -167,6 +168,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
   /** Extra bounding boxes (in canvas space, x/y = center) included in the readonly fit but not rendered. */
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
+  /** The strings tying each tronc panel to its pinya (projection, Distribució): drawn behind the nodes, their pins above them. */
+  readonly figureLinks = input<FigureLink[]>([]);
   // Segment-assignment mode inputs (multi-figure assignment on one canvas)
   readonly selectedSegmentNode = input<SegmentNodeRef | null>(null);
   readonly dimmedSlotIds = input<Set<string>>(new Set());
@@ -198,6 +201,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     offsetY: number;
     angle: number;
   }>();
+  /**
+   * Composition mode only: a figure's live position while it is dragged or rotated, before
+   * `slotMoved` reports where it settled — so what's drawn over the canvas can follow it.
+   */
+  readonly slotDragMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{
     slotId: string;
     troncPanelX: number | null;
@@ -248,7 +256,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
+  /** Between the grid and the nodes: the tronc panel strings (`figureLinks`). */
+  private linkLayer!: Konva.Layer;
   private pinyaLayer!: Konva.Layer;
+  /** Above the nodes: the pins the strings end at on each figure. */
+  private pinLayer!: Konva.Layer;
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
@@ -358,6 +370,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (this.mode() === 'readonly') {
         untracked(() => this.renderReadonlyNodes());
       }
+    });
+
+    // The tronc panel strings redraw on their own layers, apart from the figures: in Distribució
+    // they follow a figure or panel while it is dragged, which must not rebuild (and drop) the drag.
+    effect(() => {
+      const links = this.figureLinks();
+      if (!this.stage) return;
+      untracked(() => this.renderFigureLinks(links));
     });
 
     effect(() => {
@@ -630,7 +650,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage = new Konva.Stage({ container, width, height });
 
     this.gridLayer = new Konva.Layer({ listening: false });
+    this.linkLayer = new Konva.Layer({ listening: false });
     this.pinyaLayer = new Konva.Layer();
+    this.pinLayer = new Konva.Layer({ listening: false });
 
     // Transformer for resizing nodes
     this.transformer = new Konva.Transformer({
@@ -646,12 +668,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
     this.pinyaLayer.add(this.transformer);
 
-    this.stage.add(this.gridLayer, this.pinyaLayer);
+    this.stage.add(this.gridLayer, this.linkLayer, this.pinyaLayer, this.pinLayer);
 
     // Read-only projection is repainted every pan/pinch frame: at DPR 3 that is 9 device pixels
     // per CSS pixel. Cap the backing store at 2x (per canvas, not the global `Konva.pixelRatio`).
     if (this.mode() === 'readonly' && window.devicePixelRatio > READONLY_MAX_PIXEL_RATIO) {
-      for (const layer of [this.gridLayer, this.pinyaLayer]) {
+      for (const layer of [this.gridLayer, this.linkLayer, this.pinyaLayer, this.pinLayer]) {
         layer.getCanvas().setPixelRatio(READONLY_MAX_PIXEL_RATIO);
       }
     }
@@ -965,6 +987,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     } else {
       this.renderNodes();
     }
+    this.renderFigureLinks(this.figureLinks());
   }
 
   /**
@@ -1256,6 +1279,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           slotGroup.x(this.snapValue(slotGroup.x(), spacing));
           slotGroup.y(this.snapValue(slotGroup.y(), spacing));
         }
+        this.slotDragMoved.emit({ slotId: slot.slotId, offsetX: slotGroup.x(), offsetY: slotGroup.y(), angle: slotGroup.rotation() });
       });
 
       slotGroup.on('dragend', () => {
@@ -1453,6 +1477,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const angleDeg = computeRotationAngleDeg(lp, { x: groupX, y: groupY }, this.snapToGrid());
         slotGroup.rotation(angleDeg);
         this.pinyaLayer.batchDraw();
+        this.slotDragMoved.emit({ slotId, offsetX: slotGroup.x(), offsetY: slotGroup.y(), angle: angleDeg });
       };
 
       const onUp = () => {
@@ -1868,6 +1893,18 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.segmentNodeGroupsByKey.set(rn.key, { ref, group, raised, node, input, hasAssignment: !!assignment });
 
     return group;
+  }
+
+  private renderFigureLinks(links: FigureLink[]): void {
+    this.linkLayer.destroyChildren();
+    this.pinLayer.destroyChildren();
+    for (const link of links) {
+      const { string, pin } = drawFigureLink(link);
+      this.linkLayer.add(string);
+      this.pinLayer.add(pin);
+    }
+    this.linkLayer.batchDraw();
+    this.pinLayer.batchDraw();
   }
 
   private renderReadonlyNodes(): void {

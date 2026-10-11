@@ -1,9 +1,8 @@
-import { INK, PAPER, buildCategoricalPalette, formatHex } from '@muixer/ui';
+import { PAPER, buildCategoricalPalette, formatHex } from '@muixer/ui';
+import { pinDiscs } from './figure-link.util';
 import {
   FIGURE_PALETTE,
-  SINGLE_FIGURE_PANEL_COLOR,
-  SINGLE_FIGURE_SHADOW_COLOR,
-  figureCardTint,
+  getFigureBand,
   getFigureColor,
   getFigureTint,
 } from './figure-palette.util';
@@ -11,32 +10,29 @@ import {
 describe('figure palette', () => {
   const categorical = buildCategoricalPalette('light').normal.map(formatHex);
 
-  it('uses the theme categorical colors, in order', () => {
-    expect(FIGURE_PALETTE).toEqual(categorical);
+  it('uses the theme categorical colors, with scarlet moved last: it is the conflict red, and the first figure of every segment would get it', () => {
+    expect(FIGURE_PALETTE).toEqual([...categorical.slice(1), categorical[0]]);
+    expect(FIGURE_PALETTE.at(-1)).toBe(categorical[0]);
+  });
+
+  it('heads a figure\'s tronc card with a band in its light color, closed by a rule in the dark tone of its pin rim', () => {
+    const light = buildCategoricalPalette('light').light.map(formatHex);
+    expect(getFigureBand(0)).toEqual({ fill: light[1], rule: pinDiscs(0, 0, 9, FIGURE_PALETTE[0])[1].stroke });
+    expect(getFigureBand(FIGURE_PALETTE.length - 1).fill).toBe(light[0]);
+    expect(getFigureBand(FIGURE_PALETTE.length + 2)).toEqual(getFigureBand(2));
   });
 
   it('wraps around once every color has been used', () => {
-    expect(getFigureColor(0)).toBe(categorical[0]);
-    expect(getFigureColor(categorical.length + 2)).toBe(categorical[2]);
+    expect(getFigureColor(0)).toBe(FIGURE_PALETTE[0]);
+    expect(getFigureColor(FIGURE_PALETTE.length + 2)).toBe(FIGURE_PALETTE[2]);
   });
 
   it('gives each figure a light tint: what the projection tronc panel background looks like (its color at 0x33 alpha over the paper), as an opaque color', () => {
     // 0x33 / 0xff = 20%: each channel is 80% paper + 20% the figure color.
-    expect(getFigureTint(0)).toBe(mixWithPaper(categorical[0], 0x33 / 0xff));
-    expect(getFigureTint(categorical.length + 2)).toBe(getFigureTint(2));
+    expect(getFigureTint(0)).toBe(mixWithPaper(FIGURE_PALETTE[0], 0x33 / 0xff));
+    expect(getFigureTint(FIGURE_PALETTE.length + 2)).toBe(getFigureTint(2));
   });
 
-  it('draws a lone figure on paper, with an ink shadow, instead of a palette color', () => {
-    expect(SINGLE_FIGURE_PANEL_COLOR).toBe(PAPER.white);
-    expect(SINGLE_FIGURE_SHADOW_COLOR).toBe(INK.mid);
-  });
-
-  it('tints a figure card by mixing the figure color into the card surface: 12% fill, 60% border', () => {
-    expect(figureCardTint('#c74007')).toEqual({
-      background: 'color-mix(in oklab, #c74007 12%, oklch(var(--b1)))',
-      border: 'color-mix(in oklab, #c74007 60%, oklch(var(--b1)))',
-    });
-  });
 });
 
 function mixWithPaper(hex: string, amount: number): string {

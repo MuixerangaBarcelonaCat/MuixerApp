@@ -1004,6 +1004,36 @@ describe('TroncViewComponent', () => {
       fixture.detectChanges();
     });
 
+    it('takes no figure colour: the panel draws no tint or border, the pinned card around it frames it', () => {
+      expect('panelColor' in component).toBe(false);
+      expect('panelBorderColor' in component).toBe(false);
+      const panel: HTMLElement = fixture.nativeElement.querySelector('.tronc-view');
+      expect(panel.style.backgroundColor).toBe('');
+      expect(panel.style.border).toBe('');
+    });
+
+    it('heads the panel with the figure name on a band in the figure colour, closed by a rule', () => {
+      fixture.componentRef.setInput('figureName', 'Pilar de 5');
+      fixture.componentRef.setInput('nameBand', { fill: '#cfe3da', rule: '#1a5543' });
+      fixture.detectChanges();
+
+      const band: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(band.textContent?.trim()).toBe('Pilar de 5');
+      expect(band.style.backgroundColor).toBe('rgb(207, 227, 218)');
+      expect(band.style.borderBottomColor).toBe('rgb(26, 85, 67)');
+    });
+
+    it('leaves the name on plain paper without a band, keeping the same height', () => {
+      fixture.componentRef.setInput('figureName', 'Pilar de 5');
+      fixture.detectChanges();
+
+      const band: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(band.style.backgroundColor).toBe('');
+      expect(band.style.borderBottomColor).toBe('');
+      // The rule's room is reserved either way, so a measured panel matches the drawn one.
+      expect(band.classList).toContain('figure-name');
+    });
+
     it('draws nodes in projection mode: no height and no observation', () => {
       const appearance = component.appearanceByNodeId().get('node-1')!;
       expect(appearance.text.value).toBe('Lluna');

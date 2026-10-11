@@ -3,6 +3,7 @@ import { DrawPrimitive } from './draw-plan';
 import { NodeFill } from './appearance';
 import { CanvasIcon, NODE_ICON_PATHS } from './icons';
 import { nodeOutline } from './outline';
+import { FigureLink, pinDiscs } from '../utils/figure-link.util';
 
 /**
  * Konva side of the node renderer: turns a node draw plan (`nodeDrawPlan`, unit-tested) into Konva
@@ -152,22 +153,43 @@ export function drawNodePlan(plan: DrawPrimitive[]): {
         nodes.push(drawIcon(p));
         break;
       case 'disc':
-        nodes.push(
-          new Konva.Circle({
-            x: p.x,
-            y: p.y,
-            radius: p.radius,
-            fill: p.fill,
-            stroke: p.stroke ?? undefined,
-            strokeWidth: p.strokeWidth,
-            listening: false,
-          }),
-        );
+        nodes.push(drawDisc(p));
         break;
     }
   }
   if (!shape) throw new Error('A node draw plan starts with its shape.');
   return { shape, nodes: flat, raised };
+}
+
+function drawDisc(p: Extract<DrawPrimitive, { kind: 'disc' }>): Konva.Circle {
+  return new Konva.Circle({
+    x: p.x,
+    y: p.y,
+    radius: p.radius,
+    fill: p.fill,
+    stroke: p.stroke ?? undefined,
+    strokeWidth: p.strokeWidth,
+    listening: false,
+  });
+}
+
+/**
+ * The projection's tronc panel ↔ pinya link (`figureLink`): the sagging string, for a layer behind
+ * the nodes, and the pin on the figure, for a layer above them.
+ */
+export function drawFigureLink(link: FigureLink): { string: Konva.Path; pin: Konva.Group } {
+  const { from, control, to } = link.string;
+  const string = new Konva.Path({
+    data: `M${from.x} ${from.y} Q${control.x} ${control.y} ${to.x} ${to.y}`,
+    stroke: link.stringColor,
+    strokeWidth: link.stringWidth,
+    lineCap: 'round',
+    opacity: 0.9,
+    listening: false,
+  });
+  const pin = new Konva.Group({ listening: false });
+  for (const disc of pinDiscs(link.pin.x, link.pin.y, link.pinRadius, link.color)) pin.add(drawDisc(disc));
+  return { string, pin };
 }
 
 let textProbe: Konva.Text | null = null;

@@ -30,6 +30,9 @@ export interface CanvasTheme {
   /** Backdrop of an observation emoji, and its edge. */
   sticker: string;
   stickerEdge: string;
+  /** The flat paper edge under a tronc panel card, and the card's frame. */
+  cardEdge: string;
+  cardBorder: string;
   /** Nodes with no type color: BASE nodes. */
   neutralNode: NodeTones;
 }
@@ -47,6 +50,8 @@ export function buildCanvasTheme(): CanvasTheme {
     nodeOutline: INK.dark,
     sticker: PAPER.white,
     stickerEdge: CREASE.mid,
+    cardEdge: PAPER.washiDark,
+    cardBorder: CREASE.light,
     neutralNode: NODE_TYPE_NEUTRAL,
   };
 }
