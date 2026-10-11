@@ -155,6 +155,58 @@ describe('PersonPanelComponent', () => {
     });
   });
 
+  describe('grouping on the event day, before the start time', () => {
+    beforeEach(() => {
+      const persons = [
+        makeAvailablePerson('p1', 'ASSISTIT'),
+        makeAvailablePerson('p2', 'ANIRE'),
+        makeAvailablePerson('p3', 'NO_VAIG'),
+        makeAvailablePerson('p4', 'PENDENT'),
+      ];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      fixture.componentRef.setInput('phase', 'day');
+      component.loadPersons();
+      fixture.detectChanges();
+    });
+
+    it('splits arrivals from those still to come, both in green', () => {
+      const headers = Array.from(fixture.nativeElement.querySelectorAll('p.font-semibold')) as HTMLElement[];
+      const arrived = headers.find((h) => h.textContent?.includes('Ha arribat (1)'));
+      const coming = headers.find((h) => h.textContent?.includes('Ve (1)'));
+      expect(arrived?.classList.contains('text-success')).toBe(true);
+      expect(coming?.classList.contains('text-success')).toBe(true);
+    });
+
+    it('keeps PENDENT as pending, not declined, until the start time', () => {
+      expect(component.pendingPersons().map((p) => p.id)).toEqual(['p4']);
+      expect(component.declinedPersons().map((p) => p.id)).toEqual(['p3']);
+    });
+  });
+
+  describe('grouping once the event has started', () => {
+    beforeEach(() => {
+      const persons = [
+        makeAvailablePerson('p2', 'ANIRE'),
+        makeAvailablePerson('p4', 'PENDENT'),
+      ];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      fixture.componentRef.setInput('phase', 'started');
+      component.loadPersons();
+      fixture.detectChanges();
+    });
+
+    it('shows the not-arrived group in amber', () => {
+      const headers = Array.from(fixture.nativeElement.querySelectorAll('p.font-semibold')) as HTMLElement[];
+      const late = headers.find((h) => h.textContent?.includes('No ha arribat (1)'));
+      expect(late?.classList.contains('text-warning')).toBe(true);
+    });
+
+    it('treats PENDENT as declined', () => {
+      expect(component.pendingPersons()).toHaveLength(0);
+      expect(component.declinedPersons().map((p) => p.id)).toEqual(['p4']);
+    });
+  });
+
   describe('grouping before the event day (default)', () => {
     beforeEach(() => {
       const persons = [

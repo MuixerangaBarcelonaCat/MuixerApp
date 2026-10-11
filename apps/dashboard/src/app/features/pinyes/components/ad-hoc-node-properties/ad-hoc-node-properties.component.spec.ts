@@ -94,10 +94,20 @@ describe('AdHocNodePropertiesComponent', () => {
     });
   });
 
-  describe('attendanceBadgeVariant (from the event day on)', () => {
+  describe('attendanceBadgeVariant (on the event day, before the start time)', () => {
     beforeEach(() => fixture.componentRef.setInput('phase', 'day'));
 
-    it('ANIRE → warning (no presentat)', () => {
+    it('ANIRE → success (still coming)', () => {
+      fixture.componentRef.setInput('attendanceStatus', 'ANIRE');
+      fixture.detectChanges();
+      expect(component.attendanceBadgeVariant()).toBe('success');
+    });
+  });
+
+  describe('attendanceBadgeVariant (from the start time on)', () => {
+    beforeEach(() => fixture.componentRef.setInput('phase', 'started'));
+
+    it('ANIRE → warning (no ha arribat)', () => {
       fixture.componentRef.setInput('attendanceStatus', 'ANIRE');
       fixture.detectChanges();
       expect(component.attendanceBadgeVariant()).toBe('warning');
@@ -118,7 +128,8 @@ describe('AdHocNodePropertiesComponent', () => {
       ['before', 'NO_VAIG', 'No ve'],
       ['before', 'PENDENT', 'Pendent'],
       ['day', 'ASSISTIT', 'Ha arribat'],
-      ['day', 'ANIRE', 'No ha arribat'],
+      ['day', 'ANIRE', 'Ve'],
+      ['started', 'ANIRE', 'No ha arribat'],
       ['after', 'ASSISTIT', 'Va vindre'],
       ['after', 'NO_VAIG', 'No va vindre'],
     ] as const)('%s / %s → "%s"', (phase, status, expected) => {

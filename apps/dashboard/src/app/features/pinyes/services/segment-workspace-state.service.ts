@@ -12,6 +12,8 @@ import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService, LockStatus, SegmentInstanceState } from './node-assignment.service';
 import { ToastService } from '@muixer/ui';
+import { EventPhase, getEventPhase } from '@muixer/shared';
+import { EventService } from '../../events/services/event.service';
 import { DistributionItem } from '../models/distribution.model';
 
 export interface WorkspaceInstance {
@@ -43,6 +45,7 @@ export class SegmentWorkspaceStateService {
   private readonly distributionService = inject(SegmentDistributionService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
+  private readonly eventService = inject(EventService);
   readonly state = inject(AssignmentStateService);
 
   readonly eventId = signal('');
@@ -56,6 +59,8 @@ export class SegmentWorkspaceStateService {
   readonly distributionByInstance = signal<Map<string, DistributionItem>>(new Map());
   readonly selectedInstanceId = signal<string | null>(null);
   readonly lockStatus = signal<LockStatus | null>(null);
+  /** The event's phase, worked out once when the event is opened (it doesn't change while the page is open). */
+  readonly phase = signal<EventPhase>('before');
   /** Canonical segment conflicts (D13). Empty in production until Phase 5 drops the constraints. */
   readonly conflicts = signal<SegmentConflict[]>([]);
   /** Dotació/conflict counters carried alongside `conflicts` — feeds the conflict banner (Fase 4). */
@@ -238,6 +243,7 @@ export class SegmentWorkspaceStateService {
   }
 
   load(eventId: string, segmentId: string): void {
+    if (eventId !== this.eventId()) this.loadPhase(eventId);
     this.eventId.set(eventId);
     this.segmentId.set(segmentId);
     this.loading.set(true);
@@ -251,6 +257,13 @@ export class SegmentWorkspaceStateService {
 
     this.assignmentService.getLockStatus(eventId).subscribe({
       next: (status) => this.lockStatus.set(status),
+    });
+  }
+
+  private loadPhase(eventId: string): void {
+    this.phase.set('before');
+    this.eventService.getOne(eventId).subscribe({
+      next: (ev) => this.phase.set(getEventPhase(ev.date, ev.startTime)),
     });
   }
 

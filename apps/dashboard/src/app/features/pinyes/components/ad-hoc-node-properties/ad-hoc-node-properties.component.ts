@@ -13,7 +13,7 @@ import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular'
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService, TextareaComponent, InputComponent, SelectComponent, ButtonComponent, BadgeComponent, BadgeVariant } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
-import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isArrivalPhase } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isStartedPhase } from '@muixer/shared';
 import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-presets.util';
 
 @Component({
@@ -84,7 +84,7 @@ export class AdHocNodePropertiesComponent {
   readonly attendanceBadgeVariant = computed<BadgeVariant>(() => {
     const status = this.attendanceStatus();
     if (status === 'ASSISTIT') return 'success';
-    if (status === 'ANIRE') return isArrivalPhase(this.phase()) ? 'warning' : 'success';
+    if (status === 'ANIRE') return isStartedPhase(this.phase()) ? 'warning' : 'success';
     if (status === 'NO_VAIG') return 'error';
     if (status === 'PENDENT') return 'warning';
     return 'ghost';

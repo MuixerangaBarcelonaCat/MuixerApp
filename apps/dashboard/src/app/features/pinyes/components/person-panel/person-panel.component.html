@@ -298,10 +298,10 @@
       </div>
       }
 
-      <!-- No-shows (from the event day on, ANIRE) -->
+      <!-- Still to come (from the event day on, ANIRE): late once the event has started -->
       @if (arrivals() && sortedNoShowPersons().length > 0) {
         <div class="px-2 pb-1 border-t border-base-200">
-          <p class="text-xs font-semibold text-warning mt-1.5 mb-1">
+          <p class="text-xs font-semibold mt-1.5 mb-1" [class.text-warning]="started()" [class.text-success]="!started()">
             {{ groupLabel('ANIRE') }} ({{ sortedNoShowPersons().length }})
           </p>
           @for (person of sortedNoShowPersons(); track person.id) {

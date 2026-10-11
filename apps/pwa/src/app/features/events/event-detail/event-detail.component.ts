@@ -22,6 +22,7 @@ import {
   formatOwnPositionSummary,
   OwnPositionSummary,
   OWN_POSITION_MULTIPLE_PLACEMENTS,
+  getEventPhase,
 } from '@muixer/shared';
 import { LucideAngularModule, Info, ChevronRight } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
@@ -87,13 +88,14 @@ export class EventDetailComponent {
     return ev.eventType === EventType.ASSAIG ? "Detall de l'assaig" : "Detall de l'actuació";
   });
 
-  protected readonly isPast = computed(() => {
-    const date = this.event()?.date;
-    if (!date) return false;
-    return date < new Date().toISOString().slice(0, 10);
+  private readonly phase = computed(() => {
+    const ev = this.event();
+    return ev ? getEventPhase(ev.date, ev.startTime) : null;
   });
 
-  protected readonly isToday = computed(() => this.event()?.date === new Date().toISOString().slice(0, 10));
+  protected readonly isPast = computed(() => this.phase() === 'after');
+
+  protected readonly isToday = computed(() => this.phase() === 'day' || this.phase() === 'started');
   // ponytail: day-of restriction on "Passa llista" temporarily disabled for testing, restore `this.isStaff() && this.isToday()` once verified live — tracked as docs/DEBT.md F13
   protected readonly showRollCallLink = computed(() => this.isStaff());
 

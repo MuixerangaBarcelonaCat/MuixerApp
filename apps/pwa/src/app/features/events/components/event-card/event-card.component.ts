@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { SlicePipe } from '@angular/common';
-import { AttendanceStatus, EventType, MeEvent, UserRole } from '@muixer/shared';
+import { AttendanceStatus, EventType, getEventPhase, MeEvent, UserRole } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock, Star, Users } from 'lucide-angular';
 import { CardComponent, CardTone } from '@muixer/ui';
 import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
@@ -63,10 +63,9 @@ export class EventCardComponent {
     () => this.event().eventType === EventType.ASSAIG,
   );
 
-  protected readonly isPast = computed(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    return this.event().date < today;
-  });
+  protected readonly isPast = computed(
+    () => getEventPhase(this.event().date, this.event().startTime) === 'after',
+  );
 
   // Assaig: the date is the heading, the rehearsal's own name (e.g. "Assaig general") sits below
   // it. Actuació: the event name is the heading (with a star icon ahead of it — the only place

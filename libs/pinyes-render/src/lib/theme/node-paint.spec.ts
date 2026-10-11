@@ -36,20 +36,26 @@ describe('nodeLabelColor', () => {
 });
 
 describe('attendanceDotColor', () => {
-  it('before the arrival phase: going is success, pending is warning, not going is danger', () => {
-    expect(attendanceDotColor('ANIRE', false, theme)).toBe(theme.success);
-    expect(attendanceDotColor('PENDENT', false, theme)).toBe(theme.warning);
-    expect(attendanceDotColor('NO_VAIG', false, theme)).toBe(theme.danger);
-  });
+  it.each(['before', 'day'] as const)(
+    'until the start time (%s): going is success, pending is warning, not going is danger',
+    (phase) => {
+      expect(attendanceDotColor('ANIRE', phase, theme)).toBe(theme.success);
+      expect(attendanceDotColor('PENDENT', phase, theme)).toBe(theme.warning);
+      expect(attendanceDotColor('NO_VAIG', phase, theme)).toBe(theme.danger);
+    },
+  );
 
-  it('during arrival: said yes but not here is warning, still pending is danger', () => {
-    expect(attendanceDotColor('ANIRE', true, theme)).toBe(theme.warning);
-    expect(attendanceDotColor('PENDENT', true, theme)).toBe(theme.danger);
-    expect(attendanceDotColor('NO_VAIG', true, theme)).toBe(theme.danger);
-  });
+  it.each(['started', 'after'] as const)(
+    'from the start time (%s): said yes but not here is warning, still pending is danger',
+    (phase) => {
+      expect(attendanceDotColor('ANIRE', phase, theme)).toBe(theme.warning);
+      expect(attendanceDotColor('PENDENT', phase, theme)).toBe(theme.danger);
+      expect(attendanceDotColor('NO_VAIG', phase, theme)).toBe(theme.danger);
+    },
+  );
 
   it('shows no dot for someone who is here, or with no known status', () => {
-    expect(attendanceDotColor('ASSISTIT', true, theme)).toBeNull();
-    expect(attendanceDotColor(undefined, false, theme)).toBeNull();
+    expect(attendanceDotColor('ASSISTIT', 'started', theme)).toBeNull();
+    expect(attendanceDotColor(undefined, 'before', theme)).toBeNull();
   });
 });

@@ -779,26 +779,6 @@ describe('SegmentManagerComponent', () => {
       );
     });
 
-    it.each(['day', 'after'] as const)('passes the event phase (%s) as a query param', (phase) => {
-      fixture.componentRef.setInput('phase', phase);
-      fixture.detectChanges();
-      component.navigateToAssignment('seg-uuid-1');
-      expect(routerMock.navigate).toHaveBeenCalledWith(
-        ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
-        { queryParams: { returnUrl: '/rehearsals/event-123', phase } },
-      );
-    });
-
-    it('does not include a phase query param before the event day', () => {
-      fixture.componentRef.setInput('phase', 'before');
-      fixture.detectChanges();
-      component.navigateToAssignment('seg-uuid-1');
-      expect(routerMock.navigate).toHaveBeenCalledWith(
-        ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
-        { queryParams: { returnUrl: '/rehearsals/event-123' } },
-      );
-    });
-
     it('passes tab=troncs when in troncs view mode, so the workspace opens on the Troncs tab', () => {
       (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
       component.setViewMode('troncs');

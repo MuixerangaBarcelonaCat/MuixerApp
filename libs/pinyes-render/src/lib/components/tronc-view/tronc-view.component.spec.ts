@@ -790,7 +790,25 @@ describe('TroncViewComponent', () => {
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
     });
 
-    it('ANIRE → amber for past event (from the event day on)', () => {
+    it('ANIRE → still green on the event day before the start time', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+      fixture.componentRef.setInput('phase', 'day');
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
+    });
+
+    it('ANIRE → amber from the start time (started)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+      fixture.componentRef.setInput('phase', 'started');
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--wa))');
+    });
+
+    it('ANIRE → amber for past event (after the event day)', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
@@ -816,7 +834,16 @@ describe('TroncViewComponent', () => {
       expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
     });
 
-    it('PENDENT → red for past event (from the event day on)', () => {
+    it('PENDENT → still muted on the event day before the start time', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
+      fixture.componentRef.setInput('phase', 'day');
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
+    });
+
+    it('PENDENT → red for past event (after the event day)', () => {
       const a = makeAssignment('node-1', 'Pepet');
       fixture.componentRef.setInput('assignments', [a]);
       fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));

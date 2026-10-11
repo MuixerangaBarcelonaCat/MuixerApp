@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { LucideAngularModule } from 'lucide-angular';
 import { BadgeComponent, BadgeVariant, DOMAIN_ICONS } from '@muixer/ui';
 import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
-import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isStartedPhase, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 @Component({
   selector: 'app-person-hover-card',
@@ -108,7 +108,7 @@ export class PersonHoverCardComponent {
   statusBadgeVariant(): BadgeVariant {
     const status = this.info().attendanceStatus;
     if (!status) return 'ghost';
-    if (status === 'ANIRE' && isArrivalPhase(this.phase())) return 'warning';
+    if (status === 'ANIRE' && isStartedPhase(this.phase())) return 'warning';
     return this.statusBadgeVariants[status];
   }
 

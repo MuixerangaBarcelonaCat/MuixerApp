@@ -1,7 +1,9 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { By } from '@angular/platform-browser';
 import { AttendanceStatus, DelegateType, EventType, MeEvent, NOT_REGISTERED_STATUS, UserRole } from '@muixer/shared';
 import { EventCardComponent } from './event-card.component';
+import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
 import { EventService } from '../../services/event.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { ToastService } from '@muixer/ui';
@@ -165,6 +167,27 @@ describe('EventCardComponent', () => {
     component.onAttendanceChanged('p-1', AttendanceStatus.ANIRE);
 
     expect(emitted).toEqual([{ eventId: 'ev-1', personId: 'p-1', status: AttendanceStatus.ANIRE }]);
+  });
+
+  describe('past event (Valencia time)', () => {
+    afterEach(() => vi.useRealTimers());
+
+    const attendanceDisabled = (fixture: ComponentFixture<EventCardComponent>) =>
+      fixture.debugElement.query(By.directive(AttendanceButtonComponent)).componentInstance.disabled();
+
+    it('locks the attendance buttons once the event day is over in Valencia, even if it is still that day in UTC', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 22:30 UTC on 23 Jun = 00:30 on 24 Jun in Valencia.
+      vi.setSystemTime(new Date('2026-06-23T22:30:00Z'));
+      expect(attendanceDisabled(createCard(MOCK_ASSAIG))).toBe(true);
+    });
+
+    it('keeps them open on the event day', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 21:30 UTC = 23:30 on 23 Jun in Valencia, after the 20:00 start.
+      vi.setSystemTime(new Date('2026-06-23T21:30:00Z'));
+      expect(attendanceDisabled(createCard(MOCK_ASSAIG))).toBe(false);
+    });
   });
 
   describe('showAttendance', () => {

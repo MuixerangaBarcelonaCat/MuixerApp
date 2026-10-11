@@ -7,6 +7,7 @@ import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService } from './node-assignment.service';
+import { EventService } from '../../events/services/event.service';
 import { ToastService } from '@muixer/ui';
 import { SegmentDistributionData } from '../models/distribution.model';
 
@@ -133,6 +134,7 @@ describe('SegmentWorkspaceStateService', () => {
     getSegmentConflicts: ReturnType<typeof vi.fn>;
   };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+  let eventService: { getOne: ReturnType<typeof vi.fn> };
 
   const configure = (opts: {
     segment?: SegmentDetail;
@@ -182,6 +184,7 @@ describe('SegmentWorkspaceStateService', () => {
       ),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    eventService = { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) };
 
     TestBed.configureTestingModule({
       providers: [
@@ -191,6 +194,7 @@ describe('SegmentWorkspaceStateService', () => {
         { provide: SegmentDistributionService, useValue: distributionService },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
+        { provide: EventService, useValue: eventService },
       ],
     });
     service = TestBed.inject(SegmentWorkspaceStateService);
@@ -329,6 +333,36 @@ describe('SegmentWorkspaceStateService', () => {
       service.load(EVENT_ID, SEGMENT_ID);
 
       expect(service.isLocked()).toBe(true);
+    });
+
+    describe('event phase', () => {
+      afterEach(() => vi.useRealTimers());
+
+      it("is 'before' until the event has loaded", () => {
+        configure();
+        eventService.getOne.mockReturnValue(new Subject());
+        service.load(EVENT_ID, SEGMENT_ID);
+        expect(service.phase()).toBe('before');
+      });
+
+      it('works out the phase from the event when the page opens', () => {
+        configure();
+        vi.useFakeTimers({ toFake: ['Date'] });
+        // 16:30 UTC = 18:30 in Valencia, after the 18:00 start.
+        vi.setSystemTime(new Date('2026-07-22T16:30:00Z'));
+
+        service.load(EVENT_ID, SEGMENT_ID);
+
+        expect(eventService.getOne).toHaveBeenCalledWith(EVENT_ID);
+        expect(service.phase()).toBe('started');
+      });
+
+      it('does not refetch the event when switching segments within it', () => {
+        configure();
+        service.load(EVENT_ID, SEGMENT_ID);
+        service.load(EVENT_ID, 'seg-other');
+        expect(eventService.getOne).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('resets shared assignment state on load', () => {

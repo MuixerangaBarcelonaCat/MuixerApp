@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { attendanceStatusLabel, conflictRelevantPlacements, DIRECTION_NODE_PRESETS, EventPhase, isArrivalPhase, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, conflictRelevantPlacements, DIRECTION_NODE_PRESETS, EventPhase, isStartedPhase, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -669,7 +669,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   statusBadgeClass(status: AttendanceStatus): string {
     const classes: Record<AttendanceStatus, string> = {
       PENDENT: 'badge-ghost',
-      ANIRE: isArrivalPhase(this.phase()) ? 'badge-warning' : 'badge-success',
+      ANIRE: isStartedPhase(this.phase()) ? 'badge-warning' : 'badge-success',
       NO_VAIG: 'badge-error',
       ASSISTIT: 'badge-success',
     };
@@ -895,7 +895,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   private openAssignment(segmentId: string, instanceId: string | undefined, tab: 'pinyes' | 'troncs' = 'pinyes'): void {
     const queryParams: Record<string, string> = { returnUrl: eventReturnUrl(this.router), tab };
-    if (this.phase() !== 'before') queryParams['phase'] = this.phase();
     const commands = ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign'];
     if (instanceId) commands.push(instanceId);
     this.router.navigate(commands, { queryParams });
