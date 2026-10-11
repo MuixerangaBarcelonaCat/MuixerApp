@@ -1,6 +1,6 @@
 import { hexToOklch } from './color';
-import { CREASE, PAPER } from './fixed-colors';
-import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE } from './node-types';
+import { CREASE, INK, PAPER } from './fixed-colors';
+import { NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK } from './node-types';
 
 describe('NODE_TYPE_PALETTE', () => {
   // The values the user picked on the Pinya Canvas Options preview (palette «between B and C»):
@@ -71,5 +71,67 @@ describe('NODE_TYPE_PALETTE', () => {
 
   it('has a neutral paper tone for nodes with no type color: the BASE and the tronc panel', () => {
     expect(NODE_TYPE_NEUTRAL).toEqual({ wash: PAPER.washiDark, pencil: CREASE.dark });
+  });
+});
+
+describe('NODE_TYPE_PALETTE_DARK', () => {
+  // The values the user picked on the Dark Pinya Canvas preview (D2): the light levels inverted, a
+  // dark wash at L 0.37 / C 0.055 and a light pencil at L 0.78 / C 0.10, each type on its light hue.
+  // A few differ from the preview by one hex step: the preview read each hue back from the light
+  // pencil, after gamut mapping, instead of from the hue source.
+  const APPROVED: Record<string, { wash: string; pencil: string }> = {
+    agulla: { wash: '#4c3653', pencil: '#d2a3e1' },
+    mans: { wash: '#5b4b18', pencil: '#dfc679' },
+    laterals: { wash: '#12484e', pencil: '#5ecad7' },
+    vents: { wash: '#2c482e', pencil: '#8dc991' },
+    'cordo-obert': { wash: '#5c5724', pencil: '#dcd586' },
+    tap: { wash: '#58333c', pencil: '#ee9cb0' },
+    crossa: { wash: '#383d5d', pencil: '#a6b2f7' },
+    contrafort: { wash: '#593334', pencil: '#f19d9d' },
+    comodin: { wash: '#354248', pencil: '#a1bcca' },
+    segona: { wash: '#29425c', pencil: '#86bcf6' },
+    terça: { wash: '#2d472d', pencil: '#90c88f' },
+    quarta: { wash: '#553821', pencil: '#e7a875' },
+    quinta: { wash: '#4c3653', pencil: '#d2a3e1' },
+    sisena: { wash: '#354248', pencil: '#a1bcc9' },
+    puntal: { wash: '#593529', pencil: '#efa286' },
+    alçadora: { wash: '#134850', pencil: '#60c9db' },
+    xiqueta: { wash: '#593430', pencil: '#f19f95' },
+    'direccio-tronc': { wash: '#553821', pencil: '#e8a876' },
+    'direccio-xicalla': { wash: '#58333e', pencil: '#ed9cb4' },
+    'direccio-pinya': { wash: '#1f4939', pencil: '#73ccaa' },
+  };
+
+  it('has exactly the approved wash and pencil tones for every position type', () => {
+    expect(NODE_TYPE_PALETTE_DARK).toEqual(APPROVED);
+  });
+
+  it('inverts the light levels: a dark wash at L 0.37 and a light pencil at L 0.78, except the yellows', () => {
+    const others = Object.entries(NODE_TYPE_PALETTE_DARK).filter(([type]) => !['mans', 'cordo-obert'].includes(type));
+    for (const [, { wash, pencil }] of others) {
+      expect(hexToOklch(wash).l).toBeCloseTo(0.37, 2);
+      expect(hexToOklch(pencil).l).toBeCloseTo(0.78, 2);
+    }
+  });
+
+  it('keeps every type on its light-mode hue', () => {
+    for (const [type, { pencil }] of Object.entries(NODE_TYPE_PALETTE_DARK)) {
+      if (['comodin', 'sisena'].includes(type)) continue;
+      expect(Math.abs(hexToOklch(pencil).h - hexToOklch(NODE_TYPE_PALETTE[type].pencil).h)).toBeLessThan(3);
+    }
+  });
+
+  it('lifts the yellows, cordó obert above mans, so they stay apart', () => {
+    const mans = NODE_TYPE_PALETTE_DARK['mans'];
+    const lemon = NODE_TYPE_PALETTE_DARK['cordo-obert'];
+    expect(hexToOklch(mans.wash).l).toBeCloseTo(0.42, 2);
+    expect(hexToOklch(lemon.wash).l).toBeCloseTo(0.45, 2);
+    expect(hexToOklch(lemon.pencil).l).toBeGreaterThan(hexToOklch(mans.pencil).l);
+  });
+
+  it('has a neutral tone a step above the dark card for the BASE and the tronc panel, outlined in faint ink', () => {
+    expect(NODE_TYPE_NEUTRAL_DARK.wash).toBe('#565550');
+    expect(hexToOklch(NODE_TYPE_NEUTRAL_DARK.wash).h).toBeCloseTo(hexToOklch(INK.dark).h, 0);
+    expect(NODE_TYPE_NEUTRAL_DARK.pencil).toBe(INK.faint);
   });
 });

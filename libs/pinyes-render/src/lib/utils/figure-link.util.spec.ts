@@ -102,6 +102,11 @@ describe('figureLink', () => {
     });
   });
 
+  it('lightens the string toward paper on the dark canvas', () => {
+    const link = figureLink([node(0, 400)], panel(-100, 0), '#3b6fc2', 1, buildCanvasTheme('dark'));
+    expect(link?.stringColor).toBe(fade('#3b6fc2', 0.2, PAPER.white));
+  });
+
   it('draws no link for a figure with no nodes', () => {
     expect(figureLink([], panel(0, 0), '#3b6fc2', 1)).toBeNull();
   });
@@ -121,6 +126,13 @@ describe('pinDiscs', () => {
       strokeWidth: 1,
     });
     expect(highlight).toMatchObject({ kind: 'disc', x: 7, y: 17, radius: 2.6, fill: fade('#3b6fc2', 0.8, theme.paper) });
+  });
+
+  it('lays the pin on the dark shadow on the dark canvas, its highlight still toward paper', () => {
+    const dark = buildCanvasTheme('dark');
+    const [shadow, , highlight] = pinDiscs(10, 20, 9, '#3b6fc2', dark);
+    expect(shadow).toMatchObject({ fill: dark.pinShadow });
+    expect(highlight).toMatchObject({ fill: fade('#3b6fc2', 0.8, PAPER.white) });
   });
 
   it('scales the shadow offset and the highlight with the pin', () => {

@@ -31,7 +31,7 @@ import { NodeActionsComponent } from '../../../../shared/components/controls/nod
 import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService, TabsComponent, TabDef, ModalComponent, InputComponent, ButtonComponent, SelectComponent, LiftHoverDirective, DOMAIN_ICONS } from '@muixer/ui';
+import { ToastService, TabsComponent, TabDef, ModalComponent, InputComponent, ButtonComponent, SelectComponent, LiftHoverDirective, DOMAIN_ICONS, ThemeService } from '@muixer/ui';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
 import { CanComponentDeactivate } from '../../../../core/guards/unsaved-changes.guard';
 
@@ -79,6 +79,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly router = inject(Router);
+  private readonly themeMode = inject(ThemeService).mode;
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
@@ -203,7 +204,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
   /** Swatch for a node type: the fill its nodes get on the canvas while their color isn't customized. */
   typeSwatch(zone: FigureZone, positionType: string | null): string {
-    return nodeFill({ zone, positionType, color: null });
+    return nodeFill({ zone, positionType, color: null }, this.themeMode());
   }
 
   /** What a missing color resolves to on the canvas: the type's fill, or none for a decoration. */

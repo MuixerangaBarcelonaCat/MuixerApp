@@ -27,7 +27,7 @@ import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService, TextareaComponent, ButtonComponent, ButtonGroupComponent, ModalComponent } from '@muixer/ui';
+import { ToastService, TextareaComponent, ButtonComponent, ButtonGroupComponent, ModalComponent, ThemeService } from '@muixer/ui';
 
 interface AdHocNodeSnapshot {
   zone: string;
@@ -69,6 +69,7 @@ export class NodesTabComponent implements OnInit {
   readonly state = inject(AssignmentStateService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
+  private readonly themeMode = inject(ThemeService).mode;
 
   readonly phase = input<EventPhase>('before');
 
@@ -81,7 +82,7 @@ export class NodesTabComponent implements OnInit {
 
   /** Swatch for a preset: the fill its nodes get on the canvas. */
   presetSwatch(preset: NodePreset): string {
-    return nodeFill({ zone: preset.zone, positionType: preset.positionType, color: null });
+    return nodeFill({ zone: preset.zone, positionType: preset.positionType, color: null }, this.themeMode());
   }
 
   // Content equality avoids re-rendering the canvas (and breaking dblclick) on re-selection.

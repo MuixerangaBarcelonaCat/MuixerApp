@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent, PinnedCardComponent, getFigureBand } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent, PinnedCardComponent, getFigureBand, FigureBand } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -19,7 +19,7 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../figure-picker-modal/figure-picker-modal.component';
-import { ModalComponent, THEME_NAMES, ToastService } from '@muixer/ui';
+import { ModalComponent, ThemeService, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -41,6 +41,8 @@ class StubTroncView {
   readonly phase = input<string>('before');
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
+  readonly figureName = input<string | null>(null);
+  readonly nameBand = input<FigureBand | null>(null);
   readonly nodeSelected = output<string | null>();
   readonly nodeContextMenu = output<string>();
   readonly nodeDropped = output<{
@@ -1024,15 +1026,36 @@ describe('TroncsTabComponent', () => {
         [FIGURE_PALETTE[0], 'top', -1],
         [FIGURE_PALETTE[1], 'top', 1],
       ]);
-      // The figure name on a band in the figure colour, closed by a rule in the pin's dark tone.
-      const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
-      const name: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
-      expect(name.style.backgroundColor).toBe(rgb(getFigureBand(0).fill));
-      expect(name.style.borderBottomColor).toBe(rgb(getFigureBand(0).rule));
+      // The tronc panel heads the card with the figure name on its band, as in every other tab:
+      // the tab draws no heading of its own.
+      const labels = component.figures().map((f) => f.instance.label);
+      expect(labels.every(Boolean)).toBe(true);
+      expect(troncStubs().map((t) => [t.figureName(), t.nameBand()])).toEqual([
+        [labels[0], getFigureBand(0)],
+        [labels[1], getFigureBand(1)],
+      ]);
+      expect(fixture.nativeElement.querySelector('[data-role="figure-name"]')).toBeNull();
       const tronc: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
       const card = tronc.closest('lib-pinned-card') as HTMLElement;
-      // Pinned light like the rest of the figure rendering, until the canvas is themed (DEBT F19).
-      expect(card.dataset['theme']).toBe(THEME_NAMES.light);
+      // The card follows the page theme, like the rest of the figure rendering.
+      expect(card.hasAttribute('data-theme')).toBe(false);
+    });
+
+    it('darkens the name band when the app is dark', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')], [INST_B]: [makeNode('m1', 'TRONC')] },
+      });
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        fixture.detectChanges();
+
+        expect(troncStubs()[0].nameBand()).toEqual(getFigureBand(0, 'dark'));
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
     });
 
     it('pins no card when the segment holds a single figure (nothing to tell it apart from), but keeps its name band', async () => {
@@ -1045,9 +1068,7 @@ describe('TroncsTabComponent', () => {
       const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
       expect(card.color()).toBeNull();
       // The name band stays: it's the card's colour, not a link to tell figures apart.
-      const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
-      const name: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
-      expect(name.style.backgroundColor).toBe(rgb(getFigureBand(0).fill));
+      expect(troncStubs()[0].nameBand()).toEqual(getFigureBand(0));
     });
 
     it('colors a minimap box by its figure\'s sortOrder even when that figure has no tronc', async () => {

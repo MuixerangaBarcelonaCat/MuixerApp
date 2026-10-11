@@ -1,4 +1,5 @@
-import { THEME_NAMES } from '@muixer/ui';
+import { PAPER, ThemeService } from '@muixer/ui';
+import { fade } from '../../theme/canvas-theme';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -157,8 +158,8 @@ describe('PinyaProjectionComponent', () => {
 
   // ── instanceId reactivity (design decision 6) ───────────────────────────────
 
-  it('is pinned to the light theme until figure rendering is themed for dark mode', () => {
-    expect(fixture.nativeElement.dataset['theme']).toBe(THEME_NAMES.light);
+  it('follows the app theme instead of pinning the light one', () => {
+    expect(fixture.nativeElement.hasAttribute('data-theme')).toBe(false);
   });
 
 
@@ -304,6 +305,17 @@ describe('PinyaProjectionComponent', () => {
       // The name band stays: it's the card's colour, not a link to tell figures apart.
       const view = fixture.debugElement.query(By.directive(TroncViewStub)).componentInstance as TroncViewStub;
       expect(view.nameBand()).toEqual(getFigureBand(0));
+    });
+
+    it('lightens the strings and darkens the name bands when the app is dark', () => {
+      TestBed.inject(ThemeService).setPreference('dark');
+      setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 }), far()]));
+
+      expect(component.figureLinks()[0].stringColor).toBe(fade(FIGURE_PALETTE[0], 0.2, PAPER.white));
+      const view = fixture.debugElement.query(By.directive(TroncViewStub)).componentInstance as TroncViewStub;
+      expect(view.nameBand()).toEqual(getFigureBand(0, 'dark'));
+      TestBed.inject(ThemeService).setPreference('system');
+      localStorage.clear();
     });
 
     it('draws no link when the tronc panels are hidden', () => {

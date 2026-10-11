@@ -1,14 +1,27 @@
-import { CREASE, INK, NODE_TYPE_NEUTRAL, NodeTones, PAPER, SEMANTIC, contrastContent, formatHex, hexToOklch } from '@muixer/ui';
+import {
+  CREASE,
+  INK,
+  NODE_TYPE_NEUTRAL,
+  NODE_TYPE_NEUTRAL_DARK,
+  NodeTones,
+  PAPER,
+  SEMANTIC,
+  ThemeMode,
+  contrastContent,
+  formatHex,
+  hexToOklch,
+} from '@muixer/ui';
 
 /**
  * The colors the figure canvas and the tronc panel draw with, by role. Konva can't read CSS
  * variables, so the canvas takes token values from here instead of from the DaisyUI theme. Every
  * value is a 6-digit hex: Konva's color parser and rough.js both take it.
  *
- * Light only for now: the canvas is pinned to the light theme until it gets a dark look of its own
- * (DEBT.md F19).
+ * Dark mode draws on the dark card colour and inverts the node tones (a dark wash, a light pencil):
+ * option D2 of the Dark Pinya Canvas preview.
  */
 export interface CanvasTheme {
+  mode: ThemeMode;
   /** Canvas background. */
   paper: string;
   /** Grid lines. */
@@ -30,31 +43,70 @@ export interface CanvasTheme {
   /** Backdrop of an observation emoji, and its edge. */
   sticker: string;
   stickerEdge: string;
-  /** The flat paper edge under a tronc panel card, and the card's frame. */
+  /** A tronc panel card's face, the flat paper edge under it, and its frame. */
+  card: string;
   cardEdge: string;
   cardBorder: string;
+  /** The flat shadow under a pin. */
+  pinShadow: string;
+  /** What a string's figure colour is mixed toward: darker on paper, lighter on the dark canvas. */
+  thread: string;
   /** Nodes with no type color: BASE nodes. */
   neutralNode: NodeTones;
 }
 
-export function buildCanvasTheme(): CanvasTheme {
-  return {
-    paper: PAPER.white,
-    crease: CREASE.light,
-    ink: INK.black,
-    inkMuted: INK.mid,
-    inkFaint: INK.light,
-    onInk: PAPER.white,
-    focus: INK.black,
-    danger: SEMANTIC.error,
-    nodeOutline: INK.dark,
-    sticker: PAPER.white,
-    stickerEdge: CREASE.mid,
-    cardEdge: PAPER.washiDark,
-    cardBorder: CREASE.light,
-    neutralNode: NODE_TYPE_NEUTRAL,
-  };
+export function buildCanvasTheme(mode: ThemeMode = 'light'): CanvasTheme {
+  return mode === 'dark' ? DARK_THEME : LIGHT_THEME;
 }
+
+const LIGHT_THEME: CanvasTheme = {
+  mode: 'light',
+  paper: PAPER.white,
+  crease: CREASE.light,
+  ink: INK.black,
+  inkMuted: INK.mid,
+  inkFaint: INK.light,
+  onInk: PAPER.white,
+  focus: INK.black,
+  danger: SEMANTIC.error,
+  nodeOutline: INK.dark,
+  sticker: PAPER.white,
+  stickerEdge: CREASE.mid,
+  card: PAPER.white,
+  cardEdge: PAPER.washiDark,
+  cardBorder: CREASE.light,
+  pinShadow: PAPER.washiDark,
+  thread: INK.dark,
+  neutralNode: NODE_TYPE_NEUTRAL,
+};
+
+/** The dark canvas colour moved `dl` in lightness, same hue and chroma: the steps of the dark surfaces. */
+const darkStep = (dl: number) => {
+  const canvas = hexToOklch(INK.dark);
+  return formatHex({ ...canvas, l: canvas.l + dl });
+};
+
+const DARK_THEME: CanvasTheme = {
+  mode: 'dark',
+  paper: INK.dark,
+  crease: darkStep(0.1),
+  ink: PAPER.white,
+  inkMuted: INK.faint,
+  inkFaint: INK.light,
+  onInk: INK.black,
+  focus: PAPER.white,
+  // The light-mode red sinks into the dark canvas: the same hue, lifted.
+  danger: formatHex({ ...hexToOklch(SEMANTIC.error), l: 0.68, c: 0.16 }),
+  nodeOutline: INK.faint,
+  sticker: darkStep(0.12),
+  stickerEdge: darkStep(0.25),
+  card: darkStep(0.07),
+  cardEdge: darkStep(-0.07),
+  cardBorder: darkStep(0.16),
+  pinShadow: darkStep(-0.08),
+  thread: PAPER.white,
+  neutralNode: NODE_TYPE_NEUTRAL_DARK,
+};
 
 const INK_OKLCH = hexToOklch(INK.black);
 const PAPER_OKLCH = hexToOklch(PAPER.white);

@@ -10,7 +10,6 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { THEME_NAMES } from '@muixer/ui';
 import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase, getEventPhase } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
@@ -25,6 +24,7 @@ import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePositi
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { FigureBand, getFigureBand, getFigureColor } from '../../utils/figure-palette.util';
 import { CardEdge, FigureLink, figureLink } from '../../utils/figure-link.util';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { PinnedCardComponent } from '../pinned-card/pinned-card.component';
 import { describeOwnPlacement, findOwnPlacements, findOwnTroncCellRect } from '../../utils/own-position.util';
 import { BoundsNode } from '../../utils/fit-to-bounds.util';
@@ -67,13 +67,12 @@ interface DistributionTroncPanel {
   selector: 'lib-pinya-projection',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'contents', '[attr.data-theme]': 'pinnedTheme' },
+  host: { class: 'contents' },
   imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, PinnedCardComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
-  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
-  protected readonly pinnedTheme = THEME_NAMES.light;
+  private readonly theme = injectCanvasTheme();
 
   readonly data = input.required<ProjectionSegmentData>();
 
@@ -527,6 +526,7 @@ export class PinyaProjectionComponent {
     const instances = this.effectiveInstances();
     const { scale: distScale } = computeDistributionTransform(instances, this.containerWidth(), this.containerHeight());
     const nodesByInstance = this.distributionNodesByInstance();
+    const theme = this.theme();
 
     instances.forEach((inst, i) => {
       const color = this.figureColor(inst);
@@ -542,7 +542,7 @@ export class PinyaProjectionComponent {
         occupied: occupied.has(n.id),
       }));
       const card = { x: b.x - b.width / 2, y: b.y - b.height / 2, width: b.width, height: b.height };
-      const link = figureLink(nodes, card, color, distScale);
+      const link = figureLink(nodes, card, color, distScale, theme);
       if (link) links.set(inst.id, link);
     });
     return links;
@@ -617,7 +617,7 @@ export class PinyaProjectionComponent {
         naturalH,
         scale: totalScale,
         color: this.figureColor(inst),
-        nameBand: getFigureBand(inst.sortOrder),
+        nameBand: getFigureBand(inst.sortOrder, this.theme().mode),
         pinEdge: links.get(inst.id)?.cardEdge ?? 'top',
         tilt: inst.sortOrder % 2 === 0 ? -1 : 1,
       };

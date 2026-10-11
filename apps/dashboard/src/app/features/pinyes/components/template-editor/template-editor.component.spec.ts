@@ -17,7 +17,7 @@ import { SupportLink } from './tronc-support-editor/tronc-support-editor.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService, ModalComponent, ButtonComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE } from '@muixer/ui';
+import { ToastService, ModalComponent, ButtonComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class StubFigureCanvas {
@@ -594,6 +594,17 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     it('show the fill the node type gets on the canvas', () => {
       expect(component.typeSwatch(FigureZone.PINYA, 'vents')).toBe(NODE_TYPE_PALETTE['vents'].wash);
       expect(component.typeSwatch(FigureZone.BASE, 'base')).toBe(NODE_TYPE_NEUTRAL.wash);
+    });
+
+    it('show the dark fill when the app is dark, as the canvas then draws it', () => {
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        expect(component.typeSwatch(FigureZone.PINYA, 'vents')).toBe(NODE_TYPE_PALETTE_DARK['vents'].wash);
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
     });
   });
 

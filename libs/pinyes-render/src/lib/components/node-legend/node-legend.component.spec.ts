@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { ButtonComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE } from '@muixer/ui';
+import { ButtonComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { NODE_NAME_MEASURE } from '../node-drawing/node-drawing.component';
 import { NodeLegendComponent } from './node-legend.component';
@@ -84,5 +84,13 @@ describe('NodeLegendComponent', () => {
     TestBed.resetTestingModule();
     const tronc = setup({ palette: 'neutral' }).fixture.componentInstance;
     expect(tronc.entries()[0].appearance.fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL.wash });
+  });
+
+  it('draws its samples in the dark palette when the app is dark, like the figure beside it', () => {
+    const { fixture } = setup();
+    TestBed.inject(ThemeService).setPreference('dark');
+    expect(fixture.componentInstance.entries()[0].appearance.fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE_DARK['vents'].wash });
+    TestBed.inject(ThemeService).setPreference('system');
+    localStorage.clear();
   });
 });

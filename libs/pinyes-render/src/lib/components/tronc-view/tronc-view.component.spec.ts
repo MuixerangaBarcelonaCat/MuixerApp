@@ -1,4 +1,5 @@
-import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, THEME_NAMES } from '@muixer/ui';
+import { NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
+import { buildCanvasTheme } from '../../theme/canvas-theme';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ButtonComponent } from '@muixer/ui';
@@ -85,8 +86,8 @@ describe('TroncViewComponent', () => {
 
   // ── Floor grouping ────────────────────────────────────────────────────────
 
-  it('is pinned to the light theme until figure rendering is themed for dark mode', () => {
-    expect(fixture.nativeElement.dataset['theme']).toBe(THEME_NAMES.light);
+  it('follows the app theme instead of pinning the light one', () => {
+    expect(fixture.nativeElement.hasAttribute('data-theme')).toBe(false);
   });
 
 
@@ -929,6 +930,14 @@ describe('TroncViewComponent', () => {
     it('returns the neutral pencil for an unknown flavour', () => {
       expect(component.getDirectionColor(null)).toBe(NODE_TYPE_NEUTRAL.pencil);
     });
+
+    it('takes the dark pencil when the app is dark', () => {
+      TestBed.inject(ThemeService).setPreference('dark');
+      expect(component.getDirectionColor('direccio-xicalla')).toBe(NODE_TYPE_PALETTE_DARK['direccio-xicalla'].pencil);
+      expect(component.getNodeColor(makeNode({ positionType: 'segona', color: null }))).toBe(NODE_TYPE_PALETTE_DARK['segona'].pencil);
+      TestBed.inject(ThemeService).setPreference('system');
+      localStorage.clear();
+    });
   });
 
   // ── Floor label resolution ──────────────────────────────────────────────
@@ -1021,6 +1030,18 @@ describe('TroncViewComponent', () => {
       expect(band.textContent?.trim()).toBe('Pilar de 5');
       expect(band.style.backgroundColor).toBe('rgb(207, 227, 218)');
       expect(band.style.borderBottomColor).toBe('rgb(26, 85, 67)');
+    });
+
+    it('heads the panel the same way while staffing (the Troncs tab), not only in the projection', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('figureName', 'Pilar de 5');
+      fixture.componentRef.setInput('nameBand', { fill: '#cfe3da', rule: '#1a5543' });
+      fixture.detectChanges();
+
+      const band: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(band.textContent?.trim()).toBe('Pilar de 5');
+      expect(band.style.backgroundColor).toBe('rgb(207, 227, 218)');
+      expect(band.querySelector('span')?.className).toBe('text-sm font-semibold text-base-content truncate block');
     });
 
     it('leaves the name on plain paper without a band, keeping the same height', () => {
@@ -2344,6 +2365,30 @@ describe('TroncViewComponent', () => {
       fixture.detectChanges();
       expect(appearance().fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE['segona'].wash });
       expect(appearance().text).toMatchObject({ kind: 'label', uppercase: false });
+    });
+
+    describe('when the app is dark', () => {
+      beforeEach(() => TestBed.inject(ThemeService).setPreference('dark'));
+      afterEach(() => {
+        TestBed.inject(ThemeService).setPreference('system');
+        localStorage.clear();
+      });
+
+      it('draws the floors in the dark neutral tones, a pending name haloed in the card it sits on', () => {
+        fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+        fixture.componentRef.setInput('phase', 'started');
+        fixture.detectChanges();
+        expect(appearance('node-2').outline.color).toBe(NODE_TYPE_NEUTRAL_DARK.pencil);
+        expect(appearance().text.halo).toBe(buildCanvasTheme('dark').card);
+      });
+
+      it('shows each node in its dark type colors in the template editor', () => {
+        fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1', positionType: 'segona' })]);
+        fixture.componentRef.setInput('assignments', []);
+        fixture.componentRef.setInput('mode', 'editor');
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE_DARK['segona'].wash });
+      });
     });
 
     it('says attendance and conflict in the accessible name, since the drawing is only visual', () => {

@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, getFigureBand, FigureBand, PinnedCardComponent, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, getFigureBand, FigureBand, PinnedCardComponent, injectCanvasTheme, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
@@ -11,7 +11,7 @@ import { AssignmentStateService } from '../../../../services/assignment-state.se
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { SegmentFigureAddService } from '../../../../services/segment-figure-add.service';
 import { SegmentAssignmentActionsService } from '../../../../services/segment-assignment-actions.service';
-import { ButtonComponent, ModalComponent, ThemeScopeDirective, ToastService } from '@muixer/ui';
+import { ButtonComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import {
@@ -44,7 +44,7 @@ const NO_NODES = new Set<string>();
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NodeLegendComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet, ThemeScopeDirective],
+  imports: [NodeLegendComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -59,6 +59,7 @@ export class TroncsTabComponent implements OnInit {
 
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
+  private readonly canvasTheme = injectCanvasTheme();
 
   readonly phase = input<EventPhase>('before');
 
@@ -289,7 +290,7 @@ export class TroncsTabComponent implements OnInit {
             (n) => n.zone === FigureZone.DIRECTION,
           ) as unknown as TroncNodeItem[],
           color: getFigureColor(instance.sortOrder),
-          band: getFigureBand(instance.sortOrder),
+          band: getFigureBand(instance.sortOrder, this.canvasTheme().mode),
           tilt: instance.sortOrder % 2 === 0 ? -1 : 1,
         };
       })

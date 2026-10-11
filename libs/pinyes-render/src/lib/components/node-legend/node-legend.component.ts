@@ -11,12 +11,11 @@ import {
 import { Info, LucideAngularModule } from 'lucide-angular';
 import { ButtonComponent } from '@muixer/ui';
 import { EventPhase, FigureZone } from '@muixer/shared';
-import { buildCanvasTheme } from '../../theme/canvas-theme';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { attendanceLegend } from '../../node-render/attendance';
 import { NodeAppearance, NodeAppearanceInput, resolveNodeAppearance } from '../../node-render/appearance';
 import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
 
-const THEME = buildCanvasTheme();
 /** Width of the panel (w-72), to keep it inside the viewport. */
 const PANEL_WIDTH = 288;
 const VIEWPORT_MARGIN = 8;
@@ -92,6 +91,7 @@ export class NodeLegendComponent {
     { key: 'marks' as const, title: 'Marques' },
   ];
 
+  private readonly theme = injectCanvasTheme();
   protected readonly open = signal(false);
   protected readonly position = signal({ top: 0, left: 0 });
   private readonly trigger = viewChild.required<ElementRef<HTMLElement>>('trigger');
@@ -107,7 +107,8 @@ export class NodeLegendComponent {
       mode: 'workspace',
     };
     const person = { name: 'Marta' };
-    const draw = (input: Partial<NodeAppearanceInput>) => resolveNodeAppearance({ ...base, person, ...input }, THEME);
+    const theme = this.theme();
+    const draw = (input: Partial<NodeAppearanceInput>) => resolveNodeAppearance({ ...base, person, ...input }, theme);
     return [
       ...attendanceLegend(this.phase()).map(({ fill, label }) => ({
         section: 'attendance' as const,

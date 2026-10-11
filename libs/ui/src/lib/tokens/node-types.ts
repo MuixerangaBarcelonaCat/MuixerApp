@@ -1,5 +1,5 @@
 import { formatHex, hexToOklch } from './color';
-import { CREASE, PAPER } from './fixed-colors';
+import { CREASE, INK, PAPER } from './fixed-colors';
 
 /**
  * The two tones every figure node type is drawn with: a light `wash` for fills and a stronger
@@ -38,36 +38,64 @@ const HUE_SOURCES: Record<string, string> = {
   'direccio-pinya': '#065f46',
 };
 
-const WASH = { l: 0.88, c: 0.065 };
-const PENCIL = { l: 0.49, c: 0.12 };
+type Level = { l: number; c: number };
+interface Levels {
+  wash: Level;
+  pencil: Level;
+  /** Per-type levels that replace the shared ones, and an optional hue of its own. */
+  overrides: Record<string, { wash: Level; pencil: Level; h?: number }>;
+}
+
 // A yellow at the shared levels reads as beige and olive-brown: yellows only look yellow when light.
 // Lifting them costs the pencil some contrast on paper (about 3:1 instead of 5.6:1). Cordó obert
 // gets its own lemon, lighter and cooler than mans, so the two yellows stay apart.
-const OVERRIDES: Record<string, { wash: { l: number; c: number }; pencil: { l: number; c: number }; h?: number }> = {
-  mans: { wash: { l: 0.91, c: 0.1 }, pencil: { l: 0.58, c: 0.12 } },
-  'cordo-obert': { wash: { l: 0.95, c: 0.1 }, pencil: { l: 0.64, c: 0.12 }, h: 104 },
+const LIGHT: Levels = {
+  wash: { l: 0.88, c: 0.065 },
+  pencil: { l: 0.49, c: 0.12 },
+  overrides: {
+    mans: { wash: { l: 0.91, c: 0.1 }, pencil: { l: 0.58, c: 0.12 } },
+    'cordo-obert': { wash: { l: 0.95, c: 0.1 }, pencil: { l: 0.64, c: 0.12 }, h: 104 },
+  },
+};
+// Dark mode inverts the levels: a dark wash the names read on in paper white, a light pencil that
+// reads on the dark canvas. The yellows get the same kind of lift, cordó obert above mans.
+const DARK: Levels = {
+  wash: { l: 0.37, c: 0.055 },
+  pencil: { l: 0.78, c: 0.1 },
+  overrides: {
+    mans: { wash: { l: 0.42, c: 0.0715 }, pencil: { l: 0.83, c: 0.1 } },
+    'cordo-obert': { wash: { l: 0.45, c: 0.0715 }, pencil: { l: 0.86, c: 0.1 }, h: 104 },
+  },
 };
 // A source this gray (comodí, sisena) stays grayish: a full-chroma tone would invent a color the
 // type never had.
 const NEAR_GRAY_CHROMA = 0.045;
 const NEAR_GRAY_CHROMA_SHARE = 0.35;
 
-function tonesFor(positionType: string, sourceHex: string): NodeTones {
+function tonesFor(positionType: string, sourceHex: string, levels: Levels): NodeTones {
   const source = hexToOklch(sourceHex);
-  const override = OVERRIDES[positionType];
+  const override = levels.overrides[positionType];
   const h = override?.h ?? source.h;
   const share = source.c < NEAR_GRAY_CHROMA ? NEAR_GRAY_CHROMA_SHARE : 1;
-  const { wash, pencil } = override ?? { wash: WASH, pencil: PENCIL };
+  const { wash, pencil } = override ?? levels;
   return {
     wash: formatHex({ l: wash.l, c: wash.c * share, h }),
     pencil: formatHex({ l: pencil.l, c: pencil.c * share, h }),
   };
 }
 
+function paletteFor(levels: Levels): Record<string, NodeTones> {
+  return Object.fromEntries(Object.entries(HUE_SOURCES).map(([positionType, hex]) => [positionType, tonesFor(positionType, hex, levels)]));
+}
+
 /** Wash and pencil tones per position type, light mode. */
-export const NODE_TYPE_PALETTE: Record<string, NodeTones> = Object.fromEntries(
-  Object.entries(HUE_SOURCES).map(([positionType, hex]) => [positionType, tonesFor(positionType, hex)]),
-);
+export const NODE_TYPE_PALETTE: Record<string, NodeTones> = paletteFor(LIGHT);
+
+/** Wash and pencil tones per position type, dark mode. */
+export const NODE_TYPE_PALETTE_DARK: Record<string, NodeTones> = paletteFor(DARK);
 
 /** Tones for nodes with no type color: the BASE nodes and the tronc panel's nodes. */
 export const NODE_TYPE_NEUTRAL: NodeTones = { wash: PAPER.washiDark, pencil: CREASE.dark };
+
+/** The neutral tones in dark mode: a wash a step above the dark card, outlined in faint ink. */
+export const NODE_TYPE_NEUTRAL_DARK: NodeTones = { wash: formatHex({ ...hexToOklch(INK.dark), l: 0.45 }), pencil: INK.faint };

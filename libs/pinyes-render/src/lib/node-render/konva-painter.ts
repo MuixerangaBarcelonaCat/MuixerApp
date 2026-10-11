@@ -4,6 +4,7 @@ import { NodeFill } from './appearance';
 import { CanvasIcon, NODE_ICON_PATHS } from './icons';
 import { nodeOutline } from './outline';
 import { FigureLink, pinDiscs } from '../utils/figure-link.util';
+import { CanvasTheme } from '../theme/canvas-theme';
 
 /**
  * Konva side of the node renderer: turns a node draw plan (`nodeDrawPlan`, unit-tested) into Konva
@@ -177,7 +178,7 @@ function drawDisc(p: Extract<DrawPrimitive, { kind: 'disc' }>): Konva.Circle {
  * The projection's tronc panel ↔ pinya link (`figureLink`): the sagging string, for a layer behind
  * the nodes, and the pin on the figure, for a layer above them.
  */
-export function drawFigureLink(link: FigureLink): { string: Konva.Path; pin: Konva.Group } {
+export function drawFigureLink(link: FigureLink, theme: CanvasTheme): { string: Konva.Path; pin: Konva.Group } {
   const { from, control, to } = link.string;
   const string = new Konva.Path({
     data: `M${from.x} ${from.y} Q${control.x} ${control.y} ${to.x} ${to.y}`,
@@ -188,7 +189,7 @@ export function drawFigureLink(link: FigureLink): { string: Konva.Path; pin: Kon
     listening: false,
   });
   const pin = new Konva.Group({ listening: false });
-  for (const disc of pinDiscs(link.pin.x, link.pin.y, link.pinRadius, link.color)) pin.add(drawDisc(disc));
+  for (const disc of pinDiscs(link.pin.x, link.pin.y, link.pinRadius, link.color, theme)) pin.add(drawDisc(disc));
   return { string, pin };
 }
 

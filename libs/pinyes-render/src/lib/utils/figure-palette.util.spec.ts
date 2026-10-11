@@ -1,4 +1,5 @@
 import { PAPER, buildCategoricalPalette, formatHex } from '@muixer/ui';
+import { fade } from '../theme/canvas-theme';
 import { pinDiscs } from './figure-link.util';
 import {
   FIGURE_PALETTE,
@@ -20,6 +21,12 @@ describe('figure palette', () => {
     expect(getFigureBand(0)).toEqual({ fill: light[1], rule: pinDiscs(0, 0, 9, FIGURE_PALETTE[0])[1].stroke });
     expect(getFigureBand(FIGURE_PALETTE.length - 1).fill).toBe(light[0]);
     expect(getFigureBand(FIGURE_PALETTE.length + 2)).toEqual(getFigureBand(2));
+  });
+
+  it('darkens the band on the dark canvas, its rule a lighter tone of the figure colour', () => {
+    const dark = buildCategoricalPalette('dark').light.map(formatHex);
+    expect(getFigureBand(0, 'dark')).toEqual({ fill: dark[1], rule: fade(FIGURE_PALETTE[0], 0.25, PAPER.white) });
+    expect(getFigureBand(FIGURE_PALETTE.length - 1, 'dark').fill).toBe(dark[0]);
   });
 
   it('wraps around once every color has been used', () => {

@@ -54,42 +54,33 @@
     } @else {
       <div class="flex flex-wrap content-start items-start gap-6 p-4">
         @for (figure of figures(); track figure.instance.instanceId) {
-          <!-- A paper card pinned in the figure colour, like the projection's tronc panels. Pinned
-               light with the tronc panel on it (figure rendering isn't themed for dark yet, DEBT F19). -->
-          <lib-pinned-card libThemeScope="light" class="shrink-0" [color]="singleFigure() ? null : figure.color" [tilt]="figure.tilt">
-            <!-- The name on a band in the figure colour, across the card, closed by a rule in the pin's dark tone. -->
-            <h2
-              data-role="figure-name"
-              class="px-3 py-1.5 text-lg font-semibold text-base-content/70 text-center border-b-2"
-              [style.background-color]="figure.band.fill"
-              [style.border-bottom-color]="figure.band.rule"
-            >
-              {{ figure.instance.label }}
-            </h2>
-            <div class="p-3">
-              <app-tronc-view
-                [instanceId]="figure.instance.instanceId"
-                [troncNodes]="figure.troncNodes"
-                [baseNodes]="figure.baseNodes"
-                [directionNodes]="figure.directionNodes"
-                [assignments]="state.assignments()"
-                [conflictPersonIds]="ws.conflictPersonIds()"
-                [selectedNodeId]="ws.selectedInstanceId() === figure.instance.instanceId ? state.selectedNodeId() : null"
-                mode="assignment"
-                [heightMode]="state.heightMode()"
-                [highlightedNodeIds]="highlightedNodeIds(figure.instance.instanceId)"
-                [attendanceMap]="attendanceMap()"
-                [phase]="phase()"
-                [nextPerformanceMap]="state.nextPerformanceRegistry()"
-                [personDetailsMap]="personDetailsMap()"
-                [personDragEnabled]="!isTouch()"
-                (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
-                (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
-                (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
-                (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
-                (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
-              />
-            </div>
+          <!-- A paper card pinned in the figure colour, like the projection's tronc panels; the
+               tronc panel heads it with the figure name on its band, as in every other tab. -->
+          <lib-pinned-card class="shrink-0" [color]="singleFigure() ? null : figure.color" [tilt]="figure.tilt">
+            <app-tronc-view
+              [figureName]="figure.instance.label"
+              [nameBand]="figure.band"
+              [instanceId]="figure.instance.instanceId"
+              [troncNodes]="figure.troncNodes"
+              [baseNodes]="figure.baseNodes"
+              [directionNodes]="figure.directionNodes"
+              [assignments]="state.assignments()"
+              [conflictPersonIds]="ws.conflictPersonIds()"
+              [selectedNodeId]="ws.selectedInstanceId() === figure.instance.instanceId ? state.selectedNodeId() : null"
+              mode="assignment"
+              [heightMode]="state.heightMode()"
+              [highlightedNodeIds]="highlightedNodeIds(figure.instance.instanceId)"
+              [attendanceMap]="attendanceMap()"
+              [phase]="phase()"
+              [nextPerformanceMap]="state.nextPerformanceRegistry()"
+              [personDetailsMap]="personDetailsMap()"
+              [personDragEnabled]="!isTouch()"
+              (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
+              (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
+              (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
+              (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
+              (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
+            />
           </lib-pinned-card>
         }
         @if (!ws.isLocked()) {
