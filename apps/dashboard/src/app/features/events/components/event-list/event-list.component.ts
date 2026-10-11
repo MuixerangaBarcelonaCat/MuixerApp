@@ -376,14 +376,6 @@ export class EventListComponent implements OnInit {
     return this.sortOrder() === 'ASC' ? 'asc' : 'desc';
   }
 
-  getConfirmedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return isPast ? summary.attended : summary.confirmed;
-  }
-
-  getDeclinedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return summary.declined;
-  }
-
   /** Group separator to split upcoming vs past events */
   readonly groupSeparator = computed<GroupSeparator<EventListItem>>(() => ({
     predicate: (item: EventListItem) => this.phaseOf(item) === 'after',
