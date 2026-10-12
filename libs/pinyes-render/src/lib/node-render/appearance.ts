@@ -1,8 +1,10 @@
 import { FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { NodeTones } from '@muixer/ui';
 import { HeightMode } from '../models/assignment.model';
 import { CanvasTheme, contentOn, fade } from '../theme/canvas-theme';
 import { resolveNodeTones } from '../theme/node-color';
 import { AttendanceFill } from './attendance';
+import { NodeFillPolicy } from './display-mode';
 
 /**
  * Where a node is drawn. `workspace` is the segment workspace (every badge); `projection` leaves
@@ -34,6 +36,10 @@ export interface NodeAppearanceInput {
   conflict?: boolean;
   /** `neutral` draws every node in the paper tones (the tronc panel). */
   palette?: 'type' | 'neutral';
+  /** A display mode's tones: when set they replace the type, custom and neutral tones. */
+  tones?: NodeTones | null;
+  /** `attendance` (default): the fill shows attendance. `solid`: always filled, the absent struck. */
+  fillPolicy?: NodeFillPolicy;
   mode: NodeAppearanceMode;
 }
 
@@ -82,8 +88,10 @@ const ABSENT_FADE = 0.45;
 
 /**
  * Everything a renderer needs to draw one node, from what the node is and what is happening to
- * it. One visual channel per kind of state: the fill shows attendance, the outline the type (or
- * ink while the node is acted on), a red loop a conflict. No state repaints another's channel.
+ * it. One visual channel per kind of state: the tones show what the display mode is about (the type
+ * by default), the fill style attendance, the outline ink while the node is acted on, a red loop a
+ * conflict. No state repaints another's channel. Under the `solid` fill policy (Assistència) the
+ * tones themselves carry attendance, so the fill style stops repeating it.
  */
 export function resolveNodeAppearance(input: NodeAppearanceInput, theme: CanvasTheme): NodeAppearance {
   const base = input.zone === FigureZone.DECORATION ? decorationAppearance(input, theme) : nodeAppearance(input, theme);
@@ -91,7 +99,7 @@ export function resolveNodeAppearance(input: NodeAppearanceInput, theme: CanvasT
 }
 
 function nodeAppearance(input: NodeAppearanceInput, theme: CanvasTheme): NodeAppearance {
-  const tones = input.palette === 'neutral' ? theme.neutralNode : resolveNodeTones(input, theme.mode);
+  const tones = input.tones ?? (input.palette === 'neutral' ? theme.neutralNode : resolveNodeTones(input, theme.mode));
   const person = input.person ?? null;
   const showsEditBadges = input.mode === 'workspace';
 
@@ -122,6 +130,11 @@ function nodeAppearance(input: NodeAppearanceInput, theme: CanvasTheme): NodeApp
     halo: null,
     strike: false,
   };
+  if (input.fillPolicy === 'solid') {
+    appearance.fill = { style: 'solid', color: tones.wash };
+    appearance.text = { ...name, color: contentOn(tones.wash), strike: input.attendance === 'absent' };
+    return appearance;
+  }
   switch (input.attendance ?? 'confirmed') {
     case 'confirmed':
       appearance.fill = { style: 'solid', color: tones.wash };

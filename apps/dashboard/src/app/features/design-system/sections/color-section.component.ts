@@ -1,6 +1,21 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { NgClass } from '@angular/common';
-import { buildCategoricalPalette, formatOklch, INK, PAPER, CREASE, SEMANTIC, SEMANTIC_LIGHT, ACCENT } from '@muixer/ui';
+import {
+  buildCategoricalPalette,
+  formatOklch,
+  INK,
+  PAPER,
+  CREASE,
+  SEMANTIC,
+  SEMANTIC_LIGHT,
+  ACCENT,
+  ATTENDANCE_TONES,
+  ATTENDANCE_TONES_DARK,
+  GENDER_TONES,
+  GENDER_TONES_DARK,
+  heightRampTones,
+} from '@muixer/ui';
+import type { NodeTones } from '@muixer/ui';
 import type { ThemeMode } from '@muixer/ui';
 import type { InteractiveRole } from '@muixer/ui';
 
@@ -35,6 +50,13 @@ const SURFACE_ROLES: SemanticRoleSwatch[] = [
 const INTERACTIVE_ROLES: InteractiveRole[] = ['primary', 'secondary', 'accent', 'neutral', 'info', 'success', 'warning', 'error'];
 
 const CATEGORICAL_LABELS = ['Red', 'Green', 'Blue', 'Gold', 'Purple', 'Orange', 'Teal', 'Pink', 'Brown', 'Olive'];
+
+interface ToneSwatch {
+  label: string;
+  tones: NodeTones;
+}
+
+const HEIGHT_STEPS = [0, 0.25, 0.5, 0.75, 1];
 
 @Component({
   selector: 'app-color-section',
@@ -82,6 +104,24 @@ export class ColorSectionComponent {
       normal: formatOklch(color),
       light: formatOklch(palette.light[i]),
     }));
+  });
+
+  /** The segment workspace's display-mode tones (wash filled, pencil edge), in the mode on screen. */
+  protected readonly displayModeGroups = computed<{ title: string; swatches: ToneSwatch[] }[]>(() => {
+    const dark = this.mode() === 'dark';
+    const gender = dark ? GENDER_TONES_DARK : GENDER_TONES;
+    const attendance = dark ? ATTENDANCE_TONES_DARK : ATTENDANCE_TONES;
+    return [
+      { title: 'Gènere', swatches: (['female', 'male', 'other'] as const).map((g) => ({ label: g, tones: gender[g] })) },
+      {
+        title: 'Assistència (base / strong = next actuació)',
+        swatches: (['success', 'warning', 'error'] as const).flatMap((t) => [
+          { label: `${t}.base`, tones: attendance[t].base },
+          { label: `${t}.strong`, tones: attendance[t].strong },
+        ]),
+      },
+      { title: 'Alçada (heightRampTones, short → tall)', swatches: HEIGHT_STEPS.map((t) => ({ label: `t = ${t}`, tones: heightRampTones(t, this.mode()) })) },
+    ];
   });
 
   protected stateVar(role: InteractiveRole, state: 'hover' | 'active' | 'disabled'): string {

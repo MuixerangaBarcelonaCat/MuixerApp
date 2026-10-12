@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FONT_FAMILY } from '@muixer/ui';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, EventPhase } from '@muixer/shared';
+import { FigureZone, NodeShape, EventPhase, Gender } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
@@ -34,6 +34,7 @@ import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { nodeFill } from '../../theme/node-color';
 import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
+import { DisplayMode, HeightDomain, displayModeOverrides, personDisplayFacts } from '../../node-render/display-mode';
 import { nodeDrawPlan } from '../../node-render/draw-plan';
 import { loadCanvasFonts } from '../../node-render/fonts';
 import { hashSeed } from '../../node-render/sketch';
@@ -168,7 +169,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   /** Before / on / after the event day: from the event day on, ANIRE is a no-show and PENDENT a no-answer. */
   readonly phase = input<EventPhase>('before');
   /** personId → positions/isXicalla, used to render the hover card on assigned nodes. */
-  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null; gender?: Gender | null }>>(new Map());
+  /** Segment assignment: what the node colors stand for. `position` (the default) draws as always. */
+  readonly displayMode = input<DisplayMode>('position');
+  /** Alçada: the shortest → tallest assigned person the ramp stretches over (the whole tab). */
+  readonly heightDomain = input<HeightDomain | null>(null);
   /** Extra bounding boxes (in canvas space, x/y = center) included in the readonly fit but not rendered. */
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   /** The strings tying each tronc panel to its pinya (projection, Distribució): drawn behind the nodes, their pins above them. */
@@ -356,6 +361,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.phase();
       this.conflictPersonIds();
       this.decorationOpacity();
+      this.displayMode();
+      this.heightDomain();
       if (!this.stage) return;
       if (this.mode() !== 'segment-assignment') return;
       untracked(() => this.renderSegmentAssignmentSlots());
@@ -1536,6 +1543,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   ): NodeAppearanceInput {
     const person = assignment?.person;
     const details = person ? this.personDetailsMap().get(person.id) : undefined;
+    const sources = { attendance: this.attendanceMap(), nextPerformance: this.nextPerformanceMap(), details: this.personDetailsMap() };
+    const display = { mode: this.displayMode(), phase: this.phase(), heightDomain: this.heightDomain(), themeMode: this.theme().mode };
+    const overrides = displayModeOverrides(person ? personDisplayFacts(person, sources) : null, display);
     return {
       zone: node.zone,
       positionType: node.positionType,
@@ -1553,6 +1563,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       attendance: person ? attendanceVisual(this.attendanceMap().get(person.id), this.phase()) : undefined,
       conflict: this.isConflictAssignment(assignment),
       mode,
+      ...overrides,
     };
   }
 

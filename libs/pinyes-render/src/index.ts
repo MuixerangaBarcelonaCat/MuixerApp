@@ -10,6 +10,7 @@ export * from './lib/components/pinned-card/pinned-card.component';
 export * from './lib/components/node-drawing/node-drawing.component';
 export { type NodeAppearance, resolveNodeAppearance } from './lib/node-render/appearance';
 export { hashSeed, mulberry32, roughOpts } from './lib/node-render/sketch';
+export * from './lib/node-render/display-mode';
 
 export * from './lib/models/assignment.model';
 export * from './lib/models/figure-template.model';
