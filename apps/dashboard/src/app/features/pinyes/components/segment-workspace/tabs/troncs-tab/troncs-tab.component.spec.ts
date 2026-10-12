@@ -20,6 +20,7 @@ import {
   InstanceSelection,
 } from '../../../figure-picker-modal/figure-picker-modal.component';
 import { ModalComponent, ThemeService, ToastService } from '@muixer/ui';
+import { Gender } from '@muixer/shared';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -43,6 +44,8 @@ class StubTroncView {
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly figureName = input<string | null>(null);
   readonly nameBand = input<FigureBand | null>(null);
+  readonly displayMode = input<string>('position');
+  readonly heightDomain = input<{ min: number; max: number } | null>(null);
   readonly nodeSelected = output<string | null>();
   readonly nodeContextMenu = output<string>();
   readonly nodeDropped = output<{
@@ -231,6 +234,8 @@ describe('TroncsTabComponent', () => {
     locked?: boolean;
     /** Simulates a touch device (phone / tablet). */
     touch?: boolean;
+    /** Simulates a phone-sized viewport (below sm). */
+    phone?: boolean;
   } = {}) => {
     const segment = makeSegment(opts.instances ?? [makeInstance(INST_A)]);
     const defaultNodes: Record<string, InstanceNodeItem[]> = opts.nodesByInstance ?? {
@@ -290,7 +295,7 @@ describe('TroncsTabComponent', () => {
         { provide: ToastService, useValue: toast },
         { provide: FigureInstanceService, useValue: instanceService },
         { provide: CompositionService, useValue: compositionService },
-        { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false) } },
+        { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false), isPhone: signal(opts.phone ?? false) } },
       ],
     })
       .overrideComponent(TroncsTabComponent, {
@@ -374,6 +379,84 @@ describe('TroncsTabComponent', () => {
       const stub = troncStubs()[0];
       expect(stub.troncNodes().map((n) => n.id)).toEqual(['t1']);
       expect(stub.baseNodes().map((n) => n.id)).toEqual([]);
+    });
+  });
+
+  describe('display modes', () => {
+    const switcher = () => fixture.nativeElement.querySelector('app-display-mode-switcher [role="group"]') as HTMLElement | null;
+    const modeButton = (label: string) =>
+      fixture.nativeElement.querySelector(`app-display-mode-switcher button[aria-label="${label}"]`) as HTMLButtonElement;
+    const withHeight = (a: AssignmentDetail, cm: number): AssignmentDetail => ({ ...a, person: { ...a.person, shoulderHeight: cm } });
+
+    it('shows the switcher in the toolbar and recolors every tronc panel with the mode picked', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')], [INST_B]: [makeNode('m1', 'TRONC')] },
+      });
+      expect(switcher()).not.toBeNull();
+      expect(troncStubs().map((t) => t.displayMode())).toEqual(['position', 'position']);
+
+      modeButton('Assistència').click();
+      fixture.detectChanges();
+      expect(ws.displayMode()).toBe('attendance');
+      expect(troncStubs().map((t) => t.displayMode())).toEqual(['attendance', 'attendance']);
+    });
+
+    it('keeps the toolbar out of the scrolling panels, so it never covers a tronc panel', async () => {
+      await setup();
+      const toolbar = switcher()!.closest('[data-testid="troncs-toolbar"]') as HTMLElement;
+      const pane = fixture.nativeElement.querySelector('.overflow-y-auto') as HTMLElement;
+      expect(toolbar).not.toBeNull();
+      expect(pane.contains(toolbar)).toBe(false);
+      expect(pane.querySelector('app-tronc-view')).not.toBeNull();
+    });
+
+    it('has no switcher on a phone, and draws Posició there whatever was chosen', async () => {
+      await setup({ phone: true });
+      ws.setDisplayMode('gender');
+      fixture.detectChanges();
+      expect(switcher()).toBeNull();
+      expect(troncStubs()[0].displayMode()).toBe('position');
+    });
+
+    it('gives every panel one height ramp, over the people in the troncs of all figures (not the pinya)', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC'), makeNode('p1', 'PINYA')],
+          [INST_B]: [makeNode('m1', 'TRONC'), makeNode('b1', 'BASE')],
+        },
+        assignmentsByInstance: {
+          [INST_A]: [withHeight(makeAssignment(INST_A, 'n1'), 160), withHeight(makeAssignment(INST_A, 'p1', undefined, 'PINYA'), 120)],
+          [INST_B]: [withHeight(makeAssignment(INST_B, 'm1'), 150), withHeight(makeAssignment(INST_B, 'b1', undefined, 'BASE'), 175)],
+        },
+      });
+      expect(troncStubs().map((t) => t.heightDomain())).toEqual([{ min: 150, max: 175 }, { min: 150, max: 175 }]);
+    });
+
+    it('passes each person\'s gender from the roster to the panels', async () => {
+      await setup();
+      state.confirmedPersons.set([{ ...makePerson('p-x'), gender: Gender.MALE }]);
+      fixture.detectChanges();
+      expect(troncStubs()[0].personDetailsMap().get('p-x')).toMatchObject({ gender: Gender.MALE });
+    });
+
+    it('switches mode with the keys 1–4, not while typing, nor with a modifier', async () => {
+      await setup();
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '4' }));
+      expect(ws.displayMode()).toBe('gender');
+
+      const typing = new KeyboardEvent('keydown', { key: '2' });
+      Object.defineProperty(typing, 'target', { value: document.createElement('input') });
+      component.onKeyDown(typing);
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '3', metaKey: true }));
+      expect(ws.displayMode()).toBe('gender');
+    });
+
+    it('ignores the keys on a phone', async () => {
+      await setup({ phone: true });
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '2' }));
+      expect(ws.displayMode()).toBe('position');
     });
   });
 

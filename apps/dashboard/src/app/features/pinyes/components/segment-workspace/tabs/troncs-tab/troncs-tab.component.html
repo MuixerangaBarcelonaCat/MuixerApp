@@ -1,8 +1,12 @@
 <div class="flex h-full min-h-0">
-  <!-- Troncs, wrapping into new rows -->
-  <div class="relative flex-1 min-w-0 overflow-y-auto">
-    <!-- Legend, undo/redo -->
-    <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+  <div class="flex flex-1 min-w-0 flex-col">
+  <!-- Display mode, legend, undo/redo: a strip above the panels rather than floating over them —
+       the panels flow from the top-left and can't be panned aside, as the pinya canvas can. -->
+  <div class="shrink-0 flex justify-end px-2 pt-2" data-testid="troncs-toolbar">
+    <div class="flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+      @if (!isPhone()) {
+        <app-display-mode-switcher [mode]="ws.displayMode()" (modeChange)="ws.setDisplayMode($event)" />
+      }
       <app-node-legend [phase]="phase()" palette="neutral" />
       <lib-button
         variant="ghost"
@@ -27,11 +31,14 @@
         <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
       </lib-button>
     </div>
+  </div>
 
+  <!-- Troncs, wrapping into new rows -->
+  <div class="relative flex-1 min-h-0 overflow-y-auto">
     <!-- Moving a person: says who, offers a cross to cancel. Sticky + zero height so it stays in view
          while the figures scroll, without pushing them down. -->
     @if (movingAlias(); as alias) {
-      <div class="sticky top-2 z-10 h-0 flex justify-center pointer-events-none pl-2 pr-24">
+      <div class="sticky top-2 z-10 h-0 flex justify-center pointer-events-none px-2">
         <app-move-banner class="block max-w-full pointer-events-auto" [alias]="alias" (cancelled)="cancelMove()" />
       </div>
     }
@@ -74,6 +81,8 @@
               [phase]="phase()"
               [nextPerformanceMap]="state.nextPerformanceRegistry()"
               [personDetailsMap]="personDetailsMap()"
+              [displayMode]="ws.effectiveDisplayMode()"
+              [heightDomain]="heightDomain()"
               [personDragEnabled]="!isTouch()"
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
               (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
@@ -146,6 +155,7 @@
         </svg>
       </div>
     }
+  </div>
   </div>
 
   <!-- Person panel: a side column on desktop; on touch it lives in a modal opened by tapping a node -->
