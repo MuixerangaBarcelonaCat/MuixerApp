@@ -244,7 +244,7 @@ nodes (`duplicate`, `save-from-instance`) en canvi generen ids nous i remapegen 
 
 | Mètode | Ruta | Descripció |
 |--------|------|-----------|
-| `GET` | `/node-assignments/available-persons` | Membres filtrats per `search`, `height±2`, `isXicalla`, `excludeAssigned`, ordenats per proximitat d'alçada |
+| `GET` | `/node-assignments/available-persons` | Membres filtrats per `search`, `height±2`, `isXicalla`, `excludeAssigned`, ordenats per proximitat d'alçada. Porta el `gender` de cada persona (per al mode Gènere, vegeu «Modes de visualització»): només els tècnics ho veuen |
 | `GET` | `/node-assignments/next-performance` | Propera `ACTUACIO` (per als assajos, mostra ★) |
 
 ### Projecció (`/events/:eventId/segments/:segmentId`)
@@ -392,9 +392,30 @@ attendanceVisual(estat, fase) → confirmed | pending | absent
 
 **Fase de l'assistència a la projecció.** La projecció (`/events/:eventId/segments/:segmentId/projection` i la de `/me`) retorna `event: { date, startTime }`, i `PinyaProjectionComponent` en calcula la fase amb `getEventPhase()`, la mateixa regla que el workspace. Una resposta sense `event` (guardada a la memòria cau de la PWA abans d'aquest canvi) es llig com a `after`.
 
-**Llegenda.** `NodeLegendComponent` (`app-node-legend`, botó «Llegenda» a les pestanyes Pinyes i Troncs) explica els ompliments amb les paraules de la fase (`attendanceLegend(phase)`) i les marques; cada mostra és un `app-node-drawing`, així que no es pot desfasar del dibuix.
+**Altres marques.** `NodeLegendComponent` (`app-node-legend`, un botó ⓘ sense text, «Altres marques», dins de la clau del mode de visualització; en un mòbil, a la barra d'eines) explica els ompliments amb les paraules de la fase (`attendanceLegend(phase)`) i les marques; cada mostra és un `app-node-drawing`, així que no es pot desfasar del dibuix. Fora de Posició, les mostres van en el to de paper (els colors són del mode, i els explica la clau), i en Assistència no hi ha ompliments que explicar: tots els nodes són sòlids.
 
 **Mode fosc.** El dibuix de les figures segueix el tema de la pàgina. `buildCanvasTheme(mode)` en té una versió fosca (l'opció D2 de la previsualització): el canvas és el color de les targetes fosques (`INK.dark`), la tinta passa a ser el blanc del paper i els tipus prenen `NODE_TYPE_PALETTE_DARK`, amb una aiguada fosca i un llapis clar. Els components lligen el tema amb `injectCanvasTheme()`, un senyal sobre `ThemeService.mode()`: el canvas ho redibuixa tot quan canvia, i el panell del tronc, la targeta, la llegenda i les mostres de color el segueixen per enllaç. Al tronc damunt d'una targeta, el halo dels noms pendents és la cara de la targeta (`card`), no el canvas.
+
+### Modes de visualització (pestanyes Pinyes i Troncs)
+
+Les pestanyes Pinyes i Troncs del workspace poden pintar els nodes segons quatre criteris (`DisplayMode`, `node-render/display-mode.ts`):
+
+| Mode | Color d'una persona | Ompliment |
+|------|---------------------|-----------|
+| **Posició** (`position`, per defecte) | El del tipus de posició, com sempre | L'assistència (sòlid / tramat / buit i ratllat) |
+| **Alçada** (`height`) | Una rampa or → turquesa → blau (`heightRampTones(t)`), de la persona més baixa a la més alta de la pestanya; sense alçada, el to neutre | L'assistència |
+| **Assistència** (`attendance`) | Els colors semàntics de la llista d'assistència: èxit = ha arribat, o ve abans de l'hora d'inici; avís = pendent, o no ha arribat des de l'hora d'inici; error = no vindrà (`attendanceTone()`). El to més fosc vol dir que ve a la propera actuació (`ATTENDANCE_TONES[to].strong`) | Sempre sòlid; «No vindrà» continua ratllat |
+| **Gènere** (`gender`) | Violeta (dona), or (home), neutre (altre o sense dades) | L'assistència |
+
+- **Només recolora.** Fora de Posició, els nodes buits van en el to neutre, perquè un color de tipus no es confonga amb un del mode. L'alçada, l'observació, l'estrela, el conflicte, la selecció, el moviment i els nodes extra es veuen igual en tots els modes (l'estrela també en Assistència, damunt del to fosc que diu el mateix). Les decoracions no canvien mai.
+- **Un sol camí.** El canvas (`FigureCanvasComponent.appearanceInput()`) i el panell del tronc (`TroncViewComponent.appearanceByNodeId`) passen pels mateixos `personDisplayFacts()` → `displayModeOverrides()`, que tornen els `tones`, la `fillPolicy` (`'attendance'` o `'solid'`) i, per a un node buit, `palette: 'neutral'`. `resolveNodeAppearance()` fa servir eixos `tones` en lloc dels del tipus. Les entrades noves (`displayMode`, `heightDomain`) valen Posició per defecte, així que la projecció, la PWA, l'editor i Distribució no canvien.
+- **Estat.** `SegmentWorkspaceStateService.displayMode` és un per a les dues pestanyes: es manté en canviar de pestanya i de segment (anterior/següent), i torna a Posició en obrir el workspace. `effectiveDisplayMode` és el que es dibuixa: en un mòbil (`LayoutService.isPhone`, per davall de `sm`) sempre és Posició, sense selector ni clau.
+- **Selector.** `DisplayModeSwitcherComponent` (dashboard, `components/display-mode-switcher/`): un `lib-button-group` a la barra d'eines de cada pestanya, amb icones (`Shapes`, `Ruler`, `CalendarCheck`, `VenusAndMars`) i el nom a partir de `md`. Les tecles 1–4 hi canvien (`displayModeForKey()`), mai mentre s'escriu ni amb un modificador.
+- **Rang d'alçades.** Cada pestanya calcula el seu `heightDomain` amb les persones dels nodes que dibuixa: Pinyes, els de la pinya de totes les figures (no els del tronc); Troncs, els de tronc, base i direccions. El mateix rang per a tots els panells.
+- **Clau.** `DisplayModeKeyComponent` (`lib/components/display-mode-key/`) diu què vol dir cada color amb `displayModeKey()` (o `positionKey()` en Posició): només els colors que apareixen a la pestanya, cadascun amb quants nodes el porten (una persona en dos llocs compta dues voltes, com al canvas). Cada color és un quadrat dibuixat amb el mateix traç que els nodes (`sketchShape()`), amb l'aiguada i el llapis; la barra d'alçades també, amb gradients SVG de les aiguades i els llapis de la rampa, i els extrems en cm (o relatius, segons `heightMode`). En Assistència, quan algú ve a la propera actuació, totes les files porten els dos tons (el fosc amb l'estrela), alineats en dues columnes, i una línia més menuda «Ve a la propera actuació N ★». Posició llista els tipus de pinya dibuixats, sense recompte; als panells del tronc, que van en paper, no en llista cap. La clau es pot plegar i porta el botó ⓘ «Altres marques». A Pinyes és una targeta davall de la barra d'eines, alineada a la dreta; a Troncs va en línia dins de la franja de la barra d'eines, damunt dels panells (que no es poden apartar com el canvas), i mai no els tapa.
+- **Gènere i privacitat.** El gènere només arriba en la llista de persones del personal (`available-persons`, TECHNICAL/ADMIN), via `personDetailsMap`. No és a `AssignmentDetail`, perquè eixe tipus també arriba a la projecció dels membres (`/me/.../projection`).
+- **Colors.** Els tokens són a `libs/ui/src/lib/tokens/display-modes.ts` (vegeu [[DESIGN_SYSTEM]]). Es van triar a la [previsualització](https://claude.ai/artifact/4iZmT2i6CPoowChKKRJfqx), i els valors aprovats estan fixats a `display-modes.spec.ts`.
+- **Millora possible.** Un mode «Etiquetes»: si les etiquetes de la persona encaixen amb el tipus del node (la mateixa comprovació que el punt del panell de persones, [[TAGS]] §3). No cal cap canvi al backend.
 
 ### Panell del tronc: targeta amb xinxeta i fil
 
