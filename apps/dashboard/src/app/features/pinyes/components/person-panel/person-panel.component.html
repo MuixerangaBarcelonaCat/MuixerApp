@@ -334,6 +334,9 @@
                   <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
                 }
                 }
+                @if (person.nextPerformanceStatus === 'ANIRE') {
+                  <i-lucide [img]="ICON_ACTUACIO" class="size-2.5 fill-current text-base-content/80 shrink-0" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació" />
+                }
               </span>
               @if (formatHeight(person) !== '-') {
                 <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
@@ -389,6 +392,9 @@
                 } @else {
                   <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
                 }
+                    }
+                    @if (person.nextPerformanceStatus === 'ANIRE') {
+                      <i-lucide [img]="ICON_ACTUACIO" class="size-2.5 fill-current text-base-content/80 shrink-0" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació" />
                     }
                   </span>
                   <span class="shrink-0">
@@ -447,6 +453,9 @@
                 } @else {
                   <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
                 }
+                    }
+                    @if (person.nextPerformanceStatus === 'ANIRE') {
+                      <i-lucide [img]="ICON_ACTUACIO" class="size-2.5 fill-current text-base-content/80 shrink-0" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació" />
                     }
                   </span>
                   <span class="shrink-0">

@@ -678,6 +678,48 @@ describe('PersonPanelComponent', () => {
       for (const mark of marks) expect(mark.classList).toContain('fill-current');
     });
 
+    describe('marks everyone coming to the next actuació, whatever their group', () => {
+      const coming = { nextPerformanceStatus: 'ANIRE' } as const;
+      const roster = [
+        makeAvailablePerson('p-anire', 'ANIRE', { ...coming, alias: 'Anire' }),
+        makeAvailablePerson('p-pendent', 'PENDENT', { ...coming, alias: 'Pendent' }),
+        makeAvailablePerson('p-novaig', 'NO_VAIG', { ...coming, alias: 'Novaig' }),
+        makeAvailablePerson('p-pinya', 'ANIRE', {
+          ...coming,
+          alias: 'Pinyaire',
+          assignedPlacements: [makePlacement({ area: 'PINYA' })],
+        }),
+        makeAvailablePerson('p-tronc', 'PENDENT', {
+          ...coming,
+          alias: 'Troncaire',
+          assignedPlacements: [makePlacement({ assignmentId: 'a2', nodeId: 'n2', zone: 'TRONC', area: 'TRONC' })],
+        }),
+      ];
+
+      const rowFor = (alias: string): HTMLElement | undefined => {
+        const rows = [...fixture.nativeElement.querySelectorAll('button')] as HTMLElement[];
+        return rows.find((b) => Array.from(b.querySelectorAll('span')).some((s) => s.textContent?.trim() === alias));
+      };
+
+      for (const phase of ['before', 'day'] as const) {
+        it(`shows the star on every row (${phase})`, () => {
+          assignmentService.getAvailablePersons.mockReturnValue(of({ data: roster }));
+          fixture.componentRef.setInput('phase', phase);
+          component.loadPersons();
+          component.toggleAltres();
+          fixture.detectChanges();
+
+          for (const alias of ['Anire', 'Pendent', 'Novaig', 'Pinyaire', 'Troncaire']) {
+            expect(rowFor(alias), `row for ${alias}`).toBeTruthy();
+            expect(
+              rowFor(alias)?.querySelector('[aria-label="Vindrà a la propera actuació"]'),
+              `star for ${alias}`,
+            ).toBeTruthy();
+          }
+        });
+      }
+    });
+
     it('formatHeight returns relative height string when heightMode is relative', () => {
       fixture.componentRef.setInput('heightMode', 'relative');
       const person = makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 142 });
