@@ -23,9 +23,11 @@ describe('NodeLegendComponent', () => {
     return { fixture, button, panel, toggle };
   }
 
-  it('shows a «Llegenda» button, closed', () => {
+  it('shows an icon-only «Altres marques» button, closed (the mode\'s colour key is the legend proper)', () => {
     const { button, panel, fixture } = setup();
-    expect(fixture.nativeElement.textContent).toContain('Llegenda');
+    expect(button().ariaLabel()).toBe('Altres marques');
+    expect(button().shape()).toBe('square');
+    expect(fixture.nativeElement.textContent.trim()).toBe('');
     expect(button().ariaExpanded()).toBe(false);
     expect(panel()).toBeNull();
   });
@@ -35,6 +37,7 @@ describe('NodeLegendComponent', () => {
     toggle();
     expect(button().ariaExpanded()).toBe(true);
     expect(panel()).not.toBeNull();
+    expect(panel()!.getAttribute('aria-label')).toBe('Altres marques');
     toggle();
     expect(panel()).toBeNull();
   });
@@ -102,5 +105,29 @@ describe('NodeLegendComponent', () => {
     expect(fixture.componentInstance.entries()[0].appearance.fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE_DARK['vents'].wash });
     TestBed.inject(ThemeService).setPreference('system');
     localStorage.clear();
+  });
+
+  describe('beside a display mode', () => {
+    it('draws its samples in paper in any mode but Posició: there the colors belong to the mode\'s key', () => {
+      const { fixture } = setup({ displayMode: 'gender' });
+      expect(fixture.componentInstance.entries()[0].appearance.fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL.wash });
+    });
+
+    it('keeps explaining the attendance fills in Alçada and Gènere, where the fill still shows it', () => {
+      const { panel, toggle } = setup({ displayMode: 'height', phase: 'started' });
+      toggle();
+      expect(panel()!.textContent).toContain('No ha arribat');
+    });
+
+    it('drops the attendance fills in Assistència (every node is solid there), keeping the empty position and the marks', () => {
+      const { panel, toggle } = setup({ displayMode: 'attendance', phase: 'started' });
+      toggle();
+      const text = panel()!.textContent!;
+      expect(text).not.toContain('Assistència');
+      expect(text).not.toContain('No ha arribat');
+      expect(text).toContain('Posició buida');
+      expect(text).toContain('Ve a la propera actuació');
+      expect(panel()!.querySelectorAll('li').length).toBe(6);
+    });
   });
 });

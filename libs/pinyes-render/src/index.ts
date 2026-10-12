@@ -6,6 +6,7 @@ export * from './lib/components/own-position-banner/own-position-banner.componen
 export * from './lib/components/own-position-marker/own-position-marker.component';
 export * from './lib/components/tronc-panel-measurer/tronc-panel-measurer.component';
 export * from './lib/components/node-legend/node-legend.component';
+export * from './lib/components/display-mode-key/display-mode-key.component';
 export * from './lib/components/pinned-card/pinned-card.component';
 export * from './lib/components/node-drawing/node-drawing.component';
 export { type NodeAppearance, resolveNodeAppearance } from './lib/node-render/appearance';

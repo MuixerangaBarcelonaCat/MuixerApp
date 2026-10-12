@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, isRematMarker, NodeLegendComponent } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, isRematMarker, NodeLegendComponent, DisplayModeKeyComponent } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -448,6 +448,40 @@ describe('PinyesTabComponent', () => {
       state.confirmedPersons.set([{ ...makePerson('p-x'), gender: Gender.FEMALE }]);
       fixture.detectChanges();
       expect(canvasStub().personDetailsMap().get('p-x')).toMatchObject({ gender: Gender.FEMALE });
+    });
+
+    describe('key', () => {
+      const key = () =>
+        fixture.debugElement.query(By.directive(DisplayModeKeyComponent))?.componentInstance as DisplayModeKeyComponent | undefined;
+      const legends = () => fixture.debugElement.queryAll(By.directive(NodeLegendComponent));
+
+      it('floats a card under the toolbar for the current mode, holding the «Altres marques»', async () => {
+        await setup();
+        ws.setDisplayMode('gender');
+        fixture.detectChanges();
+        expect(key()!.mode()).toBe('gender');
+        expect(key()!.layout()).toBe('card');
+        expect(legends()).toHaveLength(1);
+        expect(fixture.debugElement.query(By.directive(DisplayModeKeyComponent)).nativeElement.contains(legends()[0].nativeElement)).toBe(true);
+      });
+
+      it('counts the people on the pinya canvas (not the tronc) and names the pinya types drawn', async () => {
+        await setup({
+          nodesByInstance: {
+            [INST_A]: [makeNode('n1', 'PINYA', { positionType: 'vents' }), makeNode('n2', 'PINYA', { x: 50, positionType: 'agulla' }), makeNode('t1', 'TRONC')],
+          },
+          assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'n1'), makeAssignment(INST_A, 't1', undefined, 'TRONC')] },
+        });
+        expect(key()!.people()).toHaveLength(1);
+        expect([...key()!.positionTypes()].sort()).toEqual(['agulla', 'vents']);
+        expect(key()!.heightMode()).toBe(state.heightMode());
+      });
+
+      it('has no key on a phone; the «Altres marques» stays in the toolbar', async () => {
+        await setup({ phone: true });
+        expect(key()).toBeUndefined();
+        expect(legends()).toHaveLength(1);
+      });
     });
 
     describe('shortcut keys 1–4', () => {

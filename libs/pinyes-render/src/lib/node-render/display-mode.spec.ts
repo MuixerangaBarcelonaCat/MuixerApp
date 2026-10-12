@@ -6,6 +6,8 @@ import {
   GENDER_TONES_DARK,
   NODE_TYPE_NEUTRAL,
   NODE_TYPE_NEUTRAL_DARK,
+  NODE_TYPE_PALETTE,
+  NODE_TYPE_PALETTE_DARK,
   heightRampTones,
 } from '@muixer/ui';
 import {
@@ -18,6 +20,7 @@ import {
   displayTones,
   heightDomain,
   personDisplayFacts,
+  positionKey,
 } from './display-mode';
 
 const facts = (overrides: Partial<DisplayFacts> = {}): DisplayFacts => ({
@@ -194,27 +197,31 @@ describe('personDisplayFacts', () => {
   });
 });
 
+const plain = (tones: { wash: string; pencil: string }) => ({ tones, star: false });
+const starred = (tones: { wash: string; pencil: string }) => ({ tones, star: true });
+
 describe('displayModeKey', () => {
-  it('is empty in Posició (the position key is built from the nodes, not the people)', () => {
-    expect(displayModeKey([facts()], ctx())).toEqual({ gradient: null, rows: [] });
+  it('is empty in Posició (the position key is built from the nodes, see positionKey)', () => {
+    expect(displayModeKey([facts()], ctx())).toEqual({ gradient: null, rows: [], note: null });
   });
 
   it('lists only the gender groups that appear, with their counts', () => {
     const people = [facts({ gender: Gender.MALE }), facts({ gender: null }), facts({ gender: Gender.MALE })];
     expect(displayModeKey(people, ctx({ mode: 'gender' }))).toEqual({
       gradient: null,
+      note: null,
       rows: [
-        { id: 'male', label: 'Home', swatches: [GENDER_TONES.male], count: 2, strike: false },
-        { id: 'other', label: 'Altre o sense dades', swatches: [GENDER_TONES.other], count: 1, strike: false },
+        { id: 'male', label: 'Home', swatches: [plain(GENDER_TONES.male)], count: 2 },
+        { id: 'other', label: 'Altre o sense dades', swatches: [plain(GENDER_TONES.other)], count: 1 },
       ],
     });
   });
 
   it('shows the height gradient, and «Sense alçada» only when someone has no height', () => {
     const c = ctx({ mode: 'height', heightDomain: { min: 143, max: 172 } });
-    expect(displayModeKey([facts({ shoulderHeight: 143 }), facts({ shoulderHeight: 172 })], c)).toEqual({ gradient: { min: 143, max: 172 }, rows: [] });
+    expect(displayModeKey([facts({ shoulderHeight: 143 }), facts({ shoulderHeight: 172 })], c)).toEqual({ gradient: { min: 143, max: 172 }, rows: [], note: null });
     expect(displayModeKey([facts({ shoulderHeight: 143 }), facts({ shoulderHeight: null })], c).rows).toEqual([
-      { id: 'unknown-height', label: 'Sense alçada', swatches: [NODE_TYPE_NEUTRAL], count: 1, strike: false },
+      { id: 'unknown-height', label: 'Sense alçada', swatches: [plain(NODE_TYPE_NEUTRAL)], count: 1 },
     ]);
   });
 
@@ -226,9 +233,9 @@ describe('displayModeKey', () => {
       facts({ attendance: 'NO_VAIG' }),
     ];
     expect(displayModeKey(people, ctx({ mode: 'attendance', phase: 'day' })).rows).toEqual([
-      { id: 'success', label: 'Ha arribat o ve', swatches: [ATTENDANCE_TONES.success.base], count: 2, strike: false },
-      { id: 'warning', label: 'Pendent', swatches: [ATTENDANCE_TONES.warning.base], count: 1, strike: false },
-      { id: 'error', label: 'No vindrà', swatches: [ATTENDANCE_TONES.error.base], count: 1, strike: true },
+      { id: 'success', label: 'Ha arribat o ve', swatches: [plain(ATTENDANCE_TONES.success.base)], count: 2 },
+      { id: 'warning', label: 'Pendent', swatches: [plain(ATTENDANCE_TONES.warning.base)], count: 1 },
+      { id: 'error', label: 'No vindrà', swatches: [plain(ATTENDANCE_TONES.error.base)], count: 1 },
     ]);
     expect(displayModeKey(people, ctx({ mode: 'attendance', phase: 'started' })).rows.map((r) => r.label)).toEqual([
       'Ha arribat',
@@ -237,25 +244,54 @@ describe('displayModeKey', () => {
     ]);
   });
 
-  it('shows both shades of a color and the «Més fosc» row only when someone comes to the next actuació', () => {
-    const rows = displayModeKey(
+  it('draws the darker shade with the star, as the canvas does, and notes what it means only when someone comes', () => {
+    const key = displayModeKey(
       [facts({ attendance: 'ANIRE', nextActuacio: true }), facts({ attendance: 'ANIRE' })],
       ctx({ mode: 'attendance' }),
+    );
+    expect(key.rows).toEqual([
+      { id: 'success', label: 'Ve', swatches: [plain(ATTENDANCE_TONES.success.base), starred(ATTENDANCE_TONES.success.strong)], count: 2 },
+    ]);
+    expect(key.note).toEqual({ label: 'Ve a la propera actuació', count: 1 });
+    expect(displayModeKey([facts({ attendance: 'ANIRE' })], ctx({ mode: 'attendance' })).note).toBeNull();
+  });
+
+  it('once anyone comes to the next actuació, gives every row both shades, so the squares line up in two columns', () => {
+    const rows = displayModeKey(
+      [facts({ attendance: 'ANIRE', nextActuacio: true }), facts({ attendance: 'NO_VAIG' }), facts({ attendance: 'PENDENT', nextActuacio: true })],
+      ctx({ mode: 'attendance' }),
     ).rows;
-    expect(rows).toEqual([
-      { id: 'success', label: 'Ve', swatches: [ATTENDANCE_TONES.success.base, ATTENDANCE_TONES.success.strong], count: 2, strike: false },
-      {
-        id: 'next-actuacio',
-        label: 'Més fosc: ve a la propera actuació',
-        swatches: [ATTENDANCE_TONES.success.base, ATTENDANCE_TONES.success.strong],
-        count: 1,
-        strike: false,
-      },
+    expect(rows.map((r) => r.swatches)).toEqual([
+      [plain(ATTENDANCE_TONES.success.base), starred(ATTENDANCE_TONES.success.strong)],
+      [plain(ATTENDANCE_TONES.warning.base), starred(ATTENDANCE_TONES.warning.strong)],
+      [plain(ATTENDANCE_TONES.error.base), starred(ATTENDANCE_TONES.error.strong)],
     ]);
   });
 
   it('draws the key swatches in the theme mode', () => {
     const rows = displayModeKey([facts({ gender: Gender.FEMALE })], ctx({ mode: 'gender', themeMode: 'dark' })).rows;
-    expect(rows[0].swatches).toEqual([GENDER_TONES_DARK.female]);
+    expect(rows[0].swatches).toEqual([plain(GENDER_TONES_DARK.female)]);
+  });
+});
+
+describe('positionKey', () => {
+  it('lists the pinya types drawn, in the presets\' order, named as people say them, with no count', () => {
+    expect(positionKey(['vents', 'agulla', 'vents', 'comodin'], 'light')).toEqual({
+      gradient: null,
+      note: null,
+      rows: [
+        { id: 'agulla', label: 'Agulla', swatches: [plain(NODE_TYPE_PALETTE['agulla'])], count: null },
+        { id: 'vents', label: 'Vent', swatches: [plain(NODE_TYPE_PALETTE['vents'])], count: null },
+        { id: 'comodin', label: 'Comodí', swatches: [plain(NODE_TYPE_PALETTE['comodin'])], count: null },
+      ],
+    });
+  });
+
+  it('leaves out what has no type color (bases, decorations, untyped nodes)', () => {
+    expect(positionKey(['base', 'rectangle', null], 'light').rows).toEqual([]);
+  });
+
+  it('uses the dark palette on the dark canvas', () => {
+    expect(positionKey(['tap'], 'dark').rows[0].swatches).toEqual([plain(NODE_TYPE_PALETTE_DARK['tap'])]);
   });
 });
