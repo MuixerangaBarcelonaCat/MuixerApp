@@ -36,7 +36,7 @@ class StubFigureCanvas {
   readonly phase = input<string>('before');
   readonly personDragEnabled = input<boolean>(true);
   readonly displayMode = input<string>('position');
-  readonly heightDomain = input<{ min: number; max: number } | null>(null);
+  readonly heightDomain = input<{ heights: number[] } | null>(null);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
   readonly segmentNodeContextMenu = output<SegmentNodeRef>();
@@ -440,7 +440,7 @@ describe('PinyesTabComponent', () => {
           ],
         },
       });
-      expect(canvasStub().heightDomain()).toEqual({ min: 150, max: 170 });
+      expect(canvasStub().heightDomain()).toEqual({ heights: [150, 170] });
     });
 
     it('passes each person\'s gender from the roster to the canvas', async () => {

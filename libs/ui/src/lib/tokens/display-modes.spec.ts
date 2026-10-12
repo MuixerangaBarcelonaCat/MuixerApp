@@ -9,8 +9,9 @@ import {
 } from './display-modes';
 
 // The values the user picked on the Display Modes preview (round 2): violet · gold · neutral for
-// gender, even lightness steps on the semantic hues for attendance, and the gold → teal → blue
-// continuous height ramp. Pinned so a change to the levels shows up as a diff against what was approved.
+// gender, even lightness steps on the semantic hues for attendance; and the height ramp from the
+// Height Ramp Options preview (round 3, «Same, ending bluer»). Pinned so a change to the levels shows
+// up as a diff against what was approved.
 describe('GENDER_TONES', () => {
   it('has the approved violet · gold · neutral tones, light and dark', () => {
     expect(GENDER_TONES).toEqual({
@@ -59,15 +60,26 @@ describe('ATTENDANCE_TONES', () => {
 describe('heightRampTones', () => {
   it('has the approved ends and midpoint, light and dark', () => {
     expect([0, 0.5, 1].map((t) => heightRampTones(t, 'light'))).toEqual([
-      { wash: '#fde89a', pencil: '#867000' },
-      { wash: '#5dc9b2', pencil: '#005043' },
-      { wash: '#5880c2', pencil: '#11397b' },
+      { wash: '#fae8a2', pencil: '#867000' },
+      { wash: '#e68db0', pencil: '#6b1a42' },
+      { wash: '#5e71af', pencil: '#212f75' },
     ]);
     expect([0, 0.5, 1].map((t) => heightRampTones(t, 'dark'))).toEqual([
-      { wash: '#91803c', pencil: '#f0de99' },
-      { wash: '#076a5a', pencil: '#70c7b4' },
-      { wash: '#1e3761', pencil: '#6c8dc3' },
+      { wash: '#9b8c52', pencil: '#f0de99' },
+      { wash: '#8a4261', pencil: '#e6a0ba' },
+      { wash: '#212e60', pencil: '#7183bd' },
     ]);
+  });
+
+  it('runs from yellow round the warm side to a blue-leaning violet, never through green or blue-green', () => {
+    const hue = (t: number) => hexToOklch(heightRampTones(t, 'light').wash).h;
+    expect(hue(0)).toBeCloseTo(95, -1);
+    expect(hue(0.5)).toBeGreaterThan(340);
+    expect(hue(1)).toBeCloseTo(270, -1);
+    for (let i = 0; i <= 20; i++) {
+      const h = hue(i / 20);
+      expect(h < 110 || h > 260).toBe(true);
+    }
   });
 
   it('defaults to light mode', () => {

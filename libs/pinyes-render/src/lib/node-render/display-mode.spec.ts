@@ -34,18 +34,18 @@ const facts = (overrides: Partial<DisplayFacts> = {}): DisplayFacts => ({
 const ctx = (overrides: Partial<DisplayContext> = {}): DisplayContext => ({
   mode: 'position',
   phase: 'before',
-  heightDomain: { min: 140, max: 160 },
+  heightDomain: { heights: [140, 150, 160] },
   themeMode: 'light',
   ...overrides,
 });
 
 describe('heightDomain', () => {
-  it('spans the shortest to the tallest known height', () => {
-    expect(heightDomain([152, 143, null, 172, 161])).toEqual({ min: 143, max: 172 });
+  it('holds the known heights, shortest first', () => {
+    expect(heightDomain([152, 143, null, 172, 161, 152])).toEqual({ heights: [143, 152, 152, 161, 172] });
   });
 
   it('ignores unknown heights: null and 0 (0 is how an unset height is stored by some imports)', () => {
-    expect(heightDomain([0, 150, null])).toEqual({ min: 150, max: 150 });
+    expect(heightDomain([0, 150, null])).toEqual({ heights: [150] });
   });
 
   it('is null when no one has a known height', () => {
@@ -79,15 +79,27 @@ describe('displayCategory', () => {
     expect(displayCategory(facts(), ctx())).toBeNull();
   });
 
-  it('places a height on the domain from 0 (shortest) to 1 (tallest)', () => {
-    const c = ctx({ mode: 'height' });
-    expect(displayCategory(facts({ shoulderHeight: 140 }), c)).toEqual({ kind: 'height', t: 0 });
-    expect(displayCategory(facts({ shoulderHeight: 150 }), c)).toEqual({ kind: 'height', t: 0.5 });
-    expect(displayCategory(facts({ shoulderHeight: 160 }), c)).toEqual({ kind: 'height', t: 1 });
+  it('places a height by its rank in the tab, 0 (shortest) to 1 (tallest), so a crowded middle spreads over the whole ramp', () => {
+    const c = ctx({ mode: 'height', heightDomain: { heights: [140, 148, 149, 150, 170] } });
+    const t = (cm: number) => displayCategory(facts({ shoulderHeight: cm }), c);
+    expect([140, 148, 149, 150, 170].map(t)).toEqual([0, 0.25, 0.5, 0.75, 1].map((x) => ({ kind: 'height', t: x })));
   });
 
-  it('puts everyone in the middle of the ramp when the domain is a single height', () => {
-    expect(displayCategory(facts({ shoulderHeight: 150 }), ctx({ mode: 'height', heightDomain: { min: 150, max: 150 } }))).toEqual({ kind: 'height', t: 0.5 });
+  it('gives people of the same height the same place, the middle of the ranks they share', () => {
+    const c = ctx({ mode: 'height', heightDomain: { heights: [140, 150, 150, 160] } });
+    expect(displayCategory(facts({ shoulderHeight: 150 }), c)).toEqual({ kind: 'height', t: 0.5 });
+  });
+
+  it('puts everyone in the middle of the ramp when the tab has a single height', () => {
+    expect(displayCategory(facts({ shoulderHeight: 150 }), ctx({ mode: 'height', heightDomain: { heights: [150] } }))).toEqual({ kind: 'height', t: 0.5 });
+    expect(displayCategory(facts({ shoulderHeight: 150 }), ctx({ mode: 'height', heightDomain: { heights: [150, 150] } }))).toEqual({ kind: 'height', t: 0.5 });
+  });
+
+  it('places a height the tab lacks between its neighbours, and one beyond the tab at its end', () => {
+    const c = ctx({ mode: 'height' });
+    expect(displayCategory(facts({ shoulderHeight: 145 }), c)).toEqual({ kind: 'height', t: 0.25 });
+    expect(displayCategory(facts({ shoulderHeight: 130 }), c)).toEqual({ kind: 'height', t: 0 });
+    expect(displayCategory(facts({ shoulderHeight: 175 }), c)).toEqual({ kind: 'height', t: 1 });
   });
 
   it('marks an unknown height', () => {
@@ -217,12 +229,18 @@ describe('displayModeKey', () => {
     });
   });
 
-  it('shows the height gradient, and «Sense alçada» only when someone has no height', () => {
-    const c = ctx({ mode: 'height', heightDomain: { min: 143, max: 172 } });
-    expect(displayModeKey([facts({ shoulderHeight: 143 }), facts({ shoulderHeight: 172 })], c)).toEqual({ gradient: { min: 143, max: 172 }, rows: [], note: null });
+  it('shows the height gradient with the cm at each quarter of the ranks, and «Sense alçada» only when someone has no height', () => {
+    const c = ctx({ mode: 'height', heightDomain: { heights: [143, 150, 152, 160, 172] } });
+    expect(displayModeKey([facts({ shoulderHeight: 143 }), facts({ shoulderHeight: 172 })], c)).toEqual({ gradient: { quarters: [143, 150, 152, 160, 172] }, rows: [], note: null });
     expect(displayModeKey([facts({ shoulderHeight: 143 }), facts({ shoulderHeight: null })], c).rows).toEqual([
       { id: 'unknown-height', label: 'Sense alçada', swatches: [plain(NODE_TYPE_NEUTRAL)], count: 1 },
     ]);
+  });
+
+  it('reads a quarter between two heights in whole cm, and a single height as one mark', () => {
+    const at = (heights: number[]) => displayModeKey([facts()], ctx({ mode: 'height', heightDomain: { heights } })).gradient;
+    expect(at([140, 150])).toEqual({ quarters: [140, 143, 145, 148, 150] });
+    expect(at([150, 150])).toEqual({ quarters: [150] });
   });
 
   it('groups attendance by color, naming only the statuses present, in the phase\'s words', () => {

@@ -17,8 +17,8 @@ const MODE_TITLE: Record<DisplayMode, string> = {
   gender: 'Gènere',
 };
 
-/** Stops of the height gradient bar: enough for the hue turn to read smooth. */
-const GRADIENT_STOPS = 11;
+/** Stops of the height gradient bar: enough for the quick turn from apricot to rose to read smooth. */
+const GRADIENT_STOPS = 21;
 
 /** The height bar's box (w-48 × h-3); the pen is inset like a node's, so its wobble stays inside. */
 const BAR_WIDTH = 192;
@@ -49,8 +49,8 @@ interface KeyRowView {
 
 /**
  * What the node colors mean in the segment workspace's display mode: one row per color that appears
- * in the tab (with how many nodes carry it), or the height gradient between the tab's shortest and
- * tallest person. Each color is a square drawn with the canvas pen (rough.js), filled with the
+ * in the tab (with how many nodes carry it), or the height gradient over the tab's people, marked
+ * with the cm at each quarter of their ranks. Each color is a square drawn with the canvas pen (rough.js), filled with the
  * node's wash and outlined in its pencil; the darker attendance shade carries the star, as the node does. It also hosts the «Altres marques» of the marks.
  *
  * `card` floats under the pinya canvas toolbar, right-aligned toward the toolbar with the square
@@ -125,8 +125,11 @@ export class DisplayModeKeyComponent {
       { fill: { style: 'solid', color: `url(#${washId})` }, stroke: `url(#${pencilId})`, strokeWidth: SQUARE_OUTLINE_WIDTH, dash: null },
       hashSeed(`height-bar-${themeMode}`),
     );
-    const end = (cm: number) => `${formatShoulderHeight(cm, this.heightMode()) ?? cm} cm`;
-    return { ramp, washId, pencilId, paths, viewBox: `${-BAR_WIDTH / 2} ${-BAR_HEIGHT / 2} ${BAR_WIDTH} ${BAR_HEIGHT}`, min: end(domain.min), max: end(domain.max) };
+    // Ranks spread the quarters evenly along the bar, so the marks space out evenly too. Five
+    // labels share the bar's width: only the last carries the unit.
+    const { quarters } = domain;
+    const ticks = quarters.map((cm, i) => `${formatShoulderHeight(cm, this.heightMode()) ?? cm}${i === quarters.length - 1 ? ' cm' : ''}`);
+    return { ramp, washId, pencilId, paths, viewBox: `${-BAR_WIDTH / 2} ${-BAR_HEIGHT / 2} ${BAR_WIDTH} ${BAR_HEIGHT}`, ticks };
   });
 
   protected readonly note = computed(() => this.key().note);

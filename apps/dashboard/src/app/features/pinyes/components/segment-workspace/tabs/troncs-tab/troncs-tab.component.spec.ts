@@ -45,7 +45,7 @@ class StubTroncView {
   readonly figureName = input<string | null>(null);
   readonly nameBand = input<FigureBand | null>(null);
   readonly displayMode = input<string>('position');
-  readonly heightDomain = input<{ min: number; max: number } | null>(null);
+  readonly heightDomain = input<{ heights: number[] } | null>(null);
   readonly nodeSelected = output<string | null>();
   readonly nodeContextMenu = output<string>();
   readonly nodeDropped = output<{
@@ -431,7 +431,7 @@ describe('TroncsTabComponent', () => {
           [INST_B]: [withHeight(makeAssignment(INST_B, 'm1'), 150), withHeight(makeAssignment(INST_B, 'b1', undefined, 'BASE'), 175)],
         },
       });
-      expect(troncStubs().map((t) => t.heightDomain())).toEqual([{ min: 150, max: 175 }, { min: 150, max: 175 }]);
+      expect(troncStubs().map((t) => t.heightDomain())).toEqual([{ heights: [150, 160, 175] }, { heights: [150, 160, 175] }]);
     });
 
     it('passes each person\'s gender from the roster to the panels', async () => {

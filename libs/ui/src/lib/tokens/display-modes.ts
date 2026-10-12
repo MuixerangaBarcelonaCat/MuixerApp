@@ -70,17 +70,41 @@ export const ATTENDANCE_TONES_DARK = attendanceTones({
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /**
- * The height ramp at `t` (0 = shortest, 1 = tallest): gold → teal → blue, hue and lightness moving
- * together so close heights still differ. Light mode darkens with height; dark mode keeps the hue
- * order and flips the lightness, so the gold end stays clean on the dark canvas.
+ * The ramp's hue stops, as (t, hue): yellow round the warm side (apricot, rose, orchid) to a violet
+ * that leans blue. Hue falls below 0 to cross red: it quickly turns from apricot to rose, so the
+ * crowded middle of the ramp lands on rose and orchid, not on a red that could read as a warning.
+ * It never meets green or blue-green, which beside red would read as bad → good.
+ */
+const HEIGHT_HUE_STOPS: [t: number, hue: number][] = [
+  [0, 95],
+  [0.35, 50],
+  [0.5, -5],
+  [1, -90],
+];
+
+function heightHue(x: number): number {
+  for (let i = 1; i < HEIGHT_HUE_STOPS.length; i++) {
+    const [t0, h0] = HEIGHT_HUE_STOPS[i - 1];
+    const [t1, h1] = HEIGHT_HUE_STOPS[i];
+    if (x <= t1) return (lerp(h0, h1, (x - t0) / (t1 - t0)) + 360) % 360;
+  }
+  return (HEIGHT_HUE_STOPS[HEIGHT_HUE_STOPS.length - 1][1] + 360) % 360;
+}
+
+/**
+ * The height ramp at `t` (0 = shortest, 1 = tallest), picked on the Height Ramp Options preview
+ * (round 3): yellow → rose → blue-leaning violet, hue and lightness moving together so close heights
+ * still differ. Light mode darkens with height; dark mode keeps the hue order and flips the
+ * lightness. Chroma starts low enough that the pale yellow doesn't glow, with a small bump mid-ramp.
  */
 export function heightRampTones(t: number, mode: ThemeMode = 'light'): NodeTones {
   const x = Math.min(1, Math.max(0, t));
-  const h = lerp(95, 260, x);
+  const h = heightHue(x);
+  const c = lerp(0.09, 0.1, x) + 0.02 * Math.sin(Math.PI * x);
   if (mode === 'light') {
-    const l = lerp(0.93, 0.6, x);
-    return { wash: formatHex({ l, c: lerp(0.1, 0.11, x), h }), pencil: formatHex({ l: Math.max(0.36, l - 0.38), c: 0.12, h }) };
+    const l = lerp(0.93, 0.56, x);
+    return { wash: formatHex({ l, c, h }), pencil: formatHex({ l: Math.max(0.34, l - 0.38), c: 0.12, h }) };
   }
-  const l = lerp(0.6, 0.34, x);
-  return { wash: formatHex({ l, c: lerp(0.09, 0.08, x), h }), pencil: formatHex({ l: Math.min(0.9, l + 0.3), c: 0.09, h }) };
+  const l = lerp(0.64, 0.32, x);
+  return { wash: formatHex({ l, c: c - 0.01, h }), pencil: formatHex({ l: Math.min(0.9, l + 0.3), c: 0.09, h }) };
 }
