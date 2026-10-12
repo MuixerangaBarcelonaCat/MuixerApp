@@ -26,9 +26,9 @@ export type DisplayMode = 'position' | 'height' | 'attendance' | 'gender';
 /** `attendance` keeps the fill showing attendance (solid, hatched, empty); `solid` always fills. */
 export type NodeFillPolicy = 'attendance' | 'solid';
 
+/** The known heights of the people a tab draws, shortest first: Alçada colors by rank among them. */
 export interface HeightDomain {
-  min: number;
-  max: number;
+  heights: number[];
 }
 
 /** What the modes know about the person on a node. */
@@ -43,7 +43,7 @@ export interface DisplayFacts {
 export interface DisplayContext {
   mode: DisplayMode;
   phase: EventPhase;
-  /** The tab's shortest → tallest assigned person; null when no one has a known height. */
+  /** The tab's assigned people's known heights; null when no one has a known height. */
   heightDomain: HeightDomain | null;
   themeMode: ThemeMode;
 }
@@ -57,11 +57,34 @@ export type DisplayCategory =
 /** A known shoulder height: null and 0 both mean unset. */
 const knownHeight = (cm: number | null): cm is number => cm != null && cm !== 0;
 
-/** The span the height ramp stretches over: the shortest to the tallest known height. */
+/** The heights the ramp ranks people among: the known ones, shortest first. */
 export function heightDomain(heights: (number | null)[]): HeightDomain | null {
-  const known = heights.filter(knownHeight);
-  if (known.length === 0) return null;
-  return { min: Math.min(...known), max: Math.max(...known) };
+  const known = heights.filter(knownHeight).sort((a, b) => a - b);
+  return known.length === 0 ? null : { heights: known };
+}
+
+/**
+ * Where a height sits on the ramp: its rank among the tab's heights, 0 (shortest) to 1 (tallest).
+ * Ranks, not cm, because most people crowd the middle heights: spread by cm, they would all share a
+ * few close colors. People of the same height share the middle of their ranks; a height the tab
+ * lacks sits between its neighbours, and one beyond the tab at its end. A single height is the middle.
+ */
+function heightRank(cm: number, { heights }: HeightDomain): number {
+  if (heights.length === 1) return 0.5;
+  const below = heights.filter((h) => h < cm).length;
+  const equal = heights.filter((h) => h === cm).length;
+  const rank = equal > 0 ? below + (equal - 1) / 2 : below - 0.5;
+  return Math.min(1, Math.max(0, rank / (heights.length - 1)));
+}
+
+/** The cm at each quarter of the ranks (shortest, ¼, median, ¾, tallest), as the key's bar marks them; one mark for a single height. */
+function heightQuarters({ heights }: HeightDomain): number[] {
+  if (heights[0] === heights[heights.length - 1]) return [heights[0]];
+  return [0, 0.25, 0.5, 0.75, 1].map((q) => {
+    const i = q * (heights.length - 1);
+    const lo = Math.floor(i);
+    return Math.round(heights[lo] + (heights[Math.ceil(i)] - heights[lo]) * (i - lo));
+  });
 }
 
 /**
@@ -95,9 +118,7 @@ export function displayCategory(facts: DisplayFacts, ctx: DisplayContext): Displ
     case 'height': {
       const domain = ctx.heightDomain;
       if (!knownHeight(facts.shoulderHeight) || !domain) return { kind: 'unknown-height' };
-      const span = domain.max - domain.min;
-      const t = span === 0 ? 0.5 : Math.min(1, Math.max(0, (facts.shoulderHeight - domain.min) / span));
-      return { kind: 'height', t };
+      return { kind: 'height', t: heightRank(facts.shoulderHeight, domain) };
     }
     case 'gender':
       return { kind: 'gender', group: genderGroup(facts.gender) };
@@ -190,8 +211,8 @@ export interface DisplayKeyRow {
 }
 
 export interface DisplayKey {
-  /** Alçada: the gradient's ends. */
-  gradient: HeightDomain | null;
+  /** Alçada: the cm the gradient bar marks at each quarter of the ranks. */
+  gradient: { quarters: number[] } | null;
   rows: DisplayKeyRow[];
   /** A line under the rows, in smaller type: who comes to the next actuació (Assistència), with the star where the squares go. */
   note: { label: string; count: number } | null;
@@ -223,7 +244,7 @@ export function displayModeKey(people: DisplayFacts[], ctx: DisplayContext): Dis
     case 'height': {
       const unknown = people.filter((p) => displayCategory(p, ctx)?.kind === 'unknown-height').length;
       const rows = unknown > 0 ? [row('unknown-height', 'Sense alçada', [plain(dark ? NODE_TYPE_NEUTRAL_DARK : NODE_TYPE_NEUTRAL)], unknown)] : [];
-      return { gradient: ctx.heightDomain, rows, note: null };
+      return { gradient: ctx.heightDomain ? { quarters: heightQuarters(ctx.heightDomain) } : null, rows, note: null };
     }
     case 'gender': {
       const tones = dark ? GENDER_TONES_DARK : GENDER_TONES;

@@ -68,9 +68,10 @@
               />
             }
           </svg>
-          <div class="flex justify-between text-xs font-semibold tabular-nums text-base-content/70">
-            <span data-testid="gradient-end">{{ g.min }}</span>
-            <span data-testid="gradient-end">{{ g.max }}</span>
+          <div class="flex text-xs font-semibold tabular-nums text-base-content/70" [class]="g.ticks.length === 1 ? 'justify-center' : 'justify-between'">
+            @for (tick of g.ticks; track $index) {
+              <span data-testid="gradient-tick">{{ tick }}</span>
+            }
           </div>
         </div>
       }

@@ -2422,7 +2422,7 @@ describe('TroncViewComponent', () => {
 
       it('places the person on the height ramp of the domain it is given', () => {
         fixture.componentRef.setInput('displayMode', 'height');
-        fixture.componentRef.setInput('heightDomain', { min: 150, max: 170 });
+        fixture.componentRef.setInput('heightDomain', { heights: [150, 170] });
         fixture.detectChanges();
         expect(appearance().fill).toEqual({ style: 'solid', color: heightRampTones(1, 'light').wash });
       });

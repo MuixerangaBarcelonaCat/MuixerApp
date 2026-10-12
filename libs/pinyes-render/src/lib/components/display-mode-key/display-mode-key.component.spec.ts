@@ -97,7 +97,7 @@ describe('DisplayModeKeyComponent', () => {
   });
 
   it('draws the height bar with the canvas pen: the ramp\'s washes fill it, its pencils outline it', () => {
-    const { el } = setup({ mode: 'height', people: [facts({ shoulderHeight: 143 })], heightDomain: { min: 143, max: 172 } });
+    const { el } = setup({ mode: 'height', people: [facts({ shoulderHeight: 143 })], heightDomain: { heights: [143, 172] } });
     const bar = el.querySelector('[data-testid="key-gradient"]') as HTMLElement;
     const fill = bar.querySelector('path[data-role="fill"]')!;
     const outline = bar.querySelector('path[data-role="outline"]')!;
@@ -124,20 +124,27 @@ describe('DisplayModeKeyComponent', () => {
     expect(inline.rows()[0].firstElementChild!.querySelector('[data-testid="key-swatch"]')).not.toBeNull();
   });
 
-  it('shows the height gradient with its ends in the height mode, and «Sense alçada» when someone has none', () => {
+  it('marks the height bar at each quarter of the ranks in the height mode, the unit only after the last, and «Sense alçada» when someone has none', () => {
     const { el, fixture } = setup({
       mode: 'height',
       people: [facts({ shoulderHeight: 143 }), facts({ shoulderHeight: null })],
-      heightDomain: { min: 143, max: 172 },
+      heightDomain: { heights: [143, 150, 152, 160, 172] },
     });
-    const ends = () => Array.from(el.querySelectorAll('[data-testid="gradient-end"]')).map((e) => e.textContent?.trim());
+    const ticks = () => Array.from(el.querySelectorAll('[data-testid="gradient-tick"]')).map((e) => e.textContent?.trim());
     expect(el.querySelector('[data-testid="key-gradient"]')).not.toBeNull();
-    expect(ends()).toEqual(['+3 cm', '+32 cm']);
+    expect(ticks()).toEqual(['+3', '+10', '+12', '+20', '+32 cm']);
     expect(el.textContent).toContain('Sense alçada');
 
     fixture.componentRef.setInput('heightMode', 'absolute');
     fixture.detectChanges();
-    expect(ends()).toEqual(['143 cm', '172 cm']);
+    expect(ticks()).toEqual(['143', '150', '152', '160', '172 cm']);
+  });
+
+  it('centers the one mark of a tab where everyone has the same height', () => {
+    const { el } = setup({ mode: 'height', people: [facts({ shoulderHeight: 150 })], heightDomain: { heights: [150] }, heightMode: 'absolute' });
+    const ticks = Array.from(el.querySelectorAll('[data-testid="gradient-tick"]'));
+    expect(ticks.map((e) => e.textContent?.trim())).toEqual(['150 cm']);
+    expect(ticks[0].parentElement!.classList).toContain('justify-center');
   });
 
   it('says so when no one is assigned yet', () => {
