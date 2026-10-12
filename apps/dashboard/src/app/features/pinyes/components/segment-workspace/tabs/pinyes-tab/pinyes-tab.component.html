@@ -8,34 +8,48 @@
       </div>
     }
 
-    <!-- Display mode, legend, undo/redo -->
-    <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+    <!-- Display mode and undo/redo; under them, the mode's key (holding the «Altres marques»). On a phone
+         there's no mode to explain, so the «Altres marques» sits in the toolbar. -->
+    <div class="absolute top-2 right-2 z-10 flex flex-col items-end gap-2">
+      <div class="flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+        @if (isPhone()) {
+          <app-node-legend [phase]="phase()" />
+        } @else {
+          <app-display-mode-switcher [mode]="ws.displayMode()" (modeChange)="ws.setDisplayMode($event)" />
+        }
+        <lib-button
+          variant="ghost"
+          size="xs"
+          shape="square"
+          [disabled]="!canUndo() || ws.isLocked()"
+          [ariaLabel]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
+          [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
+          (clicked)="performUndo()"
+        >
+          <lucide-icon [img]="Undo2" [size]="14" aria-hidden="true" />
+        </lib-button>
+        <lib-button
+          variant="ghost"
+          size="xs"
+          shape="square"
+          [disabled]="!canRedo() || ws.isLocked()"
+          [ariaLabel]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
+          [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+          (clicked)="performRedo()"
+        >
+          <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
+        </lib-button>
+      </div>
       @if (!isPhone()) {
-        <app-display-mode-switcher [mode]="ws.displayMode()" (modeChange)="ws.setDisplayMode($event)" />
+        <app-display-mode-key
+          [mode]="ws.displayMode()"
+          [people]="keyPeople()"
+          [positionTypes]="keyPositionTypes()"
+          [heightDomain]="heightDomain()"
+          [heightMode]="state.heightMode()"
+          [phase]="phase()"
+        />
       }
-      <app-node-legend [phase]="phase()" />
-      <lib-button
-        variant="ghost"
-        size="xs"
-        shape="square"
-        [disabled]="!canUndo() || ws.isLocked()"
-        [ariaLabel]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
-        [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
-        (clicked)="performUndo()"
-      >
-        <lucide-icon [img]="Undo2" [size]="14" aria-hidden="true" />
-      </lib-button>
-      <lib-button
-        variant="ghost"
-        size="xs"
-        shape="square"
-        [disabled]="!canRedo() || ws.isLocked()"
-        [ariaLabel]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
-        [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
-        (clicked)="performRedo()"
-      >
-        <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
-      </lib-button>
     </div>
 
     <!-- Moving a person: says who, offers a cross to cancel -->

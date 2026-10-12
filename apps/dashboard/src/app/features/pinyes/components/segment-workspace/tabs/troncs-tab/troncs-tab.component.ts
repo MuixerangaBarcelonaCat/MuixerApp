@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, getFigureBand, FigureBand, PinnedCardComponent, injectCanvasTheme, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent, heightDomain } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, getFigureBand, FigureBand, PinnedCardComponent, injectCanvasTheme, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent, DisplayModeKeyComponent, heightDomain, personDisplayFacts } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
@@ -45,7 +45,7 @@ const NO_NODES = new Set<string>();
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NodeLegendComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, DisplayModeSwitcherComponent, FigurePickerModalComponent, NgTemplateOutlet],
+  imports: [NodeLegendComponent, DisplayModeKeyComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, DisplayModeSwitcherComponent, FigurePickerModalComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -319,6 +319,12 @@ export class TroncsTabComponent implements OnInit {
 
   /** Alçada: one ramp for every panel, from the shortest to the tallest person in the troncs. */
   readonly heightDomain = computed(() => heightDomain(this.drawnAssignments().map((a) => a.person.shoulderHeight)));
+
+  /** The key counts what the panels color: one entry per staffed node in them. */
+  readonly keyPeople = computed(() => {
+    const sources = { attendance: this.attendanceMap(), nextPerformance: this.state.nextPerformanceRegistry(), details: this.personDetailsMap() };
+    return this.drawnAssignments().map((a) => personDisplayFacts(a.person, sources));
+  });
 
   // ── Minimap ──────────────────────────────────────────────────────────────
 

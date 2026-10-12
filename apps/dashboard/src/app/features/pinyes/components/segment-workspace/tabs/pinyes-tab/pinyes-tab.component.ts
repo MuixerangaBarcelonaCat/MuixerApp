@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent, heightDomain } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent, DisplayModeKeyComponent, heightDomain, personDisplayFacts } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -40,7 +40,7 @@ import {
   selector: 'app-pinyes-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NodeLegendComponent, 
+  imports: [NodeLegendComponent, DisplayModeKeyComponent, 
     LucideAngularModule,
     ButtonComponent,
     ModalComponent,
@@ -174,6 +174,17 @@ export class PinyesTabComponent implements OnInit {
 
   /** Alçada: the ramp runs from the shortest to the tallest person on this canvas, all figures. */
   readonly heightDomain = computed(() => heightDomain(this.drawnAssignments().map((a) => a.person.shoulderHeight)));
+
+  /** The key counts what the canvas colors: one entry per staffed node on it. */
+  readonly keyPeople = computed(() => {
+    const sources = { attendance: this.attendanceMap(), nextPerformance: this.nextPerformanceMap(), details: this.personDetailsMap() };
+    return this.drawnAssignments().map((a) => personDisplayFacts(a.person, sources));
+  });
+
+  /** Posició's key: the pinya types on the canvas. */
+  readonly keyPositionTypes = computed(() =>
+    this.ws.pinyaSlots().flatMap((slot) => slot.figureTemplate.nodes.filter((n) => n.zone === FigureZone.PINYA).map((n) => n.positionType)),
+  );
 
   readonly selectedNode = computed(() => {
     const ref = this.selectedRef();

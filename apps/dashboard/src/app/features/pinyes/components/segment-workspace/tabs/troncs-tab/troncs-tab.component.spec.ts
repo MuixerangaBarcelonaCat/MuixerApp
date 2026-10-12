@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent, PinnedCardComponent, getFigureBand, FigureBand } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent, DisplayModeKeyComponent, PinnedCardComponent, getFigureBand, FigureBand } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -451,6 +451,38 @@ describe('TroncsTabComponent', () => {
       component.onKeyDown(typing);
       component.onKeyDown(new KeyboardEvent('keydown', { key: '3', metaKey: true }));
       expect(ws.displayMode()).toBe('gender');
+    });
+
+    describe('key', () => {
+      const keyDebug = () => fixture.debugElement.query(By.directive(DisplayModeKeyComponent));
+      const key = () => keyDebug()?.componentInstance as DisplayModeKeyComponent | undefined;
+
+      it('sits in line inside the toolbar strip, out of the panels, holding the paper «Altres marques»', async () => {
+        await setup();
+        ws.setDisplayMode('attendance');
+        fixture.detectChanges();
+        const strip = fixture.nativeElement.querySelector('[data-testid="troncs-toolbar"]') as HTMLElement;
+        expect(key()!.layout()).toBe('inline');
+        expect(key()!.mode()).toBe('attendance');
+        expect(strip.contains(keyDebug().nativeElement)).toBe(true);
+        expect(key()!.legendPalette()).toBe('neutral');
+        expect(fixture.debugElement.queryAll(By.directive(NodeLegendComponent))).toHaveLength(1);
+      });
+
+      it('counts the people in the troncs only, and lists no position types (the panels are paper)', async () => {
+        await setup({
+          nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC'), makeNode('p1', 'PINYA')] },
+          assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'n1'), makeAssignment(INST_A, 'p1', undefined, 'PINYA')] },
+        });
+        expect(key()!.people()).toHaveLength(1);
+        expect(key()!.positionTypes()).toEqual([]);
+      });
+
+      it('has no key on a phone; the «Altres marques» stays in the toolbar', async () => {
+        await setup({ phone: true });
+        expect(key()).toBeUndefined();
+        expect(fixture.debugElement.queryAll(By.directive(NodeLegendComponent))).toHaveLength(1);
+      });
     });
 
     it('ignores the keys on a phone', async () => {

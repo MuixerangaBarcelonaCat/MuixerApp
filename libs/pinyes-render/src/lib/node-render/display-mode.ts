@@ -1,4 +1,4 @@
-import { AttendanceStatus, AttendanceStatusValue, EventPhase, Gender, attendanceStatusLabel, isStartedPhase } from '@muixer/shared';
+import { AttendanceStatus, AttendanceStatusValue, EventPhase, Gender, PINYA_NODE_PRESETS, attendanceStatusLabel, isStartedPhase } from '@muixer/shared';
 import {
   ATTENDANCE_TONES,
   ATTENDANCE_TONES_DARK,
@@ -8,6 +8,8 @@ import {
   GenderGroup,
   NODE_TYPE_NEUTRAL,
   NODE_TYPE_NEUTRAL_DARK,
+  NODE_TYPE_PALETTE,
+  NODE_TYPE_PALETTE_DARK,
   NodeTones,
   ThemeMode,
   heightRampTones,
@@ -173,19 +175,26 @@ export function displayModeOverrides(facts: DisplayFacts | null, ctx: DisplayCon
   };
 }
 
+/** One sample in a key row: its tones, and the next-actuació star when the canvas draws one on it. */
+export interface KeySwatch {
+  tones: NodeTones;
+  star: boolean;
+}
+
 export interface DisplayKeyRow {
   id: string;
   label: string;
-  swatches: NodeTones[];
-  /** How many of the tab's nodes fall in the row. */
-  count: number;
-  strike: boolean;
+  swatches: KeySwatch[];
+  /** How many of the tab's nodes fall in the row; null where counting means nothing (Posició). */
+  count: number | null;
 }
 
 export interface DisplayKey {
   /** Alçada: the gradient's ends. */
   gradient: HeightDomain | null;
   rows: DisplayKeyRow[];
+  /** A line under the rows, in smaller type: who comes to the next actuació (Assistència), with the star where the squares go. */
+  note: { label: string; count: number } | null;
 }
 
 const GENDER_ORDER: GenderGroup[] = ['female', 'male', 'other'];
@@ -204,38 +213,61 @@ function joinLabels(labels: string[]): string {
  */
 export function displayModeKey(people: DisplayFacts[], ctx: DisplayContext): DisplayKey {
   const dark = ctx.themeMode === 'dark';
-  const row = (id: string, label: string, swatches: NodeTones[], count: number, strike = false): DisplayKeyRow => ({ id, label, swatches, count, strike });
+  const row = (id: string, label: string, swatches: KeySwatch[], count: number): DisplayKeyRow => ({ id, label, swatches, count });
+  const plain = (tones: NodeTones): KeySwatch => ({ tones, star: false });
+  // The darker shade means «comes to the next actuació», and the canvas draws the star on it too.
+  const starred = (tones: NodeTones): KeySwatch => ({ tones, star: true });
   switch (ctx.mode) {
     case 'position':
-      return { gradient: null, rows: [] };
+      return { gradient: null, rows: [], note: null };
     case 'height': {
       const unknown = people.filter((p) => displayCategory(p, ctx)?.kind === 'unknown-height').length;
-      const rows = unknown > 0 ? [row('unknown-height', 'Sense alçada', [dark ? NODE_TYPE_NEUTRAL_DARK : NODE_TYPE_NEUTRAL], unknown)] : [];
-      return { gradient: ctx.heightDomain, rows };
+      const rows = unknown > 0 ? [row('unknown-height', 'Sense alçada', [plain(dark ? NODE_TYPE_NEUTRAL_DARK : NODE_TYPE_NEUTRAL)], unknown)] : [];
+      return { gradient: ctx.heightDomain, rows, note: null };
     }
     case 'gender': {
       const tones = dark ? GENDER_TONES_DARK : GENDER_TONES;
-      const rows = GENDER_ORDER.map((group) => row(group, GENDER_LABEL[group], [tones[group]], people.filter((p) => genderGroup(p.gender) === group).length));
-      return { gradient: null, rows: rows.filter((r) => r.count > 0) };
+      const rows = GENDER_ORDER.map((group) => row(group, GENDER_LABEL[group], [plain(tones[group])], people.filter((p) => genderGroup(p.gender) === group).length));
+      return { gradient: null, rows: rows.filter((r) => (r.count ?? 0) > 0), note: null };
     }
     case 'attendance': {
       const tones = dark ? ATTENDANCE_TONES_DARK : ATTENDANCE_TONES;
       const status = (p: DisplayFacts) => (p.attendance ?? AttendanceStatus.PENDENT) as AttendanceStatus;
       const rows: DisplayKeyRow[] = [];
+      // Once anyone comes to the next actuació, every row shows both shades, so the squares line up
+      // in two columns; with no one coming, the darker shade means nothing and isn't shown.
+      const coming = people.filter((p) => p.nextActuacio).length;
       for (const tone of TONE_ORDER) {
         const inTone = people.filter((p) => attendanceTone(p.attendance, ctx.phase) === tone);
         if (inTone.length === 0) continue;
         const present = STATUS_ORDER.filter((s) => inTone.some((p) => status(p) === s));
-        const swatches = [
-          ...(inTone.some((p) => !p.nextActuacio) ? [tones[tone].base] : []),
-          ...(inTone.some((p) => p.nextActuacio) ? [tones[tone].strong] : []),
-        ];
+        const swatches = coming > 0 ? [plain(tones[tone].base), starred(tones[tone].strong)] : [plain(tones[tone].base)];
         const label = joinLabels(present.map((s) => attendanceStatusLabel(s, ctx.phase)));
-        rows.push(row(tone, label, swatches, inTone.length, tone === 'error'));
+        rows.push(row(tone, label, swatches, inTone.length));
       }
-      const coming = people.filter((p) => p.nextActuacio).length;
-      if (coming > 0) rows.push(row('next-actuacio', 'Més fosc: ve a la propera actuació', [tones.success.base, tones.success.strong], coming));
-      return { gradient: null, rows };
+      return { gradient: null, rows, note: coming > 0 ? { label: 'Ve a la propera actuació', count: coming } : null };
     }
   }
+}
+
+/** Pinya preset labels are the uppercase node captions; the key names the type as people say it. */
+function presetKeyLabel(positionType: string, label: string): string {
+  if (positionType === 'comodin') return 'Comodí';
+  return label.charAt(0) + label.slice(1).toLowerCase();
+}
+
+/**
+ * Posició's key: the pinya types among the nodes a tab draws, in the presets' order, each in its
+ * palette. No counts: a type isn't a group of people. Nodes with no type color (bases, decorations,
+ * untyped) are left out, and so is a custom color: it belongs to one node, not to a type.
+ */
+export function positionKey(positionTypes: (string | null)[], themeMode: ThemeMode): DisplayKey {
+  const palette = themeMode === 'dark' ? NODE_TYPE_PALETTE_DARK : NODE_TYPE_PALETTE;
+  const present = new Set(positionTypes);
+  const rows: DisplayKeyRow[] = [];
+  for (const { positionType, label } of PINYA_NODE_PRESETS) {
+    if (!positionType || !present.has(positionType) || !palette[positionType]) continue;
+    rows.push({ id: positionType, label: presetKeyLabel(positionType, label), swatches: [{ tones: palette[positionType], star: false }], count: null });
+  }
+  return { gradient: null, rows, note: null };
 }

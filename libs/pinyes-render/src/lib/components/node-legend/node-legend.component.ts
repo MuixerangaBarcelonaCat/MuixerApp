@@ -14,6 +14,7 @@ import { EventPhase, FigureZone } from '@muixer/shared';
 import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { attendanceLegend } from '../../node-render/attendance';
 import { NodeAppearance, NodeAppearanceInput, resolveNodeAppearance } from '../../node-render/appearance';
+import { DisplayMode } from '../../node-render/display-mode';
 import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
 
 /** Width of the panel (w-72), to keep it inside the viewport. */
@@ -29,7 +30,7 @@ export interface LegendEntry {
 }
 
 /**
- * «Llegenda» button and popover for the figure views: what the node fills (attendance, worded for
+ * «Altres marques» (an icon-only ⓘ) and its popover for the figure views: what the node fills (attendance, worded for
  * the phase) and marks mean. Every sample is drawn with `app-node-drawing`, the same renderer as
  * the tronc panel, so the legend can't drift from what the figure shows.
  */
@@ -40,9 +41,16 @@ export interface LegendEntry {
   imports: [ButtonComponent, LucideAngularModule, NodeDrawingComponent],
   template: `
     <span #trigger class="inline-flex">
-      <lib-button variant="ghost" size="xs" [ariaExpanded]="open()" [ariaControls]="panelId" (clicked)="toggle()">
+      <lib-button
+        variant="ghost"
+        size="xs"
+        shape="square"
+        ariaLabel="Altres marques"
+        [ariaExpanded]="open()"
+        [ariaControls]="panelId"
+        (clicked)="toggle()"
+      >
         <lucide-icon [img]="Info" [size]="14" aria-hidden="true" />
-        Llegenda
       </lib-button>
     </span>
     @if (open()) {
@@ -51,7 +59,7 @@ export interface LegendEntry {
         #panel
         popover="auto"
         role="dialog"
-        aria-label="Llegenda"
+        aria-label="Altres marques"
         [id]="panelId"
         class="fixed inset-auto m-0 z-dropdown w-72 max-h-96 overflow-y-auto bg-base-100 border border-base-300 rounded-box shadow-overlay p-3 text-sm text-base-content"
         [style.top.px]="position().top"
@@ -60,7 +68,7 @@ export interface LegendEntry {
         (keydown.escape)="open.set(false)"
         data-testid="node-legend"
       >
-        @for (section of sections; track section.key) {
+        @for (section of visibleSections(); track section.key) {
           <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1" [class.mt-3]="!$first">
             {{ section.title }}
           </h3>
@@ -83,13 +91,19 @@ export class NodeLegendComponent {
   readonly phase = input<EventPhase>('before');
   /** `neutral` for the tronc panel, which draws every node in the paper tone. */
   readonly palette = input<'type' | 'neutral'>('type');
+  /**
+   * The workspace's display mode. Outside Posició the colors are the mode's (its key says them), so
+   * the samples go paper; in Assistència every node is solid, so the attendance fills go too.
+   */
+  readonly displayMode = input<DisplayMode>('position');
 
   protected readonly Info = Info;
   protected readonly panelId = `node-legend-${nextLegendId++}`;
-  protected readonly sections = [
+  private readonly sections = [
     { key: 'attendance' as const, title: 'Assistència' },
     { key: 'marks' as const, title: 'Marques' },
   ];
+  protected readonly visibleSections = computed(() => this.sections.filter((s) => this.entriesOf(s.key).length > 0));
 
   private readonly theme = injectCanvasTheme();
   protected readonly open = signal(false);
@@ -103,19 +117,24 @@ export class NodeLegendComponent {
       positionType: 'vents',
       color: null,
       label: 'Vent',
-      palette: this.palette(),
+      palette: this.displayMode() === 'position' ? this.palette() : 'neutral',
       mode: 'workspace',
     };
     const person = { name: 'Marta' };
     const theme = this.theme();
     const draw = (input: Partial<NodeAppearanceInput>) => resolveNodeAppearance({ ...base, person, ...input }, theme);
+    const solidFills = this.displayMode() === 'attendance';
+    const fills = solidFills
+      ? []
+      : attendanceLegend(this.phase()).map(({ fill, label }) => ({
+          section: 'attendance' as const,
+          label,
+          appearance: draw({ attendance: fill }),
+        }));
     return [
-      ...attendanceLegend(this.phase()).map(({ fill, label }) => ({
-        section: 'attendance' as const,
-        label,
-        appearance: draw({ attendance: fill }),
-      })),
-      { section: 'attendance', label: 'Posició buida', appearance: draw({ person: null }) },
+      ...fills,
+      // With no fills to sit among, the empty position heads the marks.
+      { section: solidFills ? 'marks' : 'attendance', label: 'Posició buida', appearance: draw({ person: null }) },
       { section: 'marks', label: 'Ve a la propera actuació', appearance: draw({ person: { ...person, nextActuacio: true } }) },
       { section: 'marks', label: 'Té observacions', appearance: draw({ person: { ...person, observation: { emoji: '🤕' } } }) },
       { section: 'marks', label: "En conflicte: ocupa més d'una posició en este segment", appearance: draw({ conflict: true }) },

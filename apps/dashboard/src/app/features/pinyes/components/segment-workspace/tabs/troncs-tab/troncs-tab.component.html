@@ -2,12 +2,27 @@
   <div class="flex flex-1 min-w-0 flex-col">
   <!-- Display mode, legend, undo/redo: a strip above the panels rather than floating over them —
        the panels flow from the top-left and can't be panned aside, as the pinya canvas can. -->
-  <div class="shrink-0 flex justify-end px-2 pt-2" data-testid="troncs-toolbar">
-    <div class="flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
-      @if (!isPhone()) {
+  <div class="shrink-0 flex items-start justify-end gap-2 px-2 pt-2" data-testid="troncs-toolbar">
+    <!-- The mode's key, in line: it holds the «Altres marques». The panels are paper in Posició, so
+         that key lists no types. On a phone there's no mode, and the «Altres marques» sits in the toolbar. -->
+    @if (!isPhone()) {
+      <app-display-mode-key
+        class="min-w-0"
+        layout="inline"
+        legendPalette="neutral"
+        [mode]="ws.displayMode()"
+        [people]="keyPeople()"
+        [heightDomain]="heightDomain()"
+        [heightMode]="state.heightMode()"
+        [phase]="phase()"
+      />
+    }
+    <div class="shrink-0 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+      @if (isPhone()) {
+        <app-node-legend [phase]="phase()" palette="neutral" />
+      } @else {
         <app-display-mode-switcher [mode]="ws.displayMode()" (modeChange)="ws.setDisplayMode($event)" />
       }
-      <app-node-legend [phase]="phase()" palette="neutral" />
       <lib-button
         variant="ghost"
         size="xs"
