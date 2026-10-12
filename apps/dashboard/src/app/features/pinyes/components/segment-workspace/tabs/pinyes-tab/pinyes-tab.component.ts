@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent, heightDomain } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -16,6 +16,7 @@ import {
 import { LucideAngularModule, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
+import { DisplayModeSwitcherComponent, displayModeForKey } from '../../../display-mode-switcher/display-mode-switcher.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -23,7 +24,7 @@ import { SegmentAssignmentActionsService } from '../../../../services/segment-as
 import { ToastService, ButtonComponent, ModalComponent } from '@muixer/ui';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
-import { FigureZone, EventPhase } from '@muixer/shared';
+import { FigureZone, EventPhase, Gender } from '@muixer/shared';
 import {
   buildPinyaBuckets,
   pickAdjacentNode,
@@ -44,6 +45,7 @@ import {
     ButtonComponent,
     ModalComponent,
     MoveBannerComponent,
+    DisplayModeSwitcherComponent,
     NgTemplateOutlet,
     FigureCanvasComponent,
     PersonPanelComponent,
@@ -61,6 +63,8 @@ export class PinyesTabComponent implements OnInit {
 
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
+  /** Phones get no display-mode switcher: the canvas stays in Posició (see `ws.effectiveDisplayMode`). */
+  readonly isPhone = inject(LayoutService).isPhone;
 
   readonly phase = input<EventPhase>('before');
 
@@ -155,12 +159,21 @@ export class PinyesTabComponent implements OnInit {
   readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
 
   readonly personDetailsMap = computed(() => {
-    const map = new Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>();
+    const map = new Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null; gender: Gender | null }>();
     for (const p of this.state.confirmedPersons()) {
-      map.set(p.id, { positions: p.positions, isXicalla: p.isXicalla, notes: p.notes, notesEmoji: p.notesEmoji });
+      map.set(p.id, { positions: p.positions, isXicalla: p.isXicalla, notes: p.notes, notesEmoji: p.notesEmoji, gender: p.gender });
     }
     return map;
   });
+
+  /** The assignments on the nodes this tab's canvas draws (not the tronc's, which live in Troncs). */
+  readonly drawnAssignments = computed(() => {
+    const drawn = new Set(this.ws.pinyaSlots().flatMap((slot) => slot.figureTemplate.nodes.map((n) => `${slot.slotId}:${n.id}`)));
+    return this.state.assignments().filter((a) => drawn.has(`${a.figureInstanceId}:${a.node.id}`));
+  });
+
+  /** Alçada: the ramp runs from the shortest to the tallest person on this canvas, all figures. */
+  readonly heightDomain = computed(() => heightDomain(this.drawnAssignments().map((a) => a.person.shoulderHeight)));
 
   readonly selectedNode = computed(() => {
     const ref = this.selectedRef();
@@ -189,6 +202,13 @@ export class PinyesTabComponent implements OnInit {
         target.tagName === 'SELECT' ||
         target.isContentEditable);
     if (isEditing) return;
+
+    const displayMode = this.isPhone() ? null : displayModeForKey(event);
+    if (displayMode) {
+      event.preventDefault();
+      this.ws.setDisplayMode(displayMode);
+      return;
+    }
 
     if (event.key === 'Escape') {
       event.preventDefault();

@@ -1,4 +1,5 @@
 import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict, getFigureTint, isRematMarker } from '@muixer/pinyes-render';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -9,6 +10,7 @@ import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService } from './node-assignment.service';
 import { EventService } from '../../events/services/event.service';
 import { ToastService } from '@muixer/ui';
+import { LayoutService } from '../../../core/services/layout.service';
 import { SegmentDistributionData } from '../models/distribution.model';
 
 const EVENT_ID = 'event-1';
@@ -135,6 +137,7 @@ describe('SegmentWorkspaceStateService', () => {
   };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
   let eventService: { getOne: ReturnType<typeof vi.fn> };
+  let layout: { isPhone: ReturnType<typeof signal<boolean>> };
 
   const configure = (opts: {
     segment?: SegmentDetail;
@@ -184,6 +187,7 @@ describe('SegmentWorkspaceStateService', () => {
       ),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    layout = { isPhone: signal(false) };
     eventService = { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) };
 
     TestBed.configureTestingModule({
@@ -195,11 +199,39 @@ describe('SegmentWorkspaceStateService', () => {
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
         { provide: EventService, useValue: eventService },
+        { provide: LayoutService, useValue: layout },
       ],
     });
     service = TestBed.inject(SegmentWorkspaceStateService);
     state = TestBed.inject(AssignmentStateService);
   };
+
+  describe('display mode', () => {
+    it('starts in Posició', () => {
+      configure();
+      expect(service.displayMode()).toBe('position');
+    });
+
+    it('keeps the chosen mode across loads (prev/next segment reuses the workspace)', () => {
+      configure({ segment: makeSegment([makeInstance('inst-a')]) });
+      service.setDisplayMode('gender');
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.displayMode()).toBe('gender');
+    });
+
+    it('draws Posició on a phone whatever was chosen, and the choice again once wide', () => {
+      configure();
+      service.setDisplayMode('attendance');
+
+      layout.isPhone.set(true);
+      expect(service.effectiveDisplayMode()).toBe('position');
+
+      layout.isPhone.set(false);
+      expect(service.effectiveDisplayMode()).toBe('attendance');
+    });
+  });
 
   describe('load', () => {
     it('sets the segment name and builds one instance per segment instance with a template', () => {

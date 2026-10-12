@@ -1,10 +1,11 @@
-import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, getFigureBand, FigureBand, PinnedCardComponent, injectCanvasTheme, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, getFigureBand, FigureBand, PinnedCardComponent, injectCanvasTheme, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, NodeLegendComponent, heightDomain } from '@muixer/pinyes-render';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
+import { DisplayModeSwitcherComponent, displayModeForKey } from '../../../display-mode-switcher/display-mode-switcher.component';
 import { FigurePickerModalComponent, InstanceSelection } from '../../../figure-picker-modal/figure-picker-modal.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -19,7 +20,7 @@ import {
   pickAdjacentNode,
   pickNextAssignableNode,
 } from '../../../../utils/assignment-order.util';
-import { DIRECTION_NODE_PRESETS, FigureZone, isNodeVisibleByModeAndCordons, EventPhase } from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, FigureZone, Gender, isNodeVisibleByModeAndCordons, EventPhase } from '@muixer/shared';
 
 interface TroncFigure {
   instance: WorkspaceInstance;
@@ -44,7 +45,7 @@ const NO_NODES = new Set<string>();
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NodeLegendComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, FigurePickerModalComponent, NgTemplateOutlet],
+  imports: [NodeLegendComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, DisplayModeSwitcherComponent, FigurePickerModalComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
@@ -59,6 +60,8 @@ export class TroncsTabComponent implements OnInit {
 
   /** Touch devices get no side panel: tapping a node opens the person list in a modal instead. */
   readonly isTouch = inject(LayoutService).isTouch;
+  /** Phones get no display-mode switcher: the panels stay in Posició (see `ws.effectiveDisplayMode`). */
+  readonly isPhone = inject(LayoutService).isPhone;
   private readonly canvasTheme = injectCanvasTheme();
 
   readonly phase = input<EventPhase>('before');
@@ -133,6 +136,13 @@ export class TroncsTabComponent implements OnInit {
         target.tagName === 'SELECT' ||
         target.isContentEditable);
     if (isEditing) return;
+
+    const displayMode = this.isPhone() ? null : displayModeForKey(event);
+    if (displayMode) {
+      event.preventDefault();
+      this.ws.setDisplayMode(displayMode);
+      return;
+    }
 
     if (event.key === 'Escape' && this.actions.movingAssignment()) {
       event.preventDefault();
@@ -248,9 +258,9 @@ export class TroncsTabComponent implements OnInit {
   );
 
   readonly personDetailsMap = computed(() => {
-    const map = new Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>();
+    const map = new Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null; gender: Gender | null }>();
     for (const p of this.state.confirmedPersons()) {
-      map.set(p.id, { positions: p.positions, isXicalla: p.isXicalla, notes: p.notes, notesEmoji: p.notesEmoji });
+      map.set(p.id, { positions: p.positions, isXicalla: p.isXicalla, notes: p.notes, notesEmoji: p.notesEmoji, gender: p.gender });
     }
     return map;
   });
@@ -296,6 +306,19 @@ export class TroncsTabComponent implements OnInit {
       })
       .filter((f) => f.troncNodes.length > 0 || f.baseNodes.length > 0 || f.directionNodes.length > 0),
   );
+
+  /** The assignments on the nodes this tab's panels draw (tronc, base, directions; not the pinya). */
+  readonly drawnAssignments = computed(() => {
+    const drawn = new Set(
+      this.figures().flatMap((f) =>
+        [...f.troncNodes, ...f.baseNodes, ...f.directionNodes].map((n) => `${f.instance.instanceId}:${n.id}`),
+      ),
+    );
+    return this.state.assignments().filter((a) => drawn.has(`${a.figureInstanceId}:${a.node.id}`));
+  });
+
+  /** Alçada: one ramp for every panel, from the shortest to the tallest person in the troncs. */
+  readonly heightDomain = computed(() => heightDomain(this.drawnAssignments().map((a) => a.person.shoulderHeight)));
 
   // ── Minimap ──────────────────────────────────────────────────────────────
 

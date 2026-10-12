@@ -8,8 +8,11 @@
       </div>
     }
 
-    <!-- Legend, undo/redo -->
+    <!-- Display mode, legend, undo/redo -->
     <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+      @if (!isPhone()) {
+        <app-display-mode-switcher [mode]="ws.displayMode()" (modeChange)="ws.setDisplayMode($event)" />
+      }
       <app-node-legend [phase]="phase()" />
       <lib-button
         variant="ghost"
@@ -55,6 +58,8 @@
       [personDetailsMap]="personDetailsMap()"
       [moveSourceNode]="moveSourceNode()"
       [phase]="phase()"
+      [displayMode]="ws.effectiveDisplayMode()"
+      [heightDomain]="heightDomain()"
       [personDragEnabled]="!isTouch()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
       (segmentNodeContextMenu)="onNodeContextMenu($event)"

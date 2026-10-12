@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, rematMarkerNode, SegmentNodeRef } from '@muixer/pinyes-render';
+import { DisplayMode, SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, rematMarkerNode, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import {
@@ -14,6 +14,7 @@ import { NodeAssignmentService, LockStatus, SegmentInstanceState } from './node-
 import { ToastService } from '@muixer/ui';
 import { EventPhase, getEventPhase } from '@muixer/shared';
 import { EventService } from '../../events/services/event.service';
+import { LayoutService } from '../../../core/services/layout.service';
 import { DistributionItem } from '../models/distribution.model';
 
 export interface WorkspaceInstance {
@@ -46,7 +47,21 @@ export class SegmentWorkspaceStateService {
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
   private readonly eventService = inject(EventService);
+  private readonly layout = inject(LayoutService);
   readonly state = inject(AssignmentStateService);
+
+  /**
+   * What the node colors stand for in the Pinyes and Troncs tabs, shared by both. Lives as long as
+   * the workspace: kept across tab switches and prev/next segment (`load()` leaves it alone), back
+   * to Posició when the workspace is opened again.
+   */
+  readonly displayMode = signal<DisplayMode>('position');
+  /** The mode drawn: a phone has no room for the switcher or the key, so it always draws Posició. */
+  readonly effectiveDisplayMode = computed<DisplayMode>(() => (this.layout.isPhone() ? 'position' : this.displayMode()));
+
+  setDisplayMode(mode: DisplayMode): void {
+    this.displayMode.set(mode);
+  }
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
