@@ -129,6 +129,13 @@ Consumed by the per-figure colors (`figure-palette.util.ts` in `libs/pinyes-rend
 
 `NODE_TYPE_PALETTE_DARK` and `NODE_TYPE_NEUTRAL_DARK` are the dark-mode versions, picked as option D2 of the [Dark Pinya Canvas](https://claude.ai/artifact/U1RKpM6D5Uiimfvvc1dQXG) preview: the levels invert, a dark wash (L 0.37 / C 0.055) the names read on in paper white and a light pencil (L 0.78 / C 0.10) that reads on the dark canvas, each type on its light-mode hue. The yellows are lifted the same way (mans wash L 0.42, pencil L 0.83; cordó obert wash L 0.45, pencil L 0.86, hue 104°); on a dark ground they still lean olive. The dark neutral is `INK.dark` lifted to L 0.45, outlined in `INK.faint`.
 
+**Display-mode tones** (`display-modes.ts`) — the segment workspace's display modes (Alçada, Assistència, Gènere) recolor staffed nodes with `NodeTones` of their own, each with a dark variant at the same inverted levels as the node palette. Picked on the [Display Modes](https://claude.ai/artifact/4iZmT2i6CPoowChKKRJfqx) preview and pinned in `display-modes.spec.ts`:
+- `GENDER_TONES` / `_DARK`: `female` violet (hue 290), `male` gold (hue 88, lifted like the node yellows), `other` a near-gray neutral for «Altre o sense dades». No third hue can stay apart from both others for red–green dichromats, who see only a blue↔yellow axis, so the third group is neutral.
+- `ATTENDANCE_TONES` / `_DARK`: `success` / `warning` / `error`, hues read from `SEMANTIC`, so the canvas speaks the attendance list's color language. Each has a `base` (wash L 0.90) and a `strong` (wash L 0.72) shade with even lightness steps; `strong` means «comes to the next actuació».
+- `heightRampTones(t, mode)`: gold → teal → blue (hue 95 → 260) for shortest → tallest. In light mode lightness falls as `t` rises; in dark mode the hue order stays and lightness flips, so the gold stays clean.
+
+The live reference at `/design-system` shows all three under «Segment workspace display modes». Detail: [[PINYES_MODULE]] «Modes de visualització».
+
 A node's stored `color` is `null` unless the user customized it; `resolveNodeTones(node, mode)` (`libs/pinyes-render`) resolves `null` to the palette of the mode at render time (a customized color is the same in both), `nodeFill(node, mode)` gives the wash for swatches, and `positionTypeColor(type, mode)` gives the pencil tone that stands for a type outside the canvas (tag chips). Node presets in `@muixer/shared` carry no color.
 
 ### Canvas theme
