@@ -50,6 +50,7 @@ import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 import { DependentRegistrationDto } from './dto/dependent-registration.dto';
 import { CreateMemberDelegateDto } from './dto/create-member-delegate.dto';
+import { xicallaSql } from '../person/xicalla.sql';
 
 const PROVISIONAL_ALIAS_PREFIX = '~';
 
@@ -293,22 +294,22 @@ export class MeService {
       .createQueryBuilder('attendance')
       .leftJoin('attendance.person', 'person')
       .select('attendance.status', 'status')
-      .addSelect('person."isXicalla"', 'isXicalla')
+      .addSelect(xicallaSql('person'), 'isXicalla')
       .addSelect('COUNT(*)', 'count')
       .where('attendance."eventId" = :eventId', { eventId })
       .andWhere('attendance.status <> :pendent', { pendent: AttendanceStatus.PENDENT })
       .groupBy('attendance.status')
-      .addGroupBy('person."isXicalla"')
+      .addGroupBy('"isXicalla"')
       .getRawMany<{ status: AttendanceStatus; isXicalla: boolean; count: string }>();
 
     // No row ≡ PENDENT: pending is counted over people, not attendance rows.
     const pendingRows = await this.personRepository
       .createQueryBuilder('p')
       .innerJoin(Event, 'e', 'e.id = :eventId', { eventId })
-      .select('p."isXicalla"', 'isXicalla')
+      .select(xicallaSql('p'), 'isXicalla')
       .addSelect('COUNT(*)', 'count')
       .where(personPendingAtEventSql('p', 'e'))
-      .groupBy('p."isXicalla"')
+      .groupBy('"isXicalla"')
       .getRawMany<{ isXicalla: boolean; count: string }>();
 
     const byStatus: EventAttendanceStats['byStatus'] = {
@@ -594,9 +595,7 @@ export class MeService {
       secondSurname: person.secondSurname,
       gender: person.gender,
       phone: person.phone,
-      birthDate: person.birthDate instanceof Date
-        ? person.birthDate.toISOString().slice(0, 10)
-        : (person.birthDate ?? null),
+      birthDate: person.birthDate ? formatDateOnly(person.birthDate) : null,
     };
   }
 

@@ -33,3 +33,10 @@ export function formatDateTime(dateStr: string): string {
     minute: '2-digit',
   });
 }
+
+/** Data local d'avui en format `YYYY-MM-DD` (el que espera un `<input type="date">`). */
+export function localToday(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}

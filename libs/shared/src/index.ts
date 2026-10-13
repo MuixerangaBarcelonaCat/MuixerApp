@@ -41,6 +41,7 @@ export * from './utils/tag-category.util';
 export * from './utils/tag-compliance.util';
 export * from './utils/import-scope.util';
 export * from './utils/shirt-eligibility.util';
+export * from './utils/age.util';
 export * from './interfaces/attendance-summary.interface';
 export * from './interfaces/event-metadata.interface';
 export * from './interfaces/auth.interfaces';

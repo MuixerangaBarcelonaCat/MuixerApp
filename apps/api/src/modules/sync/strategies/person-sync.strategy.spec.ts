@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CollaSettingsService } from '../../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../../colla-settings/colla-settings.stub';
 import { PersonSyncStrategy } from './person-sync.strategy';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { Person } from '../../person/person.entity';
@@ -117,6 +119,7 @@ describe('PersonSyncStrategy', () => {
         { provide: getRepositoryToken(Tag), useValue: mockPositionRepo },
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(PersonDelegate), useValue: mockPersonDelegateRepo },
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
       ],
     }).compile();
 
@@ -233,11 +236,12 @@ describe('PersonSyncStrategy', () => {
       expect(created.positions).toBeUndefined();
     });
 
-    it('segueix derivant isXicalla de la posició legacy', async () => {
+    it('segueix derivant la marca manual de xicalla de la posició legacy', async () => {
       await runSync([legacyPersonFixture({ posicio: 'CANALLA' })]);
 
       const created = personRepository.create.mock.calls[0][0];
-      expect(created.isXicalla).toBe(true);
+      expect(created.isXicallaManual).toBe(true);
+      expect(created).not.toHaveProperty('isXicalla');
     });
   });
 
@@ -596,6 +600,8 @@ describe('PersonSyncStrategy', () => {
         id: 'child-1',
         mote: 'Child',
         posicio: 'CANALLA',
+        // No birth date: the legacy position is what makes them xicalla.
+        data_naixement: '',
       };
 
       legacyApiClient.login.mockResolvedValue();
@@ -611,17 +617,83 @@ describe('PersonSyncStrategy', () => {
       strategy.execute().subscribe({
         complete: () => {
           expect(userRepository.save).toHaveBeenCalledWith(
-            expect.objectContaining({ person: expect.objectContaining({ isXicalla: false }) }),
+            expect.objectContaining({ person: expect.objectContaining({ legacyId: 'parent-1' }) }),
           );
           expect(personDelegateRepository.save).toHaveBeenCalledWith(
             expect.objectContaining({
-              person: expect.objectContaining({ isXicalla: true }),
+              person: expect.objectContaining({ legacyId: 'child-1' }),
               delegateType: DelegateType.PARENT,
               isPrimary: true,
             }),
           );
           done();
         },
+      });
+    });
+  });
+
+  describe('assignMainPersons() with the derived xicalla', () => {
+    const yearsAgo = (n: number) => `15/03/${new Date().getFullYear() - n}`;
+
+    /** Like TypeORM: `create`/`save` never fill the virtual `isXicalla`. */
+    const runWithRealisticSave = (persons: LegacyPerson[], done: () => void, check: () => void) => {
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue(persons);
+      let createCount = 0;
+      personRepository.create.mockImplementation((d) => {
+        const { isXicalla: _ignored, ...rest } = d as Record<string, unknown>;
+        return { ...rest, id: `saved-${++createCount}` } as unknown as Person;
+      });
+      personRepository.save.mockImplementation((p) => Promise.resolve(p as Person));
+      strategy.execute().subscribe({
+        complete: () => {
+          check();
+          done();
+        },
+      });
+    };
+
+    it('treats a new person with a child birth date as xicalla, even without a xicalla position', (done) => {
+      personRepository.findOne.mockResolvedValue(null);
+      const parent: LegacyPerson = { ...mockLegacyPerson, id: 'parent-1', mote: 'Parent', data_naixement: yearsAgo(40) };
+      const child: LegacyPerson = { ...mockLegacyPerson, id: 'child-1', mote: 'Child', posicio: 'PRIMERES', data_naixement: yearsAgo(8) };
+
+      runWithRealisticSave([parent, child], done, () => {
+        expect(userRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({ person: expect.objectContaining({ legacyId: 'parent-1' }) }),
+        );
+        expect(personDelegateRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            person: expect.objectContaining({ legacyId: 'child-1' }),
+            delegateType: DelegateType.PARENT,
+            isPrimary: true,
+          }),
+        );
+      });
+    });
+
+    it('judges an updated person by the birth date this sync wrote, not the value loaded before it', (done) => {
+      // Loaded as an adult (old birth date); legacy now says they are 8.
+      const loadedChild = {
+        id: 'uuid-child',
+        legacyId: 'child-1',
+        isActive: true,
+        positions: [],
+        notes: null,
+        birthDate: '1990-03-15',
+        isXicallaManual: false,
+        isXicalla: false,
+      } as unknown as Person;
+      personRepository.findOne.mockImplementation(async (opts) =>
+        (opts as { where: { legacyId?: string } }).where.legacyId === 'child-1' ? loadedChild : null,
+      );
+      const parent: LegacyPerson = { ...mockLegacyPerson, id: 'parent-1', mote: 'Parent', data_naixement: yearsAgo(40) };
+      const child: LegacyPerson = { ...mockLegacyPerson, id: 'child-1', mote: 'Child', posicio: 'PRIMERES', data_naixement: yearsAgo(8) };
+
+      runWithRealisticSave([parent, child], done, () => {
+        expect(personDelegateRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({ person: expect.objectContaining({ id: 'uuid-child' }), isPrimary: true }),
+        );
       });
     });
   });
@@ -658,7 +730,7 @@ describe('PersonSyncStrategy', () => {
       strategy.execute().subscribe({
         complete: () => {
           expect(personRepository.create).toHaveBeenCalledWith(
-            expect.objectContaining({ isXicalla: true }),
+            expect.objectContaining({ isXicallaManual: true }),
           );
           done();
         },

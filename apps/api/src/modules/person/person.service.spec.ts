@@ -175,6 +175,8 @@ describe('PersonService', () => {
 
       mockPersonRepository.create.mockReturnValue(mockPerson);
       mockPersonRepository.save.mockResolvedValue(mockPerson);
+      // The response is read back after the write (isXicalla is worked out on read).
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
       const result = await service.create(createDto);
 
@@ -199,6 +201,8 @@ describe('PersonService', () => {
       mockPositionRepository.findBy.mockResolvedValue(mockPositions);
       mockPersonRepository.create.mockReturnValue(mockPerson);
       mockPersonRepository.save.mockResolvedValue(mockPerson);
+      // The response is read back after the write (isXicalla is worked out on read).
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
       const result = await service.create(createDto);
 
@@ -583,8 +587,9 @@ describe('PersonService', () => {
   // --- createProvisional ---
   describe('createProvisional', () => {
     it('creates a provisional person with ~ prefix', async () => {
-      mockPersonRepository.findOne.mockResolvedValue(null);
       const savedPerson = { id: 'prov-1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, isActive: true, positions: [] };
+      // Alias check finds nobody; the response is then read back after the write.
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
       mockPersonRepository.create.mockReturnValue(savedPerson);
       mockPersonRepository.save.mockResolvedValue(savedPerson);
 
@@ -603,10 +608,10 @@ describe('PersonService', () => {
     });
 
     it('truncates alias to 20 chars when prefixed', async () => {
-      mockPersonRepository.findOne.mockResolvedValue(null);
       const alias = 'MoltLlargAliasXXXXXX'; // 20 chars → ~MoltLlargAliasXXXXX (20 chars)
       const expected = `~${alias}`.slice(0, 20);
       const savedPerson = { id: 'p', alias: expected, name: alias, firstSurname: '', isProvisional: true, isActive: true, positions: [] };
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
       mockPersonRepository.create.mockReturnValue(savedPerson);
       mockPersonRepository.save.mockResolvedValue(savedPerson);
 
@@ -635,7 +640,8 @@ describe('PersonService', () => {
       const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
       mockPersonRepository.findOne
         .mockResolvedValueOnce(person)
-        .mockResolvedValueOnce(null);
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(person);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
       await service.update('1', { alias: 'FreeAlias' });
@@ -814,6 +820,46 @@ describe('PersonService', () => {
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
       await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
+    });
+
+    const adultByDate = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, birthDate: '1990-01-01', isXicallaManual: false, isXicalla: false, positions: [], mentor: null };
+
+    it('re-validates when a new birth date makes the person xicalla, with no flag sent', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { birthDate: '2020-01-01' });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).toHaveBeenCalledWith('1');
+    });
+
+    it('does not re-validate when the flag is sent but the birth date keeps the person an adult', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
+    });
+
+    it('re-validates when the birth date is cleared and the manual flag makes the person xicalla', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate, isXicallaManual: true });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { birthDate: null });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).toHaveBeenCalledWith('1');
+    });
+
+    it('judges the age with the colla majority age', async () => {
+      // 12 years old: xicalla with the default 16, an adult when the colla sets 10.
+      collaSettings.set({ majorityAge: 10 });
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { birthDate: `${new Date().getFullYear() - 12}-01-01` });
 
       expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
     });

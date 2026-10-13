@@ -99,6 +99,19 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
     (o instància) amb `z` exactament un menys. El servei de plantilles ho valida en cada save (400);
     el snapshot, `duplicate` i `save-from-instance` remapegen els ids a les còpies. Vegeu
     [[PINYES_MODULE]] «Estructura del tronc».
+14. **`Person.isXicalla` es calcula en llegir, no es desa.** És un `@VirtualColumn` sobre
+    `xicallaSql()` (`person/xicalla.sql.ts`): amb `birthDate`, xicalla si encara no ha complit
+    `colla_settings.majorityAge` (un 29 de febrer compta l'1 de març en anys no de traspàs); sense,
+    la columna `isXicallaManual`, marcada a mà o pel sync. L'edat de majoria es llig amb una
+    subconsulta (si falta la fila, la de `DEFAULT_COLLA_SETTINGS`), així que canviar-la s'aplica a
+    l'instant sense reescriure res. TypeORM no escriu mai una columna virtual ni la refresca després
+    d'un `save()`: s'escriu `isXicallaManual` (el DTO hi mapeja `isXicalla`, i l'ignora si hi ha data)
+    i les respostes es tornen a llegir. Mirall en TS per a escriptures i per a l'editor:
+    `deriveIsXicalla` (`@muixer/shared`), amb una prova d'integració que en garanteix la paritat.
+    La regla del gestor principal d'un membre de la xicalla es comprova quan el valor efectiu passa a
+    cert en editar la persona (marca, data nova o data esborrada); **no** es torna a comprovar quan
+    puja `majorityAge` ni quan el sync reescriu `birthDate`: els gestors principals que ja hi havia
+    es mantenen.
 
 ---
 
@@ -534,7 +547,7 @@ Definició: [`apps/api/src/modules/person/person.entity.ts`](../apps/api/src/mod
 | `birthDate` | `date` | `Date` | sí | — |
 | `shoulderHeight` | `int` | `number` | sí | — |
 | `gender` | `enum` | `Gender` | sí | enum `Gender` |
-| `isXicalla` | `boolean` | `boolean` | no | default `false` |
+| `isXicallaManual` | `boolean` | `boolean` | no | default `false` |
 | `isActive` | `boolean` | `boolean` | no | default `true` |
 | `isMember` | `boolean` | `boolean` | no | default `false` |
 | `isProvisional` | `boolean` | `boolean` | no | default `false` |

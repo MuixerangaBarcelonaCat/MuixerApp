@@ -16,6 +16,7 @@ import {
   ConflictPlacement,
   TagCategory,
 } from '@muixer/shared';
+import { xicallaSql } from '../person/xicalla.sql';
 
 interface AvailablePersonPositionDto {
   id: string;
@@ -116,7 +117,7 @@ export class AvailablePersonsService {
     }
 
     if (isXicallaBool !== undefined) {
-      qb.andWhere('person.isXicalla = :isXicalla', { isXicalla: isXicallaBool });
+      qb.andWhere(`${xicallaSql('person')} = :isXicalla`, { isXicalla: isXicallaBool });
     }
 
     if (positionId) {

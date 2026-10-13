@@ -98,7 +98,7 @@ describe('MeService pending dependents (integration)', () => {
         firstSurname: '',
         alias: `~${childAlias}`,
         isProvisional: true,
-        isXicalla: true,
+        isXicallaManual: true,
       }),
     );
     await delegateRepo.save(
@@ -141,9 +141,27 @@ describe('MeService pending dependents (integration)', () => {
     expect(reloaded?.isProvisional).toBe(false);
     expect(reloaded?.alias).toBe('childC');
     expect(reloaded?.name).toBe('Xicalla');
+    expect(reloaded?.isXicalla).toBe(true);
 
     const remaining = await service.getPendingDependents(parentUser.id);
     expect(remaining).toHaveLength(0);
+  });
+
+  it('works out xicalla from the completed birth date, over the flag set when the dependent was invited', async () => {
+    const { parentUser, childPerson } = await seedParentWithDependent('parentF', 'childF');
+
+    await service.completePendingDependent(parentUser.id, {
+      personId: childPerson.id,
+      name: 'Gran',
+      firstSurname: 'Completa',
+      gender: 'MALE',
+      phone: '+34612345681',
+      birthDate: '2000-03-10',
+    } as never);
+
+    const reloaded = await personRepo.findOneOrFail({ where: { id: childPerson.id } });
+    expect(reloaded.isXicalla).toBe(false);
+    expect(reloaded.isXicallaManual).toBe(true);
   });
 
   it('rejects completing a dependent that belongs to a different primary delegate', async () => {

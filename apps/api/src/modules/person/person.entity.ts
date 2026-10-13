@@ -9,10 +9,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Relation,
+  VirtualColumn,
 } from 'typeorm';
 import { Gender, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 import { Tag } from '../tag/tag.entity';
 import { User } from '../user/user.entity';
+import { xicallaSql } from './xicalla.sql';
 
 @Entity('persons')
 export class Person {
@@ -43,8 +45,17 @@ export class Person {
   @Column({ type: 'enum', enum: Gender, nullable: true })
   gender: Gender | null;
 
+  /** Xicalla set by hand: only counts while `birthDate` is unknown. Write this, never `isXicalla`. */
   @Column({ type: 'boolean', default: false })
-  isXicalla: boolean;
+  isXicallaManual: boolean;
+
+  /**
+   * Effective xicalla, worked out on read (`xicallaSql`): by age when `birthDate` is known,
+   * otherwise `isXicallaManual`. TypeORM never writes a virtual column, so it is `readonly`; it is
+   * also not refreshed by `save()` — re-read the person, or use `deriveIsXicalla`, after a write.
+   */
+  @VirtualColumn({ type: 'boolean', query: (alias) => xicallaSql(alias) })
+  readonly isXicalla: boolean;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

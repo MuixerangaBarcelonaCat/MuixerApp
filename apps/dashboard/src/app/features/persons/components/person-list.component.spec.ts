@@ -128,6 +128,11 @@ describe('PersonListComponent', () => {
     expect(positionsColumn?.label).toBe('Etiquetes');
   });
 
+  it('labels the xicalla column "Xicalla"', () => {
+    const column = fixture.componentInstance.allColumns.find(c => c.key === 'isXicalla');
+    expect(column?.label).toBe('Xicalla');
+  });
+
   it('renders each tag as a color badge in the table', () => {
     fixture.componentInstance.persons.set([
       { ...mockPerson, positions: [{ id: 'pos1', name: 'Pinya', slug: 'pinya', zone: null, color: '#ff0000' }] } as never,

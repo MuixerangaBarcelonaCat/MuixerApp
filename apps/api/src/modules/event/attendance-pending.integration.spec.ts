@@ -240,6 +240,21 @@ describe('AttendanceService pending model (integration)', () => {
       expect(summary.total).toBe(3);
     });
 
+    it('counts children by the effective xicalla: a known birth date wins over the manual flag', async () => {
+      const event = await saveEvent('2099-01-01');
+      const kid = await savePerson('KID', '2026-01-01T10:00:00Z', { birthDate: '2020-01-01' as never, isXicallaManual: false });
+      const adult = await savePerson('GRAN', '2026-01-01T10:00:00Z', { birthDate: '1990-01-01' as never, isXicallaManual: true });
+      const unknown = await savePerson('NOBD', '2026-01-01T10:00:00Z', { isXicallaManual: true });
+      await saveRow(event, kid, AttendanceStatus.ASSISTIT);
+      await saveRow(event, adult, AttendanceStatus.ASSISTIT);
+      await saveRow(event, unknown, AttendanceStatus.ANIRE);
+
+      const summary = await service.recalculateSummary(event.id);
+
+      expect(summary.children).toBe(2);
+      expect(summary.childrenAttended).toBe(1);
+    });
+
     it('leaves NO_REGISTRAT persons out of pending and total', async () => {
       const event = await saveEvent();
       const late = await savePerson('TARDA', '2026-05-11T10:00:00Z');

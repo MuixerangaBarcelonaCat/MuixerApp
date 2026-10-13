@@ -22,6 +22,7 @@ import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
 import { AttendanceFilterDto } from './dto/attendance-filter.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
+import { xicallaSql } from '../person/xicalla.sql';
 
 /**
  * Sort key for the attendance list: accent/case-insensitive and with the provisional
@@ -229,12 +230,12 @@ export class AttendanceService {
         .createQueryBuilder(Attendance, 'attendance')
         .innerJoin('attendance.person', 'person')
         .select('attendance.status', 'status')
-        .addSelect('person."isXicalla"', 'isXicalla')
+        .addSelect(xicallaSql('person'), 'isXicalla')
         .addSelect('COUNT(*)', 'count')
         .where('attendance."eventId" = :eventId', { eventId })
         .andWhere('attendance.status <> :pendent', { pendent: AttendanceStatus.PENDENT })
         .groupBy('attendance.status')
-        .addGroupBy('person."isXicalla"')
+        .addGroupBy('"isXicalla"')
         .getRawMany<{ status: AttendanceStatus; isXicalla: boolean; count: string }>();
 
       const pending = (await this.queryPendingCounts([eventId], manager)).get(eventId) ?? 0;

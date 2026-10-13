@@ -150,6 +150,18 @@ describe('AuthService.registerViaInvite (integration)', () => {
     expect(auditEntries[0].action).toBe(AuditAction.CONSENT_ACCEPTED);
   });
 
+  it('makes an underage member xicalla from the birth date they register with', async () => {
+    const { person } = await seedInvitedUser('raw-token-xic');
+
+    await service.registerViaInvite({
+      ...registrationPayload('raw-token-xic'),
+      birthDate: `${new Date().getFullYear() - 14}-01-15`,
+    });
+
+    const reloadedPerson = await personRepo.findOneOrFail({ where: { id: person.id } });
+    expect(reloadedPerson.isXicalla).toBe(true);
+  });
+
   it('rejects an expired invite token and leaves the account untouched', async () => {
     const { user } = await seedInvitedUser('raw-token-2', {});
     await userRepo.update(user.id, { inviteExpiresAt: new Date(Date.now() - 1000) });

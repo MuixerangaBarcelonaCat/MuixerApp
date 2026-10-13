@@ -102,7 +102,7 @@ describe('MeService attendance (integration)', () => {
     it('counts PENDENT as no row or a PENDENT row, split by xicalla, without NO_REGISTRAT', async () => {
       const event = await saveEvent();
       await savePerson('ADULT', '2026-01-01T10:00:00Z');
-      await savePerson('XIC', '2026-01-01T10:00:00Z', { isXicalla: true });
+      await savePerson('XIC', '2026-01-01T10:00:00Z', { isXicallaManual: true });
       const pendingRow = await savePerson('TORNAT', '2026-01-01T10:00:00Z');
       const going = await savePerson('VA', '2026-01-01T10:00:00Z');
       await savePerson('TARD', '2026-05-11T10:00:00Z');
@@ -114,6 +114,23 @@ describe('MeService attendance (integration)', () => {
 
       expect(stats.byStatus[AttendanceStatus.PENDENT]).toEqual({ adults: 2, xicalla: 1 });
       expect(stats.byStatus[AttendanceStatus.ANIRE]).toEqual({ adults: 1, xicalla: 0 });
+    });
+
+    it('splits by the effective xicalla: a known birth date wins over the manual flag', async () => {
+      const event = await saveEvent();
+      const kid = await savePerson('KID', '2026-01-01T10:00:00Z', { birthDate: '2020-01-01' as never, isXicallaManual: false });
+      const adult = await savePerson('GRAN', '2026-01-01T10:00:00Z', { birthDate: '1990-01-01' as never, isXicallaManual: true });
+      await savePerson('NOBD', '2026-01-01T10:00:00Z', { isXicallaManual: true });
+      await savePerson('KIDPEND', '2026-01-01T10:00:00Z', { birthDate: '2020-01-01' as never, isXicallaManual: false });
+      await savePerson('GRANPEND', '2026-01-01T10:00:00Z', { birthDate: '1990-01-01' as never, isXicallaManual: true });
+      const attendances = db.dataSource.getRepository(Attendance);
+      await attendances.save({ event, person: kid, status: AttendanceStatus.ANIRE, respondedAt: new Date() });
+      await attendances.save({ event, person: adult, status: AttendanceStatus.ANIRE, respondedAt: new Date() });
+
+      const stats = await service.getEventAttendanceStats(event.id);
+
+      expect(stats.byStatus[AttendanceStatus.ANIRE]).toEqual({ adults: 1, xicalla: 1 });
+      expect(stats.byStatus[AttendanceStatus.PENDENT]).toEqual({ adults: 1, xicalla: 2 });
     });
   });
 

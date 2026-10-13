@@ -63,6 +63,7 @@ import { AddNodeStandsOn1786300000000 } from './1786300000000-AddNodeStandsOn';
 import { NullPresetNodeColors1786400000000 } from './1786400000000-NullPresetNodeColors';
 import { CreateCollaSettings1786500000000 } from './1786500000000-CreateCollaSettings';
 import { AddRehearsalDefaults1786600000000 } from './1786600000000-AddRehearsalDefaults';
+import { RenameIsXicallaToManual1786700000000 } from './1786700000000-RenameIsXicallaToManual';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -129,4 +130,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   NullPresetNodeColors1786400000000,
   CreateCollaSettings1786500000000,
   AddRehearsalDefaults1786600000000,
+  RenameIsXicallaToManual1786700000000,
 ];

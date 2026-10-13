@@ -21,10 +21,13 @@ import {
   EventType,
   ShirtCandidate,
   TagCategory,
+  deriveIsXicalla,
   shirtCandidateComparator,
   shirtProgress,
 } from '@muixer/shared';
+import { formatDateOnly, getLocalToday } from '../../common/utils/date.util';
 import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { xicallaSql } from './xicalla.sql';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
@@ -66,7 +69,7 @@ const ATTENDED_COUNT_EXPRESSION = `(SELECT COUNT(*)::int FROM attendances a
  * `$1` = ASSISTIT, `$2` = ACTUACIO, `$3` = ASSAIG.
  */
 const SHIRT_CANDIDATES_QUERY = `SELECT p.id, p.alias, p.name, p."firstSurname", p."secondSurname",
-     p."isXicalla", p."joinDate",
+     ${xicallaSql('p')} AS "isXicalla", p."joinDate",
      (COUNT(DISTINCT e.id) FILTER (WHERE e."eventType" = $2))::int AS "performancesAttended",
      (COUNT(DISTINCT e.id) FILTER (WHERE e."eventType" = $3))::int AS "rehearsalsAttended",
      MAX(e.date)::text AS "lastAttendedDate"
@@ -163,7 +166,7 @@ export class PersonService {
     }
 
     if (isXicalla !== undefined) {
-      queryBuilder.andWhere('person.isXicalla = :isXicalla', { isXicalla });
+      queryBuilder.andWhere(`${xicallaSql('person')} = :isXicalla`, { isXicalla });
     }
 
     if (isMember !== undefined) {
@@ -268,7 +271,15 @@ export class PersonService {
 
   /** Retorna una persona per ID incloent posicions, mentor i gestor. Llança NotFoundException si no existeix. */
   async findOne(id: string): Promise<PersonResponseDto> {
-    const person = await this.personRepository.findOne({
+    return this.loadResponse(id, this.personRepository);
+  }
+
+  /**
+   * Reads the person back as the response. Used after every write too: `isXicalla` is worked out by
+   * the database on read, and `save()` never refreshes it.
+   */
+  private async loadResponse(id: string, personRepository: Repository<Person>): Promise<PersonResponseDto> {
+    const person = await personRepository.findOne({
       where: { id },
       relations: ['positions', 'mentor', 'user'],
     });
@@ -284,9 +295,12 @@ export class PersonService {
 
   /** Crea una nova persona amb les posicions i mentor indicats. */
   async create(createPersonDto: CreatePersonDto): Promise<PersonResponseDto> {
-    const { positionIds, mentorId, ...personData } = createPersonDto;
+    const { positionIds, mentorId, isXicalla, ...personData } = createPersonDto;
 
     const person = this.personRepository.create(personData);
+    if (isXicalla !== undefined && !personData.birthDate) {
+      person.isXicallaManual = isXicalla;
+    }
 
     if (positionIds && positionIds.length > 0) {
       person.positions = await this.findPositionsOrThrow(positionIds);
@@ -319,9 +333,7 @@ export class PersonService {
     }
 
     const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return this.loadResponse(saved.id, this.personRepository);
   }
 
   /**
@@ -353,9 +365,7 @@ export class PersonService {
     });
 
     const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return this.loadResponse(saved.id, this.personRepository);
   }
 
   /**
@@ -385,8 +395,13 @@ export class PersonService {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    const { positionIds, mentorId, isProvisional, ...personData } =
+    const { positionIds, mentorId, isProvisional, isXicalla, ...personData } =
       updatePersonDto;
+
+    // The DTO's `isXicalla` is the manual flag: it only lands while the birth date is unknown
+    // (after this request). With a birth date it is ignored, and the response shows the real value.
+    const birthDate = personData.birthDate !== undefined ? personData.birthDate : person.birthDate;
+    const isXicallaManual = isXicalla !== undefined && birthDate == null ? isXicalla : person.isXicallaManual;
 
     // Only promotion (provisional → regular) is supported
     if (isProvisional !== undefined) {
@@ -424,7 +439,15 @@ export class PersonService {
       person.isProvisional = isProvisional;
     }
 
-    if (personData.isXicalla === true && person.isXicalla === false) {
+    // The effective value can turn true from the flag, a new birth date or a cleared one; any of
+    // them must not slip a xicalla past the primary-delegate rule.
+    const { majorityAge } = await this.collaSettings.get();
+    const willBeXicalla = deriveIsXicalla(
+      { birthDate: birthDate == null ? null : formatDateOnly(birthDate), isXicallaManual },
+      majorityAge,
+      getLocalToday(),
+    );
+    if (willBeXicalla && !person.isXicalla) {
       await this.personDelegateService.assertPrimaryQualifiesForXicalla(person.id);
     }
 
@@ -440,6 +463,7 @@ export class PersonService {
     }
 
     Object.assign(person, personData);
+    person.isXicallaManual = isXicallaManual;
 
     if (positionIds !== undefined) {
       if (positionIds.length > 0) {
@@ -463,10 +487,8 @@ export class PersonService {
       }
     }
 
-    const saved = await personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    await personRepository.save(person);
+    return this.loadResponse(person.id, personRepository);
   }
 
   /** Soft delete: marca la persona com a inactiva (`isActive = false`) sense eliminar-la de la DB. */

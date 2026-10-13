@@ -18,19 +18,12 @@ import { ShirtCandidate } from '@muixer/shared';
 import { PersonService } from '../../services/person.service';
 import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { getFullName } from '../../../../shared/utils';
+import { getFullName, localToday } from '../../../../shared/utils';
 
 const PIP_CLASSES: Record<'met' | 'pending', string> = {
   met: 'bg-success text-success-content',
   pending: 'border border-base-content/20 text-base-content/30',
 };
-
-/** Data local d'avui en format `YYYY-MM-DD` (el que espera un `<input type="date">`). */
-function localToday(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
 
 const plural = (n: number, singular: string, pluralForm: string) => `${n} ${n === 1 ? singular : pluralForm}`;
 
