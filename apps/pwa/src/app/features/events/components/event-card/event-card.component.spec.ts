@@ -248,13 +248,22 @@ describe('EventCardComponent', () => {
       attendanceSummary: { confirmed: 4, declined: 1, pending: 2, attended: 3, lateCancel: 0, children: 2, childrenAttended: 1, total: 10 },
     };
 
-    it('shows the coming total and xicalla count for TECHNICAL/ADMIN', () => {
+    it('shows the coming total with the xicalla count in brackets for TECHNICAL/ADMIN', () => {
       mockRole = UserRole.TECHNICAL;
       const fixture = createCard(eventWithSummary);
       const el = fixture.nativeElement.querySelector('[data-testid="event-card-attendance-count"]');
-      expect(el.textContent).toContain('5 adults');
-      expect(el.textContent).toContain('7 total');
-      expect(el.textContent).toContain('2 xicalla');
+      const visible = el.querySelector('[aria-hidden="true"]');
+      expect(visible.textContent.replace(/\s+/g, ' ').trim()).toBe('7 (2 )');
+      expect(visible.querySelectorAll('lucide-icon').length).toBe(2);
+      expect(el.textContent).not.toContain('adults');
+      expect(el.textContent).not.toContain('total');
+    });
+
+    it('spells the count out for screen readers, since the icons carry the meaning', () => {
+      mockRole = UserRole.ADMIN;
+      const fixture = createCard(eventWithSummary);
+      const el = fixture.nativeElement.querySelector('[data-testid="event-card-attendance-count"] .sr-only');
+      expect(el.textContent.trim()).toBe('7 persones, 2 de la xicalla');
     });
 
     it('hides the attendance count for MEMBER', () => {

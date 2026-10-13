@@ -9,8 +9,8 @@ import {
 import { Router } from '@angular/router';
 import { SlicePipe } from '@angular/common';
 import { AttendanceStatus, EventType, getEventPhase, MeEvent, UserRole } from '@muixer/shared';
-import { LucideAngularModule, MapPin, Clock, Star, Users } from 'lucide-angular';
-import { CardComponent, CardTone } from '@muixer/ui';
+import { LucideAngularModule, MapPin, Clock, Star } from 'lucide-angular';
+import { CardComponent, CardTone, DOMAIN_ICONS } from '@muixer/ui';
 import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
 import { formatEventDate } from '../../../../shared/pipes/format-event-date.pipe';
 import { AuthService } from '../../../../core/auth/services/auth.service';
@@ -41,7 +41,8 @@ export class EventCardComponent {
   protected readonly MapPin = MapPin;
   protected readonly Clock = Clock;
   protected readonly Star = Star;
-  protected readonly Users = Users;
+  protected readonly PersonIcon = DOMAIN_ICONS.PERSONA;
+  protected readonly XicallaIcon = DOMAIN_ICONS.XICALLA;
 
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
@@ -51,13 +52,12 @@ export class EventCardComponent {
     return role === UserRole.TECHNICAL || role === UserRole.ADMIN;
   });
 
-  /** ANIRE + ASSISTIT (adults are `total - xicalla`, both already counted in `confirmed`/`attended`/`children`). */
+  /** ANIRE + ASSISTIT, xicalla included (`children` is the xicalla share of that same count). */
   protected readonly comingTotal = computed(() => {
     const s = this.event().attendanceSummary;
     return s.confirmed + s.attended;
   });
   protected readonly comingXicalla = computed(() => this.event().attendanceSummary.children);
-  protected readonly comingAdults = computed(() => this.comingTotal() - this.comingXicalla());
 
   protected readonly isAssaig = computed(
     () => this.event().eventType === EventType.ASSAIG,

@@ -369,6 +369,16 @@ describe('EventDetailComponent', () => {
       expect(pendentLink?.getAttribute('href')).not.toContain('status=');
     });
 
+    it('sits at the bottom of the page, after segments and attendance', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
+      ]), UserRole.TECHNICAL);
+      const section = fixture.nativeElement.querySelector('.stats-section') as HTMLElement;
+      expect(section.querySelector('[data-testid="attendance-stats-box"]')).toBeTruthy();
+      expect(section.classList).toContain('order-last');
+      expect(section.parentElement?.lastElementChild).toBe(section);
+    });
+
     it('shows "Assistit" for an assaig', async () => {
       fixture = await setup(
         of({ ...MOCK_DETAIL, eventType: EventType.ASSAIG }),
