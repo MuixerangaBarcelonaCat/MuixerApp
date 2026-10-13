@@ -1,4 +1,4 @@
-import { FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { FigureZone } from '@muixer/shared';
 import { NodeTones } from '@muixer/ui';
 import { HeightMode } from '../models/assignment.model';
 import { CanvasTheme, contentOn, fade } from '../theme/canvas-theme';
@@ -196,10 +196,10 @@ function applyStateMarks(appearance: NodeAppearance, input: NodeAppearanceInput,
   };
 }
 
-/** A person's shoulder height as a node shows it: cm, or the signed difference from the baseline. Null when unknown. */
-export function formatShoulderHeight(cm: number | null, mode: HeightMode): string | null {
+/** A person's shoulder height as a node shows it: cm, or the signed difference from the colla's baseline. Null when unknown. */
+export function formatShoulderHeight(cm: number | null, mode: HeightMode, baselineCm: number): string | null {
   if (cm == null || cm === 0) return null;
   if (mode === 'absolute') return `${cm}`;
-  const diff = cm - SHOULDER_HEIGHT_BASELINE_CM;
+  const diff = cm - baselineCm;
   return diff >= 0 ? `+${diff}` : `${diff}`;
 }

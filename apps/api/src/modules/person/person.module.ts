@@ -5,10 +5,11 @@ import { Tag } from '../tag/tag.entity';
 import { PersonService } from './person.service';
 import { PersonController } from './person.controller';
 import { AuditModule } from '../audit/audit.module';
+import { CollaSettingsModule } from '../colla-settings/colla-settings.module';
 import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Person, Tag]), AuditModule, PersonDelegateModule],
+  imports: [TypeOrmModule.forFeature([Person, Tag]), AuditModule, PersonDelegateModule, CollaSettingsModule],
   controllers: [PersonController],
   providers: [PersonService],
   exports: [PersonService],

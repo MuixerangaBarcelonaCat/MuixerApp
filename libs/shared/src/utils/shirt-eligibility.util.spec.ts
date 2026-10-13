@@ -1,15 +1,12 @@
-import { SHIRT_REQUIREMENTS } from '../constants/person.constants';
-import { compareShirtCandidates, shirtProgress } from './shirt-eligibility.util';
+import { DEFAULT_COLLA_SETTINGS } from '../constants/colla-settings.constants';
+import { shirtCandidateComparator, shirtProgress } from './shirt-eligibility.util';
 
-describe('SHIRT_REQUIREMENTS', () => {
-  it('demana 2 actuacions i 6 assajos', () => {
-    expect(SHIRT_REQUIREMENTS).toEqual({ performances: 2, rehearsals: 6 });
-  });
-});
+// 2 actuacions i 6 assajos.
+const REQUIREMENTS = DEFAULT_COLLA_SETTINGS.shirtRequirements;
 
 describe('shirtProgress', () => {
   it('sense cap assistència li falten totes', () => {
-    expect(shirtProgress({ performancesAttended: 0, rehearsalsAttended: 0 })).toEqual({
+    expect(shirtProgress({ performancesAttended: 0, rehearsalsAttended: 0 }, REQUIREMENTS)).toEqual({
       missingPerformances: 2,
       missingRehearsals: 6,
       missingTotal: 8,
@@ -18,7 +15,7 @@ describe('shirtProgress', () => {
   });
 
   it('amb exactament 2 actuacions i 6 assajos té dret a camisa', () => {
-    expect(shirtProgress({ performancesAttended: 2, rehearsalsAttended: 6 })).toEqual({
+    expect(shirtProgress({ performancesAttended: 2, rehearsalsAttended: 6 }, REQUIREMENTS)).toEqual({
       missingPerformances: 0,
       missingRehearsals: 0,
       missingTotal: 0,
@@ -28,16 +25,22 @@ describe('shirtProgress', () => {
 
   // Els assajos de més no compensen les actuacions que falten.
   it('els excedents no compensen l\'altre tipus', () => {
-    expect(shirtProgress({ performancesAttended: 1, rehearsalsAttended: 20 })).toEqual({
+    expect(shirtProgress({ performancesAttended: 1, rehearsalsAttended: 20 }, REQUIREMENTS)).toEqual({
       missingPerformances: 1,
       missingRehearsals: 0,
       missingTotal: 1,
       isEligible: false,
     });
   });
+
+  it('segueix els requisits de la colla', () => {
+    expect(
+      shirtProgress({ performancesAttended: 1, rehearsalsAttended: 1 }, { performances: 1, rehearsals: 3 }),
+    ).toEqual({ missingPerformances: 0, missingRehearsals: 2, missingTotal: 2, isEligible: false });
+  });
 });
 
-describe('compareShirtCandidates', () => {
+describe('shirtCandidateComparator', () => {
   const candidate = (
     alias: string,
     performancesAttended: number,
@@ -50,8 +53,16 @@ describe('compareShirtCandidates', () => {
     lastAttendedDate,
   });
 
-  const sortAliases = (list: ReturnType<typeof candidate>[]) =>
-    [...list].sort(compareShirtCandidates).map((c) => c.alias);
+  const sortAliases = (list: ReturnType<typeof candidate>[], requirements = REQUIREMENTS) =>
+    [...list].sort(shirtCandidateComparator(requirements)).map((c) => c.alias);
+
+  it('ordena segons els requisits de la colla', () => {
+    // Amb 1 actuació i 1 assaig, Beta ja en té prou; amb els requisits per defecte, cap.
+    const list = [candidate('Alfa', 0, 5), candidate('Beta', 1, 1)];
+
+    expect(sortAliases(list)).toEqual(['Alfa', 'Beta']);
+    expect(sortAliases(list, { performances: 1, rehearsals: 1 })).toEqual(['Beta', 'Alfa']);
+  });
 
   it('posa primer qui té dret a camisa, per àlies', () => {
     expect(

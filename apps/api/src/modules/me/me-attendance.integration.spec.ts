@@ -25,6 +25,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres suite for the member-facing side of "no row ≡ PENDENT": the attendance stats count
@@ -40,6 +42,7 @@ describe('MeService attendance (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         MeService,
         SeasonService,
         AttendanceService,

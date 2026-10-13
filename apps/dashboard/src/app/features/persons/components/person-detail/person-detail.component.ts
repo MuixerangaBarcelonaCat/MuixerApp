@@ -51,6 +51,7 @@ import {
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
 import { DelegateType, Gender, LegalDocumentType, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 /** Same options and labels as the PWA onboarding form (person-data-fields). */
 const GENDER_LABELS: Record<Gender, string> = {
@@ -205,7 +206,12 @@ export class PersonDetailComponent implements OnInit {
   readonly getOnboardingLabel = getOnboardingLabel;
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
-  readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
+  private readonly renderSettings = injectPinyesRenderSettings();
+
+  /** Shoulder height relative to the colla's baseline. */
+  relativeShoulderHeight(value: number | null): string {
+    return formatShoulderHeightRelative(value, this.renderSettings().shoulderHeightBaselineCm);
+  }
   readonly formatNodeCordonLabel = formatNodeCordonLabel;
   readonly Math = Math;
 

@@ -8,6 +8,8 @@ import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
 import { AttendanceStatus } from '@muixer/shared';
 import { AuditService } from '../audit/audit.service';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 const makePerson = (overrides: Partial<Person> = {}): Person =>
   ({ id: 'p1', alias: 'ADRI', name: 'Adrian', firstSurname: 'Abreu', isXicalla: false, positions: [], ...overrides } as Person);
@@ -50,10 +52,13 @@ const toSummaryRows = (attendances: Attendance[]) => {
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
-  const originalLockDays = process.env.ASSIGNMENT_LOCK_DAYS;
+  let collaSettings: CollaSettingsStub;
+
+  beforeEach(() => {
+    collaSettings = new CollaSettingsStub();
+  });
 
   afterEach(() => {
-    process.env.ASSIGNMENT_LOCK_DAYS = originalLockDays;
     jest.clearAllMocks();
   });
 
@@ -142,6 +147,7 @@ describe('AttendanceService', () => {
         { provide: getRepositoryToken(Person), useValue: repos.personRepo },
         { provide: DataSource, useValue: repos.dataSource },
         { provide: AuditService, useValue: auditService },
+        { provide: CollaSettingsService, useValue: collaSettings },
       ],
     }).compile();
     return module.get<AttendanceService>(AttendanceService);
@@ -341,7 +347,7 @@ describe('AttendanceService', () => {
     });
 
     it('throws ForbiddenException when locked and force is not set', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       const pastEvent = makeEvent({ date: new Date('2000-01-01') });
       const repos = makeRepos([], pastEvent);
       service = await buildModule(repos);
@@ -350,8 +356,18 @@ describe('AttendanceService', () => {
       expect(repos.attendanceRepo.save).not.toHaveBeenCalled();
     });
 
+    it('lets a past event change without force when the colla disables the lock', async () => {
+      collaSettings.set({ assignmentLockDays: 0 });
+      const repos = makeRepos([], makeEvent({ date: new Date('2000-01-01') }));
+      service = await buildModule(repos);
+
+      await service.set('ev-1', 'p1', { status: AttendanceStatus.ASSISTIT });
+
+      expect(repos.attendanceRepo.save).toHaveBeenCalled();
+    });
+
     it('applies the change and records an audit entry when locked and force is set', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       const att = makeAttendance(AttendanceStatus.ANIRE);
       const pastEvent = makeEvent({ date: new Date('2000-01-01') });
       const repos = makeRepos([att], pastEvent);
@@ -373,7 +389,7 @@ describe('AttendanceService', () => {
     });
 
     it('audits a forced insert with PENDENT as the previous status', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       const pastEvent = makeEvent({ date: new Date('2000-01-01') });
       const repos = makeRepos([], pastEvent);
       service = await buildModule(repos);

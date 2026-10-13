@@ -8,6 +8,8 @@ import { Person } from '../person/person.entity';
 import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { TagCategory } from '@muixer/shared';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 const TAG_ID = 'tag-uuid-1';
 
@@ -76,6 +78,7 @@ describe('CreateTagDto validation', () => {
 
 describe('TagService', () => {
   let service: TagService;
+  let collaSettings: CollaSettingsStub;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -87,11 +90,13 @@ describe('TagService', () => {
     mockQb.groupBy.mockReturnThis();
     mockQb.orderBy.mockReturnThis();
 
+    collaSettings = new CollaSettingsStub();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TagService,
         { provide: getRepositoryToken(Tag), useValue: mockRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
+        { provide: CollaSettingsService, useValue: collaSettings },
       ],
     }).compile();
 
@@ -247,6 +252,15 @@ describe('TagService', () => {
     it('throws NotFoundException if tag not found', async () => {
       mockRepo.findOne.mockResolvedValue(null);
       await expect(service.remove('bad-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it("throws ConflictException for the colla's default tag, even with no persons", async () => {
+      collaSettings.set({ defaultTagId: TAG_ID });
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockRepo.query.mockResolvedValue([{ count: 0 }]);
+
+      await expect(service.remove(TAG_ID)).rejects.toThrow(ConflictException);
+      expect(mockRepo.delete).not.toHaveBeenCalled();
     });
   });
 

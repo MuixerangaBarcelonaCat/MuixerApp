@@ -7,9 +7,7 @@
     </lib-button>
     <div class="flex-1 min-w-0">
       <app-page-header title="Camises" [count]="loading() ? null : candidates().length" />
-      <p class="text-xs text-base-content/60 mt-0.5">
-        Calen {{ REQUIREMENTS.performances }} actuacions i {{ REQUIREMENTS.rehearsals }} assajos per rebre la camisa.
-      </p>
+      <p class="text-xs text-base-content/60 mt-0.5" data-testid="shirt-requirements">{{ requirementsText() }}</p>
     </div>
   </div>
 
@@ -68,10 +66,10 @@
 
       <div class="flex flex-wrap gap-x-5 gap-y-2">
         <ng-container
-          *ngTemplateOutlet="progress; context: { icon: ICONS.ACTUACIO, label: 'Actuacions', attended: candidate.performancesAttended, required: REQUIREMENTS.performances }"
+          *ngTemplateOutlet="progress; context: { icon: ICONS.ACTUACIO, label: 'Actuacions', attended: candidate.performancesAttended, required: requirements().performances }"
         />
         <ng-container
-          *ngTemplateOutlet="progress; context: { icon: ICONS.ASSAIG, label: 'Assajos', attended: candidate.rehearsalsAttended, required: REQUIREMENTS.rehearsals }"
+          *ngTemplateOutlet="progress; context: { icon: ICONS.ASSAIG, label: 'Assajos', attended: candidate.rehearsalsAttended, required: requirements().rehearsals }"
         />
       </div>
 

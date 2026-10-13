@@ -14,6 +14,7 @@ import {
   Newspaper,
   ShieldCheck,
   Shirt,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Star,
@@ -71,4 +72,6 @@ export const DOMAIN_ICONS = {
   CALENDAR_RANGE: CalendarRange,
   SHIELD_CHECK: ShieldCheck,
   DESIGN_SYSTEM: Sparkles,
+  /** La configuració de la colla (`/config/colla`). */
+  COLLA_SETTINGS: SlidersHorizontal,
 } as const;

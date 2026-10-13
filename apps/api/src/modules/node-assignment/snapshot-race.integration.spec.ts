@@ -17,6 +17,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres regression suite for BUG-17 (two concurrent first-assignments on the same
@@ -35,6 +37,7 @@ describe('NodeAssignmentService snapshot race (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         NodeAssignmentService,
         ...realRepositoryProviders(db.dataSource, [
           NodeAssignment,

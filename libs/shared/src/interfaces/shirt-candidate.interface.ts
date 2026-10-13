@@ -12,5 +12,7 @@ export interface ShirtCandidate {
   /** Data (`YYYY-MM-DD`) del darrer esdeveniment comptat amb assistència marcada; `null` si no n'hi ha cap. */
   lastAttendedDate: string | null;
   isEligible: boolean;
+  missingPerformances: number;
+  missingRehearsals: number;
   missingTotal: number;
 }

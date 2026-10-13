@@ -1,4 +1,4 @@
-import { SHIRT_REQUIREMENTS } from '../constants/person.constants';
+import { ShirtRequirements } from '../interfaces/colla-settings.interface';
 
 export interface ShirtAttendanceCounts {
   performancesAttended: number;
@@ -13,10 +13,13 @@ export interface ShirtProgress {
   isEligible: boolean;
 }
 
-/** Quant li falta a una persona per a tindre dret a camisa. Els excedents d'un tipus no compensen l'altre. */
-export function shirtProgress({ performancesAttended, rehearsalsAttended }: ShirtAttendanceCounts): ShirtProgress {
-  const missingPerformances = Math.max(0, SHIRT_REQUIREMENTS.performances - performancesAttended);
-  const missingRehearsals = Math.max(0, SHIRT_REQUIREMENTS.rehearsals - rehearsalsAttended);
+/** Quant li falta a una persona per a tindre dret a camisa segons els requisits de la colla. Els excedents d'un tipus no compensen l'altre. */
+export function shirtProgress(
+  { performancesAttended, rehearsalsAttended }: ShirtAttendanceCounts,
+  requirements: ShirtRequirements,
+): ShirtProgress {
+  const missingPerformances = Math.max(0, requirements.performances - performancesAttended);
+  const missingRehearsals = Math.max(0, requirements.rehearsals - rehearsalsAttended);
   const missingTotal = missingPerformances + missingRehearsals;
   return { missingPerformances, missingRehearsals, missingTotal, isEligible: missingTotal === 0 };
 }
@@ -41,14 +44,16 @@ function byLastAttendedDesc(a: string | null, b: string | null): number {
  * igualtat de faltes, qui ha vingut a més esdeveniments. Els empats es desfan per la darrera
  * assistència (més recent primer) i, finalment, per àlies.
  */
-export function compareShirtCandidates(a: ShirtSortable, b: ShirtSortable): number {
-  const missingA = shirtProgress(a).missingTotal;
-  const missingB = shirtProgress(b).missingTotal;
-  const tieBreak = () =>
-    byLastAttendedDesc(a.lastAttendedDate, b.lastAttendedDate) || a.alias.localeCompare(b.alias, 'ca');
-  if (missingA === 0 && missingB === 0) return tieBreak();
-  if (missingA !== missingB) return missingA - missingB;
-  const attendedA = a.performancesAttended + a.rehearsalsAttended;
-  const attendedB = b.performancesAttended + b.rehearsalsAttended;
-  return attendedB - attendedA || tieBreak();
+export function shirtCandidateComparator(requirements: ShirtRequirements): (a: ShirtSortable, b: ShirtSortable) => number {
+  return (a, b) => {
+    const missingA = shirtProgress(a, requirements).missingTotal;
+    const missingB = shirtProgress(b, requirements).missingTotal;
+    const tieBreak = () =>
+      byLastAttendedDesc(a.lastAttendedDate, b.lastAttendedDate) || a.alias.localeCompare(b.alias, 'ca');
+    if (missingA === 0 && missingB === 0) return tieBreak();
+    if (missingA !== missingB) return missingA - missingB;
+    const attendedA = a.performancesAttended + a.rehearsalsAttended;
+    const attendedB = b.performancesAttended + b.rehearsalsAttended;
+    return attendedB - attendedA || tieBreak();
+  };
 }

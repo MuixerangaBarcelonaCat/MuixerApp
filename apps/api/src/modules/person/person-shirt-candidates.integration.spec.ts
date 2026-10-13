@@ -9,6 +9,8 @@ import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * La camisa es guanya amb 2 actuacions i 6 assajos amb assistència marcada (`ASSISTIT`),
@@ -63,6 +65,7 @@ describe('Person shirt candidates (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         PersonService,
         ...realRepositoryProviders(db.dataSource, [Person, Tag]),
         {

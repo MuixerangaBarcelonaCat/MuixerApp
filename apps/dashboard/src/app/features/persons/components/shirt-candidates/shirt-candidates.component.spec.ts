@@ -2,7 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
-import { ShirtCandidate } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { CollaSettings, DEFAULT_COLLA_SETTINGS, ShirtCandidate } from '@muixer/shared';
+import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
 import { ToastService } from '@muixer/ui';
 import { ShirtCandidatesComponent } from './shirt-candidates.component';
 import { PersonService } from '../../services/person.service';
@@ -20,6 +22,8 @@ const makeCandidate = (overrides: Partial<ShirtCandidate> = {}): ShirtCandidate 
   rehearsalsAttended: 6,
   lastAttendedDate: '2026-10-01',
   isEligible: true,
+  missingPerformances: 0,
+  missingRehearsals: 0,
   missingTotal: 0,
   ...overrides,
 });
@@ -32,6 +36,7 @@ describe('ShirtCandidatesComponent', () => {
     update: ReturnType<typeof vi.fn>;
   };
   let mockToast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  const settings = signal<CollaSettings>(DEFAULT_COLLA_SETTINGS);
 
   const eligible = makeCandidate({ id: 'e1', alias: 'Dret' });
   const inProgress = makeCandidate({
@@ -40,6 +45,8 @@ describe('ShirtCandidatesComponent', () => {
     performancesAttended: 1,
     rehearsalsAttended: 4,
     isEligible: false,
+    missingPerformances: 1,
+    missingRehearsals: 2,
     missingTotal: 3,
   });
 
@@ -47,6 +54,7 @@ describe('ShirtCandidatesComponent', () => {
     (fixture.nativeElement.querySelector(selector) as HTMLElement | null)?.textContent ?? '';
 
   beforeEach(async () => {
+    settings.set(DEFAULT_COLLA_SETTINGS);
     mockPersonService = {
       getShirtCandidates: vi.fn().mockReturnValue(of([eligible, inProgress])),
       update: vi.fn().mockReturnValue(of({})),
@@ -60,6 +68,7 @@ describe('ShirtCandidatesComponent', () => {
         provideRouter([]),
         { provide: PersonService, useValue: mockPersonService },
         { provide: ToastService, useValue: mockToast },
+        { provide: CollaSettingsService, useValue: { settings } },
       ],
     }).compileComponents();
 
@@ -143,15 +152,32 @@ describe('ShirtCandidatesComponent', () => {
 
   describe('missingText', () => {
     it('uses singular and plural forms and skips a met requirement', () => {
-      expect(component.missingText(makeCandidate({ performancesAttended: 1, rehearsalsAttended: 5 }))).toBe(
+      expect(component.missingText(makeCandidate({ missingPerformances: 1, missingRehearsals: 1 }))).toBe(
         'li falten 1 actuació i 1 assaig',
       );
-      expect(component.missingText(makeCandidate({ performancesAttended: 0, rehearsalsAttended: 6 }))).toBe(
+      expect(component.missingText(makeCandidate({ missingPerformances: 2, missingRehearsals: 0 }))).toBe(
         'li falten 2 actuacions',
       );
-      expect(component.missingText(makeCandidate({ performancesAttended: 2, rehearsalsAttended: 5 }))).toBe(
+      expect(component.missingText(makeCandidate({ missingPerformances: 0, missingRehearsals: 1 }))).toBe(
         'li falta 1 assaig',
       );
+    });
+  });
+
+  describe("the colla's requirements", () => {
+    it('states them with the right plural', () => {
+      expect(text('[data-testid="shirt-requirements"]')).toContain('Calen 2 actuacions i 6 assajos per rebre la camisa.');
+
+      settings.set({ ...DEFAULT_COLLA_SETTINGS, shirtRequirements: { performances: 1, rehearsals: 0 } });
+      fixture.detectChanges();
+      expect(text('[data-testid="shirt-requirements"]')).toContain('Cal 1 actuació per rebre la camisa.');
+    });
+
+    it('draws one mark per required event', () => {
+      settings.set({ ...DEFAULT_COLLA_SETTINGS, shirtRequirements: { performances: 3, rehearsals: 6 } });
+      fixture.detectChanges();
+
+      expect(text('[data-testid="shirt-row-c1"]')).toContain('1/3');
     });
   });
 });

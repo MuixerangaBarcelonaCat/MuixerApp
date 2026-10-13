@@ -6,6 +6,7 @@ import { Person } from '../person/person.entity';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { TagFilterDto } from './dto/tag-filter.dto';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 
 export type TagWithCount = Tag & { personCount: number };
 
@@ -16,6 +17,7 @@ export class TagService {
     private readonly tagRepository: Repository<Tag>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   async findAll(filter?: TagFilterDto): Promise<TagWithCount[]> {
@@ -58,6 +60,12 @@ export class TagService {
 
   async remove(id: string): Promise<void> {
     await this.findOne(id);
+
+    if ((await this.collaSettings.get()).defaultTagId === id) {
+      throw new ConflictException(
+        "No es pot esborrar: és l'etiqueta per defecte de les persones noves. Canvieu-la primer a la configuració de la colla.",
+      );
+    }
 
     const [{ count }] = await this.tagRepository.query(
       `SELECT COUNT(*)::int AS count FROM person_positions WHERE "positionsId" = $1`,

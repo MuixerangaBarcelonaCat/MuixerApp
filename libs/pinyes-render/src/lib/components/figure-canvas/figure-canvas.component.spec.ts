@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { FigureZone, Gender } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS, FigureZone, Gender } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS } from '../../settings/render-settings';
 import { ATTENDANCE_TONES, GENDER_TONES, ThemeService } from '@muixer/ui';
 import { paperGrain } from '../../theme/paper-grain';
 import { AssignmentDetail } from '../../models/assignment.model';
@@ -96,6 +98,18 @@ describe('FigureCanvasComponent', () => {
       })(assignment);
       expect(input).toMatchObject({ tones: ATTENDANCE_TONES.error.strong, fillPolicy: 'solid', attendance: 'absent' });
       expect(input.person).toMatchObject({ nextActuacio: true, height: '+12' });
+    });
+
+    it("measures the relative height from the colla's baseline", () => {
+      TestBed.configureTestingModule({
+        providers: [
+          {
+            provide: PINYES_RENDER_SETTINGS,
+            useValue: signal({ shoulderHeightBaselineCm: 150, troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds }),
+          },
+        ],
+      });
+      expect(staffed({})(assignment).person?.height).toBe('+2');
     });
   });
 });

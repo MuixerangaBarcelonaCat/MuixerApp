@@ -39,6 +39,7 @@ import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
 import { formatDateOnly, getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import { AttendanceService, withLivePending } from '../event/attendance.service';
 import { personPendingAtEventSql, resolveAttendanceStatus } from '../../common/utils/attendance-status.util';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
@@ -74,6 +75,7 @@ export class MeService {
     private readonly eventSegmentService: EventSegmentService,
     private readonly newsService: NewsService,
     private readonly seasonService: SeasonService,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   async resolveManagedPersons(
@@ -399,7 +401,7 @@ export class MeService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    if (isPastLockWindow(event.date)) {
+    if (isPastLockWindow(event.date, (await this.collaSettings.get()).assignmentLockDays)) {
       throw new BadRequestException('No es pot modificar l\'assistència d\'un event passat');
     }
 

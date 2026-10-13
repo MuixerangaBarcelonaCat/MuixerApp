@@ -18,6 +18,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres coverage for an event's season being derived from its date (never stored): the
@@ -32,6 +34,7 @@ describe('EventService — season derived from date (integration)', () => {
     db = await setupIntegrationDb();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         EventService,
         AttendanceService,
         SeasonService,

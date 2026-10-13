@@ -6,17 +6,21 @@ import { AttendanceSweepService } from './attendance-sweep.service';
 import { AttendanceService } from './attendance.service';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 describe('AttendanceSweepService', () => {
   let service: AttendanceSweepService;
   let eventRepo: { find: jest.Mock };
   let attendanceRepo: { update: jest.Mock };
   let attendanceService: { recalculateSummary: jest.Mock };
+  let collaSettings: CollaSettingsStub;
 
   beforeEach(async () => {
     eventRepo = { find: jest.fn().mockResolvedValue([]) };
     attendanceRepo = { update: jest.fn().mockResolvedValue({ affected: 0 }) };
     attendanceService = { recalculateSummary: jest.fn().mockResolvedValue(undefined) };
+    collaSettings = new CollaSettingsStub();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -24,6 +28,7 @@ describe('AttendanceSweepService', () => {
         { provide: getRepositoryToken(Event), useValue: eventRepo },
         { provide: getRepositoryToken(Attendance), useValue: attendanceRepo },
         { provide: AttendanceService, useValue: attendanceService },
+        { provide: CollaSettingsService, useValue: collaSettings },
       ],
     }).compile();
 
@@ -31,6 +36,16 @@ describe('AttendanceSweepService', () => {
   });
 
   afterEach(() => jest.clearAllMocks());
+
+  it('does nothing when the colla has turned the automatic check-in off', async () => {
+    collaSettings.set({ autoCheckInPerformances: false });
+    eventRepo.find.mockResolvedValue([{ id: 'ev-1' }]);
+
+    await service.sweepTodaysPerformances();
+
+    expect(eventRepo.find).not.toHaveBeenCalled();
+    expect(attendanceRepo.update).not.toHaveBeenCalled();
+  });
 
   it('only queries ACTUACIO events dated today', async () => {
     await service.sweepTodaysPerformances();

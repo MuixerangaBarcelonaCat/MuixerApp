@@ -2,7 +2,7 @@
  * Person-related utility functions
  */
 
-import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 import type { Person } from '../../features/persons/models/person.model';
 
 /**
@@ -56,12 +56,9 @@ export function formatShoulderHeightCm(value: number | null | undefined): string
 }
 
 /**
- * Relative offset from baseline (e.g. +10, -5, 0).
+ * Relative offset from the colla's baseline (e.g. +10, -5, 0).
  */
-export function formatShoulderHeightRelative(
-  value: number | null | undefined,
-  baselineCm = SHOULDER_HEIGHT_BASELINE_CM,
-): string {
+export function formatShoulderHeightRelative(value: number | null | undefined, baselineCm: number): string {
   if (value === null || value === undefined) {
     return '—';
   }
@@ -74,10 +71,7 @@ export function formatShoulderHeightRelative(
 
 export type ShoulderHeightTone = 'positive' | 'negative' | 'zero' | 'empty';
 
-export function shoulderHeightRelativeTone(
-  value: number | null | undefined,
-  baselineCm = SHOULDER_HEIGHT_BASELINE_CM,
-): ShoulderHeightTone {
+export function shoulderHeightRelativeTone(value: number | null | undefined, baselineCm: number): ShoulderHeightTone {
   if (value === null || value === undefined) {
     return 'empty';
   }

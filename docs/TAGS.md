@@ -226,9 +226,12 @@ l'edat mentre que l'etiqueta descriu la participació.
 
 ## 6. Valor per defecte a l'alta
 
-`PersonService.create` assigna automàticament l'etiqueta **«Persones Noves»** (`persona-nova`,
-grup PINYA) quan la petició no porta cap etiqueta de XICALLA ni d'ALTRES. Si no troba
-l'etiqueta al catàleg —algú l'ha esborrada— no fa res ni falla: l'alta continua.
+`PersonService.create` assigna automàticament l'**etiqueta per defecte de la colla** quan la
+petició no porta cap etiqueta de XICALLA ni d'ALTRES (i encara no la porta). Quina és la tria un
+administrador a `/config/colla` (`defaultTagId` de la configuració de la colla); la migració que
+la va crear hi va posar **«Persones Noves»** (`persona-nova`, grup PINYA). Amb «Cap» no se n'assigna
+cap. L'etiqueta per defecte no es pot esborrar (409); si de totes maneres desapareix, la clau
+forana la deixa a «Cap».
 
 S'aplica al servei, no a la UI, perquè valga per a qualsevol camí d'alta que hi passe. Les
 persones creades pel sync legacy no hi passen (el sync alça la persona directament amb el

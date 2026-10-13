@@ -1,4 +1,4 @@
-import { ArrowRightToLine, Shirt } from 'lucide-angular';
+import { ArrowRightToLine, Shirt, SlidersHorizontal } from 'lucide-angular';
 import { DOMAIN_ICONS } from './domain-icons';
 
 describe('DOMAIN_ICONS', () => {
@@ -10,5 +10,9 @@ describe('DOMAIN_ICONS', () => {
 
   it('uses Shirt for the camisa', () => {
     expect(DOMAIN_ICONS.CAMISA).toBe(Shirt);
+  });
+
+  it('uses SlidersHorizontal for the colla settings', () => {
+    expect(DOMAIN_ICONS.COLLA_SETTINGS).toBe(SlidersHorizontal);
   });
 });

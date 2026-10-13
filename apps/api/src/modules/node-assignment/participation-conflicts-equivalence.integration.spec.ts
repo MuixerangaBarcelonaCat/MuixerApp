@@ -26,6 +26,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * D13 / risk 9 — the mandatory equivalence guard.
@@ -50,6 +52,7 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         EventParticipationService,
         NodeAssignmentService,
         ...realRepositoryProviders(db.dataSource, [

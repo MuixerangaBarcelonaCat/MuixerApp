@@ -9,6 +9,7 @@ import {
   TagCategory,
 } from '@muixer/shared';
 import { isPastLockWindow } from '../../common/utils/lock.util';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import {
   eventDateOnly,
   personExistedAtEventSql,
@@ -54,6 +55,7 @@ export class AttendanceService {
     private readonly personRepository: Repository<Person>,
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   /** Retorna una llista paginada d'assistències per a un event concret amb filtres per estat i cerca de persona. */
@@ -155,7 +157,7 @@ export class AttendanceService {
       throw new NotFoundException(`Person with ID ${personId} not found`);
     }
 
-    const locked = isPastLockWindow(event.date);
+    const locked = isPastLockWindow(event.date, (await this.collaSettings.get()).assignmentLockDays);
     if (locked && !dto.force) {
       throw new ForbiddenException('Este event està fora del marge per canviar assistència.');
     }

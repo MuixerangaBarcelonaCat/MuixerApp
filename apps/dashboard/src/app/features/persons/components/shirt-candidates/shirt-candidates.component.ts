@@ -14,8 +14,9 @@ import {
   ModalComponent,
   ToastService,
 } from '@muixer/ui';
-import { SHIRT_REQUIREMENTS, ShirtCandidate, shirtProgress } from '@muixer/shared';
+import { ShirtCandidate } from '@muixer/shared';
 import { PersonService } from '../../services/person.service';
+import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { getFullName } from '../../../../shared/utils';
 
@@ -34,8 +35,8 @@ function localToday(): string {
 const plural = (n: number, singular: string, pluralForm: string) => `${n} ${n === 1 ? singular : pluralForm}`;
 
 /**
- * Persones sense camisa: primer qui ja hi té dret (2 actuacions + 6 assajos amb assistència
- * marcada), després la resta de més a menys a prop. En lliurar-la, la data passa a ser la seua
+ * Persones sense camisa: primer qui ja hi té dret (les actuacions i els assajos amb assistència
+ * marcada que demana la configuració de la colla), després la resta de més a menys a prop. En lliurar-la, la data passa a ser la seua
  * `shirtDate` i la persona desapareix de la llista. També es pot lliurar a qui encara no compleix
  * els requisits (excepcions de la tècnica), amb un avís al diàleg.
  */
@@ -62,9 +63,19 @@ const plural = (n: number, singular: string, pluralForm: string) => `${n} ${n ==
 export class ShirtCandidatesComponent {
   private readonly personService = inject(PersonService);
   private readonly toast = inject(ToastService);
+  private readonly collaSettings = inject(CollaSettingsService);
 
   protected readonly ICONS = DOMAIN_ICONS;
-  protected readonly REQUIREMENTS = SHIRT_REQUIREMENTS;
+  protected readonly requirements = computed(() => this.collaSettings.settings().shirtRequirements);
+  /** «Calen 2 actuacions i 6 assajos per rebre la camisa.» — només els tipus que la colla demana. */
+  protected readonly requirementsText = computed(() => {
+    const { performances, rehearsals } = this.requirements();
+    const parts: string[] = [];
+    if (performances > 0) parts.push(plural(performances, 'actuació', 'actuacions'));
+    if (rehearsals > 0) parts.push(plural(rehearsals, 'assaig', 'assajos'));
+    if (parts.length === 0) return 'No cal cap assistència per rebre la camisa.';
+    return `${performances + rehearsals === 1 ? 'Cal' : 'Calen'} ${parts.join(' i ')} per rebre la camisa.`;
+  });
   protected readonly getFullName = getFullName;
   protected readonly today = localToday();
 
@@ -105,8 +116,7 @@ export class ShirtCandidatesComponent {
   }
 
   /** «li falten 1 actuació i 2 assajos» — només els tipus que encara no compleix. */
-  missingText(candidate: ShirtCandidate): string {
-    const { missingPerformances, missingRehearsals } = shirtProgress(candidate);
+  missingText({ missingPerformances, missingRehearsals }: ShirtCandidate): string {
     const parts: string[] = [];
     if (missingPerformances > 0) parts.push(plural(missingPerformances, 'actuació', 'actuacions'));
     if (missingRehearsals > 0) parts.push(plural(missingRehearsals, 'assaig', 'assajos'));

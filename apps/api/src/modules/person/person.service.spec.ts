@@ -8,6 +8,8 @@ import { CreatePersonDto } from './dto/create-person.dto';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { TagCategory } from '@muixer/shared';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -47,10 +49,14 @@ describe('PersonService', () => {
     assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
   };
 
+  let collaSettings: CollaSettingsStub;
+
   beforeEach(async () => {
+    collaSettings = new CollaSettingsStub();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PersonService,
+        { provide: CollaSettingsService, useValue: collaSettings },
         {
           provide: getRepositoryToken(Person),
           useValue: mockPersonRepository,
@@ -220,13 +226,45 @@ describe('PersonService', () => {
       expect(mockPersonRepository.save).not.toHaveBeenCalled();
     });
 
-    it('assigna «Persona Nova» quan no ve cap etiqueta de xicalla ni d\'altres', async () => {
+    it("gives the colla's default tag when no xicalla or altres tag comes", async () => {
       const personaNova = { id: 'tag-nova', slug: 'persona-nova', category: TagCategory.PINYA } as Tag;
+      collaSettings.set({ defaultTagId: 'tag-nova' });
       mockPositionRepository.findOne.mockResolvedValue(personaNova);
       mockPersonRepository.create.mockImplementation((data) => data as Person);
       mockPersonRepository.save.mockImplementation(async (person) => person as Person);
 
       await service.create({ name: 'Nova', firstSurname: 'Persona', alias: 'nova' } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions).toEqual([personaNova]);
+      expect(mockPositionRepository.findOne).toHaveBeenCalledWith({ where: { id: 'tag-nova' } });
+    });
+
+    it('gives no tag when the colla has no default tag', async () => {
+      collaSettings.set({ defaultTagId: null });
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({ name: 'Nova', firstSurname: 'Persona', alias: 'nova' } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions ?? []).toEqual([]);
+      expect(mockPositionRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('does not add the default tag twice when it already comes', async () => {
+      const personaNova = { id: 'tag-nova', slug: 'persona-nova', category: TagCategory.PINYA } as Tag;
+      collaSettings.set({ defaultTagId: 'tag-nova' });
+      mockPositionRepository.findBy.mockResolvedValue([personaNova]);
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({
+        name: 'Nova',
+        firstSurname: 'Persona',
+        alias: 'nova',
+        positionIds: ['tag-nova'],
+      } as CreatePersonDto);
 
       const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
       expect(saved.positions).toEqual([personaNova]);
@@ -436,8 +474,22 @@ describe('PersonService', () => {
       expect(result[0]).toEqual(
         expect.objectContaining({ id: 'id-Dret', isEligible: true, missingTotal: 0 }),
       );
-      expect(result[1]).toEqual(expect.objectContaining({ isEligible: false, missingTotal: 1 }));
+      expect(result[1]).toEqual(
+        expect.objectContaining({ isEligible: false, missingTotal: 1, missingPerformances: 1, missingRehearsals: 0 }),
+      );
       expect(result[2]).toEqual(expect.objectContaining({ isEligible: false, missingTotal: 7 }));
+    });
+
+    it("measures against the colla's own requirements", async () => {
+      collaSettings.set({ shirtRequirements: { performances: 1, rehearsals: 1 } });
+      mockPersonRepository.query.mockResolvedValueOnce([row('Lluny', 0, 1), row('Prop', 1, 1)]);
+
+      const result = await service.findShirtCandidates();
+
+      expect(result.map((c) => [c.alias, c.isEligible])).toEqual([
+        ['Prop', true],
+        ['Lluny', false],
+      ]);
     });
 
     it('counts only ASSISTIT on statistic events of active, non-provisional persons without camisa', async () => {

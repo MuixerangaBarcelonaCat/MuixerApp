@@ -20,6 +20,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * The Distribució tab (segment-distribution endpoint) and Previsualitza/PWA (segment-projection
@@ -41,6 +43,7 @@ describe('Distribució ↔ Previsualitza node-set equivalence (integration)', ()
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         FigureInstanceService,
         EventSegmentService,
         NodeAssignmentService,

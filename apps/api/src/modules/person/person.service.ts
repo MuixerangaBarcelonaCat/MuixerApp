@@ -17,16 +17,17 @@ import {
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
 import {
   AttendanceStatus,
+  CollaSettings,
   EventType,
   ShirtCandidate,
   TagCategory,
-  compareShirtCandidates,
+  shirtCandidateComparator,
   shirtProgress,
 } from '@muixer/shared';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
-const DEFAULT_TAG_SLUG = 'persona-nova';
 
 /**
  * L'event `e` és de la temporada en curs: la temporada que conté la seua data (derivada, no guardada)
@@ -85,6 +86,7 @@ export class PersonService {
     @InjectRepository(Tag)
     private readonly positionRepository: Repository<Tag>,
     private readonly personDelegateService: PersonDelegateService,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   /** Retorna una llista paginada i ordenada de persones aplicant tots els filtres disponibles. Usa `unaccent` per cerques insensibles a accents. */
@@ -247,21 +249,21 @@ export class PersonService {
 
   /**
    * Persones pendents de camisa: primer qui ja hi té dret, després de més a menys a prop
-   * (`compareShirtCandidates`). Llista completa, sense paginar.
+   * (`shirtCandidateComparator`), segons els requisits de la colla. Llista completa, sense paginar.
    */
   async findShirtCandidates(): Promise<ShirtCandidate[]> {
-    const rows: ShirtCandidateRow[] = await this.personRepository.query(SHIRT_CANDIDATES_QUERY, [
-      AttendanceStatus.ASSISTIT,
-      EventType.ACTUACIO,
-      EventType.ASSAIG,
+    const [rows, { shirtRequirements }]: [ShirtCandidateRow[], CollaSettings] = await Promise.all([
+      this.personRepository.query(SHIRT_CANDIDATES_QUERY, [
+        AttendanceStatus.ASSISTIT,
+        EventType.ACTUACIO,
+        EventType.ASSAIG,
+      ]),
+      this.collaSettings.get(),
     ]);
 
     return rows
-      .map((row) => {
-        const { isEligible, missingTotal } = shirtProgress(row);
-        return { ...row, isEligible, missingTotal };
-      })
-      .sort(compareShirtCandidates);
+      .map((row) => ({ ...row, ...shirtProgress(row, shirtRequirements) }))
+      .sort(shirtCandidateComparator(shirtRequirements));
   }
 
   /** Retorna una persona per ID incloent posicions, mentor i gestor. Llança NotFoundException si no existeix. */
@@ -290,18 +292,19 @@ export class PersonService {
       person.positions = await this.findPositionsOrThrow(positionIds);
     }
 
-    // Regla mínima d'etiquetatge: qui no és de xicalla ni d'«altres» entra com a persona nova,
-    // perquè la tècnica puga fer-ne el seguiment fins que se li puga assignar una posició.
-    const categories = (person.positions ?? []).map((tag) => tag.category);
+    // Regla mínima d'etiquetatge: qui no és de xicalla ni d'«altres» rep l'etiqueta per defecte
+    // de la colla (persona nova), perquè la tècnica puga fer-ne el seguiment fins que se li puga
+    // assignar una posició. La colla pot no tindre'n cap.
+    const tags = person.positions ?? [];
+    const categories = tags.map((tag) => tag.category);
     const needsDefault =
       !categories.includes(TagCategory.XICALLA) && !categories.includes(TagCategory.ALTRES);
+    const { defaultTagId } = await this.collaSettings.get();
 
-    if (needsDefault) {
-      const defaultTag = await this.positionRepository.findOne({
-        where: { slug: DEFAULT_TAG_SLUG },
-      });
+    if (needsDefault && defaultTagId && !tags.some((tag) => tag.id === defaultTagId)) {
+      const defaultTag = await this.positionRepository.findOne({ where: { id: defaultTagId } });
       if (defaultTag) {
-        person.positions = [...(person.positions ?? []), defaultTag];
+        person.positions = [...tags, defaultTag];
       }
     }
 

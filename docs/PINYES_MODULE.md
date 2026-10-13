@@ -629,9 +629,10 @@ diversos motius es queda amb el més útil per a resoldre'l, en este ordre:
 2. `unlinked`: la plantilla no diu sobre qui va el node.
 3. `unassigned`: no hi ha ningú assignat.
 
-**Avisos**: els llindars són la constant `TRONC_HEIGHT_THRESHOLDS` (input `heightThresholds` del
-`TroncViewComponent`). Encara no són configurables per colla (vegeu F20 a [[DEBT]]). El nivell es
-calcula sobre el valor arrodonit, que és el que es mostra.
+**Avisos**: els llindars són els de la configuració de la colla (`troncHeightThresholds`); el
+`TroncViewComponent` els llig amb `injectPinyesRenderSettings()` (`@muixer/pinyes-render/settings`),
+que cada app proveeix des del seu `CollaSettingsService`. Els valors per defecte són els de la taula.
+El nivell es calcula sobre el valor arrodonit, que és el que es mostra.
 
 | Avís | Què compara | Groc | Vermell |
 |---|---|---|---|
@@ -994,7 +995,7 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 10. **Base ordering (P5.8)**: Les Bases han de seguir l'ordre anti-horari (CCW) partint de dalt-esquerra. `sortOrder` 0 = dalt-esquerra, i augmenta en sentit anti-horari. El label de cada Base ha de ser `Base N` (N = sortOrder + 1). La funció `validateBaseOrdering()` comprova aquest invariant.
 
-11. **Assignment lock (P5.10)**: Un cop `event.date + ASSIGNMENT_LOCK_DAYS < now()`, les operacions d'escriptura sobre `NodeAssignment` (assign, unassign, swap, bulkImport, reset) retornen 403. Les lectures (GET) no es veuen afectades. `ASSIGNMENT_LOCK_DAYS = 0` desactiva el lock.
+11. **Assignment lock (P5.10)**: Un cop `event.date + assignmentLockDays < now()` (configuració de la colla, `/config/colla`), les operacions d'escriptura sobre `NodeAssignment` (assign, unassign, swap, bulkImport, reset) retornen 403. Les lectures (GET) no es veuen afectades. `assignmentLockDays = 0` desactiva el lock.
 
 12. **Position-positionType soft matching (P5.10)**: `Position.slug` i `FigureNode.positionType` es relacionen per convenció de noms (mateixa cadena), no per FK. El matching és opcional i s'usa per prioritzar persones al panel d'assignació.
 

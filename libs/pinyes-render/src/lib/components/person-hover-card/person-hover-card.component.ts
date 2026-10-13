@@ -2,7 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { LucideAngularModule } from 'lucide-angular';
 import { BadgeComponent, BadgeVariant, DOMAIN_ICONS } from '@muixer/ui';
 import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
-import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isStartedPhase, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isStartedPhase } from '@muixer/shared';
+import { formatShoulderHeight } from '../../node-render/appearance';
+import { injectPinyesRenderSettings } from '../../settings/render-settings';
 
 @Component({
   selector: 'app-person-hover-card',
@@ -68,6 +70,7 @@ export class PersonHoverCardComponent {
   /** Before / on / after the event day: worded status label and the no-show colour of ANIRE. */
   readonly phase = input<EventPhase>('before');
   readonly heightMode = input<HeightMode>('relative');
+  private readonly renderSettings = injectPinyesRenderSettings();
   /** Strips the floating-tooltip chrome (border/shadow/rounding/background) for flush inline use, e.g. in a list. */
   readonly bare = input<boolean>(false);
   /** When set, the position tag matching this type is promoted first and shown filled; the rest render outlined. */
@@ -99,8 +102,7 @@ export class PersonHoverCardComponent {
     const h = this.info().shoulderHeight;
     if (h === null || h === 0) return '';
     if (this.heightMode() === 'relative') {
-      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
-      return diff >= 0 ? `+${diff}` : `${diff}`;
+      return formatShoulderHeight(h, 'relative', this.renderSettings().shoulderHeightBaselineCm) ?? '';
     }
     return `${h} cm`;
   }

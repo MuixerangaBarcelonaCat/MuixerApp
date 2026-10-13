@@ -26,6 +26,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres suite for `AuthService.registerViaInvite`: the one place in this feature that
@@ -48,6 +50,7 @@ describe('AuthService.registerViaInvite (integration)', () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'integration-test-secret', signOptions: { expiresIn: 900 } })],
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         AuthService,
         PersonService,
         PersonDelegateService,
