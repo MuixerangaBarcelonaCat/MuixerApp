@@ -115,7 +115,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 |-------|---------|------:|
 | `attendances` | `Attendance` | 10 |
 | `audit_logs` | `AuditLog` | 8 |
-| `colla_settings` | `CollaSettingsEntity` | 16 |
+| `colla_settings` | `CollaSettingsEntity` | 20 |
 | `composition_entries` | `CompositionEntry` | 13 |
 | `compositions` | `Composition` | 6 |
 | `event_segments` | `EventSegment` | 11 |
@@ -222,6 +222,10 @@ Definició: [`apps/api/src/modules/colla-settings/colla-settings.entity.ts`](../
 | `defaultTagId` | `uuid` | `string` | sí | — |
 | `defaultTag` | `relation` | `Tag` | sí | ManyToOne → `Tag`, onDelete SET NULL |
 | `majorityAge` | `int` | `number` | no | — |
+| `rehearsalDefaultTitle` | `varchar` | `string` | no | — |
+| `rehearsalDefaultStartTime` | `varchar` | `string` | sí | — |
+| `rehearsalDefaultLocation` | `varchar` | `string` | no | — |
+| `rehearsalDefaultLocationUrl` | `varchar` | `string` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 

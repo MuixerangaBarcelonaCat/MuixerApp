@@ -27,6 +27,9 @@ const wholeNumber: ValidatorFn = (control) =>
 const range = (min: number, max: number) => [Validators.required, wholeNumber, Validators.min(min), Validators.max(max)];
 const notBlank: ValidatorFn = (control) => (String(control.value ?? '').trim() ? null : { required: true });
 
+const link: ValidatorFn = (control) =>
+  !control.value || /^https?:\/\/\S+$/.test(String(control.value)) ? null : { link: true };
+
 const warningBelowError: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
   const { warning, error } = group.value as { warning: number | null; error: number | null };
   return warning !== null && error !== null && warning >= error ? { warningNotBelowError: true } : null;
@@ -34,8 +37,8 @@ const warningBelowError: ValidatorFn = (group: AbstractControl): ValidationError
 
 /**
  * The colla's own parameters (`/config/colla`, ADMIN): its name, what a camisa takes, how heights
- * are shown and warned about, the lock after an event, the nightly check-in of performances and
- * how new persons are tagged and counted as xicalla.
+ * are shown and warned about, the lock after an event, the nightly check-in of performances, how
+ * new persons are tagged and counted as xicalla, and what a new rehearsal starts with.
  */
 @Component({
   selector: 'app-colla-settings',
@@ -91,6 +94,12 @@ export class CollaSettingsComponent {
     autoCheckInPerformances: [true],
     defaultTagId: [''],
     majorityAge: [0, range(1, 25)],
+    rehearsalDefaults: this.fb.group({
+      title: ['', Validators.maxLength(200)],
+      startTime: ['', Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+      location: ['', Validators.maxLength(200)],
+      locationUrl: ['', [link, Validators.maxLength(500)]],
+    }),
   });
 
   readonly saving = signal(false);
@@ -124,6 +133,7 @@ export class CollaSettingsComponent {
     if (errors['min']) return `El mínim és ${errors['min'].min}`;
     if (errors['max']) return `El màxim és ${errors['max'].max}`;
     if (errors['maxlength']) return `Màxim ${errors['maxlength'].requiredLength} caràcters`;
+    if (errors['link']) return 'Ha de ser un enllaç que comence per https://';
     return 'Valor invàlid';
   }
 
@@ -180,11 +190,29 @@ export class CollaSettingsComponent {
 
   private formSettings(): CollaSettings {
     const raw = this.form.getRawValue();
-    return { ...raw, collaName: raw.collaName.trim(), defaultTagId: raw.defaultTagId || null };
+    return {
+      ...raw,
+      collaName: raw.collaName.trim(),
+      defaultTagId: raw.defaultTagId || null,
+      rehearsalDefaults: {
+        title: raw.rehearsalDefaults.title.trim(),
+        startTime: raw.rehearsalDefaults.startTime || null,
+        location: raw.rehearsalDefaults.location.trim(),
+        locationUrl: raw.rehearsalDefaults.locationUrl.trim() || null,
+      },
+    };
   }
 
   private resetTo(settings: CollaSettings): void {
-    this.form.reset({ ...settings, defaultTagId: settings.defaultTagId ?? '' });
+    this.form.reset({
+      ...settings,
+      defaultTagId: settings.defaultTagId ?? '',
+      rehearsalDefaults: {
+        ...settings.rehearsalDefaults,
+        startTime: settings.rehearsalDefaults.startTime ?? '',
+        locationUrl: settings.rehearsalDefaults.locationUrl ?? '',
+      },
+    });
     this.formVersion.update((v) => v + 1);
   }
 }

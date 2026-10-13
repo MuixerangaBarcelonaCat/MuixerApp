@@ -19,6 +19,8 @@ const invalidPaths = async (body: Record<string, unknown>): Promise<string[]> =>
   return paths;
 };
 
+const REHEARSAL = { title: 'Assaig', startTime: '18:45', location: 'Local', locationUrl: 'https://maps.example/local' };
+
 describe('UpdateCollaSettingsDto', () => {
   it('accepts every setting at once', async () => {
     expect(await errorsFor({ ...DEFAULT_COLLA_SETTINGS, defaultTagId: '3f2b6a1e-8c4d-4e5f-9a0b-1c2d3e4f5a6b' })).toHaveLength(0);
@@ -30,6 +32,12 @@ describe('UpdateCollaSettingsDto', () => {
 
   it('accepts no default tag', async () => {
     expect(await errorsFor({ defaultTagId: null })).toHaveLength(0);
+  });
+
+  it('accepts rehearsals with no default title or start time', async () => {
+    expect(
+      await errorsFor({ rehearsalDefaults: { title: '', startTime: null, location: '', locationUrl: null } }),
+    ).toHaveLength(0);
   });
 
   it('accepts a lock of 0 days (no lock)', async () => {
@@ -52,12 +60,26 @@ describe('UpdateCollaSettingsDto', () => {
       'troncHeightThresholds.floor.warning',
     ],
     [{ troncHeightThresholds: { floor: { warning: 5, error: 10 } } }, 'troncHeightThresholds.support'],
+    [{ rehearsalDefaults: { ...REHEARSAL, startTime: '25:00' } }, 'rehearsalDefaults.startTime'],
+    [{ rehearsalDefaults: { ...REHEARSAL, startTime: '8:45' } }, 'rehearsalDefaults.startTime'],
+    [{ rehearsalDefaults: { title: 'Assaig', location: '', locationUrl: null } }, 'rehearsalDefaults.startTime'],
+    [{ rehearsalDefaults: { ...REHEARSAL, title: 'x'.repeat(201) } }, 'rehearsalDefaults.title'],
+    [{ rehearsalDefaults: { ...REHEARSAL, location: 'x'.repeat(201) } }, 'rehearsalDefaults.location'],
+    [{ rehearsalDefaults: { ...REHEARSAL, locationUrl: 'no és un enllaç' } }, 'rehearsalDefaults.locationUrl'],
+    [{ rehearsalDefaults: { title: 'Assaig', startTime: null, location: '' } }, 'rehearsalDefaults.locationUrl'],
   ])('rejects %j', async (body, path) => {
     expect(await invalidPaths(body)).toEqual([path]);
   });
 
   it('rejects unknown fields', async () => {
     expect(await invalidPaths({ colour: '#fff' })).toEqual(['colour']);
+  });
+
+  it('trims the default rehearsal title and place', () => {
+    const dto = plainToInstance(UpdateCollaSettingsDto, {
+      rehearsalDefaults: { ...REHEARSAL, title: '  Assaig  ', location: '  Local  ' },
+    });
+    expect(dto.rehearsalDefaults).toMatchObject({ title: 'Assaig', location: 'Local' });
   });
 
   it('trims the colla name', () => {

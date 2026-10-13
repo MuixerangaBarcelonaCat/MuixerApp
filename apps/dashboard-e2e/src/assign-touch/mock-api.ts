@@ -238,6 +238,7 @@ export async function installMockApi(page: Page): Promise<MockApi> {
     autoCheckInPerformances: true,
     defaultTagId: null,
     majorityAge: 16,
+    rehearsalDefaults: { title: 'Assaig general', startTime: '18:45', location: 'Lleialtat Santsenca', locationUrl: null },
   };
 
   const json = (route: Route, body: unknown, status = 200) =>

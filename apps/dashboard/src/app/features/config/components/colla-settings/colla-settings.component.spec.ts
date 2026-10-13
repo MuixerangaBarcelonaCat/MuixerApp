@@ -80,7 +80,11 @@ describe('CollaSettingsComponent', () => {
   it('fills the form with the stored settings', async () => {
     await setup();
 
-    expect(component.form.getRawValue()).toEqual({ ...stored });
+    // A missing place link shows as an empty field.
+    expect(component.form.getRawValue()).toEqual({
+      ...stored,
+      rehearsalDefaults: { ...stored.rehearsalDefaults, locationUrl: '' },
+    });
   });
 
   it('waits for the stored settings before showing the form', async () => {
@@ -133,6 +137,24 @@ describe('CollaSettingsComponent', () => {
     });
     expect(toast.success).toHaveBeenCalledWith("S'ha alçat la configuració de la colla.");
     expect(component.form.dirty).toBe(false);
+  });
+
+  it('sends an empty default start time and place link as null, and keeps an empty title and place', async () => {
+    await setup();
+    edit({ rehearsalDefaults: { title: '', startTime: '', location: '', locationUrl: '' } });
+
+    saveButton().click();
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ rehearsalDefaults: { title: '', startTime: null, location: '', locationUrl: null } }),
+    );
+  });
+
+  it('refuses a place link that is not a link', async () => {
+    await setup();
+    edit({ rehearsalDefaults: { title: 'Assaig', startTime: '18:45', location: 'Local', locationUrl: 'local de la colla' } });
+
+    expect(component.form.invalid).toBe(true);
   });
 
   it('sends no default tag as null', async () => {

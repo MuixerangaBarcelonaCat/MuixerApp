@@ -6,6 +6,18 @@ export interface ShirtRequirements {
   rehearsals: number;
 }
 
+/** What a new rehearsal starts with in the event form. Performances start empty. */
+export interface RehearsalDefaults {
+  /** May be empty: no title is filled in. */
+  title: string;
+  /** `HH:mm`; `null`: no start time is filled in. */
+  startTime: string | null;
+  /** May be empty: no place is filled in. */
+  location: string;
+  /** `null`: no place link is filled in. */
+  locationUrl: string | null;
+}
+
 /** The colla's own parameters (`GET /colla-settings`), edited by an ADMIN at `/config/colla`. */
 export interface CollaSettings {
   collaName: string;
@@ -21,6 +33,7 @@ export interface CollaSettings {
   defaultTagId: string | null;
   /** Age from which a person with a known birth date stops being xicalla. */
   majorityAge: number;
+  rehearsalDefaults: RehearsalDefaults;
 }
 
 /** What the login screen may read before anyone signs in (`GET /colla-settings/public`). */

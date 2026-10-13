@@ -16,6 +16,12 @@ export function toCollaSettings(row: CollaSettingsEntity): CollaSettings {
     autoCheckInPerformances: row.autoCheckInPerformances,
     defaultTagId: row.defaultTagId,
     majorityAge: row.majorityAge,
+    rehearsalDefaults: {
+      title: row.rehearsalDefaultTitle,
+      startTime: row.rehearsalDefaultStartTime,
+      location: row.rehearsalDefaultLocation,
+      locationUrl: row.rehearsalDefaultLocationUrl,
+    },
   };
 }
 
@@ -34,5 +40,9 @@ export function toCollaSettingsColumns(settings: CollaSettings): CollaSettingsCo
     autoCheckInPerformances: settings.autoCheckInPerformances,
     defaultTagId: settings.defaultTagId,
     majorityAge: settings.majorityAge,
+    rehearsalDefaultTitle: settings.rehearsalDefaults.title,
+    rehearsalDefaultStartTime: settings.rehearsalDefaults.startTime,
+    rehearsalDefaultLocation: settings.rehearsalDefaults.location,
+    rehearsalDefaultLocationUrl: settings.rehearsalDefaults.locationUrl,
   };
 }

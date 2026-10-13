@@ -65,6 +65,12 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('date');
   });
 
+  it('supports the time type (start times)', () => {
+    fixture.componentRef.setInput('type', 'time');
+    fixture.detectChanges();
+    expect(nativeInput().type).toBe('time');
+  });
+
   describe('inputMode', () => {
     it('sets no inputmode attribute by default', () => {
       expect(nativeInput().getAttribute('inputmode')).toBeNull();

@@ -51,6 +51,19 @@ export class CollaSettingsEntity {
   @Column({ type: 'int' })
   majorityAge: number;
 
+  @Column({ type: 'varchar', length: 200 })
+  rehearsalDefaultTitle: string;
+
+  /** `HH:mm`. */
+  @Column({ type: 'varchar', length: 5, nullable: true })
+  rehearsalDefaultStartTime: string | null;
+
+  @Column({ type: 'varchar', length: 200 })
+  rehearsalDefaultLocation: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  rehearsalDefaultLocationUrl: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

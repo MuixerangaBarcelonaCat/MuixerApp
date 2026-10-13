@@ -17,6 +17,10 @@ const row = (): CollaSettingsEntity =>
     autoCheckInPerformances: false,
     defaultTagId: 'tag-id',
     majorityAge: 18,
+    rehearsalDefaultTitle: 'Assaig de dijous',
+    rehearsalDefaultStartTime: null,
+    rehearsalDefaultLocation: 'Local de la colla',
+    rehearsalDefaultLocationUrl: 'https://maps.example/local',
     createdAt: new Date(),
     updatedAt: new Date(),
   }) as CollaSettingsEntity;
@@ -32,6 +36,12 @@ describe('colla settings mapper', () => {
       autoCheckInPerformances: false,
       defaultTagId: 'tag-id',
       majorityAge: 18,
+      rehearsalDefaults: {
+        title: 'Assaig de dijous',
+        startTime: null,
+        location: 'Local de la colla',
+        locationUrl: 'https://maps.example/local',
+      },
     });
   });
 

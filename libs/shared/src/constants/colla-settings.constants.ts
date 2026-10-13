@@ -16,4 +16,5 @@ export const DEFAULT_COLLA_SETTINGS: CollaSettings = {
   autoCheckInPerformances: true,
   defaultTagId: null,
   majorityAge: 16,
+  rehearsalDefaults: { title: 'Assaig general', startTime: '18:45', location: 'Lleialtat Santsenca', locationUrl: null },
 };

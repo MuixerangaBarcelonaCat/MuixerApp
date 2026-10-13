@@ -10,13 +10,18 @@ import {
   OnChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AlertComponent, ButtonComponent, CheckboxComponent, InputComponent, ModalComponent, SelectComponent, TextareaComponent } from '@muixer/ui';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventDetail, Season, CreateEventPayload, UpdateEventPayload, EventType } from '../../models/event.model';
 import { findSeasonForDate } from '../../utils/season.util';
+import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
+
+/** The fields a new event takes from its type. */
+const TYPE_DEFAULT_FIELDS = ['title', 'startTime', 'location', 'locationUrl'] as const;
+type TypeDefaultField = (typeof TYPE_DEFAULT_FIELDS)[number];
 
 @Component({
   selector: 'app-event-form-modal',
@@ -29,6 +34,7 @@ export class EventFormModalComponent implements OnInit, OnChanges {
   private readonly fb = inject(FormBuilder);
   private readonly eventService = inject(EventService);
   private readonly seasonService = inject(SeasonService);
+  private readonly collaSettings = inject(CollaSettingsService);
 
   readonly EventType = EventType;
 
@@ -73,6 +79,26 @@ export class EventFormModalComponent implements OnInit, OnChanges {
   });
 
   private readonly dateValue = toSignal(this.form.controls.date.valueChanges, { initialValue: '' });
+
+  constructor() {
+    // A new event takes the title, time and place of its type (the colla's rehearsal defaults;
+    // nothing for a performance), except in a field someone has already typed in.
+    this.form.controls.eventType.valueChanges.pipe(takeUntilDestroyed()).subscribe((type) => {
+      if (this.isEditMode() || !type) return;
+      const defaults = this.defaultsFor(type);
+      for (const field of TYPE_DEFAULT_FIELDS) {
+        const control = this.form.controls[field];
+        if (!control.dirty) control.setValue(defaults[field]);
+      }
+    });
+  }
+
+  /** What a new event of `type` starts with: the colla's rehearsal defaults, or nothing. */
+  private defaultsFor(type: EventType): Record<TypeDefaultField, string> {
+    if (type !== EventType.ASSAIG) return { title: '', startTime: '', location: '', locationUrl: '' };
+    const { title, startTime, location, locationUrl } = this.collaSettings.settings().rehearsalDefaults;
+    return { title, startTime: startTime ?? '', location, locationUrl: locationUrl ?? '' };
+  }
 
   /** Which season the chosen date falls in, shown under the date field. */
   readonly dateHint = computed<string | undefined>(() => {
@@ -123,11 +149,10 @@ export class EventFormModalComponent implements OnInit, OnChanges {
       });
     } else {
       const preset = this.presetEventType();
-      const defaultTitle = preset === EventType.ASSAIG ? 'Assaig general'
-        : '';
+      const eventType = preset ?? EventType.ASSAIG;
       this.form.reset({
-        title: defaultTitle,
-        eventType: preset ?? EventType.ASSAIG,
+        ...this.defaultsFor(eventType),
+        eventType,
         countsForStatistics: true,
       });
       if (preset) {

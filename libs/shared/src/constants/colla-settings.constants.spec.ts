@@ -14,6 +14,7 @@ describe('DEFAULT_COLLA_SETTINGS', () => {
       autoCheckInPerformances: true,
       defaultTagId: null,
       majorityAge: 16,
+      rehearsalDefaults: { title: 'Assaig general', startTime: '18:45', location: 'Lleialtat Santsenca', locationUrl: null },
     });
   });
 });

@@ -106,6 +106,23 @@
           </div>
         </lib-card>
 
+        <lib-card title="Assajos nous" [icon]="ICONS.ASSAIG">
+          <div formGroupName="rehearsalDefaults" class="flex flex-col gap-3">
+            <p class="text-sm text-base-content/60">
+              Un assaig nou ja comença amb estes dades. Les actuacions comencen buides.
+            </p>
+            <lib-input label="Títol" formControlName="title" [maxLength]="200"
+              [errorText]="fieldError('rehearsalDefaults.title')" />
+            <lib-input label="Hora d'inici" type="time" formControlName="startTime"
+              hint="Deixeu-la buida perquè no s'òmpliga cap hora."
+              [errorText]="fieldError('rehearsalDefaults.startTime')" />
+            <lib-input label="Lloc" formControlName="location" [maxLength]="200"
+              [errorText]="fieldError('rehearsalDefaults.location')" />
+            <lib-input label="Enllaç del lloc" type="url" formControlName="locationUrl" placeholder="https://"
+              [errorText]="fieldError('rehearsalDefaults.locationUrl')" />
+          </div>
+        </lib-card>
+
         <lib-card title="Persones" [icon]="ICONS.XICALLA">
           <div class="flex flex-col gap-4">
             <lib-input

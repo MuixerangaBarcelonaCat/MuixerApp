@@ -7,13 +7,16 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { HeightGapThreshold, ShirtRequirements, TroncHeightThresholds, UpdateCollaSettings } from '@muixer/shared';
+import { HeightGapThreshold, RehearsalDefaults, ShirtRequirements, TroncHeightThresholds, UpdateCollaSettings } from '@muixer/shared';
 
 const WHOLE = { message: 'El valor ha de ser un nombre enter.' };
 
@@ -57,6 +60,31 @@ class TroncHeightThresholdsDto implements TroncHeightThresholds {
   @ValidateNested()
   @Type(() => HeightGapThresholdDto)
   support: HeightGapThresholdDto;
+}
+
+class RehearsalDefaultsDto implements RehearsalDefaults {
+  @ApiProperty({ example: 'Assaig general', maxLength: 200, description: 'Buit: no s\'omple cap títol.' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(200, { message: 'El títol pot tindre 200 caràcters com a màxim.' })
+  title: string;
+
+  @ApiProperty({ type: String, example: '18:45', nullable: true, description: 'HH:mm; null: no s\'omple cap hora.' })
+  @ValidateIf((o: RehearsalDefaultsDto) => o.startTime !== null)
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: "L'hora ha de tindre el format HH:mm." })
+  startTime: string | null;
+
+  @ApiProperty({ example: 'Lleialtat Santsenca', maxLength: 200, description: 'Buit: no s\'omple cap lloc.' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(200, { message: 'El lloc pot tindre 200 caràcters com a màxim.' })
+  location: string;
+
+  @ApiProperty({ type: String, example: 'https://maps.app.goo.gl/…', nullable: true, description: "null: no s'omple cap enllaç." })
+  @ValidateIf((o: RehearsalDefaultsDto) => o.locationUrl !== null)
+  @IsUrl({}, { message: "L'enllaç del lloc no és vàlid." })
+  @MaxLength(500, { message: "L'enllaç del lloc pot tindre 500 caràcters com a màxim." })
+  locationUrl: string | null;
 }
 
 /** Any subset of the settings. A nested group (`shirtRequirements`, `troncHeightThresholds`) is replaced as a whole. */
@@ -111,4 +139,10 @@ export class UpdateCollaSettingsDto implements UpdateCollaSettings {
   @Min(1, { message: "L'edat mínima és 1 any." })
   @Max(25, { message: "L'edat màxima és 25 anys." })
   majorityAge?: number;
+
+  @ApiPropertyOptional({ type: RehearsalDefaultsDto, description: "Amb què comença un assaig nou al formulari d'esdeveniment." })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RehearsalDefaultsDto)
+  rehearsalDefaults?: RehearsalDefaultsDto;
 }
