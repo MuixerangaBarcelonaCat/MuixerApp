@@ -479,11 +479,14 @@
     </div>
   }
 
+  <!-- The person card, in the page overlay next to its node (see `hoveredPerson`). -->
   @if (hoveredPerson(); as hovered) {
-    <div
-      class="fixed z-50 pointer-events-none"
-      [style.top.px]="hovered.top"
-      [style.left.px]="hovered.left"
+    <ng-template
+      cdkConnectedOverlay
+      [cdkConnectedOverlayOpen]="true"
+      [cdkConnectedOverlayOrigin]="hovered.anchor"
+      [cdkConnectedOverlayPositions]="hoverCardPositions"
+      cdkConnectedOverlayPanelClass="pointer-events-none"
     >
       <app-person-hover-card
         [info]="hovered.info"
@@ -491,7 +494,7 @@
         [heightMode]="heightMode()"
         [activeNodePositionType]="hovered.positionType"
       />
-    </div>
+    </ng-template>
   }
 
 </section>

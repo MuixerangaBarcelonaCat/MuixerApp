@@ -35,6 +35,24 @@ describe('FigureCanvasComponent', () => {
     }
   });
 
+  describe('readonly look', () => {
+    const node = { id: 'n1', label: 'Vent', zone: FigureZone.PINYA, positionType: 'vents', color: null, climbIndicator: null } as unknown as CanvasNode;
+    const readonlyInput = (inputs: Record<string, unknown>) => {
+      const fixture = render();
+      for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
+      const component = fixture.componentInstance as unknown as { readonlyNodeInput(n: CanvasNode): NodeAppearanceInput };
+      return component.readonlyNodeInput(node);
+    };
+
+    it('draws the nodes as the projection does by default', () => {
+      expect(readonlyInput({ mode: 'readonly' }).mode).toBe('projection');
+    });
+
+    it('draws the nodes filled, as the template editor does, with the template look (the Rengles tab)', () => {
+      expect(readonlyInput({ mode: 'readonly', readonlyLook: 'template' }).mode).toBe('template');
+    });
+  });
+
   describe('display modes (appearance input of a staffed node)', () => {
     const node = { id: 'n1', label: 'Vent', zone: FigureZone.PINYA, positionType: 'vents', color: null, climbIndicator: null } as unknown as CanvasNode;
     const assignment = {

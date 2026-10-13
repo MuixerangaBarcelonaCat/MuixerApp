@@ -35,7 +35,7 @@ import { nodeFill } from '../../theme/node-color';
 import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
 import { DisplayMode, HeightDomain, displayModeOverrides, personDisplayFacts } from '../../node-render/display-mode';
-import { nodeDrawPlan } from '../../node-render/draw-plan';
+import { nodeDrawPlan, scaledNodeDrawPlan } from '../../node-render/draw-plan';
 import { loadCanvasFonts } from '../../node-render/fonts';
 import { hashSeed } from '../../node-render/sketch';
 import { dotGrid } from '../../utils/dot-grid.util';
@@ -140,6 +140,17 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('editor');
+  /**
+   * How `readonly` mode draws its nodes: as the projection does (an empty node is an outline), or
+   * as the template editor does (every node filled in its type's wash), for the Rengles tab.
+   */
+  readonly readonlyLook = input<'projection' | 'template'>('projection');
+  /**
+   * The fit-to-screen scale already baked into the nodes' sizes (`readonly` mode: the projection
+   * shrinks every node to fit the segment on the screen). Each node is drawn at its natural size
+   * and scaled by it, so a phone draws the same nodes as a big screen, only smaller.
+   */
+  readonly nodeScale = input(1);
   /** Hides the bottom-left zoom-percentage dropdown — pinch/wheel zoom still work regardless.
    *  Off by default on mobile (PWA), where the numeric selector is a precision control the
    *  touch UI doesn't need and just clutters a small viewport. */
@@ -376,6 +387,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.nextPerformanceMap();
       this.phase();
       this.conflictPersonIds();
+      this.readonlyLook();
+      this.nodeScale();
       if (!this.stage) return;
       if (this.mode() === 'readonly') {
         untracked(() => this.renderReadonlyNodes());
@@ -1506,19 +1519,28 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    * Draws a node into `group` through the shared pipeline (appearance → draw plan → Konva); returns
    * its outline shape. What the plan raises (the observation sticker, the move badge) goes into
    * `raisedGroup` when given — a group with the node's own transform on a layer above every node —
-   * so a neighbouring node never covers it. The node's id seeds its pen strokes.
+   * so a neighbouring node never covers it. The node's id seeds its pen strokes. A node whose size
+   * carries a fit-to-screen `scale` is drawn at its natural size, in groups scaled by it.
    */
   private paintNode(
     group: Konva.Group,
     node: { id: string; width: number; height: number; shape?: string | null },
     input: NodeAppearanceInput,
     raisedGroup?: Konva.Group,
+    scale = 1,
   ): Konva.Shape {
     const appearance = resolveNodeAppearance(input, this.theme());
     const size = { width: node.width, height: node.height, shape: node.shape ?? NodeShape.RECTANGLE, seed: hashSeed(node.id) };
-    const { shape, nodes, raised } = drawNodePlan(nodeDrawPlan(appearance, size, this.theme(), measureText));
-    group.add(...nodes);
-    if (raised.length > 0) (raisedGroup ?? group).add(...raised);
+    const plan = scale === 1 ? nodeDrawPlan(appearance, size, this.theme(), measureText) : scaledNodeDrawPlan(appearance, size, scale, this.theme(), measureText);
+    const { shape, nodes, raised } = drawNodePlan(plan);
+    const scaled = (target: Konva.Group) => {
+      if (scale === 1) return target;
+      const inner = new Konva.Group({ scaleX: scale, scaleY: scale, listening: target.listening() });
+      target.add(inner);
+      return inner;
+    };
+    scaled(group).add(...nodes);
+    if (raised.length > 0) scaled(raisedGroup ?? group).add(...raised);
     return shape;
   }
 
@@ -1533,6 +1555,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       opacity: source.opacity(),
       listening: false,
     });
+  }
+
+  /** What a node shows in `readonly` mode, in the look `readonlyLook` asks for. */
+  private readonlyNodeInput(node: CanvasNode, assignment?: AssignmentDetail): NodeAppearanceInput {
+    return this.appearanceInput(node, assignment, this.readonlyLook());
   }
 
   /** What a node shows in `mode`, from the node, the person placed on it and the canvas inputs. */
@@ -1927,7 +1954,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       });
       const raised = this.raisedGroupFor(group);
       raisedLayer.add(raised);
-      this.paintNode(group, node, this.appearanceInput(node, assignmentByNodeId.get(node.id), 'projection'), raised);
+      this.paintNode(group, node, this.readonlyNodeInput(node, assignmentByNodeId.get(node.id)), raised, this.nodeScale());
       this.pinyaLayer.add(group);
     }
     this.pinyaLayer.add(raisedLayer);

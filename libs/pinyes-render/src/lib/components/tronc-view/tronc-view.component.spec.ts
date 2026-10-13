@@ -1737,6 +1737,24 @@ describe('TroncViewComponent', () => {
       expect(component.hoveredPerson()?.info.alias).toBe('Pepet');
     });
 
+    it('anchors the card to the node and draws it in the page overlay, out of reach of a tilted (transformed) ancestor', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+      const target = makeButtonTarget();
+
+      component.onNodeHover(makeClickEvent(target), 'node-1');
+      fixture.detectChanges();
+
+      expect(component.hoveredPerson()?.anchor).toBe(target);
+      expect(fixture.nativeElement.querySelector('app-person-hover-card')).toBeNull();
+      expect(document.querySelector('.cdk-overlay-container app-person-hover-card')).not.toBeNull();
+
+      component.onNodeLeave();
+      fixture.detectChanges();
+      expect(document.querySelector('.cdk-overlay-container app-person-hover-card')).toBeNull();
+    });
+
     it('onNodeClick does not reveal a card for an unassigned node', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
       fixture.componentRef.setInput('assignments', []);
@@ -1762,8 +1780,7 @@ describe('TroncViewComponent', () => {
       const section = document.createElement('section');
       component.hoveredPerson.set({
         info: { alias: 'Pepet', attendanceStatus: null, isXicalla: false, shoulderHeight: null, notes: null, notesEmoji: null, positions: [] },
-        top: 0,
-        left: 0,
+        anchor: document.createElement('button'),
         positionType: null,
       });
 
@@ -1778,8 +1795,7 @@ describe('TroncViewComponent', () => {
       section.appendChild(child);
       component.hoveredPerson.set({
         info: { alias: 'Pepet', attendanceStatus: null, isXicalla: false, shoulderHeight: null, notes: null, notesEmoji: null, positions: [] },
-        top: 0,
-        left: 0,
+        anchor: document.createElement('button'),
         positionType: null,
       });
 

@@ -2,7 +2,7 @@ import { FONT_FAMILY } from '@muixer/ui';
 import { FigureZone } from '@muixer/shared';
 import { buildCanvasTheme } from '../theme/canvas-theme';
 import { NodeAppearanceInput, resolveNodeAppearance } from './appearance';
-import { DrawPrimitive, NODE_SKETCH_INSET, NODE_TEXT_SCALE, fitNodeName, nodeDrawPlan } from './draw-plan';
+import { DrawPrimitive, NODE_SKETCH_INSET, NODE_TEXT_SCALE, fitNodeName, nodeDrawPlan, scaledNodeDrawPlan } from './draw-plan';
 import { nodeOutline } from './outline';
 import { sketchShape } from './sketch';
 
@@ -109,6 +109,23 @@ describe('nodeDrawPlan', () => {
     expect(only(small, 'loop')[0].width).toBeCloseTo(0.7);
     const large = nodeDrawPlan(resolveNodeAppearance(marta, theme), { width: 160, height: 80, shape: 'RECTANGLE' }, theme, measure);
     expect(only(large, 'shape')[0].strokeWidth).toBeCloseTo(1.3);
+  });
+
+  it('hatches a pending node at the same density whatever its size: lines apart and thick in proportion to its height', () => {
+    const hatching = (height: number) => {
+      const appearance = resolveNodeAppearance({ ...marta, attendance: 'pending' }, theme);
+      const [shape] = only(nodeDrawPlan(appearance, { width: height * 2, height, shape: 'RECTANGLE', seed: SEED }, theme, measure), 'shape');
+      const lines = shape.sketch.filter((p) => p.role === 'fill');
+      return { count: lines.reduce((n, p) => n + (p.d.match(/M/g)?.length ?? 0), 0), weight: lines[0].strokeWidth };
+    };
+    const standard = hatching(H);
+    // The 40-unit node keeps the hatching as previewed: one unit thick.
+    expect(standard.weight).toBe(1);
+    expect(hatching(H / 2)).toEqual({ count: standard.count, weight: 0.5 });
+    // The inset stops shrinking past the standard height, so a bigger node may gain a line at most.
+    const big = hatching(H * 2);
+    expect(big.weight).toBe(2);
+    expect(Math.abs(big.count - standard.count)).toBeLessThanOrEqual(1);
   });
 
   it('centres the name in Atkinson 700 in the projection, fitted to the node', () => {
@@ -309,6 +326,22 @@ describe('nodeDrawPlan', () => {
 
   it('draws nothing but the shape and its label for an empty position', () => {
     expect(plan({ person: null }).map((p) => p.kind)).toEqual(['shape', 'text']);
+  });
+});
+
+describe('scaledNodeDrawPlan', () => {
+  const projected = resolveNodeAppearance({ ...marta, mode: 'projection', person: { name: 'Montserrat' } }, theme);
+  const ellipse = (scale: number) =>
+    scaledNodeDrawPlan(projected, { width: W * scale, height: H * scale, shape: 'ELLIPSE', seed: SEED }, scale, theme, measure);
+
+  it('lays a node shrunk to fit a small screen out as at its natural size, for the painter to scale: same name, same pen', () => {
+    expect(ellipse(0.25)).toEqual(nodeDrawPlan(projected, { width: W, height: H, shape: 'ELLIPSE', seed: SEED }, theme, measure));
+  });
+
+  it('keeps a name that fits at the natural size whole, which the shrunk node alone would cut', () => {
+    const shrunk = nodeDrawPlan(projected, { width: W / 4, height: H / 4, shape: 'ELLIPSE', seed: SEED }, theme, measure);
+    expect(only(shrunk, 'text', 'name')[0].text).toMatch(/…$/);
+    expect(only(ellipse(0.25), 'text', 'name')[0].text).toBe('Montserrat');
   });
 });
 

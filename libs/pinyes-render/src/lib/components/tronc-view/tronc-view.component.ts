@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ConnectedPosition, OverlayModule } from '@angular/cdk/overlay';
 import { LucideAngularModule, Scale } from 'lucide-angular';
 import { ButtonComponent, InputComponent, BadgeComponent, NODE_TYPE_PALETTE } from '@muixer/ui';
 import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
@@ -115,7 +116,7 @@ function knownCm(height: CumulativeHeight | undefined): number {
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, NodeDrawingComponent, ButtonComponent, InputComponent, BadgeComponent],
+  imports: [FormsModule, OverlayModule, LucideAngularModule, PersonHoverCardComponent, NodeDrawingComponent, ButtonComponent, InputComponent, BadgeComponent],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
@@ -217,7 +218,20 @@ export class TroncViewComponent {
   /** Whether the directions section is expanded. */
   readonly directionsExpanded = signal(true);
 
-  readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
+  /**
+   * The person card and the node it is anchored to. The card is drawn in the page overlay (a CDK
+   * connected overlay), not in place: the panel sits in a tilted pinned card, and a transformed
+   * ancestor would make an in-place `position: fixed` card measure from it instead of the viewport.
+   */
+  readonly hoveredPerson = signal<{ info: PersonHoverInfo; anchor: HTMLElement; positionType: string | null } | null>(null);
+
+  /** Right of the node by preference, left of it when the viewport leaves no room. */
+  protected readonly hoverCardPositions: ConnectedPosition[] = [
+    { originX: 'end', originY: 'top', overlayX: 'start', overlayY: 'top', offsetX: 8 },
+    { originX: 'start', originY: 'top', overlayX: 'end', overlayY: 'top', offsetX: -8 },
+    { originX: 'end', originY: 'bottom', overlayX: 'start', overlayY: 'bottom', offsetX: 8 },
+    { originX: 'start', originY: 'bottom', overlayX: 'end', overlayY: 'bottom', offsetX: -8 },
+  ];
 
   /** Assignment-mode drag-and-drop: id of the node whose person is currently being dragged. */
   readonly draggingNodeId = signal<string | null>(null);
@@ -732,7 +746,6 @@ export class TroncViewComponent {
       this.hoveredPerson.set(null);
       return;
     }
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const details = this.personDetailsMap().get(assignment.person.id);
     const node = [...this.troncNodes(), ...this.baseNodes(), ...this.directionNodes()].find((n) => n.id === nodeId);
     this.hoveredPerson.set({
@@ -746,8 +759,7 @@ export class TroncViewComponent {
         notesEmoji: details?.notesEmoji ?? null,
         positions: details?.positions ?? [],
       },
-      top: rect.top,
-      left: rect.right + 8,
+      anchor: event.currentTarget as HTMLElement,
       positionType: node?.positionType ?? null,
     });
   }

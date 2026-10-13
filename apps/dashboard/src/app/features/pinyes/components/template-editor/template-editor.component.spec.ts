@@ -23,6 +23,7 @@ import { ToastService, ModalComponent, ButtonComponent, NODE_TYPE_NEUTRAL, NODE_
 class StubFigureCanvas {
   readonly nodes = input<unknown[]>([]);
   readonly mode = input<string>('editor');
+  readonly readonlyLook = input<string>('projection');
   readonly gridEnabled = input<boolean>(true);
   readonly gridSpacing = input<number>(40);
   readonly snapToGrid = input<boolean>(false);
@@ -257,6 +258,19 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       component.togglePreview();
       component.togglePreview();
       expect(component.previewAnnouncement()).toBe('Mode previsualització desactivat');
+    });
+  });
+
+  describe('canvasReadonlyLook computed', () => {
+    it('keeps the nodes filled in the Rengles tab', () => {
+      component.renglaEditMode.set(true);
+      expect(component.canvasReadonlyLook()).toBe('template');
+    });
+
+    it('draws the preview as the projection does', () => {
+      component.previewMode.set(true);
+      component.renglaEditMode.set(true);
+      expect(component.canvasReadonlyLook()).toBe('projection');
     });
   });
 

@@ -392,6 +392,11 @@ export class PinyaProjectionComponent {
     });
   });
 
+  /** The fit-to-screen scale `distributionNodes` bakes into every node's size: the canvas draws each node at its natural size, scaled by it. */
+  readonly distributionScale = computed(
+    () => computeDistributionTransform(this.effectiveInstances(), this.containerWidth(), this.containerHeight()).scale,
+  );
+
   /**
    * All pinya/base/decoration nodes from every instance, translated into a shared
    * screen-space coordinate system using each instance's effective (stored or
