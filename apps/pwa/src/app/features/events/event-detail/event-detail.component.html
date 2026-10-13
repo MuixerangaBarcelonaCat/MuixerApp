@@ -19,28 +19,6 @@
   <section class="flex flex-col gap-4 pb-4">
     <app-event-card [event]="ev" [locationUrl]="ev.locationUrl" [showAttendance]="false" [clickable]="false" />
 
-    @if (isStaff() && attendanceStats(); as stats) {
-      <lib-card data-testid="attendance-stats-box">
-        <div class="flex justify-between gap-1">
-          @for (tile of attendanceStatusTiles(stats); track tile.status) {
-            <a
-              class="flex flex-col items-center gap-0.5 min-w-0 flex-1 rounded-lg px-1 hover:bg-base-200 active:bg-base-200"
-              [class.opacity-50]="tile.status === AttendanceStatus.PENDENT"
-              [routerLink]="['/events', ev.id, 'roll-call']"
-              [queryParams]="tile.status === AttendanceStatus.PENDENT ? {} : { status: tile.status }"
-            >
-              <span class="text-lg font-semibold">{{ tile.adults + tile.xicalla }}</span>
-              <span class="text-xs text-base-content/60 text-center">{{ tile.label }}</span>
-              <span class="flex flex-col items-center text-[10px] leading-tight text-base-content/50 whitespace-nowrap">
-                <span>{{ tile.adults }} adults</span>
-                <span>{{ tile.xicalla }} xicalla</span>
-              </span>
-            </a>
-          }
-        </div>
-      </lib-card>
-    }
-
     @if (ev.description || ev.information) {
       <lib-card>
         @if (ev.description) {
@@ -116,6 +94,30 @@
         </span>
       }
     </div>
+
+    @if (isStaff() && attendanceStats(); as stats) {
+      <div class="stats-section order-last">
+        <lib-card data-testid="attendance-stats-box">
+          <div class="flex justify-between gap-1">
+            @for (tile of attendanceStatusTiles(stats); track tile.status) {
+              <a
+                class="flex flex-col items-center gap-0.5 min-w-0 flex-1 rounded-lg px-1 hover:bg-base-200 active:bg-base-200"
+                [class.opacity-50]="tile.status === AttendanceStatus.PENDENT"
+                [routerLink]="['/events', ev.id, 'roll-call']"
+                [queryParams]="tile.status === AttendanceStatus.PENDENT ? {} : { status: tile.status }"
+              >
+                <span class="text-lg font-semibold">{{ tile.adults + tile.xicalla }}</span>
+                <span class="text-xs text-base-content/60 text-center">{{ tile.label }}</span>
+                <span class="flex flex-col items-center text-[10px] leading-tight text-base-content/50 whitespace-nowrap">
+                  <span>{{ tile.adults }} adults</span>
+                  <span>{{ tile.xicalla }} xicalla</span>
+                </span>
+              </a>
+            }
+          </div>
+        </lib-card>
+      </div>
+    }
   </section>
 }
 </app-pull-to-refresh>
