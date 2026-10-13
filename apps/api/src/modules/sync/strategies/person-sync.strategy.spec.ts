@@ -303,6 +303,50 @@ describe('PersonSyncStrategy', () => {
       });
     });
 
+    // La camisa també es lliura des de MuixerApp: un legacy sense data no l'ha d'esborrar.
+    it('keeps a local shirtDate when the legacy record has none', (done) => {
+      const localShirtDate = new Date('2026-10-10');
+      const existingPerson = {
+        id: 'uuid-1',
+        legacyId: '123',
+        isActive: true,
+        shirtDate: localShirtDate,
+      } as Person;
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([{ ...mockLegacyPerson, instant_camisa: '' }]);
+      personRepository.findOne.mockResolvedValue(existingPerson);
+      personRepository.save.mockResolvedValue(existingPerson);
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(existingPerson.shirtDate).toBe(localShirtDate);
+          done();
+        },
+      });
+    });
+
+    it('takes the legacy shirtDate when the legacy record has one', (done) => {
+      const existingPerson = {
+        id: 'uuid-1',
+        legacyId: '123',
+        isActive: true,
+        shirtDate: null,
+      } as Person;
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
+      personRepository.findOne.mockResolvedValue(existingPerson);
+      personRepository.save.mockResolvedValue(existingPerson);
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(existingPerson.shirtDate).toEqual(expect.any(Date));
+          done();
+        },
+      });
+    });
+
     it('creates a new person instead of reactivating one that was manually deactivated in MuixerApp', (done) => {
       const deactivatedPerson = {
         id: 'uuid-1',

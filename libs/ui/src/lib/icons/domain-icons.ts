@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   Newspaper,
   ShieldCheck,
+  Shirt,
   Smartphone,
   Sparkles,
   Star,
@@ -58,6 +59,8 @@ export const DOMAIN_ICONS = {
   ACTUACIO: Star,
   PERSONA: Users,
   XICALLA: Baby,
+  /** La camisa de la colla: el lliurament que fa oficial un membre. */
+  CAMISA: Shirt,
   OBSERVACIONS: CircleAlert,
   NOTICIA: Newspaper,
   BELL: Bell,

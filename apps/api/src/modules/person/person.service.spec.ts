@@ -409,6 +409,51 @@ describe('PersonService', () => {
     });
   });
 
+  describe('findShirtCandidates', () => {
+    const row = (alias: string, performancesAttended: number, rehearsalsAttended: number) => ({
+      id: `id-${alias}`,
+      alias,
+      name: 'Nom',
+      firstSurname: 'Cognom',
+      secondSurname: null,
+      isXicalla: false,
+      joinDate: null,
+      performancesAttended,
+      rehearsalsAttended,
+      lastAttendedDate: null,
+    });
+
+    it('marks who has the right to a camisa and sorts them first, then by closeness', async () => {
+      mockPersonRepository.query.mockResolvedValueOnce([
+        row('Lluny', 0, 1),
+        row('Dret', 2, 6),
+        row('Prop', 1, 6),
+      ]);
+
+      const result = await service.findShirtCandidates();
+
+      expect(result.map((c) => c.alias)).toEqual(['Dret', 'Prop', 'Lluny']);
+      expect(result[0]).toEqual(
+        expect.objectContaining({ id: 'id-Dret', isEligible: true, missingTotal: 0 }),
+      );
+      expect(result[1]).toEqual(expect.objectContaining({ isEligible: false, missingTotal: 1 }));
+      expect(result[2]).toEqual(expect.objectContaining({ isEligible: false, missingTotal: 7 }));
+    });
+
+    it('counts only ASSISTIT on statistic events of active, non-provisional persons without camisa', async () => {
+      mockPersonRepository.query.mockResolvedValueOnce([]);
+
+      await service.findShirtCandidates();
+
+      const [sql, params] = mockPersonRepository.query.mock.calls[0];
+      expect(sql).toContain('"shirtDate" IS NULL');
+      expect(sql).toContain('"isActive"');
+      expect(sql).toContain('"isProvisional"');
+      expect(sql).toContain('"countsForStatistics"');
+      expect(params).toEqual(['ASSISTIT', 'ACTUACIO', 'ASSAIG']);
+    });
+  });
+
   describe('softDelete', () => {
     it('should deactivate a person without touching lastSyncedAt (that field belongs to the legacy sync)', async () => {
       const originalLastSyncedAt = new Date('2024-01-01');

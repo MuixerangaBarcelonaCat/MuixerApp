@@ -15,7 +15,14 @@ import {
   type PersonSortOrder,
 } from './constants/person-sort.constants';
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
-import { TagCategory } from '@muixer/shared';
+import {
+  AttendanceStatus,
+  EventType,
+  ShirtCandidate,
+  TagCategory,
+  compareShirtCandidates,
+  shirtProgress,
+} from '@muixer/shared';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
@@ -50,6 +57,25 @@ const ATTENDED_COUNT_EXPRESSION = `(SELECT COUNT(*)::int FROM attendances a
    WHERE a."personId" = person.id
      AND a.status = 'ASSISTIT'
      AND ${EVENT_IN_CURRENT_SEASON})`;
+
+/**
+ * Persones actives i no provisionals sense camisa, amb les actuacions i assajos amb assistència
+ * marcada de tota la història (només esdeveniments que compten per a estadístiques) i la data de
+ * la darrera, per a desfer empats.
+ * `$1` = ASSISTIT, `$2` = ACTUACIO, `$3` = ASSAIG.
+ */
+const SHIRT_CANDIDATES_QUERY = `SELECT p.id, p.alias, p.name, p."firstSurname", p."secondSurname",
+     p."isXicalla", p."joinDate",
+     (COUNT(DISTINCT e.id) FILTER (WHERE e."eventType" = $2))::int AS "performancesAttended",
+     (COUNT(DISTINCT e.id) FILTER (WHERE e."eventType" = $3))::int AS "rehearsalsAttended",
+     MAX(e.date)::text AS "lastAttendedDate"
+   FROM persons p
+   LEFT JOIN attendances a ON a."personId" = p.id AND a.status = $1
+   LEFT JOIN events e ON e.id = a."eventId" AND e."countsForStatistics" = true
+   WHERE p."isActive" = true AND p."isProvisional" = false AND p."shirtDate" IS NULL
+   GROUP BY p.id`;
+
+type ShirtCandidateRow = Omit<ShirtCandidate, 'isEligible' | 'missingTotal'>;
 
 @Injectable()
 export class PersonService {
@@ -217,6 +243,25 @@ export class PersonService {
       );
     }
     return positions;
+  }
+
+  /**
+   * Persones pendents de camisa: primer qui ja hi té dret, després de més a menys a prop
+   * (`compareShirtCandidates`). Llista completa, sense paginar.
+   */
+  async findShirtCandidates(): Promise<ShirtCandidate[]> {
+    const rows: ShirtCandidateRow[] = await this.personRepository.query(SHIRT_CANDIDATES_QUERY, [
+      AttendanceStatus.ASSISTIT,
+      EventType.ACTUACIO,
+      EventType.ASSAIG,
+    ]);
+
+    return rows
+      .map((row) => {
+        const { isEligible, missingTotal } = shirtProgress(row);
+        return { ...row, isEligible, missingTotal };
+      })
+      .sort(compareShirtCandidates);
   }
 
   /** Retorna una persona per ID incloent posicions, mentor i gestor. Llança NotFoundException si no existeix. */

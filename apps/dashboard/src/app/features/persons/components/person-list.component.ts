@@ -100,6 +100,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
 })
 export class PersonListComponent {
   readonly ICON_PERSONA = DOMAIN_ICONS.PERSONA;
+  readonly ICON_CAMISA = DOMAIN_ICONS.CAMISA;
   readonly activationTutorialSteps = ACTIVATION_TUTORIAL_STEPS;
   protected readonly SearchIcon = Search;
 

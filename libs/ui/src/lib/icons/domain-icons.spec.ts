@@ -1,4 +1,4 @@
-import { ArrowRightToLine } from 'lucide-angular';
+import { ArrowRightToLine, Shirt } from 'lucide-angular';
 import { DOMAIN_ICONS } from './domain-icons';
 
 describe('DOMAIN_ICONS', () => {
@@ -6,5 +6,9 @@ describe('DOMAIN_ICONS', () => {
   // figure: an arrow pushing into a bar. Shared by the segment list toggle and the checkbox label.
   it('uses ArrowRightToLine for cordons oberts', () => {
     expect(DOMAIN_ICONS.CORDONS_OBERTS).toBe(ArrowRightToLine);
+  });
+
+  it('uses Shirt for the camisa', () => {
+    expect(DOMAIN_ICONS.CAMISA).toBe(Shirt);
   });
 });

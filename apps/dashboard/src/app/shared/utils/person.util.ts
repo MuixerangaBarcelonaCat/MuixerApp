@@ -10,7 +10,7 @@ import type { Person } from '../../features/persons/models/person.model';
  * @param person Objecte persona
  * @returns Nom complet (nom + cognoms)
  */
-export function getFullName(person: Person): string {
+export function getFullName(person: Pick<Person, 'name' | 'firstSurname' | 'secondSurname'>): string {
   return [person.name, person.firstSurname, person.secondSurname]
     .filter(Boolean)
     .join(' ');

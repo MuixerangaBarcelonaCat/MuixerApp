@@ -1,0 +1,136 @@
+<div class="flex flex-col gap-4 w-full max-w-5xl mx-auto">
+
+  <!-- Capçalera -->
+  <div class="flex items-center gap-3">
+    <lib-button variant="ghost" shape="circle" size="sm" ariaLabel="Torna a Persones" routerLink="/persons">
+      <lucide-icon name="ArrowLeft" [size]="18" aria-hidden="true" />
+    </lib-button>
+    <div class="flex-1 min-w-0">
+      <app-page-header title="Camises" [count]="loading() ? null : candidates().length" />
+      <p class="text-xs text-base-content/60 mt-0.5">
+        Calen {{ REQUIREMENTS.performances }} actuacions i {{ REQUIREMENTS.rehearsals }} assajos per rebre la camisa.
+      </p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="flex justify-center py-12">
+      <span class="loading loading-spinner loading-md text-base-content/40" aria-label="S'està carregant"></span>
+    </div>
+  } @else if (candidates().length === 0) {
+    <lib-empty-state [icon]="ICONS.CAMISA" message="No hi ha cap persona pendent de camisa." />
+  } @else {
+
+    <!-- Poden rebre la camisa -->
+    @if (eligible().length > 0) {
+      <section class="flex flex-col gap-2" data-testid="shirt-eligible">
+        <h2 class="text-sm font-semibold text-base-content/70 flex items-center gap-2">
+          <lucide-icon [img]="ICONS.CAMISA" [size]="16" class="text-success" aria-hidden="true" />
+          Poden rebre la camisa
+          <lib-badge variant="success" size="sm">{{ eligible().length }}</lib-badge>
+        </h2>
+        @for (candidate of eligible(); track candidate.id) {
+          <ng-container *ngTemplateOutlet="row; context: { $implicit: candidate }" />
+        }
+      </section>
+    }
+
+    <!-- En curs -->
+    @if (inProgress().length > 0) {
+      <section class="flex flex-col gap-2" data-testid="shirt-in-progress">
+        <h2 class="text-sm font-semibold text-base-content/70 flex items-center gap-2">
+          En curs
+          <lib-badge variant="neutral" size="sm">{{ inProgress().length }}</lib-badge>
+        </h2>
+        @for (candidate of inProgress(); track candidate.id) {
+          <ng-container *ngTemplateOutlet="row; context: { $implicit: candidate }" />
+        }
+      </section>
+    }
+  }
+</div>
+
+<ng-template #row let-candidate>
+  <lib-card [tone]="candidate.isEligible ? 'success' : 'default'" [attr.data-testid]="'shirt-row-' + candidate.id">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <a [routerLink]="['/persons', candidate.id]" class="font-semibold text-base-content link link-hover">
+            {{ candidate.alias }}
+          </a>
+          @if (candidate.isXicalla) {
+            <lucide-icon [img]="ICONS.XICALLA" [size]="14" class="text-base-content/60" aria-label="Xicalla" />
+          }
+        </div>
+        <p class="text-xs text-base-content/60 truncate">{{ getFullName(candidate) }}</p>
+      </div>
+
+      <div class="flex flex-wrap gap-x-5 gap-y-2">
+        <ng-container
+          *ngTemplateOutlet="progress; context: { icon: ICONS.ACTUACIO, label: 'Actuacions', attended: candidate.performancesAttended, required: REQUIREMENTS.performances }"
+        />
+        <ng-container
+          *ngTemplateOutlet="progress; context: { icon: ICONS.ASSAIG, label: 'Assajos', attended: candidate.rehearsalsAttended, required: REQUIREMENTS.rehearsals }"
+        />
+      </div>
+
+      <lib-button
+        size="sm"
+        variant="primary"
+        [outline]="!candidate.isEligible"
+        (clicked)="openAward(candidate)"
+      >
+        <lucide-icon [img]="ICONS.CAMISA" [size]="14" aria-hidden="true" />
+        Lliura la camisa
+      </lib-button>
+    </div>
+  </lib-card>
+</ng-template>
+
+<ng-template #progress let-icon="icon" let-label="label" let-attended="attended" let-required="required">
+  <div class="flex items-center gap-2" role="img" [attr.aria-label]="label + ': ' + attended + ' de ' + required">
+    <div class="flex gap-1" aria-hidden="true">
+      @for (filled of pips(attended, required); track $index) {
+        <span
+          class="size-7 rounded-full flex items-center justify-center"
+          [class]="pipClass(filled)"
+          [attr.data-pip]="filled ? 'met' : 'pending'"
+        >
+          <lucide-icon [img]="icon" [size]="14" />
+        </span>
+      }
+    </div>
+    <span class="w-9 shrink-0 text-xs tabular-nums text-base-content/70" aria-hidden="true">{{ attended }}/{{ required }}</span>
+  </div>
+</ng-template>
+
+<!-- Lliurament -->
+<lib-modal [open]="!!awarding()" (closed)="closeAward()" title="Lliurament de la camisa">
+  @if (awarding(); as candidate) {
+    <div class="flex flex-col gap-4">
+      <p class="text-sm">
+        Es lliurarà la camisa a <strong>{{ candidate.alias }}</strong> i deixarà d'aparéixer en esta llista.
+      </p>
+      @if (!candidate.isEligible) {
+        <lib-alert variant="warning" data-testid="shirt-award-warning">
+          <p class="text-sm">Encara no compleix els requisits: {{ missingText(candidate) }}.</p>
+        </lib-alert>
+      }
+      <lib-input
+        label="Data de lliurament"
+        type="date"
+        [max]="today"
+        [required]="true"
+        [ngModel]="awardDate()"
+        (ngModelChange)="awardDate.set($event)"
+      />
+    </div>
+  }
+  <div modalFooter>
+    <lib-button variant="ghost" [disabled]="saving()" (clicked)="closeAward()">Cancel·la</lib-button>
+    <lib-button variant="primary" [loading]="saving()" [disabled]="!awardDate()" (clicked)="confirmAward()">
+      Lliura
+    </lib-button>
+  </div>
+</lib-modal>

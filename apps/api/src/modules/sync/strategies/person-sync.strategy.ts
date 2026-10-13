@@ -416,7 +416,9 @@ export class PersonSyncStrategy implements SyncStrategy {
     existing.isMember = legacyPerson.propi === 'Sí';
     existing.availability = this.mapAvailability(legacyPerson.lesionat);
     existing.onboardingStatus = this.mapOnboarding(legacyPerson.estat_acollida);
-    existing.shirtDate = this.parseDate(legacyPerson.instant_camisa);
+    // The camisa is also awarded in MuixerApp: a legacy record without a date never clears ours.
+    const legacyShirtDate = this.parseDate(legacyPerson.instant_camisa);
+    if (legacyShirtDate) existing.shirtDate = legacyShirtDate;
 
     // existing.isActive is already true here — upsertPerson() routes inactive
     // (manually-deactivated) persons to createPerson() instead.

@@ -76,7 +76,7 @@ Modules under `src/modules/`:
 |--------|---------|
 | `auth` | JWT (15min) + httpOnly refresh token (7d), Passport, token rotation, invite accept, bootstrap |
 | `user` | admin/member accounts (`users`), roles, invite provisioning; OneToOne `Person` |
-| `person` | CRUD + soft delete via `isActive` boolean |
+| `person` | CRUD + soft delete via `isActive` boolean. `GET /persons/shirt-candidates`: active, non-provisional persons with `shirtDate` null plus their `ASSISTIT` counts per type (all seasons, `countsForStatistics` events only), eligible first then closest, ties broken by most recent attendance (`lastAttendedDate`) then alias — rule `SHIRT_REQUIREMENTS` (2 actuacions + 6 assajos) / `shirtProgress` / `compareShirtCandidates` in `@muixer/shared`. The camisa is awarded through the regular `PATCH /persons/:id { shirtDate }`; the legacy sync only writes `shirtDate` when legacy has one (never clears it) |
 | `person-delegate` | delegation: attendance on behalf of others (`managedBy` / `mentor`) |
 | `season` · `event` | seasons, events and attendance. An event's season is derived from its date, not stored; see [docs/DATA_MODEL.md](docs/DATA_MODEL.md) invariant 12. Attendance is a status of (person, event): **no row ≡ `PENDENT`**, single write endpoint `PUT /events/:id/attendance/:personId` (no create/delete); a person created after the event day with no answer resolves to the derived `NO_REGISTRAT` (never stored, left out of event lists/counts, PWA shows it as Pendent); `attendanceSummary.pending`/`total` are computed on read — see [docs/DATA_MODEL.md](docs/DATA_MODEL.md) invariant 11. `AttendanceSweepService` (cron `EVERY_DAY_AT_3AM`): for every `ACTUACIO` dated today, flips `ANIRE` → `ASSISTIT` (performances have no arrival tablet); never touches `ASSAIG`/`PENDENT`/`NO_VAIG`/`respondedAt`, idempotent |
 | `figure` | `FigureTemplate`, `FigureNode`, `Rengla` |
@@ -106,7 +106,7 @@ All components are standalone + `OnPush` + Signals. No NgRx. No `@Input()`/`@Out
 
 Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 
-- `/home` · `/persons` · `/rehearsals`, `/performances` (events feature: list + sync)
+- `/home` · `/persons` (+ `/persons/camises` → `ShirtCandidatesComponent`: who is pending their camisa, award it with a date; non-eligible persons can still get it, with a warning) · `/rehearsals`, `/performances` (events feature: list + sync)
 - `/events/:id` → `EventDetailComponent`, `/events/:id/confirmation` → `AttendanceConfirmationComponent`
 - `/pinyes` → Pinyes module (see below) · `/sync` → legacy sync SSE UI
 - `/config` → `ConfigComponent`, with `/config/users`, `/config/tags` (inclou l'assistent d'etiquetatge de persones), `/config/seasons`, `/config/legal` (ADMIN only)
