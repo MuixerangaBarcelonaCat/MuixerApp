@@ -109,6 +109,14 @@ describe('sketchShape', () => {
     expect(fill.reduce((n, p) => n + moves(p.d), 0)).toBeGreaterThan(5);
   });
 
+  it('spreads and thickens the hatching by hatchScale, so it can follow the size of the node', () => {
+    const lines = (hatchScale?: number) =>
+      sketchShape(rect, { ...style, fill: { style: 'hatch', color: PENCIL }, hatchScale }, 7).filter((p) => p.role === 'fill');
+    const count = (paths: ReturnType<typeof lines>) => paths.reduce((n, p) => n + moves(p.d), 0);
+    expect(lines(2).every((p) => p.strokeWidth === 2)).toBe(true);
+    expect(count(lines(2))).toBeLessThan(count(lines()));
+  });
+
   it('draws only the outline when the node has no fill', () => {
     const paths = sketchShape(rect, { ...style, fill: { style: 'none' } }, 7);
     expect(paths.map((p) => p.role)).toEqual(['outline']);

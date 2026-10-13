@@ -73,7 +73,7 @@ export interface SketchPath {
   dash: number[] | null;
 }
 
-/** Pending hatching, as previewed: lines 6 apart, 1 thick, at −41°. */
+/** Pending hatching, as previewed on a standard node: lines 6 apart, 1 thick, at −41°. */
 const HATCH = { hachureGap: 6, fillWeight: 1, hachureAngle: -41 };
 
 const generator = new RoughGenerator();
@@ -128,18 +128,27 @@ function toSketch(drawable: Drawable, dash: number[] | null): SketchPath[] {
   });
 }
 
-function fillOptions(fill: NodeFill): Partial<Options> {
+function fillOptions(fill: NodeFill, hatchScale: number): Partial<Options> {
   switch (fill.style) {
     case 'solid':
       return { fill: fill.color, fillStyle: 'solid' };
     case 'hatch':
-      return { fill: fill.color, fillStyle: 'hachure', ...HATCH };
+      return {
+        fill: fill.color,
+        fillStyle: 'hachure',
+        hachureAngle: HATCH.hachureAngle,
+        hachureGap: HATCH.hachureGap * hatchScale,
+        fillWeight: HATCH.fillWeight * hatchScale,
+      };
     case 'none':
       return {};
   }
 }
 
-/** A node's outline, sketched, with its fill under it; centred on (0, 0). */
+/**
+ * A node's outline, sketched, with its fill under it; centred on (0, 0). `hatchScale` spreads and
+ * thickens the hatching (1: as previewed), so it can keep one density on nodes of every size.
+ */
 export function sketchShape(
   outline: NodeOutline,
   style: {
@@ -147,6 +156,7 @@ export function sketchShape(
     stroke: string;
     strokeWidth: number;
     dash: number[] | null;
+    hatchScale?: number;
   },
   seed: number,
 ): SketchPath[] {
@@ -160,7 +170,7 @@ export function sketchShape(
       stroke: style.stroke,
       strokeWidth: style.strokeWidth,
       maxRandomnessOffset: sketchWobble(size),
-      ...fillOptions(style.fill),
+      ...fillOptions(style.fill, style.hatchScale ?? 1),
     });
     return toSketch(drawOutline(outline, opts), style.dash);
   });

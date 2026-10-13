@@ -45,6 +45,7 @@ class FigureCanvasStub {
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   readonly figureLinks = input<FigureLink[]>([]);
   readonly showZoomControls = input<boolean>(true);
+  readonly nodeScale = input<number>(1);
   readonly flightLanded = output<void>();
   readonly flyToBounds = jest.fn();
   readonly cancelFlight = jest.fn();
@@ -287,6 +288,15 @@ describe('PinyaProjectionComponent', () => {
       expect(linkA.pin).toEqual(corner(aNode, -1, -1));
       expect(linkB.pin).toEqual(corner(bNode, -1, -1));
       expect([linkA.color, linkB.color]).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
+    });
+
+    it('hands the canvas the fit-to-screen scale baked into the node sizes, so it draws each node at its natural size', () => {
+      setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 }), far()]));
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub)).componentInstance as FigureCanvasStub;
+      const [node] = component.distributionNodes();
+      expect(canvas.nodeScale()).toBeCloseTo(node.width / pinyaNode('p1').width);
+      expect(canvas.nodeScale()).not.toBe(1);
     });
 
     it('hands the links to the canvas, which draws the strings behind the nodes', () => {

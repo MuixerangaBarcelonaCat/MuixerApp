@@ -144,6 +144,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return 'editor' as const;
   });
 
+  /** The Rengles tab keeps the nodes filled, as while editing; the preview looks like the projection. */
+  readonly canvasReadonlyLook = computed(() => (this.previewMode() ? 'projection' : 'template'));
+
   readonly troncMode = computed<'editor' | 'projection'>(() =>
     this.previewMode() ? 'projection' : 'editor',
   );

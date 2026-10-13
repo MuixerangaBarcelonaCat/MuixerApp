@@ -136,6 +136,22 @@ const REFERENCE_HEIGHT = 40;
 const HALO = 0.32;
 
 /**
+ * A node on a canvas whose node sizes carry a fit-to-screen `scale` (the projection shrinks every
+ * node to fit the segment on the screen): its plan laid out at the node's natural size, for the
+ * painter to scale by `scale`. What is sized in fixed units (the name's side padding, the pen's
+ * wobble) then keeps its proportion to the node, so a phone draws the same node as a big screen.
+ */
+export function scaledNodeDrawPlan(
+  appearance: NodeAppearance,
+  size: { width: number; height: number; shape: string; seed?: number },
+  scale: number,
+  theme: CanvasTheme,
+  measure: (text: string, fontSize: number, fontFamily: string) => number,
+): DrawPrimitive[] {
+  return nodeDrawPlan(appearance, { ...size, width: size.width / scale, height: size.height / scale }, theme, measure);
+}
+
+/**
  * Lays a node's appearance out as primitives, with the anatomy every view shares: height top-left,
  * observation sticker on the top-right corner, name centred, star bottom-left, conflict icon
  * bottom-right, the move badge on the top edge. The outline is drawn `NODE_SKETCH_INSET` inside the
@@ -168,7 +184,8 @@ export function nodeDrawPlan(
       width: w,
       height: h,
       ...outline,
-      sketch: sketchShape(nodeOutline(size.shape, w - 2 * inset, h - 2 * inset), outline, seed),
+      // The hatching follows the node's height, uncapped like the text: one density at every size.
+      sketch: sketchShape(nodeOutline(size.shape, w - 2 * inset, h - 2 * inset), { ...outline, hatchScale: h / REFERENCE_HEIGHT }, seed),
     },
   ];
 
