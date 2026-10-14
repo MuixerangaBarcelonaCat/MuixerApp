@@ -549,6 +549,18 @@ describe('DistribucioTabComponent', () => {
         expect(linkA()?.pin).toEqual({ x: 165, y: 35 });
       });
 
+      it('leaves the tronc panels alone while a figure is dragged, as long as the pinned edge stays', async () => {
+        await twoFigures();
+        placePanelA();
+        const panels = component.troncViewPanels();
+
+        canvasStub().slotDragMoved.emit({ slotId: INST_A, offsetX: 150, offsetY: 50, angle: 0 });
+        fixture.detectChanges();
+
+        expect(linkA()?.pin).toEqual({ x: 165, y: 35 });
+        expect(component.troncViewPanels()).toBe(panels);
+      });
+
       it('draws no pin and no string for a segment with a single figure, but keeps the name band', async () => {
         await setup();
         canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 300, y: -200 });

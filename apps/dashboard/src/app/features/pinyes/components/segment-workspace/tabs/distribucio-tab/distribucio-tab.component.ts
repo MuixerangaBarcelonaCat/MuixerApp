@@ -187,6 +187,15 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
   readonly figureLinks = computed((): FigureLink[] => [...this.figureLinksBySlot().values()]);
 
   /**
+   * The card edge each panel is pinned on. The links change on every drag frame; the edges only
+   * when a figure crosses to another side of its panel, so the panels don't rebuild while dragging.
+   */
+  private readonly pinEdgesBySlot = computed(
+    (): Map<string, CardEdge> => new Map([...this.figureLinksBySlot()].map(([slotId, link]) => [slotId, link.cardEdge])),
+    { equal: (a, b) => a.size === b.size && [...a].every(([slotId, edge]) => b.get(slotId) === edge) },
+  );
+
+  /**
    * One overlay per slot whose position is already known (i.e. the canvas has rendered it at
    * least once) — renders the real `<app-tronc-view>` on top of the canvas's own (visually
    * hidden, see `troncPanelVisualHidden`) tronc panel, replacing the old "Tronc de X" Konva
@@ -197,7 +206,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     const positions = this.troncPanelPositions();
     const sizes = this.measuredTroncSizes();
     const itemsById = new Map(this.items().map((i) => [i.instanceId, i]));
-    const links = this.figureLinksBySlot();
+    const pinEdges = this.pinEdgesBySlot();
     const singleFigure = this.isSingleFigure();
 
     const panels: TroncViewPanel[] = [];
@@ -222,7 +231,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
         figureName: slot.label ?? slot.figureTemplate.name,
         color: singleFigure ? null : getFigureColor(slot.sortOrder),
         nameBand: getFigureBand(slot.sortOrder, this.canvasTheme().mode),
-        pinEdge: links.get(slot.slotId)?.cardEdge ?? 'top',
+        pinEdge: pinEdges.get(slot.slotId) ?? 'top',
         tilt: slot.sortOrder % 2 === 0 ? -1 : 1,
       });
     }
