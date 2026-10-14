@@ -35,6 +35,23 @@ describe('FigureCanvasComponent', () => {
     }
   });
 
+  describe('full redraw (theme change, fonts loaded)', () => {
+    // renderNodes() empties the Transformer: a full redraw must hand it the selection back.
+    it('puts the resize handles back on the selected node in the editor', () => {
+      const fixture = render();
+      fixture.componentRef.setInput('mode', 'editor');
+      const component = fixture.componentInstance as unknown as Record<string, jest.Mock> & { renderAll(): void };
+      const calls: string[] = [];
+      for (const name of ['renderGrid', 'renderFigureLinks']) component[name] = jest.fn();
+      component['renderNodes'] = jest.fn(() => calls.push('renderNodes'));
+      component['updateTransformer'] = jest.fn(() => calls.push('updateTransformer'));
+
+      component.renderAll();
+
+      expect(calls).toEqual(['renderNodes', 'updateTransformer']);
+    });
+  });
+
   describe('readonly look', () => {
     const node = { id: 'n1', label: 'Vent', zone: FigureZone.PINYA, positionType: 'vents', color: null, climbIndicator: null } as unknown as CanvasNode;
     const readonlyInput = (inputs: Record<string, unknown>) => {

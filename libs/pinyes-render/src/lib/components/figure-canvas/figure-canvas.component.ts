@@ -1016,6 +1016,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderReadonlyNodes();
     } else {
       this.renderNodes();
+      this.updateTransformer();
     }
     this.renderFigureLinks(this.figureLinks());
   }
