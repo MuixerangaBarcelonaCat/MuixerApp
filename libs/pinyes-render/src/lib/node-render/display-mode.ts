@@ -14,7 +14,7 @@ import {
   ThemeMode,
   heightRampTones,
 } from '@muixer/ui';
-import { AttendanceFill } from './attendance';
+import { ATTENDANCE_STATUS_ORDER, AttendanceFill, joinAttendanceLabels } from './attendance';
 
 /**
  * The segment workspace's display modes: what a node's color stands for. `position` is the type
@@ -221,12 +221,6 @@ export interface DisplayKey {
 const GENDER_ORDER: GenderGroup[] = ['female', 'male', 'other'];
 const GENDER_LABEL: Record<GenderGroup, string> = { female: 'Dona', male: 'Home', other: 'Altre o sense dades' };
 const TONE_ORDER: AttendanceTone[] = ['success', 'warning', 'error'];
-const STATUS_ORDER = [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, AttendanceStatus.PENDENT, AttendanceStatus.NO_VAIG];
-
-/** «Ha arribat», «Ve» → «Ha arribat o ve», as the node legend joins them. */
-function joinLabels(labels: string[]): string {
-  return labels.map((l, i) => (i === 0 ? l : l.charAt(0).toLowerCase() + l.slice(1))).join(' o ');
-}
 
 /**
  * The key of a mode for the people drawn in a tab (one entry per node): only the rows that appear,
@@ -261,9 +255,9 @@ export function displayModeKey(people: DisplayFacts[], ctx: DisplayContext): Dis
       for (const tone of TONE_ORDER) {
         const inTone = people.filter((p) => attendanceTone(p.attendance, ctx.phase) === tone);
         if (inTone.length === 0) continue;
-        const present = STATUS_ORDER.filter((s) => inTone.some((p) => status(p) === s));
+        const present = ATTENDANCE_STATUS_ORDER.filter((s) => inTone.some((p) => status(p) === s));
         const swatches = coming > 0 ? [plain(tones[tone].base), starred(tones[tone].strong)] : [plain(tones[tone].base)];
-        const label = joinLabels(present.map((s) => attendanceStatusLabel(s, ctx.phase)));
+        const label = joinAttendanceLabels(present.map((s) => attendanceStatusLabel(s, ctx.phase)));
         rows.push(row(tone, label, swatches, inTone.length));
       }
       return { gradient: null, rows, note: coming > 0 ? { label: 'Ve a la propera actuació', count: coming } : null };
