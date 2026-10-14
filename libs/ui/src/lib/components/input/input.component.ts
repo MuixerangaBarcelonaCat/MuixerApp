@@ -5,7 +5,7 @@ import { Eye, EyeOff, LucideAngularModule } from 'lucide-angular';
 import { FormFieldComponent } from '../form-field/form-field.component';
 
 export type InputSize = 'xs' | 'sm' | 'md' | 'lg';
-export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search' | 'date';
+export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'datetime-local';
 export type InputMode = 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
 
 const SIZE_CLASSES: Record<InputSize, string> = {

@@ -53,6 +53,13 @@ export class Event {
   @Column({ type: 'text', nullable: true })
   information: string | null;
 
+  /**
+   * Internal technician notes. Unlike `information`, these never reach the PWA and the
+   * legacy sync never overwrites them.
+   */
+  @Column({ type: 'text', nullable: true })
+  notes: string | null;
+
   @Column({ default: true })
   countsForStatistics: boolean;
 

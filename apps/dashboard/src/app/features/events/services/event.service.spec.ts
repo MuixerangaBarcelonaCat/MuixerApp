@@ -74,4 +74,28 @@ describe('EventService', () => {
     expect(req.request.method).toBe('DELETE');
     req.flush(null);
   });
+
+  describe('downloadSummaryPdf', () => {
+    it('requests /events/:id/summary.pdf as a blob and returns it with the server filename', () => {
+      let result: { blob: Blob; filename: string } | undefined;
+      service.downloadSummaryPdf('ev-1').subscribe((r) => (result = r));
+
+      const req = httpMock.expectOne(`${environment.apiUrl}/events/ev-1/summary.pdf`);
+      expect(req.request.method).toBe('GET');
+      expect(req.request.responseType).toBe('blob');
+      const blob = new Blob(['%PDF-'], { type: 'application/pdf' });
+      req.flush(blob, { headers: { 'Content-Disposition': 'attachment; filename="2026-10-12-assaig.pdf"' } });
+
+      expect(result).toEqual({ blob, filename: '2026-10-12-assaig.pdf' });
+    });
+
+    it('falls back to a generic filename when the header is missing', () => {
+      let result: { blob: Blob; filename: string } | undefined;
+      service.downloadSummaryPdf('ev-1').subscribe((r) => (result = r));
+
+      httpMock.expectOne(`${environment.apiUrl}/events/ev-1/summary.pdf`).flush(new Blob(['%PDF-']));
+
+      expect(result?.filename).toBe('resum-esdeveniment.pdf');
+    });
+  });
 });

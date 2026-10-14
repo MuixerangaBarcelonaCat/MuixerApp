@@ -21,6 +21,7 @@ import { PersonDelegateModule } from '../modules/person-delegate/person-delegate
 import { LegalModule } from '../modules/legal/legal.module';
 import { AuditModule } from '../modules/audit/audit.module';
 import { MeModule } from '../modules/me/me.module';
+import { EventSummaryModule } from '../modules/event-summary/event-summary.module';
 import { MailModule } from '../modules/mail/mail.module';
 import { NewsModule } from '../modules/news/news.module';
 import { PushNotificationModule } from '../modules/push-notification/push-notification.module';
@@ -52,6 +53,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     LegalModule,
     AuditModule,
     MeModule,
+    EventSummaryModule,
     MailModule,
     NewsModule,
     PushNotificationModule,

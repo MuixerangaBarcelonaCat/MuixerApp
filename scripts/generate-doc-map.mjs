@@ -63,6 +63,7 @@ const DOC_HINTS = {
   person: ['DATA_MODEL'],
   'person-delegate': ['DATA_MODEL'],
   event: ['DATA_MODEL'],
+  'event-summary': ['EVENT_SUMMARY_PDF'],
   season: ['DATA_MODEL'],
   user: ['DATA_MODEL'],
   tag: ['TAGS', 'DATA_MODEL'],

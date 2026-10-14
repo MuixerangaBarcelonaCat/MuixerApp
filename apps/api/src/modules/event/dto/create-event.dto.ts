@@ -55,6 +55,11 @@ export class CreateEventDto {
   @IsString()
   information?: string;
 
+  @ApiPropertyOptional({ description: 'Notes internes, només visibles al dashboard' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
   @ApiPropertyOptional({ description: 'Compta per a estadístiques', default: true })
   @IsOptional()
   @IsBoolean()

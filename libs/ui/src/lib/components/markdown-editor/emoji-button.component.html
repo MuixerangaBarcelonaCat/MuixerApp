@@ -1,0 +1,32 @@
+<div class="inline-block" #wrapper cdkOverlayOrigin #origin="cdkOverlayOrigin">
+  <lib-button
+    variant="ghost"
+    size="xs"
+    shape="square"
+    ariaLabel="Emoji"
+    data-testid="md-emoji"
+    [disabled]="disabled()"
+    [ariaExpanded]="open()"
+    (clicked)="toggle()"
+  >
+    <lucide-icon [img]="Smile" [size]="15" aria-hidden="true" />
+  </lib-button>
+</div>
+
+<ng-template
+  cdkConnectedOverlay
+  cdkConnectedOverlayPush
+  [cdkConnectedOverlayOrigin]="origin"
+  [cdkConnectedOverlayOpen]="open()"
+  [cdkConnectedOverlayPositions]="positions"
+  (overlayOutsideClick)="onOutsideClick($event)"
+  (detach)="open.set(false)"
+>
+  <div
+    class="rounded-box border border-base-300 bg-base-100 p-2 shadow-overlay"
+    role="dialog"
+    aria-label="Selector d'emoji"
+  >
+    <emoji-picker (emoji-click)="onEmojiClick($event)" style="width: 22rem; height: 24rem;"></emoji-picker>
+  </div>
+</ng-template>

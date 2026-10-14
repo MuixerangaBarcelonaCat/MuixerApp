@@ -58,6 +58,15 @@ describe('NewsDetailComponent', () => {
     expect(body.innerHTML).toContain('<strong>Benvinguts</strong>');
   });
 
+  // Phase 4's point: the dashboard's WYSIWYG can now produce headings and lists, so the member
+  // side has to render them rather than showing the syntax.
+  it('should render headings and lists from the body', async () => {
+    fixture = await setup(of({ ...MOCK_DETAIL, body: '## Convocatoria\n\n- un\n- dos' }));
+    const body = fixture.nativeElement.querySelector('[data-testid="news-detail-body"]');
+    expect(body.querySelector('h2')).toBeTruthy();
+    expect(body.querySelectorAll('ul li')).toHaveLength(2);
+  });
+
   it('should render links in the body as anchor elements', async () => {
     fixture = await setup();
     const link = fixture.nativeElement.querySelector('[data-testid="news-detail-body"] a');

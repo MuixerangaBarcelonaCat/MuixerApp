@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -42,8 +42,22 @@ export class EventService extends ApiService {
     return this.delete<void>(`/events/${id}`);
   }
 
+  /** Descarrega el resum imprimible de l'event (PDF generat al servidor) amb el nom de fitxer que proposa l'API. */
+  downloadSummaryPdf(id: string): Observable<{ blob: Blob; filename: string }> {
+    return this.getBlob(`/events/${id}/summary.pdf`).pipe(
+      map((response) => ({
+        blob: response.body as Blob,
+        filename: filenameFromDisposition(response.headers.get('Content-Disposition')) ?? 'resum-esdeveniment.pdf',
+      })),
+    );
+  }
+
   /** Inicia la sincronització d'events des del legacy APPsistència (via POST, no SSE). */
   syncFromLegacy(): Observable<void> {
     return this.post<void>('/sync/events', {});
   }
+}
+
+function filenameFromDisposition(header: string | null): string | null {
+  return header?.match(/filename="([^"]+)"/)?.[1] ?? null;
 }

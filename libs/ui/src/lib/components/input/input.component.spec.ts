@@ -4,7 +4,7 @@ import { By } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { User } from 'lucide-angular';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
-import { InputComponent } from './input.component';
+import { InputComponent, InputType } from './input.component';
 
 describe('InputComponent', () => {
   let fixture: ComponentFixture<InputComponent>;
@@ -63,6 +63,14 @@ describe('InputComponent', () => {
     fixture.componentRef.setInput('type', 'date');
     fixture.detectChanges();
     expect(nativeInput().type).toBe('date');
+  });
+
+  it('supports the datetime-local type, for a date plus time of day (news scheduling)', () => {
+    // Typed on purpose: `setInput` accepts anything, so this is what pins the value to `InputType`.
+    const type: InputType = 'datetime-local';
+    fixture.componentRef.setInput('type', type);
+    fixture.detectChanges();
+    expect(nativeInput().type).toBe('datetime-local');
   });
 
   describe('inputMode', () => {

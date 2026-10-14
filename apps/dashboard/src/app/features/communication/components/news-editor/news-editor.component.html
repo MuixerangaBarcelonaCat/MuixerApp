@@ -6,7 +6,7 @@
     </h1>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div>
 
     <div class="flex flex-col gap-4">
       <lib-input
@@ -19,64 +19,107 @@
 
       <div class="form-control">
         <label class="label" for="news-body">
-          <span class="label-text inline-flex items-center gap-1">
-            Cos
-            <span class="group relative inline-flex">
-              <lucide-icon
-                name="CircleQuestionMark"
-                [size]="16"
-                class="cursor-help"
-                aria-label="Ajuda de sintaxi Markdown"
-                tabindex="0"
-              />
-              <span
-                data-testid="markdown-help"
-                class="hidden group-hover:block group-focus-within:block absolute left-0 top-full mt-1 z-10 w-56 rounded-box border border-base-300 bg-base-100 shadow-overlay px-3 py-2 text-xs font-normal normal-case"
-              >
-                <p>Podeu afegir-hi codis de Markdown, per exemple:</p>
-                <p class="flex justify-between gap-2"><code>**negreta**</code> <span><strong>negreta</strong></span></p>
-                <p class="flex justify-between gap-2"><code>*cursiva*</code> <span><em>cursiva</em></span></p>
-                <p class="flex justify-between gap-2"><code>[text](url)</code> <span class="link link-primary">enllaç</span></p>
-              </span>
-            </span>
-          </span>
+          <span class="label-text">Cos</span>
         </label>
-        <lib-textarea
-          id="news-body"
-          class="font-mono text-sm"
-          [rows]="12"
-          [ngModel]="body()"
-          (ngModelChange)="body.set($event)"
-        />
+        <!-- Deferred: the editor carries Tiptap (~500 kB) and must stay out of the initial bundle.
+             `on immediate` because reaching this screen is already the intent to write. -->
+        @defer (on immediate) {
+          <lib-markdown-editor
+            ariaLabel="Cos de la notícia"
+            placeholder="Escriviu la notícia..."
+            [value]="body()"
+            (valueChange)="body.set($event)"
+          />
+        } @placeholder {
+          <div class="rounded-box border border-base-300 min-h-64"></div>
+        }
       </div>
 
       <div class="form-control">
-        <label class="label" for="news-published-at">
-          <span class="label-text">Publicació</span>
-          <lib-badge variant="ghost" size="sm">{{ statusLabel() }}</lib-badge>
-        </label>
-        <div class="join w-full">
-          <input
-            id="news-published-at"
-            type="datetime-local"
-            class="input input-bordered join-item w-full"
-            [ngModel]="publishedAtLocal()"
-            (ngModelChange)="publishedAtLocal.set($event)"
-          />
-          <button
-            type="button"
-            class="btn btn-ghost join-item"
-            data-testid="publish-now-button"
-            (click)="setPublishNow()"
-          >
-            Ara
-          </button>
-        </div>
         <span class="label">
-          <span class="label-text-alt text-base-content/50">
-            Deixeu-ho en blanc per desar-la com a esborrany.
-          </span>
+          <span class="label-text">Publicació</span>
         </span>
+
+        <div role="group" aria-label="Quan es publica la notícia">
+          <lib-button-group>
+            <lib-button
+              joinItem
+              outlineMode
+              size="sm"
+              data-testid="publish-mode-draft"
+              [active]="publishMode() === 'draft'"
+              [ariaPressed]="publishMode() === 'draft'"
+              (clicked)="publishMode.set('draft')"
+            >
+              <lucide-icon name="FileText" [size]="14" />
+              Esborrany
+            </lib-button>
+            <lib-button
+              joinItem
+              outlineMode
+              size="sm"
+              data-testid="publish-mode-now"
+              [active]="publishMode() === 'now'"
+              [ariaPressed]="publishMode() === 'now'"
+              (clicked)="publishMode.set('now')"
+            >
+              <lucide-icon name="Send" [size]="14" />
+              Publica ara
+            </lib-button>
+            <lib-button
+              joinItem
+              outlineMode
+              size="sm"
+              data-testid="publish-mode-scheduled"
+              [active]="publishMode() === 'scheduled'"
+              [ariaPressed]="publishMode() === 'scheduled'"
+              (clicked)="publishMode.set('scheduled')"
+            >
+              <lucide-icon name="CalendarClock" [size]="14" />
+              Programa
+            </lib-button>
+          </lib-button-group>
+        </div>
+
+        @switch (publishMode()) {
+          @case ('draft') {
+            <span class="label">
+              <span class="label-text-alt text-base-content/50">
+                Es desarà sense publicar-la a l'app.
+              </span>
+            </span>
+          }
+          @case ('now') {
+            <span class="label">
+              <span class="label-text-alt text-base-content/50">
+                Es publicarà en alçar-la.
+              </span>
+            </span>
+          }
+          @case ('scheduled') {
+            <div class="mt-2">
+              <lib-input
+                id="news-published-at"
+                type="datetime-local"
+                size="md"
+                ariaLabel="Data i hora de publicació"
+                [ngModel]="publishedAtLocal()"
+                (ngModelChange)="publishedAtLocal.set($event)"
+              />
+            </div>
+            <span class="label">
+              <span class="label-text-alt text-base-content/50">
+                @if (!publishedAtLocal()) {
+                  Indiqueu quan s'ha de publicar.
+                } @else if (scheduledInThePast()) {
+                  La data ja ha passat: la notícia és publicada des d'este moment.
+                } @else {
+                  Es publicarà automàticament en esta data.
+                }
+              </span>
+            </span>
+          }
+        }
       </div>
 
       <div class="form-control">
@@ -87,12 +130,12 @@
           (ngModelChange)="sendPush.set($event)"
         >
           <div>
-            <span class="label-text font-medium">Notifica els membres</span>
+            <span class="label-text font-medium">Envia notificació</span>
             <p class="text-xs text-base-content/50">
               @if (pushSentAt()) {
-                Notificació enviada el {{ pushSentAt() | date: 'dd/MM/yyyy HH:mm' }}
+                Enviada el {{ pushSentAt() | date: 'dd/MM/yyyy HH:mm' }}
               } @else {
-                La notificació s'enviarà quan es publique la notícia.
+                S'enviarà quan es publique la notícia.
               }
             </p>
           </div>
@@ -105,16 +148,6 @@
         </lib-button>
         <lib-button variant="ghost" size="sm" (clicked)="cancel()">Cancel·la</lib-button>
       </div>
-    </div>
-
-    <div class="flex flex-col gap-2">
-      <span class="label-text">Previsualització</span>
-      <lib-card>
-        <div class="prose prose-sm max-w-none" data-testid="news-preview">
-          <h2 class="font-bold" data-testid="news-preview-title">{{ title() || 'Sense títol' }}</h2>
-          <div [innerHTML]="previewHtml()"></div>
-        </div>
-      </lib-card>
     </div>
 
   </div>

@@ -23,6 +23,7 @@ import {
   type CheckboxVariant,
   type TabDef,
 } from '@muixer/ui';
+import { MarkdownEditorComponent } from '@muixer/ui/markdown-editor';
 
 const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'accent', 'neutral', 'ghost', 'info', 'success', 'warning', 'error'];
 const BADGE_VARIANTS: BadgeVariant[] = ['primary', 'secondary', 'accent', 'neutral', 'ghost', 'info', 'success', 'warning', 'error'];
@@ -64,6 +65,7 @@ const DEMO_TABS: TabDef[] = [
     SelectComponent,
     CheckboxComponent,
     TextareaComponent,
+    MarkdownEditorComponent,
     ModalComponent,
     TabsComponent,
     ToastContainerComponent,
@@ -97,6 +99,9 @@ export class ComponentsSectionComponent {
   protected readonly checkboxVariants = CHECKBOX_VARIANTS;
   protected readonly checkboxDemo = signal(true);
 
+  protected readonly markdownDemo = signal(
+    '## Convocatòria\n\nPorteu la **faixa** nova i arribeu a les *18:00*.\n\n- revisar el tram\n- avisar la Mar\n',
+  );
   protected readonly textareaDemo = signal('');
   protected readonly textareaResizeDemo = signal('Aquest camp no es pot redimensionar.');
 
