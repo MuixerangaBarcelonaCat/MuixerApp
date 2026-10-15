@@ -1,19 +1,21 @@
 <lib-card>
-  <button
-    type="button"
-    class="flex w-full items-center gap-2 text-left min-h-8"
-    data-testid="event-notes-toggle"
-    [attr.aria-expanded]="expanded()"
-    aria-controls="event-notes-body"
-    (click)="toggle()"
-  >
-    <lucide-icon
-      [name]="expanded() ? ChevronDown : ChevronRight"
-      [size]="18"
-      class="text-base-content/50 shrink-0"
-    />
-    <span class="text-sm font-semibold shrink-0">Notes</span>
-  </button>
+  <div class="flex">
+    <lib-button
+      variant="ghost"
+      size="sm"
+      data-testid="event-notes-toggle"
+      ariaControls="event-notes-body"
+      [ariaExpanded]="expanded()"
+      (clicked)="toggle()"
+    >
+      <lucide-icon
+        [name]="expanded() ? ChevronDown : ChevronRight"
+        [size]="18"
+        class="text-base-content/50 shrink-0"
+      />
+      <span class="text-sm font-semibold">Notes</span>
+    </lib-button>
+  </div>
 
   @if (expanded()) {
     <div id="event-notes-body" class="mt-3 flex flex-col gap-3">
