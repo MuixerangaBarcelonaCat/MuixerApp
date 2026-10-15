@@ -4,19 +4,18 @@ import { NodeShape } from '../enums/node-shape.enum';
 export interface TroncNodePreset {
   positionType: string;
   label: string;
-  color: string;
   abbrev: string;
 }
 
 export const TRONC_NODE_PRESETS: TroncNodePreset[] = [
-  { positionType: 'segona',   label: 'Segona',   color: '#1E88E5', abbrev: 'Seg' },
-  { positionType: 'terça',    label: 'Terça',    color: '#43A047', abbrev: 'Ter' },
-  { positionType: 'quarta',   label: 'Quarta',   color: '#FB8C00', abbrev: 'Qua' },
-  { positionType: 'quinta',   label: 'Quinta',   color: '#8E24AA', abbrev: 'Qui' },
-  { positionType: 'sisena',   label: 'Sisena',   color: '#546E7A', abbrev: 'Sis' },
-  { positionType: 'puntal',   label: 'Puntal',   color: '#795548', abbrev: 'Pun' },
-  { positionType: 'alçadora', label: 'Alçadora', color: '#00ACC1', abbrev: 'Alç' },
-  { positionType: 'xiqueta',  label: 'Xiqueta',  color: '#E53935', abbrev: 'Xiq' },
+  { positionType: 'segona',   label: 'Segona',   abbrev: 'Seg' },
+  { positionType: 'terça',    label: 'Terça',    abbrev: 'Ter' },
+  { positionType: 'quarta',   label: 'Quarta',   abbrev: 'Qua' },
+  { positionType: 'quinta',   label: 'Quinta',   abbrev: 'Qui' },
+  { positionType: 'sisena',   label: 'Sisena',   abbrev: 'Sis' },
+  { positionType: 'puntal',   label: 'Puntal',   abbrev: 'Pun' },
+  { positionType: 'alçadora', label: 'Alçadora', abbrev: 'Alç' },
+  { positionType: 'xiqueta',  label: 'Xiqueta',  abbrev: 'Xiq' },
 ];
 
 /** Maps tronc z-level (1-based) to the conventional preset for that floor. */
@@ -35,7 +34,6 @@ export interface NodePreset {
   width: number;
   height: number;
   shape: NodeShape;
-  color: string | null;
   requiresCustomLabel: boolean;
 }
 
@@ -56,9 +54,9 @@ export interface DirectionNodePreset extends NodePreset {
 }
 
 export const DIRECTION_NODE_PRESETS: DirectionNodePreset[] = [
-  { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc',   label: 'Direcció tronc',   shortLabel: 'Tronc',   slotOrder: 0, projectionMarker: null, width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
-  { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', shortLabel: 'Xicalla', slotOrder: 1, projectionMarker: 'X',  width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
-  { zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',   label: 'Direcció pinya',   shortLabel: 'Pinya',   slotOrder: 2, projectionMarker: 'P',  width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#065f46', requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-tronc',   label: 'Direcció tronc',   shortLabel: 'Tronc',   slotOrder: 0, projectionMarker: null, width: 90, height: 44, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-xicalla', label: 'Direcció xicalla', shortLabel: 'Xicalla', slotOrder: 1, projectionMarker: 'X',  width: 90, height: 44, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.DIRECTION, positionType: 'direccio-pinya',   label: 'Direcció pinya',   shortLabel: 'Pinya',   slotOrder: 2, projectionMarker: 'P',  width: 90, height: 44, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
 ];
 
 /** Direction presets in the fixed order their rows stack (by `slotOrder`). */
@@ -75,34 +73,34 @@ export const DIRECTION_ZONES: FigureZone[] = [FigureZone.DIRECTION];
 export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.positionType);
 
 export const DECORATION_NODE_PRESETS: NodePreset[] = [
-  { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'ellipse', label: '', width: 100, height: 60, shape: NodeShape.ELLIPSE, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'triangle', label: '', width: 90, height: 80, shape: NodeShape.TRIANGLE, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'star', label: '', width: 70, height: 70, shape: NodeShape.STAR, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'ellipse', label: '', width: 100, height: 60, shape: NodeShape.ELLIPSE, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'triangle', label: '', width: 90, height: 80, shape: NodeShape.TRIANGLE, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'star', label: '', width: 70, height: 70, shape: NodeShape.STAR, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, requiresCustomLabel: true },
   // Arrows grouped together, narrower (shorter head) than the other shapes above, except
   // up/down: those default wide-and-short (a broad head) rather than mirroring left/right's
   // tall-and-narrow proportions rotated 90°.
-  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 20, shape: NodeShape.ARROW, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'arrow-left', label: '', width: 80, height: 20, shape: NodeShape.ARROW_LEFT, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'arrow-up', label: '', width: 80, height: 40, shape: NodeShape.ARROW_UP, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'arrow-down', label: '', width: 80, height: 40, shape: NodeShape.ARROW_DOWN, color: null, requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'double-arrow', label: '', width: 90, height: 20, shape: NodeShape.DOUBLE_ARROW, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 20, shape: NodeShape.ARROW, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow-left', label: '', width: 80, height: 20, shape: NodeShape.ARROW_LEFT, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow-up', label: '', width: 80, height: 40, shape: NodeShape.ARROW_UP, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow-down', label: '', width: 80, height: 40, shape: NodeShape.ARROW_DOWN, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'double-arrow', label: '', width: 90, height: 20, shape: NodeShape.DOUBLE_ARROW, requiresCustomLabel: true },
 ];
 
 export const DECORATION_POSITION_TYPES = ['rectangle', 'ellipse', 'triangle', 'star', 'circle', 'arrow', 'arrow-left', 'arrow-up', 'arrow-down', 'double-arrow'] as const;
 export type DecorationPositionType = (typeof DECORATION_POSITION_TYPES)[number];
 
 export const PINYA_NODE_PRESETS: NodePreset[] = [
-  { zone: FigureZone.PINYA, positionType: 'agulla',     label: 'AGULLA',     width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#0d9488', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'mans',       label: 'MANS',       width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#FFE082', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'laterals',   label: 'LATERAL',    width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#80DEEA', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'vents',      label: 'VENT',       width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#A5D6A7', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'cordo-obert',label: 'CORDÓ OBERT',width: 80, height: 40, shape: NodeShape.ELLIPSE,    color: '#FFF9C4', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'tap',        label: 'TAP',        width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#be185d', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'crossa',     label: 'CROSSA',     width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#9FA8DA', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'contrafort', label: 'CONTRAFORT', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#EF9A9A', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'comodin',    label: '...',        width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#B0BEC5', requiresCustomLabel: true  },
+  { zone: FigureZone.PINYA, positionType: 'agulla',     label: 'AGULLA',     width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'mans',       label: 'MANS',       width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'laterals',   label: 'LATERAL',    width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'vents',      label: 'VENT',       width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'cordo-obert',label: 'CORDÓ OBERT',width: 80, height: 40, shape: NodeShape.ELLIPSE,    requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'tap',        label: 'TAP',        width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'crossa',     label: 'CROSSA',     width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'contrafort', label: 'CONTRAFORT', width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'comodin',    label: '...',        width: 80, height: 40, shape: NodeShape.RECTANGLE, requiresCustomLabel: true  },
 ];
 
 export const PINYA_POSITION_TYPES = PINYA_NODE_PRESETS.map((p) => p.positionType as string);

@@ -231,7 +231,7 @@
             @if (ev.attendanceSummary.total > 0) {
               <div class="mt-4">
                 <div class="flex justify-between text-xs text-base-content/50 mb-1">
-                  <span>{{ isPast() ? 'Assistència' : 'Confirmació' }}</span>
+                  <span>{{ arrivals() ? 'Assistència' : 'Confirmació' }}</span>
                   <span>{{ attendanceRatio() }}%</span>
                 </div>
                 <progress class="progress progress-success w-full" [value]="attendanceRatio()" max="100"></progress>
@@ -249,7 +249,7 @@
         aria-label="Pinyes i Figures"
         [class.hidden]="activeTab() !== 'pinyes'"
       >
-        <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" [phase]="phase()" />
+        <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" />
       </div>
     }
 

@@ -6,6 +6,7 @@ import { BehaviorSubject, of } from 'rxjs';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { LucideAngularModule } from 'lucide-angular';
 import type { BulkImportResult } from '@muixer/pinyes-render';
+import type { EventPhase } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentWorkspaceComponent } from './segment-workspace.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../services/segment-workspace-state.service';
@@ -90,6 +91,7 @@ const makeWsMock = () => {
     selectedInstance: signal<WorkspaceInstance | null>(null),
     lockStatus: signal(null),
     isLocked: signal(false),
+    phase: signal<EventPhase>('before'),
     personsLoaded: signal(true),
     pinyaSlots: signal([]),
     pendingSelection: signal<{ slotId: string; nodeId: string } | null>(null),
@@ -423,13 +425,16 @@ describe('SegmentWorkspaceComponent', () => {
     expect(previsualitzaTab).toBeTruthy();
   });
 
-  it('takes the event phase from the phase query param', async () => {
-    const fixture = await setup({ queryParams: { phase: 'day' } });
-    expect(fixture.componentInstance.phase()).toBe('day');
+  it('passes the event phase worked out by the workspace state to the tabs', async () => {
+    const fixture = await setup();
+    ws.phase.set('started');
+    fixture.detectChanges();
+    const tab = fixture.debugElement.query((de) => de.name === 'app-pinyes-tab');
+    expect(tab.componentInstance.phase()).toBe('started');
   });
 
-  it("defaults to 'before' without (or with an unknown) phase query param", async () => {
-    const fixture = await setup({ queryParams: { phase: 'bogus' } });
+  it('ignores a stale phase query param', async () => {
+    const fixture = await setup({ queryParams: { phase: 'after' } });
     expect(fixture.componentInstance.phase()).toBe('before');
   });
 
@@ -480,8 +485,8 @@ describe('SegmentWorkspaceComponent', () => {
       );
     });
 
-    it('navigates to the previous segment preserving the phase and returnUrl query params', async () => {
-      const fixture = await setup({ queryParams: { phase: 'after', returnUrl: '/rehearsals/event-123' } });
+    it('navigates to the previous segment preserving the returnUrl query param', async () => {
+      const fixture = await setup({ queryParams: { returnUrl: '/rehearsals/event-123' } });
       ws.previousSegmentId.set('seg-0');
       fixture.detectChanges();
       const router = TestBed.inject(Router);
@@ -494,7 +499,7 @@ describe('SegmentWorkspaceComponent', () => {
 
       expect(navigateSpy).toHaveBeenCalledWith(
         ['/pinyes/events', EVENT_ID, 'segments', 'seg-0', 'assign'],
-        { queryParams: { tab: 'pinyes', phase: 'after', returnUrl: '/rehearsals/event-123' } },
+        { queryParams: { tab: 'pinyes', returnUrl: '/rehearsals/event-123' } },
       );
     });
 

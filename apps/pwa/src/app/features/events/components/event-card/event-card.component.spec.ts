@@ -1,7 +1,9 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { By } from '@angular/platform-browser';
 import { AttendanceStatus, DelegateType, EventType, MeEvent, NOT_REGISTERED_STATUS, UserRole } from '@muixer/shared';
 import { EventCardComponent } from './event-card.component';
+import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
 import { EventService } from '../../services/event.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { ToastService } from '@muixer/ui';
@@ -167,6 +169,27 @@ describe('EventCardComponent', () => {
     expect(emitted).toEqual([{ eventId: 'ev-1', personId: 'p-1', status: AttendanceStatus.ANIRE }]);
   });
 
+  describe('past event (Valencia time)', () => {
+    afterEach(() => vi.useRealTimers());
+
+    const attendanceDisabled = (fixture: ComponentFixture<EventCardComponent>) =>
+      fixture.debugElement.query(By.directive(AttendanceButtonComponent)).componentInstance.disabled();
+
+    it('locks the attendance buttons once the event day is over in Valencia, even if it is still that day in UTC', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 22:30 UTC on 23 Jun = 00:30 on 24 Jun in Valencia.
+      vi.setSystemTime(new Date('2026-06-23T22:30:00Z'));
+      expect(attendanceDisabled(createCard(MOCK_ASSAIG))).toBe(true);
+    });
+
+    it('keeps them open on the event day', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 21:30 UTC = 23:30 on 23 Jun in Valencia, after the 20:00 start.
+      vi.setSystemTime(new Date('2026-06-23T21:30:00Z'));
+      expect(attendanceDisabled(createCard(MOCK_ASSAIG))).toBe(false);
+    });
+  });
+
   describe('showAttendance', () => {
     it('hides the attendance buttons when set to false', () => {
       const fixture = createCard(MOCK_ASSAIG);
@@ -225,13 +248,22 @@ describe('EventCardComponent', () => {
       attendanceSummary: { confirmed: 4, declined: 1, pending: 2, attended: 3, lateCancel: 0, children: 2, childrenAttended: 1, total: 10 },
     };
 
-    it('shows the coming total and xicalla count for TECHNICAL/ADMIN', () => {
+    it('shows the coming total with the xicalla count in brackets for TECHNICAL/ADMIN', () => {
       mockRole = UserRole.TECHNICAL;
       const fixture = createCard(eventWithSummary);
       const el = fixture.nativeElement.querySelector('[data-testid="event-card-attendance-count"]');
-      expect(el.textContent).toContain('5 adults');
-      expect(el.textContent).toContain('7 total');
-      expect(el.textContent).toContain('2 xicalla');
+      const visible = el.querySelector('[aria-hidden="true"]');
+      expect(visible.textContent.replace(/\s+/g, ' ').trim()).toBe('7 (2 )');
+      expect(visible.querySelectorAll('lucide-icon').length).toBe(2);
+      expect(el.textContent).not.toContain('adults');
+      expect(el.textContent).not.toContain('total');
+    });
+
+    it('spells the count out for screen readers, since the icons carry the meaning', () => {
+      mockRole = UserRole.ADMIN;
+      const fixture = createCard(eventWithSummary);
+      const el = fixture.nativeElement.querySelector('[data-testid="event-card-attendance-count"] .sr-only');
+      expect(el.textContent.trim()).toBe('7 persones, 2 de la xicalla');
     });
 
     it('hides the attendance count for MEMBER', () => {

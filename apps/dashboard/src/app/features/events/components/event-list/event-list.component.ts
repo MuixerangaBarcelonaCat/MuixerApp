@@ -9,8 +9,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { ButtonComponent, InputComponent, SelectComponent, EmptyStateComponent } from '@muixer/ui';
-import { ICON_FIGURA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { ButtonComponent, InputComponent, SelectComponent, EmptyStateComponent, ICON_FIGURA, DOMAIN_ICONS } from '@muixer/ui';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
@@ -31,9 +30,11 @@ import { PaginationComponent } from '../../../../shared/components/data/paginati
 import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
 import { ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnDef, ColumnPill, GroupSeparator } from '../../../../shared/models/column-def.model';
+import { EventPhase, getEventPhase, isArrivalPhase, isStartedPhase } from '@muixer/shared';
 
-export function getAdultsCount(summary: AttendanceSummary, isPast: boolean): number {
-  const positive = isPast ? summary.attended : summary.confirmed;
+/** Adults among those who arrived (`arrivals`, from the event day on) or who confirmed (before it). */
+export function getAdultsCount(summary: AttendanceSummary, arrivals: boolean): number {
+  const positive = arrivals ? summary.attended : summary.confirmed;
   return Math.max(0, positive - summary.children);
 }
 
@@ -251,10 +252,8 @@ export class EventListComponent implements OnInit {
     return d.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
-  isEventPast(dateStr: string, startTime: string | null): boolean {
-    const timeStr = startTime ?? '23:59';
-    const dt = new Date(`${dateStr}T${timeStr}:00`);
-    return dt < new Date();
+  private phaseOf(item: EventListItem): EventPhase {
+    return getEventPhase(item.date, item.startTime);
   }
 
   getSeasonLabel(id: string | undefined): string {
@@ -377,32 +376,22 @@ export class EventListComponent implements OnInit {
     return this.sortOrder() === 'ASC' ? 'asc' : 'desc';
   }
 
-  getConfirmedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return isPast ? summary.attended : summary.confirmed;
-  }
-
-  getDeclinedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return summary.declined;
-  }
-
   /** Group separator to split upcoming vs past events */
   readonly groupSeparator = computed<GroupSeparator<EventListItem>>(() => ({
-    predicate: (item: EventListItem) => this.isEventPast(item.date, item.startTime),
+    predicate: (item: EventListItem) => this.phaseOf(item) === 'after',
     label: 'Events passats',
   }));
 
   formatAttendance(item: EventListItem): string {
-    const isPast = this.isEventPast(item.date, item.startTime);
     const s = item.attendanceSummary;
-    if (isPast) {
+    if (isArrivalPhase(this.phaseOf(item))) {
       return `✓${s.attended} !${s.confirmed} ✗${s.declined}`;
     }
     return `✓${s.confirmed} ✗${s.declined} ?${s.pending}`;
   }
 
   formatAdults(item: EventListItem): string {
-    const isPast = this.isEventPast(item.date, item.startTime);
-    return String(getAdultsCount(item.attendanceSummary, isPast));
+    return String(getAdultsCount(item.attendanceSummary, isArrivalPhase(this.phaseOf(item))));
   }
 
   formatPinyes(item: EventListItem): string {
@@ -414,12 +403,12 @@ export class EventListComponent implements OnInit {
   }
 
   private attendancePills(item: EventListItem): ColumnPill[] {
-    const isPast = this.isEventPast(item.date, item.startTime);
+    const phase = this.phaseOf(item);
     const s = item.attendanceSummary;
-    if (isPast) {
+    if (isArrivalPhase(phase)) {
       return [
         { text: `✓${s.attended}`, class: 'text-success' },
-        { text: `!${s.confirmed}`, class: 'text-warning' },
+        { text: `!${s.confirmed}`, class: isStartedPhase(phase) ? 'text-warning' : 'text-success' },
         { text: `✗${s.declined}`, class: 'text-error' },
       ];
     }

@@ -1,7 +1,7 @@
+import { ICON_TEMPLATE, ICON_ASSAIG, ICON_ACTUACIO, ICON_PERSONA, ICON_COMUNICACIO } from '@muixer/ui';
 import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_TEMPLATE, ICON_ASSAIG, ICON_ACTUACIO, ICON_PERSONA, ICON_COMUNICACIO } from '../../../constants/domain-icons';
 
 @Component({
   selector: 'app-tab-nav',

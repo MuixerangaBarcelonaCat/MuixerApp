@@ -250,7 +250,7 @@ describe('EventDetailComponent', () => {
       expect(badges[0].className).toContain('rounded');
     });
 
-    it('places the segments section above attendance when the event has already started (isPast)', async () => {
+    it('places the segments section above attendance once the event day is over (isPast)', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: '2020-01-01' }), of([
         { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
       ]));
@@ -261,7 +261,22 @@ describe('EventDetailComponent', () => {
       expect(attendanceEl.style.order).toBe('2');
     });
 
-    it('places attendance above the segments section when the event has not started yet', async () => {
+    it('treats the event as past once its day is over in Valencia, even if it is still that day in UTC', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 22:30 UTC on 15 Jul = 00:30 on 16 Jul in Valencia.
+      vi.setSystemTime(new Date('2026-07-15T22:30:00Z'));
+      try {
+        fixture = await setup(of({ ...MOCK_DETAIL, date: '2026-07-15' }), of([
+          { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
+        ]));
+        const segmentsEl = fixture.nativeElement.querySelector('.segments-section') as HTMLElement;
+        expect(segmentsEl.style.order).toBe('1');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('places attendance above the segments section until the event day is over', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: '2099-01-01' }), of([
         { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
       ]));
@@ -275,6 +290,19 @@ describe('EventDetailComponent', () => {
 
   describe('roll-call link ("Passa llista")', () => {
     const TODAY = new Date().toISOString().slice(0, 10);
+
+    it('knows the event is today by the Valencia date, not the UTC one', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 22:30 UTC on 15 Jul = 00:30 on 16 Jul in Valencia.
+      vi.setSystemTime(new Date('2026-07-15T22:30:00Z'));
+      try {
+        fixture = await setup(of({ ...MOCK_DETAIL, date: '2026-07-16' }), of([]), UserRole.TECHNICAL);
+        const detail = fixture.debugElement.query(By.directive(EventDetailComponent)).componentInstance as EventDetailComponent;
+        expect(detail['isToday']()).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
 
     it('shows it for TECHNICAL on the day of the event', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: TODAY }), of([]), UserRole.TECHNICAL);
@@ -339,6 +367,16 @@ describe('EventDetailComponent', () => {
       const pendentLink = links.find((l) => l.textContent?.includes('Pendents'));
       expect(pendentLink?.className).toContain('opacity-50');
       expect(pendentLink?.getAttribute('href')).not.toContain('status=');
+    });
+
+    it('sits at the bottom of the page, after segments and attendance', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
+      ]), UserRole.TECHNICAL);
+      const section = fixture.nativeElement.querySelector('.stats-section') as HTMLElement;
+      expect(section.querySelector('[data-testid="attendance-stats-box"]')).toBeTruthy();
+      expect(section.classList).toContain('order-last');
+      expect(section.parentElement?.lastElementChild).toBe(section);
     });
 
     it('shows "Assistit" for an assaig', async () => {

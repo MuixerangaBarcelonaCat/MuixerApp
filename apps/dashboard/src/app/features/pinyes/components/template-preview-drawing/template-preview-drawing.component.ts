@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import rough from 'roughjs';
 import type { RoughSVG } from 'roughjs/bin/svg';
-import { hashSeed, layoutTroncGroup, computeGroundY } from '../../utils/tronc-silhouette-layout.util';
+import { hashSeed } from '@muixer/pinyes-render';
+import { layoutTroncGroup, computeGroundY } from '../../utils/tronc-silhouette-layout.util';
 import { buildSilhouetteMarkup, buildPinyaMarkup, buildGroundLineMarkup } from './template-preview-drawing.render';
 
 const PRIMARY_COLOR = 'oklch(var(--p))';

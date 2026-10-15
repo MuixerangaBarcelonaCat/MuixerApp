@@ -1,0 +1,20 @@
+<div role="group" aria-label="Mode de visualització">
+  <lib-button-group>
+    @for (option of options; track option.mode) {
+      <lib-button
+        joinItem
+        outlineMode
+        variant="neutral"
+        size="xs"
+        [active]="mode() === option.mode"
+        [ariaPressed]="mode() === option.mode"
+        [ariaLabel]="option.label"
+        [tooltip]="option.tooltip"
+        (clicked)="modeChange.emit(option.mode)"
+      >
+        <lucide-icon [img]="option.icon" [size]="14" aria-hidden="true" />
+        <span class="hidden md:inline" data-testid="mode-label">{{ option.label }}</span>
+      </lib-button>
+    }
+  </lib-button-group>
+</div>

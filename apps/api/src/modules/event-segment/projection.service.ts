@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventSegment } from './entities/event-segment.entity';
+import { formatDateOnly } from '../../common/utils/date.util';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { Attendance } from '../event/attendance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
@@ -34,6 +35,8 @@ export interface ProjectionData {
     prevSegmentId: string | null;
     nextSegmentId: string | null;
   };
+  /** The event's day and start time: the client derives the attendance phase from them (`getEventPhase`). */
+  event: { date: string; startTime: string | null };
   instances: ProjectionInstanceData[];
   /** true if at least one instance has a custom distribution position set */
   hasDistribution: boolean;
@@ -66,6 +69,7 @@ export class ProjectionService {
       where: onlyPublished
         ? { id: segmentId, event: { id: eventId }, isPublished: true }
         : { id: segmentId, event: { id: eventId } },
+      relations: { event: true },
     });
     if (!segment) {
       throw new NotFoundException(
@@ -163,6 +167,7 @@ export class ProjectionService {
         nextSegmentId,
       },
       instances: projectionInstances,
+      event: { date: formatDateOnly(segment.event.date), startTime: segment.event.startTime },
       hasDistribution,
       personAttendance,
       conflicts,
