@@ -81,6 +81,13 @@ export class FigureNode {
   @Column({ type: 'int', nullable: true })
   renglaPosition: number | null;
 
+  /**
+   * TRONC only: the BASE/TRONC nodes of the floor directly below (`z - 1`) this person stands on
+   * once the figure is built. Plain uuid[] (not FK) — validated on save, always `[]` elsewhere.
+   */
+  @Column({ type: 'uuid', array: true, default: () => "'{}'" })
+  standsOnNodeIds: string[];
+
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 

@@ -56,6 +56,8 @@ export interface InstanceNodeItem {
   ringLevel: number | null;
   renglaId: string | null;
   renglaPosition: number | null;
+  /** TRONC only: ids of the nodes on floor `z - 1` of the same instance this person stands on. */
+  standsOnNodeIds: string[];
   isSnapshotted: boolean;
   isAdHoc: boolean;
   createdById: string | null;

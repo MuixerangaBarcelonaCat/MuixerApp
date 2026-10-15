@@ -305,6 +305,7 @@ export class CompositionService {
           originNodeId: n.originNodeId,
           renglaId: n.renglaId,
           renglaPosition: n.renglaPosition,
+          standsOnNodeIds: n.standsOnNodeIds ?? [],
           metadata: n.metadata,
         })),
       },

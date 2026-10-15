@@ -337,6 +337,28 @@ describe('NodeAssignmentService', () => {
 
       expect(result[0].climbIndicator).toBe('X');
     });
+
+    it('includes standsOnNodeIds for snapshotted InstanceNodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.find.mockResolvedValue([makeInstanceNode({ standsOnNodeIds: ['inode-b1'] })]);
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result[0].standsOnNodeIds).toEqual(['inode-b1']);
+    });
+
+    it('includes standsOnNodeIds for live FigureNodes (unsnapshotted instance)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      );
+      mockTemplateRepo.findOne.mockResolvedValue(
+        makeTemplate({ nodes: [makeFigureNode({ standsOnNodeIds: ['fn-b1'] })] }),
+      );
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result[0].standsOnNodeIds).toEqual(['fn-b1']);
+    });
   });
 
   // ── batched loaders (projection) ───────────────────────────────────────
@@ -3698,6 +3720,72 @@ describe('NodeAssignmentService', () => {
       const nodeData = instanceNodeCreateCall![1];
       expect(nodeData.renglaId).toBe('r-uuid');
       expect(nodeData.renglaPosition).toBe(2);
+    });
+  });
+
+  describe('snapshotInstance — standsOnNodeIds remap', () => {
+    it('rewrites standsOnNodeIds from template node ids to the new instance node ids', async () => {
+      const base = makeFigureNode({ id: 'fn-b1', zone: FigureZone.BASE, z: 0 });
+      const tronc = makeFigureNode({ id: 'fn-s1', zone: FigureZone.TRONC, z: 1, standsOnNodeIds: ['fn-b1'] });
+      mockInstanceRepo.findOne.mockResolvedValue({
+        id: INSTANCE_ID,
+        snapshotted: false,
+        figureTemplate: { id: TEMPLATE_ID },
+        segment: makeSegment(),
+      });
+      mockTemplateRepo.findOne.mockResolvedValue({ id: TEMPLATE_ID, nodes: [base, tronc] });
+
+      const txManager = makeTransactionManager();
+      mockDataSource.transaction.mockImplementation(async (cb: any) => cb(txManager));
+      const createdInstanceNode = makeInstanceNode({ sourceNodeId: 'fn-b1' });
+      txManager.create.mockReturnValue(createdInstanceNode);
+      txManager.save.mockResolvedValue([createdInstanceNode]);
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: createdInstanceNode as any }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+      await service.assign(INSTANCE_ID, { nodeId: 'fn-b1', personId: PERSON_ID });
+
+      const created = txManager.create.mock.calls
+        .filter((c: unknown[]) => c[0] === InstanceNode)
+        .map((c: unknown[]) => c[1] as Partial<InstanceNode>);
+      const baseCopy = created.find((n) => n.sourceNodeId === 'fn-b1')!;
+      const troncCopy = created.find((n) => n.sourceNodeId === 'fn-s1')!;
+      expect(baseCopy.id).toEqual(expect.any(String));
+      expect(baseCopy.id).not.toBe('fn-b1');
+      expect(baseCopy.standsOnNodeIds).toEqual([]);
+      expect(troncCopy.standsOnNodeIds).toEqual([baseCopy.id]);
+    });
+
+    it('drops links to template nodes that no longer exist', async () => {
+      const tronc = makeFigureNode({ id: 'fn-s1', zone: FigureZone.TRONC, z: 1, standsOnNodeIds: ['gone'] });
+      mockInstanceRepo.findOne.mockResolvedValue({
+        id: INSTANCE_ID,
+        snapshotted: false,
+        figureTemplate: { id: TEMPLATE_ID },
+        segment: makeSegment(),
+      });
+      mockTemplateRepo.findOne.mockResolvedValue({ id: TEMPLATE_ID, nodes: [tronc] });
+
+      const txManager = makeTransactionManager();
+      mockDataSource.transaction.mockImplementation(async (cb: any) => cb(txManager));
+      const createdInstanceNode = makeInstanceNode({ sourceNodeId: 'fn-s1' });
+      txManager.create.mockReturnValue(createdInstanceNode);
+      txManager.save.mockResolvedValue([createdInstanceNode]);
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: createdInstanceNode as any }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+      await service.assign(INSTANCE_ID, { nodeId: 'fn-s1', personId: PERSON_ID });
+
+      const troncCopy = txManager.create.mock.calls.find((c: unknown[]) => c[0] === InstanceNode)![1];
+      expect(troncCopy.standsOnNodeIds).toEqual([]);
     });
   });
 

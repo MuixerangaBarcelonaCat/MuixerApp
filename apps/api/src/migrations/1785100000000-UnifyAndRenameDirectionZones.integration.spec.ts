@@ -5,7 +5,6 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { DataSource } from 'typeorm';
 import { ENTITIES } from '../modules/database/entities';
 import { FigureTemplate } from '../modules/figure/entities/figure-template.entity';
-import { FigureNode } from '../modules/figure/entities/figure-node.entity';
 import { migrations } from './index';
 
 /**
@@ -32,10 +31,10 @@ describe('UnifyAndRenameDirectionZones (integration)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16-alpine').start();
 
-    // 1. Run every migration up to (not including) the one under test, then seed legacy rows
-    //    through the entity repositories (raw INSERTs against a 40-migrations-deep schema are
-    //    too brittle) — the `zone` values are still forced with raw SQL since the enum no longer
-    //    carries them at HEAD.
+    // 1. Run every migration up to (not including) the one under test, then seed legacy rows —
+    //    the template through its repository; the nodes with raw SQL, since the HEAD FigureNode
+    //    entity carries columns added by later migrations (`standsOnNodeIds`) and its enum no
+    //    longer has the legacy `zone` values (forced below).
     const pre = new DataSource({
       type: 'postgres',
       url: container.getConnectionUri(),
@@ -49,19 +48,14 @@ describe('UnifyAndRenameDirectionZones (integration)', () => {
     await pre.runMigrations();
 
     await pre.getRepository(FigureTemplate).save({ id: TEMPLATE_ID, name: 'T', slug: 't' });
-    const nodeRepo = pre.getRepository(FigureNode);
-    const mk = (label: string, x = 0) =>
-      nodeRepo.save({
-        template: { id: TEMPLATE_ID } as FigureTemplate,
-        label,
-        zone: 'PINYA' as never, // overwritten below
-        positionType: null,
-        x,
-        y: 0,
-        width: 90,
-        height: 44,
-        shape: 'RECTANGLE' as never,
-      });
+    const mk = async (label: string): Promise<{ id: string }> =>
+      (
+        await pre.query(
+          `INSERT INTO "figure_nodes" ("templateId", "label", "zone", "x", "y", "width", "height", "shape")
+           VALUES ($1, $2, 'PINYA', 0, 0, 90, 44, 'RECTANGLE') RETURNING "id"`, // zone overwritten below
+          [TEMPLATE_ID, label],
+        )
+      )[0];
     const figFull = await mk('Dir fig');
     const figAdhoc = await mk('Dir fig adhoc');
     const xic = await mk('Dir xic');

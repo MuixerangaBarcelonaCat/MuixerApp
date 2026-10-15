@@ -57,6 +57,7 @@ const makeNode = (
   originNodeId: null,
   renglaId,
   renglaPosition,
+  standsOnNodeIds: [],
   metadata: {},
   ...overrides,
 });

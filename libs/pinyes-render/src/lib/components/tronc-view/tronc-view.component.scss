@@ -189,6 +189,17 @@
     box-shadow: 0 0 12px oklch(var(--su) / 0.7);
   }
 
+  // Nodes behind the uneven-supporter chip being hovered/focused. An outline, not a box-shadow,
+  // so it stacks over the selected/conflict/highlighted rings instead of replacing them.
+  &.support-focus {
+    outline: 2px solid oklch(var(--wa));
+    outline-offset: 2px;
+  }
+
+  &.support-focus-error {
+    outline-color: oklch(var(--er));
+  }
+
   &.z-colored {
     border-left-width: 3px;
     border-left-style: solid;
@@ -340,14 +351,37 @@
   }
 }
 
-// -- Variance column 
+// -- Cumulative height column 
 
 .floor-variance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
   font-size: 0.6rem;
   font-weight: 600;
-  text-align: center;
   line-height: 1.2;
   flex-shrink: 0;
+}
+
+.floor-gap {
+  color: oklch(var(--bc) / 0.5);
+  white-space: nowrap;
+}
+
+.floor-gap,
+.support-gap {
+  cursor: help;
+  border-radius: var(--rounded-badge, 1.9rem);
+
+  &:focus-visible {
+    outline: 2px solid oklch(var(--p));
+    outline-offset: 1px;
+  }
+}
+
+.support-gap lib-badge {
+  white-space: nowrap;
 }
 
 // -- Editor controls 

@@ -35,6 +35,10 @@ import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, S
         }
       </div>
 
+      @if (info().cumulativeHeight; as cumulative) {
+        <p class="text-base-content/60 mb-1">Alçada acumulada: {{ cumulative }} cm</p>
+      }
+
       @if (sortedPositions().length > 0) {
         <div class="flex flex-wrap gap-1">
           @for (pos of sortedPositions(); track pos.id) {

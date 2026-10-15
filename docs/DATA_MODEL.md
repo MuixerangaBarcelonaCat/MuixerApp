@@ -67,7 +67,9 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
    persona no pot repetir-se dins d'una instància (`figureInstance + person`) ni dins d'un segment
    (`segment + person`).
 6. **IDs de node estables**: el `PUT` de templates fa upsert per ID (crea, actualitza, esborra els absents);
-   `FigureNode.id` no canvia entre saves. `originNodeId` traça el llinatge en duplicar.
+   `FigureNode.id` no canvia entre saves. Un node nou es crea amb l'id que envia el client (l'editor el
+   genera), així els autosaves següents l'actualitzen en lloc de recrear-lo. Duplicar una plantilla dona
+   ids nous a les còpies. `originNodeId` traça el llinatge en duplicar.
 7. **Zona BASE**: els nodes amb `zone = BASE` (z=0) surten tant a la vista de pinya com al tronc.
 8. **Protecció referencial**: no es pot esborrar un `FigureTemplate` amb `CompositionEntry`s o
    `FigureInstance`s (409).
@@ -92,6 +94,11 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
     (`code: SEASON_LEAVES_EVENTS_UNCOVERED`, `uncoveredCount`) llevat que es confirme amb
     `allowUncovered=true`; així es mou la frontera entre dues temporades contigües en dos passos. La
     sincronització del legacy importa igualment els events fora de temporada i n'avisa del recompte.
+13. **Qui va damunt de qui** (`standsOnNodeIds`, `uuid[]` sense FK a `figure_nodes` i `instance_nodes`):
+    només els nodes `TRONC` en tenen, i cada id apunta a un node `BASE`/`TRONC` de la mateixa plantilla
+    (o instància) amb `z` exactament un menys. El servei de plantilles ho valida en cada save (400);
+    el snapshot, `duplicate` i `save-from-instance` remapegen els ids a les còpies. Vegeu
+    [[PINYES_MODULE]] «Estructura del tronc».
 
 ---
 
@@ -99,7 +106,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-10-06 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-10-08 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -113,9 +120,9 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `event_segments` | `EventSegment` | 11 |
 | `events` | `Event` | 20 |
 | `figure_instances` | `FigureInstance` | 21 |
-| `figure_nodes` | `FigureNode` | 22 |
+| `figure_nodes` | `FigureNode` | 23 |
 | `figure_templates` | `FigureTemplate` | 11 |
-| `instance_nodes` | `InstanceNode` | 25 |
+| `instance_nodes` | `InstanceNode` | 26 |
 | `legal_documents` | `LegalDocument` | 9 |
 | `news` | `News` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
@@ -325,6 +332,7 @@ Definició: [`apps/api/src/modules/figure/entities/figure-node.entity.ts`](../ap
 | `originNodeId` | `uuid` | `string` | sí | — |
 | `renglaId` | `uuid` | `string` | sí | — |
 | `renglaPosition` | `int` | `number` | sí | — |
+| `standsOnNodeIds` | `uuid` | `string[]` | no | — |
 | `metadata` | `jsonb` | `Record<string, unknown>` | no | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
@@ -373,6 +381,7 @@ Definició: [`apps/api/src/modules/event-segment/entities/instance-node.entity.t
 | `ringLevel` | `int` | `number` | sí | — |
 | `renglaId` | `uuid` | `string` | sí | — |
 | `renglaPosition` | `int` | `number` | sí | — |
+| `standsOnNodeIds` | `uuid` | `string[]` | no | — |
 | `metadata` | `jsonb` | `Record<string, unknown>` | no | — |
 | `isAdHoc` | `boolean` | `boolean` | no | default `false` |
 | `createdBy` | `relation` | `User` | sí | ManyToOne → `undefined`, onDelete SET NULL |

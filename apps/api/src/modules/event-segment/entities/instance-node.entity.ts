@@ -97,6 +97,13 @@ export class InstanceNode {
   @Column({ type: 'int', nullable: true })
   renglaPosition: number | null;
 
+  /**
+   * Copy of `FigureNode.standsOnNodeIds`, remapped to this instance's InstanceNode ids at snapshot
+   * time. Plain uuid[] (not FK); always `[]` for ad-hoc nodes.
+   */
+  @Column({ type: 'uuid', array: true, default: () => "'{}'" })
+  standsOnNodeIds: string[];
+
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 

@@ -1,0 +1,120 @@
+<!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+<div class="support-editor" (click)="cancelConnect()">
+  @if (!hasTronc()) {
+    <lib-empty-state message="Afegiu pisos al tronc per a indicar qui va damunt de qui." />
+  } @else {
+    <p class="support-help">
+      Arrossegueu des del punt de baix de cada persona fins a qui té davall. Per a eliminar un enllaç, feu-hi clic.
+    </p>
+
+    @for (notice of gapNotices(); track notice) {
+      <lib-alert variant="warning" dense>{{ notice }}</lib-alert>
+    }
+
+    <p class="connect-status" aria-live="polite">{{ connectStatus() }}</p>
+
+    <div class="diagram" [class.connecting]="!!connectFrom()">
+      <div class="floor-labels" aria-hidden="true">
+        @for (floor of floors(); track floor.z; let row = $index) {
+          <span class="pis-code" [style.top.rem]="rowTop(row)" [style.height.rem]="ROW_HEIGHT_REM">
+            {{ floor.pisLabel }}
+          </span>
+        }
+      </div>
+
+      <div #board class="board" [style.height.rem]="boardHeight()">
+        @for (floor of floors(); track floor.z; let row = $index) {
+          <div
+            class="floor-grid"
+            role="group"
+            [attr.aria-label]="floor.pisLabel"
+            [style.top.rem]="rowTop(row)"
+            [style.height.rem]="ROW_HEIGHT_REM"
+            [style.grid-template-columns]="gridTemplateColumns()"
+          >
+            @for (node of floor.nodes; track node.id; let i = $index) {
+              <div class="node-cell" [style.grid-column]="floor.isBase ? baseColumn(i) : troncColumn(node)">
+                <button
+                  type="button"
+                  class="support-node"
+                  [class.base]="floor.isBase"
+                  [class.selected]="isSelected(node)"
+                  [class.source]="isSource(node)"
+                  [class.target]="isTarget(node)"
+                  [class.dimmed]="isDimmed(node)"
+                  [style.border-left-color]="nodeColor(node)"
+                  [attr.data-support-node-id]="node.id"
+                  [attr.aria-pressed]="isSelected(node)"
+                  (click)="onNodeClick(node, $event)"
+                >
+                  <span class="node-label">{{ node.label }}</span>
+                </button>
+                @if (!floor.isBase) {
+                  <button
+                    type="button"
+                    class="handle"
+                    [class.active]="isSource(node)"
+                    [disabled]="handleDisabled(node)"
+                    [attr.data-handle-for]="node.id"
+                    [attr.aria-label]="'Connecta ' + node.label + ' amb qui té davall'"
+                    [attr.aria-pressed]="isSource(node)"
+                    [title]="'Connecta ' + node.label + ' amb qui té davall'"
+                    (click)="onHandleClick(node, $event)"
+                    (pointerdown)="onHandlePointerDown(node, $event)"
+                    (pointermove)="onHandlePointerMove($event)"
+                    (pointerup)="onHandlePointerUp($event)"
+                    (pointercancel)="onHandlePointerCancel()"
+                  ></button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <svg class="links" [attr.viewBox]="'0 0 100 ' + boardHeight()" preserveAspectRatio="none">
+          @for (link of links(); track link.upperId + '>' + link.lowerId) {
+            <line
+              class="link"
+              [class.active]="isLinkActive(link)"
+              vector-effect="non-scaling-stroke"
+              [attr.data-upper]="link.upperId"
+              [attr.data-lower]="link.lowerId"
+              [attr.x1]="link.x1"
+              [attr.y1]="link.y1"
+              [attr.x2]="link.x2"
+              [attr.y2]="link.y2"
+            />
+            <line
+              class="link-hit"
+              vector-effect="non-scaling-stroke"
+              role="button"
+              tabindex="0"
+              [attr.aria-label]="linkLabel(link)"
+              [attr.data-upper]="link.upperId"
+              [attr.data-lower]="link.lowerId"
+              [attr.x1]="link.x1"
+              [attr.y1]="link.y1"
+              [attr.x2]="link.x2"
+              [attr.y2]="link.y2"
+              (click)="onLinkActivate(link, $event)"
+              (keydown.enter)="onLinkActivate(link, $event)"
+              (keydown.delete)="onLinkActivate(link, $event)"
+            >
+              <title>{{ linkLabel(link) }}</title>
+            </line>
+          }
+          @if (rubberBand(); as band) {
+            <line
+              class="rubber-band"
+              vector-effect="non-scaling-stroke"
+              [attr.x1]="band.x1"
+              [attr.y1]="band.y1"
+              [attr.x2]="band.x2"
+              [attr.y2]="band.y2"
+            />
+          }
+        </svg>
+      </div>
+    </div>
+  }
+</div>

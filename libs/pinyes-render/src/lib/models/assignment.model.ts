@@ -60,6 +60,8 @@ export interface PersonHoverInfo {
   attendanceStatus: AttendanceStatus | null;
   isXicalla: boolean;
   shoulderHeight: number | null;
+  /** Tronc/base only: rounded cm of the person's shoulders once the figure is built (null while unknown). */
+  cumulativeHeight?: number | null;
   notes: string | null;
   notesEmoji: string | null;
   positions: AvailablePersonPosition[];
