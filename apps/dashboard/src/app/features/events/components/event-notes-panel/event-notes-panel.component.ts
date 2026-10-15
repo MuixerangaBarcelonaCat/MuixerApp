@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { LucideAngularModule, ChevronDown, ChevronRight } from 'lucide-angular';
 import { AlertComponent, ButtonComponent, CardComponent, ToastService } from '@muixer/ui';
 import { MarkdownEditorComponent } from '@muixer/ui/markdown-editor';
@@ -91,16 +92,24 @@ export class EventNotesPanelComponent {
 
     this.saving.set(true);
     this.error.set(null);
-    this.eventService.updateFull(this.eventId(), { notes: value }).subscribe({
+    // `expectedNotes` lets the API refuse the save if another technician changed the notes since
+    // they were loaded here, instead of silently overwriting their text.
+    this.eventService.updateFull(this.eventId(), { notes: value, expectedNotes: this.baseline() }).subscribe({
       next: () => {
         this.saving.set(false);
         this.baseline.set(trimmed);
         this.saved.emit(value);
         this.toast.success('S\'han alçat les notes.');
       },
-      error: () => {
+      error: (err: unknown) => {
         this.saving.set(false);
-        this.error.set('No s\'han pogut alçar les notes.');
+        // The draft is left untouched in both cases, so nothing typed here is lost.
+        const conflict = err instanceof HttpErrorResponse && err.status === HttpStatusCode.Conflict;
+        this.error.set(
+          conflict
+            ? 'Algú altre ha modificat les notes. Copieu el text, recarregueu la pàgina i torneu a alçar-les.'
+            : 'No s\'han pogut alçar les notes.',
+        );
       },
     });
   }
