@@ -28,12 +28,12 @@ class StubImportModal {
 
 @Component({ selector: 'app-pinyes-tab', standalone: true, template: '' })
 class StubPinyesTab {
-  readonly isPast = input(false);
+  readonly phase = input('before');
 }
 
 @Component({ selector: 'app-troncs-tab', standalone: true, template: '' })
 class StubTroncsTab {
-  readonly isPast = input(false);
+  readonly phase = input('before');
 }
 
 @Component({ selector: 'app-distribucio-tab', standalone: true, template: '' })
@@ -41,7 +41,7 @@ class StubDistribucioTab {}
 
 @Component({ selector: 'app-nodes-tab', standalone: true, template: '' })
 class StubNodesTab {
-  readonly isPast = input(false);
+  readonly phase = input('before');
 }
 
 @Component({ selector: 'app-previsualitza-tab', standalone: true, template: '' })
@@ -55,6 +55,7 @@ const SEGMENT_ID = 'seg-1';
 
 const makeWorkspaceInstance = (id: string): WorkspaceInstance => ({
   instanceId: id,
+  sortOrder: 0,
   label: `Figura ${id}`,
   figureTemplateId: `tpl-${id}`,
   figureTemplateName: `Figura ${id}`,
@@ -422,9 +423,14 @@ describe('SegmentWorkspaceComponent', () => {
     expect(previsualitzaTab).toBeTruthy();
   });
 
-  it('marks the workspace as past from the past query param', async () => {
-    const fixture = await setup({ queryParams: { past: '1' } });
-    expect(fixture.componentInstance.isPast()).toBe(true);
+  it('takes the event phase from the phase query param', async () => {
+    const fixture = await setup({ queryParams: { phase: 'day' } });
+    expect(fixture.componentInstance.phase()).toBe('day');
+  });
+
+  it("defaults to 'before' without (or with an unknown) phase query param", async () => {
+    const fixture = await setup({ queryParams: { phase: 'bogus' } });
+    expect(fixture.componentInstance.phase()).toBe('before');
   });
 
   it('shows a toast and navigates back when the segment is not found', async () => {
@@ -474,8 +480,8 @@ describe('SegmentWorkspaceComponent', () => {
       );
     });
 
-    it('navigates to the previous segment preserving the past and returnUrl query params', async () => {
-      const fixture = await setup({ queryParams: { past: '1', returnUrl: '/rehearsals/event-123' } });
+    it('navigates to the previous segment preserving the phase and returnUrl query params', async () => {
+      const fixture = await setup({ queryParams: { phase: 'after', returnUrl: '/rehearsals/event-123' } });
       ws.previousSegmentId.set('seg-0');
       fixture.detectChanges();
       const router = TestBed.inject(Router);
@@ -488,7 +494,7 @@ describe('SegmentWorkspaceComponent', () => {
 
       expect(navigateSpy).toHaveBeenCalledWith(
         ['/pinyes/events', EVENT_ID, 'segments', 'seg-0', 'assign'],
-        { queryParams: { tab: 'pinyes', past: '1', returnUrl: '/rehearsals/event-123' } },
+        { queryParams: { tab: 'pinyes', phase: 'after', returnUrl: '/rehearsals/event-123' } },
       );
     });
 

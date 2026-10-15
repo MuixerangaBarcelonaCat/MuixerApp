@@ -80,4 +80,21 @@ describe('PersonHoverCardComponent', () => {
       expect(faded?.parentElement?.parentElement?.classList.contains('opacity-50')).toBe(true);
     });
   });
+
+  describe('attendance status', () => {
+    it.each([
+      ['before', 'ANIRE', 'Ve', 'success'],
+      ['day', 'ASSISTIT', 'Ha arribat', 'success'],
+      ['day', 'ANIRE', 'No ha arribat', 'warning'],
+      ['day', 'NO_VAIG', 'No vindrà', 'error'],
+      ['after', 'ASSISTIT', 'Va vindre', 'success'],
+      ['after', 'ANIRE', 'No presentat', 'warning'],
+      ['after', 'PENDENT', 'Sense resposta', 'ghost'],
+    ] as const)('%s / %s → "%s" (%s)', (phase, status, label, variant) => {
+      fixture.componentRef.setInput('info', makeInfo({ attendanceStatus: status }));
+      fixture.componentRef.setInput('phase', phase);
+      expect(component.statusLabel()).toBe(label);
+      expect(component.statusBadgeVariant()).toBe(variant);
+    });
+  });
 });

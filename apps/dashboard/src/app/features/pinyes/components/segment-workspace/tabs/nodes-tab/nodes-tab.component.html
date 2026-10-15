@@ -33,9 +33,9 @@
 
   <!-- Canvas -->
   <div class="relative flex-1 min-w-0">
-    @if (ws.pinyaSlots().length === 0) {
+    @if (ws.instances().length === 0) {
       <div class="absolute inset-0 z-10 flex items-center justify-center text-base-content/50">
-        Este segment no té cap figura amb pinya.
+        Este segment no té cap figura.
       </div>
     }
 
@@ -52,7 +52,7 @@
       [isPlacementMode]="state.isPlacementMode()"
       [placementSlotId]="ws.selectedInstanceId()"
       [adHocNodesEditable]="true"
-      [isPast]="isPast()"
+      [phase]="phase()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
       (canvasClicked)="onCanvasClicked($event)"
       (segmentAdHocNodeMoved)="onSegmentAdHocNodeMoved($event)"
@@ -77,12 +77,15 @@
     <div class="p-3 space-y-3 border-b border-base-200">
       <div>
         <p class="text-xs font-semibold text-base-content/60 mb-1.5">Pinya</p>
+        @if (selectedFigureHidesPinya()) {
+          <p class="text-xs text-base-content/50 mb-1.5">Esta figura no té pinya.</p>
+        }
         <div class="grid grid-cols-2 gap-1.5">
           @for (preset of adHocPresets; track preset.positionType) {
             <lib-button
               variant="ghost"
               size="xs"
-              [disabled]="ws.isLocked() || !ws.selectedInstanceId()"
+              [disabled]="ws.isLocked() || !ws.selectedInstanceId() || selectedFigureHidesPinya()"
               (clicked)="onPresetSelected(preset)"
             >
               <span class="flex w-full items-center gap-1.5 min-w-0 text-left">
@@ -163,7 +166,7 @@
           [instanceId]="selectedRef()!.slotId"
           [assignment]="selectedAssignment()"
           [heightMode]="state.heightMode()"
-          [isPast]="isPast()"
+          [phase]="phase()"
           (closed)="onSegmentNodeSelected(null)"
           (propertyChanged)="onAdHocPropertyChanged($event)"
           (nodeUpdated)="onAdHocNodeUpdated()"

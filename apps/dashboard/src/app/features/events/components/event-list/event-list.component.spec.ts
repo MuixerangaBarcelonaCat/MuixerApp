@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, convertToParamMap } from '@angular/router';
 import { ActivatedRoute } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
@@ -18,6 +18,8 @@ const makeSeasons = (): Season[] => [
     endDate: '2027-08-31',
     description: null,
     eventCount: 10,
+    rehearsalCount: 10,
+    performanceCount: 0,
   },
   {
     id: 'season-old',
@@ -26,6 +28,8 @@ const makeSeasons = (): Season[] => [
     endDate: '2026-08-31',
     description: null,
     eventCount: 20,
+    rehearsalCount: 20,
+    performanceCount: 0,
   },
 ];
 
@@ -39,7 +43,7 @@ describe('EventListComponent', () => {
   let router: { navigate: ReturnType<typeof vi.fn> };
 
   const mockActivatedRoute = {
-    snapshot: { data: { eventType: EventType.ASSAIG } },
+    snapshot: { data: { eventType: EventType.ASSAIG }, queryParamMap: convertToParamMap({}) },
   };
 
   beforeEach(async () => {
@@ -111,6 +115,46 @@ describe('EventListComponent', () => {
       const f = TestBed.createComponent(EventListComponent);
       f.detectChanges();
       expect(f.componentInstance.selectedSeasonId()).toBeUndefined();
+    });
+  });
+
+  describe('seasonId query param', () => {
+    const createWithQuery = async (seasonId: string) => {
+      eventService.getAll.mockClear();
+      await TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [EventListComponent],
+        providers: [
+          { provide: EventService, useValue: eventService },
+          { provide: SeasonService, useValue: seasonService },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: {
+                data: { eventType: EventType.ASSAIG },
+                queryParamMap: convertToParamMap({ seasonId }),
+              },
+            },
+          },
+          { provide: Router, useValue: router },
+          allLucideIconsProvider,
+        ],
+      }).compileComponents();
+      const f = TestBed.createComponent(EventListComponent);
+      f.detectChanges();
+      return f.componentInstance;
+    };
+
+    it('selects the season from the URL instead of the active one', async () => {
+      const c = await createWithQuery('season-old');
+      expect(c.selectedSeasonId()).toBe('season-old');
+    });
+
+    it('never requests events filtered by any other season', async () => {
+      await createWithQuery('season-old');
+      const seasonIds = eventService.getAll.mock.calls.map(([filters]) => filters.seasonId);
+      expect(seasonIds.length).toBeGreaterThan(0);
+      expect(seasonIds.every((id) => id === 'season-old')).toBe(true);
     });
   });
 
@@ -390,7 +434,7 @@ describe('EventListComponent', () => {
   describe('ACTUACIO event type', () => {
 
     it('sets page title to Actuacions for ACTUACIO type', async () => {
-      const routeActuacio = { snapshot: { data: { eventType: EventType.ACTUACIO } } };
+      const routeActuacio = { snapshot: { data: { eventType: EventType.ACTUACIO }, queryParamMap: convertToParamMap({}) } };
       await TestBed.resetTestingModule();
       await TestBed.configureTestingModule({
         imports: [EventListComponent],
@@ -409,7 +453,7 @@ describe('EventListComponent', () => {
     });
 
     it('navigateToSync goes to /performances/sync for ACTUACIO', async () => {
-      const routeActuacio = { snapshot: { data: { eventType: EventType.ACTUACIO } } };
+      const routeActuacio = { snapshot: { data: { eventType: EventType.ACTUACIO }, queryParamMap: convertToParamMap({}) } };
       await TestBed.resetTestingModule();
       await TestBed.configureTestingModule({
         imports: [EventListComponent],

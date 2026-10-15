@@ -12,8 +12,7 @@ describe('RollCallComponent', () => {
   let fixture: ComponentFixture<RollCallComponent>;
   let rollCallService: {
     getAttendance: ReturnType<typeof vi.fn>;
-    updateAttendance: ReturnType<typeof vi.fn>;
-    createAttendance: ReturnType<typeof vi.fn>;
+    setAttendance: ReturnType<typeof vi.fn>;
     createProvisionalPerson: ReturnType<typeof vi.fn>;
   };
   let eventService: { findOne: ReturnType<typeof vi.fn> };
@@ -21,12 +20,10 @@ describe('RollCallComponent', () => {
 
   const attendanceItems: AttendanceItem[] = [
     {
-      id: 'att-1',
       status: AttendanceStatus.PENDENT,
       person: { id: 'person-1', alias: 'Anna', name: 'Anna', firstSurname: 'Puig', isXicalla: false },
     },
     {
-      id: 'att-2',
       status: AttendanceStatus.ANIRE,
       person: { id: 'person-2', alias: 'Jordi', name: 'Jordi', firstSurname: 'Ferrer', isXicalla: true },
     },
@@ -40,8 +37,7 @@ describe('RollCallComponent', () => {
       getAttendance: vi.fn().mockReturnValue(
         of({ data: attendanceItems, meta: { total: 2, page: 1, limit: 100 } }),
       ),
-      updateAttendance: vi.fn(),
-      createAttendance: vi.fn(),
+      setAttendance: vi.fn(),
       createProvisionalPerson: vi.fn(),
     };
     eventService = { findOne: vi.fn().mockReturnValue(of(event)) };
@@ -94,14 +90,14 @@ describe('RollCallComponent', () => {
   });
 
   it('calls setStatus when a status button is clicked', () => {
-    rollCallService.updateAttendance.mockReturnValue(
-      of({ attendance: { id: 'att-2', status: AttendanceStatus.ASSISTIT }, summary: {} }),
+    rollCallService.setAttendance.mockReturnValue(
+      of({ attendance: { status: AttendanceStatus.ASSISTIT }, summary: {} }),
     );
     const row = fixture.nativeElement.querySelector('[data-testid="roll-call-row"]');
     const buttons: HTMLButtonElement[] = row.querySelectorAll('lib-button-group button');
     buttons[0].click(); // "Ha vingut" is now first
 
-    expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-2', {
+    expect(rollCallService.setAttendance).toHaveBeenCalledWith('event-1', 'person-2', {
       status: AttendanceStatus.ASSISTIT,
     });
   });
@@ -114,24 +110,24 @@ describe('RollCallComponent', () => {
     expect(fixture.componentInstance['notSignedUpItems']()).toEqual([{ ...attendanceItems[0], signedUpGroup: false }]);
   });
 
-  it('updates an existing attendance record', () => {
-    rollCallService.updateAttendance.mockReturnValue(
-      of({ attendance: { id: 'att-1', status: AttendanceStatus.ASSISTIT }, summary: {} }),
+  it('sets the status of a PENDENT person, who may have no attendance row', () => {
+    rollCallService.setAttendance.mockReturnValue(
+      of({ attendance: { status: AttendanceStatus.ASSISTIT }, summary: {} }),
     );
     fixture.componentInstance['setStatus'](attendanceItems[0], AttendanceStatus.ASSISTIT);
-    expect(rollCallService.updateAttendance).toHaveBeenCalledWith('event-1', 'att-1', {
+    expect(rollCallService.setAttendance).toHaveBeenCalledWith('event-1', 'person-1', {
       status: AttendanceStatus.ASSISTIT,
     });
   });
 
   it('shows the fallback toast when the update fails with no server message', () => {
-    rollCallService.updateAttendance.mockReturnValue(throwError(() => new Error('fail')));
+    rollCallService.setAttendance.mockReturnValue(throwError(() => new Error('fail')));
     fixture.componentInstance['setStatus'](attendanceItems[1], AttendanceStatus.ASSISTIT);
     expect(toastService.error).toHaveBeenCalledWith("No s'ha pogut actualitzar l'assistència");
   });
 
   it('surfaces the server error message when the update fails with one', () => {
-    rollCallService.updateAttendance.mockReturnValue(
+    rollCallService.setAttendance.mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 409, error: { message: 'Ja existeix' } })),
     );
     fixture.componentInstance['setStatus'](attendanceItems[1], AttendanceStatus.ASSISTIT);
@@ -139,7 +135,7 @@ describe('RollCallComponent', () => {
   });
 
   it('opens the override prompt on a 403 (locked event) instead of a toast', () => {
-    rollCallService.updateAttendance.mockReturnValue(
+    rollCallService.setAttendance.mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 403 })),
     );
     fixture.componentInstance['setStatus'](attendanceItems[1], AttendanceStatus.ASSISTIT);
@@ -151,14 +147,14 @@ describe('RollCallComponent', () => {
   });
 
   it('retries with force:true when the override is confirmed', () => {
-    rollCallService.updateAttendance
+    rollCallService.setAttendance
       .mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 403 })))
-      .mockReturnValueOnce(of({ attendance: { id: 'att-2', status: AttendanceStatus.ASSISTIT }, summary: {} }));
+      .mockReturnValueOnce(of({ attendance: { status: AttendanceStatus.ASSISTIT }, summary: {} }));
     fixture.componentInstance['setStatus'](attendanceItems[1], AttendanceStatus.ASSISTIT);
 
     fixture.componentInstance['confirmOverride']();
 
-    expect(rollCallService.updateAttendance).toHaveBeenLastCalledWith('event-1', 'att-2', {
+    expect(rollCallService.setAttendance).toHaveBeenLastCalledWith('event-1', 'person-2', {
       status: AttendanceStatus.ASSISTIT,
       force: true,
     });
@@ -176,16 +172,15 @@ describe('RollCallComponent', () => {
   it('creates a provisional person and marks them ASSISTIT', () => {
     const newPerson = { id: 'person-3', alias: '~Pepelu', name: 'Pepelu', firstSurname: '', isXicalla: false };
     rollCallService.createProvisionalPerson.mockReturnValue(of(newPerson));
-    rollCallService.createAttendance.mockReturnValue(
-      of({ attendance: { id: 'att-3', status: AttendanceStatus.ASSISTIT }, summary: {} }),
+    rollCallService.setAttendance.mockReturnValue(
+      of({ attendance: { status: AttendanceStatus.ASSISTIT }, summary: {} }),
     );
 
     fixture.componentInstance['provisionalAlias'].set('Pepelu');
     fixture.componentInstance['createProvisionalPerson']();
 
     expect(rollCallService.createProvisionalPerson).toHaveBeenCalledWith('Pepelu');
-    expect(rollCallService.createAttendance).toHaveBeenCalledWith('event-1', {
-      personId: 'person-3',
+    expect(rollCallService.setAttendance).toHaveBeenCalledWith('event-1', 'person-3', {
       status: AttendanceStatus.ASSISTIT,
     });
     expect(fixture.componentInstance['showAddProvisional']()).toBe(false);
@@ -194,7 +189,6 @@ describe('RollCallComponent', () => {
   it('matches the search term regardless of accents', () => {
     fixture.componentInstance['items'].set([
       {
-        id: 'att-4',
         status: AttendanceStatus.PENDENT,
         person: { id: 'person-4', alias: 'Àngela', name: 'Àngela', firstSurname: 'Roig', isXicalla: false },
         signedUpGroup: false,
@@ -214,7 +208,7 @@ describe('RollCallComponent', () => {
     fixture.componentInstance['createProvisionalPerson']();
 
     expect(toastService.error).toHaveBeenCalledWith('Ja existeix una persona provisional amb l\'àlies "Pepelu"');
-    expect(rollCallService.createAttendance).not.toHaveBeenCalled();
+    expect(rollCallService.setAttendance).not.toHaveBeenCalled();
   });
 
   it('wraps a name too long to fit onto a second line, keeping the status buttons compact', () => {

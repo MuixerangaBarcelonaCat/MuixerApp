@@ -1,4 +1,4 @@
-import { PinyaProjectionComponent } from '@muixer/pinyes-render';
+import { PinyaProjectionComponent, ProjectionInstance } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Component, input } from '@angular/core';
@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ProjectionViewComponent } from './projection-view.component';
 import { ProjectionService } from '../../services/projection.service';
-import { ToastService } from '@muixer/ui';
+import { THEME_NAMES, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../core/services/layout.service';
 
 @Component({ selector: 'lib-pinya-projection', standalone: true, template: '' })
@@ -62,6 +62,33 @@ describe('ProjectionViewComponent', () => {
       const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
       expect(text).toContain('Pinça');
       expect(text.toLowerCase()).toContain('desplaç');
+    });
+  });
+
+  // ── HUD title ───────────────────────────────────────────────────────────────
+
+  describe('HUD title', () => {
+    const instance = (name: string, figureMode = 'COMPLETA') =>
+      ({ label: null, figureMode, figureTemplate: { id: name, name, hasPinya: true } }) as unknown as ProjectionInstance;
+
+    function hudText(): string {
+      fixture.detectChanges();
+      return (fixture.nativeElement as HTMLElement).textContent ?? '';
+    }
+
+    it('shows the user-assigned segment name when set', () => {
+      component.segmentData.set({ ...emptySegment(), segment: { ...emptySegment().segment, name: 'Entrada' } });
+
+      expect(hudText()).toContain('Entrada');
+    });
+
+    it('derives the title from the figures when the segment has no name', () => {
+      component.segmentData.set({
+        ...emptySegment(),
+        instances: [instance('Roscana'), instance('Roscana'), instance('Pilar', 'PEU')],
+      });
+
+      expect(hudText()).toContain('2 Roscana + Peu de Pilar');
     });
   });
 
@@ -183,6 +210,16 @@ describe('ProjectionViewComponent', () => {
     it('reads the route instanceId param when not embedded', async () => {
       const { fixture: f } = await createEmbedded(false, 'inst-x');
       expect(f.componentInstance.instanceIdSignal()).toBe('inst-x');
+    });
+
+    it('keeps the figure on the light theme, which the canvas is drawn for', async () => {
+      const { fixture: f } = await createEmbedded(true);
+      expect(f.nativeElement.querySelector('lib-pinya-projection').closest('[data-theme]')?.dataset.theme).toBe(THEME_NAMES.light);
+    });
+
+    it('draws the floating HUD dark in either page theme', async () => {
+      const { fixture: f } = await createEmbedded(false);
+      expect(f.nativeElement.querySelector('nav').dataset.theme).toBe(THEME_NAMES.dark);
     });
 
     it('hides the floating HUD nav when embedded', async () => {

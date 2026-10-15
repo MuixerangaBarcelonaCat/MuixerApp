@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { CREASE, readableContentOn } from '@muixer/ui';
 
 @Component({
   selector: 'app-color-picker',
@@ -26,6 +27,11 @@ export class ColorPickerComponent {
   colorChange = output<string>();
 
   dropdownOpen = signal(false);
+
+  /** Swatch fill while no color is set. */
+  protected readonly emptySwatch = CREASE.light;
+  /** Hover pencil over the swatch: ink or paper, whichever reads on the current fill. */
+  protected readonly pencilColor = computed(() => readableContentOn(this.color() ?? this.emptySwatch));
 
   /** Temporary hex input value while the popover is open */
   readonly hexInput = signal('');

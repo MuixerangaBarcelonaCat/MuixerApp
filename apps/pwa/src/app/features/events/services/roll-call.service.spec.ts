@@ -28,11 +28,11 @@ describe('RollCallService', () => {
     req.flush({ data: [], meta: { total: 0, page: 1, limit: 100 } });
   });
 
-  it('PUTs an attendance status update', () => {
-    service.updateAttendance('event-1', 'att-1', { status: AttendanceStatus.NO_VAIG }).subscribe();
-    const req = httpMock.expectOne(`${environment.apiUrl}/events/event-1/attendance/att-1`);
+  it('PUTs the status of a person (with or without an attendance row)', () => {
+    service.setAttendance('event-1', 'person-1', { status: AttendanceStatus.NO_VAIG }).subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/events/event-1/attendance/person-1`);
     expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual({ status: AttendanceStatus.NO_VAIG });
-    req.flush({ attendance: { id: 'att-1', status: AttendanceStatus.NO_VAIG }, summary: {} });
+    req.flush({ attendance: { status: AttendanceStatus.NO_VAIG }, summary: {} });
   });
 });

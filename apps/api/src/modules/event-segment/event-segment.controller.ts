@@ -108,7 +108,7 @@ export class EventSegmentController {
     return this.instanceService.reorder(eventId, segmentId, dto);
   }
 
-  @ApiOperation({ summary: 'Update a figure instance label or sortOrder' })
+  @ApiOperation({ summary: 'Update a figure instance label or figureMode (order via the reorder endpoint)' })
   @Put(':segmentId/instances/:id')
   updateInstance(
     @Param('eventId', ParseUUIDPipe) eventId: string,

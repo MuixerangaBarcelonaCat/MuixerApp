@@ -148,6 +148,15 @@ describe('ActivateComponent', () => {
     expect(component.form.controls.legalAccepted.valid).toBe(false);
   });
 
+  it('renders the legal document as Markdown', async () => {
+    await setup('raw-token', {
+      ...mockContext,
+      legalDocument: { content: '## Dades que tractem\n\nNom i correu.', version: 1 },
+    });
+
+    expect(fixture.nativeElement.querySelector('.prose h2')?.textContent).toBe('Dades que tractem');
+  });
+
   it('is invalid while password and confirmPassword do not match', async () => {
     await setup('raw-token');
 

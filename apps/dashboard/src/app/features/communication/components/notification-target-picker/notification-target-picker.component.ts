@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, effect, inject, input, model, signa
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { LucideAngularModule } from 'lucide-angular';
-import { AttendanceStatus, NotificationTargetType } from '@muixer/shared';
+import { AttendanceStatus, attendanceStatusLabel, NotificationTargetType } from '@muixer/shared';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, SelectComponent } from '@muixer/ui';
 import { NotificationTargetValue } from '../../services/notification.service';
 import { Person } from '../../../persons/models/person.model';
@@ -26,7 +26,17 @@ import { PersonSearchInputComponent } from '../../../../shared/components/forms/
 })
 export class NotificationTargetPickerComponent {
   readonly TargetType = NotificationTargetType;
-  readonly AttendanceStatus = AttendanceStatus;
+  readonly attendanceFilterOptions = [
+    AttendanceStatus.ANIRE,
+    AttendanceStatus.NO_VAIG,
+    AttendanceStatus.PENDENT,
+    AttendanceStatus.ASSISTIT,
+  ];
+
+  /** Response labels as they are asked before the event (a notification is usually sent then). */
+  attendanceLabel(status: AttendanceStatus): string {
+    return attendanceStatusLabel(status, 'before');
+  }
 
   target = model.required<NotificationTargetValue>();
   /** Gates the "Segons assistència" option — meaningless without a linked event to check attendance against. */

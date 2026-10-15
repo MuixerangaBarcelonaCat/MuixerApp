@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { elideDe, OwnPositionSubject } from '@muixer/shared';
+import { ThemeScopeDirective } from '@muixer/ui';
 import { StageTransform, stageToScreen } from '../../utils/rengla-coordinates.util';
 
 /** How long the one-shot arrival bounce plays before its class is cleared again. */
@@ -33,7 +34,7 @@ const EDGE_MARGIN = 24;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ThemeScopeDirective],
   templateUrl: './own-position-marker.component.html',
 })
 export class OwnPositionMarkerComponent {

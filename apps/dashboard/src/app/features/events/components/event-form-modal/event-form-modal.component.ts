@@ -10,11 +10,13 @@ import {
   OnChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AlertComponent, ButtonComponent, CheckboxComponent, InputComponent, ModalComponent, SelectComponent, TextareaComponent } from '@muixer/ui';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventDetail, Season, CreateEventPayload, UpdateEventPayload, EventType } from '../../models/event.model';
+import { findSeasonForDate } from '../../utils/season.util';
 
 @Component({
   selector: 'app-event-form-modal',
@@ -31,7 +33,6 @@ export class EventFormModalComponent implements OnInit, OnChanges {
   readonly EventType = EventType;
 
   event = input<EventDetail | null>(null);
-  seasons = input<Season[]>([]);
   presetEventType = input<EventType | null>(null);
 
   saved = output<EventDetail>();
@@ -48,57 +49,61 @@ export class EventFormModalComponent implements OnInit, OnChanges {
 
   saving = signal(false);
   errorMessage = signal<string | null>(null);
-  loadedSeasons = signal<Season[]>([]);
+  /** Null until loaded (or if loading fails): the date is then left to the API to validate. */
+  private readonly seasons = signal<Season[] | null>(null);
 
-  readonly allSeasons = computed(() => {
-    const fromInput = this.seasons();
-    return fromInput.length > 0 ? fromInput : this.loadedSeasons();
-  });
+  /** The event's season is derived from its date: a new or changed date must fall inside a season. */
+  private readonly dateInSeasonValidator = (ctrl: AbstractControl): ValidationErrors | null => {
+    const seasons = this.seasons();
+    const date = ctrl.value as string | null;
+    if (!seasons || !date || this.isUnchangedDate(date)) return null;
+    return findSeasonForDate(date, seasons) ? null : { outsideSeason: true };
+  };
 
   form = this.fb.group({
     title: ['', [Validators.required, Validators.maxLength(200)]],
     eventType: [EventType.ASSAIG, [Validators.required]],
-    date: ['', [Validators.required]],
+    date: ['', [Validators.required, this.dateInSeasonValidator]],
     startTime: ['', [Validators.pattern(/^\d{2}:\d{2}$/)]],
     location: [''],
     locationUrl: [''],
     description: [''],
     information: [''],
     countsForStatistics: [true],
-    seasonId: [''],
+  });
+
+  private readonly dateValue = toSignal(this.form.controls.date.valueChanges, { initialValue: '' });
+
+  /** Which season the chosen date falls in, shown under the date field. */
+  readonly dateHint = computed<string | undefined>(() => {
+    const seasons = this.seasons();
+    const date = this.dateValue();
+    if (!seasons || !date) return undefined;
+    const season = findSeasonForDate(date, seasons);
+    if (season) return `Temporada: ${season.name}`;
+    // An old event outside every season keeps its date editable as is; any other date shows the error instead.
+    return this.isUnchangedDate(date) ? 'Sense temporada' : undefined;
   });
 
   ngOnInit() {
-    this.loadSeasonsAndPatch();
+    this.seasonService.getAll().subscribe({
+      next: (resp) => {
+        this.seasons.set(resp.data);
+        this.form.controls.date.updateValueAndValidity();
+      },
+      // Leave `seasons` null: the date check falls back to the API's 400, shown in the error alert.
+      error: () => this.seasons.set(null),
+    });
+    this.patchFormFromEvent();
   }
 
   ngOnChanges() {
     this.patchFormFromEvent();
   }
 
-  private loadSeasonsAndPatch(): void {
-    if (this.seasons().length === 0) {
-      this.seasonService.getAll().subscribe({
-        next: (resp) => {
-          this.loadedSeasons.set(resp.data);
-          this.preselectCurrentSeason();
-        },
-      });
-    } else {
-      this.preselectCurrentSeason();
-    }
-    this.patchFormFromEvent();
-  }
-
-  private preselectCurrentSeason(): void {
-    if (this.isEditMode()) return;
-    this.seasonService.getCurrent().subscribe({
-      next: (current) => {
-        if (!this.form.get('seasonId')?.value) {
-          this.form.patchValue({ seasonId: current.id });
-        }
-      },
-    });
+  private isUnchangedDate(date: string): boolean {
+    const ev = this.event();
+    return ev !== null && toDateOnly(ev.date) === date.slice(0, 10);
   }
 
   private patchFormFromEvent() {
@@ -108,14 +113,13 @@ export class EventFormModalComponent implements OnInit, OnChanges {
       this.form.patchValue({
         title: ev.title,
         eventType: ev.eventType,
-        date: typeof ev.date === 'string' ? ev.date.slice(0, 10) : new Date(ev.date).toISOString().slice(0, 10),
+        date: toDateOnly(ev.date),
         startTime: ev.startTime ?? '',
         location: ev.location ?? '',
         locationUrl: ev.locationUrl ?? '',
         description: ev.description ?? '',
         information: ev.information ?? '',
         countsForStatistics: ev.countsForStatistics,
-        seasonId: ev.season?.id ?? '',
       });
     } else {
       const preset = this.presetEventType();
@@ -148,7 +152,6 @@ export class EventFormModalComponent implements OnInit, OnChanges {
       ...(raw.description ? { description: raw.description } : {}),
       ...(raw.information ? { information: raw.information } : {}),
       countsForStatistics: raw.countsForStatistics ?? true,
-      ...(raw.seasonId ? { seasonId: raw.seasonId } : {}),
     };
 
     this.saving.set(true);
@@ -187,7 +190,6 @@ export class EventFormModalComponent implements OnInit, OnChanges {
       description: orNull(raw.description),
       information: orNull(raw.information),
       countsForStatistics: raw.countsForStatistics ?? true,
-      seasonId: orNull(raw.seasonId),
     };
   }
 
@@ -197,10 +199,17 @@ export class EventFormModalComponent implements OnInit, OnChanges {
 
   fieldError(controlName: string): string | null {
     const ctrl = this.form.get(controlName) as AbstractControl;
-    if (!ctrl || !ctrl.invalid || !ctrl.touched) return null;
+    if (!ctrl || !ctrl.invalid) return null;
+    // Shown as soon as a date is picked, not on blur: it explains why the save button is disabled.
+    if (ctrl.errors?.['outsideSeason'] && (ctrl.dirty || ctrl.touched)) return 'Esta data no és dins de cap temporada.';
+    if (!ctrl.touched) return null;
     if (ctrl.errors?.['required']) return 'Camp obligatori';
     if (ctrl.errors?.['maxlength']) return `Màxim ${ctrl.errors['maxlength'].requiredLength} caràcters`;
     if (ctrl.errors?.['pattern']) return 'Format incorrecte';
     return 'Valor invàlid';
   }
+}
+
+function toDateOnly(date: string | Date): string {
+  return typeof date === 'string' ? date.slice(0, 10) : new Date(date).toISOString().slice(0, 10);
 }

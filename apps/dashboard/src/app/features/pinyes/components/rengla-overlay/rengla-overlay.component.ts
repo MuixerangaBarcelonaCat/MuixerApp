@@ -218,18 +218,16 @@ export class RenglaOverlayComponent {
     this.pendingNodeIds.update((ids) => ids.slice(0, -1));
   }
 
-  onStartPositionChange(rawValue: string): void {
-    const value = parseInt(rawValue, 10);
-    if (!isNaN(value) && value >= 1) {
+  onStartPositionChange(value: number | null): void {
+    if (value !== null && Number.isInteger(value) && value >= 1) {
       this.startPosition.set(value);
     }
   }
 
-  onSelectedStartPositionChange(rawValue: string): void {
+  onSelectedStartPositionChange(value: number | null): void {
     const id = this.selectedRenglaId();
     if (!id) return;
-    const value = parseInt(rawValue, 10);
-    if (isNaN(value) || value < 1) return;
+    if (value === null || !Number.isInteger(value) || value < 1) return;
     this.renglaStartChanged.emit({ renglaId: id, newStart: value });
   }
 

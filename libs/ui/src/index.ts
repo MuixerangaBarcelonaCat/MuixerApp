@@ -7,6 +7,7 @@ export * from './lib/tokens/z-index';
 export * from './lib/tokens/shadow';
 export * from './lib/tokens/typography';
 export * from './lib/tokens/theme';
+export * from './lib/tokens/theme-names';
 
 export * from './lib/components/button/button.component';
 export * from './lib/components/button-group/button-group.component';
@@ -22,5 +23,8 @@ export * from './lib/components/select/select.component';
 export * from './lib/components/modal/modal.component';
 export * from './lib/components/toast/toast-container.component';
 export * from './lib/services/toast.service';
+export * from './lib/services/theme.service';
 export * from './lib/components/empty-state/empty-state.component';
+export * from './lib/components/theme-picker/theme-picker.component';
 export * from './lib/directives/lift-hover.directive';
+export * from './lib/directives/theme-scope.directive';

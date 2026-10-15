@@ -32,7 +32,7 @@ const MOCK_DETAIL: MeEventDetail = {
   attendanceSummary: { confirmed: 5, declined: 2, pending: 3, attended: 0, lateCancel: 0, children: 1, childrenAttended: 0, total: 10 },
   myAttendance: null,
   managedAttendances: [
-    { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null, attendance: null },
+    { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null, attendance: { id: null, status: AttendanceStatus.PENDENT, respondedAt: null } },
   ],
 };
 
@@ -153,7 +153,7 @@ describe('EventDetailComponent', () => {
       const detail: MeEventDetail = {
         ...MOCK_DETAIL,
         managedAttendances: [
-          { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null, attendance: null },
+          { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null, attendance: { id: null, status: AttendanceStatus.PENDENT, respondedAt: null } },
           {
             personId: 'p-2',
             displayName: 'Joan Puig',

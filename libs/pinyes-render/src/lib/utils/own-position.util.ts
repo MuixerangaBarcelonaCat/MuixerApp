@@ -10,7 +10,8 @@ const TRONC_ZONES = new Set<string>([
 
 export interface OwnPlacement {
   instance: ProjectionInstance;
-  instanceIndex: number;
+  /** The figure's `sortOrder` — its palette color index, the same on every view. */
+  figureSortOrder: number;
   node: InstanceNodeItem;
   assignment: AssignmentDetail;
 }
@@ -24,14 +25,14 @@ export interface OwnPlacement {
 export function findOwnPlacements(data: ProjectionSegmentData, personId: string): OwnPlacement[] {
   const placements: OwnPlacement[] = [];
 
-  data.instances.forEach((instance, instanceIndex) => {
+  for (const instance of data.instances) {
     for (const assignment of instance.assignments) {
       if (assignment.person.id !== personId) continue;
       const node = instance.nodes.find((n) => n.id === assignment.node.id);
       if (!node) continue;
-      placements.push({ instance, instanceIndex, node, assignment });
+      placements.push({ instance, figureSortOrder: instance.sortOrder, node, assignment });
     }
-  });
+  }
 
   return conflictRelevantPlacements(placements, (p) => ({
     positionType: p.node.positionType,
@@ -84,7 +85,7 @@ export function findTroncNeighbours(node: InstanceNodeItem, instance: Projection
 export type OwnPlacementDescription =
   | {
       kind: 'PINYA';
-      instanceIndex: number;
+      figureSortOrder: number;
       nodeLabel: string;
       cordon: number | null;
       figureName: string | null;
@@ -92,7 +93,7 @@ export type OwnPlacementDescription =
     }
   | {
       kind: 'TRONC';
-      instanceIndex: number;
+      figureSortOrder: number;
       nodeLabel: string;
       figureName: string | null;
       below: string[];
@@ -112,13 +113,13 @@ export type OwnPlacementDescription =
  * caller holds; see `PinyaProjectionComponent.instanceDisplayNames`.
  */
 export function describeOwnPlacement(placement: OwnPlacement, figureName: string | null): OwnPlacementDescription {
-  const { instance, instanceIndex, node } = placement;
+  const { instance, figureSortOrder, node } = placement;
 
   if (TRONC_ZONES.has(node.zone)) {
     const neighbours = node.zone === FigureZone.TRONC ? findTroncNeighbours(node, instance) : { below: [], above: [] };
     return {
       kind: 'TRONC',
-      instanceIndex,
+      figureSortOrder,
       nodeLabel: node.label,
       figureName,
       below: neighbours.below,
@@ -128,7 +129,7 @@ export function describeOwnPlacement(placement: OwnPlacement, figureName: string
 
   return {
     kind: 'PINYA',
-    instanceIndex,
+    figureSortOrder,
     nodeLabel: node.label,
     figureName,
     cordon: node.renglaPosition ?? null,

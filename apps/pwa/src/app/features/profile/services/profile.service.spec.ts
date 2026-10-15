@@ -57,13 +57,13 @@ describe('ProfileService', () => {
 
   it('addDelegate() POSTs the alias and delegateType to /me/persons/:id/delegates', () => {
     let result: unknown;
-    const payload = { alias: 'JoanP', delegateType: DelegateType.PARTNER };
+    const payload = { alias: 'JoanP', delegateType: DelegateType.OTHER };
     service.addDelegate('p1', payload).subscribe((res) => (result = res));
 
     const req = httpMock.expectOne(`${environment.apiUrl}/me/persons/p1/delegates`);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(payload);
-    const created = { id: 'del-1', delegateType: DelegateType.PARTNER, isActive: true, isPrimary: false };
+    const created = { id: 'del-1', delegateType: DelegateType.OTHER, isActive: true, isPrimary: false };
     req.flush(created);
 
     expect(result).toEqual(created);

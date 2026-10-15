@@ -1,4 +1,4 @@
-import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, rematMarkerNode, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import {
@@ -16,6 +16,8 @@ import { DistributionItem } from '../models/distribution.model';
 
 export interface WorkspaceInstance {
   instanceId: string;
+  /** Position in the segment, unique 0..n-1 — also the figure's color index on every view. */
+  sortOrder: number;
   label: string;
   figureTemplateId: string | null;
   figureTemplateName: string;
@@ -117,16 +119,18 @@ export class SegmentWorkspaceStateService {
     () => this.instances().find((i) => i.instanceId === this.selectedInstanceId()) ?? null,
   );
 
-  /** Slots for the pinya canvas: one per instance with pinya-canvas nodes, at stored or auto-placed positions. */
+  /**
+   * Slots for the pinya canvas, at stored or auto-placed positions: one per instance, even one
+   * with nothing to draw (e.g. only tronc nodes) — Distribució's own auto-placement packs every
+   * figure too. The canvas skips drawing an empty slot.
+   */
   readonly pinyaSlots = computed<CompositionSlotWithNodes[]>(() => {
     const distribution = this.distributionByInstance();
 
-    const entries = this.instances()
-      .map((instance) => ({
-        instance,
-        nodes: this.pinyaCanvasNodesFor(instance),
-      }))
-      .filter((e) => e.nodes.length > 0);
+    const entries = this.instances().map((instance) => ({
+      instance,
+      nodes: this.pinyaCanvasNodesFor(instance),
+    }));
 
     const placedExtents: { x: number; width: number }[] = [];
     for (const { instance, nodes } of entries) {
@@ -158,7 +162,7 @@ export class SegmentWorkspaceStateService {
       optimizedByInstance = new Map(placeFigures(specs).map((p) => [p.instanceId, p]));
     }
 
-    return entries.map(({ instance, nodes }, index) => {
+    return entries.map(({ instance, nodes }) => {
       const item = distribution.get(instance.instanceId);
       const optimized = optimizedByInstance.get(instance.instanceId);
       let offsetX: number;
@@ -186,7 +190,7 @@ export class SegmentWorkspaceStateService {
         label: instance.label,
         offsetX,
         offsetY,
-        sortOrder: index,
+        sortOrder: instance.sortOrder,
         angle,
         figureTemplate: {
           id: instance.figureTemplateId ?? instance.instanceId,
@@ -198,6 +202,11 @@ export class SegmentWorkspaceStateService {
       };
     });
   });
+
+  /** Whether any figure draws something on the pinya canvas (`pinyaSlots()` may hold only empty slots). */
+  readonly hasPinyaCanvasNodes = computed(() =>
+    this.pinyaSlots().some((slot) => slot.figureTemplate.nodes.length > 0),
+  );
 
   /** Extent used for auto-placement, computed once per instance and reused thereafter. */
   private stableAutoPlacementExtent(
@@ -238,6 +247,26 @@ export class SegmentWorkspaceStateService {
     this.pendingSelection.set(null);
     this.autoPlacementExtentCache.clear();
 
+    this.fetchSegmentData(eventId, segmentId);
+
+    this.assignmentService.getLockStatus(eventId).subscribe({
+      next: (status) => this.lockStatus.set(status),
+    });
+  }
+
+  /**
+   * Re-fetches the segment's instances (picking up figures added since `load()`), their nodes,
+   * assignments, distribution and conflicts — without the loading spinner or the shared-state
+   * reset of `load()`, so the open tab stays mounted and keeps its selection.
+   */
+  reloadInstances(): void {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return;
+    this.fetchSegmentData(eventId, segmentId);
+  }
+
+  private fetchSegmentData(eventId: string, segmentId: string): void {
     forkJoin({
       resp: this.segmentService.getByEvent(eventId),
       instanceState: this.assignmentService.getSegmentAssignmentState(eventId, segmentId),
@@ -259,6 +288,7 @@ export class SegmentWorkspaceStateService {
             .filter((i) => !!i.figureTemplate)
             .map((instance) => ({
               instanceId: instance.id,
+              sortOrder: instance.sortOrder,
               label: displayNames.get(instance.id) ?? instance.figureTemplate?.name ?? '?',
               figureTemplateId: instance.figureTemplate?.id ?? null,
               figureTemplateName: instance.figureTemplate?.name ?? '?',
@@ -295,10 +325,6 @@ export class SegmentWorkspaceStateService {
     });
 
     this.reloadConflicts();
-
-    this.assignmentService.getLockStatus(eventId).subscribe({
-      next: (status) => this.lockStatus.set(status),
-    });
   }
 
   /**
@@ -343,6 +369,7 @@ export class SegmentWorkspaceStateService {
             if (!fresh) return existing;
             return {
               ...existing,
+              sortOrder: fresh.sortOrder,
               label: displayNames.get(fresh.id) ?? fresh.figureTemplate?.name ?? '?',
               figureMode: fresh.figureMode ?? 'COMPLETA',
               numberOfCordons: fresh.numberOfCordons ?? null,
@@ -446,18 +473,28 @@ export class SegmentWorkspaceStateService {
     });
   }
 
-  /** PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas. */
+  /**
+   * PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas, plus
+   * the marker of a REMAT figure (`rematMarkerNode` — drawn only, never in `instance.nodes`).
+   */
   private pinyaCanvasNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
     const opts = {
       figureMode: instance.figureMode,
       numberOfCordons: instance.numberOfCordons,
       cordonsObertsEnabled: instance.cordonsObertsEnabled,
     };
-    return this.visibleNodesFor(instance).filter(
+    const nodes = this.visibleNodesFor(instance).filter(
       (n) =>
         (n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE || n.zone === FigureZone.DECORATION) &&
         isNodeVisibleByModeAndCordons(n, opts),
     );
+    const marker = rematMarkerNode({
+      instanceId: instance.instanceId,
+      figureMode: instance.figureMode,
+      sortOrder: instance.sortOrder,
+      nodes: instance.nodes,
+    });
+    return marker ? [marker, ...nodes] : nodes;
   }
 
   /**

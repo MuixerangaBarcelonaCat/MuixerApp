@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeSlotLabel, mapDistributionItemsToSlots, troncViewNodesFor, troncViewAssignmentsFor } from './distribution-slot-mapping.util';
 import { DistributionItem } from '../models/distribution.model';
-import { DEFAULT_PLACEMENT_GAP } from '@muixer/pinyes-render';
+import { DEFAULT_PLACEMENT_GAP, getFigureTint, isRematMarker } from '@muixer/pinyes-render';
 
 const makeDistributionNode = (
   id: string,
@@ -36,6 +36,7 @@ const itemWithPosition = (
   overrides: Partial<DistributionItem> = {},
 ): DistributionItem => ({
   instanceId,
+  sortOrder: 0,
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
@@ -142,6 +143,66 @@ describe('mapDistributionItemsToSlots', () => {
     const [slot] = mapDistributionItemsToSlots([item]);
 
     expect(slot.troncGridRows).toBe(3);
+  });
+
+  describe('REMAT marker', () => {
+    const rematItem = (instanceId: string, sortOrder: number, x: number | null = 0) =>
+      itemWithPosition(instanceId, x, x === null ? null : 0, 0, {
+        sortOrder,
+        figureMode: 'REMAT',
+        figureTemplate: {
+          id: 'fig-1',
+          name: 'Pilar',
+          nodes: [
+            makeDistributionNode('p1', 'PINYA', { x: 100, y: 100, width: 100, height: 100 }),
+            makeDistributionNode('b1', 'BASE', { x: 300, y: 300, width: 100, height: 100 }),
+          ],
+        },
+      });
+
+    it('draws a REMAT figure as its marker: a 240px circle in the figure tint, with no text, where its pinya was', () => {
+      const [slot] = mapDistributionItemsToSlots([rematItem('a', 4)]);
+
+      expect(slot.figureTemplate.nodes).toHaveLength(1);
+      expect(isRematMarker(slot.figureTemplate.nodes[0])).toBe(true);
+      expect(slot.figureTemplate.nodes[0]).toMatchObject({
+        x: 200,
+        y: 200,
+        width: 240,
+        height: 240,
+        shape: 'CIRCLE',
+        color: getFigureTint(4),
+        label: '',
+      });
+    });
+
+    it('auto-places a REMAT figure by its marker footprint', () => {
+      const slots = mapDistributionItemsToSlots([
+        rematItem('a', 0, null),
+        itemWithPosition('b', null, null, null, {
+          sortOrder: 1,
+          figureTemplate: { id: 'fig-2', name: 'Pilar', nodes: [makeDistributionNode('q1', 'PINYA', { width: 100, height: 100 })] },
+        }),
+      ]);
+
+      const [a, b] = slots;
+      expect(Math.abs(b.offsetX - a.offsetX)).toBeGreaterThanOrEqual(120 + 50);
+    });
+
+    it('draws the marker first, so the figure\'s decorations sit on top of it', () => {
+      const item = rematItem('a', 0);
+      item.figureTemplate.nodes.push(makeDistributionNode('d1', 'DECORATION'));
+
+      const [slot] = mapDistributionItemsToSlots([item]);
+
+      expect(slot.figureTemplate.nodes.map((n) => (isRematMarker(n) ? 'marker' : n.id))).toEqual(['marker', 'd1']);
+    });
+
+    it('draws no marker for other modes', () => {
+      const [slot] = mapDistributionItemsToSlots([{ ...rematItem('a', 0), figureMode: 'NETA' }]);
+
+      expect(slot.figureTemplate.nodes.some(isRematMarker)).toBe(false);
+    });
   });
 
   it('positions the figure by its PINYA+BASE bbox only, so a DECORATION node does not shift the pivot (must match the Konva renderer)', () => {
@@ -345,6 +406,15 @@ describe('mapDistributionItemsToSlots', () => {
 
     expect(a.label).toBe('Pilar');
     expect(b.label).toBe('Vano');
+  });
+
+  it('takes each slot\'s sortOrder (its color index) from the item, not from its array position', () => {
+    const slots = mapDistributionItemsToSlots([
+      itemWithPosition('a', 0, 0, 0, { sortOrder: 2 }),
+      itemWithPosition('b', 300, 0, 0, { sortOrder: 3 }),
+    ]);
+
+    expect(slots.map((s) => s.sortOrder)).toEqual([2, 3]);
   });
 
   it('passes assignments through to the slot', () => {

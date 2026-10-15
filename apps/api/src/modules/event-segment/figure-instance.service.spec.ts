@@ -11,6 +11,7 @@ import { Composition } from '../composition/entities/composition.entity';
 import { EventSegmentService } from './event-segment.service';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
+import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { FigureMode, FigureZone, SegmentMoveConflictResolution, SegmentConflictKind } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
@@ -36,11 +37,22 @@ const makeInstance = (overrides: Partial<FigureInstance> = {}): FigureInstance =
     ...overrides,
   }) as FigureInstance;
 
-const mockInstanceQb = {
-  select: jest.fn().mockReturnThis(),
-  where: jest.fn().mockReturnThis(),
-  getRawOne: jest.fn().mockResolvedValue({ max: null }),
-};
+/** The segment's current `MAX(sortOrder)`, as read through the transaction manager. */
+const mockMaxSortOrder = jest.fn().mockResolvedValue(null);
+
+/**
+ * Transaction manager double: answers the `MAX(sortOrder)` read from `mockMaxSortOrder`, reads
+ * instances through `mockInstanceRepo.find`, and echoes saved entities back with an id.
+ */
+const makeTxManager = () => ({
+  update: jest.fn(),
+  save: jest.fn().mockImplementation((_entity: unknown, value: object) => Promise.resolve({ id: INSTANCE_ID, ...value })),
+  remove: jest.fn(),
+  find: jest.fn().mockImplementation((_entity: unknown, options: unknown) => mockInstanceRepo.find(options)),
+  query: jest.fn().mockImplementation((sql: string) =>
+    sql.includes('MAX("sortOrder")') ? mockMaxSortOrder().then((max: number | null) => [{ max }]) : Promise.resolve([]),
+  ),
+});
 
 const mockInstanceRepo = {
   find: jest.fn(),
@@ -48,7 +60,6 @@ const mockInstanceRepo = {
   create: jest.fn(),
   save: jest.fn(),
   remove: jest.fn(),
-  createQueryBuilder: jest.fn().mockReturnValue(mockInstanceQb),
 };
 
 const mockInstanceNodeRepo = {
@@ -64,9 +75,7 @@ const mockFigureTemplateRepo = {
 };
 
 const mockDataSource = {
-  transaction: jest.fn().mockImplementation((cb) =>
-    cb({ update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) }),
-  ),
+  transaction: jest.fn(),
   query: jest.fn().mockResolvedValue([{ count: '0' }]),
 };
 
@@ -77,6 +86,7 @@ const mockCompositionRepo = {
 const mockSegmentService = {
   getOne: jest.fn(),
   loadTotalCordons: jest.fn().mockResolvedValue(new Map()),
+  loadCordonsObertsInstanceIds: jest.fn().mockResolvedValue(new Set()),
 };
 
 const mockNodeAssignmentService = {
@@ -120,10 +130,10 @@ describe('FigureInstanceService', () => {
       newConflicts: [],
       freedPinyaNodeIds: [],
     });
-    mockInstanceRepo.createQueryBuilder.mockReturnValue(mockInstanceQb);
-    mockInstanceQb.select.mockReturnThis();
-    mockInstanceQb.where.mockReturnThis();
-    mockInstanceQb.getRawOne.mockResolvedValue({ max: null });
+    mockMaxSortOrder.mockResolvedValue(null);
+    mockDataSource.transaction.mockImplementation((cb: (m: ReturnType<typeof makeTxManager>) => Promise<unknown>) =>
+      cb(makeTxManager()),
+    );
   });
 
   describe('create', () => {
@@ -170,7 +180,7 @@ describe('FigureInstanceService', () => {
       ).rejects.toThrow(ForbiddenException);
 
       expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
-      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
 
   });
@@ -189,13 +199,23 @@ describe('FigureInstanceService', () => {
       expect(result.id).toBe(INSTANCE_ID);
     });
 
+    it('never changes sortOrder — order is only written through reorder, which keeps it unique', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ sortOrder: 2 }));
+      mockInstanceRepo.save.mockImplementation((value) => Promise.resolve(value));
+
+      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x', sortOrder: 0 } as UpdateInstanceDto);
+
+      expect(mockInstanceRepo.save).toHaveBeenCalledWith(expect.objectContaining({ sortOrder: 2 }));
+    });
+
     it('deletes pinya and base assignments and saves the instance in the same transaction when figureMode is REMAT', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.findOne
         .mockResolvedValueOnce(makeInstance())
         .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.REMAT }));
 
-      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      const txManager = makeTxManager();
       mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT });
@@ -277,6 +297,20 @@ describe('FigureInstanceService', () => {
       expect(result.totalCordons).toBe(4);
     });
 
+    it('returns hasCordonsOberts from segmentService.loadCordonsObertsInstanceIds (shared with the segment list)', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.COMPLETA }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+      mockSegmentService.loadCordonsObertsInstanceIds.mockResolvedValueOnce(new Set([INSTANCE_ID]));
+
+      const result = await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      expect(mockSegmentService.loadCordonsObertsInstanceIds).toHaveBeenCalledWith([INSTANCE_ID]);
+      expect(result.hasCordonsOberts).toBe(true);
+    });
+
     it('does not call loadTotalCordons and returns totalCordons null for REMAT/NETA instances', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.findOne
@@ -334,12 +368,13 @@ describe('FigureInstanceService', () => {
       const instance = makeInstance();
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.findOne.mockResolvedValue(instance);
-      mockInstanceRepo.remove.mockResolvedValue(undefined);
+      const txManager = makeTxManager();
+      mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID);
 
       expect(mockNodeAssignmentService.checkEventLock).toHaveBeenCalledWith(INSTANCE_ID);
-      expect(mockInstanceRepo.remove).toHaveBeenCalledWith(instance);
+      expect(txManager.remove).toHaveBeenCalledWith(FigureInstance, instance);
     });
 
     it('throws 404 if instance does not belong to segment', async () => {
@@ -360,7 +395,7 @@ describe('FigureInstanceService', () => {
       await expect(
         service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID),
       ).rejects.toThrow(ForbiddenException);
-      expect(mockInstanceRepo.remove).not.toHaveBeenCalled();
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
   });
 
@@ -427,7 +462,7 @@ describe('FigureInstanceService', () => {
       ).rejects.toThrow(ForbiddenException);
 
       expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
-      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
   });
 
@@ -467,7 +502,7 @@ describe('FigureInstanceService', () => {
 
     it('inserts the instance at the requested targetIndex and shifts the other instances', async () => {
       mockInstanceRepo.find.mockResolvedValue([{ id: 'other-1' }, { id: 'other-2' }]);
-      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      const txManager = makeTxManager();
       mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID, 1);
@@ -483,7 +518,7 @@ describe('FigureInstanceService', () => {
 
     it('appends the instance at the end when targetIndex is not provided', async () => {
       mockInstanceRepo.find.mockResolvedValue([{ id: 'other-1' }, { id: 'other-2' }]);
-      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      const txManager = makeTxManager();
       mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
@@ -497,7 +532,7 @@ describe('FigureInstanceService', () => {
 
     it('clamps an out-of-range targetIndex to the end of the target segment', async () => {
       mockInstanceRepo.find.mockResolvedValue([{ id: 'other-1' }]);
-      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      const txManager = makeTxManager();
       mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID, 99);
@@ -510,7 +545,7 @@ describe('FigureInstanceService', () => {
     });
 
     it('reassigns NodeAssignment.segment to the target segment in the same transaction', async () => {
-      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      const txManager = makeTxManager();
       mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
@@ -594,7 +629,7 @@ describe('FigureInstanceService', () => {
         { personId: 'p1', kind: SegmentConflictKind.TRONC_PINYA, placements: [] },
         { personId: 'p2', kind: SegmentConflictKind.PINYA_PINYA, placements: [] },
       ]);
-      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      const txManager = makeTxManager();
       mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.move(
@@ -816,6 +851,19 @@ describe('FigureInstanceService', () => {
       expect(result.items[0].projectionAngle).toBe(30);
       expect(result.items[0].troncPanelX).toBe(10);
       expect(result.items[0].troncPanelWidth).toBe(150);
+    });
+
+    it('returns each item\'s sortOrder — the figure\'s color index on every view', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([
+        { ...makeInstanceWithNodes(), id: 'first', sortOrder: 0 },
+        { ...makeInstanceWithNodes(), id: 'second', sortOrder: 1 },
+      ]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items.map((i) => i.sortOrder)).toEqual([0, 1]);
     });
 
     it('excludes instances without a figureTemplate', async () => {
@@ -1136,25 +1184,6 @@ describe('FigureInstanceService', () => {
       expect(result.items[0].troncGridRows).toBe(0);
     });
 
-    it('returns items sorted by sortOrder then id, regardless of repository row order', async () => {
-      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      const instA = { ...makeInstanceWithNodes(), id: 'aaa-instance', sortOrder: 0 };
-      const instB = { ...makeInstanceWithNodes(), id: 'bbb-instance', sortOrder: 0 };
-      const instC = { ...makeInstanceWithNodes(), id: 'ccc-instance', sortOrder: 1 };
-      // Simulates duplicate sortOrder values combined with a repository that
-      // doesn't preserve a stable row order across calls (e.g. Postgres ties).
-      mockInstanceRepo.find.mockResolvedValue([instC, instB, instA]);
-      mockDataSource.query.mockResolvedValue([]);
-
-      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
-
-      expect(result.items.map((i) => i.instanceId)).toEqual([
-        'aaa-instance',
-        'bbb-instance',
-        'ccc-instance',
-      ]);
-    });
-
     it('returns positionType on nodes', async () => {
       const inst = {
         ...makeInstanceWithNodes(),
@@ -1192,6 +1221,25 @@ describe('FigureInstanceService', () => {
 
       await expect(
         service.reorder(EVENT_ID, SEGMENT_ID, { instanceIds: ['non-existent-uuid'] }),
+      ).rejects.toThrow(new BadRequestException('La llista de figures ha canviat. Recarregueu el segment.'));
+    });
+
+    it('throws 400 and writes nothing when the list leaves out one of the segment\'s instances', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance(), makeInstance({ id: 'instance-uuid-2' })]);
+
+      await expect(
+        service.reorder(EVENT_ID, SEGMENT_ID, { instanceIds: [INSTANCE_ID] }),
+      ).rejects.toThrow(new BadRequestException('La llista de figures ha canviat. Recarregueu el segment.'));
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('throws 400 when the list repeats an instance', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance(), makeInstance({ id: 'instance-uuid-2' })]);
+
+      await expect(
+        service.reorder(EVENT_ID, SEGMENT_ID, { instanceIds: [INSTANCE_ID, INSTANCE_ID] }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -1218,12 +1266,6 @@ describe('FigureInstanceService', () => {
 
   describe('applyComposition', () => {
     const COMPOSITION_ID = 'comp-uuid-1';
-
-    beforeEach(() => {
-      mockDataSource.transaction.mockImplementation((cb: (m: { save: jest.Mock; update: jest.Mock }) => Promise<unknown>) =>
-        cb({ save: jest.fn(), update: jest.fn() }),
-      );
-    });
 
     const makeCompositionEntry = (overrides = {}) => ({
       id: 'entry-1',
@@ -1281,7 +1323,6 @@ describe('FigureInstanceService', () => {
 
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockCompositionRepo.findOne.mockResolvedValue(composition);
-      mockInstanceQb.getRawOne.mockResolvedValue({ max: null });
       mockInstanceRepo.create.mockImplementation((dto) => ({ ...dto, id: 'new-inst' }));
       mockInstanceRepo.save.mockResolvedValue({});
       mockSegmentService.getOne.mockResolvedValue(updatedSegment);
@@ -1307,7 +1348,7 @@ describe('FigureInstanceService', () => {
     it('updates segment name to composition name in transaction', async () => {
       const composition = { id: COMPOSITION_ID, name: 'Altar', entries: [] };
       const updatedSegment = { id: SEGMENT_ID, name: 'Altar', instances: [] };
-      const mockManager = { save: jest.fn(), update: jest.fn() };
+      const mockManager = makeTxManager();
       mockDataSource.transaction.mockImplementationOnce((cb: (mgr: typeof mockManager) => Promise<unknown>) => cb(mockManager));
 
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
@@ -1347,7 +1388,7 @@ describe('FigureInstanceService', () => {
 
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockCompositionRepo.findOne.mockResolvedValue(composition);
-      mockInstanceQb.getRawOne.mockResolvedValue({ max: 5 });
+      mockMaxSortOrder.mockResolvedValue(5);
       mockInstanceRepo.create.mockImplementation((dto) => ({ ...dto, id: 'new-inst' }));
       mockSegmentService.getOne.mockResolvedValue(updatedSegment);
 

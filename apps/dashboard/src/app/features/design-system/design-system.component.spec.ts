@@ -1,57 +1,41 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { signal } from '@angular/core';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ThemeMode, ThemePreference, ThemeService } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { DesignSystemComponent } from './design-system.component';
+import { ColorSectionComponent } from './sections/color-section.component';
 
 describe('DesignSystemComponent', () => {
   let fixture: ComponentFixture<DesignSystemComponent>;
-  let originalTheme: string;
+  const mode = signal<ThemeMode>('light');
+  const preference = signal<ThemePreference>('system');
 
   beforeEach(async () => {
-    originalTheme = document.documentElement.dataset['theme'] ?? '';
-    document.documentElement.dataset['theme'] = 'colla-barcelona-light';
-
+    mode.set('light');
     await TestBed.configureTestingModule({
       imports: [DesignSystemComponent],
-      providers: [allLucideIconsProvider],
+      providers: [
+        allLucideIconsProvider,
+        { provide: ThemeService, useValue: { mode, preference, setPreference: (p: ThemePreference) => preference.set(p) } },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(DesignSystemComponent);
     fixture.detectChanges();
   });
 
-  afterEach(() => {
-    document.documentElement.dataset['theme'] = originalTheme;
+  const colorSection = () =>
+    fixture.debugElement.query((el) => el.componentInstance instanceof ColorSectionComponent).componentInstance as ColorSectionComponent;
+
+  it('shows the shared theme picker in the header', () => {
+    expect(fixture.nativeElement.querySelector('app-page-header lib-theme-picker')).not.toBeNull();
   });
 
-  it('starts reflecting the page theme already applied to the document', () => {
-    expect(fixture.componentInstance.mode()).toBe('light');
-  });
-
-  it('toggling switches the document data-theme to the dark colla theme', () => {
-    fixture.componentInstance.toggleMode();
+  it('renders the color swatches for the mode actually on screen', () => {
+    expect(colorSection().mode()).toBe('light');
+    mode.set('dark');
     fixture.detectChanges();
-
-    expect(document.documentElement.dataset['theme']).toBe('colla-barcelona-dark');
-    expect(fixture.componentInstance.mode()).toBe('dark');
-  });
-
-  it('toggling twice returns to the light colla theme', () => {
-    fixture.componentInstance.toggleMode();
-    fixture.componentInstance.toggleMode();
-    fixture.detectChanges();
-
-    expect(document.documentElement.dataset['theme']).toBe('colla-barcelona-light');
-    expect(fixture.componentInstance.mode()).toBe('light');
-  });
-
-  it('restores the document theme that was active before this page mounted, on destroy', () => {
-    fixture.componentInstance.toggleMode();
-    fixture.detectChanges();
-    expect(document.documentElement.dataset['theme']).toBe('colla-barcelona-dark');
-
-    fixture.destroy();
-
-    expect(document.documentElement.dataset['theme']).toBe('colla-barcelona-light');
+    expect(colorSection().mode()).toBe('dark');
   });
 });

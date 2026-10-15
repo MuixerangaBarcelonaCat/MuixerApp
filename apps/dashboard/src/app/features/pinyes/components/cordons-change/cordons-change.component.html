@@ -1,9 +1,18 @@
-<lib-modal [open]="!!pending()" title="Canvia els cordons" (closed)="cancel()">
+<lib-modal
+  [open]="!!pending()"
+  [title]="pending()?.kind === 'oberts' ? 'Desactiva els cordons oberts' : 'Canvia els cordons'"
+  (closed)="cancel()"
+>
   @if (pending(); as p) {
     <p class="text-sm text-base-content/70">
       Esta acció eliminarà
       <strong class="text-error">{{ p.affectedCount }} {{ p.affectedCount === 1 ? 'assignació' : 'assignacions' }}</strong>
-      dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
+      @if (p.kind === 'oberts') {
+        dels cordons oberts.
+      } @else {
+        dels cordons que deixaran de mostrar-se.
+      }
+      Les persones assignades quedaran lliures.
     </p>
     <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
   }

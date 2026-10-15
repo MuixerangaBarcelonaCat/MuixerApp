@@ -185,6 +185,14 @@ describe('DelegationsModalComponent', () => {
       expect(select.value).toBe('');
     });
 
+    it('offers Pare/Mare, Tutor/a and Altres as relationship types — no partner option', () => {
+      const options = fixture.nativeElement.querySelectorAll(
+        '#delegate-type select option[value]:not([value=""])',
+      );
+      const labels = Array.from(options).map((o) => (o as HTMLOptionElement).textContent?.trim());
+      expect(labels).toEqual(['Pare/Mare', 'Tutor/a', 'Altres']);
+    });
+
     it('disables submit until a relationship type is selected', () => {
       setInputValue(fixture.nativeElement.querySelector('#delegate-alias'), 'Oncle');
       fixture.detectChanges();

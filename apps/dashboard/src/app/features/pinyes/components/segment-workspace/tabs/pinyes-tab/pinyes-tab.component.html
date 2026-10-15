@@ -2,7 +2,7 @@
 <div class="flex flex-1 min-h-0">
   <!-- Canvas -->
   <div class="relative flex-1 min-w-0">
-    @if (ws.pinyaSlots().length === 0) {
+    @if (!ws.hasPinyaCanvasNodes()) {
       <div class="absolute inset-0 z-10 flex items-center justify-center text-base-content/50">
         Este segment no té cap figura amb pinya.
       </div>
@@ -53,7 +53,7 @@
       [nextPerformanceMap]="nextPerformanceMap()"
       [personDetailsMap]="personDetailsMap()"
       [highlightedNodeIds]="highlightedNodeIds()"
-      [isPast]="isPast()"
+      [phase]="phase()"
       [personDragEnabled]="!isTouch()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
       (segmentNodeContextMenu)="onNodeContextMenu($event)"
@@ -74,7 +74,7 @@
     [heightMode]="state.heightMode()"
     [activeNodePositionType]="selectedNodePositionType()"
     [selectedNodeZone]="selectedNodeZone()"
-    [isPast]="isPast()"
+    [phase]="phase()"
     (personSelected)="onPersonSelected($event)"
     (assignedPersonSelected)="onAssignedPersonSelected($event)"
     (unassignRequested)="onUnassign($event)"

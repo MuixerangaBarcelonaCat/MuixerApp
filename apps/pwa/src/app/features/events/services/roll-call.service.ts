@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 import { AttendanceStatus, PaginatedResponse } from '@muixer/shared';
 import { environment } from '../../../../environments/environment';
 
+/** A person's attendance to an event, keyed by `person.id` — with no row it reads as PENDENT. */
 export interface AttendanceItem {
-  id: string;
   status: AttendanceStatus;
   person: {
     id: string;
@@ -17,7 +17,7 @@ export interface AttendanceItem {
 }
 
 export interface AttendanceCrudResponse {
-  attendance: { id: string; status: AttendanceStatus };
+  attendance: { status: AttendanceStatus };
   summary: unknown;
 }
 
@@ -46,22 +46,13 @@ export class RollCallService {
     );
   }
 
-  updateAttendance(
+  /** Sets a person's attendance — whether or not they already have an attendance row. */
+  setAttendance(
     eventId: string,
-    attendanceId: string,
+    personId: string,
     payload: { status: AttendanceStatus; force?: boolean },
   ): Observable<AttendanceCrudResponse> {
-    return this.http.put<AttendanceCrudResponse>(
-      `${this.baseUrl}/${eventId}/attendance/${attendanceId}`,
-      payload,
-    );
-  }
-
-  createAttendance(
-    eventId: string,
-    payload: { personId: string; status: AttendanceStatus },
-  ): Observable<AttendanceCrudResponse> {
-    return this.http.post<AttendanceCrudResponse>(`${this.baseUrl}/${eventId}/attendance`, payload);
+    return this.http.put<AttendanceCrudResponse>(`${this.baseUrl}/${eventId}/attendance/${personId}`, payload);
   }
 
   createProvisionalPerson(alias: string): Observable<ProvisionalPerson> {

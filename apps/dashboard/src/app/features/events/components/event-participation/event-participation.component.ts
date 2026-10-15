@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { conflictRelevantPlacements, DIRECTION_NODE_PRESETS, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, conflictRelevantPlacements, DIRECTION_NODE_PRESETS, EventPhase, isArrivalPhase, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -25,6 +25,7 @@ import { ICON_FIGURA, ICON_XICALLA, DOMAIN_ICONS } from '../../../../shared/cons
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 import { ParticipationService } from '../../services/participation.service';
 import { TagService } from '../../../config/services/tag.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import {
   ParticipationMeta,
@@ -83,11 +84,24 @@ const EMPTY_META: ParticipationMeta = {
 type AreaFilter = 'TRONC' | 'PINYA' | null;
 type XicallaFilter = 'ONLY' | 'EXCLUDE' | null;
 
-/** Per-browser memory of which fixed columns the user toggled (key → visible). */
-const COLUMNS_STORAGE_KEY = 'muixer_participation_columns';
+/**
+ * The columns a user switched on/off by hand, remembered per browser and account. Stored as
+ * explicit choices, not as the visible list: every event brings its own segment columns, and
+ * the per-event and per-segment scopes have different sets, so only the choices travel.
+ */
+interface ColumnChoices {
+  shown: string[];
+  hidden: string[];
+}
+
+const COLUMNS_STORAGE_PREFIX = 'event-participation-columns';
+
+/** Matrix columns are keyed by segment id: a choice about one would mean nothing in another event. */
+const SEGMENT_COLUMN_PREFIX = 'segment-';
 
 /** Columns that depend on the scope/segments: always seeded from their defaults, never remembered. */
-const isScopedColumn = (key: string): boolean => key.startsWith('segment-') || ['segFigure', 'segPosition', 'segZone'].includes(key);
+const isScopedColumn = (key: string): boolean =>
+  key.startsWith(SEGMENT_COLUMN_PREFIX) || ['segFigure', 'segPosition', 'segZone'].includes(key);
 
 /**
  * Person x segment participation matrix for one event: what each member does, across
@@ -129,10 +143,12 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   private readonly participationService = inject(ParticipationService);
   private readonly tagService = inject(TagService);
+  private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
   eventId = input.required<string>();
-  isPast = input(false);
+  /** Before / on / after the event day: worded labels and the no-show colour of ANIRE. */
+  phase = input<EventPhase>('before');
 
   loading = signal(true);
   loadError = signal(false);
@@ -457,7 +473,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     // Per-event scope (the default): one column per segment.
     for (const segment of this.segments()) {
       cols.push({
-        key: `segment-${segment.id}`,
+        key: `${SEGMENT_COLUMN_PREFIX}${segment.id}`,
         label: this.segmentLabel(segment),
         defaultVisible: true,
         type: 'pills',
@@ -647,21 +663,13 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   statusLabel(status: AttendanceStatus): string {
-    const past = this.isPast();
-    const labels: Record<AttendanceStatus, string> = {
-      PENDENT: past ? 'Sense resposta' : 'Pendent',
-      ANIRE: past ? 'No presentat' : 'Aniré',
-      NO_VAIG: past ? 'No va anar' : 'No vaig',
-      ASSISTIT: 'Assistit',
-    };
-    return labels[status] ?? status;
+    return attendanceStatusLabel(status, this.phase());
   }
 
   statusBadgeClass(status: AttendanceStatus): string {
-    const past = this.isPast();
     const classes: Record<AttendanceStatus, string> = {
       PENDENT: 'badge-ghost',
-      ANIRE: past ? 'badge-warning' : 'badge-success',
+      ANIRE: isArrivalPhase(this.phase()) ? 'badge-warning' : 'badge-success',
       NO_VAIG: 'badge-error',
       ASSISTIT: 'badge-success',
     };
@@ -768,10 +776,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   toggleColumn(key: string): void {
-    this.visibleKeys.update((keys) =>
-      keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key],
-    );
-    this.saveColumnChoice();
+    const show = !this.visibleKeys().includes(key);
+    this.visibleKeys.update((keys) => (show ? [...keys, key] : keys.filter((k) => k !== key)));
+    if (!isScopedColumn(key)) this.rememberColumnChoice(key, show);
   }
 
   onLimitChange(limit: number): void {
@@ -785,37 +792,49 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.page.set(1);
   }
 
-  /** Defaults, overridden by the user's remembered choice for the fixed (non-scoped) columns. */
+  /** Defaults for the current scope, overridden by whatever the user chose by hand. */
   private seedVisibleColumns(): void {
-    const saved = this.readColumnChoice();
+    const { shown, hidden } = this.loadColumnChoices();
     this.visibleKeys.set(
       this.columns()
-        .filter((c) => (isScopedColumn(c.key) ? c.defaultVisible : (saved[c.key] ?? c.defaultVisible)))
+        .filter((c) =>
+          isScopedColumn(c.key)
+            ? c.defaultVisible
+            : shown.includes(c.key) || (c.defaultVisible && !hidden.includes(c.key)),
+        )
         .map((c) => c.key),
     );
   }
 
-  private readColumnChoice(): Record<string, boolean> {
+  private get columnsStorageKey(): string {
+    return `${COLUMNS_STORAGE_PREFIX}:${this.authService.currentUser()?.id ?? 'anonymous'}`;
+  }
+
+  /** Undoing a choice drops it rather than storing the opposite one: the default is back in charge. */
+  private rememberColumnChoice(key: string, show: boolean): void {
+    const { shown, hidden } = this.loadColumnChoices();
+    const wasChosen = shown.includes(key) || hidden.includes(key);
+    const next: ColumnChoices = {
+      shown: shown.filter((k) => k !== key),
+      hidden: hidden.filter((k) => k !== key),
+    };
+    if (!wasChosen) (show ? next.shown : next.hidden).push(key);
+
     try {
-      const raw = JSON.parse(localStorage.getItem(COLUMNS_STORAGE_KEY) ?? '{}');
-      return raw && typeof raw === 'object' ? raw : {};
+      localStorage.setItem(this.columnsStorageKey, JSON.stringify(next));
     } catch {
-      return {};
+      // Storage full or blocked: the toggle still applies, it just won't be remembered.
     }
   }
 
-  /** Merged into the stored map so columns absent from this scope keep their remembered state. */
-  private saveColumnChoice(): void {
-    const visible = this.visibleKeys();
-    const choice = this.readColumnChoice();
-    for (const c of this.columns()) {
-      if (!isScopedColumn(c.key)) choice[c.key] = visible.includes(c.key);
-    }
+  private loadColumnChoices(): ColumnChoices {
     try {
-      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(choice));
+      const parsed = JSON.parse(localStorage.getItem(this.columnsStorageKey) ?? 'null');
+      if (Array.isArray(parsed?.shown) && Array.isArray(parsed?.hidden)) return parsed;
     } catch {
-      // storage unavailable — the choice just lasts for this visit
+      // Unreadable value: fall back to the defaults.
     }
+    return { shown: [], hidden: [] };
   }
 
   // ── Search ranking ───────────────────────────────────────────────────────────
@@ -876,7 +895,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   private openAssignment(segmentId: string, instanceId: string | undefined, tab: 'pinyes' | 'troncs' = 'pinyes'): void {
     const queryParams: Record<string, string> = { returnUrl: eventReturnUrl(this.router), tab };
-    if (this.isPast()) queryParams['past'] = '1';
+    if (this.phase() !== 'before') queryParams['phase'] = this.phase();
     const commands = ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign'];
     if (instanceId) commands.push(instanceId);
     this.router.navigate(commands, { queryParams });

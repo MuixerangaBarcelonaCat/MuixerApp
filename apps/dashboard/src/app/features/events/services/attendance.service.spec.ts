@@ -37,4 +37,12 @@ describe('AttendanceService', () => {
     expect(req.request.params.get('status')).toBe(AttendanceStatus.ASSISTIT);
     req.flush({ data: [], meta: { total: 0, page: 1, limit: 100 } });
   });
+
+  it('set PUTs the status of a person at /events/:id/attendance/:personId', () => {
+    service.set('ev-uuid', 'p-uuid', { status: AttendanceStatus.ANIRE, notes: 'Nota' }).subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/events/ev-uuid/attendance/p-uuid`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ status: AttendanceStatus.ANIRE, notes: 'Nota' });
+    req.flush({ attendance: {}, summary: {} });
+  });
 });

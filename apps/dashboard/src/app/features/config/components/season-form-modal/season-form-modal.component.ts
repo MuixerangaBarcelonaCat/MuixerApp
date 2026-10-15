@@ -7,7 +7,9 @@ import {
   signal,
   effect,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators, AbstractControl } from '@angular/forms';
+import { SEASON_LEAVES_EVENTS_UNCOVERED } from '@muixer/shared';
 import { SeasonService, CreateSeasonPayload, UpdateSeasonPayload } from '../../../events/services/season.service';
 import { Season } from '../../../events/models/event.model';
 import { AlertComponent, ButtonComponent, InputComponent, ModalComponent, TextareaComponent, ToastService } from '@muixer/ui';
@@ -30,6 +32,8 @@ export class SeasonFormModalComponent {
 
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  /** Set when the API reports the edit would leave events in no season; the next save confirms it. */
+  readonly uncoveredWarning = signal<string | null>(null);
 
   readonly form = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
@@ -52,6 +56,8 @@ export class SeasonFormModalComponent {
         this.form.reset();
       }
     });
+    // The confirmation is for the values the API checked; any further edit asks again.
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.uncoveredWarning.set(null));
   }
 
   get isEditMode(): boolean {
@@ -80,7 +86,12 @@ export class SeasonFormModalComponent {
         endDate: raw.endDate || undefined,
         description: raw.description?.trim() ? raw.description.trim() : null,
       };
-      this.seasonService.update(this.season()!.id, dto).subscribe({
+      const id = this.season()!.id;
+      const request$ = this.uncoveredWarning()
+        ? this.seasonService.update(id, dto, { allowUncovered: true })
+        : this.seasonService.update(id, dto);
+      this.uncoveredWarning.set(null);
+      request$.subscribe({
         next: () => {
           this.saving.set(false);
           this.toast.success('Temporada actualitzada correctament.');
@@ -118,8 +129,17 @@ export class SeasonFormModalComponent {
     return 'Valor invàlid';
   }
 
-  private handleError(err: { error?: { message?: string | string[] } }): void {
+  private handleError(err: { error?: { message?: string | string[]; code?: string; uncoveredCount?: number } }): void {
     this.saving.set(false);
+    if (err?.error?.code === SEASON_LEAVES_EVENTS_UNCOVERED) {
+      const count = err.error.uncoveredCount ?? 0;
+      this.uncoveredWarning.set(
+        count === 1
+          ? '1 esdeveniment quedarà sense temporada. Voleu continuar?'
+          : `${count} esdeveniments quedaran sense temporada. Voleu continuar?`,
+      );
+      return;
+    }
     const message = err?.error?.message ?? 'Error en desar la temporada.';
     this.errorMessage.set(Array.isArray(message) ? message.join(', ') : message);
   }

@@ -101,8 +101,8 @@
     <!-- Stat cards -->
     <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
       <app-stat-card
-        [label]="isPast() ? 'Assistits' : 'Confirmats'"
-        [value]="isPast() ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed"
+        [label]="mainStat()?.label ?? ''"
+        [value]="mainStat()?.value ?? 0"
         [icon]="UserCheck"
         accentClass="text-success"
       />
@@ -249,7 +249,7 @@
         aria-label="Pinyes i Figures"
         [class.hidden]="activeTab() !== 'pinyes'"
       >
-        <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" [isPast]="isPast()" />
+        <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" [phase]="phase()" />
       </div>
     }
 
@@ -263,7 +263,8 @@
       >
         <app-attendance-list
           [eventId]="ev.id"
-          [isPast]="isPast()"
+          [phase]="phase()"
+          [summary]="ev.attendanceSummary"
           (summaryChanged)="onSummaryChanged($event)"
         />
       </div>
@@ -277,14 +278,13 @@
         aria-label="Participació"
         [class.hidden]="activeTab() !== 'participacio'"
       >
-        <app-event-participation [eventId]="ev.id" [isPast]="isPast()" />
+        <app-event-participation [eventId]="ev.id" [phase]="phase()" />
       </div>
     }
 
     @if (showEditModal()) {
       <app-event-form-modal
         [event]="ev"
-        [seasons]="seasons()"
         (saved)="onEventUpdated($event)"
         (closed)="showEditModal.set(false)"
       />

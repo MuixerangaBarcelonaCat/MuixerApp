@@ -113,7 +113,7 @@ describe('PersonPanelComponent', () => {
 
   // ── isPast mode ────────────────────────────────────────────────────────────
 
-  describe('isPast=true grouping', () => {
+  describe('grouping from the event day on', () => {
     beforeEach(() => {
       const persons = [
         makeAvailablePerson('p1', 'ASSISTIT'),
@@ -122,9 +122,15 @@ describe('PersonPanelComponent', () => {
         makeAvailablePerson('p4', 'PENDENT'),
       ];
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
-      fixture.componentRef.setInput('isPast', true);
+      fixture.componentRef.setInput('phase', 'after');
       component.loadPersons();
       fixture.detectChanges();
+    });
+
+    it('names the groups with the shared phase labels', () => {
+      const text = fixture.nativeElement.textContent as string;
+      expect(text).toContain('Va vindre (1)');
+      expect(text).toContain('No presentat (1)');
     });
 
     it('confirmedPersons only includes ASSISTIT', () => {
@@ -149,7 +155,7 @@ describe('PersonPanelComponent', () => {
     });
   });
 
-  describe('isPast=false grouping (default)', () => {
+  describe('grouping before the event day (default)', () => {
     beforeEach(() => {
       const persons = [
         makeAvailablePerson('p1', 'ASSISTIT'),
@@ -158,9 +164,13 @@ describe('PersonPanelComponent', () => {
         makeAvailablePerson('p4', 'PENDENT'),
       ];
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
-      fixture.componentRef.setInput('isPast', false);
+      fixture.componentRef.setInput('phase', 'before');
       component.loadPersons();
       fixture.detectChanges();
+    });
+
+    it('names the confirmed group with the shared phase label', () => {
+      expect(fixture.nativeElement.textContent).toContain('Ve (2)');
     });
 
     it('confirmedPersons includes ANIRE and ASSISTIT', () => {
@@ -265,6 +275,17 @@ describe('PersonPanelComponent', () => {
       expect(component.heightSortMode()).toBe('max');
       component.toggleHeightSort('max');
       expect(component.heightSortMode()).toBeNull();
+    });
+
+    it('typing a relative height of 0 filters by the baseline height instead of clearing the filter', () => {
+      fixture.componentRef.setInput('heightMode', 'relative');
+      fixture.detectChanges();
+      const input = fixture.nativeElement.querySelector('input[type="number"]') as HTMLInputElement;
+
+      input.value = '0';
+      input.dispatchEvent(new Event('input'));
+
+      expect(component.height()).toBe(0);
     });
 
     it('selecting Max clears a previously typed height value', () => {

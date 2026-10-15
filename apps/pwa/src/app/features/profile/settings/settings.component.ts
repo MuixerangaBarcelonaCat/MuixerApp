@@ -8,13 +8,14 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LegalDocumentType } from '@muixer/shared';
-import { LucideAngularModule, Lock, FileText, LogOut, ChevronDown } from 'lucide-angular';
+import { COPYRIGHT_HOLDER, LegalDocumentType, SOURCE_CODE_URL, formatCopyrightYears } from '@muixer/shared';
+import { LucideAngularModule, Lock, FileText, LogOut, ChevronDown, Palette } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { PushSettingsComponent } from '../components/push-settings/push-settings.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { ProfileService } from '../services/profile.service';
-import { AlertComponent, ButtonComponent, InputComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, InputComponent, ThemePickerComponent, ToastService } from '@muixer/ui';
+import { MarkdownViewComponent } from '@muixer/ui/markdown';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
 
 type SettingsSection = 'password' | 'about';
@@ -30,6 +31,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MarkdownViewComponent,
     LucideAngularModule,
     ReactiveFormsModule,
     MobileHeaderComponent,
@@ -37,6 +39,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
     AlertComponent,
     ButtonComponent,
     InputComponent,
+    ThemePickerComponent,
   ],
   templateUrl: './settings.component.html',
 })
@@ -52,6 +55,7 @@ export class SettingsComponent {
   protected readonly FileText = FileText;
   protected readonly LogOut = LogOut;
   protected readonly ChevronDown = ChevronDown;
+  protected readonly Palette = Palette;
 
   protected readonly passwordForm = this.fb.nonNullable.group(
     {
@@ -89,6 +93,10 @@ export class SettingsComponent {
       },
     });
   }
+
+  protected readonly copyrightYears = formatCopyrightYears(new Date().getFullYear());
+  protected readonly copyrightHolder = COPYRIGHT_HOLDER;
+  protected readonly sourceCodeUrl = SOURCE_CODE_URL;
 
   protected readonly openSection = signal<SettingsSection | null>(null);
   protected readonly privacyPolicyContent = signal<string | null>(null);

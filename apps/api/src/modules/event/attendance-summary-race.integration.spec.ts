@@ -17,7 +17,7 @@ import {
 /**
  * Real-Postgres regression suite for the ARCH-8 attendance-summary race: `recalculateSummary` used
  * to read all attendances, compute counts in memory, then write them back with no lock — two
- * concurrent create/update/remove calls for the same event could interleave so the slower one's write
+ * concurrent attendance changes for the same event could interleave so the slower one's write
  * clobbered the faster one's with a stale count. A mocked-repository unit test can assert the lock is
  * *requested*, but only a real Postgres instance can prove concurrent transactions actually serialize
  * on it instead of losing an update. See TEST-2 in docs/automated-analyses/01-full-repo-audit.md.
@@ -68,13 +68,13 @@ describe('AttendanceService summary race (integration)', () => {
 
     await Promise.all(
       persons.map((person) =>
-        service.create(event.id, { personId: person.id, status: AttendanceStatus.ANIRE }),
+        service.set(event.id, person.id, { status: AttendanceStatus.ANIRE }),
       ),
     );
 
     const finalEvent = await eventRepo.findOne({ where: { id: event.id } });
 
-    // Every concurrent create must be reflected — none silently overwritten by a racing recalculation.
+    // Every concurrent change must be reflected — none silently overwritten by a racing recalculation.
     expect(finalEvent!.attendanceSummary.total).toBe(personCount);
     expect(finalEvent!.attendanceSummary.confirmed).toBe(personCount);
   });

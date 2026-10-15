@@ -9,6 +9,7 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { InviteRegistrationContext, RegisterViaInviteRequest } from '@muixer/shared';
 import { AlertComponent, ButtonComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
+import { MarkdownViewComponent } from '@muixer/ui/markdown';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { PersonDataFieldsComponent } from '../../../shared/components/person-data-fields/person-data-fields.component';
 import {
@@ -28,6 +29,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MarkdownViewComponent,
     ReactiveFormsModule,
     RouterLink,
     AlertComponent,

@@ -13,6 +13,7 @@ import {
 } from '@muixer/shared';
 import { getLocalToday } from '../../common/utils/date.util';
 import { Attendance } from '../event/attendance.entity';
+import { personPendingAtEventSql } from '../../common/utils/attendance-status.util';
 import { Event } from '../event/event.entity';
 import { User } from '../user/user.entity';
 import { PushSenderService } from './push-sender.service';
@@ -140,6 +141,22 @@ export class PushNotificationService {
     );
   }
 
+  /**
+   * No row ≡ PENDENT: users whose person existed on the event day and has no answer — no
+   * attendance row, or a PENDENT one. People created after the event (NO_REGISTRAT) are left out.
+   */
+  private async resolvePendingUserIds(eventId: string): Promise<string[]> {
+    const rows = await this.userRepo
+      .createQueryBuilder('u')
+      .innerJoin('u.person', 'p')
+      .innerJoin(Event, 'e', 'e.id = :eventId', { eventId })
+      .select('u.id', 'userId')
+      .where('u.isActive = true')
+      .andWhere(personPendingAtEventSql('p', 'e'))
+      .getRawMany<{ userId: string }>();
+    return rows.map((r) => r.userId);
+  }
+
   private async resolveTargetUserIds(dto: SendNotificationDto, eventId?: string): Promise<string[]> {
     const { type } = dto.target;
 
@@ -151,6 +168,8 @@ export class PushNotificationService {
     if (type === NotificationTargetType.EVENT_ATTENDANCE) {
       if (!eventId) return [];
       const { attendanceFilter } = dto.target;
+      if (attendanceFilter === AttendanceStatus.PENDENT) return this.resolvePendingUserIds(eventId);
+
       const qb = this.attendanceRepo
         .createQueryBuilder('a')
         .innerJoin('a.person', 'p')

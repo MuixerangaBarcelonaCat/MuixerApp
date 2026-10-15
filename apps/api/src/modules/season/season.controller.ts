@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
@@ -16,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { SeasonService } from './season.service';
 import { CreateSeasonDto } from './dto/create-season.dto';
 import { UpdateSeasonDto } from './dto/update-season.dto';
+import { SeasonMutationQueryDto } from './dto/season-mutation-query.dto';
 
 @ApiTags('seasons')
 @ApiBearerAuth()
@@ -43,6 +45,13 @@ export class SeasonController {
     return this.seasonService.findCurrent();
   }
 
+  @Get('uncovered-events')
+  @ApiOperation({ summary: 'Comptar els esdeveniments la data dels quals no és dins de cap temporada' })
+  @ApiResponse({ status: 200, description: '{ count }' })
+  countUncoveredEvents() {
+    return this.seasonService.countUncoveredEvents();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtenir una temporada per ID' })
   @ApiParam({ name: 'id', description: 'UUID de la temporada' })
@@ -65,9 +74,18 @@ export class SeasonController {
   @ApiParam({ name: 'id', description: 'UUID de la temporada' })
   @ApiResponse({ status: 200, description: 'Temporada actualitzada' })
   @ApiResponse({ status: 404, description: 'Temporada no trobada' })
-  @ApiResponse({ status: 409, description: 'Nom duplicat o dates se solapen' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateSeasonDto) {
-    return this.seasonService.update(id, dto);
+  @ApiResponse({
+    status: 409,
+    description:
+      'Nom duplicat, dates que se solapen, o esdeveniments que quedarien sense temporada ' +
+      '(`code: SEASON_LEAVES_EVENTS_UNCOVERED`; torneu a enviar-ho amb `allowUncovered=true`)',
+  })
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSeasonDto,
+    @Query() query: SeasonMutationQueryDto,
+  ) {
+    return this.seasonService.update(id, dto, { allowUncovered: query.allowUncovered });
   }
 
   @Delete(':id')
@@ -76,8 +94,13 @@ export class SeasonController {
   @ApiParam({ name: 'id', description: 'UUID de la temporada' })
   @ApiResponse({ status: 204, description: 'Temporada eliminada' })
   @ApiResponse({ status: 404, description: 'Temporada no trobada' })
-  @ApiResponse({ status: 409, description: 'Té events associats' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.seasonService.remove(id);
+  @ApiResponse({
+    status: 409,
+    description:
+      'Té esdeveniments que quedarien sense temporada (`code: SEASON_LEAVES_EVENTS_UNCOVERED`; ' +
+      'torneu a enviar-ho amb `allowUncovered=true`)',
+  })
+  remove(@Param('id', ParseUUIDPipe) id: string, @Query() query: SeasonMutationQueryDto) {
+    return this.seasonService.remove(id, { allowUncovered: query.allowUncovered });
   }
 }

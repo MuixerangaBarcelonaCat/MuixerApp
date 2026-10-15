@@ -81,6 +81,11 @@ export class NodeAssignmentService extends ApiService {
     return this.get<{ affectedCount: number }>(`/figure-instances/${instanceId}/cordons/impact`, { params });
   }
 
+  /** Read-only: how many assignments turning cordons oberts off would remove, without applying it. */
+  previewCordonsObertsImpact(instanceId: string): Observable<{ affectedCount: number }> {
+    return this.get<{ affectedCount: number }>(`/figure-instances/${instanceId}/cordons-oberts/impact`);
+  }
+
   /** Read-only: how many assignments switching to `figureMode` would remove, without applying it. */
   previewFigureModeImpact(instanceId: string, figureMode: FigureMode): Observable<{ affectedCount: number }> {
     const params = buildHttpParams({ figureMode });

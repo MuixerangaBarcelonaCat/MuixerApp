@@ -123,6 +123,9 @@ Les files de capçalera repetides que separen seccions (`Id = "Id"`) es filtren 
 | `No vinc` | `NO_VAIG` | `NO_VAIG` |
 | `null` | `PENDENT` | `PENDENT` |
 
+Una resposta `PENDENT` sense `Instant` (algú que no ha respost mai) **no es desa**: no tindre fila
+equival a `PENDENT` (vegeu l'invariant 11 de [[DATA_MODEL]]).
+
 **Baixes tardanes (`lateCancel`):** camp calculat al `attendanceSummary` (no guardat per fila).
 Un registre compta com a baixa tardana si `status = NO_VAIG` i `respondedAt` cau dins les
 6h anteriors a l'inici de l'event. Es recalcula en cada sync, de manera que és sempre consistent

@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsEnum,
   IsBoolean,
-  IsUUID,
   IsDateString,
   IsUrl,
   MaxLength,
@@ -64,9 +63,4 @@ export class CreateEventDto {
   @IsOptional()
   @IsBoolean()
   countsForStatistics?: boolean;
-
-  @ApiPropertyOptional({ description: 'UUID de la temporada associada' })
-  @IsOptional()
-  @IsUUID('4')
-  seasonId?: string;
 }

@@ -53,6 +53,13 @@
                     }
                     <lib-badge variant="ghost" size="xs">{{ entry.assignmentCount }}/{{ entry.totalNodes }} assignades</lib-badge>
                   </div>
+                  <!-- Same one-line tronc as the segment list's Troncs mode, so it reads before selecting -->
+                  @if (entry.troncSummary) {
+                    <span
+                      class="block mt-1 text-xs text-base-content/75 leading-snug break-words"
+                      data-testid="history-tronc-summary"
+                    >{{ entry.troncSummary }}</span>
+                  }
                 </button>
 
                 @if (selectedEntry()?.instanceId === entry.instanceId && !lastResult()) {

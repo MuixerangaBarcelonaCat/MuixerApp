@@ -18,8 +18,20 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MuixerApp" />
+    <!-- Applies a per-device theme choice before first paint (no light flash). With nothing
+         stored, no data-theme is set and DaisyUI follows prefers-color-scheme in pure CSS.
+         Mirrors THEME_STORAGE_KEY/THEME_NAMES in libs/ui (theme-names.ts) — index-html.spec.ts
+         keeps them in sync. -->
+    <script>
+      try {
+        var theme = localStorage.getItem('muixer_theme');
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.dataset.theme = 'colla-barcelona-' + theme;
+        }
+      } catch (e) {}
+    </script>
   </head>
-  <body data-theme="colla-barcelona-light" class="bg-base-200 antialiased">
+  <body class="bg-base-200 antialiased">
     <app-root></app-root>
   </body>
 </html>

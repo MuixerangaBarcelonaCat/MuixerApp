@@ -103,28 +103,31 @@ describe('Person tag rule filter (integration)', () => {
   });
 
   it('compta les assistències de la temporada en curs i pot ordenar-hi', async () => {
-    const [season] = await db.dataSource.query(
+    await db.dataSource.query(
       `INSERT INTO "seasons" (name, "startDate", "endDate")
-       VALUES ('Actual', CURRENT_DATE - 30, CURRENT_DATE + 30) RETURNING id`,
+       VALUES ('Actual', CURRENT_DATE - 30, CURRENT_DATE + 30)`,
     );
     // Temporada passada: les seues assistències no han de comptar.
-    const [old] = await db.dataSource.query(
+    await db.dataSource.query(
       `INSERT INTO "seasons" (name, "startDate", "endDate")
-       VALUES ('Passada', CURRENT_DATE - 400, CURRENT_DATE - 200) RETURNING id`,
+       VALUES ('Passada', CURRENT_DATE - 400, CURRENT_DATE - 200)`,
     );
 
-    const insertEvent = async (seasonId: string, title: string): Promise<string> => {
+    // La temporada d'un event es deriva de la seua data.
+    const insertEvent = async (daysFromToday: number, title: string): Promise<string> => {
       const [event] = await db.dataSource.query(
-        `INSERT INTO "events" ("eventType", title, date, "seasonId")
-         VALUES ('ASSAIG', $1, CURRENT_DATE, $2) RETURNING id`,
-        [title, seasonId],
+        `INSERT INTO "events" ("eventType", title, date)
+         VALUES ('ASSAIG', $1, CURRENT_DATE + $2::int) RETURNING id`,
+        [title, daysFromToday],
       );
       return event.id;
     };
 
-    const currentA = await insertEvent(season.id, 'A');
-    const currentB = await insertEvent(season.id, 'B');
-    const past = await insertEvent(old.id, 'C');
+    const currentA = await insertEvent(0, 'A');
+    const currentB = await insertEvent(-10, 'B');
+    const past = await insertEvent(-300, 'C');
+    // Fora de qualsevol temporada: tampoc no compta.
+    const uncovered = await insertEvent(-100, 'D');
 
     const [{ id: senseId }] = await db.dataSource.query(
       `SELECT id FROM "persons" WHERE alias = 'sense'`,
@@ -142,6 +145,7 @@ describe('Person tag rule filter (integration)', () => {
     await attend(senseId, currentA, 'ASSISTIT');
     await attend(senseId, currentB, 'ASSISTIT');
     await attend(senseId, past, 'ASSISTIT');
+    await attend(senseId, uncovered, 'ASSISTIT');
     await attend(pinyaId, currentA, 'NO_VAIG');
 
     const { data } = await service.findAll({

@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -17,11 +18,20 @@ import {
 } from '../../models/participation.model';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { TagService } from '../../../config/services/tag.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { TagWithCount } from '../../../config/models/tag.model';
-import { conflictRelevantPlacements, TagCategory } from '@muixer/shared';
+import { conflictRelevantPlacements, EventPhase, TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const EVENT_ID = 'event-1';
+const USER_ID = 'user-1';
+const COLUMNS_STORAGE_KEY = `event-participation-columns:${USER_ID}`;
+
+/** Column choices are remembered per account, so the component reads who is logged in. */
+const authStub = (userId: string = USER_ID) => ({
+  provide: AuthService,
+  useValue: { currentUser: signal({ id: userId }) },
+});
 const SEG_A = 'seg-a';
 const SEG_B = 'seg-b';
 
@@ -161,58 +171,32 @@ describe('EventParticipationComponent — isConflicted (direcció pinya exemptio
   });
 });
 
-describe('EventParticipationComponent — statusLabel', () => {
-  let component: Pick<EventParticipationComponent, 'statusLabel' | 'isPast'>;
+describe('EventParticipationComponent — status labels and badges', () => {
+  const withPhase = (phase: EventPhase) => {
+    const component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
+    (component as unknown as { phase: () => EventPhase }).phase = () => phase;
+    return component;
+  };
 
-  beforeEach(() => {
-    component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
+  it.each([
+    ['before', 'ANIRE', 'Ve'],
+    ['before', 'PENDENT', 'Pendent'],
+    ['day', 'ASSISTIT', 'Ha arribat'],
+    ['day', 'ANIRE', 'No ha arribat'],
+    ['day', 'NO_VAIG', 'No vindrà'],
+    ['after', 'ASSISTIT', 'Va vindre'],
+    ['after', 'ANIRE', 'No presentat'],
+    ['after', 'PENDENT', 'Sense resposta'],
+  ] as const)('%s / %s → "%s" (shared phase labels)', (phase, status, expected) => {
+    expect(withPhase(phase).statusLabel(status)).toBe(expected);
   });
 
-  describe('past event', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => true;
-    });
-
-    it.each([
-      ['PENDENT', 'Sense resposta'],
-      ['ANIRE', 'No presentat'],
-      ['NO_VAIG', 'No va anar'],
-      ['ASSISTIT', 'Assistit'],
-    ] as const)('%s → "%s"', (status, expected) => {
-      expect(component.statusLabel(status)).toBe(expected);
-    });
+  it('ANIRE reads as success before the event day', () => {
+    expect(withPhase('before').statusBadgeClass('ANIRE')).toBe('badge-success');
   });
 
-  describe('future event', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => false;
-    });
-
-    it.each([
-      ['PENDENT', 'Pendent'],
-      ['ANIRE', 'Aniré'],
-      ['NO_VAIG', 'No vaig'],
-    ] as const)('%s → "%s"', (status, expected) => {
-      expect(component.statusLabel(status)).toBe(expected);
-    });
-  });
-});
-
-describe('EventParticipationComponent — statusBadgeClass', () => {
-  let component: Pick<EventParticipationComponent, 'statusBadgeClass' | 'isPast'>;
-
-  beforeEach(() => {
-    component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
-  });
-
-  it('ANIRE reads as success while the event is upcoming', () => {
-    (component as unknown as { isPast: () => boolean }).isPast = () => false;
-    expect(component.statusBadgeClass('ANIRE')).toBe('badge-success');
-  });
-
-  it('ANIRE becomes a warning once the event is past (a no-show)', () => {
-    (component as unknown as { isPast: () => boolean }).isPast = () => true;
-    expect(component.statusBadgeClass('ANIRE')).toBe('badge-warning');
+  it.each(['day', 'after'] as const)('ANIRE becomes a warning from the event day on (%s)', (phase) => {
+    expect(withPhase(phase).statusBadgeClass('ANIRE')).toBe('badge-warning');
   });
 });
 
@@ -308,16 +292,22 @@ describe('EventParticipationComponent', () => {
     { id: 'tag-unworn', name: 'Taps', slug: 'tap', shortDescription: null, longDescription: null, color: '#444', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
   ];
 
+  // Remembered column choices live in real jsdom `localStorage`; never let one test's
+  // choices leak into the next one's defaults.
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
   const setup = async (
     response: EventParticipation = buildResponse(),
-    isPast = false,
-    { failCatalog = false }: { failCatalog?: boolean } = {},
+    phase: EventPhase = 'before',
+    { failCatalog = false, userId = USER_ID }: { failCatalog?: boolean; userId?: string } = {},
   ): Promise<ComponentFixture<EventParticipationComponent>> => {
     await TestBed.configureTestingModule({
       imports: [EventParticipationComponent],
       providers: [
         provideRouter([]),
         allLucideIconsProvider,
+        authStub(userId),
         { provide: ParticipationService, useValue: { getByEvent: () => of(response) } },
         {
           provide: TagService,
@@ -330,7 +320,7 @@ describe('EventParticipationComponent', () => {
 
     const fixture = TestBed.createComponent(EventParticipationComponent);
     fixture.componentRef.setInput('eventId', EVENT_ID);
-    fixture.componentRef.setInput('isPast', isPast);
+    fixture.componentRef.setInput('phase', phase);
     fixture.detectChanges();
     return fixture;
   };
@@ -440,7 +430,7 @@ describe('EventParticipationComponent', () => {
       const response = buildResponse({
         persons: [makePerson('p1', 'PERSIANA', {}, { positions: [wornTag] })],
       });
-      const fixture = await setup(response, false, { failCatalog: true });
+      const fixture = await setup(response, 'before', { failCatalog: true });
 
       expect(fixture.componentInstance.positionOptions().map((o) => o.name)).toEqual(['1es Vents']);
     });
@@ -925,8 +915,8 @@ describe('EventParticipationComponent', () => {
       );
     });
 
-    it('flags a past event so the workshop opens read-only', async () => {
-      const fixture = await setup(buildResponse(), true);
+    it('passes the event phase to the workshop', async () => {
+      const fixture = await setup(buildResponse(), 'after');
       const router = TestBed.inject(Router);
       vi.spyOn(router, 'url', 'get').mockReturnValue('/events/event-1?tab=participacio');
       const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -936,7 +926,7 @@ describe('EventParticipationComponent', () => {
 
       expect(navigate).toHaveBeenCalledWith(
         expect.anything(),
-        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes', past: '1' } },
+        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes', phase: 'after' } },
       );
     });
 
@@ -1258,6 +1248,100 @@ describe('EventParticipationComponent', () => {
     });
   });
 
+  describe('remembered column choices', () => {
+    /** A second visit to the participation tab: a fresh component in the same browser. */
+    const revisit = (): ComponentFixture<EventParticipationComponent> => {
+      const fixture = TestBed.createComponent(EventParticipationComponent);
+      fixture.componentRef.setInput('eventId', EVENT_ID);
+      fixture.detectChanges();
+      return fixture;
+    };
+
+    it('shows again a column the user turned on, on the next visit', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('troncDetail');
+      fixture.componentInstance.toggleColumn('segmentPercent');
+
+      const again = revisit();
+      expect(again.componentInstance.visibleKeys()).toEqual(
+        expect.arrayContaining(['troncDetail', 'segmentPercent']),
+      );
+    });
+
+    it('keeps hidden a default column the user turned off', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('status');
+
+      expect(revisit().componentInstance.visibleKeys()).not.toContain('status');
+    });
+
+    it('forgets a choice the user undid', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('troncDetail');
+      fixture.componentInstance.toggleColumn('troncDetail');
+
+      expect(revisit().componentInstance.visibleKeys()).not.toContain('troncDetail');
+    });
+
+    it('does not remember per-event segment columns: their keys are that event\'s segment ids', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn(`segment-${SEG_A}`);
+
+      expect(localStorage.getItem(COLUMNS_STORAGE_KEY) ?? '').not.toContain(SEG_A);
+      expect(revisit().componentInstance.visibleKeys()).toContain(`segment-${SEG_A}`);
+    });
+
+    it('keeps the choices when the segment scope changes and when filters are cleared', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('segmentPercent');
+
+      fixture.componentInstance.onSegmentChange(SEG_A);
+      expect(fixture.componentInstance.visibleKeys()).toContain('segmentPercent');
+
+      fixture.componentInstance.clearAllFilters();
+      expect(fixture.componentInstance.visibleKeys()).toContain('segmentPercent');
+    });
+
+    it('applies a stored choice to a column that did not exist when it was made', async () => {
+      // `Tronc` only exists in per-event scope; the choice must survive a per-segment visit.
+      const fixture = await setup();
+      fixture.componentInstance.toggleColumn('troncDetail');
+      fixture.componentInstance.onSegmentChange(SEG_A);
+      fixture.componentInstance.onSegmentChange('');
+
+      expect(fixture.componentInstance.visibleKeys()).toContain('troncDetail');
+    });
+
+    it('keeps each account\'s choices apart on a shared browser', async () => {
+      localStorage.setItem(
+        'event-participation-columns:someone-else',
+        JSON.stringify({ shown: ['troncDetail'], hidden: [] }),
+      );
+      const fixture = await setup();
+
+      expect(fixture.componentInstance.visibleKeys()).not.toContain('troncDetail');
+    });
+
+    it('falls back to the defaults when the stored value is unreadable', async () => {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, '{not json');
+      const fixture = await setup();
+
+      expect(fixture.componentInstance.visibleKeys()).toContain('status');
+      expect(fixture.componentInstance.visibleKeys()).not.toContain('troncDetail');
+    });
+
+    it('still toggles the column when storage is unavailable', async () => {
+      const fixture = await setup();
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('QuotaExceededError');
+      });
+
+      fixture.componentInstance.toggleColumn('troncDetail');
+      expect(fixture.componentInstance.visibleKeys()).toContain('troncDetail');
+      setItem.mockRestore();
+    });
+  });
+
   describe('empty and error states', () => {
     it('renders the empty state and no table when nobody participates', async () => {
       const fixture = await setup(
@@ -1277,6 +1361,7 @@ describe('EventParticipationComponent', () => {
         providers: [
           provideRouter([]),
           allLucideIconsProvider,
+          authStub(),
           {
             provide: ParticipationService,
             useValue: { getByEvent: () => throwError(() => new Error('boom')) },

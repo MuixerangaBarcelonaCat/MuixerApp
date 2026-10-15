@@ -53,10 +53,9 @@
       name="attendanceFilter"
     >
       <option value="" disabled>Selecciona una resposta...</option>
-      <option [value]="AttendanceStatus.ANIRE">Vinc</option>
-      <option [value]="AttendanceStatus.NO_VAIG">No vinc</option>
-      <option [value]="AttendanceStatus.PENDENT">Pendent</option>
-      <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
+      @for (status of attendanceFilterOptions; track status) {
+        <option [value]="status">{{ attendanceLabel(status) }}</option>
+      }
     </lib-select>
   }
 

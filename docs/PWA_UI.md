@@ -69,7 +69,7 @@ Cap equivalent a `libs/ui` (Tier 3 en el vocabulari del pla de disseny) — viue
 
 ### Confirmació d'assistència
 
-`app-attendance-button`: parella de botons segmentats (`lib-button-group`) Vinc/No vinc, o una `lib-badge` bloquejada quan ja s'ha marcat `ASSISTIT`.
+`app-attendance-button`: parella de botons segmentats (`lib-button-group`) Vaig/No vaig, o una `lib-badge` bloquejada quan ja s'ha marcat `ASSISTIT`.
 
 ### Kiosk / "Passa llista"
 

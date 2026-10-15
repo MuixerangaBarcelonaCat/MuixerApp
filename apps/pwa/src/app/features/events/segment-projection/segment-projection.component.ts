@@ -18,7 +18,7 @@ import { Router } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-angular';
 import { computeSegmentDisplayName, matchesSearch } from '@muixer/shared';
 import { AssignmentPersonDetail, ProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-render';
-import { EmptyStateComponent, InputComponent, ModalComponent } from '@muixer/ui';
+import { EmptyStateComponent, InputComponent, ModalComponent, ThemeScopeDirective } from '@muixer/ui';
 import { ProjectionService } from '../services/projection.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
@@ -27,7 +27,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
   selector: 'app-segment-projection',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PinyaProjectionComponent, EmptyStateComponent, InputComponent, ModalComponent],
+  imports: [FormsModule, LucideAngularModule, PinyaProjectionComponent, EmptyStateComponent, InputComponent, ModalComponent, ThemeScopeDirective],
   templateUrl: './segment-projection.component.html',
 })
 export class SegmentProjectionComponent implements OnInit, OnDestroy {

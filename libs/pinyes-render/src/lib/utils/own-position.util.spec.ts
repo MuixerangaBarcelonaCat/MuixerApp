@@ -109,15 +109,15 @@ describe('findOwnPlacements', () => {
     expect(findOwnPlacements(makeData([instance]), 'me')).toEqual([]);
   });
 
-  it('returns the single placement, with its instance index', () => {
+  it('returns the single placement, with its figure\'s sortOrder (the figure color index)', () => {
     const node = makeNode();
-    const instance = makeInstance({ nodes: [node], assignments: [makeAssignment(node, 'me', 'Marta')] });
-    const data = makeData([makeInstance({ id: 'instance-0', nodes: [] }), instance]);
+    const instance = makeInstance({ sortOrder: 1, nodes: [node], assignments: [makeAssignment(node, 'me', 'Marta')] });
+    const data = makeData([makeInstance({ id: 'instance-0', sortOrder: 0, nodes: [] }), instance]);
 
     const placements = findOwnPlacements(data, 'me');
 
     expect(placements).toHaveLength(1);
-    expect(placements[0]).toMatchObject({ instanceIndex: 1, node });
+    expect(placements[0]).toMatchObject({ figureSortOrder: 1, node });
   });
 
   it('returns every placement when the person holds more than one (invariant 4)', () => {
@@ -327,10 +327,10 @@ describe('findTroncNeighbours', () => {
 });
 
 describe('describeOwnPlacement', () => {
-  const toPlacement = (instance: ProjectionInstance, node: ProjectionInstance['nodes'][number], instanceIndex = 0): OwnPlacement => {
+  const toPlacement = (instance: ProjectionInstance, node: ProjectionInstance['nodes'][number], figureSortOrder = 0): OwnPlacement => {
     const assignment = instance.assignments.find((a) => a.node.id === node.id);
     if (!assignment) throw new Error('fixture error: node has no assignment');
-    return { instance, instanceIndex, node, assignment };
+    return { instance, figureSortOrder, node, assignment };
   };
 
   it('classifies a PINYA node as kind PINYA', () => {

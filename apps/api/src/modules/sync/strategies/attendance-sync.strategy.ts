@@ -156,6 +156,7 @@ export class AttendanceSyncStrategy {
       }
     >();
 
+    const clearedPersonIds = new Set<string>();
     let unmatched = 0;
 
     for (const row of rows) {
@@ -172,7 +173,15 @@ export class AttendanceSyncStrategy {
         ? AttendanceStatus.ASSISTIT
         : this.mapAttendanceStatus(row.estat, event.eventType, isPast);
 
+      // No row ≡ PENDENT: someone with no answer gets no row created (see `clearAnswers`).
+      if (status === AttendanceStatus.PENDENT && !respondedAt) {
+        attendanceMap.delete(person.id);
+        clearedPersonIds.add(person.id);
+        continue;
+      }
+
       // Overwrites if duplicate — last entry wins
+      clearedPersonIds.delete(person.id);
       attendanceMap.set(person.id, {
         person: { id: person.id },
         event: { id: event.id },
@@ -192,6 +201,8 @@ export class AttendanceSyncStrategy {
       });
     }
 
+    await this.clearAnswers(event.id, [...clearedPersonIds], syncTimestamp);
+
     const matched = attendanceBatch.length;
     await this.updateNotesOnCreate(event.id, rows, legacyIdMap);
     const lateCancel = await this.recalculateSummary(event);
@@ -204,6 +215,20 @@ export class AttendanceSyncStrategy {
       relations: ['person'],
     });
     return new Set(attended.map((a) => a.person.id));
+  }
+
+  /**
+   * An answer cleared back to blank in the legacy app resets the local row to PENDENT. Rows are
+   * only updated, never created, and their notes are kept.
+   */
+  private async clearAnswers(eventId: string, personIds: string[], syncTimestamp: Date): Promise<void> {
+    if (personIds.length === 0) return;
+    await this.attendanceRepository
+      .createQueryBuilder()
+      .update(Attendance)
+      .set({ status: AttendanceStatus.PENDENT, respondedAt: null, lastSyncedAt: syncTimestamp })
+      .where('"eventId" = :eventId AND "personId" IN (:...personIds)', { eventId, personIds })
+      .execute();
   }
 
   /**

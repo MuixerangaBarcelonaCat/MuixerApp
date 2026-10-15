@@ -1,8 +1,8 @@
-import { SegmentDetail, InstanceDetail, EventAssignmentSummary, EventFigureSummary, SegmentPeopleCounters } from '@muixer/pinyes-render';
+import { SegmentDetail, InstanceDetail, EventAssignmentSummary, EventFigureSummary, SegmentPeopleCounters, SegmentConflict } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi, afterEach } from 'vitest';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
@@ -61,6 +61,7 @@ const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail =
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
+  hasCordonsOberts: false,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -104,6 +105,7 @@ describe('SegmentManagerComponent', () => {
     getEventAssignmentSummary: ReturnType<typeof vi.fn>;
     updateCordons: ReturnType<typeof vi.fn>;
     previewCordonsImpact: ReturnType<typeof vi.fn>;
+    previewCordonsObertsImpact: ReturnType<typeof vi.fn>;
     previewFigureModeImpact: ReturnType<typeof vi.fn>;
   };
   let toastService: {
@@ -141,6 +143,7 @@ describe('SegmentManagerComponent', () => {
       getEventAssignmentSummary: vi.fn().mockReturnValue(of({ segments: [] } satisfies EventAssignmentSummary)),
       updateCordons: vi.fn(),
       previewCordonsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
+      previewCordonsObertsImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
       previewFigureModeImpact: vi.fn().mockReturnValue(of({ affectedCount: 0 })),
     };
 
@@ -330,8 +333,10 @@ describe('SegmentManagerComponent', () => {
       const btn = fixture.nativeElement.querySelector('[aria-label^="Cap segment publicat"]');
       expect(btn).not.toBeNull();
       expect(btn.textContent).toContain('No publicat');
-      // Whole control (not just the icon) carries the lib-button role colour.
-      expect(btn.className).toContain('text-neutral');
+      // Muted gray, not full ink: the published state is green, and the jade success tone is
+      // too close to ink to tell the two apart (same pairing as the per-segment eye toggle).
+      expect(btn.className).not.toContain('text-neutral');
+      expect(btn.querySelector('.text-base-content\\/60')?.textContent).toContain('No publicat');
 
       btn.click();
       expect(spy).toHaveBeenCalled();
@@ -525,24 +530,29 @@ describe('SegmentManagerComponent', () => {
   });
 
   describe('onInstancesConfirmed()', () => {
-    it('creates all instances in parallel and appends to segment', () => {
+    it('creates the instances one after another, so the server appends them in selection order', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [] });
       component.segments.set([seg]);
       component.pickerSegmentId.set('seg-1');
 
-      const inst1 = makeInstance({ id: 'inst-1' });
-      const inst2 = makeInstance({ id: 'inst-2' });
+      const first = new Subject<InstanceDetail>();
       (instanceService.create as ReturnType<typeof vi.fn>)
-        .mockReturnValueOnce(of(inst1))
-        .mockReturnValueOnce(of(inst2));
+        .mockReturnValueOnce(first)
+        .mockReturnValueOnce(of(makeInstance({ id: 'inst-2' })));
 
       component.onInstancesConfirmed([
         { figureTemplateId: 'fig-1' },
         { figureTemplateId: 'fig-2' },
       ]);
 
+      expect(instanceService.create).toHaveBeenCalledTimes(1);
+
+      first.next(makeInstance({ id: 'inst-1' }));
+      first.complete();
+
       expect(instanceService.create).toHaveBeenCalledTimes(2);
-      expect(component.segments()[0].instances).toHaveLength(2);
+      expect(instanceService.create).toHaveBeenNthCalledWith(2, EVENT_ID, 'seg-1', { figureTemplateId: 'fig-2' });
+      expect(component.segments()[0].instances.map((i) => i.id)).toEqual(['inst-1', 'inst-2']);
     });
 
     it('shows success toast with count', () => {
@@ -559,7 +569,7 @@ describe('SegmentManagerComponent', () => {
         { figureTemplateId: 'f2' },
       ]);
 
-      expect(toastService.success).toHaveBeenCalledWith('2 figures afegides.');
+      expect(toastService.success).toHaveBeenCalledWith("S'han afegit 2 figures.");
     });
 
     it('shows singular toast for single item', () => {
@@ -572,7 +582,7 @@ describe('SegmentManagerComponent', () => {
 
       component.onInstancesConfirmed([{ figureTemplateId: 'f1' }]);
 
-      expect(toastService.success).toHaveBeenCalledWith('1 figura afegida.');
+      expect(toastService.success).toHaveBeenCalledWith("S'ha afegit 1 figura.");
     });
 
     it('closes picker after successful batch', () => {
@@ -600,7 +610,37 @@ describe('SegmentManagerComponent', () => {
 
       component.onInstancesConfirmed([{ figureTemplateId: 'f1' }]);
 
-      expect(toastService.error).toHaveBeenCalledWith('Error en afegir les figures.');
+      expect(toastService.error).toHaveBeenCalledWith("No s'han pogut afegir les figures.");
+    });
+
+    it('on a partial failure shows the figures already created and closes the picker, so a retry cannot duplicate them', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [] });
+      component.segments.set([seg]);
+      component.pickerOpen.set(true);
+      component.pickerSegmentId.set('seg-1');
+
+      (instanceService.create as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce(of(makeInstance({ id: 'inst-1' })))
+        .mockReturnValueOnce(throwError(() => new Error('API error')));
+
+      component.onInstancesConfirmed([{ figureTemplateId: 'f1' }, { figureTemplateId: 'f2' }]);
+
+      expect(component.segments()[0].instances.map((i) => i.id)).toEqual(['inst-1']);
+      expect(component.pickerOpen()).toBe(false);
+    });
+
+    it('keeps the picker open when nothing was created', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [] });
+      component.segments.set([seg]);
+      component.pickerOpen.set(true);
+      component.pickerSegmentId.set('seg-1');
+
+      (instanceService.create as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce(throwError(() => new Error('API error')));
+
+      component.onInstancesConfirmed([{ figureTemplateId: 'f1' }]);
+
+      expect(component.pickerOpen()).toBe(true);
     });
 
     it('does nothing when segmentId is null', () => {
@@ -649,7 +689,7 @@ describe('SegmentManagerComponent', () => {
 
       component.onCompositionSelected({ compositionId: 'comp-1', compositionName: 'Pilars de plaça' });
 
-      expect(toastService.success).toHaveBeenCalledWith('Composició «Pilars de plaça» aplicada.');
+      expect(toastService.success).toHaveBeenCalledWith("S'ha aplicat la composició «Pilars de plaça».");
       expect(component.pickerOpen()).toBe(false);
       expect(component.pickerSegmentId()).toBeNull();
     });
@@ -739,18 +779,18 @@ describe('SegmentManagerComponent', () => {
       );
     });
 
-    it('includes past=1 query param when isPast is true', () => {
-      fixture.componentRef.setInput('isPast', true);
+    it.each(['day', 'after'] as const)('passes the event phase (%s) as a query param', (phase) => {
+      fixture.componentRef.setInput('phase', phase);
       fixture.detectChanges();
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith(
         ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
-        { queryParams: { returnUrl: '/rehearsals/event-123', past: '1' } },
+        { queryParams: { returnUrl: '/rehearsals/event-123', phase } },
       );
     });
 
-    it('does not include past query param when isPast is false', () => {
-      fixture.componentRef.setInput('isPast', false);
+    it('does not include a phase query param before the event day', () => {
+      fixture.componentRef.setInput('phase', 'before');
       fixture.detectChanges();
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith(
@@ -836,6 +876,60 @@ describe('SegmentManagerComponent', () => {
       const group = fixture.nativeElement.querySelector('[role="group"][aria-label*="Cordons"]');
       expect(group).toBeTruthy();
       expect(group.textContent).toContain('2/4');
+    });
+
+    describe('cordons oberts toggle (Pinyes view)', () => {
+      const render = (overrides: Partial<InstanceDetail>, locked = false) => {
+        const seg = makeSegment({
+          id: 'seg-1',
+          instances: [makeInstance({ id: 'inst-1', totalCordons: 4, numberOfCordons: 2, ...overrides })],
+        });
+        component.segments.set([seg]);
+        component.setViewMode('pinyes');
+        fixture.componentRef.setInput('isLocked', locked);
+        fixture.detectChanges();
+        return fixture.nativeElement.querySelector('[aria-label="Cordons oberts"]') as HTMLButtonElement | null;
+      };
+
+      it('sits inside the cordons group for figures whose template has cordons oberts', () => {
+        const toggle = render({ hasCordonsOberts: true });
+
+        expect(toggle).toBeTruthy();
+        expect(toggle!.closest('[role="group"][aria-label*="Cordons"]')).toBeTruthy();
+      });
+
+      it('is absent when the template has no cordons oberts', () => {
+        expect(render({ hasCordonsOberts: false })).toBeNull();
+      });
+
+      it('reflects the current state through aria-pressed', () => {
+        expect(render({ hasCordonsOberts: true, cordonsObertsEnabled: true })!.getAttribute('aria-pressed')).toBe('true');
+        expect(render({ hasCordonsOberts: true, cordonsObertsEnabled: false })!.getAttribute('aria-pressed')).toBe('false');
+      });
+
+      it('is disabled while the event is locked', () => {
+        expect(render({ hasCordonsOberts: true }, true)!.disabled).toBe(true);
+      });
+
+      it('turns cordons oberts off through the shared confirmation flow', () => {
+        nodeAssignmentService.updateCordons.mockReturnValue(
+          of({ numberOfCordons: 2, cordonsObertsEnabled: false, removedAssignments: 0 }),
+        );
+        render({ hasCordonsOberts: true, cordonsObertsEnabled: true })!.click();
+
+        expect(nodeAssignmentService.previewCordonsObertsImpact).toHaveBeenCalledWith('inst-1');
+        expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith('inst-1', { cordonsObertsEnabled: false });
+      });
+
+      it('turns cordons oberts back on without a preview', () => {
+        nodeAssignmentService.updateCordons.mockReturnValue(
+          of({ numberOfCordons: 2, cordonsObertsEnabled: true, removedAssignments: 0 }),
+        );
+        render({ hasCordonsOberts: true, cordonsObertsEnabled: false })!.click();
+
+        expect(nodeAssignmentService.previewCordonsObertsImpact).not.toHaveBeenCalled();
+        expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith('inst-1', { cordonsObertsEnabled: true });
+      });
     });
 
     it('shows Neta badge for figures without pinya', () => {
@@ -953,6 +1047,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -976,6 +1071,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -999,6 +1095,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -1034,6 +1131,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [makeFigureSummary({ instanceId: 'inst-uuid-1', directions })],
@@ -1093,6 +1191,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -1113,6 +1212,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
@@ -1132,6 +1232,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [makeFigureSummary({ pinya: makeAreaCount(0, 0), total: makeAreaCount(3, 3) })],
@@ -1158,36 +1259,13 @@ describe('SegmentManagerComponent', () => {
       ...over,
     });
 
-    it('segmentConflictCount is 0 in production (no conflicts) so the pill fragment is hidden', () => {
-      loadSummary({
-        segments: [
-          { segmentId: 'seg-1', segmentName: 'Bloc 1', conflicts: counters(), sortOrder: 0, figures: [makeFigureSummary()] },
-        ],
-      });
-      expect(component.segmentConflictCount(makeSegment({ id: 'seg-1' }))).toBe(0);
-    });
-
-    it('segmentConflictCount reflects the segment conflictPersonCount', () => {
-      loadSummary({
-        segments: [
-          {
-            segmentId: 'seg-1',
-            segmentName: 'Bloc 1',
-            conflicts: counters({ conflictPersonCount: 3 }),
-            sortOrder: 0,
-            figures: [makeFigureSummary()],
-          },
-        ],
-      });
-      expect(component.segmentConflictCount(makeSegment({ id: 'seg-1' }))).toBe(3);
-    });
-
     it('segmentDotacioTooltip reports distinct people per area', () => {
       loadSummary({
         segments: [
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflictList: [],
             conflicts: counters({
               distinctPersonCount: 45,
               tronc: { distinctPersonCount: 8 },
@@ -1203,8 +1281,52 @@ describe('SegmentManagerComponent', () => {
       expect(tooltip).toContain('43');
     });
 
-    it('segmentConflictCount is 0 for a segment with no summary', () => {
-      expect(component.segmentConflictCount(makeSegment({ id: 'unknown' }))).toBe(0);
+    it('segmentConflicts returns the segment conflict list from the summary', () => {
+      const conflict: SegmentConflict = {
+        personId: 'p1',
+        personAlias: 'Pepet',
+        kind: 'PINYA_PINYA',
+        suggestedRemovalAssignmentIds: [],
+        placements: [],
+      };
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            conflictList: [conflict],
+            conflicts: counters({ conflictPersonCount: 1 }),
+            sortOrder: 0,
+            figures: [makeFigureSummary()],
+          },
+        ],
+      });
+      expect(component.segmentConflicts(makeSegment({ id: 'seg-1' }))).toEqual([conflict]);
+      expect(component.segmentConflicts(makeSegment({ id: 'unknown' }))).toEqual([]);
+    });
+
+    it('renders the hoverable conflict pill in the segment header when the segment has conflicts', () => {
+      (segmentService.getByEvent as ReturnType<typeof vi.fn>).mockReturnValue(
+        of({ data: [makeSegment({ id: 'seg-1' })] }),
+      );
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            conflictList: [
+              { personId: 'p1', personAlias: 'Pepet', kind: 'PINYA_PINYA', suggestedRemovalAssignmentIds: [], placements: [] },
+            ],
+            conflicts: counters({ conflictPersonCount: 1 }),
+            sortOrder: 0,
+            figures: [makeFigureSummary()],
+          },
+        ],
+      });
+      fixture.detectChanges();
+
+      const pill = fixture.nativeElement.querySelector('[data-testid="segment-conflict-pill"]') as HTMLElement | null;
+      expect(pill?.textContent).toContain('1 conflicte');
     });
   });
 
@@ -1581,7 +1703,7 @@ describe('SegmentManagerComponent', () => {
       expect(nodeAssignmentService.updateCordons).not.toHaveBeenCalled();
       const cordonsChange = fixture.debugElement.query(By.directive(CordonsChangeComponent))
         .componentInstance as CordonsChangeComponent;
-      expect(cordonsChange.pending()).toEqual({ instanceId: inst.id, numberOfCordons: 2, affectedCount: 2 });
+      expect(cordonsChange.pending()).toEqual({ kind: 'count', instanceId: inst.id, numberOfCordons: 2, affectedCount: 2 });
     });
 
     it('shows an error toast when the preview request fails', () => {
@@ -1657,7 +1779,7 @@ describe('SegmentManagerComponent', () => {
     it('hides "+ Figura" (blocks add-figure and apply-composition entry point)', () => {
       setLockedWithSegment();
 
-      const btn = fixture.nativeElement.querySelector('[aria-label="Afegir figura o composició al segment"]');
+      const btn = fixture.nativeElement.querySelector('[aria-label="Afig una figura o composició al segment"]');
       expect(btn).toBeNull();
     });
 
@@ -1725,7 +1847,7 @@ describe('SegmentManagerComponent', () => {
       fixture.detectChanges();
 
       const addFigureBtn = fixture.nativeElement.querySelector(
-        '[aria-label="Afegir figura o composició al segment"]',
+        '[aria-label="Afig una figura o composició al segment"]',
       );
       const deleteBtn = fixture.nativeElement.querySelector('[aria-label="Eliminar segment"]');
       expect(addFigureBtn).not.toBeNull();
@@ -1752,7 +1874,7 @@ describe('SegmentManagerComponent', () => {
       'Arrossega per reordenar el segment',
       'Arrossega per reordenar',
       'Eliminar segment',
-      'Afegir figura o composició al segment',
+      'Afig una figura o composició al segment',
       'Redueix els cordons',
       'Augmenta els cordons',
     ])('hides "%s"', (label) => {
@@ -1775,6 +1897,7 @@ describe('SegmentManagerComponent', () => {
             {
               segmentId: 'seg-1',
               segmentName: 'Bloc 1',
+              conflictList: [],
               conflicts: makeEmptyCounters(),
               sortOrder: 0,
               figures: [makeFigureSummary({ pinya: makeAreaCount(3, 5), total: makeAreaCount(3, 5) })],
@@ -1838,6 +1961,7 @@ describe('SegmentManagerComponent', () => {
               {
                 segmentId: 'seg-1',
                 segmentName: 'Bloc 1',
+                conflictList: [],
                 conflicts: makeEmptyCounters(),
                 sortOrder: 0,
                 figures: [

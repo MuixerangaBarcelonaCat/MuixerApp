@@ -1,4 +1,5 @@
 import {
+  ArrowRightToLine,
   Baby,
   Bell,
   Calendar,
@@ -49,6 +50,7 @@ export const DOMAIN_ICONS = {
   PINYA: Flower,
   TRONC: ChessRook,
   RENGLA: GitCommitHorizontal,
+  CORDONS_OBERTS: ArrowRightToLine,
   FIGURA_NETA: Sparkles,
   COMPOSITION: LayoutGrid,
   TEMPLATE: DraftingCompass,

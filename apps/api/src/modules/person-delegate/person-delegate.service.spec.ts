@@ -238,7 +238,7 @@ describe('PersonDelegateService', () => {
 
     it('should throw BadRequestException on self-delegation', async () => {
       const selfUserId = 'user-self';
-      const selfDto = { userId: selfUserId, delegateType: DelegateType.PARTNER };
+      const selfDto = { userId: selfUserId, delegateType: DelegateType.OTHER };
       const person = { id: personId };
       const user = { id: selfUserId, person: { id: personId } };
 
@@ -334,16 +334,6 @@ describe('PersonDelegateService', () => {
     describe('create', () => {
       const baseDto = { userId, delegateType: DelegateType.PARENT, isPrimary: true };
 
-      it('rejects a PARTNER primary delegate for a Xicalla person', async () => {
-        mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
-        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
-        mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
-
-        await expect(
-          service.create(personId, { ...baseDto, delegateType: DelegateType.PARTNER }),
-        ).rejects.toThrow(BadRequestException);
-      });
-
       it('rejects an OTHER primary delegate for a Xicalla person', async () => {
         mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
         mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
@@ -389,7 +379,7 @@ describe('PersonDelegateService', () => {
       });
 
       it('does not apply the rule to a non-primary delegate for a Xicalla person', async () => {
-        const created = { id: 'del-1', person: xicallaPerson, delegateType: DelegateType.PARTNER, isPrimary: false };
+        const created = { id: 'del-1', person: xicallaPerson, delegateType: DelegateType.OTHER, isPrimary: false };
         mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
         mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
         mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
@@ -397,7 +387,7 @@ describe('PersonDelegateService', () => {
         mockDelegateRepository.save.mockResolvedValue(created);
 
         await expect(
-          service.create(personId, { ...baseDto, delegateType: DelegateType.PARTNER, isPrimary: false }),
+          service.create(personId, { ...baseDto, delegateType: DelegateType.OTHER, isPrimary: false }),
         ).resolves.toBeDefined();
       });
     });
@@ -406,7 +396,7 @@ describe('PersonDelegateService', () => {
       it('rejects promoting a delegate to primary for a Xicalla person when the type does not qualify', async () => {
         const delegate = {
           id: 'del-1',
-          delegateType: DelegateType.PARTNER,
+          delegateType: DelegateType.OTHER,
           isActive: true,
           isPrimary: false,
           person: xicallaPerson,
@@ -653,7 +643,7 @@ describe('PersonDelegateService', () => {
       mockDelegateRepository.findOne.mockResolvedValue({
         id: 'del-1',
         isPrimary: true,
-        delegateType: DelegateType.PARTNER,
+        delegateType: DelegateType.OTHER,
         user: { id: 'user-1', person: null },
       });
 

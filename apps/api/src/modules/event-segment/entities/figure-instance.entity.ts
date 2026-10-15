@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { EventSegment } from './event-segment.entity';
 import { FigureTemplate } from '../../figure/entities/figure-template.entity';
@@ -15,6 +16,8 @@ import type { InstanceNode } from './instance-node.entity';
 import { FigureMode } from '@muixer/shared';
 
 @Entity('figure_instances')
+// Deferred so the reorder/move loops may pass through transient duplicates before commit.
+@Unique('UQ_figure_instances_segment_sort_order', ['segment', 'sortOrder'], { deferrable: 'INITIALLY DEFERRED' })
 export class FigureInstance {
   @PrimaryGeneratedColumn('uuid')
   id: string;

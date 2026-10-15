@@ -18,7 +18,6 @@ const SEG_A = 'segment-uuid-a';
 const SEG_B = 'segment-uuid-b';
 const PERSON_1 = 'person-uuid-1';
 const PERSON_2 = 'person-uuid-2';
-const SEASON_ID = 'season-uuid-1';
 const PERFORMANCE_ID = 'event-uuid-performance';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event =>
@@ -76,7 +75,10 @@ describe('EventParticipationService', () => {
   let query: jest.Mock;
   let findOne: jest.Mock;
 
-  /** Primes `dataSource.query` in call order: segments → matrix → positions. */
+  /**
+   * Primes `dataSource.query` in call order: segments → matrix → positions, then no next
+   * performance (an assaig with persons always looks one up; an actuació never reaches it).
+   */
   const primeQueries = (
     segmentRows: unknown[],
     matrixRows: unknown[],
@@ -85,7 +87,8 @@ describe('EventParticipationService', () => {
     query
       .mockResolvedValueOnce(segmentRows)
       .mockResolvedValueOnce(matrixRows)
-      .mockResolvedValueOnce(positionRows);
+      .mockResolvedValueOnce(positionRows)
+      .mockResolvedValueOnce([]);
   };
 
   /** Primes `dataSource.query` in call order: segments → matrix → positions → next-performance → attendance. */
@@ -589,7 +592,7 @@ describe('EventParticipationService', () => {
 
   describe('next performance (Task 4.2)', () => {
     it('attaches nextPerformance and per-person status for an assaig with a future actuació in season', async () => {
-      findOne.mockResolvedValue(makeEvent({ season: { id: SEASON_ID } } as never));
+      findOne.mockResolvedValue(makeEvent());
       primeQueriesWithPerformance(
         [makeSegmentRow(SEG_A)],
         [makeMatrixRow(PERSON_1, SEG_A)],
@@ -608,8 +611,21 @@ describe('EventParticipationService', () => {
       expect(result.persons[0].nextPerformanceStatus).toBe(AttendanceStatus.ANIRE);
     });
 
+    it("scopes the search to the season containing the assaig's date, by date range", async () => {
+      findOne.mockResolvedValue(makeEvent());
+      primeQueriesWithPerformance([makeSegmentRow(SEG_A)], [makeMatrixRow(PERSON_1, SEG_A)], [], [], []);
+
+      await service.getEventParticipation(EVENT_ID);
+
+      const [sql, params] = query.mock.calls[3];
+      expect(sql).toContain('JOIN seasons s ON $1::date BETWEEN s."startDate" AND s."endDate"');
+      expect(sql).toContain('e.date <= s."endDate"');
+      expect(sql).not.toContain('seasonId');
+      expect(params).toEqual(['2026-05-01']);
+    });
+
     it('defaults a person with no attendance row at the performance to PENDENT', async () => {
-      findOne.mockResolvedValue(makeEvent({ season: { id: SEASON_ID } } as never));
+      findOne.mockResolvedValue(makeEvent());
       primeQueriesWithPerformance(
         [makeSegmentRow(SEG_A)],
         [makeMatrixRow(PERSON_1, SEG_A)],
@@ -625,7 +641,7 @@ describe('EventParticipationService', () => {
 
     it('runs no extra queries and returns null nextPerformance for an ACTUACIO event', async () => {
       findOne.mockResolvedValue(
-        makeEvent({ eventType: EventType.ACTUACIO, season: { id: SEASON_ID } } as never),
+        makeEvent({ eventType: EventType.ACTUACIO }),
       );
       primeQueries([makeSegmentRow(SEG_A)], [makeMatrixRow(PERSON_1, SEG_A)]);
 
@@ -638,7 +654,7 @@ describe('EventParticipationService', () => {
     });
 
     it('returns null when the assaig has no future actuació in its season', async () => {
-      findOne.mockResolvedValue(makeEvent({ season: { id: SEASON_ID } } as never));
+      findOne.mockResolvedValue(makeEvent());
       query
         .mockResolvedValueOnce([makeSegmentRow(SEG_A)])
         .mockResolvedValueOnce([makeMatrixRow(PERSON_1, SEG_A)])
@@ -653,15 +669,19 @@ describe('EventParticipationService', () => {
       expect(query).toHaveBeenCalledTimes(4);
     });
 
-    it('returns null and runs no Q4 queries when the assaig has no season', async () => {
-      findOne.mockResolvedValue(makeEvent({ season: null } as never));
-      primeQueries([makeSegmentRow(SEG_A)], [makeMatrixRow(PERSON_1, SEG_A)]);
+    it("returns null when the assaig's date is in no season (the season join finds nothing)", async () => {
+      findOne.mockResolvedValue(makeEvent());
+      query
+        .mockResolvedValueOnce([makeSegmentRow(SEG_A)])
+        .mockResolvedValueOnce([makeMatrixRow(PERSON_1, SEG_A)])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
       const result = await service.getEventParticipation(EVENT_ID);
 
       expect(result.nextPerformance).toBeNull();
       expect(result.persons[0].nextPerformanceStatus).toBeNull();
-      expect(query).toHaveBeenCalledTimes(3);
+      expect(query).toHaveBeenCalledTimes(4);
     });
   });
 });

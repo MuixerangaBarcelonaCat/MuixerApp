@@ -1,6 +1,7 @@
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, isNodeVisibleByModeAndCordons } from '@muixer/shared';
 import { InstanceNodeItem } from '../models/assignment.model';
 import { ProjectionInstance } from '../models/projection.model';
+import { rematMarkerNode } from './remat-marker.util';
 
 // ── Constants (calibrated to tronc-view.component.scss projection-mode) ──────
 
@@ -49,9 +50,21 @@ function computePinyaBbox(nodes: InstanceNodeItem[]): { w: number; h: number } |
   return w > 0 && h > 0 ? { w, h } : null;
 }
 
-function computeTroncPx(nodes: InstanceNodeItem[]): number {
+/** Whether the mode shows this BASE node (not in REMAT). `numberOfCordons`/`cordonsObertsEnabled`
+ *  don't matter: the BASE check never reads them. */
+function isBaseShown(instance: ProjectionInstance, node: InstanceNodeItem): boolean {
+  return isNodeVisibleByModeAndCordons(node, {
+    figureMode: instance.figureMode,
+    numberOfCordons: null,
+    cordonsObertsEnabled: true,
+  });
+}
+
+function computeTroncPx(instance: ProjectionInstance): number {
+  const { nodes } = instance;
   const zLevels = new Set(nodes.filter((n) => n.zone === FigureZone.TRONC).map((n) => n.z));
-  const hasBase = nodes.some((n) => n.zone === FigureZone.BASE);
+  // The tronc panel only has a base row when the mode shows the base.
+  const hasBase = nodes.some((n) => n.zone === FigureZone.BASE && isBaseShown(instance, n));
   const floorCount = zLevels.size + (hasBase ? 1 : 0);
   return NAME_HEADER_PX + TRONC_PADDING_PX + floorCount * TRONC_ROW_PX;
 }
@@ -69,7 +82,7 @@ function computeMinWidth(nodes: InstanceNodeItem[]): number {
 function toMetrics(instance: ProjectionInstance): FigureMetrics {
   const isNeta = instance.figureTemplate?.hasPinya === false;
 
-  let bbox: { w: number; h: number } | null = null;
+  let bbox: { w: number; h: number } | null;
   if (!isNeta) {
     // Mirror getInstanceProjectionNodes: only assigned PINYA nodes are rendered;
     // BASE and DECORATION are always shown. Use the same set for the bbox so the
@@ -82,13 +95,27 @@ function toMetrics(instance: ProjectionInstance): FigureMetrics {
         (n.zone === FigureZone.PINYA && assignedIds.has(n.id)),
     );
     bbox = computePinyaBbox(visibleNodes);
+  } else {
+    // No pinya (REMAT/NETA or a neta template): its decoration nodes need room, and so does
+    // whatever stands where the pinya would — the base for NETA, the marker for REMAT (which
+    // hides the base).
+    const marker = rematMarkerNode({
+      instanceId: instance.id,
+      figureMode: instance.figureMode,
+      sortOrder: instance.sortOrder,
+      nodes: instance.nodes,
+    });
+    const drawn = instance.nodes.filter(
+      (n) => n.zone === FigureZone.DECORATION || (n.zone === FigureZone.BASE && isBaseShown(instance, n)),
+    );
+    bbox = computePinyaBbox(marker ? [...drawn, marker] : drawn);
   }
 
   return {
     instanceId: instance.id,
     pinyaW: bbox?.w ?? 0,
     pinyaH: bbox?.h ?? 0,
-    troncPx: computeTroncPx(instance.nodes),
+    troncPx: computeTroncPx(instance),
     minWidth: computeMinWidth(instance.nodes),
   };
 }

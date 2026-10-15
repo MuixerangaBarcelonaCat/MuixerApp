@@ -47,6 +47,9 @@ export type InteractiveStateTokens = {
 };
 
 export type DaisyUiThemeValues = InteractiveStateTokens & {
+  // Passed through as plain CSS by DaisyUI, so native controls (date pickers, scrollbars, select
+  // popups) render in the same mode as the theme around them.
+  'color-scheme': ThemeMode;
   primary: string;
   'primary-content': string;
   secondary: string;
@@ -95,7 +98,7 @@ export type DaisyUiThemeValues = InteractiveStateTokens & {
 
 const INK_BLACK = hexToOklch(INK.black);
 const INK_DARK = hexToOklch(INK.dark);
-const INK_MID = hexToOklch(INK.mid);
+const INK_FAINT = hexToOklch(INK.faint);
 const PAPER_WHITE = hexToOklch(PAPER.white);
 const PAPER_CREAM = hexToOklch(PAPER.cream);
 const PAPER_WASHI = hexToOklch(PAPER.washi);
@@ -121,6 +124,11 @@ function resolveSash(sash: SashSpec, shirtHex: string, mode: ThemeMode) {
   }
 }
 
+// Dark base-300: one step above the ink.dark card, same hue and chroma. ink.mid (0.457) was too
+// far — borders read as hard lines and pressed rows flashed. 0.37 is about one and a half times
+// light mode's card-to-washi step, picked by eye from a side-by-side preview.
+const DARK_BASE_300 = { ...INK_DARK, l: 0.37 };
+
 /**
  * Surfaces for one mode — elevation lightens in both (card lighter than page), just anchored at
  * opposite ends of the fixed paper/ink scale (§2.2's dark-mode elevation-ladder resolution).
@@ -128,14 +136,16 @@ function resolveSash(sash: SashSpec, shirtHex: string, mode: ThemeMode) {
 function surfaces(mode: ThemeMode): { base100: OklchColor; base200: OklchColor; base300: OklchColor } {
   return mode === 'light'
     ? { base100: PAPER_WHITE, base200: PAPER_CREAM, base300: PAPER_WASHI }
-    : { base100: INK_DARK, base200: INK_BLACK, base300: INK_MID };
+    : { base100: INK_DARK, base200: INK_BLACK, base300: DARK_BASE_300 };
 }
 
 function buildTheme(shirtHex: string, sash: SashSpec, mode: ThemeMode): DaisyUiThemeValues {
   const primary = generatePrimary(shirtHex);
   const secondary = generateSecondary(primary);
   const sashTokens = resolveSash(sash, shirtHex, mode);
-  const neutral = INK_DARK;
+  // ink.dark on paper in light mode; ink.faint on ink in dark mode — ink.dark there is the card
+  // itself, so neutral buttons and badges would vanish into it.
+  const neutral = mode === 'light' ? INK_DARK : INK_FAINT;
   const { base100, base200, base300 } = surfaces(mode);
 
   const error = hexToOklch(SEMANTIC.error);
@@ -163,6 +173,7 @@ function buildTheme(shirtHex: string, sash: SashSpec, mode: ThemeMode): DaisyUiT
 
   return {
     ...(interactiveStates as unknown as InteractiveStateTokens),
+    'color-scheme': mode,
     primary: formatOklch(primary),
     'primary-content': formatOklch(content(primary)),
     secondary: formatOklch(secondary),

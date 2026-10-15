@@ -11,7 +11,7 @@
         <!-- Bulk publish toggle -->
         @if (segments().length > 0) {
           <lib-button
-            [variant]="anySegmentPublished() ? 'success' : 'neutral'"
+            [variant]="anySegmentPublished() ? 'success' : 'ghost'"
             ghost
             size="xs"
             [ariaLabel]="anySegmentPublished() ? 'Segments publicats — cliqueu per ocultar-los tots als membres' : 'Cap segment publicat — cliqueu per publicar-los tots'"
@@ -22,8 +22,11 @@
               <lucide-icon name="Eye" [size]="13" />
               Publicat
             } @else {
-              <lucide-icon name="EyeOff" [size]="13" />
-              No publicat
+              <!-- Muted gray, not ink: jade green is too close to ink to read as the "on" state -->
+              <span class="inline-flex items-center gap-1 text-base-content/60">
+                <lucide-icon name="EyeOff" [size]="13" />
+                No publicat
+              </span>
             }
           </lib-button>
         }
@@ -227,15 +230,8 @@
                   </span>
                 }
 
-                <!-- Conflict count pill (Phase 3) — hidden in production (0 conflicts) -->
-                @if (segmentConflictCount(segment); as conflictCount) {
-                  <lib-badge variant="error" size="sm">
-                    <span class="inline-flex items-center gap-1">
-                      <lucide-icon [name]="ICON_CONFLICT" [size]="11" />
-                      {{ conflictCount }} {{ conflictCount === 1 ? 'conflicte' : 'conflictes' }}
-                    </span>
-                  </lib-badge>
-                }
+                <!-- Conflict count pill — lists the conflicts on hover/focus; renders nothing without conflicts -->
+                <app-segment-conflict-pill [conflicts]="segmentConflicts(segment)" />
 
                 <!-- Visibility toggle -->
                 <span class="contents">
@@ -257,7 +253,7 @@
                 <!-- Add figure -->
                 @if (!isLocked()) {
                   <span class="hidden sm:contents">
-                    <lib-button variant="ghost" size="xs" ariaLabel="Afegir figura o composició al segment" (clicked)="openPicker(segment.id)">
+                    <lib-button variant="ghost" size="xs" ariaLabel="Afig una figura o composició al segment" (clicked)="openPicker(segment.id)">
                       <lucide-icon name="Plus" [size]="14" />
                       Figura
                     </lib-button>
@@ -513,7 +509,7 @@
                     @if (viewMode() === 'pinyes') {
                       @if (hasCordonsControl(instance)) {
                         <div
-                          class="hidden sm:flex w-24 shrink-0 self-center items-center justify-center gap-0.5"
+                          class="hidden sm:flex w-28 shrink-0 self-center items-center justify-center gap-0.5"
                           role="group"
                           [attr.aria-label]="'Cordons de ' + getInstanceLabel(instance, segment)"
                           title="Nombre de cordons visibles"
@@ -542,10 +538,33 @@
                           >
                             <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
                           </lib-button>
+                          <!-- Empty slot when there's nothing to toggle, so the stepper stays aligned across rows -->
+                          @if (instance.hasCordonsOberts) {
+                            <lib-button
+                              [variant]="instance.cordonsObertsEnabled ? 'primary' : 'ghost'"
+                              [ghost]="instance.cordonsObertsEnabled"
+                              size="xs"
+                              shape="square"
+                              [disabled]="isLocked()"
+                              ariaLabel="Cordons oberts"
+                              [ariaPressed]="instance.cordonsObertsEnabled"
+                              [tooltip]="instance.cordonsObertsEnabled ? 'Cordons oberts: activats' : 'Cordons oberts: desactivats'"
+                              (clicked)="onCordonsObertsToggle(instance)"
+                            >
+                              <lucide-icon
+                                [img]="ICON_CORDONS_OBERTS"
+                                [size]="12"
+                                [class.text-base-content/40]="!instance.cordonsObertsEnabled"
+                                aria-hidden="true"
+                              />
+                            </lib-button>
+                          } @else {
+                            <span class="w-6 shrink-0" aria-hidden="true"></span>
+                          }
                         </div>
                       } @else {
                         <span
-                          class="hidden sm:inline w-24 shrink-0 self-center text-center"
+                          class="hidden sm:inline w-28 shrink-0 self-center text-center"
                           [title]="figureModeLabel(instance) === 'Sense rengles' ? 'Configureu les rengles a la plantilla per poder ajustar el nombre de cordons' : null"
                         >
                           <lib-badge variant="ghost" size="xs" class="whitespace-nowrap">
@@ -684,5 +703,5 @@
 <!-- REMAT / NETA mode change confirmation (shared with the Distribució tab) -->
 <app-figure-mode-change (changed)="onFigureModeChangeApplied($event)" (cancelled)="onFigureModeChangeCancelled($event)" />
 
-<!-- Cordons reduction confirmation (shared with the Distribució tab) -->
+<!-- Cordons count / cordons oberts confirmation (shared with the Distribució tab) -->
 <app-cordons-change (changed)="onCordonsChangeApplied()" />

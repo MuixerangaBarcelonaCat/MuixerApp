@@ -62,7 +62,8 @@
   @if (events().length > 0) {
     <lib-card>
       <h2 class="text-sm font-semibold text-base-content/70 mb-2">Registre</h2>
-      <div #logContainer class="bg-neutral rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs space-y-0.5">
+      <!-- A terminal-style log: always dark, so the colored status lines read the same in either theme. -->
+      <div #logContainer libThemeScope="dark" data-testid="sync-log" class="bg-base-200 rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs space-y-0.5">
         @for (evt of events(); track $index) {
           <div [ngClass]="getEventColorClass(evt.type)">
             <span class="opacity-50 mr-2">[{{ evt.entity }}]</span>{{ evt.message }}

@@ -1,3 +1,4 @@
+import { THEME_NAMES } from '@muixer/ui';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -5,6 +6,9 @@ import { FigureZone, ImportScope, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projection.component';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import {
+  FIGURE_PALETTE,
+  SINGLE_FIGURE_PANEL_COLOR,
+  SINGLE_FIGURE_SHADOW_COLOR,
   ProjectionInstance,
   ProjectionSegmentData,
   InstanceNodeItem,
@@ -21,6 +25,9 @@ import {
   computeTroncNaturalSize,
   TroncPanelMeasurerComponent,
   TroncPanelMeasureSpec,
+  getFigureTint,
+  isRematMarker,
+  REMAT_MARKER_RADIUS,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -31,7 +38,7 @@ class FigureCanvasStub {
   readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly gridEnabled = input<boolean>(true);
   readonly attendanceMap = input<Map<string, string>>(new Map());
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   readonly outlineBoxes = input<unknown[]>([]);
   readonly showZoomControls = input<boolean>(true);
@@ -50,7 +57,7 @@ class TroncViewStub {
   readonly mode = input<string>('projection');
   readonly isNetaFigure = input<boolean>(false);
   readonly attendanceMap = input<Map<string, string>>(new Map());
-  readonly isPast = input<boolean>(false);
+  readonly phase = input<string>('before');
   readonly panelColor = input<string>('');
   readonly panelBorderColor = input<string>('');
   readonly figureName = input<string>('');
@@ -149,6 +156,11 @@ describe('PinyaProjectionComponent', () => {
 
   // ── instanceId reactivity (design decision 6) ───────────────────────────────
 
+  it('is pinned to the light theme until figure rendering is themed for dark mode', () => {
+    expect(fixture.nativeElement.dataset['theme']).toBe(THEME_NAMES.light);
+  });
+
+
   describe('instanceId', () => {
     it('shows all instances when instanceId is null', () => {
       const a = makeInstance([], [], { id: 'a' });
@@ -188,6 +200,43 @@ describe('PinyaProjectionComponent', () => {
     });
   });
 
+  // ── figure colors ───────────────────────────────────────────────────────────
+
+  describe('figure colors', () => {
+    const figure = (id: string, sortOrder: number) =>
+      makeInstance(
+        [
+          makeNode({ id: `${id}-p`, zone: FigureZone.PINYA, x: 0, y: 0 }),
+          makeNode({ id: `${id}-t`, zone: FigureZone.TRONC, z: 0, x: 0, width: 1 }),
+        ],
+        [`${id}-p`],
+        { id, sortOrder, projectionX: sortOrder * 400, projectionY: 0 },
+      );
+
+    it('colors each figure\'s tronc panel and glow by its sortOrder', () => {
+      setData(makeSegmentData([figure('a', 0), figure('b', 1)]));
+
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
+      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
+    });
+
+    it('keeps a figure\'s own color in the single-figure preview of a multi-figure segment', () => {
+      setData(makeSegmentData([figure('a', 0), figure('b', 1)]));
+      fixture.componentRef.setInput('instanceId', 'b');
+      fixture.detectChanges();
+
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[1]]);
+      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([FIGURE_PALETTE[1]]);
+    });
+
+    it('uses the neutral single-figure colors only when the segment itself has one figure', () => {
+      setData(makeSegmentData([figure('a', 0)]));
+
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([SINGLE_FIGURE_PANEL_COLOR]);
+      expect(component.distributionNodeOutlines().map((o) => o.color)).toEqual([SINGLE_FIGURE_SHADOW_COLOR]);
+    });
+  });
+
   // ── showZoomControls (forwarded to FigureCanvasComponent) ───────────────────
 
   describe('showZoomControls', () => {
@@ -202,6 +251,20 @@ describe('PinyaProjectionComponent', () => {
 
       const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
       expect(canvas.componentInstance.showZoomControls()).toBe(false);
+    });
+  });
+
+  describe('phase', () => {
+    it("defaults to 'after' (a projection reads attendance as arrivals), forwarded to the figure canvas", () => {
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.phase()).toBe('after');
+    });
+
+    it('forwards the given phase to the figure canvas', () => {
+      fixture.componentRef.setInput('phase', 'day');
+      fixture.detectChanges();
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.phase()).toBe('day');
     });
   });
 
@@ -270,14 +333,14 @@ describe('PinyaProjectionComponent', () => {
       expect(result.map((n) => n.id)).toEqual(['dec1', 'p1']);
     });
 
-    it('excludes BASE nodes for REMAT instances', () => {
+    it('excludes BASE nodes for REMAT instances, drawing the REMAT marker instead (first, so behind its decorations)', () => {
       const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
       const deco = makeNode({ id: 'dec1', zone: FigureZone.DECORATION });
       const instance = makeInstance([base, deco], [], { figureMode: 'REMAT' });
 
       const result = component.getInstanceProjectionNodes(instance);
 
-      expect(result.map((n) => n.id)).toEqual(['dec1']);
+      expect(result.map((n) => (isRematMarker(n) ? 'marker' : n.id))).toEqual(['marker', 'dec1']);
     });
 
     it('keeps BASE nodes for NETA instances (only PINYA strips on NETA)', () => {
@@ -661,6 +724,102 @@ describe('PinyaProjectionComponent', () => {
     });
   });
 
+  // ── REMAT figures (no pinya drawn, decorations allowed) ──────────────────────
+
+  describe('REMAT marker', () => {
+    // A REMAT figure keeps its (hidden) PINYA/BASE nodes but draws none of them. The projection
+    // draws a circular marker where it stands instead, centered where its pinya was, and pivots
+    // the figure on it — the same pivot as Distribució and the segment workspace.
+    const remat = (
+      opts: { hiddenPinya?: boolean; extra?: InstanceNodeItem[]; sortOrder?: number; id?: string } = {},
+    ) =>
+      makeInstance(
+        [
+          ...(opts.hiddenPinya === false
+            ? []
+            : [
+                makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 300, y: 400, width: 200, height: 100 }),
+                makeNode({ id: 'b1', zone: FigureZone.BASE, x: 300, y: 500, width: 80, height: 40 }),
+              ]),
+          ...(opts.extra ?? []),
+          makeNode({ id: 't1', zone: FigureZone.TRONC, z: 0, x: 0, width: 1 }),
+        ],
+        [],
+        {
+          id: opts.id ?? 'r',
+          sortOrder: opts.sortOrder ?? 0,
+          projectionX: 0,
+          projectionY: 0,
+          figureMode: 'REMAT',
+          figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: false },
+        },
+      );
+    const markerOf = (id = 'r') => component.distributionNodes().find((n) => isRematMarker(n) && n.id.endsWith(id));
+
+    it('draws a circular marker of radius 120 in the figure tint, with no text', () => {
+      setData(makeSegmentData([remat({ sortOrder: 3 })], { hasDistribution: true }));
+      const { scale } = computeDistributionTransform(
+        component.effectiveInstances(),
+        window.innerWidth,
+        window.innerHeight,
+      );
+
+      const marker = markerOf()!;
+      expect(marker.shape).toBe(NodeShape.CIRCLE);
+      expect(marker.color).toBe(getFigureTint(3));
+      expect(marker.label).toBe('');
+      expect(marker.width).toBeCloseTo(2 * REMAT_MARKER_RADIUS * scale);
+      expect(marker.height).toBeCloseTo(2 * REMAT_MARKER_RADIUS * scale);
+    });
+
+    it('draws no marker for a figure in any other mode', () => {
+      setData(
+        makeSegmentData(
+          [makeInstance([makeNode({ id: 'n1', zone: FigureZone.PINYA })], ['n1'], { projectionX: 0, projectionY: 0 })],
+          { hasDistribution: true },
+        ),
+      );
+
+      expect(component.distributionNodes().some(isRematMarker)).toBe(false);
+    });
+
+    it('draws the marker at the figure position, with a decoration placed at the hidden pinya center on top of it', () => {
+      // Hidden PINYA+BASE span x:[200,400] y:[350,520] → center (300,435).
+      const deco = makeNode({ id: 'd1', zone: FigureZone.DECORATION, positionType: 'star', x: 300, y: 435, isAdHoc: true });
+      setData(makeSegmentData([remat({ extra: [deco] })], { hasDistribution: true }));
+
+      const marker = markerOf()!;
+      const drawnDeco = component.distributionNodes().find((n) => n.id === 'd1')!;
+      expect(drawnDeco.x).toBeCloseTo(marker.x);
+      expect(drawnDeco.y).toBeCloseTo(marker.y);
+    });
+
+    it('floats a linked tronc panel above the marker, whatever the size of the hidden pinya', () => {
+      setData(makeSegmentData([remat({ hiddenPinya: false })], { hasDistribution: true }));
+      const expected = component.distributionFitBounds()[0];
+
+      setData(makeSegmentData([remat()], { hasDistribution: true }));
+      const actual = component.distributionFitBounds()[0];
+
+      expect(actual.y).toBeCloseTo(expected.y);
+      const marker = markerOf()!;
+      expect(actual.y + actual.height / 2).toBeLessThan(marker.y - marker.height / 2);
+    });
+
+    it('gives each REMAT figure its own marker', () => {
+      setData(
+        makeSegmentData([remat({ id: 'r1', sortOrder: 0 }), { ...remat({ id: 'r2', sortOrder: 1 }), projectionX: 800 }], {
+          hasDistribution: true,
+        }),
+      );
+
+      expect(component.distributionNodes().filter(isRematMarker).map((n) => n.color)).toEqual([
+        getFigureTint(0),
+        getFigureTint(1),
+      ]);
+    });
+  });
+
   // ── distributionNodeOutlines ─────────────────────────────────────────────────
 
   describe('distributionNodeOutlines', () => {
@@ -784,7 +943,7 @@ describe('PinyaProjectionComponent', () => {
       const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
       expect(banner.componentInstance.state()).toEqual({
         kind: 'PINYA',
-        instanceIndex: 0,
+        figureSortOrder: 0,
         nodeLabel: 'Lateral',
         cordon: null,
         figureName: null,

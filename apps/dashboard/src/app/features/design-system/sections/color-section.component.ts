@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { buildCategoricalPalette, formatOklch, INK, PAPER, CREASE, SEMANTIC, SEMANTIC_LIGHT, ACCENT } from '@muixer/ui';
-import type { ColorThemeMode } from '../design-system.component';
+import type { ThemeMode } from '@muixer/ui';
 import type { InteractiveRole } from '@muixer/ui';
 
 interface SemanticRoleSwatch {
@@ -44,7 +44,7 @@ const CATEGORICAL_LABELS = ['Red', 'Green', 'Blue', 'Gold', 'Purple', 'Orange', 
   templateUrl: './color-section.component.html',
 })
 export class ColorSectionComponent {
-  mode = input.required<ColorThemeMode>();
+  mode = input.required<ThemeMode>();
 
   protected readonly semanticRoles = SEMANTIC_ROLES;
   protected readonly surfaceRoles = SURFACE_ROLES;

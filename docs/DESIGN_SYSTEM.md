@@ -32,8 +32,8 @@ OKLCH throughout, not hex/RGB — perceptually uniform lightness makes tone-shif
 |------|--------|-------|
 | `primary` | Derived from `shirtHex` | Fixed L=0.62 / C=0.18 target, hue from the shirt color |
 | `secondary` | Derived from `shirtHex` | Same hue as primary, lighter and lower-chroma — a muted sibling, never sash-derived |
-| `accent` | Fixed | `#D4793B` (orange) — not colla-dependent, reused from the categorical palette |
-| `error` / `success` / `warning` / `info` | Fixed | `#C23B3B` / `#3B8C5A` / `#C9A84C` / `#3B6FC2` — same across every colla |
+| `accent` | Fixed | `#DD8C46` (apricot) — not colla-dependent, reused from the categorical palette |
+| `error` / `success` / `warning` / `info` | Fixed | `#C74007` / `#277C64` / `#C9A84C` / `#3B6FC2` — same across every colla. Error (scarlet) and success (jade) are tuned to stay apart for red-green colorblind users and to keep AA text contrast on paper; `fixed-colors.spec.ts` enforces both |
 | Sash (`--ds-sash-fill`/`-content`/`-edge`/`-weave`) | Derived from `sashSpec` | Independent of `primary` — never assume a colla's sash matches its shirt color |
 
 **`tone(base, variant, mode)`** computes a role's interactive states from its base color:
@@ -51,7 +51,7 @@ OKLCH throughout, not hex/RGB — perceptually uniform lightness makes tone-shif
 
 Every `InteractiveRole` (`primary`/`secondary`/`accent`/`neutral`/`info`/`success`/`warning`/`error`) gets its hover/active/disabled precomputed into theme-level `--ds-{role}-hover`/`-active`/`-disabled` custom properties — DaisyUI's own `:hover`/`:disabled` states always mix toward flat black/gray regardless of role, so components that want `tone()`'s mode-aware, per-role feedback need these precomputed rather than relying on DaisyUI's default.
 
-**`contrastContent(background, darkContent, lightContent)`** picks readable content color via real APCA contrast (not naive relative luminance) — used everywhere a solid fill needs readable text/icon color on top of an arbitrary custom color (Badge's `color` override, Card's `sashColor` override), and by the sash motif itself (below) for its own fill.
+**`contrastContent(background, darkContent, lightContent)`** picks readable content color via real APCA contrast (not naive relative luminance) — used everywhere a solid fill needs readable text/icon color on top of an arbitrary custom color, and by the sash motif itself (below) for its own fill. For a user-picked hex, `readableContentOn(hex)` wraps it with the ink/paper pair and returns a CSS color (Badge's `color`, Card's `sashColor`, the color picker's hover pencil).
 
 `contrastContent` gamut-maps every candidate (`culori`'s `clampChroma`) before computing APCA luminance. Needed because fixed L/C targets — the sash's `SASH_L=0.52`/`SASH_C=0.2` in particular — can land outside the sRGB gamut for some hues (confirmed: `#B32400`, h≈33°); left unclamped, culori's raw RGB conversion returns an out-of-range channel (e.g. blue < 0), which collapses both candidates' APCA contrast to ~0 — a tie the `>=` tie-break silently resolves to dark content regardless of how dark the color actually reads. Gamut-mapping first matches what a browser actually paints for an out-of-gamut `oklch()` value, so the text-color decision agrees with the rendered fill.
 
@@ -119,7 +119,7 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 ### Categorical colors
 
-`CategoricalPalette` in `categorical.ts` — 10 hues for domain data that needs many distinguishable colors at once (tags, figure-node presets), not a small closed set of semantic roles. The first 6 reuse the fixed accent/semantic hues (error/success/info/warning red/green/blue/gold, plus purple and orange); the last 4 (teal, pink, brown, olive) fill genuine gaps in the hue wheel. Light-mode variants are hand-tuned per hue for the first 6; dark mode always computes via `tone()` rather than reusing pale light-mode values unmodified (which would read as a glow, not a receding shadow).
+`CategoricalPalette` in `categorical.ts` — 10 hues for domain data that needs many distinguishable colors at once (tags, figure-node presets), not a small closed set of semantic roles. The first 6 reuse the fixed accent/semantic hues (error/success/info/warning red/green/blue/gold, plus purple and orange); the last 4 (teal, pink, brown, olive) fill genuine gaps in the hue wheel. Light-mode variants close 55% of each color's own lightness gap to the paper at 60% of its chroma (a fixed lightness step clipped the already-light gold and orange to near-white). Every pair of normal colors stays at OKLab ΔE ≥ 10 except gold/orange (≈ 9.3, accepted by eye), and red vs orange stays ≥ 15 — all enforced in `categorical.spec.ts`; dark mode always computes via `tone()` rather than reusing pale light-mode values unmodified (which would read as a glow, not a receding shadow).
 
 **Defined now; not yet consumed anywhere.** Its intended consumer is the Konva canvas (`libs/pinyes-render`) — Tier 5 of the component-library plan, not yet built.
 
@@ -127,7 +127,7 @@ Named by role, replacing three independent `z-[9999]` literals found scattered a
 
 All shipped components live in `libs/ui/src/lib/components/`. Every input/output below reflects the actual shipped API — check the component's own `.ts` file before relying on this table for anything version-sensitive.
 
-All of them are exported from the `@muixer/ui` barrel except `lib-markdown-editor` and `MarkdownService`, which have their own entry points (`@muixer/ui/markdown-editor`, `@muixer/ui/markdown`) so that Tiptap and `marked` stay out of every app's initial bundle — see that section for the measurement.
+All of them are exported from the `@muixer/ui` barrel except `lib-markdown-editor`, `lib-markdown-view` and `MarkdownService`, which have their own entry points (`@muixer/ui/markdown-editor`, `@muixer/ui/markdown`) so that Tiptap and `marked` stay out of every app's initial bundle — see that section for the measurement.
 
 ### `lib-button`
 
@@ -476,6 +476,8 @@ Two things worth knowing before touching it:
 
 Rendering stored Markdown for display is the matching `MarkdownService` (`@muixer/ui/markdown`, `render(markdown)`), which parses with `marked` and sanitizes with `DomSanitizer`. Sanitization lives inside the service rather than at each call site, because every consumer renders admin-authored content and skipping it anywhere would be an XSS hole.
 
+`lib-markdown-view` (same entry point, input `content`) wraps the service in a `prose prose-sm` block; the legal documents (privacy policy, transparency clause history) are shown through it in both apps. Plain text with no Markdown still reads fine — blank lines become paragraphs. On a screen that loads with the app (the consent modals, the Dashboard's «Sobre l'app»), put it behind `@defer (on immediate)` so `marked` stays in a lazy chunk.
+
 ### `lib-modal`
 
 Native `<dialog>` semantics (`showModal()`/`close()`) — not the app's previous CSS-only `.modal-open` convention, which had no real focus trap.
@@ -554,6 +556,14 @@ Output: `clicked`. No wrapper chrome — sits directly in whatever layout the co
 <lib-empty-state message="No s'han trobat persones amb els filtres actuals" actionLabel="Neteja filtres" (clicked)="clearFilters()" />
 ```
 
+### `lib-theme-picker`
+
+No inputs. A compact icon-only `lib-button-group` (`xs`, square) of «Sistema» / «Clar» / «Fosc» (monitor / sun / moon, named via `ariaLabel` + tooltip) bound to `ThemeService` (pressed state = current preference). Labelled as a group «Aparença».
+
+```html
+<lib-theme-picker />
+```
+
 ## Component conventions
 
 Cross-cutting rules for anyone adding a new `libs/ui` component:
@@ -582,17 +592,35 @@ Cross-cutting rules for anyone adding a new `libs/ui` component:
 
 ## Theming / dark mode
 
-`generateCollaTheme(shirtHex, sashSpec)` (`libs/ui/src/lib/tokens/theme.ts`) derives a complete DaisyUI theme — every semantic color role plus every `--ds-*` custom property — for both light and dark mode from those two inputs alone. `tailwind.config.ts` registers the result per colla:
+`generateCollaTheme(shirtHex, sashSpec)` (`libs/ui/src/lib/tokens/theme.ts`) derives a complete DaisyUI theme — every semantic color role plus every `--ds-*` custom property and `color-scheme` — for both light and dark mode from those two inputs alone. `tailwind.config.ts` registers both, named by `THEME_NAMES` (`theme-names.ts`):
 
 ```ts
 daisyui: {
-  themes: [
-    { 'colla-barcelona': generateCollaTheme('#1E3A8A', { kind: 'hue', hex: '#6B4C91' }) },
-  ],
+  themes: [{ [THEME_NAMES.light]: barcelona.light }, { [THEME_NAMES.dark]: barcelona.dark }],
+  darkTheme: THEME_NAMES.dark,
 }
 ```
 
-Runtime switch: `document.documentElement.setAttribute('data-theme', 'colla-nova')`. Dark mode isn't a flat inversion — several tokens (shadow tint, `disabled`'s `recedeExtremeGap`, categorical dark variants) compute differently by mode rather than reusing light-mode values unmodified, since a straight invert reads wrong for some of them (a dark shadow reads weakly against an already-dark surface; a pale light-mode categorical hue reused in dark mode reads as a glow, not a receding shadow).
+Dark mode isn't a flat inversion — several tokens compute differently by mode rather than reusing light-mode values unmodified:
+
+| Token | Light | Dark | Why |
+|-------|-------|------|-----|
+| `base-100/200/300` | paper.white / cream / washi | ink.dark / ink.black / ink.dark at L 0.37 | Elevation lightens in both; dark base-300 is one step above the card (ink.mid read as hard lines) |
+| `neutral` | ink.dark | ink.faint | ink.dark is the dark card itself — neutral buttons/badges would vanish |
+| Hue sash fill | L 0.52 / C 0.20 | L 0.58 / C 0.15 | Sinks into the dark card at 0.52 |
+| `primary` | L 0.62 / C 0.18 | same | Lifted versions read as too light (previewed and rejected) |
+| `color-scheme` | `light` | `dark` | Native date pickers, selects and scrollbars follow the theme |
+
+Shadow tint, `disabled`'s `recedeExtremeGap` and the categorical dark variants also differ by mode (a dark shadow reads weakly on a dark surface; a pale light-mode hue reused in dark mode reads as a glow). Error/success text on dark surfaces is still below AA — see DEBT F18.
+
+**Switching.** The preference is per device: `ThemeService` (`libs/ui`) holds `preference` («Sistema» / «Clar» / «Fosc», default system), `mode` (what's on screen) and `setPreference()`, stored in `localStorage` under `THEME_STORAGE_KEY`. «Sistema» leaves `<html>` without `data-theme`, so DaisyUI's own `prefers-color-scheme` block picks the theme in pure CSS; an explicit choice sets `data-theme` on `<html>`. A small inline script in each app's `index.html` applies a stored choice before first paint (no light flash); `index-html.spec.ts` in each app runs it to keep its copied names in sync. Users change it with `lib-theme-picker` (PWA: Configuració → Aparença; Dashboard: the user menu).
+
+**Pinned surfaces.** `libThemeScope="light" | "dark"` (`ThemeScopeDirective`) pins an element and everything inside it to one theme, whatever the page theme:
+
+- **Figure rendering is pinned light** (`app-figure-canvas`, `app-tronc-view`, `lib-pinya-projection` and the projection backdrop) until the Konva canvas is themed — see DEBT.md.
+- **HUDs over a figure are always dark** (projection navigation bars, the PWA search button, the own-position banner/chevron/ring), as is the sync log terminal.
+
+DaisyUI paints `background-color: base-100` and `color: base-content` on every `[data-theme]` element, so a pinned element that should stay translucent needs an explicit `bg-*` class (utilities win over that base-layer rule). Inside a pinned scope, still use theme tokens (`bg-base-200/60`, `text-base-content/70`) — never `bg-black`/`text-white`; `pnpm run lint:tokens` flags Tailwind's stock palette classes for this reason.
 
 ## Accessibility
 

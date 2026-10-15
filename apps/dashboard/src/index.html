@@ -1,11 +1,23 @@
 <!doctype html>
-<html lang="ca" data-theme="colla-barcelona-light">
+<html lang="ca">
   <head>
     <meta charset="utf-8" />
     <title>MuixerApp</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!-- Applies a per-device theme choice before first paint (no light flash). With nothing
+         stored, no data-theme is set and DaisyUI follows prefers-color-scheme in pure CSS.
+         Mirrors THEME_STORAGE_KEY/THEME_NAMES in libs/ui (theme-names.ts) — index-html.spec.ts
+         keeps them in sync. -->
+    <script>
+      try {
+        var theme = localStorage.getItem('muixer_theme');
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.dataset.theme = 'colla-barcelona-' + theme;
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <app-root></app-root>

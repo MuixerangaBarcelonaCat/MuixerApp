@@ -32,6 +32,7 @@
       required
       type="date"
       formControlName="date"
+      [hint]="dateHint()"
       [errorText]="fieldError('date') ?? undefined"
     />
 
@@ -66,16 +67,6 @@
       formControlName="locationUrl"
       placeholder="https://maps.google.com/..."
     />
-
-    <!-- Temporada -->
-    <div class="col-span-full">
-      <lib-select label="Temporada" formControlName="seasonId">
-        <option value="">— Sense temporada —</option>
-        @for (season of allSeasons(); track season.id) {
-          <option [value]="season.id">{{ season.name }}</option>
-        }
-      </lib-select>
-    </div>
 
     <!-- Descripció -->
     <div class="form-control col-span-full">

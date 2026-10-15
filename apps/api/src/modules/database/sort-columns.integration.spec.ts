@@ -13,6 +13,8 @@ import { TokenService } from '../auth/token.service';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { USER_SORT_BY_FIELDS } from '../user/constants/user-sort.constants';
 import { EventService } from '../event/event.service';
+import { AttendanceService } from '../event/attendance.service';
+import { AuditService } from '../audit/audit.service';
 import { SeasonService } from '../season/season.service';
 import { Event } from '../event/event.entity';
 import { Season } from '../season/season.entity';
@@ -96,7 +98,10 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
         providers: [
           EventService,
           SeasonService,
-          ...realRepositoryProviders(db.dataSource, [Event, Season, Attendance, EventSegment]),
+          AttendanceService,
+          ...realRepositoryProviders(db.dataSource, [Event, Season, Attendance, EventSegment, Person]),
+          { provide: DataSource, useValue: db.dataSource },
+          { provide: AuditService, useValue: { record: jest.fn() } },
         ],
       }).compile();
       service = module.get(EventService);

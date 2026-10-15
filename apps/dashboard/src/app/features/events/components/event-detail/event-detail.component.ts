@@ -3,7 +3,6 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { LucideAngularModule, Info, UserCheck, Grid3X3 } from 'lucide-angular';
 import { ICON_XICALLA, ICON_PERSONA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
-import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { AlertComponent, ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, CardComponent } from '@muixer/ui';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
@@ -13,9 +12,9 @@ import { EventParticipationComponent } from '../event-participation/event-partic
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
 import { StatCardComponent } from '../../../../shared/components/data/stat-card/stat-card.component';
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
-import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
+import { EventDetail, EventType, AttendanceSummary, SyncEvent } from '../../models/event.model';
 import { getAdultsCount } from '../event-list/event-list.component';
-import { PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
+import { AttendanceStatus, attendanceGroupLabel, EventPhase, getEventPhase, isArrivalPhase, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
 import { saveBlob } from '../../../../core/utils/save-blob.util';
 import { openPendingTab, showBlobInTab } from '../../../../core/utils/blob-tab.util';
@@ -66,7 +65,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return this.event()?.eventType === EventType.ACTUACIO ? '/performances' : '/rehearsals';
   }
   private readonly eventService = inject(EventService);
-  private readonly seasonService = inject(SeasonService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
 
   readonly EventType = EventType;
@@ -77,7 +75,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   loading = signal(true);
 
   showEditModal = signal(false);
-  seasons = signal<Season[]>([]);
 
   deleting = signal(false);
   deleteError = signal<string | null>(null);
@@ -122,6 +119,24 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return new Date(`${ev.date}T${timeStr}:00`) < new Date();
   });
 
+  /** Before / on / after the event day (Madrid): drives the attendance labels and controls. */
+  phase = computed<EventPhase>(() => {
+    const ev = this.event();
+    return ev ? getEventPhase(ev.date) : 'before';
+  });
+
+  /** The main stat card: arrivals from the event day on, confirmations before it. */
+  mainStat = computed(() => {
+    const ev = this.event();
+    if (!ev) return null;
+    const phase = this.phase();
+    const arrivals = isArrivalPhase(phase);
+    return {
+      label: attendanceGroupLabel(arrivals ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE, phase),
+      value: arrivals ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed,
+    };
+  });
+
   attendanceRatio = computed(() => {
     const ev = this.event();
     if (!ev || ev.attendanceSummary.total === 0) return 0;
@@ -158,9 +173,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     }
 
     this.loadEvent(id);
-    this.seasonService.getAll().subscribe({
-      next: (resp) => this.seasons.set(resp.data),
-    });
   }
 
   setTab(tab: string): void {
@@ -343,25 +355,27 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   }
 
   getSummaryForDisplay(summary: AttendanceSummary) {
-    const past = this.isPast();
-    const adults = getAdultsCount(summary, past);
+    const phase = this.phase();
+    const arrivals = isArrivalPhase(phase);
+    const label = (status: AttendanceStatus) => attendanceGroupLabel(status, phase);
+    const adults = getAdultsCount(summary, this.isPast());
     return [
       {
-        label: past ? 'Assistit' : 'Aniré',
-        value: past ? summary.attended : summary.confirmed,
+        label: label(arrivals ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE),
+        value: arrivals ? summary.attended : summary.confirmed,
         icon: 'UserCheck',
         iconClass: 'text-success',
         hidden: false,
       },
       {
-        label: 'No presentat',
+        label: label(AttendanceStatus.ANIRE),
         value: summary.confirmed,
         icon: 'UserMinus',
         iconClass: 'text-warning',
-        hidden: !past,
+        hidden: !arrivals,
       },
       {
-        label: past ? 'No va anar' : 'No vaig',
+        label: label(AttendanceStatus.NO_VAIG),
         value: summary.declined,
         icon: 'UserX',
         iconClass: 'text-error',
@@ -372,10 +386,10 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         value: summary.lateCancel,
         icon: 'AlertCircle',
         iconClass: 'text-warning',
-        hidden: !past || summary.lateCancel === 0,
+        hidden: !arrivals || summary.lateCancel === 0,
       },
       {
-        label: past ? 'Sense resposta' : 'Pendents',
+        label: label(AttendanceStatus.PENDENT),
         value: summary.pending,
         icon: 'Clock',
         iconClass: 'text-base-content/40',

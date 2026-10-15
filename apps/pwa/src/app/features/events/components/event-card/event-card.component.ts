@@ -14,6 +14,7 @@ import { CardComponent, CardTone } from '@muixer/ui';
 import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
 import { formatEventDate } from '../../../../shared/pipes/format-event-date.pipe';
 import { AuthService } from '../../../../core/auth/services/auth.service';
+import { memberAttendanceStatus } from '../../../../shared/utils/member-attendance-status.util';
 
 @Component({
   selector: 'app-event-card',
@@ -36,6 +37,7 @@ export class EventCardComponent {
   readonly locationUrl = input<string | null>(null);
   readonly attendanceChanged = output<{ eventId: string; personId: string; status: AttendanceStatus }>();
 
+  protected readonly memberAttendanceStatus = memberAttendanceStatus;
   protected readonly MapPin = MapPin;
   protected readonly Clock = Clock;
   protected readonly Star = Star;

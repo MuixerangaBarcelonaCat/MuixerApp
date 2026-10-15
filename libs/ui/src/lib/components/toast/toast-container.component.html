@@ -3,15 +3,9 @@
     <div [class]="'alert shadow-lg toast-item ' + alertClass(toast.type)" data-testid="lib-toast-item" role="status">
       <lucide-icon [img]="icon(toast.type)" [size]="16" />
       <span>{{ toast.message }}</span>
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs"
-        data-testid="lib-toast-dismiss"
-        (click)="toastService.dismiss(toast.id)"
-        aria-label="Tancar notificació"
-      >
-        ✕
-      </button>
+      <lib-button variant="ghost" size="xs" shape="square" ariaLabel="Tancar notificació" (clicked)="toastService.dismiss(toast.id)">
+        <lucide-icon [img]="X" [size]="14" />
+      </lib-button>
     </div>
   }
 </div>

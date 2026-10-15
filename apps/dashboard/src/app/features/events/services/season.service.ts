@@ -14,6 +14,11 @@ export type UpdateSeasonPayload = {
   [K in keyof CreateSeasonPayload]?: CreateSeasonPayload[K] | null;
 };
 
+export interface SeasonMutationOptions {
+  /** Go ahead even if some events end up in no season (the user has confirmed). */
+  allowUncovered?: boolean;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -30,11 +35,24 @@ export class SeasonService extends ApiService {
     return this.post<Season>('/seasons', payload);
   }
 
-  update(id: string, payload: UpdateSeasonPayload): Observable<Season> {
-    return this.patch<Season>(`/seasons/${id}`, payload);
+  /** Events whose date falls in no season («Sense temporada»). */
+  getUncoveredEventCount(): Observable<{ count: number }> {
+    return this.get<{ count: number }>('/seasons/uncovered-events');
   }
 
-  remove(id: string): Observable<void> {
-    return this.delete<void>(`/seasons/${id}`);
+  /**
+   * Without `allowUncovered`, the API answers 409 with `code: SEASON_LEAVES_EVENTS_UNCOVERED` when the
+   * change would leave events in no season; resend with it once the user confirms.
+   */
+  update(id: string, payload: UpdateSeasonPayload, options: SeasonMutationOptions = {}): Observable<Season> {
+    return this.patch<Season>(`/seasons/${id}`, payload, { params: mutationParams(options) });
   }
+
+  remove(id: string, options: SeasonMutationOptions = {}): Observable<void> {
+    return this.delete<void>(`/seasons/${id}`, { params: mutationParams(options) });
+  }
+}
+
+function mutationParams(options: SeasonMutationOptions): Record<string, string> {
+  return options.allowUncovered ? { allowUncovered: 'true' } : {};
 }

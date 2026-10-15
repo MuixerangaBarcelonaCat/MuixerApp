@@ -35,22 +35,38 @@
       </div>
     }
 
+    <!-- Opens the same picker as the segment summary's «+ Figura» -->
+    <ng-template #addFigureButton>
+      <lib-button variant="ghost" size="sm" ariaLabel="Afig una figura o composició al segment" (clicked)="openFigurePicker()">
+        <lucide-icon [img]="Plus" [size]="16" aria-hidden="true" />
+        Figura
+      </lib-button>
+    </ng-template>
+
     @if (figures().length === 0) {
-      <div class="flex items-center justify-center h-full text-base-content/50">
+      <div class="flex flex-col items-center justify-center gap-3 h-full text-base-content/50">
         Este segment no té cap figura amb tronc.
+        @if (!ws.isLocked()) {
+          <ng-container [ngTemplateOutlet]="addFigureButton" />
+        }
       </div>
     } @else {
       <div class="flex flex-wrap content-start items-start gap-6 p-4">
         @for (figure of figures(); track figure.instance.instanceId) {
+          <!-- Pinned light with the tronc panel it frames (figure rendering isn't themed for dark
+               yet, DEBT F19); the panel is transparent so the figure tint shows through it. -->
           <div
+            libThemeScope="light"
+            data-figure-card
             class="flex flex-col gap-2 shrink-0 p-3 rounded-lg border-2"
-            [style.border-color]="figure.color + '55'"
-            [style.background-color]="figure.color + '0d'"
+            [style.border-color]="figure.tint.border"
+            [style.background-color]="figure.tint.background"
           >
             <h2 class="text-lg font-semibold text-base-content/70 text-center">
               {{ figure.instance.label }}
             </h2>
             <app-tronc-view
+              class="bg-transparent"
               [instanceId]="figure.instance.instanceId"
               [troncNodes]="figure.troncNodes"
               [baseNodes]="figure.baseNodes"
@@ -62,7 +78,7 @@
               [heightMode]="state.heightMode()"
               [highlightedNodeIds]="highlightedNodeIds()"
               [attendanceMap]="attendanceMap()"
-              [isPast]="isPast()"
+              [phase]="phase()"
               [personDetailsMap]="personDetailsMap()"
               [personDragEnabled]="!isTouch()"
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
@@ -73,6 +89,11 @@
               (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
               (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
             />
+          </div>
+        }
+        @if (!ws.isLocked()) {
+          <div class="self-stretch flex items-center justify-center min-w-40 p-3 rounded-lg border-2 border-dashed border-base-300">
+            <ng-container [ngTemplateOutlet]="addFigureButton" />
           </div>
         }
       </div>
@@ -149,7 +170,7 @@
     [heightMode]="state.heightMode()"
     [activeNodePositionType]="selectedNodePositionType()"
     [selectedNodeZone]="selectedNodeZone()"
-    [isPast]="isPast()"
+    [phase]="phase()"
     (personSelected)="onPersonSelected($event)"
     (assignedPersonSelected)="onAssignedPersonSelected($event)"
     (unassignRequested)="onUnassign($event)"
@@ -184,5 +205,15 @@
     (viewRequested)="onReassignDialogView()"
     (reassignRequested)="onReassignDialogConfirm()"
     (assignAnywayRequested)="onReassignDialogAssignAnyway()"
+  />
+}
+
+@if (figurePickerOpen()) {
+  <app-figure-picker-modal
+    [open]="figurePickerOpen()"
+    [segmentId]="ws.segmentId()"
+    (confirmed)="onFiguresConfirmed($event)"
+    (compositionSelected)="onCompositionSelected($event)"
+    (closed)="closeFigurePicker()"
   />
 }

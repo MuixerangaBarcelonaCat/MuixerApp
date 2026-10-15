@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
+import { THEME_NAMES } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { EventSyncComponent } from './event-sync.component';
 import { AuthService } from '../../../../core/auth/services/auth.service';
@@ -52,6 +53,14 @@ describe('EventSyncComponent', () => {
 
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+  });
+
+  it('draws the log as a dark terminal in either page theme', () => {
+    component.events.set([{ type: 'start', entity: 'persons', message: 'Inici' }]);
+    fixture.detectChanges();
+    const log: HTMLElement = fixture.nativeElement.querySelector('[data-testid="sync-log"]');
+    expect(log.dataset['theme']).toBe(THEME_NAMES.dark);
+    expect(log.className).not.toContain('bg-neutral');
   });
 
   it('closes the EventSource when the component is destroyed mid-sync', () => {

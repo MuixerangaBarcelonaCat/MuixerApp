@@ -9,6 +9,7 @@ describe('ToastContainerComponent', () => {
   let toastService: ToastService;
 
   const items = () => fixture.debugElement.queryAll(By.css('[data-testid="lib-toast-item"]'));
+  const dismissButtons = () => fixture.debugElement.queryAll(By.css('button[aria-label="Tancar notificació"]'));
   const container = () => fixture.debugElement.query(By.css('[data-testid="lib-toast-container"]')).nativeElement;
 
   beforeEach(async () => {
@@ -57,12 +58,17 @@ describe('ToastContainerComponent', () => {
     });
   });
 
+  it('dismiss button gets the shared hover-lift/press motion like every other button', () => {
+    toastService.error('Un');
+    fixture.detectChanges();
+    expect(dismissButtons()[0].nativeElement.classList).toContain('ds-lift');
+  });
+
   it('clicking dismiss removes the toast from the service and the DOM', () => {
     toastService.success('Un');
     fixture.detectChanges();
 
-    const dismissButton = fixture.debugElement.query(By.css('[data-testid="lib-toast-dismiss"]'));
-    dismissButton.nativeElement.click();
+    dismissButtons()[0].nativeElement.click();
     fixture.detectChanges();
 
     expect(toastService.toasts().length).toBe(0);
@@ -74,8 +80,7 @@ describe('ToastContainerComponent', () => {
     toastService.error('Dos');
     fixture.detectChanges();
 
-    const firstDismiss = fixture.debugElement.queryAll(By.css('[data-testid="lib-toast-dismiss"]'))[0];
-    firstDismiss.nativeElement.click();
+    dismissButtons()[0].nativeElement.click();
     fixture.detectChanges();
 
     expect(items().length).toBe(1);

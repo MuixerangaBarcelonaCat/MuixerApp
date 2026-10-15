@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { LucideAngularModule } from 'lucide-angular';
 import { BadgeComponent, BadgeVariant } from '@muixer/ui';
 import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
-import { ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 @Component({
   selector: 'app-person-hover-card',
@@ -60,7 +60,8 @@ import { ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 })
 export class PersonHoverCardComponent {
   readonly info = input.required<PersonHoverInfo>();
-  readonly isPast = input<boolean>(false);
+  /** Before / on / after the event day: worded status label and the no-show colour of ANIRE. */
+  readonly phase = input<EventPhase>('before');
   readonly heightMode = input<HeightMode>('relative');
   /** Strips the floating-tooltip chrome (border/shadow/rounding/background) for flush inline use, e.g. in a list. */
   readonly bare = input<boolean>(false);
@@ -102,20 +103,13 @@ export class PersonHoverCardComponent {
   statusBadgeVariant(): BadgeVariant {
     const status = this.info().attendanceStatus;
     if (!status) return 'ghost';
-    if (status === 'ANIRE' && this.isPast()) return 'warning';
+    if (status === 'ANIRE' && isArrivalPhase(this.phase())) return 'warning';
     return this.statusBadgeVariants[status];
   }
 
   statusLabel(): string {
     const status = this.info().attendanceStatus;
     if (!status) return '';
-    const past = this.isPast();
-    const labels: Record<AttendanceStatus, string> = {
-      PENDENT: 'Pendent',
-      ANIRE: past ? 'No presentat' : 'Aniré',
-      NO_VAIG: past ? 'No va anar' : 'No vaig',
-      ASSISTIT: 'Assistit',
-    };
-    return labels[status];
+    return attendanceStatusLabel(status, this.phase());
   }
 }

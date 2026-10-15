@@ -7,6 +7,7 @@ import {
 } from './segment-assignment-render.util';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { AssignmentDetail } from '../models/assignment.model';
+import { rematMarkerNode } from './remat-marker.util';
 
 const makeSlotNode = (id: string, overrides: Partial<Record<string, unknown>> = {}) => ({
   id,
@@ -77,6 +78,22 @@ const makeAssignment = (id: string, instanceId: string, nodeId: string): Assignm
 });
 
 describe('buildSegmentRenderNodes', () => {
+  it('makes every node interactive except a REMAT marker, which is only drawn (no click, drag or drop)', () => {
+    const marker = rematMarkerNode({ instanceId: 'inst-a', figureMode: 'REMAT', sortOrder: 0, nodes: [] })!;
+    const slot = makeSlot('inst-a', ['n1']);
+    slot.figureTemplate.nodes = [
+      marker,
+      ...slot.figureTemplate.nodes,
+    ] as CompositionSlotWithNodes['figureTemplate']['nodes'];
+
+    const result = buildSegmentRenderNodes([slot], [], null, new Set(), new Set());
+
+    expect(result.map((r) => [r.node.id, r.isInteractive])).toEqual([
+      [marker.id, false],
+      ['n1', true],
+    ]);
+  });
+
   it('builds a render node per slot node with a composite key unique across slots', () => {
     // Two pre-snapshot instances of the same template share node ids.
     const slots = [makeSlot('inst-a', ['n1']), makeSlot('inst-b', ['n1'])];

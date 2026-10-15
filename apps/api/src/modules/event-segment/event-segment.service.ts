@@ -12,6 +12,7 @@ import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { FigureMode, SegmentPeopleCounters } from '@muixer/shared';
+import { fetchTroncFloors, TroncFloorData } from './tronc-floors.util';
 
 export interface InstanceRef {
   id: string;
@@ -23,14 +24,10 @@ export interface InstanceRef {
   totalCordons: number | null;
   numberOfCordons: number | null;
   cordonsObertsEnabled: boolean;
+  /** Whether the instance's template has any cordo-obert nodes — false means there's nothing to toggle. */
+  hasCordonsOberts: boolean;
   figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
-}
-
-export interface TroncFloorData {
-  z: number;
-  isBase: boolean;
-  slots: (string | null)[];
 }
 
 export interface InstanceTroncSummary {
@@ -78,16 +75,17 @@ export class EventSegmentService {
     const allInstances = segments.flatMap((s) => s.instances ?? []);
     const allTemplateIds = allInstances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
 
-    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap] = await Promise.all([
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, cordonsObertsInstanceIds, conflictsMap] = await Promise.all([
       this.loadAssignmentCounts(instanceIds),
       this.loadPinyaAssignmentCounts(instanceIds),
       this.loadPinyaTemplateIds(allTemplateIds),
       this.loadTotalCordons(allTemplateIds),
+      this.loadCordonsObertsInstanceIds(instanceIds),
       this.loadSegmentConflictCounters(segments.map((s) => s.id)),
     ]);
 
     return segments.map((s) =>
-      toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap),
+      toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, cordonsObertsInstanceIds, conflictsMap),
     );
   }
 
@@ -208,15 +206,16 @@ export class EventSegmentService {
     const instanceIds = instances.map((i) => i.id);
     const templateIds = instances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
 
-    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap] = await Promise.all([
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, cordonsObertsInstanceIds, conflictsMap] = await Promise.all([
       this.loadAssignmentCounts(instanceIds),
       this.loadPinyaAssignmentCounts(instanceIds),
       this.loadPinyaTemplateIds(templateIds),
       this.loadTotalCordons(templateIds),
+      this.loadCordonsObertsInstanceIds(instanceIds),
       this.loadSegmentConflictCounters([segment.id]),
     ]);
 
-    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap);
+    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, cordonsObertsInstanceIds, conflictsMap);
   }
 
   private async loadSegmentConflictCounters(segmentIds: string[]): Promise<Map<string, SegmentPeopleCounters>> {
@@ -289,62 +288,30 @@ export class EventSegmentService {
     return map;
   }
 
+  /** Instances with at least one cordo-obert node: their own nodes once snapshotted (template
+   *  edits no longer reach them, invariant 2), the template's before that. Batched and shared
+   *  with `findOneById` the same way as loadTotalCordons. */
+  async loadCordonsObertsInstanceIds(instanceIds: string[]): Promise<Set<string>> {
+    const set = new Set<string>();
+    if (instanceIds.length === 0) return set;
+    const rows: { instanceId: string }[] = await this.dataSource.query(
+      `SELECT fi.id AS "instanceId" FROM figure_instances fi
+       WHERE fi.id = ANY($1) AND CASE WHEN fi.snapshotted
+         THEN EXISTS (SELECT 1 FROM instance_nodes n
+                      WHERE n."figureInstanceId" = fi.id AND n."positionType" = 'cordo-obert')
+         ELSE EXISTS (SELECT 1 FROM figure_nodes n
+                      WHERE n."templateId" = fi."figureTemplateId" AND n."positionType" = 'cordo-obert')
+       END`,
+      [instanceIds],
+    );
+    for (const row of rows) set.add(row.instanceId);
+    return set;
+  }
+
   async getTroncView(eventId: string): Promise<InstanceTroncSummary[]> {
     await this.assertEventExists(eventId);
-
-    const rows: {
-      instance_id: string;
-      zone: string;
-      z: number;
-      sort_order: number;
-      alias: string | null;
-      climb_indicator: string | null;
-    }[] = await this.dataSource.query(
-        `SELECT
-           in_."figureInstanceId" as instance_id,
-           in_.zone,
-           in_.z,
-           in_."sortOrder" as sort_order,
-           p.alias,
-           in_."climbIndicator" as climb_indicator
-         FROM instance_nodes in_
-         JOIN figure_instances fi ON fi.id = in_."figureInstanceId"
-         JOIN event_segments es ON es.id = fi."segmentId"
-         LEFT JOIN node_assignments na ON na."instanceNodeId" = in_.id AND na."figureInstanceId" = in_."figureInstanceId"
-         LEFT JOIN persons p ON p.id = na."personId"
-         WHERE es."eventId" = $1
-         AND in_.zone IN ('TRONC', 'BASE')
-         ORDER BY in_."figureInstanceId", in_.z, in_."sortOrder"`,
-        [eventId],
-      );
-
-    const byInstance = new Map<string, typeof rows>();
-    for (const row of rows) {
-      if (!byInstance.has(row.instance_id)) byInstance.set(row.instance_id, []);
-      byInstance.get(row.instance_id)!.push(row);
-    }
-
-    const result: InstanceTroncSummary[] = [];
-
-    for (const [instanceId, nodeRows] of byInstance) {
-      const byFloor = new Map<number, { isBase: boolean; slots: (string | null)[] }>();
-
-      for (const row of nodeRows) {
-        const isBase = row.zone === 'BASE';
-        const key = isBase ? -1 : row.z;
-        if (!byFloor.has(key)) byFloor.set(key, { isBase, slots: [] });
-        const label = row.climb_indicator ? `${row.alias ?? '?'} (${row.climb_indicator})` : row.alias ?? null;
-        byFloor.get(key)!.slots.push(label);
-      }
-
-      const floors: TroncFloorData[] = Array.from(byFloor.entries())
-        .map(([key, { isBase, slots }]) => ({ z: isBase ? 0 : key, isBase, slots }))
-        .sort((a, b) => (a.isBase ? -1 : b.isBase ? 1 : a.z - b.z));
-
-      result.push({ instanceId, floors });
-    }
-
-    return result;
+    const floorsByInstance = await fetchTroncFloors(this.dataSource, { eventId });
+    return Array.from(floorsByInstance, ([instanceId, floors]) => ({ instanceId, floors }));
   }
 }
 
@@ -363,6 +330,7 @@ function toSegmentWithInstances(
   pinyaAssignedMap: Map<string, number>,
   pinyaTemplateIds: Set<string>,
   totalCordonsMap: Map<string, number>,
+  cordonsObertsInstanceIds: Set<string>,
   conflictsMap: Map<string, SegmentPeopleCounters>,
 ): SegmentWithInstances {
   return {
@@ -389,6 +357,7 @@ function toSegmentWithInstances(
           : null,
         numberOfCordons: instance.numberOfCordons ?? null,
         cordonsObertsEnabled: instance.cordonsObertsEnabled,
+        hasCordonsOberts: cordonsObertsInstanceIds.has(instance.id),
         figureMode: instance.figureMode,
         figureTemplate: instance.figureTemplate
           ? {

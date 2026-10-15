@@ -6,6 +6,16 @@
     </lib-button>
   </app-page-header>
 
+  @if (uncoveredEventCount() > 0) {
+    <lib-alert variant="warning" dense>
+      @if (uncoveredEventCount() === 1) {
+        Hi ha 1 esdeveniment que no està dins de cap temporada.
+      } @else {
+        Hi ha {{ uncoveredEventCount() }} esdeveniments que no estan dins de cap temporada.
+      }
+    </lib-alert>
+  }
+
   <div class="overflow-x-auto">
     <table class="table table-sm w-full" role="table">
       <thead>
@@ -13,7 +23,7 @@
           <th>Nom</th>
           <th>Data inici</th>
           <th>Data fi</th>
-          <th class="text-right">Events</th>
+          <th class="text-right">Esdeveniments</th>
           <th class="w-28">Accions</th>
         </tr>
       </thead>
@@ -41,13 +51,27 @@
               <td class="tabular-nums">{{ season.endDateFormatted }}</td>
               <td class="text-right tabular-nums">
                 @if (season.eventCount > 0) {
-                  <a
-                    [routerLink]="['/rehearsals']"
-                    [queryParams]="{ seasonId: season.id }"
-                    class="link link-primary inline-flex items-center min-h-6"
-                  >
-                    {{ season.eventCount }}
-                  </a>
+                  @if (season.rehearsalCount > 0) {
+                    <a
+                      [routerLink]="['/rehearsals']"
+                      [queryParams]="{ seasonId: season.id }"
+                      class="link link-primary inline-flex items-center min-h-6"
+                    >
+                      {{ season.rehearsalCount }} {{ season.rehearsalCount === 1 ? 'assaig' : 'assajos' }}
+                    </a>
+                  }
+                  @if (season.rehearsalCount > 0 && season.performanceCount > 0) {
+                    <span class="text-base-content/40" aria-hidden="true"> · </span>
+                  }
+                  @if (season.performanceCount > 0) {
+                    <a
+                      [routerLink]="['/performances']"
+                      [queryParams]="{ seasonId: season.id }"
+                      class="link link-primary inline-flex items-center min-h-6"
+                    >
+                      {{ season.performanceCount }} {{ season.performanceCount === 1 ? 'actuació' : 'actuacions' }}
+                    </a>
+                  }
                 } @else {
                   <span class="text-base-content/40">0</span>
                 }
@@ -104,10 +128,13 @@
 <lib-modal [open]="!!confirmDeleteTarget()" title="Eliminar temporada" size="sm" (closed)="cancelDelete()">
   @if (confirmDeleteTarget(); as target) {
     <p class="text-sm">
-      Segur que voleu eliminar <strong>{{ target.name }}</strong>?
-      @if (target.eventCount > 0) {
+      Esteu segur que voleu eliminar <strong>{{ target.name }}</strong>?
+      @if (target.eventCount === 1) {
         <br />
-        <span class="text-warning">Aquesta temporada té {{ target.eventCount }} events associats i no es podrà eliminar.</span>
+        <span class="text-warning">Hi ha 1 esdeveniment en esta temporada. Si l'elimineu, quedarà sense temporada.</span>
+      } @else if (target.eventCount > 1) {
+        <br />
+        <span class="text-warning">Hi ha {{ target.eventCount }} esdeveniments en esta temporada. Si l'elimineu, quedaran sense temporada.</span>
       }
     </p>
   }

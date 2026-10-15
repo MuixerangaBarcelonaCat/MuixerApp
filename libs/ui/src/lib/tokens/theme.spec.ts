@@ -113,6 +113,29 @@ describe('generateCollaTheme', () => {
     expect(theme.light.neutral).toBe(formatOklch(hexToOklch(INK.dark)));
   });
 
+  it('uses ink.faint as neutral in dark mode, so it never matches the ink.dark card it sits on', () => {
+    const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+    expect(theme.dark.neutral).toBe(formatOklch(hexToOklch(INK.faint)));
+    expect(theme.dark.neutral).not.toBe(theme.dark['base-100']);
+    // A light fill needs dark content.
+    expect(theme.dark['neutral-content']).toBe(INK_BLACK_OKLCH);
+    expect(theme.dark['--ds-neutral-hover']).toBe(formatOklch(tone(hexToOklch(INK.faint), 'hover', 'dark')));
+  });
+
+  it('declares the color-scheme of each mode, so native controls and scrollbars follow the theme', () => {
+    const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+    expect(theme.light['color-scheme']).toBe('light');
+    expect(theme.dark['color-scheme']).toBe('dark');
+  });
+
+  it("lifts the dark hue sash to L 0.58 while primary keeps its single L/C target", () => {
+    const theme = generateCollaTheme('#1E3A8A', { kind: 'primary' });
+    const darkSash = hexToOklch(theme.dark['--ds-sash-fill'] as unknown as string);
+    const lightSash = hexToOklch(theme.light['--ds-sash-fill'] as unknown as string);
+    expect(darkSash.l).toBeCloseTo(0.58, 2);
+    expect(lightSash.l).toBeCloseTo(0.52, 2);
+  });
+
   describe('surface ordering — elevation lightens in both modes, just at different ends of the scale', () => {
     it('light mode: base-100 (card) is lighter than base-200 (page)', () => {
       const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
@@ -126,6 +149,12 @@ describe('generateCollaTheme', () => {
       const base100 = hexToOklch(theme.dark['base-100'] as unknown as string);
       const base200 = hexToOklch(theme.dark['base-200'] as unknown as string);
       expect(base100.l).toBeGreaterThan(base200.l);
+    });
+
+    it('dark mode: base-300 sits one step above the card (L 0.37), same hue and chroma as ink.dark', () => {
+      const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+      const card = hexToOklch(INK.dark);
+      expect(theme.dark['base-300']).toBe(formatOklch({ ...card, l: 0.37 }));
     });
 
     it("dark mode's surfaces are genuinely darker overall than light mode's", () => {
