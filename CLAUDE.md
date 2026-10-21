@@ -211,3 +211,14 @@ Detail: [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) · SSE: [docs/SSE_AUTH.md](docs/S
 - After adding/removing an API module, a dashboard/PWA feature, or editing a `.entity.ts` file, run `pnpm run docs:map` and `pnpm run docs:model` and include the diff in your commit. These only touch the `<!-- BEGIN:AUTO -->…<!-- END:AUTO -->` sections of `docs/MAP.md` and `docs/DATA_MODEL.md` — never edit inside those markers by hand.
 - After creating a new doc under `docs/`, give it YAML frontmatter with a `tags: [domini|infra|qa|hub]`, a `*Veïns: [[...]]*` footer linking its 2–4 closest neighbors, and a row in the relevant table of `docs/MAP.md`.
 - After resolving an item in [docs/DEBT.md](docs/DEBT.md), delete its row — don't mark it "✅ Resolved". The git log is the history; the doc only tracks what's still open.
+
+## User manual
+
+`docs/manual/` is the end-user manual for technicians (valencià, one page per screen, read the language-rules skill first), bundled into the dashboard at **Configuració → Manual** (`/config/manual`). Design: [docs/superpowers/specs/2026-10-21-manual-us-dashboard-design.md](docs/superpowers/specs/2026-10-21-manual-us-dashboard-design.md).
+
+**Any change to user-visible behaviour of the dashboard or the PWA** (new/changed screen, tab, button, flow or button label) must, in the same PR:
+- update the manual page that covers the route — find it with `grep -rl "rutes:.*<route>" docs/manual` (each page starts with a `<!-- rutes: ... -->` comment);
+- regenerate the affected screenshots with `pnpm run docs:manual-shots`;
+- add the page to `MANUAL_PAGES` when you create one.
+
+Manual pages are exempt from the `docs/` frontmatter/«Veïns» rule (they render in-app).
