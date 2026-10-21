@@ -1,0 +1,145 @@
+import type { Page } from '@playwright/test';
+import type { ManualShot } from '../manual-shot';
+import { TARGETS } from '../../audit/audit-targets';
+
+const TAGS_READY = 'app-tags-list tbody tr td.font-medium';
+const USERS_READY = 'app-data-table tbody tr';
+// Users table: «Correu» and «Persona» (alias + name + surname) are personal data.
+const USER_PERSONAL_COLUMNS = ['app-data-table tbody td:nth-child(1)', 'app-data-table tbody td:nth-child(2)'];
+
+const openTagEdit = async (page: Page, name: string) => {
+  await page.getByRole('button', { name: `Edita ${name}` }).click();
+  await page.locator('dialog[open]').waitFor();
+};
+
+/** Pages 04 (Etiquetes), 05 (Temporades) and 06 (Usuaris i accés). */
+export const s03: ManualShot[] = [
+  // ── 04 Etiquetes ─────────────────────────────────────────────
+  {
+    file: '04-etiquetes-llista.png',
+    app: 'dashboard',
+    path: '/config/tags',
+    ready: TAGS_READY,
+    highlight: 'app-tags-list button:has-text("Etiqueta persones")',
+  },
+  {
+    // A pinya tag's form with the «Pinya» group of «Posicions de figura» expanded.
+    file: '04-etiqueta-posicions.png',
+    app: 'dashboard',
+    path: '/config/tags',
+    ready: TAGS_READY,
+    prepare: async (page) => {
+      await openTagEdit(page, '1es Mans');
+      await page.locator('dialog[open] details summary').first().click();
+    },
+    highlight: 'dialog[open] .form-control:has-text("Posicions de figura")',
+    clip: 'dialog[open] .modal-box',
+  },
+  {
+    // «Tothom» mode so there is always a card («Pendents» may be empty).
+    file: '04-assistent-etiquetatge.png',
+    app: 'dashboard',
+    path: '/config/tags',
+    ready: TAGS_READY,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Etiqueta persones' }).click();
+      await page.getByRole('dialog', { name: 'Etiqueta persones' }).getByRole('tab', { name: 'Tothom' }).click();
+      await page.locator('app-tagging-wizard-modal [data-testid^="tag-group-"]').first().waitFor();
+    },
+    // Name + surnames on the card and the observations: personal data.
+    mask: ['app-tagging-wizard-modal section h3', 'app-tagging-wizard-modal section p.bg-base-100'],
+    clip: 'dialog[open] .modal-box',
+  },
+  {
+    file: '04-etiqueta-detall.png',
+    app: 'dashboard',
+    path: '/config/tags',
+    ready: TAGS_READY,
+    prepare: async (page) => {
+      await page.getByRole('row', { name: /1es Mans/ }).locator('td.font-medium').click();
+      await page.locator('app-tag-detail app-data-table').waitFor();
+    },
+    highlight: 'app-tag-detail app-person-search-input input',
+  },
+  {
+    // Person panel of the segment workspace with the tag filter open.
+    file: '04-panell-filtre-etiqueta.png',
+    app: 'dashboard',
+    path: `/pinyes/events/${TARGETS.workspaceEventId}/segments/${TARGETS.workspaceSegmentId}/assign/${TARGETS.workspaceInstanceId}`,
+    ready: 'app-person-panel',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Filtra per etiqueta' }).click();
+      await page.getByPlaceholder('Cerca etiqueta...').waitFor();
+    },
+    clip: 'app-person-panel',
+    settle: 800,
+  },
+
+  // ── 05 Temporades ────────────────────────────────────────────
+  {
+    file: '05-temporades-llista.png',
+    app: 'dashboard',
+    path: '/config/seasons',
+    ready: 'app-season-list tbody tr td.font-medium',
+    highlight: 'app-season-list tbody tr:has-text("Actual")',
+  },
+  {
+    file: '05-temporada-nova.png',
+    app: 'dashboard',
+    path: '/config/seasons',
+    ready: 'app-season-list tbody tr td.font-medium',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Temporada nova' }).click();
+      await page.getByRole('dialog', { name: 'Temporada nova' }).waitFor();
+    },
+    clip: 'dialog[open] .modal-box',
+  },
+
+  // ── 06 Usuaris i accés ───────────────────────────────────────
+  {
+    file: '06-usuaris-llista.png',
+    app: 'dashboard',
+    path: '/config/users',
+    ready: USERS_READY,
+    highlight: 'button:has-text("Crea usuari")',
+    mask: USER_PERSONAL_COLUMNS,
+  },
+  {
+    file: '06-usuari-accions.png',
+    app: 'dashboard',
+    path: '/config/users',
+    ready: USERS_READY,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Accions' }).first().click();
+      await page.getByRole('menu').waitFor();
+    },
+    highlight: '[role="menu"]',
+    mask: USER_PERSONAL_COLUMNS,
+  },
+  {
+    file: '06-usuari-nou.png',
+    app: 'dashboard',
+    path: '/config/users',
+    ready: USERS_READY,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Crea usuari' }).click();
+      await page.getByRole('dialog', { name: 'Crea usuari' }).waitFor();
+    },
+    clip: 'dialog[open] .modal-box',
+  },
+  {
+    // ADMIN only: «Assignar rol» is not in the menu for TECHNICAL. Drop this entry if the E2E user is TECHNICAL.
+    file: '06-assignar-rol.png',
+    app: 'dashboard',
+    path: '/config/users',
+    ready: USERS_READY,
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Accions' }).first().click();
+      await page.getByRole('menuitem', { name: 'Assignar rol' }).click();
+      await page.getByRole('dialog', { name: 'Assignar rol' }).waitFor();
+    },
+    // The modal shows the user's email.
+    mask: ['dialog[open] p:has-text("@")'],
+    clip: 'dialog[open] .modal-box',
+  },
+];

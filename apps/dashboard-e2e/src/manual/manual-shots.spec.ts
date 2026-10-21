@@ -53,7 +53,8 @@ async function outline(locator: Locator, on: boolean): Promise<void> {
 
 async function shoot(page: Page, shot: ManualShot): Promise<void> {
   await goTo(page, shot.path);
-  if (shot.ready) await page.locator(shot.ready).first().waitFor({ state: 'visible', timeout: 20_000 });
+  // 'attached', not 'visible': display:contents hosts (lib-card, lib-button) never count as visible.
+  if (shot.ready) await page.locator(shot.ready).first().waitFor({ state: 'attached', timeout: 20_000 });
   if (shot.prepare) await shot.prepare(page);
   if (shot.settle) await page.waitForTimeout(shot.settle);
 
