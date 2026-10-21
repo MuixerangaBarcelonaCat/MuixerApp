@@ -102,3 +102,19 @@ BD de dev i cada test arrenca del mateix estat. Perfils: `phone` (Pixel 5) i `ta
 pnpm e2e:assign-touch                       # els dos perfils
 pnpm e2e:assign-touch -- --project=phone    # només mòbil
 ```
+
+## Captures del manual (`src/manual`)
+
+No és una prova: genera les imatges de `docs/manual/img/` per al manual d'ús (Configuració → Manual).
+La llista és a `src/manual/shots/` (un fitxer per secció del manual). Cada captura declara ruta,
+selector d'espera, accions prèvies, element ressaltat i camps tapats (`mask`). Tota escriptura a l'API
+s'avorta (`page.route`), de manera que no pot canviar dades. Necessita l'stack local en marxa (BD, API,
+dashboard a `:4200`, PWA a `:4300`).
+
+```bash
+E2E_EMAIL=... E2E_PASSWORD=... pnpm run docs:manual-shots              # totes
+SHOTS=03,04 E2E_EMAIL=... E2E_PASSWORD=... pnpm run docs:manual-shots  # només les que comencen per 03 o 04
+```
+
+Les captures de membre de la PWA (projecte `pwa-member`) només es fan si hi ha
+`E2E_MEMBER_EMAIL`/`E2E_MEMBER_PASSWORD`.

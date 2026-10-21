@@ -10,9 +10,12 @@ import { Page, expect } from '@playwright/test';
  * Credentials come from env vars (never hardcoded):
  *   E2E_EMAIL=... E2E_PASSWORD=...
  */
-export async function loginViaUi(page: Page): Promise<void> {
-  const email = process.env['E2E_EMAIL'];
-  const password = process.env['E2E_PASSWORD'];
+export async function loginViaUi(
+  page: Page,
+  creds: { email?: string; password?: string } = {},
+): Promise<void> {
+  const email = creds.email ?? process.env['E2E_EMAIL'];
+  const password = creds.password ?? process.env['E2E_PASSWORD'];
   if (!email || !password) {
     throw new Error('Missing credentials: set E2E_EMAIL and E2E_PASSWORD.');
   }
