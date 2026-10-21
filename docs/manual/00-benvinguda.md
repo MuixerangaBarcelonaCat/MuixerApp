@@ -1,0 +1,3 @@
+<!-- rutes: /config/manual -->
+
+# Benvinguda

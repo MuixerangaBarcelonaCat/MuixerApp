@@ -1,0 +1,48 @@
+<div class="space-y-4 max-w-6xl mx-auto">
+  <lib-button variant="ghost" size="sm" (clicked)="goBack()">← Configuració</lib-button>
+
+  <div class="flex flex-col lg:flex-row gap-6">
+    <nav class="hidden lg:block w-60 shrink-0" aria-label="Pàgines del manual">
+      @for (group of groups; track group.name) {
+        <p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mt-4 mb-1 px-3">
+          {{ group.name }}
+        </p>
+        <ul class="menu menu-sm p-0">
+          @for (p of group.pages; track p.slug) {
+            <li>
+              <a [routerLink]="['/config/manual', p.slug]" [class.active]="p.slug === slug()">{{ p.title }}</a>
+            </li>
+          }
+        </ul>
+      }
+    </nav>
+
+    <div class="lg:hidden">
+      <lib-select ariaLabel="Pàgina del manual" [ngModel]="slug()" (ngModelChange)="goTo($event)">
+        @for (group of groups; track group.name) {
+          <optgroup [label]="group.name">
+            @for (p of group.pages; track p.slug) {
+              <option [value]="p.slug">{{ p.title }}</option>
+            }
+          </optgroup>
+        }
+      </lib-select>
+    </div>
+
+    <article class="flex-1 min-w-0">
+      @if (!page()) {
+        <lib-empty-state
+          message="No s'ha trobat la pàgina."
+          actionLabel="Ves a la benvinguda"
+          (clicked)="goTo(defaultSlug)"
+        />
+      } @else if (content.error()) {
+        <lib-empty-state message="Esta pàgina encara s'està escrivint." />
+      } @else if (content.isLoading()) {
+        <span class="loading loading-spinner loading-md text-base-content/50" aria-label="S'està carregant..."></span>
+      } @else {
+        <div class="prose prose-sm max-w-none" [innerHTML]="html()"></div>
+      }
+    </article>
+  </div>
+</div>

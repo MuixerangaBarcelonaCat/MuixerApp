@@ -2,6 +2,7 @@ import {
   ArrowRightToLine,
   Baby,
   Bell,
+  BookOpen,
   Calendar,
   CalendarRange,
   ChessRook,
@@ -68,4 +69,5 @@ export const DOMAIN_ICONS = {
   CALENDAR_RANGE: CalendarRange,
   SHIELD_CHECK: ShieldCheck,
   DESIGN_SYSTEM: Sparkles,
+  MANUAL: BookOpen,
 } as const;
