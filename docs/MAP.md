@@ -115,6 +115,7 @@ graph TD
 |----------|-----------------|
 | [[ad-hoc-nodes-user-guide]] | Nodes extra: què són i com fer-los servir (`internal/`) |
 | [[00-benvinguda]] | Manual d'ús del Dashboard per als tècnics: una pàgina per pantalla, també a Configuració → Manual (`manual/`) |
+| [[demo-dashboard-guio]] | Guió de la demo del Dashboard basat en el manual: preparació, agenda d'1 h 30 min per perfils i seguiment (`internal/`) |
 
 ---
 
