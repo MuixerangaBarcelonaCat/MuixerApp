@@ -114,6 +114,7 @@ graph TD
 | Document | Què hi trobaràs |
 |----------|-----------------|
 | [[ad-hoc-nodes-user-guide]] | Nodes extra: què són i com fer-los servir (`internal/`) |
+| [[00-benvinguda]] | Manual d'ús del Dashboard per als tècnics: una pàgina per pantalla, també a Configuració → Manual (`manual/`) |
 
 ---
 
