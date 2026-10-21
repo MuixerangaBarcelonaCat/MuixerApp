@@ -90,8 +90,9 @@ test('manual screenshots', async ({ page }, testInfo) => {
       await shoot(page, shot);
       console.log(`✓ ${shot.file}`);
     } catch (err) {
-      failed.push(`${shot.file}: ${(err as Error).message.split('\n')[0]}`);
-      console.log(`✗ ${shot.file}`);
+      const reason = (err as Error).message.split('\n')[0];
+      failed.push(`${shot.file}: ${reason}`);
+      console.log(`✗ ${shot.file}: ${reason}`);
     }
   }
   if (failed.length) throw new Error(`Failed shots:\n${failed.join('\n')}`);

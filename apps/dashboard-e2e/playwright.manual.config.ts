@@ -26,6 +26,8 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     colorScheme: 'light',
+    // A missing element must fail its own shot, not hang the whole run.
+    actionTimeout: 10_000,
     screenshot: 'off',
     trace: 'retain-on-failure',
   },
