@@ -20,6 +20,7 @@ const makeAvailablePerson = (
   name: 'Pere',
   firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
+  gender: null,
   isXicalla: false,
   notes: null,
   notesEmoji: null,
@@ -152,6 +153,58 @@ describe('PersonPanelComponent', () => {
       const ids = component.declinedPersons().map((p) => p.id);
       expect(ids).toContain('p3');
       expect(ids).toContain('p4');
+    });
+  });
+
+  describe('grouping on the event day, before the start time', () => {
+    beforeEach(() => {
+      const persons = [
+        makeAvailablePerson('p1', 'ASSISTIT'),
+        makeAvailablePerson('p2', 'ANIRE'),
+        makeAvailablePerson('p3', 'NO_VAIG'),
+        makeAvailablePerson('p4', 'PENDENT'),
+      ];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      fixture.componentRef.setInput('phase', 'day');
+      component.loadPersons();
+      fixture.detectChanges();
+    });
+
+    it('splits arrivals from those still to come, both in green', () => {
+      const headers = Array.from(fixture.nativeElement.querySelectorAll('p.font-semibold')) as HTMLElement[];
+      const arrived = headers.find((h) => h.textContent?.includes('Ha arribat (1)'));
+      const coming = headers.find((h) => h.textContent?.includes('Ve (1)'));
+      expect(arrived?.classList.contains('text-success')).toBe(true);
+      expect(coming?.classList.contains('text-success')).toBe(true);
+    });
+
+    it('keeps PENDENT as pending, not declined, until the start time', () => {
+      expect(component.pendingPersons().map((p) => p.id)).toEqual(['p4']);
+      expect(component.declinedPersons().map((p) => p.id)).toEqual(['p3']);
+    });
+  });
+
+  describe('grouping once the event has started', () => {
+    beforeEach(() => {
+      const persons = [
+        makeAvailablePerson('p2', 'ANIRE'),
+        makeAvailablePerson('p4', 'PENDENT'),
+      ];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      fixture.componentRef.setInput('phase', 'started');
+      component.loadPersons();
+      fixture.detectChanges();
+    });
+
+    it('shows the not-arrived group in amber', () => {
+      const headers = Array.from(fixture.nativeElement.querySelectorAll('p.font-semibold')) as HTMLElement[];
+      const late = headers.find((h) => h.textContent?.includes('No ha arribat (1)'));
+      expect(late?.classList.contains('text-warning')).toBe(true);
+    });
+
+    it('treats PENDENT as declined', () => {
+      expect(component.pendingPersons()).toHaveLength(0);
+      expect(component.declinedPersons().map((p) => p.id)).toEqual(['p4']);
     });
   });
 
@@ -606,12 +659,65 @@ describe('PersonPanelComponent', () => {
       expect(component.altresExpanded()).toBe(true);
     });
 
-    it('persons show 🎭 indicator when nextPerformanceStatus is ANIRE', () => {
+    it('marks persons coming to the next actuació with the actuació star icon, not an emoji', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', { nextPerformanceStatus: 'ANIRE' });
       component.persons.set([person]);
       fixture.detectChanges();
-      const html = fixture.nativeElement.innerHTML;
-      expect(html).toContain('🎭');
+      const marks = fixture.nativeElement.querySelectorAll('[aria-label="Vindrà a la propera actuació"]');
+      expect(marks.length).toBeGreaterThan(0);
+      for (const mark of marks) expect(mark.querySelector('svg')).toBeTruthy();
+      expect(fixture.nativeElement.innerHTML).not.toContain('🎭');
+    });
+
+    it('fills the actuació star, like the one on the canvas nodes', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', { nextPerformanceStatus: 'ANIRE' });
+      component.persons.set([person]);
+      fixture.detectChanges();
+      const marks = [...fixture.nativeElement.querySelectorAll('[aria-label="Vindrà a la propera actuació"]')] as HTMLElement[];
+      expect(marks.length).toBeGreaterThan(0);
+      for (const mark of marks) expect(mark.classList).toContain('fill-current');
+    });
+
+    describe('marks everyone coming to the next actuació, whatever their group', () => {
+      const coming = { nextPerformanceStatus: 'ANIRE' } as const;
+      const roster = [
+        makeAvailablePerson('p-anire', 'ANIRE', { ...coming, alias: 'Anire' }),
+        makeAvailablePerson('p-pendent', 'PENDENT', { ...coming, alias: 'Pendent' }),
+        makeAvailablePerson('p-novaig', 'NO_VAIG', { ...coming, alias: 'Novaig' }),
+        makeAvailablePerson('p-pinya', 'ANIRE', {
+          ...coming,
+          alias: 'Pinyaire',
+          assignedPlacements: [makePlacement({ area: 'PINYA' })],
+        }),
+        makeAvailablePerson('p-tronc', 'PENDENT', {
+          ...coming,
+          alias: 'Troncaire',
+          assignedPlacements: [makePlacement({ assignmentId: 'a2', nodeId: 'n2', zone: 'TRONC', area: 'TRONC' })],
+        }),
+      ];
+
+      const rowFor = (alias: string): HTMLElement | undefined => {
+        const rows = [...fixture.nativeElement.querySelectorAll('button')] as HTMLElement[];
+        return rows.find((b) => Array.from(b.querySelectorAll('span')).some((s) => s.textContent?.trim() === alias));
+      };
+
+      for (const phase of ['before', 'day'] as const) {
+        it(`shows the star on every row (${phase})`, () => {
+          assignmentService.getAvailablePersons.mockReturnValue(of({ data: roster }));
+          fixture.componentRef.setInput('phase', phase);
+          component.loadPersons();
+          component.toggleAltres();
+          fixture.detectChanges();
+
+          for (const alias of ['Anire', 'Pendent', 'Novaig', 'Pinyaire', 'Troncaire']) {
+            expect(rowFor(alias), `row for ${alias}`).toBeTruthy();
+            expect(
+              rowFor(alias)?.querySelector('[aria-label="Vindrà a la propera actuació"]'),
+              `star for ${alias}`,
+            ).toBeTruthy();
+          }
+        });
+      }
     });
 
     it('formatHeight returns relative height string when heightMode is relative', () => {

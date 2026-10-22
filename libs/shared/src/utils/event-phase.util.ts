@@ -1,29 +1,52 @@
 import { AttendanceStatus } from '../enums/attendance-status.enum';
 
 /**
- * Where "today" falls relative to an event, by calendar day in Europe/Madrid: attendance is asked
- * for `before` the event day, taken (arrivals) on the `day`, and only read `after` it.
+ * Where "now" falls relative to an event, in Valencia time: attendance is asked for `before` the
+ * event day; on the `day`, arrivals can be marked from midnight, but someone coming isn't late
+ * until the event has `started`; `after` the event day it is only read.
  */
-export type EventPhase = 'before' | 'day' | 'after';
+export type EventPhase = 'before' | 'day' | 'started' | 'after';
 
-/** From the event day on, attendance means arrival: ANIRE is someone who hasn't (or didn't) show up. */
+/** From the event day on, attendance means arrival: the controls mark who has arrived. */
 export function isArrivalPhase(phase: EventPhase): boolean {
   return phase !== 'before';
 }
 
-const madridDate = new Intl.DateTimeFormat('en-CA', {
+/** From the start time on, an ANIRE who hasn't arrived (yet, or at all) is late. */
+export function isStartedPhase(phase: EventPhase): boolean {
+  return phase === 'started' || phase === 'after';
+}
+
+const valenciaWallClock = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Madrid',
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
 });
 
-/** `eventDate` is the event's date-only `YYYY-MM-DD`. */
-export function getEventPhase(eventDate: string, now: Date = new Date()): EventPhase {
-  const today = madridDate.format(now);
+/** `now` as Valencia wall-clock `YYYY-MM-DD` and `HH:mm`. */
+function valenciaDateAndTime(now: Date): { date: string; time: string } {
+  const parts = valenciaWallClock.formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '';
+  return {
+    date: `${part('year')}-${part('month')}-${part('day')}`,
+    time: `${part('hour')}:${part('minute')}`,
+  };
+}
+
+/**
+ * `eventDate` is the event's date-only `YYYY-MM-DD`; `startTime` its Valencia `HH:mm`, if any. An
+ * event with no start time has `started` from the beginning of its day.
+ */
+export function getEventPhase(eventDate: string, startTime: string | null, now: Date = new Date()): EventPhase {
+  const today = valenciaDateAndTime(now);
   const day = eventDate.slice(0, 10);
-  if (today < day) return 'before';
-  return today === day ? 'day' : 'after';
+  if (today.date < day) return 'before';
+  if (today.date > day) return 'after';
+  return startTime && today.time < startTime ? 'day' : 'started';
 }
 
 /** An attendance status as the enum or its plain string value (the Pinyes models use the string union). */
@@ -37,6 +60,12 @@ const LABELS: Record<EventPhase, Record<AttendanceStatus, string>> = {
     [AttendanceStatus.ASSISTIT]: 'Assistit',
   },
   day: {
+    [AttendanceStatus.ASSISTIT]: 'Ha arribat',
+    [AttendanceStatus.ANIRE]: 'Ve',
+    [AttendanceStatus.NO_VAIG]: 'No vindrà',
+    [AttendanceStatus.PENDENT]: 'Pendent',
+  },
+  started: {
     [AttendanceStatus.ASSISTIT]: 'Ha arribat',
     [AttendanceStatus.ANIRE]: 'No ha arribat',
     [AttendanceStatus.NO_VAIG]: 'No vindrà',

@@ -3575,6 +3575,36 @@ describe('NodeAssignmentService', () => {
       );
     });
 
+    it.each([
+      [FigureZone.DIRECTION, 'direccio-tronc'],
+      [FigureZone.PINYA, 'vents'],
+      [FigureZone.PINYA, 'not-a-preset'],
+    ])('stores no color for a %s ad-hoc node of type %s, so it follows the type palette', async (zone, positionType) => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const txManager = makeAdHocTxManager();
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      await service.createAdHocNode(INSTANCE_ID, { zone, positionType, label: 'X', x: 0, y: 0 } as any, 'user-1');
+
+      expect(txManager.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ color: null }));
+    });
+
+    it('keeps the color an ad-hoc node is created with', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const txManager = makeAdHocTxManager();
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.PINYA, positionType: 'vents', color: '#123456', label: 'X', x: 0, y: 0 } as any,
+        'user-1',
+      );
+
+      expect(txManager.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ color: '#123456' }));
+    });
+
     it('creates a direccio-xicalla ad-hoc node with correct defaults', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });

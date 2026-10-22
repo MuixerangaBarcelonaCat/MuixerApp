@@ -73,8 +73,8 @@
                 @if (pos.positionTypes?.length) {
                   <div class="flex flex-wrap gap-1">
                     @for (pt of pos.positionTypes; track pt) {
-                      @let meta = positionTypeMeta[pt];
-                      <lib-badge size="sm" [color]="meta?.color ?? '#64748b'">{{ meta?.label ?? pt }}</lib-badge>
+                      @let chip = positionTypeChip(pt);
+                      <lib-badge size="sm" [color]="chip.color">{{ chip.label }}</lib-badge>
                     }
                   </div>
                 } @else {

@@ -15,14 +15,25 @@ export class LayoutService {
    */
   readonly isTouch = signal(false);
 
+  /**
+   * Whether the viewport is phone-sized (below Tailwind's `sm`). For the features a phone can't
+   * hold, such as the segment workspace's display modes. `false` where `matchMedia` is unavailable.
+   */
+  readonly isPhone = signal(false);
+
   constructor() {
     if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      const mql = window.matchMedia('(pointer: coarse)');
-      this.isTouch.set(mql.matches);
-      const listener = (e: MediaQueryListEvent) => this.isTouch.set(e.matches);
-      mql.addEventListener('change', listener);
-      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+      this.follow('(pointer: coarse)', this.isTouch);
+      this.follow('(max-width: 639.98px)', this.isPhone);
     }
+  }
+
+  private follow(query: string, target: { set(value: boolean): void }): void {
+    const mql = window.matchMedia(query);
+    target.set(mql.matches);
+    const listener = (e: MediaQueryListEvent) => target.set(e.matches);
+    mql.addEventListener('change', listener);
+    inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
   }
 
   requestFullscreen(): void {

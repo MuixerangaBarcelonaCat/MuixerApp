@@ -270,9 +270,9 @@ describe('SegmentProjectionComponent', () => {
     const themeOf = (el: Element | null) => el?.closest('[data-theme]')?.getAttribute('data-theme') ?? null;
     const withPeople = () => of(makeData({ instances: [makeInstance([makeAssignment(makePerson({ id: 'p-x', alias: 'Xavi' }))])] }));
 
-    it('keeps the figure on the light theme, which the canvas is drawn for', async () => {
+    it('draws the figure in the page theme: the canvas has a dark look of its own', async () => {
       fixture = await setup(withPeople());
-      expect(themeOf(fixture.nativeElement.querySelector('lib-pinya-projection'))).toBe(THEME_NAMES.light);
+      expect(themeOf(fixture.nativeElement.querySelector('lib-pinya-projection'))).toBeNull();
     });
 
     it('draws the HUD controls dark in either page theme', async () => {

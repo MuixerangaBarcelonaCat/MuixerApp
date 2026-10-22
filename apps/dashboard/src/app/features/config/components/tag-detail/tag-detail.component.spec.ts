@@ -7,6 +7,7 @@ import { TagDetailComponent } from './tag-detail.component';
 import { TagService } from '../../services/tag.service';
 import { PersonService } from '../../../persons/services/person.service';
 import { ToastService } from '@muixer/ui';
+import { positionTypeColor } from '@muixer/pinyes-render';
 import { TagWithCount } from '../../models/tag.model';
 import { Person } from '../../../persons/models/person.model';
 import { TagCategory, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
@@ -96,6 +97,16 @@ describe('TagDetailComponent', () => {
     fixture = TestBed.createComponent(TagDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('shows each position type as a chip in its canvas pencil tone, an unknown one as it is in the neutral tone', () => {
+    component.tag.set(mockTag({ positionTypes: ['vents', 'not-a-type'] }));
+    fixture.detectChanges();
+
+    expect(chipColors(fixture.nativeElement, ['VENT', 'not-a-type'])).toEqual([
+      rgb(positionTypeColor('vents')),
+      rgb(positionTypeColor('not-a-type')),
+    ]);
   });
 
   it('loads the tag and its persons on init', () => {
@@ -189,3 +200,14 @@ describe('TagDetailComponent', () => {
     expect(tagService.getOne).toHaveBeenCalledTimes(1);
   });
 });
+
+function chipColors(root: HTMLElement, labels: string[]): string[] {
+  return Array.from(root.querySelectorAll<HTMLElement>('lib-badge .badge'))
+    .filter((badge) => labels.includes(badge.textContent?.trim() ?? ''))
+    .map((badge) => badge.style.backgroundColor);
+}
+
+function rgb(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgb(${r}, ${g}, ${b})`;
+}

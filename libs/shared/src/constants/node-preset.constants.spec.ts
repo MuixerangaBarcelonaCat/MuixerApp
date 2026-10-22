@@ -2,6 +2,15 @@ import { FigureZone } from '../enums/figure-zone.enum';
 import { NodeShape } from '../enums/node-shape.enum';
 import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DIRECTION_SLOTS, DIRECTION_POSITION_TYPES, DECORATION_NODE_PRESETS, DECORATION_POSITION_TYPES } from './node-preset.constants';
 
+describe('node presets', () => {
+  // A node's color is NULL unless the user customized it; the canvas resolves it from the type
+  // palette at render time. A preset color would only get copied into the node again.
+  it('carry no color', () => {
+    const all = [...TRONC_NODE_PRESETS, ...PINYA_NODE_PRESETS, ...DIRECTION_NODE_PRESETS, ...DECORATION_NODE_PRESETS];
+    for (const preset of all) expect(preset).not.toHaveProperty('color');
+  });
+});
+
 describe('TRONC_NODE_PRESETS', () => {
   it('has at least 5 presets', () => {
     expect(TRONC_NODE_PRESETS.length).toBeGreaterThanOrEqual(5);
@@ -12,19 +21,11 @@ describe('TRONC_NODE_PRESETS', () => {
     expect(new Set(types).size).toBe(types.length);
   });
 
-  it('has non-empty positionType, label, color and abbrev for each preset', () => {
+  it('has non-empty positionType, label and abbrev for each preset', () => {
     for (const preset of TRONC_NODE_PRESETS) {
       expect(preset.positionType.length).toBeGreaterThan(0);
       expect(preset.label.length).toBeGreaterThan(0);
-      expect(preset.color.length).toBeGreaterThan(0);
       expect(preset.abbrev.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('has valid hex color codes', () => {
-    const hexRegex = /^#[0-9A-Fa-f]{6}$/;
-    for (const preset of TRONC_NODE_PRESETS) {
-      expect(preset.color).toMatch(hexRegex);
     }
   });
 
@@ -43,7 +44,6 @@ describe('TRONC_NODE_PRESETS', () => {
     const preset: TroncNodePreset = TRONC_NODE_PRESETS[0];
     expect(typeof preset.positionType).toBe('string');
     expect(typeof preset.label).toBe('string');
-    expect(typeof preset.color).toBe('string');
     expect(typeof preset.abbrev).toBe('string');
   });
 });
@@ -124,9 +124,8 @@ describe('DIRECTION_NODE_PRESETS', () => {
     expect(DIRECTION_POSITION_TYPES).toContain('direccio-pinya');
   });
 
-  it('gives direccio-pinya a deep green (emerald-800) and the "Direcció pinya" label', () => {
+  it('gives direccio-pinya the "Direcció pinya" label', () => {
     const pinya = DIRECTION_NODE_PRESETS.find((p) => p.positionType === 'direccio-pinya')!;
-    expect(pinya.color).toBe('#065f46');
     expect(pinya.label).toBe('Direcció pinya');
     expect(pinya.shortLabel).toBe('Pinya');
   });
@@ -151,11 +150,10 @@ describe('DIRECTION_NODE_PRESETS', () => {
     expect(new Set(types).size).toBe(types.length);
   });
 
-  it('every preset has valid dimensions, a color, a short label and a slot order', () => {
+  it('every preset has valid dimensions, a short label and a slot order', () => {
     for (const preset of DIRECTION_NODE_PRESETS) {
       expect(preset.width).toBeGreaterThan(0);
       expect(preset.height).toBeGreaterThan(0);
-      expect(preset.color).toBeTruthy();
       expect(preset.shortLabel.length).toBeGreaterThan(0);
       expect(typeof preset.slotOrder).toBe('number');
     }

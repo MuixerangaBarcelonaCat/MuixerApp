@@ -1,35 +1,9 @@
-import {
-  FigureZone,
-  PINYA_NODE_PRESETS,
-  TRONC_NODE_PRESETS,
-  DIRECTION_NODE_PRESETS,
-} from '@muixer/shared';
-import { FIGURE_PALETTE, SINGLE_FIGURE_SHADOW_COLOR } from '@muixer/pinyes-render';
+import { FigureZone } from '@muixer/shared';
 import { buildCategoricalHexPresets } from '@muixer/ui';
 
-const DECORATION_PALETTE = [...FIGURE_PALETTE, '#000000', SINGLE_FIGURE_SHADOW_COLOR, '#eeeeee'];
-
-/** Returns the recommended swatch palette for a node's zone (deduplicated). Empty for BASE — no predefined colors. */
-export function getPresetColorsForZone(zone: FigureZone): string[] {
+/** The swatch palette offered when customizing a node's color: the categorical palette, for every zone. */
+export function nodeColorPresets(): string[] {
   return buildCategoricalHexPresets();
-  let colors: string[];
-  switch (zone) {
-    case FigureZone.PINYA:
-      colors = PINYA_NODE_PRESETS.map((p) => p.color).filter(Boolean) as string[];
-      break;
-    case FigureZone.TRONC:
-      colors = TRONC_NODE_PRESETS.map((p) => p.color).filter(Boolean) as string[];
-      break;
-    case FigureZone.DIRECTION:
-      colors = DIRECTION_NODE_PRESETS.map((p) => p.color).filter(Boolean) as string[];
-      break;
-    case FigureZone.DECORATION:
-      colors = DECORATION_PALETTE;
-      break;
-    default:
-      colors = [];
-  }
-  return [...new Set(colors)];
 }
 
 /** Whether a node's color can be changed by the user. Editable for every zone except BASE. */

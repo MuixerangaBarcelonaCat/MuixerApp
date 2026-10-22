@@ -1,8 +1,8 @@
-import { FigureNodeItem, RenglaModel } from '@muixer/pinyes-render';
+import { FigureNodeItem, RenglaModel, buildCanvasTheme } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
-import { ButtonComponent } from '@muixer/ui';
+import { ButtonComponent, ThemeService } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from './rengla-overlay.component';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -148,6 +148,22 @@ describe('RenglaOverlayComponent', () => {
 
       component.onNodeClick('n2');
       expect(component.pendingNodeIds()).toEqual(['n1', 'n2']);
+    });
+
+    it('marks the pending nodes in the canvas focus colour, white on the dark canvas', () => {
+      setInputs([makeNode({ id: 'n1' })]);
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        component.startCreating();
+        component.onNodeClick('n1');
+        fixture.detectChanges();
+        const badge: SVGCircleElement = fixture.nativeElement.querySelector('circle[r="13"]');
+        expect(badge.getAttribute('fill')).toBe(buildCanvasTheme('dark').focus);
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
     });
 
     it('toggles off node if clicked twice during creation', () => {

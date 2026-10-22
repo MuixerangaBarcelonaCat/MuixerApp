@@ -1,15 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { hashSeed, layoutTroncGroup, layoutTroncSilhouette, computeGroundY } from './tronc-silhouette-layout.util';
-
-describe('hashSeed', () => {
-  it('returns the same number for the same string', () => {
-    expect(hashSeed('Alta clàssica|4,4,2,1,1')).toBe(hashSeed('Alta clàssica|4,4,2,1,1'));
-  });
-
-  it('returns different numbers for different strings', () => {
-    expect(hashSeed('Pinet de 5')).not.toBe(hashSeed('Campana'));
-  });
-});
+import { hashSeed } from '@muixer/pinyes-render';
+import { layoutTroncGroup, layoutTroncSilhouette, computeGroundY } from './tronc-silhouette-layout.util';
 
 describe('layoutTroncSilhouette', () => {
   it('returns no people for an empty profile', () => {

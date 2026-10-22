@@ -12,8 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { ChevronLeft, ChevronRight, Eye, LucideAngularModule, Trash2 } from 'lucide-angular';
-import { ButtonComponent, BadgeComponent } from '@muixer/ui';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { ButtonComponent, BadgeComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
 
