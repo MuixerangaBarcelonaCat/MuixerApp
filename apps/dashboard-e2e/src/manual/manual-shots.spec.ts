@@ -63,9 +63,6 @@ async function shoot(page: Page, shot: ManualShot): Promise<void> {
   const options = {
     path: path.join(IMG_DIR, shot.file),
     animations: 'disabled' as const,
-    mask: (shot.mask ?? []).map((sel) => page.locator(sel)),
-    maskColor: '#d6d3cd', // neutral grey instead of Playwright's magenta
-
   };
   if (shot.clip) await page.locator(shot.clip).first().screenshot(options);
   else await page.screenshot(options);
@@ -88,13 +85,19 @@ test('manual screenshots', async ({ page }, testInfo) => {
 
   const failed: string[] = [];
   for (const shot of shots) {
-    try {
-      await shoot(page, shot);
-      console.log(`✓ ${shot.file}`);
-    } catch (err) {
-      const reason = (err as Error).message.split('\n')[0];
-      failed.push(`${shot.file}: ${reason}`);
-      console.log(`✗ ${shot.file}: ${reason}`);
+    // Consecutive workspace pages race with the previous one's teardown: retry before giving up.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await shoot(page, shot);
+        console.log(`✓ ${shot.file}`);
+        break;
+      } catch (err) {
+        const reason = (err as Error).message.split('\n')[0];
+        if (attempt < 3) continue;
+        failed.push(`${shot.file}: ${reason}`);
+        console.log(`✗ ${shot.file}: ${reason}`);
+        break;
+      }
     }
   }
   if (failed.length) throw new Error(`Failed shots:\n${failed.join('\n')}`);

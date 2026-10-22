@@ -116,10 +116,8 @@ export const s09: ManualShot[] = [
     file: '18-comunicacio-dispositius.png',
     app: 'dashboard',
     path: '/communication/notifications/devices',
-    // The rows, not the header: they load later, and a mask resolved before them leaves names bare.
     ready: 'table tbody td:first-child',
     settle: 500,
-    mask: ['table tbody td:first-child'], // full first name + surname
   },
 
   // ── 19 · PWA, compte tècnic ───────────────────────────────────────────────
@@ -220,7 +218,6 @@ export const s09: ManualShot[] = [
     ready: '[data-testid="profile-stat-tile"] > *',
     prepare: dismissPushBanner,
     highlight: 'div.grid.grid-cols-3',
-    mask: ['section h2 + p'], // name + first surname under the alias
   },
   {
     file: '19-pwa-delegacions.png',
@@ -232,7 +229,6 @@ export const s09: ManualShot[] = [
       await page.getByRole('button', { name: /delegaci/ }).click();
       await page.waitForSelector('#add-delegate-form', { timeout: 10_000 });
     },
-    mask: ['dialog li .truncate'], // delegate alias, or email when it has no person
   },
   {
     file: '19-pwa-configuracio.png',

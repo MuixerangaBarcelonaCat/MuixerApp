@@ -6,12 +6,12 @@
  * Override any of them via env vars without touching the file.
  */
 export const TARGETS = {
-  templateId: process.env['AUDIT_TEMPLATE_ID'] || '455b4ae5-8305-4162-b12c-ebd51243dfdb', // "Branca"
-  personId: process.env['AUDIT_PERSON_ID'] || '1c7394d9-a9d4-44e0-832d-52f1b7ccf33d', // "PERSIANA"
-  eventAssaigId: process.env['AUDIT_EVENT_ASSAIG_ID'] || '1a6e53a1-3581-49d7-8842-024c7a84c0a2', // "ASSAIG GENERAL"
-  eventActuacioId: process.env['AUDIT_EVENT_ACTUACIO_ID'] || '9ac11557-16b1-4256-add6-bf137aa9f067', // "FESTA MAJOR"
+  templateId: process.env['AUDIT_TEMPLATE_ID'] || '75577101-d486-4f90-acd6-a7b52cd1b0d7', // "Branca"
+  personId: process.env['AUDIT_PERSON_ID'] || 'f964b0dd-6396-4ec6-991e-12f99494da66', // "PERSIANA"
+  eventAssaigId: process.env['AUDIT_EVENT_ASSAIG_ID'] || '1fee7e98-056b-43f6-afdb-c1d08a728aa8', // "ASSAIG GENERAL"
+  eventActuacioId: process.env['AUDIT_EVENT_ACTUACIO_ID'] || 'b5b4ae12-5662-4fb2-8489-2d8babba1d6a', // "DIADA CASTELLERS DE MALLORCA"
   // A segment that has at least one figure instance (segment workspace + projection).
-  workspaceEventId: process.env['AUDIT_WS_EVENT_ID'] || '29b88c09-a57c-4de6-9ce8-894b91610a99',
-  workspaceSegmentId: process.env['AUDIT_WS_SEGMENT_ID'] || 'a9ee74e1-f8a3-41f3-ba80-3842a0b4ae7d',
-  workspaceInstanceId: process.env['AUDIT_WS_INSTANCE_ID'] || '745764f9-ef52-48ad-b4cc-a4b54abb3c44',
+  workspaceEventId: process.env['AUDIT_WS_EVENT_ID'] || '1fee7e98-056b-43f6-afdb-c1d08a728aa8',
+  workspaceSegmentId: process.env['AUDIT_WS_SEGMENT_ID'] || 'd3827650-b559-4379-97e4-be8f63ed027e',
+  workspaceInstanceId: process.env['AUDIT_WS_INSTANCE_ID'] || 'e7984c7e-03ab-4338-bf43-eaa852809d1f',
 };

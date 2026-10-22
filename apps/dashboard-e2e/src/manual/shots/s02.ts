@@ -1,6 +1,5 @@
 import { Page } from '@playwright/test';
 import { ManualShot } from '../manual-shot';
-import { TARGETS } from '../../audit/audit-targets';
 
 /**
  * Dev-DB persons in each account state. Pick them with the SQL in the S02 plan (Task A, step 1)
@@ -8,46 +7,18 @@ import { TARGETS } from '../../audit/audit-targets';
  */
 const PERSON = {
   detail: process.env['MANUAL_PERSON_DETAIL_ID'] || 'f964b0dd-6396-4ec6-991e-12f99494da66', // "PERSIANA"
-  history: process.env['MANUAL_PERSON_HISTORY_ID'] || TARGETS.personId,
-  pendingAccount: process.env['MANUAL_PERSON_PENDING_ID'] || TARGETS.personId,
-  xicallaNoGuardian: process.env['MANUAL_PERSON_XICALLA_ID'] || TARGETS.personId,
-  xicallaWithGuardian: process.env['MANUAL_PERSON_XICALLA_GUARDIAN_ID'] || TARGETS.personId,
+  history: process.env['MANUAL_PERSON_HISTORY_ID'] || '56319de5-c29a-44f8-a0d7-68114573a21f',
+  pendingAccount: process.env['MANUAL_PERSON_PENDING_ID'] || 'bbd6f0b4-fc04-4156-923a-e9769a7f909b',
+  xicallaNoGuardian: process.env['MANUAL_PERSON_XICALLA_ID'] || '8561b7a6-2dd3-48da-871b-0a543737875b',
+  xicallaWithGuardian: process.env['MANUAL_PERSON_XICALLA_GUARDIAN_ID'] || '9abaed2c-f5e6-4cfa-9ee0-a073d3c4798d',
 };
 
 /** The persons table holds real rows once its row links exist (skeleton rows have none). */
 const LIST_READY = 'app-data-table tbody a[href^="/persons/"]';
-/** "Nom complet" is the 2nd default column of the persons table. */
-const LIST_MASK = ['app-data-table tbody td:nth-child(2)'];
-/**
- * Same as LIST_MASK but painted in the page, so a dropdown or modal stays on top of it
- * (Playwright masks are drawn over everything). Colour = the harness's maskColor.
- */
-async function blankListNames(page: Page): Promise<void> {
-  await page.addStyleTag({
-    content: `app-data-table tbody td:nth-child(2), app-data-table tbody td:nth-child(2) * {
-      color: transparent !important; background: #d6d3cd !important; }`,
-  });
-}
 
 const INFO_PERSONAL = 'lib-card[title="Informació personal"]';
 const INFO_COLLA = 'lib-card[title="Informació de la colla"]';
 const DETAIL_READY = `${INFO_PERSONAL} dl`;
-/** Everything personal on the person detail page in read mode. */
-const DETAIL_MASK = [
-  'div.flex-1 > p.text-xs', // full name under the alias in the header
-  `${INFO_PERSONAL} dd`, // name, surnames, gender, e-mail, phone, birth date, height
-  `${INFO_COLLA} dd.whitespace-pre-wrap`, // Observacions tècniques (may be health-related)
-  `${INFO_COLLA} dl.border-t dd`, // responsible/delegate e-mails when they have no alias
-];
-/** Same, with the sheet in edit mode. */
-const EDIT_MASK = [
-  'div.flex-1 > p.text-xs',
-  `${INFO_PERSONAL} input`,
-  `${INFO_PERSONAL} select`,
-  `${INFO_COLLA} input[aria-label="Observació"]`,
-  `${INFO_COLLA} dl.border-t dd`,
-];
-
 async function startEditing(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Edita' }).click();
   await page.locator(`${INFO_PERSONAL} input`).first().waitFor();
@@ -90,7 +61,6 @@ export const s02: ManualShot[] = [
     app: 'dashboard',
     path: '/persons',
     ready: LIST_READY,
-    mask: LIST_MASK,
     settle: 500,
   },
   {
@@ -104,7 +74,6 @@ export const s02: ManualShot[] = [
       await page
         .locator('[data-testid="lib-select-multi"] li[role="option"]:has-text("Falten etiquetes")')
         .scrollIntoViewIfNeeded();
-      await blankListNames(page);
     },
     highlight: '[data-testid="lib-select-multi"] li[role="option"]:has-text("Falten etiquetes")',
   },
@@ -118,7 +87,6 @@ export const s02: ManualShot[] = [
       await page.waitForLoadState('networkidle');
     },
     highlight: 'lib-button-group > *', // Cens / Provisionals
-    mask: LIST_MASK,
     settle: 500,
   },
   {
@@ -129,7 +97,6 @@ export const s02: ManualShot[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Persona nova' }).click();
       await page.locator('dialog[open]').waitFor();
-      await blankListNames(page); // the table stays visible behind the modal backdrop
     },
   },
   {
@@ -137,7 +104,6 @@ export const s02: ManualShot[] = [
     app: 'dashboard',
     path: `/persons/${PERSON.history}`, // a filled-in sheet with pinyes history
     ready: DETAIL_READY,
-    mask: DETAIL_MASK,
     settle: 800, // delegates and history load after the person
   },
   {
@@ -146,7 +112,6 @@ export const s02: ManualShot[] = [
     path: `/persons/${PERSON.pendingAccount}`,
     ready: DETAIL_READY,
     highlight: `${INFO_COLLA} button:has-text("Crea enllaç d'invitació")`,
-    mask: DETAIL_MASK,
     clip: `${INFO_COLLA} > *`,
     settle: 800,
   },
@@ -156,7 +121,6 @@ export const s02: ManualShot[] = [
     path: `/persons/${PERSON.xicallaNoGuardian}`,
     ready: DETAIL_READY,
     highlight: `${INFO_COLLA} button:has-text("Defineix adult responsable")`,
-    mask: DETAIL_MASK,
     clip: `${INFO_COLLA} > *`,
     settle: 800,
   },
@@ -166,7 +130,6 @@ export const s02: ManualShot[] = [
     path: `/persons/${PERSON.xicallaWithGuardian}`,
     ready: DETAIL_READY,
     highlight: `${INFO_COLLA} dl.border-t`,
-    mask: DETAIL_MASK,
     clip: `${INFO_COLLA} > *`,
     settle: 800,
   },
@@ -192,7 +155,6 @@ export const s02: ManualShot[] = [
     ready: DETAIL_READY,
     prepare: startEditing, // never clicks «Alça»
     highlight: `${INFO_COLLA} [data-tag-group]`,
-    mask: EDIT_MASK,
   },
   {
     file: '03-persona-delegat.png',
@@ -203,10 +165,9 @@ export const s02: ManualShot[] = [
       await startEditing(page);
       await page.getByRole('button', { name: '+ Afegeix' }).click();
       await page.locator('dialog[open] [role="listbox"] li').first().waitFor();
-      // Masks are drawn above the list's overflow clip: keep only the 4 rows it shows, all masked.
+      // Keep only the 4 rows the list shows.
       await page.addStyleTag({ content: 'dialog[open] [role="listbox"] li:nth-child(n+5) { display: none; }' });
     },
-    mask: ['dialog[open] [role="listbox"] button > div:first-child'], // alias + e-mail of each user
     clip: 'dialog[open] .modal-box', // the sheet behind is the same as 03-persona-edicio
     settle: 800, // the user list is debounced
   },

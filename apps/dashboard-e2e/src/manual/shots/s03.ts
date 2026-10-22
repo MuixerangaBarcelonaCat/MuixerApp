@@ -5,7 +5,6 @@ import { TARGETS } from '../../audit/audit-targets';
 const TAGS_READY = 'app-tags-list tbody tr td.font-medium';
 const USERS_READY = 'app-data-table tbody tr';
 // Users table: «Correu» and «Persona» (alias + name + surname) are personal data.
-const USER_PERSONAL_COLUMNS = ['app-data-table tbody td:nth-child(1)', 'app-data-table tbody td:nth-child(2)'];
 
 const openTagEdit = async (page: Page, name: string) => {
   await page.getByRole('button', { name: `Edita ${name}` }).click();
@@ -50,7 +49,6 @@ export const s03: ManualShot[] = [
       await page.locator('app-tagging-wizard-modal [data-testid^="tag-group-"]').first().waitFor();
     },
     // Name + surnames on the card and the observations: personal data.
-    mask: ['app-tagging-wizard-modal section h3', 'app-tagging-wizard-modal section p.bg-base-100'],
     clip: 'dialog[open] .modal-box',
   },
   {
@@ -109,7 +107,6 @@ export const s03: ManualShot[] = [
     path: '/config/users',
     ready: USERS_READY,
     highlight: 'button:has-text("Crea usuari")',
-    mask: USER_PERSONAL_COLUMNS,
   },
   {
     file: '06-usuari-accions.png',
@@ -121,7 +118,6 @@ export const s03: ManualShot[] = [
       await page.getByRole('menu').waitFor();
     },
     highlight: '[role="menu"]',
-    mask: USER_PERSONAL_COLUMNS,
   },
   {
     file: '06-usuari-nou.png',
@@ -146,7 +142,6 @@ export const s03: ManualShot[] = [
       await page.getByRole('dialog', { name: 'Assignar rol' }).waitFor();
     },
     // The modal shows the user's email.
-    mask: ['dialog[open] p:has-text("@")'],
     clip: 'dialog[open] .modal-box',
   },
 ];
