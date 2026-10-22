@@ -124,7 +124,7 @@ amb `projectionAngle` != 0.
 **Evidència:** `tronc-panel-measurer.component.ts` renderitza cada panell **dos cops** fora de
 pantalla (una sonda sense nodes de direcció i el panell final amb l'amplada restringida) per mesurar-ne
 la mida real; el panell viu és el tercer. El comentari de capçalera explica per què calen els dos: és
-una decisió correcta, no un error. Els panells de mesura queden muntats (amb els seus `FitText`).
+una decisió correcta, no un error. Els panells de mesura queden muntats (amb els seus `app-node-drawing`).
 
 El problema és **quan es torna a executar**: `measurePanels()` (`pinya-projection.component.ts:121`)
 depèn de les instàncies, i qualsevol refetch amb el mateix contingut en objectes nous torna a disparar
@@ -136,21 +136,19 @@ dels nodes + noms assignats) i saltar-se la mesura quan la clau no ha canviat.
 
 **Esforç:** petit. **Prioritat:** baixa avui, **obligatòria abans de F9**.
 
-### F4 — `FitTextDirective`: un `ResizeObserver` i una lectura de layout per cel·la
+### F4 — Un `ResizeObserver` per cel·la del tronc
 
-**Evidència:** `fit-text.directive.ts:54` crea un `ResizeObserver` per element, i la directiva
-s'aplica dins dels bucles per node de `tronc-view.component.html:233,303`. Cada `fit()` (`:71`)
-llegeix `clientWidth` i `getComputedStyle` (lectures síncrones de layout).
+**Actualització (11-10-2026):** `FitTextDirective` ja no existix. Les cel·les del tronc es dibuixen amb
+`app-node-drawing` (vegeu [[PINYES_MODULE]] «Dibuix dels nodes»), que encara crea un `ResizeObserver` per
+cel·la, però ja no fa lectures síncrones de layout: la mida arriba al `contentRect` de l'observador i els
+noms es mesuren amb un context 2D de canvas reutilitzat, sense `getComputedStyle`. Com abans, no salta
+durant el gest (el `scale()` d'un pare no canvia la mida de la cel·la): el cost és al render inicial (×3
+per F3) i en canvis de mida reals.
 
-**Correcció respecte a la versió anterior:** això **no** es repeteix a cada frame del gest. L'`effect`
-només segueix inputs de tipus `string`/`number`, que no canvien durant el pan, i el `scale()` d'un
-pare no altera `clientWidth`, així que el `ResizeObserver` tampoc salta. El cost és només en el render
-inicial (×3 per F3) i en canvis de mida reals. No explica les batzegades.
+**Canvi proposat:** un sol `ResizeObserver` compartit per totes les cel·les, només si la traça d'entrada
+ho demana.
 
-**Canvi proposat:** cachejar família/pes de la font en lloc de cridar `getComputedStyle` a cada ajust.
-Un sol `ResizeObserver` per panell només si la traça d'entrada ho demana.
-
-**Esforç:** mitjà — la directiva és compartida, mira'n tots els usuaris abans. **Prioritat:** baixa.
+**Esforç:** petit. **Prioritat:** baixa.
 
 ### F6 — El payload porta dades que el membre no necessita (i que no hauria de veure)
 
@@ -278,7 +276,7 @@ Fet: baseline, F2.1–F2.3, F1, F5.1, F5.2 i F8 (vegeu *Implementat*). Queda, pe
 | 2 | **F7** — no tornar a consultar conflictes | Com que F6 no es fa, els conflictes continuen al payload; el classificador espera entitats i la projecció té DTOs | Petit–mitjà | Baix |
 | 3 | ~~F6~~ | Descartat | — | — |
 | 4 | **F3** — cache de mesures | Obligatori abans de F9; sense refresc automàtic no aporta res | Petit | Baix |
-| 5 | **F4** — cache de la font a `FitText` | Només si una traça d'entrada ho demana; no és al gest | Mitjà | Mitjà |
+| 5 | **F4** — un `ResizeObserver` compartit per a les cel·les del tronc | Només si una traça d'entrada ho demana; no és al gest | Petit | Baix |
 | 6 | **F2.4** — contenidor únic amb `transform` | Només si un dispositiu real mostra *Layout* per frame | Mitjà | Alt |
 | — | **F9** — refresc en directe | Més endavant; requereix F3 i un pressupost de peticions per IP | — | — |
 

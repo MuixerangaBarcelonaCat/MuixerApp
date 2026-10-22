@@ -2087,11 +2087,8 @@ export class NodeAssignmentService {
         width: dto.width ?? preset?.width ?? 80,
         height: dto.height ?? preset?.height ?? 40,
         rotation: dto.rotation ?? 0,
-        color:
-          dto.color ??
-          (dto.zone === FigureZone.DECORATION
-            ? (preset?.color ?? null)
-            : (preset?.color ?? '#B0BEC5')),
+        // NULL follows the type palette; only a color the user picked is stored.
+        color: dto.color ?? null,
         shape: dto.shape ?? preset?.shape ?? NodeShape.RECTANGLE,
         sortOrder: nextSortOrder,
         climbIndicator: null,

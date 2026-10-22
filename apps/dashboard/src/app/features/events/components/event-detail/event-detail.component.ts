@@ -1,10 +1,9 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { LucideAngularModule, Info, UserCheck, Grid3X3 } from 'lucide-angular';
-import { ICON_XICALLA, ICON_PERSONA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
-import { AlertComponent, ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, CardComponent } from '@muixer/ui';
+import { AlertComponent, ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, CardComponent, ICON_XICALLA, ICON_PERSONA, DOMAIN_ICONS } from '@muixer/ui';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { EventNotesPanelComponent } from '../event-notes-panel/event-notes-panel.component';
 import { AttendanceListComponent } from '../attendance-list/attendance-list.component';
@@ -14,7 +13,7 @@ import { StatCardComponent } from '../../../../shared/components/data/stat-card/
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent } from '../../models/event.model';
 import { getAdultsCount } from '../event-list/event-list.component';
-import { AttendanceStatus, attendanceGroupLabel, EventPhase, getEventPhase, isArrivalPhase, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
+import { AttendanceStatus, attendanceGroupLabel, EventPhase, getEventPhase, isArrivalPhase, isStartedPhase, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
 import { saveBlob } from '../../../../core/utils/save-blob.util';
 import { openPendingTab, showBlobInTab } from '../../../../core/utils/blob-tab.util';
@@ -112,25 +111,24 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return this.visitedTabs().has(tab);
   }
 
-  isPast = computed(() => {
-    const ev = this.event();
-    if (!ev) return false;
-    const timeStr = ev.startTime ?? '23:59';
-    return new Date(`${ev.date}T${timeStr}:00`) < new Date();
-  });
+  /** The event day is over. */
+  isPast = computed(() => this.phase() === 'after');
 
-  /** Before / on / after the event day (Madrid): drives the attendance labels and controls. */
+  /** Before the event day / on it before the start / started / after it (Valencia time): drives the attendance labels and controls. */
   phase = computed<EventPhase>(() => {
     const ev = this.event();
-    return ev ? getEventPhase(ev.date) : 'before';
+    return ev ? getEventPhase(ev.date, ev.startTime) : 'before';
   });
+
+  /** From the event day on the counts are arrivals; before it, confirmations. */
+  arrivals = computed(() => isArrivalPhase(this.phase()));
 
   /** The main stat card: arrivals from the event day on, confirmations before it. */
   mainStat = computed(() => {
     const ev = this.event();
     if (!ev) return null;
     const phase = this.phase();
-    const arrivals = isArrivalPhase(phase);
+    const arrivals = this.arrivals();
     return {
       label: attendanceGroupLabel(arrivals ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE, phase),
       value: arrivals ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed,
@@ -140,14 +138,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   attendanceRatio = computed(() => {
     const ev = this.event();
     if (!ev || ev.attendanceSummary.total === 0) return 0;
-    const numerator = this.isPast() ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed;
+    const numerator = this.arrivals() ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed;
     return Math.round((numerator / ev.attendanceSummary.total) * 100);
   });
 
   adultsCount = computed(() => {
     const ev = this.event();
     if (!ev) return 0;
-    return getAdultsCount(ev.attendanceSummary, this.isPast());
+    return getAdultsCount(ev.attendanceSummary, this.arrivals());
   });
 
   rehearsalMetadata = computed((): RehearsalMetadata | null => {
@@ -286,14 +284,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
     if (!this.isAdmin()) {
       this.syncState.set('error');
-      this.syncMessage.set('⛔ No tens permisos d\'administrador per executar la sincronització');
+      this.syncMessage.set('No teniu permisos d\'administrador per a executar la sincronització.');
       return;
     }
 
     const token = this.authService.getAccessToken();
     if (!token) {
       this.syncState.set('error');
-      this.syncMessage.set('⛔ No s\'ha pogut obtenir el token d\'autenticació');
+      this.syncMessage.set('No s\'ha pogut obtenir el token d\'autenticació.');
       return;
     }
 
@@ -320,7 +318,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.syncEventSource.onerror = (err) => {
       const target = err.target as EventSource;
       if (target.readyState === EventSource.CLOSED) {
-        this.syncMessage.set('⛔ No tens permisos d\'administrador per executar la sincronització');
+        this.syncMessage.set('No teniu permisos d\'administrador per a executar la sincronització.');
       } else {
         this.syncMessage.set('Error de connexió amb el servidor');
       }
@@ -358,7 +356,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const phase = this.phase();
     const arrivals = isArrivalPhase(phase);
     const label = (status: AttendanceStatus) => attendanceGroupLabel(status, phase);
-    const adults = getAdultsCount(summary, this.isPast());
+    const adults = getAdultsCount(summary, arrivals);
     return [
       {
         label: label(arrivals ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE),
@@ -371,7 +369,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         label: label(AttendanceStatus.ANIRE),
         value: summary.confirmed,
         icon: 'UserMinus',
-        iconClass: 'text-warning',
+        iconClass: isStartedPhase(phase) ? 'text-warning' : 'text-success',
         hidden: !arrivals,
       },
       {

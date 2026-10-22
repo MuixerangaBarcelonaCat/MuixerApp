@@ -352,7 +352,8 @@ describe('SegmentAssignmentActionsService', () => {
       service.drop(ref(INST_A, 'n1'), ref(INST_A, 'n2'));
 
       expect(api.swap).toHaveBeenCalledWith(INST_A, { assignmentIdA: a1.id, assignmentIdB: a2.id });
-      expect(toast.success).toHaveBeenCalledWith("S'han intercanviat les persones.");
+      // The swap is visible on the canvas: no toast to say so.
+      expect(toast.success).not.toHaveBeenCalled();
       expect(undoRedo.undoDescription()).toBe('Intercanviar persones');
     });
 
@@ -368,6 +369,7 @@ describe('SegmentAssignmentActionsService', () => {
       expect(api.unassign).toHaveBeenCalledWith(INST_B, a2.id);
       expect(api.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n1', personId: 'p-2' });
       expect(api.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+      expect(toast.success).not.toHaveBeenCalled();
       expect(undoRedo.undoDescription()).toBe('Intercanviar persones (figures diferents)');
     });
 

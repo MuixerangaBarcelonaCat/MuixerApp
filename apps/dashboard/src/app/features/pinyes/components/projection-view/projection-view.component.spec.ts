@@ -212,9 +212,9 @@ describe('ProjectionViewComponent', () => {
       expect(f.componentInstance.instanceIdSignal()).toBe('inst-x');
     });
 
-    it('keeps the figure on the light theme, which the canvas is drawn for', async () => {
+    it('draws the figure in the page theme: the canvas has a dark look of its own', async () => {
       const { fixture: f } = await createEmbedded(true);
-      expect(f.nativeElement.querySelector('lib-pinya-projection').closest('[data-theme]')?.dataset.theme).toBe(THEME_NAMES.light);
+      expect(f.nativeElement.querySelector('lib-pinya-projection').closest('[data-theme]')).toBeNull();
     });
 
     it('draws the floating HUD dark in either page theme', async () => {

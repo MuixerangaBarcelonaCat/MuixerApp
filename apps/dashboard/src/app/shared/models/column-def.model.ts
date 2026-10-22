@@ -47,6 +47,11 @@ export interface ColumnDef<T = any> {
    * the native tooltip (e.g. explaining why the marker is shown).
    */
   prefix?: (item: T) => { text: string; class: string; title?: string } | null;
+  /**
+   * Lucide icons rendered after this column's own text — primary column only, like `prefix`.
+   * `label` is the icon's accessible name and tooltip (e.g. «Xicalla»).
+   */
+  suffixIcons?: (item: T) => { icon: string; label: string }[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
