@@ -34,6 +34,10 @@ fi
 
 read -rsp "Password de PRE (POSTGRES_PASSWORD de ${PRE_USER}): " PRE_PASS
 echo ""
+if [[ -z "${PRE_PASS}" ]]; then
+  echo "✗ Password buit."
+  exit 1
+fi
 
 echo ""
 echo "⚠️  Açò esborrarà TOTES les dades actuals de ${DEV_DB} (local) i les"
