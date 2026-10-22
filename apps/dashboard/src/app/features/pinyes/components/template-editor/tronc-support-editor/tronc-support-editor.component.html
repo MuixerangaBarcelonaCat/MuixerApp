@@ -42,12 +42,12 @@
                   [class.source]="isSource(node)"
                   [class.target]="isTarget(node)"
                   [class.dimmed]="isDimmed(node)"
-                  [style.border-left-color]="nodeColor(node)"
                   [attr.data-support-node-id]="node.id"
                   [attr.aria-pressed]="isSelected(node)"
+                  [attr.aria-label]="node.label"
                   (click)="onNodeClick(node, $event)"
                 >
-                  <span class="node-label">{{ node.label }}</span>
+                  <app-node-drawing [appearance]="appearanceByNodeId().get(node.id)!" [sketchKey]="node.id" />
                 </button>
                 @if (!floor.isBase) {
                   <button

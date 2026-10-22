@@ -1,7 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { CardComponent } from '@muixer/ui';
-import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
+import { CardComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { AuthService } from '../../core/auth/services/auth.service';
 
 @Component({

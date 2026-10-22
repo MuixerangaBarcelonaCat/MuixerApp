@@ -73,6 +73,31 @@
   </div>
 
   <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">Segment workspace display modes (node wash / pencil)</h3>
+    <div class="flex flex-col gap-3">
+      @for (group of displayModeGroups(); track group.title) {
+        <div>
+          <p class="text-xs text-base-content/60 mb-1">{{ group.title }}</p>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            @for (swatch of group.swatches; track swatch.label) {
+              <div
+                class="rounded-box overflow-hidden border-2"
+                [style.border-color]="swatch.tones.pencil"
+                data-testid="display-mode-swatch"
+                [attr.data-wash]="swatch.tones.wash"
+                [attr.data-pencil]="swatch.tones.pencil"
+              >
+                <div class="h-10" [style.background-color]="swatch.tones.wash"></div>
+                <div class="px-1.5 py-1 text-xs font-mono bg-base-100 truncate">{{ swatch.label }}</div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div>
     <h3 class="text-sm font-semibold text-base-content/70 mb-2">Fixed scale (paper / ink / crease / semantic)</h3>
     <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
       @for (swatch of fixedScale; track swatch.label) {

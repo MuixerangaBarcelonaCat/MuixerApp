@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { ArrowRightToLine } from 'lucide-angular';
 import { DOMAIN_ICONS } from './domain-icons';
 

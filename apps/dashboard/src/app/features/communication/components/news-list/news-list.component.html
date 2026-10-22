@@ -44,10 +44,10 @@
               <td>
                 @if (news.pushSentAt) {
                   <span class="badge badge-sm badge-success gap-1" [title]="'Enviada: ' + (news.pushSentAt | date: 'dd/MM/yyyy HH:mm')">
-                    🔔 Enviada
+                    <i-lucide [img]="ICON_BELL" class="size-3" aria-hidden="true" /> Enviada
                   </span>
                 } @else if (news.sendPush) {
-                  <span class="badge badge-sm badge-warning gap-1">🔔 Pendent</span>
+                  <span class="badge badge-sm badge-warning gap-1"><i-lucide [img]="ICON_BELL" class="size-3" aria-hidden="true" /> Pendent</span>
                 } @else {
                   <span class="text-base-content/30 text-xs">—</span>
                 }

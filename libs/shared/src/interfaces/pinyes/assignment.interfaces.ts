@@ -1,6 +1,7 @@
 import { AttendanceStatus } from '../../enums/attendance-status.enum';
 import { EventType } from '../../enums/event-type.enum';
 import { FigureZone } from '../../enums/figure-zone.enum';
+import { Gender } from '../../enums/gender.enum';
 import { NodeShape } from '../../enums/node-shape.enum';
 import { TagCategory } from '../../enums/tag-category.enum';
 import { PaginatedMeta } from '../pagination.interface';
@@ -79,6 +80,7 @@ export interface AvailablePerson {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  gender: Gender | null;
   isXicalla: boolean;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;

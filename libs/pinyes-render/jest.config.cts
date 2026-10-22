@@ -10,7 +10,10 @@ module.exports = {
   // culori/apca-w3 are @muixer/ui's own ESM-only deps (its color-token utilities) — importing
   // any @muixer/ui symbol at all pulls in its whole barrel (src/index.ts), so any spec here that
   // starts using a lib-* component needs these transformed too, same reasoning as konva above.
-  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$|@angular/common/locales/.*\\.js$|.*konva.*|.*culori.*|.*apca-w3.*|.*colorparsley.*))'],
+  // roughjs/bin (the node sketch, `RoughGenerator`) and its helpers are ESM too.
+  transformIgnorePatterns: [
+    'node_modules/(?!(.*\\.mjs$|@angular/common/locales/.*\\.js$|.*konva.*|.*culori.*|.*apca-w3.*|.*colorparsley.*|.*roughjs.*|.*hachure-fill.*|.*path-data-parser.*|.*points-on-.*))',
+  ],
   resolver: '@nx/jest/plugins/resolver',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   coverageDirectory: '../../coverage/libs/pinyes-render',
@@ -23,6 +26,7 @@ module.exports = {
     // Konva wiring with no meaningful jsdom signal — characterized by the Playwright
     // gesture-audit golden baseline instead (docs/AUDIT_SUITE.md), not a unit spec.
     '!src/lib/components/figure-canvas/figure-canvas.component.ts',
+    '!src/lib/node-render/konva-painter.ts',
   ],
   coverageThreshold: {
     global: {

@@ -1,35 +1,14 @@
 import type { RoughSVG } from 'roughjs/bin/svg';
 import type { Options } from 'roughjs/bin/core';
+import { mulberry32, roughOpts } from '@muixer/pinyes-render';
 import { SilhouetteLayout, SilhouettePerson } from '../../utils/tronc-silhouette-layout.util';
 
-/** mulberry32 — mirrors the layout util's PRNG so a person's own glyph jitter is stable too. */
-function mulberry32(seed: number): () => number {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /**
- * roughjs's default sketchiness is tuned for normal-sized shapes — at a marker this small
- * (~5-7px radius) it explodes into noise unless the offset/roughness scale down with it.
+ * The people are sketched a little looser than figure nodes, and keep their joints where they are
+ * drawn (`preserveVertices`): `roughOpts` already scales the wobble down to these small marks.
  */
-function roughOpts(seed: number, r: number, extra: Partial<Options>): Options {
-  return {
-    seed: seed >>> 0,
-    roughness: 1.0,
-    bowing: 0.8,
-    maxRandomnessOffset: Math.max(0.5, Math.min(1.3, r * 0.18)),
-    disableMultiStroke: true,
-    disableMultiStrokeFill: true,
-    strokeWidth: 1.4,
-    preserveVertices: true,
-    ...extra,
-  };
+function glyphOpts(seed: number, r: number, extra: Partial<Options>): Options {
+  return roughOpts(seed, r, { roughness: 1.0, bowing: 0.8, preserveVertices: true, ...extra });
 }
 
 /**
@@ -64,7 +43,7 @@ export function buildPersonGlyphMarkup(
     x + lean * 0.5,
     headCy,
     headR * 2,
-    roughOpts(seed, r, { stroke: color, fill: color, fillStyle: 'solid', strokeWidth: 1.2 }),
+    glyphOpts(seed, r, { stroke: color, fill: color, fillStyle: 'solid', strokeWidth: 1.2 }),
   ).innerHTML;
   markup += rc.curve(
     [
@@ -72,21 +51,21 @@ export function buildPersonGlyphMarkup(
       [x + lean * 0.8, (shoulderY + hipY) / 2],
       [x + lean, hipY],
     ],
-    roughOpts(seed + 1, r, { stroke: color, strokeWidth: 1.6 }),
+    glyphOpts(seed + 1, r, { stroke: color, strokeWidth: 1.6 }),
   ).innerHTML;
   markup += rc.line(
     x + lean,
     hipY,
     x + lean - r * 0.5,
     footY,
-    roughOpts(seed + 2, r, { stroke: color, strokeWidth: 1.4 }),
+    glyphOpts(seed + 2, r, { stroke: color, strokeWidth: 1.4 }),
   ).innerHTML;
   markup += rc.line(
     x + lean,
     hipY,
     x + lean + r * 0.5,
     footY,
-    roughOpts(seed + 3, r, { stroke: color, strokeWidth: 1.4 }),
+    glyphOpts(seed + 3, r, { stroke: color, strokeWidth: 1.4 }),
   ).innerHTML;
 
   if (reach === 0) {
@@ -95,14 +74,14 @@ export function buildPersonGlyphMarkup(
       shoulderY,
       x + lean * 0.5 - r * 0.85,
       shoulderY + r * 0.32,
-      roughOpts(seed + 4, r, { stroke: color, strokeWidth: 1.3 }),
+      glyphOpts(seed + 4, r, { stroke: color, strokeWidth: 1.3 }),
     ).innerHTML;
     markup += rc.line(
       x + lean * 0.5 + headR * 0.7,
       shoulderY,
       x + lean * 0.5 + r * 0.85,
       shoulderY + r * 0.32,
-      roughOpts(seed + 5, r, { stroke: color, strokeWidth: 1.3 }),
+      glyphOpts(seed + 5, r, { stroke: color, strokeWidth: 1.3 }),
     ).innerHTML;
   } else {
     // Pinya stance: both arms raised straight up, leaning only slightly toward `reach`'s side
@@ -113,14 +92,14 @@ export function buildPersonGlyphMarkup(
       shoulderY,
       x + lean * 0.5 + reach * r * 0.9,
       raiseY + r * 0.15,
-      roughOpts(seed + 4, r, { stroke: color, strokeWidth: 1.3 }),
+      glyphOpts(seed + 4, r, { stroke: color, strokeWidth: 1.3 }),
     ).innerHTML;
     markup += rc.line(
       x + lean * 0.5 + headR * 0.6,
       shoulderY,
       x + lean * 0.5 + reach * r * 1.25,
       raiseY,
-      roughOpts(seed + 5, r, { stroke: color, strokeWidth: 1.3 }),
+      glyphOpts(seed + 5, r, { stroke: color, strokeWidth: 1.3 }),
     ).innerHTML;
   }
 
@@ -205,5 +184,5 @@ export function buildGroundLineMarkup(
   seed: number,
   color: string,
 ): string {
-  return rc.line(x1, y, x2, y, roughOpts(seed, 6, { stroke: color, strokeWidth: 1.6 })).innerHTML;
+  return rc.line(x1, y, x2, y, glyphOpts(seed, 6, { stroke: color, strokeWidth: 1.6 })).innerHTML;
 }

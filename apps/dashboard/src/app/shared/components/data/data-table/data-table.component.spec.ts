@@ -520,3 +520,53 @@ describe('DataTableComponent rowLink', () => {
     });
   });
 });
+
+describe('DataTableComponent suffix icons', () => {
+  interface IconRow {
+    id: string;
+    name: string;
+    child: boolean;
+  }
+
+  const columns: ColumnDef<IconRow>[] = [
+    {
+      key: 'name',
+      label: 'Nom',
+      defaultVisible: true,
+      primary: true,
+      suffixIcons: (row) => (row.child ? [{ icon: 'Baby', label: 'Xicalla' }] : []),
+    },
+  ];
+  const items: IconRow[] = [
+    { id: '1', name: 'PEP', child: true },
+    { id: '2', name: 'ANNA', child: false },
+  ];
+
+  async function render(cardMode: boolean): Promise<ComponentFixture<DataTableComponent<IconRow>>> {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: cardMode,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+    await TestBed.configureTestingModule({
+      imports: [DataTableComponent],
+      providers: [allLucideIconsProvider, provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DataTableComponent<IconRow>);
+    fixture.componentRef.setInput('items', items);
+    fixture.componentRef.setInput('columns', columns);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  const originalMatchMedia = window.matchMedia;
+  afterEach(() => (window.matchMedia = originalMatchMedia));
+
+  it.each([false, true])('draws the icons after the primary text, labelled for screen readers (card mode: %s)', async (cardMode) => {
+    const fixture = await render(cardMode);
+    const marks: HTMLElement[] = Array.from(fixture.nativeElement.querySelectorAll('[aria-label="Xicalla"]'));
+    expect(marks).toHaveLength(1);
+    expect(marks[0].querySelector('svg')).toBeTruthy();
+  });
+});

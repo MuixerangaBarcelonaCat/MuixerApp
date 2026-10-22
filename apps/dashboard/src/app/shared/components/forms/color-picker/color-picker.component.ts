@@ -23,15 +23,19 @@ import { CREASE, readableContentOn } from '@muixer/ui';
 })
 export class ColorPickerComponent {
   color = input<string | null>(null);
+  /** What a missing color resolves to (e.g. a node's type color), shown in the swatch instead of the empty fill. */
+  fallbackColor = input<string | null>(null);
   presetColors = input<string[]>([]);
   colorChange = output<string>();
+  /** The user chose to go back to the default color (`fallbackColor`). */
+  colorReset = output<void>();
 
   dropdownOpen = signal(false);
 
-  /** Swatch fill while no color is set. */
-  protected readonly emptySwatch = CREASE.light;
+  /** Swatch fill: the color, else the fallback, else the crease token. */
+  protected readonly swatchFill = computed(() => this.color() ?? this.fallbackColor() ?? CREASE.light);
   /** Hover pencil over the swatch: ink or paper, whichever reads on the current fill. */
-  protected readonly pencilColor = computed(() => readableContentOn(this.color() ?? this.emptySwatch));
+  protected readonly pencilColor = computed(() => readableContentOn(this.swatchFill()));
 
   /** Temporary hex input value while the popover is open */
   readonly hexInput = signal('');
@@ -100,6 +104,14 @@ export class ColorPickerComponent {
       top: rect.bottom + 4,
       left: Math.max(ColorPickerComponent.VIEWPORT_MARGIN, Math.min(rect.left, maxLeft)),
     };
+  }
+
+  /** Offered while a custom color hides a default one. */
+  protected readonly canReset = computed(() => !!this.color() && !!this.fallbackColor());
+
+  resetColor(): void {
+    this.colorReset.emit();
+    this.dropdownOpen.set(false);
   }
 
   selectColor(hex: string): void {

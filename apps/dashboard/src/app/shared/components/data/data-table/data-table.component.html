@@ -161,6 +161,11 @@
                     } @else {
                       {{ getCellValue(item, col) ?? '—' }}
                     }
+                    @if (first && col.suffixIcons) {
+                      @for (mark of col.suffixIcons(item); track mark.icon) {
+                        <lucide-icon [name]="mark.icon" [size]="14" class="inline align-text-bottom text-base-content/60" [attr.aria-label]="mark.label" [attr.title]="mark.label" />
+                      }
+                    }
                   </td>
                 }
 
@@ -264,6 +269,11 @@
                     >{{ getCellValue(item, pcol) ?? '—' }}</a>
                   } @else {
                     {{ getCellValue(item, pcol) ?? '—' }}
+                  }
+                  @if (pcol.suffixIcons) {
+                    @for (mark of pcol.suffixIcons(item); track mark.icon) {
+                      <lucide-icon [name]="mark.icon" [size]="14" class="inline align-text-bottom text-base-content/60" [attr.aria-label]="mark.label" [attr.title]="mark.label" />
+                    }
                   }
                 </span>
               }

@@ -10,6 +10,7 @@ import {
   AttendanceStatus,
   EventType,
   FigureZone,
+  Gender,
   AssignmentArea,
   areaForZone,
   ConflictPlacement,
@@ -31,6 +32,8 @@ export interface AvailablePersonDto {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  /** Staff-only: feeds the workspace's Gènere display mode. Never part of AssignmentDetail (member projection). */
+  gender: Gender | null;
   isXicalla: boolean;
   notes: string | null;
   notesEmoji: string | null;
@@ -247,6 +250,7 @@ export class AvailablePersonsService {
         name: person.name,
         firstSurname: person.firstSurname,
         shoulderHeight: person.shoulderHeight,
+        gender: person.gender ?? null,
         isXicalla: person.isXicalla,
         notes: person.notes,
         notesEmoji: person.notesEmoji,
