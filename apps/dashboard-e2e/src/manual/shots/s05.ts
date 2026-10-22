@@ -1,7 +1,5 @@
 import { Page } from '@playwright/test';
 import { ManualShot } from '../manual-shot';
-import { TARGETS } from '../../audit/audit-targets';
-import { selectFirstCanvasNode } from '../../template-editor-tablet/helpers';
 
 /**
  * Plantilles (pàgines 08, 09, 10). The harness blocks every API write, so a stray click on the
@@ -9,7 +7,7 @@ import { selectFirstCanvasNode } from '../../template-editor-tablet/helpers';
  * Delete/Backspace here: they remove the selected node or rengla.
  */
 
-const EDITOR = `/pinyes/templates/${TARGETS.templateId}/edit`;
+const LIST = 'ul[aria-label="Llista de figures"]';
 const EDITOR_CANVAS = 'main[aria-label="Editor visual de la figura"] canvas';
 
 /** Marks the first-visit intros (pinyes tutorial, editor help) as seen and closes whichever is showing. */
@@ -30,11 +28,57 @@ async function listOn(page: Page, tab: 'Figures' | 'Composicions'): Promise<void
   await page.getByRole('tab', { name: tab, exact: true }).click();
 }
 
+/** A full figure (pinya with rengles + 4-floor tronc) on the first page of the list. */
+const TEMPLATE = 'Roscana';
+
+/**
+ * Opens TEMPLATE by clicking its card (template ids differ per database). Clicked near the title,
+ * away from the Duplica/Elimina icons; lib-card is display:contents, so the click goes to its <a>.
+ */
+async function openEditor(page: Page): Promise<void> {
+  await dismissIntros(page);
+  await page
+    .locator(`${LIST} > li:has(button[aria-label="Duplica ${TEMPLATE}"]) lib-card > a`)
+    .click({ position: { x: 24, y: 16 } });
+  await page.locator(EDITOR_CANVAS).first().waitFor({ state: 'attached', timeout: 20_000 });
+  await dismissIntros(page);
+}
+
 /** Template editor with the intros closed, on one of its three tabs. */
 async function editorOn(page: Page, tab: 'Pinya' | 'Rengles' | 'Tronc'): Promise<void> {
-  await dismissIntros(page);
+  await openEditor(page);
   await page.getByRole('tab', { name: tab, exact: true }).click();
   await page.waitForTimeout(400);
+  // View-only: at 100% the figure overflows the canvas on the right; 75% fits it whole.
+  if (tab === 'Pinya') {
+    await page.locator('main select[aria-label="Selecciona el nivell de zoom"]').first().selectOption('0.75');
+  }
+}
+
+/** The editor clips its children (overflow: hidden), so draw the red outline inside these. */
+async function insetOutline(page: Page, selector: string): Promise<void> {
+  await page.addStyleTag({ content: `${selector} { outline-offset: -3px !important; }` });
+}
+
+/** Clicks (no drag) the first canvas node labelled `label`, located through Konva's own stage. */
+async function clickCanvasNode(page: Page, label: string): Promise<void> {
+  const point = await page.evaluate((text) => {
+    const konva = (window as unknown as { Konva: { stages: KonvaStage[] } }).Konva;
+    const stage = konva.stages.find((s) => s.container().closest('main[aria-label="Editor visual de la figura"]'));
+    const shape = stage?.find('Text').find((t) => t.text() === text);
+    if (!stage || !shape) return null;
+    const r = shape.getClientRect();
+    const c = stage.container().getBoundingClientRect();
+    return { x: c.left + r.x + r.width / 2, y: c.top + r.y + r.height / 2 };
+  }, label);
+  if (!point) throw new Error(`No canvas node labelled ${label}`);
+  await page.mouse.click(point.x, point.y);
+  await page.getByTestId('color-picker-swatch').waitFor();
+}
+
+interface KonvaStage {
+  container(): HTMLElement;
+  find(selector: string): { text(): string; getClientRect(): { x: number; y: number; width: number; height: number } }[];
 }
 
 export const s05: ManualShot[] = [
@@ -45,11 +89,13 @@ export const s05: ManualShot[] = [
     path: '/pinyes',
     prepare: async (page) => {
       const dialog = page.getByRole('dialog', { name: 'Com funciona el mòdul de Pinyes' });
-      if (!(await dialog.isVisible().catch(() => false))) {
+      // First visit opens it by itself, a moment after the list loads.
+      if (!(await dialog.waitFor({ timeout: 3000 }).then(() => true, () => false))) {
         await page.locator('button[aria-label="Ajuda sobre el mòdul de Pinyes"]').click();
+        await dialog.waitFor();
       }
-      await dialog.waitFor();
     },
+    settle: 500,
   },
   {
     file: '08-plantilles-llista.png',
@@ -83,17 +129,20 @@ export const s05: ManualShot[] = [
   {
     file: '08-plantilles-editor.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
-    prepare: (page) => editorOn(page, 'Pinya'),
+    path: '/pinyes',
+    ready: LIST,
+    prepare: async (page) => {
+      await editorOn(page, 'Pinya');
+      await insetOutline(page, 'header.editor-topbar');
+    },
     highlight: 'header.editor-topbar',
     settle: 1500,
   },
   {
     file: '08-plantilles-previsualitzacio.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: async (page) => {
       await editorOn(page, 'Pinya');
       await page.locator('button[aria-label="Previsualitzar figura"]').click();
@@ -104,13 +153,14 @@ export const s05: ManualShot[] = [
   {
     file: '08-plantilles-dreceres.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: async (page) => {
-      await dismissIntros(page);
+      await openEditor(page);
       await page.locator('button[aria-label="Veure dreceres de teclat"]').click();
       await page.getByRole('dialog', { name: 'Dreceres de teclat' }).waitFor();
     },
+    settle: 500, // the modal fades in from opacity 0
   },
   {
     file: '08-plantilles-nom-figura.png',
@@ -135,6 +185,7 @@ export const s05: ManualShot[] = [
         .locator('ul[aria-label="Llista de composicions"] > li:first-child lib-card > a')
         .click({ position: { x: 24, y: 16 } });
       await page.locator('main[aria-label="Llenç de la composició"] canvas').first().waitFor();
+      await insetOutline(page, 'aside[aria-label="Figures disponibles"]');
     },
     highlight: 'aside[aria-label="Figures disponibles"]',
     settle: 1500,
@@ -143,20 +194,24 @@ export const s05: ManualShot[] = [
   {
     file: '09-plantilles-pinya.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
-    prepare: (page) => editorOn(page, 'Pinya'),
+    path: '/pinyes',
+    ready: LIST,
+    prepare: async (page) => {
+      await editorOn(page, 'Pinya');
+      await insetOutline(page, 'aside[aria-label="Eines"]');
+    },
     highlight: 'aside[aria-label="Eines"]',
     settle: 1500,
   },
   {
     file: '09-plantilles-pinya-propietats.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: async (page) => {
       await editorOn(page, 'Pinya');
-      await selectFirstCanvasNode(page); // click only, no drag
+      await clickCanvasNode(page, 'VENT');
+      await insetOutline(page, '#properties-panel');
     },
     highlight: '#properties-panel',
     settle: 1200,
@@ -164,8 +219,8 @@ export const s05: ManualShot[] = [
   {
     file: '09-plantilles-rengles.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: (page) => editorOn(page, 'Rengles'),
     highlight: 'button[aria-label="Crea rengla nova"]',
     settle: 1500,
@@ -173,8 +228,8 @@ export const s05: ManualShot[] = [
   {
     file: '09-plantilles-rengla-nova.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: async (page) => {
       await editorOn(page, 'Rengles');
       // Starts a pending rengla (local state only). Never press Enter or «Finalitza».
@@ -187,8 +242,8 @@ export const s05: ManualShot[] = [
   {
     file: '10-plantilles-tronc.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: async (page) => {
       await editorOn(page, 'Tronc');
       await page.locator('section[aria-label="Estructura del tronc"]').waitFor();
@@ -199,8 +254,8 @@ export const s05: ManualShot[] = [
   {
     file: '10-plantilles-tronc-node.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: async (page) => {
       await editorOn(page, 'Tronc');
       // First node of a tronc floor (only non-base floors carry the floor delete button).
@@ -216,8 +271,8 @@ export const s05: ManualShot[] = [
   {
     file: '10-plantilles-estructura.png',
     app: 'dashboard',
-    path: EDITOR,
-    ready: EDITOR_CANVAS,
+    path: '/pinyes',
+    ready: LIST,
     prepare: async (page) => {
       await editorOn(page, 'Tronc');
       // Click (not drag) a handle: shows «Trieu qui té davall …»; no link exists until a target is clicked.

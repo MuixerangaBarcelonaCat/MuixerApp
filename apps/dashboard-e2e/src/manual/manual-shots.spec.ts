@@ -64,6 +64,8 @@ async function shoot(page: Page, shot: ManualShot): Promise<void> {
     path: path.join(IMG_DIR, shot.file),
     animations: 'disabled' as const,
     mask: (shot.mask ?? []).map((sel) => page.locator(sel)),
+    maskColor: '#d6d3cd', // neutral grey instead of Playwright's magenta
+
   };
   if (shot.clip) await page.locator(shot.clip).first().screenshot(options);
   else await page.screenshot(options);
