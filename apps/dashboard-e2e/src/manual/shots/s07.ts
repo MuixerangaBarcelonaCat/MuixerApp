@@ -12,7 +12,7 @@ const WS = `/pinyes/events/${EV}/segments/${SEG}/assign?returnUrl=%2Fhome&`;
 
 // A segment where at least one person already holds two places (see the S07 plan for the SQL).
 const C_EV = process.env['MANUAL_CONFLICT_EVENT_ID'] ?? EV;
-const C_SEG = process.env['MANUAL_CONFLICT_SEGMENT_ID'] ?? SEG;
+const C_SEG = process.env['MANUAL_CONFLICT_SEGMENT_ID'] ?? 'ca512ed0-14d3-4874-ae02-ca59543dfdf6';
 
 const IMPORT_TRIGGER = 'button[aria-label="Importa les assignacions d\'una figura anterior"]';
 const RESET_TRIGGER = 'button[aria-label^="Reinicialitza una figura"]';
@@ -20,8 +20,10 @@ const RESET_TRIGGER = 'button[aria-label^="Reinicialitza una figura"]';
 /** With more than one figure, «Selecciona una figura» opens first: pick the first one. */
 async function pickFirstFigureIfAsked(page: Page): Promise<void> {
   const picker = page.locator('dialog[open]').filter({ hasText: 'Selecciona una figura' });
-  if (await picker.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await picker.locator('ul[role="list"] button').first().click();
+  // isVisible() does not wait: let either the picker or the dialog that follows it appear first.
+  await picker.or(page.locator('dialog[open]').filter({ hasNotText: 'Selecciona una figura' })).first().waitFor();
+  if (await picker.isVisible()) {
+    await picker.locator('button:not([aria-label="Tancar"])').first().click();
   }
 }
 
@@ -41,7 +43,7 @@ export const s07: ManualShot[] = [
     file: '12-espai-treball.png',
     app: 'dashboard',
     path: `${WS}tab=troncs`,
-    ready: 'app-troncs-tab [data-figure-card]',
+    ready: 'app-troncs-tab app-tronc-view',
     highlight: 'nav[role="tablist"][aria-label="Vistes del segment"]',
     settle: 800,
   },
@@ -85,20 +87,20 @@ export const s07: ManualShot[] = [
     // Folds «Direccions» and closes the minimap (UI only) so the whole card, variance column
     // included, fits beside the person panel.
     prepare: async (page) => {
-      await page.locator('app-troncs-tab [data-figure-card] .directions-toggle').first().click();
+      await page.locator('app-troncs-tab app-tronc-view .directions-toggle').first().click();
       await page.getByRole('button', { name: 'Mostra o amaga el mapa de figures' }).click();
     },
-    highlight: 'app-troncs-tab [data-figure-card]:first-of-type .floor-variance:has(.floor-gap)',
-    clip: 'app-troncs-tab [data-figure-card]',
+    highlight: 'app-troncs-tab app-tronc-view:first-of-type .floor-variance:has(.floor-gap)',
+    clip: 'app-troncs-tab app-tronc-view',
   },
   {
     file: '12-troncs-moure.png',
     app: 'dashboard',
     path: `${WS}tab=troncs`,
-    ready: 'app-troncs-tab .floor-grid .tronc-node.assigned',
+    ready: 'app-troncs-tab .floor-grid .tronc-node[aria-label*=" va vindre"]',
     // Right-click = start moving. No destination is clicked.
     prepare: async (page) => {
-      await page.locator('app-troncs-tab .floor-grid .tronc-node.assigned').first().click({ button: 'right' });
+      await page.locator('app-troncs-tab .floor-grid .tronc-node[aria-label*=" va vindre"]').first().click({ button: 'right' });
       await page.locator('app-move-banner [role="status"]').waitFor({ timeout: 10_000 });
       await page.mouse.move(5, 790); // hides the hover card
     },

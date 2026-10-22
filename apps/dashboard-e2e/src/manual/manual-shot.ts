@@ -15,8 +15,6 @@ export interface ManualShot {
   prepare?: (page: Page) => Promise<void>;
   /** Locator outlined in red for the shot. */
   highlight?: string;
-  /** Locators masked out (personal data). */
-  mask?: string[];
   /** Shoot only this element instead of the viewport. */
   clip?: string;
   settle?: number;

@@ -8,8 +8,6 @@ const ASSAIG = `/events/${process.env['MANUAL_ASSAIG_ID'] || '3ca87ae1-4f3c-44d1
 const ACTUACIO = `/events/${process.env['MANUAL_ACTUACIO_ID'] || 'ba08ad28-3f49-43df-8879-f6dd0201bfa6'}`;
 const NOTES = `/events/${process.env['MANUAL_NOTES_EVENT_ID'] || 'b5b4ae12-5662-4fb2-8489-2d8babba1d6a'}`;
 const LIST_READY = 'app-data-table tbody tr';
-// «Nom» column of the attendance list (name + first surname).
-const ATTENDANCE_NAME = 'app-attendance-list tbody td:nth-child(2)';
 
 /**
  * Opens an event detail from scratch. The detail component is reused (and keeps the previous
@@ -109,7 +107,6 @@ export const s04: ManualShot[] = [
     path: `${ASSAIG}?tab=assistencia`,
     prepare: freshEvent(`${ASSAIG}?tab=assistencia`, 'app-attendance-list [data-testid="attendance-status"]'),
     highlight: 'app-attendance-list tbody tr:first-child [data-testid="attendance-status"]',
-    mask: [ATTENDANCE_NAME],
   },
   {
     // Nothing typed: the results column stays empty and shows no names.

@@ -8,7 +8,6 @@ async function openUserMenu(page: Page): Promise<void> {
 }
 
 /** The logged-in user's e-mail, shown at the top of the user menu. */
-const USER_MENU_MASK = ['app-user-chip li.menu-title span.truncate'];
 
 /** S01 · 00-benvinguda + 01-primers-passos. lib-card is display:contents, hence the `> *`. */
 export const s01: ManualShot[] = [
@@ -50,7 +49,6 @@ export const s01: ManualShot[] = [
     ready: 'app-user-chip [role="button"]',
     prepare: openUserMenu,
     highlight: 'app-user-chip ul.dropdown-content',
-    mask: USER_MENU_MASK,
   },
   {
     file: '01-aparenca.png',
@@ -59,7 +57,6 @@ export const s01: ManualShot[] = [
     ready: 'app-user-chip [role="button"]',
     prepare: openUserMenu,
     highlight: '[data-testid="appearance-item"]',
-    mask: USER_MENU_MASK,
     clip: 'app-user-chip ul.dropdown-content',
   },
   {
