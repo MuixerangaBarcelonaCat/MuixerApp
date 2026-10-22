@@ -24,13 +24,15 @@ async function mark(locator: Locator): Promise<void> {
   await locator.first().evaluate((el) => el.setAttribute('data-manual-hl', ''));
 }
 
-/** The Pinyes/Troncs view is remembered per browser, so every shot picks it explicitly. */
+/**
+ * The Pinyes/Troncs view is remembered per browser, so every shot picks it explicitly. The switch
+ * is client-side; each shot's `settle` covers the redraw.
+ */
 async function view(page: Page, mode: 'Pinyes' | 'Troncs'): Promise<void> {
   await page
     .locator('div[role="group"][aria-label="Mode de visualització"]')
     .getByRole('button', { name: mode, exact: true })
     .click();
-  await page.waitForLoadState('networkidle').catch(() => undefined);
 }
 
 const pinyes = (page: Page) => view(page, 'Pinyes');
