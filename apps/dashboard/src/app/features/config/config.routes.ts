@@ -10,7 +10,7 @@ import { LegalDocumentsComponent } from './components/legal-documents/legal-docu
 import { ManualComponent } from './components/manual/manual.component';
 
 export const configRoutes: Routes = [
-  { path: '', component: ConfigComponent },
+  { path: '', component: ConfigComponent, data: { title: 'Configuració' } },
   { path: 'users', component: UserListComponent, data: { title: 'Usuaris' } },
   { path: 'tags', component: TagsListComponent, data: { title: 'Etiquetes' } },
   { path: 'tags/:id', component: TagDetailComponent, data: { title: "Detall d'etiqueta" } },

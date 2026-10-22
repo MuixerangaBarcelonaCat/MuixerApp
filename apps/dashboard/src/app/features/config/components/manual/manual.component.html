@@ -1,6 +1,15 @@
 <div class="space-y-4 max-w-6xl mx-auto">
   <lib-button variant="ghost" size="sm" (clicked)="goBack()">← Configuració</lib-button>
 
+  <lib-input
+    type="search"
+    ariaLabel="Cerca al manual"
+    placeholder="Cerca al manual…"
+    [icon]="searchIcon"
+    [ngModel]="query()"
+    (ngModelChange)="setQuery($event)"
+  />
+
   <div class="flex flex-col lg:flex-row gap-6">
     <nav class="hidden lg:block w-60 shrink-0" aria-label="Pàgines del manual">
       @for (group of groups; track group.name) {
@@ -30,7 +39,29 @@
     </div>
 
     <article class="flex-1 min-w-0">
-      @if (!page()) {
+      @if (searching()) {
+        @if (searchLoading()) {
+          <span class="loading loading-spinner loading-md text-base-content/50" aria-label="S'està carregant..."></span>
+        } @else if (hits().length === 0) {
+          <lib-empty-state message="No s'ha trobat cap resultat." />
+        } @else {
+          <ul class="space-y-2">
+            @for (hit of hits(); track hit.slug) {
+              <li>
+                <a
+                  data-testid="manual-hit"
+                  class="block rounded-lg p-3 hover:bg-base-200"
+                  [routerLink]="['/config/manual', hit.slug]"
+                  (click)="query.set('')"
+                >
+                  <span class="font-semibold">{{ hit.title }}</span>
+                  <span class="block text-sm text-base-content/70 line-clamp-3">{{ hit.snippet }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      } @else if (!page()) {
         <lib-empty-state
           message="No s'ha trobat la pàgina."
           actionLabel="Ves a la benvinguda"

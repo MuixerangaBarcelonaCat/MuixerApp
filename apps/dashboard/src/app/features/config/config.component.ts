@@ -17,10 +17,6 @@ import { AuthService } from '../../core/auth/services/auth.service';
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-        <lib-card sash="title" title="Manual" [icon]="ICON_MANUAL" routerLink="manual">
-          <p class="text-md text-base-content/60">Com funciona cada pantalla del Dashboard</p>
-        </lib-card>
-
         <lib-card sash="title" title="Usuaris" [icon]="ICON_USERS" routerLink="users">
           <p class="text-md text-base-content/60">Gestió d'accés i rols</p>
         </lib-card>
@@ -38,6 +34,10 @@ import { AuthService } from '../../core/auth/services/auth.service';
             <p class="text-md text-base-content/60">Política de privacitat i clàusules</p>
           </lib-card>
         }
+
+        <lib-card sash="title" title="Manual" [icon]="ICON_MANUAL" routerLink="manual">
+          <p class="text-md text-base-content/60">Com funciona cada pantalla del Dashboard</p>
+        </lib-card>
 
         @if (auth.isAdmin()) {
           <lib-card sash="title" title="Design System" [icon]="ICON_DESIGN_SYSTEM" routerLink="/design-system">
