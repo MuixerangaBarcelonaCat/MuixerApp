@@ -25,12 +25,12 @@ import { PushSubscriptionService } from '../../services/push-subscription.servic
   template: `
     <main
       [class.mx-auto]="!layout.isFullscreen()"
-      [class.min-h-screen]="!layout.isFullscreen()"
+      [class.min-h-dvh]="!layout.isFullscreen()"
       [class.w-full]="!layout.isFullscreen()"
       [class.max-w-2xl]="!layout.isFullscreen()"
-      [class.pb-20]="!layout.isFullscreen()"
+      [class.pb-above-tab-bar]="!layout.isFullscreen()"
       [class.pt-safe-top]="!layout.isFullscreen()"
-      [class.px-4]="!layout.isFullscreen()"
+      [class.px-safe]="!layout.isFullscreen()"
     >
       @if (!auth.hasLinkedPerson() && !layout.isFullscreen()) {
         <div class="mb-4">

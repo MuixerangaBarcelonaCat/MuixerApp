@@ -26,6 +26,26 @@
 @import 'interactive';
 @import 'fields';
 
+// Safe-area aware spacing for the installed app (viewport-fit=cover): the iPhone home indicator
+// and the landscape notch eat into the viewport, so fixed chrome and the scroll area must add
+// env(safe-area-inset-*) on top of their own spacing. 3.5rem is BottomTabBar's h-14; the extra
+// 1.5rem is the gap the old pb-20/bottom-20 gave. viewport.spec.ts guards their use.
+@layer utilities {
+  .pb-above-tab-bar {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+  .bottom-above-tab-bar {
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+  .bottom-safe-4 {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+  .px-safe {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
 @layer base {
   html {
     font-family: 'Quicksand', system-ui, sans-serif;
