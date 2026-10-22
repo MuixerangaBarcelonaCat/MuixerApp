@@ -15,6 +15,13 @@ function runPreBoot(stored: string | null): string | undefined {
   return document.documentElement.dataset['theme'];
 }
 
+describe('index.html pre-boot placeholder', () => {
+  it('fills app-root so the screen is not blank while Angular boots', () => {
+    const appRoot = html.match(/<app-root>([\s\S]*?)<\/app-root>/)?.[1] ?? '';
+    expect(appRoot).toMatch(/<img[^>]+src="icons\/icon-192\.png"/);
+  });
+});
+
 describe('index.html theme', () => {
   afterEach(() => {
     delete document.documentElement.dataset['theme'];
