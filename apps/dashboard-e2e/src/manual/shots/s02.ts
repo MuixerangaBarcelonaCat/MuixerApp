@@ -7,7 +7,7 @@ import { TARGETS } from '../../audit/audit-targets';
  * and pass them as env vars; the fallback only guarantees the route loads.
  */
 const PERSON = {
-  detail: TARGETS.personId, // "PERSIANA"
+  detail: process.env['MANUAL_PERSON_DETAIL_ID'] || 'f964b0dd-6396-4ec6-991e-12f99494da66', // "PERSIANA"
   history: process.env['MANUAL_PERSON_HISTORY_ID'] || TARGETS.personId,
   pendingAccount: process.env['MANUAL_PERSON_PENDING_ID'] || TARGETS.personId,
   xicallaNoGuardian: process.env['MANUAL_PERSON_XICALLA_ID'] || TARGETS.personId,
@@ -18,6 +18,16 @@ const PERSON = {
 const LIST_READY = 'app-data-table tbody a[href^="/persons/"]';
 /** "Nom complet" is the 2nd default column of the persons table. */
 const LIST_MASK = ['app-data-table tbody td:nth-child(2)'];
+/**
+ * Same as LIST_MASK but painted in the page, so a dropdown or modal stays on top of it
+ * (Playwright masks are drawn over everything). Colour = the harness's maskColor.
+ */
+async function blankListNames(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: `app-data-table tbody td:nth-child(2), app-data-table tbody td:nth-child(2) * {
+      color: transparent !important; background: #d6d3cd !important; }`,
+  });
+}
 
 const INFO_PERSONAL = 'lib-card[title="Informació personal"]';
 const INFO_COLLA = 'lib-card[title="Informació de la colla"]';
@@ -91,9 +101,12 @@ export const s02: ManualShot[] = [
     prepare: async (page) => {
       await page.locator('lib-select[label="Etiquetes"] [data-testid="lib-select-multi-trigger"]').click();
       await page.locator('[data-testid="lib-select-multi"] [role="listbox"]').waitFor();
+      await page
+        .locator('[data-testid="lib-select-multi"] li[role="option"]:has-text("Falten etiquetes")')
+        .scrollIntoViewIfNeeded();
+      await blankListNames(page);
     },
     highlight: '[data-testid="lib-select-multi"] li[role="option"]:has-text("Falten etiquetes")',
-    mask: LIST_MASK,
   },
   {
     file: '03-persones-provisionals.png',
@@ -116,25 +129,16 @@ export const s02: ManualShot[] = [
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Persona nova' }).click();
       await page.locator('dialog[open]').waitFor();
+      await blankListNames(page); // the table stays visible behind the modal backdrop
     },
-    mask: LIST_MASK, // the table stays visible behind the modal backdrop
   },
   {
     file: '03-persona-fitxa.png',
     app: 'dashboard',
-    path: `/persons/${PERSON.detail}`,
+    path: `/persons/${PERSON.history}`, // a filled-in sheet with pinyes history
     ready: DETAIL_READY,
     mask: DETAIL_MASK,
     settle: 800, // delegates and history load after the person
-  },
-  {
-    file: '03-persona-edicio.png',
-    app: 'dashboard',
-    path: `/persons/${PERSON.detail}`,
-    ready: DETAIL_READY,
-    prepare: startEditing, // never clicks «Alça»
-    highlight: `${INFO_COLLA} [data-tag-group]`,
-    mask: EDIT_MASK,
   },
   {
     file: '03-persona-compte-pendent.png',
@@ -167,6 +171,30 @@ export const s02: ManualShot[] = [
     settle: 800,
   },
   {
+    file: '03-persona-historial.png',
+    app: 'dashboard',
+    path: `/persons/${PERSON.history}`,
+    ready: DETAIL_READY,
+    prepare: async (page) => {
+      // The full history is taller than the scrolling main area and comes out half blank; keep 10 rows.
+      await page.addStyleTag({ content: 'div.collapse tbody tr:nth-child(n+11) { display: none; }' });
+      await page.locator('div.collapse:has-text("Historial de pinyes")').evaluate((el) => el.scrollIntoView({ block: 'end' }));
+      await page.mouse.move(0, 0); // no hovered row
+    },
+    clip: 'div.collapse:has-text("Historial de pinyes")',
+    settle: 1000,
+  },
+  // Edit mode survives a navigation to another person (same component), so these go last.
+  {
+    file: '03-persona-edicio.png',
+    app: 'dashboard',
+    path: `/persons/${PERSON.detail}`,
+    ready: DETAIL_READY,
+    prepare: startEditing, // never clicks «Alça»
+    highlight: `${INFO_COLLA} [data-tag-group]`,
+    mask: EDIT_MASK,
+  },
+  {
     file: '03-persona-delegat.png',
     app: 'dashboard',
     path: `/persons/${PERSON.detail}`,
@@ -174,20 +202,12 @@ export const s02: ManualShot[] = [
     prepare: async (page) => {
       await startEditing(page);
       await page.getByRole('button', { name: '+ Afegeix' }).click();
-      await page.locator('dialog[open]').waitFor();
+      await page.locator('dialog[open] [role="listbox"] li').first().waitFor();
+      // Masks are drawn above the list's overflow clip: keep only the 4 rows it shows, all masked.
+      await page.addStyleTag({ content: 'dialog[open] [role="listbox"] li:nth-child(n+5) { display: none; }' });
     },
-    mask: [
-      ...EDIT_MASK,
-      'dialog[open] [role="listbox"] button > div:first-child', // alias + e-mail of each user
-    ],
+    mask: ['dialog[open] [role="listbox"] button > div:first-child'], // alias + e-mail of each user
+    clip: 'dialog[open] .modal-box', // the sheet behind is the same as 03-persona-edicio
     settle: 800, // the user list is debounced
-  },
-  {
-    file: '03-persona-historial.png',
-    app: 'dashboard',
-    path: `/persons/${PERSON.history}`,
-    ready: DETAIL_READY,
-    clip: 'div.collapse:has-text("Historial de pinyes")',
-    settle: 1000,
   },
 ];

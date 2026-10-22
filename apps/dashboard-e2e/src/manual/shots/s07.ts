@@ -6,7 +6,9 @@ import { TARGETS } from '../../audit/audit-targets';
 // (so «Importa …» has history). A locked segment disables the import/reset buttons.
 const EV = process.env['MANUAL_WS_EVENT_ID'] ?? TARGETS.workspaceEventId;
 const SEG = process.env['MANUAL_WS_SEGMENT_ID'] ?? TARGETS.workspaceSegmentId;
-const WS = `/pinyes/events/${EV}/segments/${SEG}/assign`;
+// `returnUrl` makes the workspace's popstate handler (fired by the harness's SPA navigation) go to
+// /home instead of `location.back()`, which walks history past the login page to about:blank.
+const WS = `/pinyes/events/${EV}/segments/${SEG}/assign?returnUrl=%2Fhome&`;
 
 // A segment where at least one person already holds two places (see the S07 plan for the SQL).
 const C_EV = process.env['MANUAL_CONFLICT_EVENT_ID'] ?? EV;
@@ -28,7 +30,7 @@ async function openImportPreview(page: Page): Promise<void> {
   await page.locator(IMPORT_TRIGGER).first().click();
   await pickFirstFigureIfAsked(page);
   const list = page.locator('[role="listbox"][aria-label="Pinyes anteriors"]');
-  await list.waitFor();
+  await list.waitFor({ timeout: 10_000 });
   await list.locator('button[role="option"]:not([disabled])').first().click();
   await page.waitForTimeout(1500);
 }
@@ -38,7 +40,7 @@ export const s07: ManualShot[] = [
   {
     file: '12-espai-treball.png',
     app: 'dashboard',
-    path: `${WS}?tab=troncs`,
+    path: `${WS}tab=troncs`,
     ready: 'app-troncs-tab [data-figure-card]',
     highlight: 'nav[role="tablist"][aria-label="Vistes del segment"]',
     settle: 800,
@@ -46,12 +48,15 @@ export const s07: ManualShot[] = [
   {
     file: '12-troncs-lloc-seleccionat.png',
     app: 'dashboard',
-    path: `${WS}?tab=troncs`,
+    path: `${WS}tab=troncs`,
     ready: 'app-troncs-tab .floor-grid .tronc-node',
-    // Selects an EMPTY tronc place: the list reorders and «Xicalla» switches on by itself.
-    // The assignment state resets on load, so no person is pending to be assigned by this click.
+    // Selects a tronc place (an empty one if any; the demo tronc is full): the list reorders and
+    // «Xicalla» switches on by itself. The assignment state resets on load, so no person is pending.
     prepare: async (page) => {
-      await page.locator('app-troncs-tab .floor-grid .tronc-node:not(.assigned)').first().click();
+      const empty = page.locator('app-troncs-tab .floor-grid .tronc-node:not(.assigned)');
+      const node = (await empty.count()) ? empty.first() : page.locator('app-troncs-tab .floor-grid .tronc-node').first();
+      await node.click();
+      await page.mouse.move(5, 790); // hides the hover card
       await page.waitForTimeout(1200);
     },
     highlight: 'app-troncs-tab app-person-panel',
@@ -59,38 +64,50 @@ export const s07: ManualShot[] = [
   {
     file: '12-panell-persones.png',
     app: 'dashboard',
-    path: `${WS}?tab=troncs`,
+    path: `${WS}tab=troncs`,
     ready: '[data-testid="person-panel-counters"]',
-    // Expands «Altres» to show «No ve» and «Pendents».
+    // Folds «A la pinya» and «Al tronc» and unfolds «Altres» (UI only) so every group, with
+    // «No ve» and «Pendents», fits in the panel.
     prepare: async (page) => {
-      await page.locator('app-person-panel button').filter({ hasText: /^\s*Altres/ }).first().click();
+      const panel = page.locator('app-troncs-tab app-person-panel');
+      for (const group of [/^\s*A la pinya/, /^\s*Al tronc/, /^\s*Altres/]) {
+        await panel.locator('button').filter({ hasText: group }).first().click();
+      }
+      await page.mouse.move(5, 790);
     },
     clip: 'app-troncs-tab app-person-panel',
   },
   {
     file: '12-troncs-alcades.png',
     app: 'dashboard',
-    path: `${WS}?tab=troncs`,
+    path: `${WS}tab=troncs`,
     ready: 'app-troncs-tab .floor-variance',
-    highlight: 'app-troncs-tab [data-figure-card]:first-of-type .floor-variance',
+    // Folds «Direccions» and closes the minimap (UI only) so the whole card, variance column
+    // included, fits beside the person panel.
+    prepare: async (page) => {
+      await page.locator('app-troncs-tab [data-figure-card] .directions-toggle').first().click();
+      await page.getByRole('button', { name: 'Mostra o amaga el mapa de figures' }).click();
+    },
+    highlight: 'app-troncs-tab [data-figure-card]:first-of-type .floor-variance:has(.floor-gap)',
     clip: 'app-troncs-tab [data-figure-card]',
   },
   {
     file: '12-troncs-moure.png',
     app: 'dashboard',
-    path: `${WS}?tab=troncs`,
+    path: `${WS}tab=troncs`,
     ready: 'app-troncs-tab .floor-grid .tronc-node.assigned',
     // Right-click = start moving. No destination is clicked.
     prepare: async (page) => {
       await page.locator('app-troncs-tab .floor-grid .tronc-node.assigned').first().click({ button: 'right' });
-      await page.locator('app-move-banner').waitFor();
+      await page.locator('app-move-banner [role="status"]').waitFor({ timeout: 10_000 });
+      await page.mouse.move(5, 790); // hides the hover card
     },
-    highlight: 'app-move-banner',
+    highlight: 'app-move-banner [role="status"]',
   },
   {
     file: '12-importa-tronc.png',
     app: 'dashboard',
-    path: `${WS}?tab=troncs`,
+    path: `${WS}tab=troncs`,
     ready: IMPORT_TRIGGER,
     prepare: openImportPreview,
     settle: 800,
@@ -100,7 +117,7 @@ export const s07: ManualShot[] = [
   {
     file: '13-pinyes.png',
     app: 'dashboard',
-    path: `${WS}?tab=pinyes`,
+    path: `${WS}tab=pinyes`,
     ready: 'app-pinyes-tab app-figure-canvas canvas',
     highlight: '[data-testid="person-panel-counters"]',
     settle: 2000,
@@ -108,7 +125,7 @@ export const s07: ManualShot[] = [
   {
     file: '13-pinyes-capcalera.png',
     app: 'dashboard',
-    path: `${WS}?tab=pinyes`,
+    path: `${WS}tab=pinyes`,
     ready: RESET_TRIGGER,
     highlight: RESET_TRIGGER,
     clip: 'app-segment-workspace header',
@@ -116,19 +133,19 @@ export const s07: ManualShot[] = [
   {
     file: '13-reinicialitza.png',
     app: 'dashboard',
-    path: `${WS}?tab=pinyes`,
+    path: `${WS}tab=pinyes`,
     ready: RESET_TRIGGER,
     // Only opens the confirmation. «Elimina-ho tot» is NEVER pressed.
     prepare: async (page) => {
       await page.locator(RESET_TRIGGER).first().click();
       await pickFirstFigureIfAsked(page);
-      await page.locator('dialog[open]').filter({ hasText: 'Elimina-ho tot' }).waitFor();
+      await page.locator('dialog[open]').filter({ hasText: 'Elimina-ho tot' }).waitFor({ timeout: 10_000 });
     },
   },
   {
     file: '13-importa-pinya.png',
     app: 'dashboard',
-    path: `${WS}?tab=pinyes`,
+    path: `${WS}tab=pinyes`,
     ready: IMPORT_TRIGGER,
     prepare: openImportPreview,
     settle: 800,
@@ -141,19 +158,23 @@ export const s07: ManualShot[] = [
     path: `/events/${C_EV}?tab=pinyes`,
     ready: '[data-testid="segment-conflict-pill"]',
     prepare: async (page) => {
-      await page.getByTestId('segment-conflict-pill').first().hover();
-      await page.getByTestId('segment-conflict-popover').waitFor();
+      // Scroll first: a scroll after opening closes the popover.
+      const pill = page.getByTestId('segment-conflict-pill').first();
+      await pill.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(500);
+      await pill.hover();
+      await page.getByTestId('segment-conflict-popover').waitFor({ timeout: 10_000 });
     },
     highlight: '[data-testid="segment-conflict-popover"]',
   },
   {
     file: '14-panell-conflictes.png',
     app: 'dashboard',
-    path: `/pinyes/events/${C_EV}/segments/${C_SEG}/assign?tab=pinyes`,
+    path: `/pinyes/events/${C_EV}/segments/${C_SEG}/assign?returnUrl=%2Fhome&tab=pinyes`,
     ready: 'app-segment-conflict-panel >> text=en conflicte',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Mostra', exact: true }).click();
-      await page.locator('#segment-conflict-panel-body').waitFor();
+      await page.locator('#segment-conflict-panel-body').waitFor({ timeout: 10_000 });
     },
     highlight: '#segment-conflict-panel-body',
     settle: 1500,
@@ -166,6 +187,8 @@ export const s07: ManualShot[] = [
     // Switches on «Només conflictes» (a filter, no data change).
     prepare: async (page) => {
       await page.getByTestId('participation-conflict-counter').click();
+      // Scroll so the filtered rows show under the counter.
+      await page.locator('app-event-participation').evaluate((el) => el.scrollIntoView());
     },
     highlight: '[data-testid="participation-conflict-counter"]',
   },

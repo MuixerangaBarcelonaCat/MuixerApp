@@ -1,6 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 import { ManualShot } from '../manual-shot';
 import { TARGETS } from '../../audit/audit-targets';
+import { spaGoto } from '../../audit/audit-core';
 
 /**
  * Segments i figures (pàgina 11). Needs an event that is NOT locked (dated < 2 days ago or
@@ -88,8 +89,11 @@ export const s06: ManualShot[] = [
       // Local selection only — «Confirma (N)» is never clicked.
       await list.locator('li:nth-child(1) button').click();
       await list.locator('li:nth-child(2) button').click();
+      // Its scroll container clips an outer outline: draw it inside.
+      await page.addStyleTag({ content: 'ul[aria-label="Figures seleccionades"] { outline-offset: -3px !important; }' });
     },
     highlight: 'ul[aria-label="Figures seleccionades"]',
+    settle: 500,
   },
   {
     file: '11-segments-composicio-picker.png',
@@ -103,7 +107,9 @@ export const s06: ManualShot[] = [
       await dialog.getByRole('tab', { name: 'Composicions', exact: true }).click();
       // Selecting is local; «Aplica «…»» is never clicked.
       await dialog.locator('ul[aria-label="Composicions disponibles"] li:first-child button').click();
+      await page.mouse.move(0, 0); // drop the hover state off the selected row
     },
+    settle: 800, // the selection and the «Aplica» button fade in
   },
   {
     file: '11-segments-copia.png',
@@ -124,7 +130,11 @@ export const s06: ManualShot[] = [
     ready: SEGMENTS,
     prepare: async (page) => {
       await pinyes(page);
-      await page.locator('[data-testid="segment-conflict-pill"]').first().hover();
+      // Any scroll closes the popover, so scroll first and let it settle before hovering.
+      const pill = page.locator('[data-testid="segment-conflict-pill"]').first();
+      await pill.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(500);
+      await pill.hover();
       await page.locator('[data-testid="segment-conflict-popover"]').waitFor();
     },
     highlight: '[data-testid="segment-conflict-pill"]',
@@ -144,6 +154,17 @@ export const s06: ManualShot[] = [
     path: LOCKED_EVENT,
     ready: SEGMENTS,
     prepare: async (page) => {
+      // The dev API runs with ASSIGNMENT_LOCK_DAYS=200, so no event with segments is locked yet.
+      // Answer lock-status as production does (default 2 days: locked once the date is 2+ days
+      // past) and reload the event so the page reads it. `times: 1`: later shots see the real API.
+      await page.route(
+        `**/api/events/${LOCKED_EVENT_ID}/lock-status`,
+        (route) => route.fulfill({ json: { locked: true, lockDate: null, lockDays: 2 } }),
+        { times: 1 },
+      );
+      await spaGoto(page, '/home');
+      await spaGoto(page, LOCKED_EVENT);
+      await page.locator(SEGMENTS).waitFor({ state: 'attached', timeout: 20_000 });
       await pinyes(page);
       await mark(page.locator('lib-badge > span').filter({ hasText: 'Assignacions bloquejades' }));
     },

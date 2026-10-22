@@ -20,6 +20,9 @@ export const s03: ManualShot[] = [
     app: 'dashboard',
     path: '/config/tags',
     ready: TAGS_READY,
+    prepare: async (page) => {
+      await page.mouse.move(0, 0); // the pointer is left over a row's «Elimina» by the previous shot
+    },
     highlight: 'app-tags-list button:has-text("Etiqueta persones")',
   },
   {
@@ -59,17 +62,21 @@ export const s03: ManualShot[] = [
       await page.getByRole('row', { name: /1es Mans/ }).locator('td.font-medium').click();
       await page.locator('app-tag-detail app-data-table').waitFor();
     },
-    highlight: 'app-tag-detail app-person-search-input input',
+    highlight: 'app-tag-detail app-person-search-input label', // the whole field, not the bare <input>
   },
   {
     // Person panel of the segment workspace with the tag filter open.
     file: '04-panell-filtre-etiqueta.png',
     app: 'dashboard',
-    path: `/pinyes/events/${TARGETS.workspaceEventId}/segments/${TARGETS.workspaceSegmentId}/assign/${TARGETS.workspaceInstanceId}`,
+    // An event with attendance, so the panel lists people. `returnUrl`: see s07 (keeps the
+    // workspace's popstate handler off `location.back()`, which ends on about:blank).
+    path: `/pinyes/events/${process.env['MANUAL_WS_EVENT_ID'] ?? TARGETS.workspaceEventId}/segments/${
+      process.env['MANUAL_WS_SEGMENT_ID'] ?? TARGETS.workspaceSegmentId
+    }/assign?returnUrl=%2Fhome`,
     ready: 'app-person-panel',
     prepare: async (page) => {
       await page.getByRole('button', { name: 'Filtra per etiqueta' }).click();
-      await page.getByPlaceholder('Cerca etiqueta...').waitFor();
+      await page.getByPlaceholder('Cerca etiqueta...').first().waitFor();
     },
     clip: 'app-person-panel',
     settle: 800,
