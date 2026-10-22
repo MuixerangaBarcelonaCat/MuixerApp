@@ -9,6 +9,8 @@
     "node": ">=22.19.0 <23.0.0"
   },
   "scripts": {
+    "dev:up": "scripts/dev-up.sh",
+    "dev:down": "scripts/dev-down.sh",
     "dev:db": "docker compose up -d",
     "dev:api": "nx serve api --no-watch",
     "dev:dashboard": "nx serve dashboard",
