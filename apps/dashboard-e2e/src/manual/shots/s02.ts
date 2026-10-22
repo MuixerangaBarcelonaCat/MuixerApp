@@ -83,8 +83,9 @@ export const s02: ManualShot[] = [
     path: '/persons',
     ready: LIST_READY,
     prepare: async (page) => {
+      const list = page.waitForResponse((r) => r.url().includes('/api/persons'));
       await page.getByRole('button', { name: 'Provisionals' }).click();
-      await page.waitForLoadState('networkidle');
+      await list;
     },
     highlight: 'lib-button-group > *', // Cens / Provisionals
     settle: 500,
