@@ -13,13 +13,12 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { Subscription } from 'rxjs';
-import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM, attendanceGroupLabel, EventPhase, isArrivalPhase } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM, attendanceGroupLabel, EventPhase, isArrivalPhase, isStartedPhase } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
@@ -65,6 +64,8 @@ export class PersonPanelComponent {
   /** Before / on / after the event day: groups by arrival from the event day on. */
   readonly phase = input<EventPhase>('before');
   readonly arrivals = computed(() => isArrivalPhase(this.phase()));
+  /** From the start time on, those still to come are late and the unanswered count as not coming. */
+  readonly started = computed(() => isStartedPhase(this.phase()));
 
   /** Header of a person group, with the shared phase labels («Aniré», «Ha vingut», «Pendents»…). */
   groupLabel(status: AttendanceStatus): string {
@@ -95,6 +96,7 @@ export class PersonPanelComponent {
   readonly ChevronUp = ChevronUp;
   readonly UserX = UserX;
   readonly ICON_OBSERVACIONS = DOMAIN_ICONS.OBSERVACIONS;
+  readonly ICON_ACTUACIO = DOMAIN_ICONS.ACTUACIO;
 
   /** Full segment roster (every status, xicalla included); the filters below are applied client-side. */
   readonly persons = signal<AvailablePerson[]>([]);
@@ -231,6 +233,8 @@ export class PersonPanelComponent {
           name: assignment.person.name,
           firstSurname: assignment.person.firstSurname,
           shoulderHeight: assignment.person.shoulderHeight,
+          // The assignment carries no gender (members' projection reads it too): unknown until the roster reloads.
+          gender: null,
           notes: assignment.person.notes,
           notesEmoji: assignment.person.notesEmoji,
           isXicalla: false,
@@ -320,13 +324,13 @@ export class PersonPanelComponent {
   );
 
   readonly pendingPersons = computed(() =>
-    this.arrivals()
+    this.started()
       ? []
       : this.freePersons().filter((p) => p.attendanceStatus === 'PENDENT'),
   );
 
   readonly declinedPersons = computed(() =>
-    this.arrivals()
+    this.started()
       ? this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG' || p.attendanceStatus === 'PENDENT')
       : this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
   );

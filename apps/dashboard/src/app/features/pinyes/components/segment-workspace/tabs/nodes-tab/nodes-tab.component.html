@@ -89,7 +89,7 @@
               (clicked)="onPresetSelected(preset)"
             >
               <span class="flex w-full items-center gap-1.5 min-w-0 text-left">
-                <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" [style.backgroundColor]="preset.color"></span>
+                <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" [style.backgroundColor]="presetSwatch(preset)"></span>
                 <span class="truncate">{{ preset.requiresCustomLabel ? '...' : preset.label }}</span>
               </span>
             </lib-button>

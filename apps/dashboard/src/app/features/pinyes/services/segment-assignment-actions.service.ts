@@ -370,7 +370,6 @@ export class SegmentAssignmentActionsService {
 
     this.performSwap(instanceId, assignment1.id, assignment2.id).subscribe({
       next: () => {
-        this.toast.success("S'han intercanviat les persones.");
         // Fase 5: a swap can create/resolve a duplicate — keep the banner live.
         this.ws.reloadConflicts();
         // Swap preserves both assignment ids server-side, so it's its own inverse:
@@ -449,7 +448,6 @@ export class SegmentAssignmentActionsService {
 
     applyCrossSwap(person2Id, person1Id).subscribe({
       next: () => {
-        this.toast.success("S'han intercanviat les persones.");
         // Fase 5: a cross-figure swap can create/resolve a duplicate — keep the banner live.
         this.ws.reloadConflicts();
         this.undoRedo.push({

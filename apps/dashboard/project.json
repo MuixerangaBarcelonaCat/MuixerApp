@@ -18,6 +18,11 @@
           {
             "glob": "**/*",
             "input": "apps/dashboard/public"
+          },
+          {
+            "glob": "**/*",
+            "input": "docs/manual",
+            "output": "manual"
           }
         ],
         "styles": ["apps/dashboard/src/styles.scss"],

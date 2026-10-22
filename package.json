@@ -45,7 +45,8 @@
     "lint:dead": "knip --no-exit-code",
     "lint:tokens": "node scripts/check-design-tokens.mjs",
     "docs:map": "node scripts/generate-doc-map.mjs",
-    "docs:model": "node scripts/generate-data-model.mjs"
+    "docs:model": "node scripts/generate-data-model.mjs",
+    "docs:manual-shots": "playwright test -c apps/dashboard-e2e/playwright.manual.config.ts"
   },
   "repository": {
     "type": "git",

@@ -20,9 +20,10 @@ import {
   TAG_CATEGORY_LABELS,
   BASE_POSITION_TYPE,
 } from '@muixer/shared';
+import { positionTypeColor } from '@muixer/pinyes-render';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount, CreateTagDto, UpdateTagDto } from '../../models/tag.model';
-import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent, TextareaComponent, ToastService, buildCategoricalHexPresets } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent, TextareaComponent, ToastService, SEMANTIC, buildCategoricalHexPresets } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 
 export interface PresetOption {
@@ -38,7 +39,8 @@ export interface PositionTypeGroup {
   presets: PresetOption[];
 }
 
-const DEFAULT_COLOR = '#6366f1';
+// A new tag starts in the categorical blue until a position type or a swatch gives it a color.
+const DEFAULT_COLOR: string = SEMANTIC.info;
 
 @Component({
   selector: 'app-tag-form-modal',
@@ -71,7 +73,7 @@ export class TagFormModalComponent {
       presets: TRONC_NODE_PRESETS.map((p: TroncNodePreset) => ({
         positionType: p.positionType,
         label: p.label,
-        color: p.color,
+        color: positionTypeColor(p.positionType),
       })),
     },
     {
@@ -80,7 +82,7 @@ export class TagFormModalComponent {
       presets: PINYA_NODE_PRESETS.map((p: NodePreset) => ({
         positionType: p.positionType as string,
         label: p.label,
-        color: p.color ?? DEFAULT_COLOR,
+        color: positionTypeColor(p.positionType as string),
       })),
     },
     {
@@ -89,13 +91,13 @@ export class TagFormModalComponent {
       presets: DIRECTION_NODE_PRESETS.map((p: NodePreset) => ({
         positionType: p.positionType as string,
         label: p.label,
-        color: p.color ?? DEFAULT_COLOR,
+        color: positionTypeColor(p.positionType as string),
       })),
     },
     {
       label: 'Base',
       category: TagCategory.TRONC,
-      presets: [{ positionType: BASE_POSITION_TYPE, label: 'Base', color: '#64748b' }],
+      presets: [{ positionType: BASE_POSITION_TYPE, label: 'Base', color: positionTypeColor(BASE_POSITION_TYPE) }],
     },
   ];
 
