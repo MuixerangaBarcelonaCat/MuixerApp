@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, CanvasMode, InstanceDetail, SegmentDetail, TroncNodeItem, AssignmentDetail } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, CanvasMode, InstanceDetail, SegmentDetail, TroncNodeItem, AssignmentDetail, FIGURE_PALETTE, PinnedCardComponent, FigureLink, FigureBand, getFigureBand, fade } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -19,7 +19,7 @@ import { EventSegmentService } from '../../../../services/event-segment.service'
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
-import { ToastService } from '@muixer/ui';
+import { PAPER, ThemeService, ToastService } from '@muixer/ui';
 import { SegmentDistributionData } from '../../../../models/distribution.model';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -33,7 +33,9 @@ class StubFigureCanvas {
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
   readonly troncPanelVisualHidden = input<boolean>(false);
+  readonly figureLinks = input<FigureLink[]>([]);
   readonly slotSelected = output<string | null>();
+  readonly slotDragMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
   readonly troncPanelMoved = output<{ slotId: string; x: number; y: number }>();
@@ -55,9 +57,8 @@ class StubTroncView {
   readonly baseNodes = input<TroncNodeItem[]>([]);
   readonly directionNodes = input<TroncNodeItem[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
-  readonly panelColor = input<string | null>(null);
-  readonly panelBorderColor = input<string | null>(null);
   readonly figureName = input<string | null>(null);
+  readonly nameBand = input<FigureBand | null>(null);
 }
 
 @Component({ selector: 'app-figure-properties-panel', standalone: true, template: '' })
@@ -468,6 +469,109 @@ describe('DistribucioTabComponent', () => {
       expect(panel.screenX).toBe(100 * 2 + 5);
       expect(panel.screenY).toBe(50 * 2 + 10);
       expect(troncViewStubs()).toHaveLength(1);
+    });
+
+    describe('string and pins', () => {
+      // A at (100, 50) and B far away; each holds one 30 × 30 node at its centre.
+      const twoFigures = () =>
+        setup({
+          instances: [makeInstance(INST_A), makeInstance(INST_B, { sortOrder: 1 })],
+          items: [makeDistributionItem(INST_A), makeDistributionItem(INST_B, { sortOrder: 1, projectionX: 3000 })],
+        });
+      /** Places A's panel up and to the right of A, measured 200 × 100. */
+      const placePanelA = () => {
+        canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 300, y: -200 });
+        measurerStub()?.sizesReady.emit(new Map([[INST_A, { width: 200, height: 100 }]]));
+        fixture.detectChanges();
+      };
+      const linkA = () => component.figureLinks().find((l) => l.color === FIGURE_PALETTE[0]);
+
+      it('ties a panel to the corner of its figure nearest the panel, from the card edge facing the figure', async () => {
+        await twoFigures();
+        placePanelA();
+
+        expect(linkA()).toMatchObject({ pin: { x: 115, y: 35 }, cardEdge: 'bottom' });
+        expect(canvasStub().figureLinks()).toEqual(component.figureLinks());
+        const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
+        expect([card.color(), card.edge(), card.tilt()]).toEqual([FIGURE_PALETTE[0], 'bottom', -1]);
+        expect(fixture.debugElement.query(By.css('lib-pinned-card app-tronc-view'))).not.toBeNull();
+        expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0));
+      });
+
+      it('lightens the string and darkens the name band when the app is dark', async () => {
+        await twoFigures();
+        const theme = TestBed.inject(ThemeService);
+        try {
+          theme.setPreference('dark');
+          placePanelA();
+
+          expect(linkA()?.stringColor).toBe(fade(FIGURE_PALETTE[0], 0.2, PAPER.white));
+          expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0, 'dark'));
+        } finally {
+          theme.setPreference('system');
+          localStorage.clear();
+        }
+      });
+
+      it('pins only nodes someone stands on', async () => {
+        const nodes = [makeDistributionNode('n1', 'PINYA'), { ...makeDistributionNode('n2', 'PINYA'), y: -100 }];
+        await setup({
+          instances: [makeInstance(INST_A), makeInstance(INST_B, { sortOrder: 1 })],
+          items: [
+            makeDistributionItem(INST_A, {
+              figureTemplate: { id: 'tpl-a', name: 'A', nodes },
+              assignments: [{ figureNodeId: 'n1', personId: 'p1', personAlias: 'Pep' }],
+            }),
+            makeDistributionItem(INST_B, { sortOrder: 1, projectionX: 3000 }),
+          ],
+        });
+        placePanelA();
+
+        // n2 is closer to the panel, but nobody stands on it. The pivot is the centre of both nodes.
+        expect(linkA()?.pin).toEqual({ x: 115, y: 85 });
+      });
+
+      it('waits for the panel to be placed and measured before drawing its string', async () => {
+        await twoFigures();
+        canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 300, y: -200 });
+        fixture.detectChanges();
+
+        expect(component.figureLinks()).toEqual([]);
+      });
+
+      it('follows a figure while it is dragged, before it settles', async () => {
+        await twoFigures();
+        placePanelA();
+
+        canvasStub().slotDragMoved.emit({ slotId: INST_A, offsetX: 150, offsetY: 50, angle: 0 });
+        fixture.detectChanges();
+
+        expect(linkA()?.pin).toEqual({ x: 165, y: 35 });
+      });
+
+      it('leaves the tronc panels alone while a figure is dragged, as long as the pinned edge stays', async () => {
+        await twoFigures();
+        placePanelA();
+        const panels = component.troncViewPanels();
+
+        canvasStub().slotDragMoved.emit({ slotId: INST_A, offsetX: 150, offsetY: 50, angle: 0 });
+        fixture.detectChanges();
+
+        expect(linkA()?.pin).toEqual({ x: 165, y: 35 });
+        expect(component.troncViewPanels()).toBe(panels);
+      });
+
+      it('draws no pin and no string for a segment with a single figure, but keeps the name band', async () => {
+        await setup();
+        canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 300, y: -200 });
+        measurerStub()?.sizesReady.emit(new Map([[INST_A, { width: 200, height: 100 }]]));
+        fixture.detectChanges();
+
+        expect(component.figureLinks()).toEqual([]);
+        const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
+        expect(card.color()).toBeNull();
+        expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0));
+      });
     });
 
     it('passes the instance tronc/base/direction nodes and assignments to the overlay', async () => {

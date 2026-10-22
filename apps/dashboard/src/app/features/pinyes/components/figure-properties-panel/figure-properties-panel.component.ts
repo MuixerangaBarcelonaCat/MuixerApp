@@ -2,8 +2,7 @@ import { FigureMode } from '@muixer/pinyes-render';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, InputComponent, CheckboxComponent } from '@muixer/ui';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { ButtonComponent, ButtonGroupComponent, InputComponent, CheckboxComponent, DOMAIN_ICONS } from '@muixer/ui';
 
 export interface FigurePropertiesEntry {
   id: string;

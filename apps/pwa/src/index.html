@@ -32,6 +32,19 @@
     </script>
   </head>
   <body class="bg-base-200 antialiased">
-    <app-root></app-root>
+    <!-- Pre-boot placeholder: covers the gap between the OS splash and Angular's first render
+         (Angular replaces app-root's content on bootstrap). Tailwind scans this file and the
+         global stylesheet is render-blocking, so token classes and dark mode already apply. -->
+    <app-root>
+      <div class="fixed inset-0 grid place-items-center bg-base-200" aria-busy="true">
+        <img
+          src="icons/icon-192.png"
+          width="96"
+          height="96"
+          alt="MuixerApp"
+          class="rounded-box motion-safe:animate-pulse"
+        />
+      </div>
+    </app-root>
   </body>
 </html>

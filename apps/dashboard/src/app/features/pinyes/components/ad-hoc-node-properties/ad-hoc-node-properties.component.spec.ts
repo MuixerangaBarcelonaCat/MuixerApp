@@ -4,8 +4,10 @@ import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { AdHocNodePropertiesComponent } from './ad-hoc-node-properties.component';
+import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
+import { By } from '@angular/platform-browser';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService, ToastService } from '@muixer/ui';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem => ({
@@ -43,6 +45,49 @@ describe('AdHocNodePropertiesComponent', () => {
     fixture.detectChanges();
   });
 
+  // ── color ──────────────────────────────────────────────────────────────
+
+  describe('color', () => {
+    const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    it('shows the type color in the swatch while the node has no color of its own', () => {
+      fixture.componentRef.setInput('node', makeNode({ positionType: 'comodin', color: null }));
+      fixture.detectChanges();
+      expect(component.colorFallback()).toBe(NODE_TYPE_PALETTE['comodin'].wash);
+      expect(text()).toContain('Color per defecte');
+    });
+
+    it('shows the dark type color when the app is dark, as the canvas then draws it', () => {
+      fixture.componentRef.setInput('node', makeNode({ positionType: 'comodin', color: null }));
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        expect(component.colorFallback()).toBe(NODE_TYPE_PALETTE_DARK['comodin'].wash);
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
+    });
+
+    it('puts a customized node back on its type color when the color picker resets it', () => {
+      const service = TestBed.inject(NodeAssignmentService) as unknown as { updateAdHocNode: ReturnType<typeof vi.fn> };
+      fixture.componentRef.setInput('node', makeNode({ positionType: 'comodin', color: '#123456' }));
+      fixture.detectChanges();
+      const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
+
+      picker.colorReset.emit();
+
+      expect(service.updateAdHocNode).toHaveBeenCalledWith('inst-1', 'node-1', { color: null });
+    });
+
+    it('says an uncolored decoration has no fill', () => {
+      fixture.componentRef.setInput('node', makeNode({ zone: FigureZone.DECORATION, positionType: 'circle', color: null }));
+      fixture.detectChanges();
+      expect(component.colorFallback()).toBeNull();
+      expect(text()).toContain('Sense fons');
+    });
+  });
+
   // ── attendanceBadgeVariant ───────────────────────────────────────────────
 
   describe('attendanceBadgeVariant (before the event day)', () => {
@@ -61,10 +106,20 @@ describe('AdHocNodePropertiesComponent', () => {
     });
   });
 
-  describe('attendanceBadgeVariant (from the event day on)', () => {
+  describe('attendanceBadgeVariant (on the event day, before the start time)', () => {
     beforeEach(() => fixture.componentRef.setInput('phase', 'day'));
 
-    it('ANIRE → warning (no presentat)', () => {
+    it('ANIRE → success (still coming)', () => {
+      fixture.componentRef.setInput('attendanceStatus', 'ANIRE');
+      fixture.detectChanges();
+      expect(component.attendanceBadgeVariant()).toBe('success');
+    });
+  });
+
+  describe('attendanceBadgeVariant (from the start time on)', () => {
+    beforeEach(() => fixture.componentRef.setInput('phase', 'started'));
+
+    it('ANIRE → warning (no ha arribat)', () => {
       fixture.componentRef.setInput('attendanceStatus', 'ANIRE');
       fixture.detectChanges();
       expect(component.attendanceBadgeVariant()).toBe('warning');
@@ -85,7 +140,8 @@ describe('AdHocNodePropertiesComponent', () => {
       ['before', 'NO_VAIG', 'No ve'],
       ['before', 'PENDENT', 'Pendent'],
       ['day', 'ASSISTIT', 'Ha arribat'],
-      ['day', 'ANIRE', 'No ha arribat'],
+      ['day', 'ANIRE', 'Ve'],
+      ['started', 'ANIRE', 'No ha arribat'],
       ['after', 'ASSISTIT', 'Va vindre'],
       ['after', 'NO_VAIG', 'No va vindre'],
     ] as const)('%s / %s → "%s"', (phase, status, expected) => {

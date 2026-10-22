@@ -10,10 +10,9 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search, UserCheck } from 'lucide-angular';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, ModalComponent, TabsComponent, TabDef, EmptyStateComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, ModalComponent, TabsComponent, TabDef, EmptyStateComponent, ToastService, DOMAIN_ICONS } from '@muixer/ui';
 import { TutorialModalComponent } from '../../../../shared/components/tutorial-modal/tutorial-modal.component';
 import { TutorialStep } from '../../../../shared/components/tutorial-modal/tutorial-step.model';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';

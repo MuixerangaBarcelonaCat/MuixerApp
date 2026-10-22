@@ -23,7 +23,7 @@ nx test dashboard          # Vitest — dashboard unit tests
 nx test pwa                # Vitest — PWA unit tests
 nx test api --testFile=apps/api/src/modules/person/person.service.spec.ts   # single file
 nx run api:test-integration  # Jest — integration tests against real Postgres (testcontainers)
-pnpm run ci:local          # lint + test + build (all, excludes e2e)
+pnpm run ci:local          # lint + test + build (all; e2e projects are linted, not run)
 
 # Lint / build / dead code
 nx lint api | nx lint dashboard | nx lint pwa
@@ -118,11 +118,13 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 
 **Styling:** DaisyUI v4 + Tailwind CSS v3. No `@angular/material`, no `.scss` unless animations are needed, no `@apply`. Dynamic Tailwind classes must use static maps (not template literals). Theme generated via `generateCollaTheme(shirtHex, sashSpec)` in `libs/ui/src/lib/tokens/theme.ts`.
 
-**Design system:** tokens (color/typography/radius/shadow/motion/z-index) and the shared `libs/ui` component library are documented in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md), with a live, real-content reference at `/design-system` (ADMIN only). Reach for `libs/ui` to create any button/badge/card/input/modal/toast/empty-state, use the library components and not the DaisyUI classes. **Any new or touched UI must apply the design system**: use design tokens (never a raw hex code or an arbitrary Tailwind value) and use a `@muixer/ui` component whenever one fits, rather than hand-rolling raw DaisyUI/Tailwind markup — this applies everywhere in the codebase.
+**Design system:** tokens (color/typography/radius/shadow/motion/z-index) and the shared `libs/ui` component library are documented in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md), with a live, real-content reference at `/design-system` (ADMIN only). Reach for `libs/ui` to create any button/badge/card/input/modal/toast/empty-state, use the library components and not the DaisyUI classes. **Any new or touched UI must apply the design system**: use design tokens (never a raw hex code or an arbitrary Tailwind value) and use a `@muixer/ui` component whenever one fits, rather than hand-rolling raw DaisyUI/Tailwind markup — this applies everywhere in the codebase. Domain icons come from `DOMAIN_ICONS` in `@muixer/ui` (Lucide); emojis only ever stand for observations. The figure canvas draws with `buildCanvasTheme()` and node colors resolve through `resolveNodeTones()` (`@muixer/pinyes-render`): a node's stored `color` is `null` unless the user customized it.
 
-**Dark mode:** light/dark themes per colla, chosen per device with `lib-theme-picker` (default «Sistema», follows the OS; stored in `localStorage`, applied before boot by an inline script in `index.html`). Figure rendering (canvas, tronc panels, projection backdrop) is pinned light and projection HUDs dark with `libThemeScope` — never `bg-white`/`text-black`, use tokens inside the scope. See [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) «Theming / dark mode».
+**Dark mode:** light/dark themes per colla, chosen per device with `lib-theme-picker` (default «Sistema», follows the OS; stored in `localStorage`, applied before boot by an inline script in `index.html`). Figure rendering (canvas, tronc panels, projection) follows the page theme: `buildCanvasTheme(mode)` has a dark look of its own, read through `injectCanvasTheme()`. Projection HUDs are pinned dark with `libThemeScope` — never `bg-white`/`text-black`, use tokens inside the scope. See [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) «Theming / dark mode».
 
 **Canvas:** Konva 10.x used imperatively — not `ng2-konva` (incompatible with Angular 20+).
+
+**User manual:** any user-visible change to a dashboard screen, tab, button or flow must update the matching page of `docs/manual/` in the same PR — see [User manual](#user-manual).
 
 ### Members PWA (`apps/pwa`)
 
@@ -131,6 +133,8 @@ Angular 21 + Service Worker (offline cache; **no push yet**), signals + `rxResou
 **Routes:** `login` (alreadyAuthGuard) · `AppShell` behind `authGuard` + `rolesGuard(MEMBER, TECHNICAL, ADMIN)`: `home`, `events`, `events/:id`, `events/:eventId/segments/:segmentId` (segment projection, lazy), `profile` (placeholder).
 
 **Features:** login, home (next rehearsal/performance), event agenda, event detail (with a **Segments** list for published segments — titles auto-derived the same way as the Dashboard, via `computeSegmentDisplayName` in `@muixer/shared`, plus a muted "on sou" one-line summary per segment via `formatOwnPositionSummary`, e.g. «Vent (C1) a Roscana»), **segment projection** (`SegmentProjectionComponent`: fetches via `/me/events/:eventId/segments/:segmentId/projection`, renders `<lib-pinya-projection>` full-bleed with a back/prev/next HUD, passing `highlightPersonId` (the caller's own `Person.id`) so `PinyaProjectionComponent` can show the "you are here" ring/chevron overlay (`OwnPositionMarkerComponent`) and sentence banner (`OwnPositionBannerComponent`, both in `@muixer/pinyes-render`) and fly the camera to the caller's placement on arrival or on tap — inert (`null`) for the Dashboard's own use of the same component; `LayoutService.isFullscreen` hides the bottom tab bar and shell chrome while it's open), and **attendance confirmation** (`AttendanceButton`: Vaig/No vaig → ANIRE/NO_VAIG; `ASSISTIT` replaces the Vaig/No vaig selector with a read-only "He assistit" badge). `no-person-banner` for accounts with no linked Person. TECHNICAL/ADMIN accounts also see a **Passa llista** link after their own attendance buttons on the event detail screen, shown only on the day of the event (mark any attendee's attendance via the same staff `/events/:id/attendance*` endpoints the Dashboard uses).
+
+**User manual:** PWA changes visible to members are documented in `docs/manual/19-pwa.md` (plus the page of any other route you touch) in the same PR — see [User manual](#user-manual).
 
 **Design system:** shares the same token/component library (`@muixer/ui`) as the dashboard — see [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md); the dashboard's `/design-system` route is the canonical live reference for both apps. New or touched PWA UI should apply design-system tokens and reach for a `@muixer/ui` component whenever one fits, the same rule as the dashboard — don't hand-roll a raw button/card/modal when a shared primitive already covers it. Dark mode works the same as in the dashboard; the PWA's picker is in Configuració → Aparença.
 
@@ -160,7 +164,7 @@ Full detail (endpoints, frontend architecture, error handling, guide for new wor
 4. `NodeAssignment` uniqueness is per node only (`[figureInstance, instanceNode]`) — a person may legally hold ≥2 assignments in the same segment/instance since Fase 5; duplicates surface as soft conflicts (`TRONC_TRONC` / `TRONC_PINYA` / `PINYA_PINYA`, `classifyPlacementKind` in `@muixer/shared`), never rejected.
 5. TRONC/BASE: `x`/`width` in relative units; PINYA: pixels.
 
-**Key components:** `TemplateEditorComponent` — tabs Pinya / Rengles / Tronc; the Tronc tab takes the whole view: `TroncViewComponent` (`editor` mode) on the left, `TroncSupportEditorComponent` (drag-to-connect stands-on links) on the right; both lay floors out with `tronc-layout.util` in `@muixer/pinyes-render`. `SegmentWorkspaceComponent` — unified per-segment workspace: 5 tabs (Pinyes, Troncs, Distribució, Nodes extra, Previsualitza) backed by `SegmentWorkspaceStateService` (per-instance), composing the root `AssignmentStateService`. Previsualitza embeds `ProjectionViewComponent` (`[embedded]="true"`) — no separate distribution route. `FigureCanvasComponent` Konva modes: `editor` | `assignment` | `segment-assignment` | `readonly` | `composition`. `placeFigures` (`utils/figure-placement.util.ts`) is a deterministic space-optimizing layout packing figures into rows.
+**Key components:** `TemplateEditorComponent` — tabs Pinya / Rengles / Tronc; the Tronc tab takes the whole view: `TroncViewComponent` (`editor` mode) on the left, `TroncSupportEditorComponent` (drag-to-connect stands-on links) on the right; both lay floors out with `tronc-layout.util` in `@muixer/pinyes-render`. `SegmentWorkspaceComponent` — unified per-segment workspace: 5 tabs (Pinyes, Troncs, Distribució, Nodes extra, Previsualitza) backed by `SegmentWorkspaceStateService` (per-instance), composing the root `AssignmentStateService`. The Pinyes and Troncs tabs share a **display mode** (Posició/Alçada/Assistència/Gènere: `ws.displayMode`, keys 1–4, always Posició on phones via `LayoutService.isPhone`) that recolors staffed nodes through `displayModeOverrides()` (`@muixer/pinyes-render`) and is explained by `DisplayModeKeyComponent`; gender travels only in the staff `available-persons` roster, never in `AssignmentDetail` (members' projection) — see [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md) «Modes de visualització». Previsualitza embeds `ProjectionViewComponent` (`[embedded]="true"`) — no separate distribution route. `FigureCanvasComponent` Konva modes: `editor` | `segment-assignment` | `readonly` | `composition`. Every node, on the canvas and in the tronc panel, draws through one pipeline: `resolveNodeAppearance()` → `nodeDrawPlan()` → a Konva painter or the SVG `app-node-drawing` — see [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md) «Dibuix dels nodes». `placeFigures` (`utils/figure-placement.util.ts`) is a deterministic space-optimizing layout packing figures into rows.
 
 **Routes:**
 ```
@@ -210,4 +214,16 @@ Detail: [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) · SSE: [docs/SSE_AUTH.md](docs/S
 
 - After adding/removing an API module, a dashboard/PWA feature, or editing a `.entity.ts` file, run `pnpm run docs:map` and `pnpm run docs:model` and include the diff in your commit. These only touch the `<!-- BEGIN:AUTO -->…<!-- END:AUTO -->` sections of `docs/MAP.md` and `docs/DATA_MODEL.md` — never edit inside those markers by hand.
 - After creating a new doc under `docs/`, give it YAML frontmatter with a `tags: [domini|infra|qa|hub]`, a `*Veïns: [[...]]*` footer linking its 2–4 closest neighbors, and a row in the relevant table of `docs/MAP.md`.
+- After changing user-visible behaviour of the dashboard or the PWA, update `docs/manual/` and its screenshots (see [User manual](#user-manual)). API changes with no visible effect don't need it.
 - After resolving an item in [docs/DEBT.md](docs/DEBT.md), delete its row — don't mark it "✅ Resolved". The git log is the history; the doc only tracks what's still open.
+
+## User manual
+
+`docs/manual/` is the end-user manual for technicians (valencià, one page per screen, read the language-rules skill first), bundled into the dashboard at **Configuració → Manual** (`/config/manual`). Design: [docs/superpowers/specs/2026-10-21-manual-us-dashboard-design.md](docs/superpowers/specs/2026-10-21-manual-us-dashboard-design.md).
+
+**Any change to user-visible behaviour of the dashboard or the PWA** (new/changed screen, tab, button, flow or button label) must, in the same PR:
+- update the manual page that covers the route — find it with `grep -rl "rutes:.*<route>" docs/manual` (each page starts with a `<!-- rutes: ... -->` comment);
+- regenerate the affected screenshots with `pnpm run docs:manual-shots`;
+- add the page to `MANUAL_PAGES` when you create one.
+
+Manual pages are exempt from the `docs/` frontmatter/«Veïns» rule (they render in-app).

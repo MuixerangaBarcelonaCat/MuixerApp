@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { provideRouter } from '@angular/router';
+import { SwUpdate } from '@angular/service-worker';
 import { AuthService } from './core/auth/services/auth.service';
 
 describe('AppComponent', () => {
@@ -9,6 +10,7 @@ describe('AppComponent', () => {
       imports: [AppComponent],
       providers: [
         provideRouter([]),
+        { provide: SwUpdate, useValue: { isEnabled: false } },
         {
           provide: AuthService,
           useValue: {
@@ -38,6 +40,7 @@ describe('AppComponent', () => {
       imports: [AppComponent],
       providers: [
         provideRouter([]),
+        { provide: SwUpdate, useValue: { isEnabled: false } },
         {
           provide: AuthService,
           useValue: {

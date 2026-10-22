@@ -24,6 +24,52 @@ describe('ColorPickerComponent', () => {
     el = fixture.nativeElement;
   });
 
+  describe('reset to the default color', () => {
+    const open = () => {
+      el.querySelector<HTMLElement>('[data-testid="color-picker-swatch"]')!.click();
+      fixture.detectChanges();
+    };
+    const resetButton = () => el.querySelector<HTMLButtonElement>('[data-testid="color-picker-reset"]');
+
+    it('offers going back to the default color while a custom color is set', () => {
+      fixture.componentRef.setInput('fallbackColor', '#bde4be');
+      fixture.detectChanges();
+      open();
+
+      expect(resetButton()).toBeTruthy();
+      expect(resetButton()!.textContent).toContain('Torna al color per defecte');
+    });
+
+    it('emits colorReset and closes the popover when chosen', () => {
+      fixture.componentRef.setInput('fallbackColor', '#bde4be');
+      fixture.detectChanges();
+      let resets = 0;
+      component.colorReset.subscribe(() => resets++);
+      open();
+
+      resetButton()!.click();
+      fixture.detectChanges();
+
+      expect(resets).toBe(1);
+      expect(el.querySelector('[data-testid="color-picker-popover"]')).toBeNull();
+    });
+
+    it('does not offer it when the color is already the default', () => {
+      fixture.componentRef.setInput('color', null);
+      fixture.componentRef.setInput('fallbackColor', '#bde4be');
+      fixture.detectChanges();
+      open();
+
+      expect(resetButton()).toBeNull();
+    });
+
+    it('does not offer it when there is no default color', () => {
+      open();
+
+      expect(resetButton()).toBeNull();
+    });
+  });
+
   describe('swatch trigger', () => {
     it('renders with the current color as background', () => {
       const swatch = el.querySelector<HTMLElement>('[data-testid="color-picker-swatch"]');
@@ -36,6 +82,17 @@ describe('ColorPickerComponent', () => {
       fixture.detectChanges();
       const probe = document.createElement('span');
       probe.style.backgroundColor = CREASE.light;
+
+      const swatch = el.querySelector<HTMLElement>('[data-testid="color-picker-swatch"]');
+      expect(swatch!.style.backgroundColor).toBe(probe.style.backgroundColor);
+    });
+
+    it('fills the swatch with the fallback color while no color is set, when one is given', () => {
+      fixture.componentRef.setInput('color', null);
+      fixture.componentRef.setInput('fallbackColor', '#bde4be');
+      fixture.detectChanges();
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = '#bde4be';
 
       const swatch = el.querySelector<HTMLElement>('[data-testid="color-picker-swatch"]');
       expect(swatch!.style.backgroundColor).toBe(probe.style.backgroundColor);
