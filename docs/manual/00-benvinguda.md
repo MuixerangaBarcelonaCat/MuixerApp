@@ -16,7 +16,7 @@ Al Dashboard, obriu «Configuració» i feu clic a la targeta «Manual».
 
 Hi ha dues maneres de llegir-lo:
 
-- **Consulta ràpida.** Si esteu encallats en una pantalla, busqueu-la pel nom al menú de l'esquerra. En un mòbil, el menú és un desplegable a dalt. Els títols del menú són els noms de les pestanyes i dels botons del Dashboard. Cada pàgina té un «Pas a pas» amb les tasques habituals i un apartat «Compte amb» amb els errors més freqüents.
+- **Consulta ràpida.** Si esteu encallats en una pantalla, escriviu una paraula al camp «Cerca al manual», a dalt de tot: la cerca ignora els accents i les majúscules, i mostra les pàgines on apareix. També podeu buscar la pantalla pel nom al menú de l'esquerra. En un mòbil, el menú és un desplegable a dalt. Els títols del menú són els noms de les pestanyes i dels botons del Dashboard. Cada pàgina té un «Pas a pas» amb les tasques habituals i un apartat «Compte amb» amb els errors més freqüents.
 - **Lectura ordenada.** Si és la primera vegada, llegiu-lo en l'ordre del menú. És el mateix ordre en què es prepara un assaig o una actuació.
 
 ![El manual obert a la pàgina de benvinguda](img/00-manual-visor.png)

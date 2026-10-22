@@ -6,6 +6,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ManualComponent } from './manual.component';
+import { MANUAL_PAGES } from './manual-pages';
 
 describe('ManualComponent', () => {
   let harness: RouterTestingHarness;
@@ -87,5 +88,36 @@ describe('ManualComponent', () => {
     anchor.dispatchEvent(event);
     expect(navigate).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('searches every page and shows hits instead of the article', async () => {
+    const el = await open('/config/manual/03-persones', '# Persones');
+    const input = el.querySelector<HTMLInputElement>('input[type="search"]')!;
+    input.value = 'assistencia';
+    input.dispatchEvent(new Event('input'));
+    harness.detectChanges();
+    for (const page of MANUAL_PAGES) {
+      httpMock
+        .expectOne(`/manual/${page.slug}.md`)
+        .flush(page.slug === '07-assajos-i-actuacions' ? '# Assajos\n\nL\'assistència es confirma al detall.' : `# ${page.title}`);
+    }
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const hits = el.querySelectorAll<HTMLAnchorElement>('[data-testid="manual-hit"]');
+    expect(hits).toHaveLength(1);
+    expect(hits[0].textContent).toContain('assistència');
+    expect(el.querySelector('.prose')).toBeNull();
+  });
+
+  it('shows an empty message when nothing matches', async () => {
+    const el = await open('/config/manual/03-persones', '# Persones');
+    const input = el.querySelector<HTMLInputElement>('input[type="search"]')!;
+    input.value = 'zzzzz';
+    input.dispatchEvent(new Event('input'));
+    harness.detectChanges();
+    for (const page of MANUAL_PAGES) httpMock.expectOne(`/manual/${page.slug}.md`).flush('# x');
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(el.textContent).toContain('No s\'ha trobat cap resultat.');
   });
 });
