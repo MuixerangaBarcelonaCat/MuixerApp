@@ -24,6 +24,8 @@ L'app dels membres té una adreça web diferent de la del Dashboard. Es pot inst
 
 Per a canviar de pantalla, s'usa la barra de baix: «Inici», «Agenda» i «Perfil».
 
+L'app s'actualitza sola: no cal desinstal·lar-la quan n'hi ha una versió nova. Quan arriba, dalt de la pantalla apareix l'avís «Hi ha una versió nova de l'app» amb el botó «Actualitza». Si no el toqueu, la versió nova es carrega la pròxima vegada que obriu l'app.
+
 ![Pantalla Inici de l'app dels membres](img/19-pwa-inici.png)
 
 ## Pas a pas
@@ -244,6 +246,7 @@ Estos són els dubtes més habituals dels membres i què els podeu respondre:
 - **«Em diu "Compte no vinculat"».** El compte no està enllaçat amb cap persona. Cal enllaçar-lo des del Dashboard. Vegeu [Usuaris i accés](06-usuaris-i-acces.md).
 - **«No m'arriben les notificacions».** Les ha d'activar en cada mòbil. A l'iPhone, normalment cal afegir abans l'app a la pantalla d'inici. Vegeu [Comunicació](18-comunicacio.md), «Què rep el membre al mòbil».
 - **«No veig on li toca al meu fill».** La projecció marca el lloc de qui ha entrat a l'app, no el dels fills. Per a trobar el fill, cal buscar-lo amb «Cerca una persona».
+- **«No em surt el canvi que dieu».** Té una versió antiga de l'app. Que toque «Actualitza» a l'avís de dalt o que tanque l'app del tot i la torne a obrir. No cal desinstal·lar-la.
 - **«Ho veig diferent que tu».** Si compartiu pantalla amb un membre, recordeu que els tècnics veuen comptadors i «Passa llista», i els membres no.
 
 ## Relacionat
