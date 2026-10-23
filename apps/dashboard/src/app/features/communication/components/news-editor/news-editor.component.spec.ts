@@ -194,6 +194,22 @@ describe('NewsEditorComponent', () => {
         );
       });
 
+      it('renders the date field with the design-system input', () => {
+        pick('scheduled');
+
+        expect(dateField()?.closest('lib-input')).not.toBeNull();
+        expect(dateField()?.type).toBe('datetime-local');
+      });
+
+      it('reads the chosen date from the date field', () => {
+        pick('scheduled');
+        const field = dateField() as HTMLInputElement;
+        field.value = '2026-01-01T10:30';
+        field.dispatchEvent(new Event('input'));
+
+        expect(component.publishedAtLocal()).toBe('2026-01-01T10:30');
+      });
+
       it('cannot be saved as scheduled without a date', () => {
         component.title.set('Nova');
         component.body.set('Cos');

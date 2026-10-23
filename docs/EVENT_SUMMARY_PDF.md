@@ -4,7 +4,8 @@ tags: [domini]
 
 # Resum imprimible d'un esdeveniment (PDF)
 
-El botó **Imprimeix** del detall d'un esdeveniment (Dashboard) descarrega un PDF amb:
+El botó **Imprimeix** del detall d'un esdeveniment (Dashboard) obri un PDF en una pestanya nova
+(vegeu [Pestanya nova](#pestanya-nova)). El PDF té:
 
 - una **capçalera a tota l'amplària**: el logo i, al costat, el títol (en Fraunces) amb la data,
   l'hora i el lloc;
@@ -25,6 +26,23 @@ El botó **Imprimeix** del detall d'un esdeveniment (Dashboard) descarrega un PD
 La pàgina és sempre blanca: el color només va al text i a les línies.
 
 Cap segment es parteix entre dues pàgines: si una fila no hi cap, passa sencera a la següent.
+
+## Pestanya nova
+
+El PDF es mostra amb el visor del navegador en una pestanya nova, sense desar-lo: viu en memòria
+com a blob i la pestanya hi apunta amb un URL `blob:` (`core/utils/blob-tab.util.ts`). Així, revisar
+o imprimir el resum no deixa cada vegada un fitxer a la carpeta de baixades. El títol de la
+pestanya és el de l'esdeveniment, perquè la plantilla fa `#set document(title: …)`.
+
+- La pestanya s'obri **en el mateix clic**, abans de la petició, amb el text «S'està generant el
+  resum...», i s'hi carrega el PDF quan arriba. Oberta després de la petició, els bloquejadors de
+  finestres emergents (sobretot el de Safari) la rebutjarien. Si la petició falla, es tanca.
+- L'URL del blob s'allibera al cap d'un minut (`BLOB_TAB_URL_LIFETIME_MS`): no hi ha manera fiable
+  de saber quan es tanca la pestanya. Recarregar-la després d'això falla.
+- El botó de baixada del visor de Chrome posa un nom UUID al fitxer, no el que proposa l'API.
+- Es baixa amb el nom bo, com abans, quan el navegador no té visor de PDF
+  (`navigator.pdfViewerEnabled` no és `true`, com a Chrome d'Android) o quan el bloquejador rebutja
+  la pestanya.
 
 ## Com funciona
 
@@ -74,7 +92,8 @@ EventSummaryService: EventService.findOne + EventSegmentService.findAllByEvent/g
 | `apps/api/src/assets/typst/fonts/`, `vendor/cmarker/` | Fonts i paquet de markdown (còpia local) |
 | `apps/api/src/assets/typst/logo.svg` | Còpia de `apps/dashboard/public/assets/logoMuixe.svg` (Typst només llig fitxers de la seua carpeta): si canvia el logo, cal copiar-lo també ací |
 | `libs/shared/src/utils/tronc-summary.util.ts` | `formatTroncSummary`: el text dels pisos, compartit amb la llista de segments |
-| `apps/dashboard/…/event-detail/` | Botó Imprimeix; `EventService.downloadSummaryPdf` + `saveBlob` |
+| `apps/dashboard/…/event-detail/` | Botó Imprimeix; `EventService.downloadSummaryPdf`; tria entre pestanya nova i baixada |
+| `apps/dashboard/src/app/core/utils/blob-tab.util.ts` | `openPendingTab` + `showBlobInTab`: la pestanya i la vida de l'URL del blob |
 
 ## Canviar la plantilla
 
