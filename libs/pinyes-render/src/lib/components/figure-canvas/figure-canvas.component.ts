@@ -40,7 +40,8 @@ import { loadCanvasFonts } from '../../node-render/fonts';
 import { hashSeed } from '../../node-render/sketch';
 import { dotGrid } from '../../utils/dot-grid.util';
 import { paperGrain } from '../../theme/paper-grain';
-import { createNodeShape, drawFigureLink, drawIcon, drawNodePlan, measureText } from '../../node-render/konva-painter';
+import { createNodeShape, drawFigureLink, drawIcon, drawLayersRegion, drawNodePlan, measureText } from '../../node-render/konva-painter';
+import { Rect, UNDERLAY_MAX_SIDE, underlayPlan, unionRect, whenIdle } from '../../utils/underlay.util';
 import { FigureLink } from '../../utils/figure-link.util';
 import {
   boundingBoxCenter,
@@ -52,6 +53,7 @@ import {
 } from '../../utils/segment-assignment-render.util';
 import {
   clampScale,
+  applyCssDelta,
   computeRotationAngleDeg,
   CssDelta,
   cssDelta,
@@ -314,6 +316,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private liveView: StageTransform | null = null;
   /** Pending rAF that applies `liveView` as a CSS transform — see `setView`. */
   private gestureFrame: number | null = null;
+  /** `deferGestureRedraw`: the softer copy of the whole segment that fills the edges a gesture reveals — see `buildUnderlay`. */
+  private underlay: { canvas: HTMLCanvasElement; rect: Rect; view: StageTransform } | null = null;
+  private cancelUnderlayBuild: (() => void) | null = null;
 
   private activeGhostGroup: Konva.Group | null = null;
   private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -470,6 +475,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.cancelFlight();
     if (this.stageTransformFrame !== null) cancelAnimationFrame(this.stageTransformFrame);
     if (this.gestureFrame !== null) cancelAnimationFrame(this.gestureFrame);
+    this.dropUnderlay();
     this.clearAllGhostTimers();
     this.clearPersonDragVisuals();
     this.resizeObserver?.disconnect();
@@ -684,6 +690,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.stageTransformFrame = null;
     }
     this.renderGrid();
+    this.placeUnderlay();
     this.stageTransformChanged.emit({
       x: this.stage.x(),
       y: this.stage.y(),
@@ -963,6 +970,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         style.transformOrigin = '0 0';
         style.willChange = 'transform';
         style.transform = cssTransformString(delta);
+        if (this.underlay) this.underlay.canvas.style.visibility = 'visible';
         this.gestureMoved.emit(delta);
       });
       return;
@@ -1015,6 +1023,79 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     style.transform = '';
     style.willChange = '';
     this.emitStageTransform();
+  }
+
+  /**
+   * The drawing changed: the copy shows what is gone. Drops it, and (deferred canvas only) draws a
+   * new one once the phone is idle.
+   */
+  private invalidateUnderlay(): void {
+    this.dropUnderlay();
+    if (this.deferGestureRedraw()) this.cancelUnderlayBuild = whenIdle(() => this.buildUnderlay());
+  }
+
+  private dropUnderlay(): void {
+    this.cancelUnderlayBuild?.();
+    this.cancelUnderlayBuild = null;
+    this.underlay?.canvas.remove();
+    this.underlay = null;
+  }
+
+  /**
+   * The whole segment, drawn with its longest side at `UNDERLAY_MAX_SIDE` device px, hidden under
+   * the Konva content until a gesture moves the container (the two move together). One copy serves
+   * every view: a new transform only moves it (`placeUnderlay`), so back-to-back flicks always
+   * find it. Mid-gesture the stage isn't where the screen shows it: it waits for the gesture.
+   */
+  private buildUnderlay(): void {
+    if (this.liveView) {
+      this.cancelUnderlayBuild = whenIdle(() => this.buildUnderlay());
+      return;
+    }
+    this.cancelUnderlayBuild = null;
+    const content = this.contentScreenRect();
+    const plan = content && underlayPlan(content, UNDERLAY_MAX_SIDE);
+    if (!plan) return;
+    const canvas = this.drawUnderlay(plan);
+    canvas.dataset['role'] = 'gesture-underlay';
+    Object.assign(canvas.style, { position: 'absolute', pointerEvents: 'none', visibility: 'hidden' });
+    // Before Konva's content div, which is positioned too: the canvas paints over it.
+    this.containerRef.nativeElement.prepend(canvas);
+    this.underlay = { canvas, rect: plan.rect, view: this.committedView() };
+    this.placeUnderlay();
+  }
+
+  /** Puts the copy where the stage's current transform draws what it shows. */
+  private placeUnderlay(): void {
+    if (!this.underlay) return;
+    const { canvas, rect, view } = this.underlay;
+    const delta = cssDelta(view, this.committedView());
+    const { x, y } = applyCssDelta(rect, delta);
+    Object.assign(canvas.style, {
+      left: `${x}px`,
+      top: `${y}px`,
+      width: `${rect.width * delta.k}px`,
+      height: `${rect.height * delta.k}px`,
+      visibility: 'hidden',
+    });
+  }
+
+  private drawLayers(): Konva.Layer[] {
+    return [this.linkLayer, this.pinyaLayer, this.pinLayer];
+  }
+
+  /** Everything drawn, in screen px at the stage's transform. */
+  private contentScreenRect(): Rect | null {
+    return unionRect(
+      this.drawLayers()
+        .filter((layer) => layer.isVisible())
+        .flatMap((layer) => layer.getChildren().filter((child) => !(child instanceof Konva.Transformer)))
+        .map((child) => child.getClientRect()),
+    );
+  }
+
+  private drawUnderlay(plan: { rect: Rect; pixelRatio: number }): HTMLCanvasElement {
+    return drawLayersRegion(this.drawLayers(), plan.rect, plan.pixelRatio);
   }
 
   /** Ctrl/plain wheel zoom toward the pointer, for desktop trackpads/mice (DEBT F2). */
@@ -1095,6 +1176,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     this.stage.batchDraw();
+    this.placeUnderlay();
   }
 
   private renderAll(): void {
@@ -2026,6 +2108,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
     this.linkLayer.batchDraw();
     this.pinLayer.batchDraw();
+    this.invalidateUnderlay();
   }
 
   private renderReadonlyNodes(): void {
@@ -2053,6 +2136,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
+    this.invalidateUnderlay();
 
     if ((this.nodes().length > 0 || this.fitExtraBounds().length > 0) && !this.userAdjustedView) {
       setTimeout(() => {

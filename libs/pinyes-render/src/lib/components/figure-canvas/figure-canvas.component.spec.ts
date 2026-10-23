@@ -177,6 +177,148 @@ describe('FigureCanvasComponent', () => {
       expect(committed).toEqual([]);
     });
 
+    describe('underlay (fills the edges a gesture reveals)', () => {
+      type UnderlayInternals = ViewInternals & {
+        contentScreenRect(): { x: number; y: number; width: number; height: number } | null;
+        drawUnderlay(plan: { rect: unknown; pixelRatio: number }): HTMLCanvasElement;
+        renderFigureLinks(links: unknown[]): void;
+        resizeStage(): void;
+      };
+      const underlayOf = (container: HTMLDivElement) => container.querySelector<HTMLCanvasElement>('[data-role="gesture-underlay"]');
+      const box = (el: HTMLCanvasElement | null) =>
+        el && { left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height };
+      // The whole segment, in screen px at the fake stage's starting transform (x 10, y 20, scale 2).
+      const CONTENT = { x: -2000, y: -100, width: 5000, height: 300 };
+
+      function setupUnderlay(deferGestureRedraw = true) {
+        const s = setup(deferGestureRedraw);
+        const component = s.component as UnderlayInternals;
+        const internals = component as unknown as Record<string, unknown>;
+        const layer = () => ({ destroyChildren: jest.fn(), add: jest.fn(), batchDraw: jest.fn() });
+        internals['linkLayer'] = layer();
+        internals['pinLayer'] = layer();
+        component.contentScreenRect = jest.fn(() => CONTENT);
+        component.drawUnderlay = jest.fn(() => document.createElement('canvas'));
+        return { ...s, component };
+      }
+
+      /** The drawing changes (here: its strings), and the phone goes idle. */
+      function drawnAndIdle(component: UnderlayInternals) {
+        component.renderFigureLinks([]);
+        jest.runOnlyPendingTimers();
+      }
+
+      function gesture(component: UnderlayInternals, view: { x: number; y: number; scaleX: number; scaleY: number }) {
+        component.setView(view);
+        // Fake timers own requestAnimationFrame here: let the gesture's frame run.
+        jest.advanceTimersByTime(16);
+      }
+
+      beforeEach(() => jest.useFakeTimers());
+      afterEach(() => jest.useRealTimers());
+
+      it('is drawn once idle after the drawing changes, hidden, over the whole segment', () => {
+        const { component, container } = setupUnderlay();
+
+        drawnAndIdle(component);
+
+        expect(component.drawUnderlay).toHaveBeenCalledWith({ rect: CONTENT, pixelRatio: 3072 / 5000 });
+        expect(underlayOf(container)?.style.visibility).toBe('hidden');
+        expect(box(underlayOf(container))).toEqual({ left: '-2000px', top: '-100px', width: '5000px', height: '300px' });
+      });
+
+      it('is drawn even with the whole segment on screen: a later zoom needs it', () => {
+        const { component, container } = setupUnderlay();
+        component.contentScreenRect = jest.fn(() => ({ x: 10, y: 10, width: 300, height: 600 }));
+
+        drawnAndIdle(component);
+
+        expect(underlayOf(container)).not.toBeNull();
+      });
+
+      it('shows while a gesture moves the canvas, and hides again when it commits', () => {
+        const { component, container } = setupUnderlay();
+        drawnAndIdle(component);
+
+        gesture(component, { x: 0, y: 0, scaleX: 2, scaleY: 2 });
+        expect(underlayOf(container)?.style.visibility).toBe('visible');
+
+        component.onGestureEnd({ touches: { length: 0 } });
+        expect(underlayOf(container)?.style.visibility).toBe('hidden');
+      });
+
+      // Flicks come back to back, before the phone is idle again: the copy is never redrawn for
+      // a new view, only moved to it, so it is always there.
+      it('moves with each committed gesture instead of being redrawn', () => {
+        const { component, container } = setupUnderlay();
+        drawnAndIdle(component);
+        const copy = underlayOf(container);
+
+        gesture(component, { x: 0, y: 0, scaleX: 4, scaleY: 4 }); // from x 10, y 20, scale 2: k 2, tx −20, ty −40
+        component.onGestureEnd({ touches: { length: 0 } });
+        jest.runOnlyPendingTimers();
+
+        expect(underlayOf(container)).toBe(copy);
+        expect(component.drawUnderlay).toHaveBeenCalledTimes(1);
+        expect(box(copy)).toEqual({ left: '-4020px', top: '-240px', width: '10000px', height: '600px' });
+
+        gesture(component, { x: 30, y: 0, scaleX: 4, scaleY: 4 });
+        expect(copy?.style.visibility).toBe('visible');
+      });
+
+      it('is dropped when the drawing changes, and drawn again once idle', () => {
+        const { component, container } = setupUnderlay();
+        drawnAndIdle(component);
+        const old = underlayOf(container);
+
+        component.renderFigureLinks([]);
+        expect(underlayOf(container)).toBeNull();
+        jest.runOnlyPendingTimers();
+
+        expect(underlayOf(container)).not.toBeNull();
+        expect(underlayOf(container)).not.toBe(old);
+      });
+
+      it('waits for a gesture in progress before drawing', () => {
+        const { component, container } = setupUnderlay();
+        component.renderFigureLinks([]);
+        gesture(component, { x: 0, y: 0, scaleX: 2, scaleY: 2 });
+
+        jest.runOnlyPendingTimers();
+        expect(component.drawUnderlay).not.toHaveBeenCalled();
+
+        component.onGestureEnd({ touches: { length: 0 } });
+        jest.runOnlyPendingTimers();
+        expect(underlayOf(container)).not.toBeNull();
+      });
+
+      it('is kept, not redrawn, when the canvas resizes (a phone rotated)', () => {
+        const { component, container } = setupUnderlay();
+        drawnAndIdle(component);
+        const copy = underlayOf(container);
+        Object.defineProperty(container, 'clientWidth', { value: 800 });
+        Object.defineProperty(container, 'clientHeight', { value: 400 });
+        const internals = component as unknown as { stage: Record<string, unknown> };
+        internals.stage['width'] = jest.fn();
+        internals.stage['height'] = jest.fn();
+
+        component.resizeStage();
+        jest.runOnlyPendingTimers();
+
+        expect(underlayOf(container)).toBe(copy);
+        expect(component.drawUnderlay).toHaveBeenCalledTimes(1);
+      });
+
+      it('is not drawn for a canvas that redraws every move', () => {
+        const { component, container } = setupUnderlay(false);
+
+        drawnAndIdle(component);
+
+        expect(component.drawUnderlay).not.toHaveBeenCalled();
+        expect(underlayOf(container)).toBeNull();
+      });
+    });
+
     it('redraws every move, as before, when not deferred', () => {
       const { component, container, stage, moved } = setup(false);
 
