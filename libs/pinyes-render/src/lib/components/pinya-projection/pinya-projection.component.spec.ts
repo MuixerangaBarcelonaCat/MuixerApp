@@ -31,6 +31,8 @@ import {
   getFigureTint,
   isRematMarker,
   REMAT_MARKER_RADIUS,
+  CssDelta,
+  IDENTITY_CSS_DELTA,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -46,7 +48,9 @@ class FigureCanvasStub {
   readonly figureLinks = input<FigureLink[]>([]);
   readonly showZoomControls = input<boolean>(true);
   readonly nodeScale = input<number>(1);
+  readonly deferGestureRedraw = input(false);
   readonly flightLanded = output<void>();
+  readonly gestureMoved = output<CssDelta>();
   readonly flyToBounds = jest.fn();
   readonly cancelFlight = jest.fn();
 }
@@ -1204,6 +1208,52 @@ describe('PinyaProjectionComponent', () => {
 
       const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
       expect(marker.componentInstance.stageTransform()).toEqual({ x: 10, y: 20, scaleX: 2, scaleY: 2 });
+    });
+  });
+
+  // ── deferred gesture (pan/pinch moves pixels, redraws on release) ───────────
+
+  describe('deferred gesture', () => {
+    const canvasStub = () => fixture.debugElement.query(By.directive(FigureCanvasStub)).componentInstance as FigureCanvasStub;
+    const panelsLayer = () => fixture.nativeElement.querySelector('[data-testid="tronc-panels-layer"]') as HTMLElement;
+
+    beforeEach(() => {
+      const node = makeNode({ id: 'n1' });
+      setData(makeSegmentData([makeInstance([node], ['n1'], { id: 'i1' })]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+    });
+
+    it('asks the canvas to defer its gesture redraw', () => {
+      expect(canvasStub().deferGestureRedraw()).toBe(true);
+    });
+
+    it('moves the tronc panels by the same delta as the canvas, in the same frame', () => {
+      canvasStub().gestureMoved.emit({ k: 2, tx: 10, ty: -4 });
+
+      // No change detection: written straight to the element, as the canvas writes its own.
+      expect(panelsLayer().style.transform).toBe('translate(10px, -4px) scale(2)');
+    });
+
+    it('hands the marker the delta', () => {
+      canvasStub().gestureMoved.emit({ k: 2, tx: 10, ty: -4 });
+      fixture.detectChanges();
+
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.gestureDelta()).toEqual({ k: 2, tx: 10, ty: -4 });
+    });
+
+    it('drops the delta once the panels are laid out at the committed transform', () => {
+      canvasStub().gestureMoved.emit({ k: 2, tx: 10, ty: -4 });
+
+      component.onStageTransformChanged({ x: 10, y: -4, scaleX: 2, scaleY: 2 });
+      // Until the panels are re-laid out, old position + delta is where they belong.
+      expect(panelsLayer().style.transform).toBe('translate(10px, -4px) scale(2)');
+      fixture.detectChanges();
+
+      expect(panelsLayer().style.transform).toBe('');
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.gestureDelta()).toEqual(IDENTITY_CSS_DELTA);
     });
   });
 

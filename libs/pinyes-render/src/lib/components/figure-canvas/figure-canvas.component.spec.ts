@@ -1,3 +1,4 @@
+import Konva from 'konva';
 import { TestBed } from '@angular/core/testing';
 import { FigureZone, Gender } from '@muixer/shared';
 import { ATTENDANCE_TONES, GENDER_TONES, ThemeService } from '@muixer/ui';
@@ -49,6 +50,142 @@ describe('FigureCanvasComponent', () => {
       component.renderAll();
 
       expect(calls).toEqual(['renderNodes', 'updateTransformer']);
+    });
+  });
+
+  describe('deferred gesture redraw (projection pan/pinch)', () => {
+    type ViewInternals = {
+      stage: unknown;
+      pinyaLayer: unknown;
+      containerRef: { nativeElement: HTMLDivElement };
+      setView(v: { x: number; y: number; scaleX: number; scaleY: number }): void;
+      onGestureEnd(e: { touches: { length: number } }): void;
+      renderGrid(): void;
+    };
+
+    /** Just enough of a Konva stage: its transform, and spies on what draws. */
+    function fakeStage(container: HTMLDivElement) {
+      let t = { x: 10, y: 20, scale: 2 };
+      return {
+        x: () => t.x,
+        y: () => t.y,
+        scaleX: () => t.scale,
+        scaleY: () => t.scale,
+        position: jest.fn((p?: { x: number; y: number }) => {
+          if (p) t = { ...t, ...p };
+          return { x: t.x, y: t.y };
+        }),
+        scale: jest.fn((s: { x: number; y: number }) => (t = { ...t, scale: s.x })),
+        draw: jest.fn(),
+        batchDraw: jest.fn(),
+        container: () => container,
+      };
+    }
+
+    function setup(deferGestureRedraw: boolean) {
+      const fixture = render();
+      fixture.componentRef.setInput('mode', 'readonly');
+      fixture.componentRef.setInput('deferGestureRedraw', deferGestureRedraw);
+      const component = fixture.componentInstance as unknown as ViewInternals;
+      const container = document.createElement('div');
+      const stage = fakeStage(container);
+      component.stage = stage;
+      component.pinyaLayer = { listening: jest.fn(() => true), drawHit: jest.fn() };
+      component.containerRef = { nativeElement: container };
+      component.renderGrid = jest.fn();
+      const moved: unknown[] = [];
+      const committed: unknown[] = [];
+      fixture.componentInstance.gestureMoved.subscribe((d) => moved.push(d));
+      fixture.componentInstance.stageTransformChanged.subscribe((t) => committed.push(t));
+      return { component, container, stage, moved, committed };
+    }
+
+    beforeEach(() => {
+      jest.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+        cb(0);
+        return 1;
+      });
+    });
+
+    it('moves the drawn canvas with a CSS transform instead of redrawing it', () => {
+      const { component, container, stage, moved, committed } = setup(true);
+
+      component.setView({ x: 40, y: 20, scaleX: 4, scaleY: 4 });
+
+      expect(stage.batchDraw).not.toHaveBeenCalled();
+      expect(stage.draw).not.toHaveBeenCalled();
+      expect(stage.position).not.toHaveBeenCalled();
+      expect(container.style.transform).toBe('translate(20px, -20px) scale(2)');
+      expect(container.style.willChange).toBe('transform');
+      expect(moved).toEqual([{ k: 2, tx: 20, ty: -20 }]);
+      expect(committed).toEqual([]);
+    });
+
+    it('redraws once, at the final transform, when the last finger lifts', () => {
+      const { component, container, stage, committed } = setup(true);
+      component.setView({ x: 30, y: 25, scaleX: 2, scaleY: 2 });
+      component.setView({ x: 40, y: 20, scaleX: 4, scaleY: 4 });
+
+      component.onGestureEnd({ touches: { length: 0 } });
+
+      expect(stage.position()).toEqual({ x: 40, y: 20 });
+      expect(stage.scaleX()).toBe(4);
+      expect(stage.draw).toHaveBeenCalledTimes(1);
+      expect(stage.batchDraw).not.toHaveBeenCalled();
+      expect(container.style.transform).toBe('');
+      expect(container.style.willChange).toBe('');
+      expect(committed).toEqual([{ x: 40, y: 20, scaleX: 4, scaleY: 4 }]);
+    });
+
+    // Konva queues a redraw of its own for the next frame whenever the stage's transform changes:
+    // on top of the commit's own draw, that drew the whole scene twice.
+    it('commits without Konva queueing a second redraw of its own', () => {
+      const { component, stage } = setup(true);
+      const autoDraw: boolean[] = [];
+      stage.position.mockImplementation(((original) => (p?: { x: number; y: number }) => {
+        if (p) autoDraw.push(Konva.autoDrawEnabled);
+        return original(p);
+      })(stage.position.getMockImplementation() as (p?: { x: number; y: number }) => { x: number; y: number }));
+      stage.scale.mockImplementation(((original) => (sc: { x: number; y: number }) => {
+        autoDraw.push(Konva.autoDrawEnabled);
+        return original(sc);
+      })(stage.scale.getMockImplementation() as (sc: { x: number; y: number }) => unknown));
+      component.setView({ x: 40, y: 20, scaleX: 4, scaleY: 4 });
+
+      component.onGestureEnd({ touches: { length: 0 } });
+
+      expect(autoDraw).toEqual([false, false]);
+      expect(Konva.autoDrawEnabled).toBe(true);
+    });
+
+    it('keeps the gesture live while a finger is still down (one lifted mid-pinch)', () => {
+      const { component, stage, committed } = setup(true);
+      component.setView({ x: 40, y: 20, scaleX: 4, scaleY: 4 });
+
+      component.onGestureEnd({ touches: { length: 1 } });
+
+      expect(stage.draw).not.toHaveBeenCalled();
+      expect(committed).toEqual([]);
+    });
+
+    it('does nothing on a touchend with no gesture (a plain tap)', () => {
+      const { component, stage, committed } = setup(true);
+
+      component.onGestureEnd({ touches: { length: 0 } });
+
+      expect(stage.draw).not.toHaveBeenCalled();
+      expect(committed).toEqual([]);
+    });
+
+    it('redraws every move, as before, when not deferred', () => {
+      const { component, container, stage, moved } = setup(false);
+
+      component.setView({ x: 40, y: 20, scaleX: 4, scaleY: 4 });
+
+      expect(stage.position()).toEqual({ x: 40, y: 20 });
+      expect(stage.batchDraw).toHaveBeenCalledTimes(1);
+      expect(container.style.transform).toBe('');
+      expect(moved).toEqual([]);
     });
   });
 

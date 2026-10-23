@@ -2,8 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -28,6 +31,7 @@ import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { PinnedCardComponent } from '../pinned-card/pinned-card.component';
 import { describeOwnPlacement, findOwnPlacements, findOwnTroncCellRect } from '../../utils/own-position.util';
 import { BoundsNode } from '../../utils/fit-to-bounds.util';
+import { CssDelta, cssTransformString, IDENTITY_CSS_DELTA } from '../../utils/gesture-math.util';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from '../own-position-banner/own-position-banner.component';
 import { MarkerTarget, OwnPositionMarkerComponent } from '../own-position-marker/own-position-marker.component';
 
@@ -71,6 +75,7 @@ interface DistributionTroncPanel {
 })
 export class PinyaProjectionComponent {
   private readonly theme = injectCanvasTheme();
+  private readonly injector = inject(Injector);
 
   readonly data = input.required<ProjectionSegmentData>();
 
@@ -116,6 +121,9 @@ export class PinyaProjectionComponent {
    *  attach/detach pattern used elsewhere in this canvas family. */
   private readonly figuresContainer = viewChild<ElementRef<HTMLDivElement>>('figuresContainer');
 
+  /** The tronc panels, moved as one by a pan/pinch in progress — see `onGestureMoved`. */
+  private readonly panelsLayer = viewChild<ElementRef<HTMLDivElement>>('panelsLayer');
+
   /** For imperatively calling flyToBounds()/cancelFlight() — see `maybeFlyOnArrival`/`onTroba`. */
   private readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvas');
 
@@ -127,6 +135,9 @@ export class PinyaProjectionComponent {
 
   /** Real Konva stage transform — updated via (stageTransformChanged) from FigureCanvasComponent. */
   protected readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+
+  /** How far a pan/pinch in progress has moved the drawn canvas past `stageTransform`, for the marker. */
+  protected readonly gestureDelta = signal<CssDelta>(IDENTITY_CSS_DELTA);
 
   /** Each instance's real, DOM-measured tronc panel size — see `getTroncPanelNaturalSize`. */
   private readonly measuredTroncSizes = signal<Map<string, { width: number; height: number }>>(new Map());
@@ -624,8 +635,39 @@ export class PinyaProjectionComponent {
     });
   }
 
+  /**
+   * A gesture that ends commits its transform here. The panels layer keeps its delta until change
+   * detection has laid the panels out at the new transform: until then, old position + delta is
+   * exactly where they belong, so no frame shows them out of place.
+   */
   onStageTransformChanged(t: { x: number; y: number; scaleX: number; scaleY: number }): void {
     this.stageTransform.set(t);
+    if (this.gestureDelta() === IDENTITY_CSS_DELTA) return;
+    this.gestureDelta.set(IDENTITY_CSS_DELTA);
+    afterNextRender(
+      {
+        write: () => {
+          const style = this.panelsLayer()?.nativeElement.style;
+          if (!style) return;
+          style.transform = '';
+          style.willChange = '';
+        },
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /**
+   * Once per frame of a pan/pinch: moves the tronc panels by the canvas's own delta, written
+   * straight to the element (not through change detection) so both move in the same frame.
+   */
+  onGestureMoved(delta: CssDelta): void {
+    const style = this.panelsLayer()?.nativeElement.style;
+    if (style) {
+      style.willChange = 'transform';
+      style.transform = cssTransformString(delta);
+    }
+    this.gestureDelta.set(delta);
   }
 
   /** Troba'm (banner button) and the chevron tap both fly to the current placement on demand. */

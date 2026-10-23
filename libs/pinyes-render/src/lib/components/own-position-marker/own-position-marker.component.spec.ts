@@ -69,6 +69,25 @@ describe('OwnPositionMarkerComponent', () => {
     });
   });
 
+  // A deferred pan/pinch moves the drawn canvas (and the tronc panels) by a CSS delta before the
+  // stage transform catches up: the marker follows the same delta, on either kind of target.
+  describe('screen position — mid-gesture delta', () => {
+    it('moves a world target by the delta on top of the stage transform', () => {
+      setInputs({ target: { kind: 'world', x: 100, y: 50 }, stageTransform: { x: 20, y: 10, scaleX: 2, scaleY: 2 } });
+      fixture.componentRef.setInput('gestureDelta', { k: 2, tx: -30, ty: 5 });
+      fixture.detectChanges();
+      expect(fixture.componentInstance.screenPosition()).toEqual({ x: 410, y: 225 });
+    });
+
+    it('moves a screen target by the delta', () => {
+      setInputs({ target: { kind: 'screen', x: 100, y: 50 } });
+      fixture.componentRef.setInput('gestureDelta', { k: 1, tx: 500, ty: 0 });
+      fixture.detectChanges();
+      expect(fixture.componentInstance.screenPosition()).toEqual({ x: 600, y: 50 });
+      expect(chevronEl()).not.toBeNull();
+    });
+  });
+
   describe('always dark, whatever the page theme', () => {
     it('draws the chevron from the dark theme tokens', () => {
       setInputs({ target: { kind: 'screen', x: 500, y: 150 } });

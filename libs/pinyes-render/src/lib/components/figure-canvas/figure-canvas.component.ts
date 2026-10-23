@@ -24,7 +24,7 @@ import {
   isGhostEligible,
   isGhostPositionOccupied,
 } from '../../utils/ghost-clone.util';
-import { screenToStage } from '../../utils/rengla-coordinates.util';
+import { screenToStage, StageTransform } from '../../utils/rengla-coordinates.util';
 import { BoundsNode, computeFitTransform } from '../../utils/fit-to-bounds.util';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
@@ -53,6 +53,9 @@ import {
 import {
   clampScale,
   computeRotationAngleDeg,
+  CssDelta,
+  cssDelta,
+  cssTransformString,
   getEventClientPoint,
   Point,
   touchDistance,
@@ -203,6 +206,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    * hosts (e.g. the composition editor) leave this `false` and keep today's placeholder.
    */
   readonly troncPanelVisualHidden = input<boolean>(false);
+  /**
+   * Touch pan/pinch moves the already-drawn canvas with a CSS transform (`gestureMoved`) and
+   * redraws it once, when the last finger lifts (`stageTransformChanged`): an old phone can't
+   * redraw every node each frame. Set by the projection, whose host moves its own overlays (the
+   * tronc panels) by the same `gestureMoved` delta.
+   */
+  readonly deferGestureRedraw = input(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeMoved = output<{ id: string; x: number; y: number }>();
@@ -244,6 +254,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     scaleX: number;
     scaleY: number;
   }>();
+  /**
+   * `deferGestureRedraw` only: once per frame of a touch gesture, how far the drawn canvas has
+   * moved from the last `stageTransformChanged` (a CSS transform, top-left origin).
+   */
+  readonly gestureMoved = output<CssDelta>();
   readonly ghostCloneRequested = output<{
     sourceNode: CanvasNode;
     targetPosition: { x: number; y: number };
@@ -294,7 +309,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private flightTween: Konva.Tween | null = null;
   /** Pending rAF that will flush one `stageTransformChanged` emission — see `scheduleStageTransform`. */
   private stageTransformFrame: number | null = null;
-  private gestureEndHandler: (() => void) | null = null;
+  private gestureEndHandler: ((e: TouchEvent) => void) | null = null;
+  /** `deferGestureRedraw`: where the gesture has moved the view; the stage still holds what was drawn. */
+  private liveView: StageTransform | null = null;
+  /** Pending rAF that applies `liveView` as a CSS transform — see `setView`. */
+  private gestureFrame: number | null = null;
 
   private activeGhostGroup: Konva.Group | null = null;
   private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -450,6 +469,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.longPress.cancel();
     this.cancelFlight();
     if (this.stageTransformFrame !== null) cancelAnimationFrame(this.stageTransformFrame);
+    if (this.gestureFrame !== null) cancelAnimationFrame(this.gestureFrame);
     this.clearAllGhostTimers();
     this.clearPersonDragVisuals();
     this.resizeObserver?.disconnect();
@@ -844,18 +864,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const getTouchPoint = (touch: Touch): Point => ({ x: touch.clientX, y: touch.clientY });
 
-    // Read-only projection: nothing in the scene needs hit-testing *during* a pan/pinch, but
-    // Konva redraws the hit canvas together with the scene on every frame. Suspend it for the
-    // gesture and rebuild it once in the capture phase of touchend — i.e. before Konva resolves
-    // the tap target — so a tap on a person right after a pan still behaves exactly as before.
-    const suspendHitGraph = (): void => {
-      if (this.mode() === 'readonly' && this.pinyaLayer.listening()) this.pinyaLayer.listening(false);
-    };
-    this.gestureEndHandler = () => {
-      if (this.pinyaLayer.listening()) return;
-      this.pinyaLayer.listening(true);
-      this.pinyaLayer.drawHit();
-    };
+    // Runs in the capture phase of touchend, i.e. before Konva resolves the tap target, so the
+    // hit graph is already where the gesture left the view — see `onGestureEnd`.
+    this.gestureEndHandler = (e) => this.onGestureEnd(e);
     const container = this.stage.container();
     container.addEventListener('touchend', this.gestureEndHandler, true);
     container.addEventListener('touchcancel', this.gestureEndHandler, true);
@@ -866,11 +877,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (touches.length > 1) this.longPress.cancel();
       if (touches.length === 1 && !e.target.draggable() && this.canPanOrZoom()) {
         panStart = getTouchPoint(touches[0]);
-        panStageStart = { x: this.stage.x(), y: this.stage.y() };
+        panStageStart = this.viewNow();
       } else if (touches.length === 2) {
         panStart = null;
         pinchStartDist = touchDistance(getTouchPoint(touches[0]), getTouchPoint(touches[1]));
-        pinchStartScale = this.stage.scaleX();
+        pinchStartScale = this.viewNow().scaleX;
+        // The rect is the container's layout box, which the CSS transform of a deferred gesture
+        // doesn't change.
         pinchRect = this.stage.container().getBoundingClientRect();
         this.userAdjustedView = true;
         e.evt.preventDefault();
@@ -890,24 +903,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const rect = pinchRect ?? this.stage.container().getBoundingClientRect();
         const midpoint = touchMidpoint(p1, p2);
         const focal = { x: midpoint.x - rect.left, y: midpoint.y - rect.top };
-        const newPos = zoomAroundPoint(this.stage.position(), this.stage.scaleX(), newScale, focal);
-        this.stage.scale({ x: newScale, y: newScale });
-        this.stage.position(newPos);
-        this.zoomLevel.set(newScale);
-        suspendHitGraph();
-        this.stage.batchDraw();
-        this.scheduleStageTransform();
+        const view = this.viewNow();
+        const newPos = zoomAroundPoint(view, view.scaleX, newScale, focal);
+        this.setView({ ...newPos, scaleX: newScale, scaleY: newScale });
       } else if (touches.length === 1 && panStart) {
         e.evt.preventDefault();
         this.userAdjustedView = true;
         const pos = getTouchPoint(touches[0]);
-        this.stage.position({
+        const view = this.viewNow();
+        this.setView({
+          ...view,
           x: panStageStart.x + (pos.x - panStart.x),
           y: panStageStart.y + (pos.y - panStart.y),
         });
-        suspendHitGraph();
-        this.stage.batchDraw();
-        this.scheduleStageTransform();
       }
     });
 
@@ -918,12 +926,95 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (remaining.length === 1) {
         // One finger lifted mid-pinch: resume single-finger pan from here.
         panStart = getTouchPoint(remaining[0]);
-        panStageStart = { x: this.stage.x(), y: this.stage.y() };
+        panStageStart = this.viewNow();
       } else {
         panStart = null;
       }
-      this.emitStageTransform();
+      // A deferred gesture reports its transform when it commits (`onGestureEnd`), not before.
+      if (!this.deferGestureRedraw()) this.emitStageTransform();
     });
+  }
+
+  /** The view on screen: where a deferred gesture has moved it, or else the stage's own transform. */
+  private viewNow(): StageTransform {
+    return this.liveView ?? this.committedView();
+  }
+
+  /** What the stage last drew at. */
+  private committedView(): StageTransform {
+    return { x: this.stage.x(), y: this.stage.y(), scaleX: this.stage.scaleX(), scaleY: this.stage.scaleY() };
+  }
+
+  /**
+   * Moves the view to `view` for a touch gesture. Deferred (`deferGestureRedraw`): records it and,
+   * once per frame, moves the drawn canvas there with a CSS transform. Otherwise: moves the stage
+   * and redraws it, with the hit graph suspended — nothing needs hit-testing mid-gesture, and
+   * `onGestureEnd` rebuilds it before Konva resolves the next tap.
+   */
+  private setView(view: StageTransform): void {
+    if (this.deferGestureRedraw()) {
+      this.liveView = view;
+      if (this.gestureFrame !== null) return;
+      this.gestureFrame = requestAnimationFrame(() => {
+        this.gestureFrame = null;
+        if (!this.liveView) return;
+        const delta = cssDelta(this.committedView(), this.liveView);
+        const style = this.containerRef.nativeElement.style;
+        style.transformOrigin = '0 0';
+        style.willChange = 'transform';
+        style.transform = cssTransformString(delta);
+        this.gestureMoved.emit(delta);
+      });
+      return;
+    }
+    this.stage.scale({ x: view.scaleX, y: view.scaleY });
+    this.stage.position({ x: view.x, y: view.y });
+    this.zoomLevel.set(view.scaleX);
+    if (this.mode() === 'readonly' && this.pinyaLayer.listening()) this.pinyaLayer.listening(false);
+    this.stage.batchDraw();
+    this.scheduleStageTransform();
+  }
+
+  /**
+   * Capture phase of touchend/touchcancel, before Konva resolves the tap target. Once the last
+   * finger lifts, a deferred gesture commits: the stage takes the live view and redraws there
+   * (scene and hit graph) in this same task, so the canvas never shows the old drawing unmoved.
+   * A non-deferred gesture only has the hit graph to rebuild.
+   */
+  private onGestureEnd(e: Pick<TouchEvent, 'touches'>): void {
+    if (e.touches.length > 0) return;
+    if (this.liveView) {
+      this.commitGesture();
+      return;
+    }
+    if (!this.pinyaLayer || this.pinyaLayer.listening()) return;
+    this.pinyaLayer.listening(true);
+    this.pinyaLayer.drawHit();
+  }
+
+  private commitGesture(): void {
+    const view = this.liveView;
+    if (!view) return;
+    this.liveView = null;
+    if (this.gestureFrame !== null) {
+      cancelAnimationFrame(this.gestureFrame);
+      this.gestureFrame = null;
+    }
+    // Konva would queue a redraw of its own for the new transform: it is drawn right here instead.
+    const autoDraw = Konva.autoDrawEnabled;
+    Konva.autoDrawEnabled = false;
+    try {
+      this.stage.scale({ x: view.scaleX, y: view.scaleY });
+      this.stage.position({ x: view.x, y: view.y });
+    } finally {
+      Konva.autoDrawEnabled = autoDraw;
+    }
+    this.zoomLevel.set(view.scaleX);
+    this.stage.draw();
+    const style = this.containerRef.nativeElement.style;
+    style.transform = '';
+    style.willChange = '';
+    this.emitStageTransform();
   }
 
   /** Ctrl/plain wheel zoom toward the pointer, for desktop trackpads/mice (DEBT F2). */

@@ -19,37 +19,42 @@
     [phase]="phase()"
     [fitExtraBounds]="distributionFitBounds()"
     [figureLinks]="figureLinks()"
+    [deferGestureRedraw]="true"
     (stageTransformChanged)="onStageTransformChanged($event)"
+    (gestureMoved)="onGestureMoved($event)"
     (flightLanded)="onFlightLanded()"
   />
 
-  @for (panel of distributionTroncPanels(); track panel.instance.id) {
-    <!-- Not clipped: the card's paper edge and its pin reach a few pixels past the panel. -->
-    <div
-      class="absolute pointer-events-none origin-top-left"
-      [style.left.px]="panel.screenX"
-      [style.top.px]="panel.screenY"
-      [style.width.px]="panel.naturalW"
-      [style.height.px]="panel.naturalH"
-      [style.transform]="'scale(' + panel.scale + ')'"
-    >
-      <lib-pinned-card class="h-full" [color]="panel.color" [edge]="panel.pinEdge">
-        <app-tronc-view
-          class="block w-full h-full"
-          mode="projection"
-          [troncNodes]="getInstanceTroncNodes(panel.instance)"
-          [baseNodes]="getInstanceBaseNodes(panel.instance)"
-          [directionNodes]="getInstanceDirectionNodes(panel.instance)"
-          [assignments]="panel.instance.assignments"
-          [conflictPersonIds]="conflictPersonIds()"
-          [attendanceMap]="attendanceMap()"
-          [phase]="phase()"
-          [figureName]="getInstanceName(panel.instance)"
-          [nameBand]="panel.nameBand"
-        />
-      </lib-pinned-card>
-    </div>
-  }
+  <!-- Moved as one by a pan/pinch in progress (`onGestureMoved`), by the same delta as the canvas. -->
+  <div #panelsLayer data-testid="tronc-panels-layer" class="absolute inset-0 pointer-events-none origin-top-left">
+    @for (panel of distributionTroncPanels(); track panel.instance.id) {
+      <!-- Not clipped: the card's paper edge and its pin reach a few pixels past the panel. -->
+      <div
+        class="absolute pointer-events-none origin-top-left"
+        [style.left.px]="panel.screenX"
+        [style.top.px]="panel.screenY"
+        [style.width.px]="panel.naturalW"
+        [style.height.px]="panel.naturalH"
+        [style.transform]="'scale(' + panel.scale + ')'"
+      >
+        <lib-pinned-card class="h-full" [color]="panel.color" [edge]="panel.pinEdge">
+          <app-tronc-view
+            class="block w-full h-full"
+            mode="projection"
+            [troncNodes]="getInstanceTroncNodes(panel.instance)"
+            [baseNodes]="getInstanceBaseNodes(panel.instance)"
+            [directionNodes]="getInstanceDirectionNodes(panel.instance)"
+            [assignments]="panel.instance.assignments"
+            [conflictPersonIds]="conflictPersonIds()"
+            [attendanceMap]="attendanceMap()"
+            [phase]="phase()"
+            [figureName]="getInstanceName(panel.instance)"
+            [nameBand]="panel.nameBand"
+          />
+        </lib-pinned-card>
+      </div>
+    }
+  </div>
 
   @if (ownPositionState(); as state) {
     <lib-own-position-banner
@@ -68,6 +73,7 @@
     <lib-own-position-marker
       [target]="target"
       [stageTransform]="stageTransform()"
+      [gestureDelta]="gestureDelta()"
       [viewport]="{ width: containerWidth(), height: containerHeight() }"
       [arrivedTick]="arrivedTick()"
       [subject]="ownPositionSubject()"
