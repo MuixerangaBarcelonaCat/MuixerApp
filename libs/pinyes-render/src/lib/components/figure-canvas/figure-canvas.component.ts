@@ -309,6 +309,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private wheelHandler: ((e: WheelEvent) => void) | null = null;
   /** In-flight `flyToBounds()` tween, if any — cancelled by any user gesture (see `cancelFlight`). */
   private flightTween: Konva.Tween | null = null;
+  /** `deferGestureRedraw`: the pending frame of a flight that moves pixels instead (see `flyByCss`). */
+  private flightFrame: number | null = null;
   /** Pending rAF that will flush one `stageTransformChanged` emission — see `scheduleStageTransform`. */
   private stageTransformFrame: number | null = null;
   private gestureEndHandler: ((e: TouchEvent) => void) | null = null;
@@ -472,7 +474,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.destroyed = true;
     // A pending long press must not fire into a destroyed component (emitting on it throws).
     this.longPress.cancel();
-    this.cancelFlight();
+    this.stopFlight();
     if (this.stageTransformFrame !== null) cancelAnimationFrame(this.stageTransformFrame);
     if (this.gestureFrame !== null) cancelAnimationFrame(this.gestureFrame);
     this.dropUnderlay();
@@ -519,6 +521,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.deferGestureRedraw()) {
+      this.flyByCss({ x: fit.x, y: fit.y, scaleX: fit.scale, scaleY: fit.scale }, options?.durationMs ?? 1000);
+      return;
+    }
+
     this.flightTween = new Konva.Tween({
       node: this.stage,
       duration: (options?.durationMs ?? 1000) / 1000,
@@ -537,11 +544,49 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.flightTween.play();
   }
 
-  /** Stops an in-flight `flyToBounds()` tween exactly where it is. Called at the head of every
-   *  gesture handler — fighting the user's finger is worse than not animating at all. */
-  cancelFlight(): void {
+  /**
+   * The flight of a deferred canvas: like a gesture, it moves the drawn canvas by CSS each frame
+   * (the same easing and path as the Konva tween) and redraws once, where it lands.
+   */
+  private flyByCss(to: StageTransform, durationMs: number): void {
+    const from = this.viewNow();
+    const start = performance.now();
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / durationMs);
+      const p = Konva.Easings.EaseInOut(t, 0, 1, 1);
+      const scale = from.scaleX + (to.scaleX - from.scaleX) * p;
+      this.liveView = { x: from.x + (to.x - from.x) * p, y: from.y + (to.y - from.y) * p, scaleX: scale, scaleY: scale };
+      if (t < 1) {
+        this.applyLiveView();
+        this.flightFrame = requestAnimationFrame(step);
+        return;
+      }
+      this.flightFrame = null;
+      this.commitGesture();
+      this.flightLanded.emit();
+    };
+    this.flightFrame = requestAnimationFrame(step);
+  }
+
+  /**
+   * Stops an in-flight `flyToBounds()` exactly where it is. A deferred flight leaves the canvas
+   * moved there, uncommitted: a touch that stops it carries on from there as its own gesture,
+   * which commits when it ends.
+   */
+  private stopFlight(): void {
     this.flightTween?.destroy();
     this.flightTween = null;
+    if (this.flightFrame !== null) cancelAnimationFrame(this.flightFrame);
+    this.flightFrame = null;
+  }
+
+  /** Stops an in-flight `flyToBounds()` exactly where it is, and commits a deferred one there.
+   *  Called at the head of every gesture handler — fighting the user's finger is worse than not
+   *  animating at all. */
+  cancelFlight(): void {
+    const flying = this.flightFrame !== null;
+    this.stopFlight();
+    if (flying) this.commitGesture();
   }
 
   fitToScreen(): void {
@@ -879,7 +924,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     container.addEventListener('touchcancel', this.gestureEndHandler, true);
 
     this.stage.on('touchstart', (e) => {
-      this.cancelFlight();
+      this.stopFlight();
       const touches = e.evt.touches;
       if (touches.length > 1) this.longPress.cancel();
       if (touches.length === 1 && !e.target.draggable() && this.canPanOrZoom()) {
@@ -964,14 +1009,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (this.gestureFrame !== null) return;
       this.gestureFrame = requestAnimationFrame(() => {
         this.gestureFrame = null;
-        if (!this.liveView) return;
-        const delta = cssDelta(this.committedView(), this.liveView);
-        const style = this.containerRef.nativeElement.style;
-        style.transformOrigin = '0 0';
-        style.willChange = 'transform';
-        style.transform = cssTransformString(delta);
-        if (this.underlay) this.underlay.canvas.style.visibility = 'visible';
-        this.gestureMoved.emit(delta);
+        this.applyLiveView();
       });
       return;
     }
@@ -981,6 +1019,18 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     if (this.mode() === 'readonly' && this.pinyaLayer.listening()) this.pinyaLayer.listening(false);
     this.stage.batchDraw();
     this.scheduleStageTransform();
+  }
+
+  /** Moves the drawn canvas (and its underlay) to `liveView` by CSS, and tells the host by how much. */
+  private applyLiveView(): void {
+    if (!this.liveView) return;
+    const delta = cssDelta(this.committedView(), this.liveView);
+    const style = this.containerRef.nativeElement.style;
+    style.transformOrigin = '0 0';
+    style.willChange = 'transform';
+    style.transform = cssTransformString(delta);
+    if (this.underlay) this.underlay.canvas.style.visibility = 'visible';
+    this.gestureMoved.emit(delta);
   }
 
   /**

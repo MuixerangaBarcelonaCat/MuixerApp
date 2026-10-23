@@ -177,6 +177,94 @@ describe('FigureCanvasComponent', () => {
       expect(committed).toEqual([]);
     });
 
+    // Troba'm: the flight moves pixels the same way, and redraws once where it lands.
+    describe('flight', () => {
+      type FlightInternals = ViewInternals & {
+        flyToBounds(bounds: { x: number; y: number; width: number; height: number }[], options?: { durationMs?: number }): void;
+        cancelFlight(): void;
+        stopFlight(): void;
+        viewNow(): { x: number; y: number; scaleX: number; scaleY: number };
+      };
+
+      function setupFlight() {
+        const s = setup(true);
+        const internals = s.stage as unknown as Record<string, unknown>;
+        internals['width'] = () => 400;
+        internals['height'] = () => 800;
+        const landed: unknown[] = [];
+        const order: string[] = [];
+        const fixture = (s.component as unknown as { flightLanded: { subscribe(cb: () => void): void } });
+        fixture.flightLanded.subscribe(() => {
+          landed.push(true);
+          order.push('landed');
+        });
+        (s.component as unknown as { stageTransformChanged: { subscribe(cb: () => void): void } }).stageTransformChanged.subscribe(() => order.push('committed'));
+        return { ...s, component: s.component as FlightInternals, landed, order };
+      }
+      const TARGET = [{ x: 1000, y: 500, width: 100, height: 100 }];
+
+      beforeEach(() => jest.useFakeTimers());
+      afterEach(() => jest.useRealTimers());
+
+      it('moves the canvas by CSS each frame, without drawing or committing', () => {
+        const { component, container, stage, moved, committed } = setupFlight();
+
+        component.flyToBounds(TARGET, { durationMs: 1000 });
+        jest.advanceTimersByTime(500);
+
+        expect(moved.length).toBeGreaterThan(5);
+        expect(container.style.transform).not.toBe('');
+        expect(stage.draw).not.toHaveBeenCalled();
+        expect(stage.batchDraw).not.toHaveBeenCalled();
+        expect(stage.position).not.toHaveBeenCalled();
+        expect(committed).toEqual([]);
+      });
+
+      it('lands by drawing once at the destination, then reports the landing', () => {
+        const { component, container, stage, committed, order } = setupFlight();
+
+        component.flyToBounds(TARGET, { durationMs: 1000 });
+        jest.advanceTimersByTime(1100);
+
+        expect(stage.draw).toHaveBeenCalledTimes(1);
+        expect(container.style.transform).toBe('');
+        expect(committed).toHaveLength(1);
+        // The fit centres the target (bounds are centred on x/y) on the screen's centre (200, 400).
+        const [t] = committed as { x: number; y: number; scaleX: number }[];
+        expect(1000 * t.scaleX + t.x).toBeCloseTo(200);
+        expect(500 * t.scaleX + t.y).toBeCloseTo(400);
+        expect(order).toEqual(['committed', 'landed']);
+      });
+
+      it('stops where it is when a finger lands, for the gesture to carry on from there', () => {
+        const { component, stage, committed, landed } = setupFlight();
+        component.flyToBounds(TARGET, { durationMs: 1000 });
+        jest.advanceTimersByTime(500);
+        const midway = component.viewNow();
+
+        component.stopFlight();
+        jest.advanceTimersByTime(1000);
+
+        expect(component.viewNow()).toEqual(midway);
+        expect(stage.draw).not.toHaveBeenCalled();
+        expect(committed).toEqual([]);
+        expect(landed).toEqual([]);
+      });
+
+      it('commits where it is when cancelled outside a touch (desktop pan, a new flight)', () => {
+        const { component, stage, committed, landed } = setupFlight();
+        component.flyToBounds(TARGET, { durationMs: 1000 });
+        jest.advanceTimersByTime(500);
+        const midway = component.viewNow();
+
+        component.cancelFlight();
+
+        expect(stage.draw).toHaveBeenCalledTimes(1);
+        expect(committed).toEqual([midway]);
+        expect(landed).toEqual([]);
+      });
+    });
+
     describe('underlay (fills the edges a gesture reveals)', () => {
       type UnderlayInternals = ViewInternals & {
         contentScreenRect(): { x: number; y: number; width: number; height: number } | null;
