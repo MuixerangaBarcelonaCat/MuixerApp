@@ -6,6 +6,7 @@ import { Person } from '../person/person.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { SeasonModule } from '../season/season.module';
 import { AuditModule } from '../audit/audit.module';
+import { CollaSettingsModule } from '../colla-settings/colla-settings.module';
 import { EventController } from './event.controller';
 import { EventService } from './event.service';
 import { AttendanceService } from './attendance.service';
@@ -16,6 +17,7 @@ import { AttendanceSweepService } from './attendance-sweep.service';
     TypeOrmModule.forFeature([Event, Attendance, Person, EventSegment]),
     SeasonModule,
     AuditModule,
+    CollaSettingsModule,
   ],
   controllers: [EventController],
   providers: [EventService, AttendanceService, AttendanceSweepService],

@@ -3,11 +3,12 @@ import {
   Component,
   ChangeDetectionStrategy,
   computed,
+  effect,
   inject,
   signal,
   OnInit,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { PersonService } from '../../services/person.service';
@@ -24,6 +25,7 @@ import {
   InputComponent,
   ModalComponent,
   SelectComponent,
+  DOMAIN_ICONS,
 } from '@muixer/ui';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
@@ -40,8 +42,8 @@ import {
   formatShoulderHeightRelative,
   formatPhone,
   getFullName,
+  localToday,
 } from '../../../../shared/utils';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
 import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
@@ -50,7 +52,9 @@ import {
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
-import { DelegateType, Gender, LegalDocumentType, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
+import { DelegateType, Gender, LegalDocumentType, TAG_CATEGORY_LABELS, TagCategory, deriveIsXicalla } from '@muixer/shared';
+import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 /** Same options and labels as the PWA onboarding form (person-data-fields). */
 const GENDER_LABELS: Record<Gender, string> = {
@@ -195,6 +199,34 @@ export class PersonDetailComponent implements OnInit {
     shirtDate: [''],
   });
 
+  private readonly collaSettings = inject(CollaSettingsService);
+  private readonly birthDateValue = toSignal(this.form.controls.birthDate.valueChanges, {
+    initialValue: this.form.controls.birthDate.value,
+  });
+
+  /**
+   * Xicalla worked out from the birth date being edited, or `null` with no date (then the flag is
+   * set by hand). Same rule as the API (`deriveIsXicalla`), so the editor shows what will be saved.
+   */
+  protected readonly xicallaByAge = computed(() => {
+    const birthDate = this.birthDateValue();
+    if (!birthDate) return null;
+    return deriveIsXicalla({ birthDate, isXicallaManual: false }, this.collaSettings.settings().majorityAge, localToday());
+  });
+
+  // With a birth date the checkbox shows the worked-out value, read-only. Clearing the date
+  // re-enables it holding that same value, so nothing flips without the user seeing it.
+  private readonly syncXicallaControl = effect(() => {
+    const byAge = this.xicallaByAge();
+    const control = this.form.controls.isXicalla;
+    if (byAge === null) {
+      control.enable({ emitEvent: false });
+    } else {
+      control.setValue(byAge, { emitEvent: false });
+      control.disable({ emitEvent: false });
+    }
+  });
+
   protected readonly genders = [Gender.FEMALE, Gender.MALE, Gender.OTHER];
   protected readonly genderLabels = GENDER_LABELS;
   getGenderLabel(gender: Gender | null): string {
@@ -205,7 +237,12 @@ export class PersonDetailComponent implements OnInit {
   readonly getOnboardingLabel = getOnboardingLabel;
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
-  readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
+  private readonly renderSettings = injectPinyesRenderSettings();
+
+  /** Shoulder height relative to the colla's baseline. */
+  relativeShoulderHeight(value: number | null): string {
+    return formatShoulderHeightRelative(value, this.renderSettings().shoulderHeightBaselineCm);
+  }
   readonly formatNodeCordonLabel = formatNodeCordonLabel;
   readonly Math = Math;
 
@@ -320,14 +357,15 @@ export class PersonDetailComponent implements OnInit {
       secondSurname: raw.secondSurname ?? undefined,
       alias: raw.alias ?? undefined,
       phone: raw.phone ?? undefined,
-      birthDate: raw.birthDate || undefined,
+      birthDate: raw.birthDate || null,
       shoulderHeight: raw.shoulderHeight || null,
       gender: (raw.gender as Gender) || null,
       notes: raw.notes ?? undefined,
       notesEmoji: raw.notesEmoji ?? null,
       isActive: raw.isActive ?? undefined,
       isMember: raw.isMember ?? undefined,
-      isXicalla: raw.isXicalla ?? undefined,
+      // With a birth date the API works xicalla out itself; the flag only matters without one.
+      ...(raw.birthDate ? {} : { isXicalla: raw.isXicalla ?? false }),
       availability: (raw.availability as Person['availability']) ?? undefined,
       onboardingStatus:
         (raw.onboardingStatus as Person['onboardingStatus']) ?? undefined,

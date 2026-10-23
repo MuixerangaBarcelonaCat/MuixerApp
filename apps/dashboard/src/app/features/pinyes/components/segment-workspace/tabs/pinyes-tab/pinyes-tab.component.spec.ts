@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, isRematMarker } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, isRematMarker, NodeLegendComponent, DisplayModeKeyComponent } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -11,9 +11,11 @@ import { SegmentWorkspaceStateService } from '../../../../services/segment-works
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
+import { EventService } from '../../../../../events/services/event.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ModalComponent, ToastService } from '@muixer/ui';
+import { Gender } from '@muixer/shared';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -30,10 +32,12 @@ class StubFigureCanvas {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
-  readonly highlightedNodeIds = input<Set<string>>(new Set());
+  readonly moveSourceNode = input<SegmentNodeRef | null>(null);
   readonly gridEnabled = input<boolean>(true);
   readonly phase = input<string>('before');
   readonly personDragEnabled = input<boolean>(true);
+  readonly displayMode = input<string>('position');
+  readonly heightDomain = input<{ heights: number[] } | null>(null);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
   readonly segmentNodeContextMenu = output<SegmentNodeRef>();
@@ -162,6 +166,7 @@ const makePerson = (id: string): AvailablePerson => ({
   name: 'Nom',
   firstSurname: 'Cognom',
   shoulderHeight: null,
+  gender: null,
   isXicalla: false,
   notes: null,
   notesEmoji: null,
@@ -204,6 +209,8 @@ describe('PinyesTabComponent', () => {
     locked?: boolean;
     /** Simulates a touch device (phone / tablet). */
     touch?: boolean;
+    /** Simulates a phone-sized viewport (below sm). */
+    phone?: boolean;
   } = {}) => {
     const segment = makeSegment(opts.instances ?? [makeInstance(INST_A)]);
     const defaultNodes: Record<string, InstanceNodeItem[]> = opts.nodesByInstance ?? {
@@ -244,6 +251,7 @@ describe('PinyesTabComponent', () => {
         AssignmentStateService,
         UndoRedoService,
         { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+        { provide: EventService, useValue: { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) } },
         {
           provide: SegmentDistributionService,
           useValue: {
@@ -254,7 +262,7 @@ describe('PinyesTabComponent', () => {
         },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
-        { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false) } },
+        { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false), isPhone: signal(opts.phone ?? false) } },
       ],
     })
       .overrideComponent(PinyesTabComponent, {
@@ -354,6 +362,7 @@ describe('PinyesTabComponent', () => {
           AssignmentStateService,
           UndoRedoService,
           { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+          { provide: EventService, useValue: { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) } },
           {
             provide: SegmentDistributionService,
             useValue: { getDistribution: vi.fn().mockReturnValue(of({ segment: { id: SEGMENT_ID, name: 'Bloc 1' }, items: [] })) },
@@ -392,6 +401,123 @@ describe('PinyesTabComponent', () => {
       expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('display modes', () => {
+    const switcher = () => fixture.nativeElement.querySelector('app-display-mode-switcher [role="group"]') as HTMLElement | null;
+    const modeButton = (label: string) =>
+      fixture.nativeElement.querySelector(`app-display-mode-switcher button[aria-label="${label}"]`) as HTMLButtonElement;
+    const withHeight = (a: AssignmentDetail, cm: number): AssignmentDetail => ({ ...a, person: { ...a.person, shoulderHeight: cm } });
+
+    it('shows the switcher in the canvas toolbar, starting in Posició', async () => {
+      await setup();
+      expect(switcher()).not.toBeNull();
+      expect(canvasStub().displayMode()).toBe('position');
+    });
+
+    it('recolors the canvas with the mode picked in the switcher', async () => {
+      await setup();
+      modeButton('Gènere').click();
+      fixture.detectChanges();
+      expect(ws.displayMode()).toBe('gender');
+      expect(canvasStub().displayMode()).toBe('gender');
+    });
+
+    it('has no switcher on a phone, and draws Posició there whatever was chosen', async () => {
+      await setup({ phone: true });
+      ws.setDisplayMode('height');
+      fixture.detectChanges();
+      expect(switcher()).toBeNull();
+      expect(canvasStub().displayMode()).toBe('position');
+    });
+
+    it('stretches the height ramp over the people on the pinya canvas only (not the tronc)', async () => {
+      await setup({
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'PINYA'), makeNode('n2', 'PINYA', { x: 50 }), makeNode('t1', 'TRONC')] },
+        assignmentsByInstance: {
+          [INST_A]: [
+            withHeight(makeAssignment(INST_A, 'n1'), 150),
+            withHeight(makeAssignment(INST_A, 'n2'), 170),
+            withHeight(makeAssignment(INST_A, 't1', undefined, 'TRONC'), 190),
+          ],
+        },
+      });
+      expect(canvasStub().heightDomain()).toEqual({ heights: [150, 170] });
+    });
+
+    it('passes each person\'s gender from the roster to the canvas', async () => {
+      await setup();
+      state.confirmedPersons.set([{ ...makePerson('p-x'), gender: Gender.FEMALE }]);
+      fixture.detectChanges();
+      expect(canvasStub().personDetailsMap().get('p-x')).toMatchObject({ gender: Gender.FEMALE });
+    });
+
+    describe('key', () => {
+      const key = () =>
+        fixture.debugElement.query(By.directive(DisplayModeKeyComponent))?.componentInstance as DisplayModeKeyComponent | undefined;
+      const legends = () => fixture.debugElement.queryAll(By.directive(NodeLegendComponent));
+
+      it('floats a card under the toolbar for the current mode, holding the «Altres marques»', async () => {
+        await setup();
+        ws.setDisplayMode('gender');
+        fixture.detectChanges();
+        expect(key()!.mode()).toBe('gender');
+        expect(key()!.layout()).toBe('card');
+        expect(legends()).toHaveLength(1);
+        expect(fixture.debugElement.query(By.directive(DisplayModeKeyComponent)).nativeElement.contains(legends()[0].nativeElement)).toBe(true);
+      });
+
+      it('counts the people on the pinya canvas (not the tronc) and names the pinya types drawn', async () => {
+        await setup({
+          nodesByInstance: {
+            [INST_A]: [makeNode('n1', 'PINYA', { positionType: 'vents' }), makeNode('n2', 'PINYA', { x: 50, positionType: 'agulla' }), makeNode('t1', 'TRONC')],
+          },
+          assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'n1'), makeAssignment(INST_A, 't1', undefined, 'TRONC')] },
+        });
+        expect(key()!.people()).toHaveLength(1);
+        expect([...key()!.positionTypes()].sort()).toEqual(['agulla', 'vents']);
+        expect(key()!.heightMode()).toBe(state.heightMode());
+      });
+
+      it('has no key on a phone; the «Altres marques» stays in the toolbar', async () => {
+        await setup({ phone: true });
+        expect(key()).toBeUndefined();
+        expect(legends()).toHaveLength(1);
+      });
+    });
+
+    describe('shortcut keys 1–4', () => {
+      const press = (key: string, init: KeyboardEventInit = {}, target?: HTMLElement) => {
+        const event = new KeyboardEvent('keydown', { key, ...init });
+        if (target) Object.defineProperty(event, 'target', { value: target });
+        component.onKeyDown(event);
+        fixture.detectChanges();
+      };
+
+      it('switch to the mode in the switcher\'s order', async () => {
+        await setup();
+        press('2');
+        expect(ws.displayMode()).toBe('height');
+        press('3');
+        expect(ws.displayMode()).toBe('attendance');
+        press('4');
+        expect(ws.displayMode()).toBe('gender');
+        press('1');
+        expect(ws.displayMode()).toBe('position');
+      });
+
+      it('are ignored while typing, with a modifier, or on a phone', async () => {
+        await setup();
+        press('2', {}, document.createElement('input'));
+        press('3', { ctrlKey: true });
+        expect(ws.displayMode()).toBe('position');
+
+        TestBed.resetTestingModule();
+        await setup({ phone: true });
+        press('4');
+        expect(ws.displayMode()).toBe('position');
+      });
     });
   });
 
@@ -1120,6 +1246,16 @@ describe('PinyesTabComponent', () => {
     });
   });
 
+  it('offers the legend, worded for the event phase', async () => {
+    await setup();
+    fixture.componentRef.setInput('phase', 'started');
+    fixture.detectChanges();
+
+    const legend = fixture.debugElement.query(By.directive(NodeLegendComponent)).componentInstance as NodeLegendComponent;
+    expect(legend.phase()).toBe('started');
+    expect(legend.palette()).toBe('type');
+  });
+
   // ── move mode: right-click a person, then press the destination ───────────────
 
   describe('move mode', () => {
@@ -1166,13 +1302,13 @@ describe('PinyesTabComponent', () => {
         expect(banner()).toBeNull();
       });
 
-      it('marks the node being moved on the canvas, and nothing otherwise', async () => {
+      it('marks the node being moved on the canvas, in its own figure only, and nothing otherwise', async () => {
         await setup({ assignmentsByInstance: placed() });
-        expect([...canvasStub().highlightedNodeIds()]).toEqual([]);
+        expect(canvasStub().moveSourceNode()).toBeNull();
 
         rightClick('n1');
 
-        expect([...canvasStub().highlightedNodeIds()]).toEqual(['n1']);
+        expect(canvasStub().moveSourceNode()).toEqual({ slotId: INST_A, nodeId: 'n1' });
       });
 
       it('drops the current selection', async () => {

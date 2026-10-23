@@ -1,3 +1,4 @@
+import { CREASE, ICON_XICALLA } from '@muixer/ui';
 import { vi } from 'vitest';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -22,6 +23,15 @@ import { AuthService } from '../../../../core/auth/services/auth.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import { conflictRelevantPlacements, EventPhase, TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { signal as renderSettingsSignal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS as RENDER_DEFAULTS } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS, PinyesRenderSettings } from '@muixer/pinyes-render/settings';
+
+const renderSettings = renderSettingsSignal<PinyesRenderSettings>({
+  shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm,
+  troncHeightThresholds: RENDER_DEFAULTS.troncHeightThresholds,
+});
+
 
 const EVENT_ID = 'event-1';
 const USER_ID = 'user-1';
@@ -182,8 +192,9 @@ describe('EventParticipationComponent — status labels and badges', () => {
     ['before', 'ANIRE', 'Ve'],
     ['before', 'PENDENT', 'Pendent'],
     ['day', 'ASSISTIT', 'Ha arribat'],
-    ['day', 'ANIRE', 'No ha arribat'],
+    ['day', 'ANIRE', 'Ve'],
     ['day', 'NO_VAIG', 'No vindrà'],
+    ['started', 'ANIRE', 'No ha arribat'],
     ['after', 'ASSISTIT', 'Va vindre'],
     ['after', 'ANIRE', 'No presentat'],
     ['after', 'PENDENT', 'Sense resposta'],
@@ -191,11 +202,11 @@ describe('EventParticipationComponent — status labels and badges', () => {
     expect(withPhase(phase).statusLabel(status)).toBe(expected);
   });
 
-  it('ANIRE reads as success before the event day', () => {
-    expect(withPhase('before').statusBadgeClass('ANIRE')).toBe('badge-success');
+  it.each(['before', 'day'] as const)('ANIRE reads as success until the start time (%s)', (phase) => {
+    expect(withPhase(phase).statusBadgeClass('ANIRE')).toBe('badge-success');
   });
 
-  it.each(['day', 'after'] as const)('ANIRE becomes a warning from the event day on (%s)', (phase) => {
+  it.each(['started', 'after'] as const)('ANIRE becomes a warning from the start time on (%s)', (phase) => {
     expect(withPhase(phase).statusBadgeClass('ANIRE')).toBe('badge-warning');
   });
 });
@@ -229,7 +240,7 @@ describe('EventParticipationComponent — segmentLabel', () => {
 });
 
 describe('EventParticipationComponent — personLabel', () => {
-  let component: Pick<EventParticipationComponent, 'personLabel'>;
+  let component: Pick<EventParticipationComponent, 'personLabel' | 'personIcons'>;
 
   beforeEach(() => {
     component = Object.create(EventParticipationComponent.prototype) as EventParticipationComponent;
@@ -239,8 +250,11 @@ describe('EventParticipationComponent — personLabel', () => {
     expect(component.personLabel(makePerson('p1', 'PERSIANA'))).toBe('PERSIANA');
   });
 
-  it('marks xicalla', () => {
-    expect(component.personLabel(makePerson('p1', 'PERSIANA', {}, { isXicalla: true }))).toContain('👶');
+  it('marks xicalla with the xicalla icon after the label, not an emoji in it', () => {
+    const row = makePerson('p1', 'PERSIANA', {}, { isXicalla: true });
+    expect(component.personLabel(row)).toBe('PERSIANA');
+    expect(component.personIcons(row)).toEqual([{ icon: ICON_XICALLA, label: 'Xicalla' }]);
+    expect(component.personIcons(makePerson('p2', 'ANNA'))).toEqual([]);
   });
 
   it('shows the notes emoji when the person has observations', () => {
@@ -309,6 +323,7 @@ describe('EventParticipationComponent', () => {
         allLucideIconsProvider,
         authStub(userId),
         { provide: ParticipationService, useValue: { getByEvent: () => of(response) } },
+        { provide: PINYES_RENDER_SETTINGS, useValue: renderSettings },
         {
           provide: TagService,
           useValue: {
@@ -400,14 +415,14 @@ describe('EventParticipationComponent', () => {
       }
     });
 
-    it('falls back to the #888 color when a tag has none', async () => {
+    it('falls back to the crease gray token when a tag has no color', async () => {
       const response = buildResponse({
         persons: [makePerson('p1', 'PERSIANA', {}, { positions: [{ ...troncTag, color: null }] })],
       });
       const fixture = await setup(response);
       const row = fixture.componentInstance.persons()[0];
 
-      expect(columnByKey(fixture, 'tags')!.colorBadges!(row)).toEqual([{ text: 'Segones', color: '#888' }]);
+      expect(columnByKey(fixture, 'tags')!.colorBadges!(row)).toEqual([{ text: 'Segones', color: CREASE.dark }]);
     });
   });
 
@@ -459,6 +474,16 @@ describe('EventParticipationComponent', () => {
     ] as const)('formats %s relative to the baseline as %s', async (shoulderHeight, expected) => {
       const fixture = await setup();
       expect(fixture.componentInstance.formatHeight(shoulderHeight)).toBe(expected);
+    });
+
+    it("measures from the colla's baseline", async () => {
+      const fixture = await setup();
+      renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: 145 }));
+      try {
+        expect(fixture.componentInstance.formatHeight(150)).toBe('+5');
+      } finally {
+        renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm }));
+      }
     });
 
     it('renders the shoulderHeight value through the column', async () => {
@@ -915,7 +940,7 @@ describe('EventParticipationComponent', () => {
       );
     });
 
-    it('passes the event phase to the workshop', async () => {
+    it('does not pass the event phase to the workshop (it works it out itself)', async () => {
       const fixture = await setup(buildResponse(), 'after');
       const router = TestBed.inject(Router);
       vi.spyOn(router, 'url', 'get').mockReturnValue('/events/event-1?tab=participacio');
@@ -926,7 +951,7 @@ describe('EventParticipationComponent', () => {
 
       expect(navigate).toHaveBeenCalledWith(
         expect.anything(),
-        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes', phase: 'after' } },
+        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes' } },
       );
     });
 

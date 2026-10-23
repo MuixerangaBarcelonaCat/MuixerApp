@@ -1,13 +1,13 @@
 import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { AssignmentStateService } from './assignment-state.service';
-import { PINYA_NODE_PRESETS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { PINYA_NODE_PRESETS } from '@muixer/shared';
 
 const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDetail => ({
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
   node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, sourceNodeId: null },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM, notes: null, notesEmoji: null },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140, notes: null, notesEmoji: null },
 });
 
 const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanceStatus'] = 'ANIRE'): AvailablePerson => ({
@@ -15,7 +15,8 @@ const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanc
   alias: 'Pepet',
   name: 'Pere',
   firstSurname: 'Garcia',
-  shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
+  shoulderHeight: 140,
+  gender: null,
   isXicalla: false,
   notes: null,
   notesEmoji: null,

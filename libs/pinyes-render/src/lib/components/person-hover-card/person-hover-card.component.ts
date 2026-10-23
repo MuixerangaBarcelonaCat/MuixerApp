@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { BadgeComponent, BadgeVariant } from '@muixer/ui';
+import { BadgeComponent, BadgeVariant, DOMAIN_ICONS } from '@muixer/ui';
 import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
-import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isStartedPhase } from '@muixer/shared';
+import { formatShoulderHeight } from '../../node-render/appearance';
+import { injectPinyesRenderSettings } from '../../settings/render-settings';
 
 @Component({
   selector: 'app-person-hover-card',
@@ -27,7 +29,7 @@ import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, S
             <lib-badge size="xs" [variant]="statusBadgeVariant()">{{ statusLabel() }}</lib-badge>
           </span>
           @if (info().isXicalla) {
-            <span class="shrink-0" aria-label="Xicalla" title="Xicalla">👶</span>
+            <i-lucide [img]="ICON_XICALLA" class="size-3.5 shrink-0" aria-label="Xicalla" title="Xicalla" />
           }
         </div>
         @if (formatHeight(); as height) {
@@ -43,7 +45,7 @@ import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, S
         <div class="flex flex-wrap gap-1">
           @for (pos of sortedPositions(); track pos.id) {
             <span class="inline-block" [class.opacity-50]="!isPositionMatch(pos)">
-              <lib-badge size="xs" [color]="pos.color ?? '#888'">{{ pos.name }}</lib-badge>
+              <lib-badge size="xs" [color]="pos.color ?? undefined">{{ pos.name }}</lib-badge>
             </span>
           }
         </div>
@@ -63,10 +65,12 @@ import { attendanceStatusLabel, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, S
   `,
 })
 export class PersonHoverCardComponent {
+  protected readonly ICON_XICALLA = DOMAIN_ICONS.XICALLA;
   readonly info = input.required<PersonHoverInfo>();
   /** Before / on / after the event day: worded status label and the no-show colour of ANIRE. */
   readonly phase = input<EventPhase>('before');
   readonly heightMode = input<HeightMode>('relative');
+  private readonly renderSettings = injectPinyesRenderSettings();
   /** Strips the floating-tooltip chrome (border/shadow/rounding/background) for flush inline use, e.g. in a list. */
   readonly bare = input<boolean>(false);
   /** When set, the position tag matching this type is promoted first and shown filled; the rest render outlined. */
@@ -98,8 +102,7 @@ export class PersonHoverCardComponent {
     const h = this.info().shoulderHeight;
     if (h === null || h === 0) return '';
     if (this.heightMode() === 'relative') {
-      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
-      return diff >= 0 ? `+${diff}` : `${diff}`;
+      return formatShoulderHeight(h, 'relative', this.renderSettings().shoulderHeightBaselineCm) ?? '';
     }
     return `${h} cm`;
   }
@@ -107,7 +110,7 @@ export class PersonHoverCardComponent {
   statusBadgeVariant(): BadgeVariant {
     const status = this.info().attendanceStatus;
     if (!status) return 'ghost';
-    if (status === 'ANIRE' && isArrivalPhase(this.phase())) return 'warning';
+    if (status === 'ANIRE' && isStartedPhase(this.phase())) return 'warning';
     return this.statusBadgeVariants[status];
   }
 

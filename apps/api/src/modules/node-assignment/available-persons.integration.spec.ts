@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EventType } from '@muixer/shared';
+import { EventType, Gender } from '@muixer/shared';
 import { AvailablePersonsService } from './available-persons.service';
 import { Person } from '../person/person.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -102,5 +102,35 @@ describe('AvailablePersonsService (integration)', () => {
     await db.dataSource.getRepository(Person).save({ name: 'Marc', firstSurname: 'Puig', alias: 'marcus' });
 
     await expect(service.getAvailablePersons(event.id, segment.id, {})).resolves.not.toThrow();
+  });
+
+  it('loads each person gender from the real column, null when unset', async () => {
+    const { event, segment } = await makeSegment();
+    const personRepo = db.dataSource.getRepository(Person);
+    await personRepo.save({ name: 'Laia', firstSurname: 'Mas', alias: 'laia', gender: Gender.FEMALE });
+    await personRepo.save({ name: 'Àlex', firstSurname: 'Roig', alias: 'alex' });
+
+    const results = await service.getAvailablePersons(event.id, segment.id, {});
+    const byAlias = new Map(results.map((r) => [r.alias, r.gender]));
+
+    expect(byAlias.get('laia')).toBe(Gender.FEMALE);
+    expect(byAlias.get('alex')).toBeNull();
+  });
+
+  it('filters and reports by the effective xicalla: a known birth date wins over the manual flag', async () => {
+    const { event, segment } = await makeSegment();
+    const personRepo = db.dataSource.getRepository(Person);
+    await personRepo.save({ name: 'Nil', firstSurname: 'Mas', alias: 'kid', birthDate: '2020-01-01' as never, isXicallaManual: false });
+    await personRepo.save({ name: 'Pau', firstSurname: 'Mas', alias: 'adult', birthDate: '1990-01-01' as never, isXicallaManual: true });
+    await personRepo.save({ name: 'Joan', firstSurname: 'Mas', alias: 'nobd', isXicallaManual: true });
+
+    const xicalla = await service.getAvailablePersons(event.id, segment.id, { isXicalla: true });
+    expect(xicalla.map((r) => [r.alias, r.isXicalla]).sort()).toEqual([
+      ['kid', true],
+      ['nobd', true],
+    ]);
+
+    const adults = await service.getAvailablePersons(event.id, segment.id, { isXicalla: false });
+    expect(adults.map((r) => r.alias)).toEqual(['adult']);
   });
 });

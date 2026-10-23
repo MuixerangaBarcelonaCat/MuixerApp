@@ -1,4 +1,4 @@
-import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE } from '@muixer/pinyes-render';
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail, FIGURE_PALETTE, NodeLegendComponent, DisplayModeKeyComponent, PinnedCardComponent, getFigureBand, FigureBand } from '@muixer/pinyes-render';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -11,6 +11,7 @@ import { SegmentWorkspaceStateService } from '../../../../services/segment-works
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
+import { EventService } from '../../../../../events/services/event.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
@@ -19,7 +20,8 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../figure-picker-modal/figure-picker-modal.component';
-import { ModalComponent, THEME_NAMES, ToastService } from '@muixer/ui';
+import { ModalComponent, ThemeService, ToastService } from '@muixer/ui';
+import { Gender } from '@muixer/shared';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -39,10 +41,13 @@ class StubTroncView {
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly phase = input<string>('before');
+  readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly personDetailsMap = input<Map<string, unknown>>(new Map());
+  readonly figureName = input<string | null>(null);
+  readonly nameBand = input<FigureBand | null>(null);
+  readonly displayMode = input<string>('position');
+  readonly heightDomain = input<{ heights: number[] } | null>(null);
   readonly nodeSelected = output<string | null>();
-  readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
-  readonly nodeUnassigned = output<string>();
   readonly nodeContextMenu = output<string>();
   readonly nodeDropped = output<{
     sourceInstanceId: string;
@@ -184,6 +189,7 @@ const makePerson = (id: string): AvailablePerson => ({
   name: 'Nom',
   firstSurname: 'Cognom',
   shoulderHeight: null,
+  gender: null,
   isXicalla: false,
   notes: null,
   notesEmoji: null,
@@ -229,6 +235,8 @@ describe('TroncsTabComponent', () => {
     locked?: boolean;
     /** Simulates a touch device (phone / tablet). */
     touch?: boolean;
+    /** Simulates a phone-sized viewport (below sm). */
+    phone?: boolean;
   } = {}) => {
     const segment = makeSegment(opts.instances ?? [makeInstance(INST_A)]);
     const defaultNodes: Record<string, InstanceNodeItem[]> = opts.nodesByInstance ?? {
@@ -276,6 +284,7 @@ describe('TroncsTabComponent', () => {
         AssignmentStateService,
         UndoRedoService,
         { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+        { provide: EventService, useValue: { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) } },
         {
           provide: SegmentDistributionService,
           useValue: {
@@ -288,7 +297,7 @@ describe('TroncsTabComponent', () => {
         { provide: ToastService, useValue: toast },
         { provide: FigureInstanceService, useValue: instanceService },
         { provide: CompositionService, useValue: compositionService },
-        { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false) } },
+        { provide: LayoutService, useValue: { isTouch: signal(opts.touch ?? false), isPhone: signal(opts.phone ?? false) } },
       ],
     })
       .overrideComponent(TroncsTabComponent, {
@@ -372,6 +381,116 @@ describe('TroncsTabComponent', () => {
       const stub = troncStubs()[0];
       expect(stub.troncNodes().map((n) => n.id)).toEqual(['t1']);
       expect(stub.baseNodes().map((n) => n.id)).toEqual([]);
+    });
+  });
+
+  describe('display modes', () => {
+    const switcher = () => fixture.nativeElement.querySelector('app-display-mode-switcher [role="group"]') as HTMLElement | null;
+    const modeButton = (label: string) =>
+      fixture.nativeElement.querySelector(`app-display-mode-switcher button[aria-label="${label}"]`) as HTMLButtonElement;
+    const withHeight = (a: AssignmentDetail, cm: number): AssignmentDetail => ({ ...a, person: { ...a.person, shoulderHeight: cm } });
+
+    it('shows the switcher in the toolbar and recolors every tronc panel with the mode picked', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')], [INST_B]: [makeNode('m1', 'TRONC')] },
+      });
+      expect(switcher()).not.toBeNull();
+      expect(troncStubs().map((t) => t.displayMode())).toEqual(['position', 'position']);
+
+      modeButton('Assistència').click();
+      fixture.detectChanges();
+      expect(ws.displayMode()).toBe('attendance');
+      expect(troncStubs().map((t) => t.displayMode())).toEqual(['attendance', 'attendance']);
+    });
+
+    it('keeps the toolbar out of the scrolling panels, so it never covers a tronc panel', async () => {
+      await setup();
+      const toolbar = switcher()!.closest('[data-testid="troncs-toolbar"]') as HTMLElement;
+      const pane = fixture.nativeElement.querySelector('.overflow-y-auto') as HTMLElement;
+      expect(toolbar).not.toBeNull();
+      expect(pane.contains(toolbar)).toBe(false);
+      expect(pane.querySelector('app-tronc-view')).not.toBeNull();
+    });
+
+    it('has no switcher on a phone, and draws Posició there whatever was chosen', async () => {
+      await setup({ phone: true });
+      ws.setDisplayMode('gender');
+      fixture.detectChanges();
+      expect(switcher()).toBeNull();
+      expect(troncStubs()[0].displayMode()).toBe('position');
+    });
+
+    it('gives every panel one height ramp, over the people in the troncs of all figures (not the pinya)', async () => {
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC'), makeNode('p1', 'PINYA')],
+          [INST_B]: [makeNode('m1', 'TRONC'), makeNode('b1', 'BASE')],
+        },
+        assignmentsByInstance: {
+          [INST_A]: [withHeight(makeAssignment(INST_A, 'n1'), 160), withHeight(makeAssignment(INST_A, 'p1', undefined, 'PINYA'), 120)],
+          [INST_B]: [withHeight(makeAssignment(INST_B, 'm1'), 150), withHeight(makeAssignment(INST_B, 'b1', undefined, 'BASE'), 175)],
+        },
+      });
+      expect(troncStubs().map((t) => t.heightDomain())).toEqual([{ heights: [150, 160, 175] }, { heights: [150, 160, 175] }]);
+    });
+
+    it('passes each person\'s gender from the roster to the panels', async () => {
+      await setup();
+      state.confirmedPersons.set([{ ...makePerson('p-x'), gender: Gender.MALE }]);
+      fixture.detectChanges();
+      expect(troncStubs()[0].personDetailsMap().get('p-x')).toMatchObject({ gender: Gender.MALE });
+    });
+
+    it('switches mode with the keys 1–4, not while typing, nor with a modifier', async () => {
+      await setup();
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '4' }));
+      expect(ws.displayMode()).toBe('gender');
+
+      const typing = new KeyboardEvent('keydown', { key: '2' });
+      Object.defineProperty(typing, 'target', { value: document.createElement('input') });
+      component.onKeyDown(typing);
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '3', metaKey: true }));
+      expect(ws.displayMode()).toBe('gender');
+    });
+
+    describe('key', () => {
+      const keyDebug = () => fixture.debugElement.query(By.directive(DisplayModeKeyComponent));
+      const key = () => keyDebug()?.componentInstance as DisplayModeKeyComponent | undefined;
+
+      it('sits in line inside the toolbar strip, out of the panels, holding the paper «Altres marques»', async () => {
+        await setup();
+        ws.setDisplayMode('attendance');
+        fixture.detectChanges();
+        const strip = fixture.nativeElement.querySelector('[data-testid="troncs-toolbar"]') as HTMLElement;
+        expect(key()!.layout()).toBe('inline');
+        expect(key()!.mode()).toBe('attendance');
+        expect(strip.contains(keyDebug().nativeElement)).toBe(true);
+        expect(key()!.legendPalette()).toBe('neutral');
+        expect(fixture.debugElement.queryAll(By.directive(NodeLegendComponent))).toHaveLength(1);
+      });
+
+      it('counts the people in the troncs only, and lists no position types (the panels are paper)', async () => {
+        await setup({
+          nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC'), makeNode('p1', 'PINYA')] },
+          assignmentsByInstance: { [INST_A]: [makeAssignment(INST_A, 'n1'), makeAssignment(INST_A, 'p1', undefined, 'PINYA')] },
+        });
+        expect(key()!.people()).toHaveLength(1);
+        expect(key()!.positionTypes()).toEqual([]);
+      });
+
+      it('has no key on a phone; the «Altres marques» stays in the toolbar', async () => {
+        await setup({ phone: true });
+        expect(key()).toBeUndefined();
+        expect(fixture.debugElement.queryAll(By.directive(NodeLegendComponent))).toHaveLength(1);
+      });
+    });
+
+    it('ignores the keys on a phone', async () => {
+      await setup({ phone: true });
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '2' }));
+      expect(ws.displayMode()).toBe('position');
     });
   });
 
@@ -840,7 +959,7 @@ describe('TroncsTabComponent', () => {
       });
 
       const views = fixture.debugElement.queryAll(By.directive(StubTroncView));
-      const lastCard = (views[views.length - 1].nativeElement as HTMLElement).parentElement;
+      const lastCard = (views[views.length - 1].nativeElement as HTMLElement).closest('lib-pinned-card');
       const tile = Array.from(lastCard?.parentElement?.children ?? []).find((child) =>
         child.contains(addButton().nativeElement),
       );
@@ -954,6 +1073,15 @@ describe('TroncsTabComponent', () => {
       );
     });
 
+    it('sends no color for a new direction node: it follows the palette of its type', async () => {
+      await setup();
+      assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
+
+      component.onDirectionAdded(INST_A, { positionType: 'direccio-tronc' });
+
+      expect(assignmentService.createAdHocNode.mock.calls[0][1].color).toBeUndefined();
+    });
+
     it('selects the newly created direction node so the person search auto-focuses', async () => {
       await setup();
       assignmentService.createAdHocNode.mockReturnValue(of(makeNode('dir-1', 'DIRECTION', { positionType: 'direccio-tronc' })));
@@ -1001,18 +1129,64 @@ describe('TroncsTabComponent', () => {
       expect(component.figures().map((f) => f.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
-    it('frames each tronc in a light card tinted with its figure color, which the tronc panel lets through', async () => {
+    it('lays each tronc on a paper card pinned at the top in its figure colour, alternately askew', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+      });
+      fixture.detectChanges();
+
+      const cards = fixture.debugElement.queryAll(By.directive(PinnedCardComponent));
+      expect(cards.map((d) => d.componentInstance as PinnedCardComponent).map((c) => [c.color(), c.edge(), c.tilt()])).toEqual([
+        [FIGURE_PALETTE[0], 'top', -1],
+        [FIGURE_PALETTE[1], 'top', 1],
+      ]);
+      // The tronc panel heads the card with the figure name on its band, as in every other tab:
+      // the tab draws no heading of its own.
+      const labels = component.figures().map((f) => f.instance.label);
+      expect(labels.every(Boolean)).toBe(true);
+      expect(troncStubs().map((t) => [t.figureName(), t.nameBand()])).toEqual([
+        [labels[0], getFigureBand(0)],
+        [labels[1], getFigureBand(1)],
+      ]);
+      expect(fixture.nativeElement.querySelector('[data-role="figure-name"]')).toBeNull();
+      const tronc: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
+      const card = tronc.closest('lib-pinned-card') as HTMLElement;
+      // The card follows the page theme, like the rest of the figure rendering.
+      expect(card.hasAttribute('data-theme')).toBe(false);
+    });
+
+    it('darkens the name band when the app is dark', async () => {
+      await setup({
+        instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
+        nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')], [INST_B]: [makeNode('m1', 'TRONC')] },
+      });
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        fixture.detectChanges();
+
+        expect(troncStubs()[0].nameBand()).toEqual(getFigureBand(0, 'dark'));
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
+    });
+
+    it('pins no card when the segment holds a single figure (nothing to tell it apart from), but keeps its name band', async () => {
       await setup({
         instances: [makeInstance(INST_A, { sortOrder: 0 })],
         nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')] },
       });
       fixture.detectChanges();
 
-      const tronc: HTMLElement = fixture.nativeElement.querySelector('app-tronc-view');
-      const card = tronc.closest('[data-figure-card]') as HTMLElement;
-      // Pinned light like the rest of the figure rendering, until the canvas is themed (DEBT F19).
-      expect(card.dataset['theme']).toBe(THEME_NAMES.light);
-      expect(tronc.classList).toContain('bg-transparent');
+      const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
+      expect(card.color()).toBeNull();
+      // The name band stays: it's the card's colour, not a link to tell figures apart.
+      expect(troncStubs()[0].nameBand()).toEqual(getFigureBand(0));
     });
 
     it('colors a minimap box by its figure\'s sortOrder even when that figure has no tronc', async () => {
@@ -1264,6 +1438,24 @@ describe('TroncsTabComponent', () => {
     });
   });
 
+  it('passes the next-actuació answers to the tronc views, for the star', async () => {
+    await setup();
+    state.nextPerformanceRegistry.set(new Map([['p-1', 'ANIRE']]));
+    fixture.detectChanges();
+
+    expect(troncStubs()[0].nextPerformanceMap().get('p-1')).toBe('ANIRE');
+  });
+
+  it('offers the legend, worded for the event phase and in the paper tone of the tronc', async () => {
+    await setup();
+    fixture.componentRef.setInput('phase', 'started');
+    fixture.detectChanges();
+
+    const legend = fixture.debugElement.query(By.directive(NodeLegendComponent)).componentInstance as NodeLegendComponent;
+    expect(legend.phase()).toBe('started');
+    expect(legend.palette()).toBe('neutral');
+  });
+
   // ── move mode: right-click a person, then press the destination ───────────────
 
   describe('move mode', () => {
@@ -1319,6 +1511,20 @@ describe('TroncsTabComponent', () => {
         rightClick('n1');
 
         expect([...troncStubs()[0].highlightedNodeIds()]).toEqual(['n1']);
+      });
+
+      it('marks the node only in its own figure, not in another copy of the same template', async () => {
+        // Pre-snapshot instances of one template share node ids.
+        await setup({
+          instances: [makeInstance(INST_A), makeInstance(INST_B)],
+          nodesByInstance: { [INST_A]: nodes[INST_A], [INST_B]: nodes[INST_A] },
+          assignmentsByInstance: placed(),
+        });
+
+        rightClick('n1');
+
+        expect([...troncStubs()[0].highlightedNodeIds()]).toEqual(['n1']);
+        expect([...troncStubs()[1].highlightedNodeIds()]).toEqual([]);
       });
 
       it('drops the current selection', async () => {

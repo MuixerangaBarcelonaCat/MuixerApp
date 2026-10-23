@@ -2,6 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PersonHoverCardComponent } from './person-hover-card.component';
 import { AvailablePersonPosition, PersonHoverInfo } from '../../models/assignment.model';
 import { TagCategory } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS } from '../../settings/render-settings';
 
 const makeInfo = (overrides: Partial<PersonHoverInfo> = {}): PersonHoverInfo => ({
   alias: 'Pepet',
@@ -34,6 +37,43 @@ describe('PersonHoverCardComponent', () => {
     fixture.componentRef.setInput('info', makeInfo());
     fixture.detectChanges();
     expect(component).toBeTruthy();
+  });
+
+  it('marks a xicalla with the xicalla icon, not an emoji', () => {
+    fixture.componentRef.setInput('info', makeInfo({ isXicalla: true }));
+    fixture.detectChanges();
+    const mark: HTMLElement = fixture.nativeElement.querySelector('[aria-label="Xicalla"]');
+    expect(mark.querySelector('svg')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).not.toContain('👶');
+  });
+
+  it('shows a tag with no color of its own as a neutral badge, not in a made-up gray', () => {
+    const uncolored: AvailablePersonPosition = { ...posVents, id: 'pos-x', color: null };
+    fixture.componentRef.setInput('info', makeInfo({ positions: [uncolored] }));
+    fixture.detectChanges();
+    const tag = [...fixture.nativeElement.querySelectorAll('lib-badge .badge')].find((b: HTMLElement) =>
+      b.textContent?.includes('Vents'),
+    ) as HTMLElement;
+    expect(tag.classList).toContain('badge-neutral');
+    expect(tag.style.backgroundColor).toBe('');
+  });
+
+  it("shows the relative height from the colla's baseline", () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [PersonHoverCardComponent],
+      providers: [
+        {
+          provide: PINYES_RENDER_SETTINGS,
+          useValue: signal({ shoulderHeightBaselineCm: 130, troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds }),
+        },
+      ],
+    });
+    const card = TestBed.createComponent(PersonHoverCardComponent);
+    card.componentRef.setInput('info', makeInfo({ shoulderHeight: 135 }));
+    card.componentRef.setInput('heightMode', 'relative');
+
+    expect(card.componentInstance.formatHeight()).toBe('+5');
   });
 
   describe('cumulative height', () => {
@@ -101,8 +141,11 @@ describe('PersonHoverCardComponent', () => {
     it.each([
       ['before', 'ANIRE', 'Ve', 'success'],
       ['day', 'ASSISTIT', 'Ha arribat', 'success'],
-      ['day', 'ANIRE', 'No ha arribat', 'warning'],
+      ['day', 'ANIRE', 'Ve', 'success'],
       ['day', 'NO_VAIG', 'No vindrà', 'error'],
+      ['started', 'ASSISTIT', 'Ha arribat', 'success'],
+      ['started', 'ANIRE', 'No ha arribat', 'warning'],
+      ['started', 'NO_VAIG', 'No vindrà', 'error'],
       ['after', 'ASSISTIT', 'Va vindre', 'success'],
       ['after', 'ANIRE', 'No presentat', 'warning'],
       ['after', 'PENDENT', 'Sense resposta', 'ghost'],

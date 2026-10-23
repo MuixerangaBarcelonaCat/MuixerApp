@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { DelegateType, UserRole } from '@muixer/shared';
@@ -56,7 +57,7 @@ describe('PersonDelegate (integration)', () => {
 
   it('creates a delegate end to end against real Postgres (regression: PersonDelegate must be registered in database/entities.ts)', async () => {
     const child = await personRepo.save(
-      personRepo.create({ name: 'Child', firstSurname: 'Surname', alias: 'child1', isXicalla: true }),
+      personRepo.create({ name: 'Child', firstSurname: 'Surname', alias: 'child1', isXicallaManual: true }),
     );
     const parentUser = await userRepo.save(
       userRepo.create({ email: 'parent@test.cat', role: UserRole.MEMBER, isActive: true }),
@@ -74,9 +75,34 @@ describe('PersonDelegate (integration)', () => {
     expect(found[0].user.email).toBe('parent@test.cat');
   });
 
+  it('judges the primary manager of a xicalla by the effective value of the other persons they manage', async () => {
+    const child = await personRepo.save(
+      personRepo.create({ name: 'Child', firstSurname: 'Surname', alias: 'child4', birthDate: '2020-01-01' as never }),
+    );
+    // Flagged xicalla by hand, but the birth date says adult: the date wins.
+    const adultByDate = await personRepo.save(
+      personRepo.create({ name: 'Gran', firstSurname: 'Surname', alias: 'gran4', birthDate: '1980-01-01' as never, isXicallaManual: true }),
+    );
+    // Not flagged, but the birth date says xicalla.
+    const kidByDate = await personRepo.save(
+      personRepo.create({ name: 'Petit', firstSurname: 'Surname', alias: 'petit4', birthDate: '2018-01-01' as never }),
+    );
+    const qualifies = await userRepo.save(userRepo.create({ email: 'q@test.cat', role: UserRole.MEMBER, isActive: true }));
+    const doesNot = await userRepo.save(userRepo.create({ email: 'n@test.cat', role: UserRole.MEMBER, isActive: true }));
+    await service.create(adultByDate.id, { userId: qualifies.id, delegateType: DelegateType.OTHER });
+    await service.create(kidByDate.id, { userId: doesNot.id, delegateType: DelegateType.PARENT });
+
+    await expect(
+      service.create(child.id, { userId: doesNot.id, delegateType: DelegateType.PARENT, isPrimary: true }),
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      service.create(child.id, { userId: qualifies.id, delegateType: DelegateType.PARENT, isPrimary: true }),
+    ).resolves.toMatchObject({ isPrimary: true });
+  });
+
   it('the partial unique index allows only one isPrimary=true row per person', async () => {
     const child = await personRepo.save(
-      personRepo.create({ name: 'Child', firstSurname: 'Surname', alias: 'child2', isXicalla: true }),
+      personRepo.create({ name: 'Child', firstSurname: 'Surname', alias: 'child2', isXicallaManual: true }),
     );
     const parent = await userRepo.save(
       userRepo.create({ email: 'parent2@test.cat', role: UserRole.MEMBER, isActive: true }),
@@ -98,7 +124,7 @@ describe('PersonDelegate (integration)', () => {
     // Not a Xicalla person here on purpose — this test exercises the isPrimary swap
     // mechanic in isolation, not Phase 3's "qualifying adult manager" rule.
     const person = await personRepo.save(
-      personRepo.create({ name: 'Adult', firstSurname: 'Surname', alias: 'adult3', isXicalla: false }),
+      personRepo.create({ name: 'Adult', firstSurname: 'Surname', alias: 'adult3', isXicallaManual: false }),
     );
     const firstParent = await userRepo.save(
       userRepo.create({ email: 'first-parent@test.cat', role: UserRole.MEMBER, isActive: true }),

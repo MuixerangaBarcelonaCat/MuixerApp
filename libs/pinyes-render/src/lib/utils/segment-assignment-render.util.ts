@@ -38,7 +38,8 @@ export interface SegmentRenderNode {
   assignment: AssignmentDetail | null;
   isSelected: boolean;
   isDimmed: boolean;
-  isHighlighted: boolean;
+  /** The node whose person is being moved (right-click / long press). */
+  isMoveSource: boolean;
   /** False for a REMAT marker: drawn only, never a click, hover, drag or drop target. */
   isInteractive: boolean;
 }
@@ -49,7 +50,7 @@ export function buildSegmentRenderNodes(
   assignments: AssignmentDetail[],
   selected: SegmentNodeRef | null,
   dimmedSlotIds: Set<string>,
-  highlightedNodeIds: Set<string>,
+  moveSource: SegmentNodeRef | null,
 ): SegmentRenderNode[] {
   const assignmentByRef = new Map<string, AssignmentDetail>();
   for (const a of assignments) {
@@ -70,7 +71,7 @@ export function buildSegmentRenderNodes(
         assignment: assignmentByRef.get(key) ?? null,
         isSelected: selected?.slotId === slot.slotId && selected?.nodeId === node.id,
         isDimmed,
-        isHighlighted: highlightedNodeIds.has(node.id),
+        isMoveSource: moveSource?.slotId === slot.slotId && moveSource?.nodeId === node.id,
         isInteractive: !isRematMarker(node),
       });
     }
@@ -135,5 +136,27 @@ export function stageToSlotLocal(
   return {
     x: Math.round(pivot.x + dx * cos - dy * sin),
     y: Math.round(pivot.y + dx * sin + dy * cos),
+  };
+}
+
+/**
+ * The inverse of `stageToSlotLocal`: where a point of a slot's figure (template coordinates) sits on
+ * the stage — rotated by the slot angle around the figure pivot, then moved to the slot offset, as
+ * the Konva slot group draws it. Unrounded, for geometry drawn over the canvas.
+ */
+export function slotLocalToStage(
+  point: { x: number; y: number },
+  slot: Pick<CompositionSlotWithNodes, 'offsetX' | 'offsetY' | 'angle'>,
+  pivot: { x: number; y: number },
+): { x: number; y: number } {
+  const angleRad = ((slot.angle ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  const dx = point.x - pivot.x;
+  const dy = point.y - pivot.y;
+
+  return {
+    x: slot.offsetX + dx * cos - dy * sin,
+    y: slot.offsetY + dx * sin + dy * cos,
   };
 }

@@ -19,6 +19,7 @@ import { NodeAssignmentModule } from '../modules/node-assignment/node-assignment
 import { CompositionModule } from '../modules/composition/composition.module';
 import { PersonDelegateModule } from '../modules/person-delegate/person-delegate.module';
 import { LegalModule } from '../modules/legal/legal.module';
+import { CollaSettingsModule } from '../modules/colla-settings/colla-settings.module';
 import { AuditModule } from '../modules/audit/audit.module';
 import { MeModule } from '../modules/me/me.module';
 import { EventSummaryModule } from '../modules/event-summary/event-summary.module';
@@ -51,6 +52,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     CompositionModule,
     PersonDelegateModule,
     LegalModule,
+    CollaSettingsModule,
     AuditModule,
     MeModule,
     EventSummaryModule,

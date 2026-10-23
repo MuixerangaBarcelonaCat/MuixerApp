@@ -12,6 +12,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres suite for the Tag<->Person join mutation endpoints
@@ -30,6 +32,7 @@ describe('TagService person-join mutations (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         TagService,
         ...realRepositoryProviders(db.dataSource, [Tag, Person]),
         { provide: DataSource, useValue: db.dataSource },

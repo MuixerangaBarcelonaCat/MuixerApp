@@ -15,6 +15,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres coverage for the performance attendance sweep: the `UPDATE ... WHERE status = 'ANIRE'`
@@ -29,6 +31,7 @@ describe('AttendanceSweepService (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         AttendanceSweepService,
         AttendanceService,
         ...realRepositoryProviders(db.dataSource, [Attendance, Event, Person]),

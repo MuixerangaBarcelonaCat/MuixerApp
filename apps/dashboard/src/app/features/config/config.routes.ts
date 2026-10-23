@@ -7,6 +7,7 @@ import { TagsListComponent } from './components/tags-list/tags-list.component';
 import { TagDetailComponent } from './components/tag-detail/tag-detail.component';
 import { SeasonListComponent } from './components/season-list/season-list.component';
 import { LegalDocumentsComponent } from './components/legal-documents/legal-documents.component';
+import { CollaSettingsComponent } from './components/colla-settings/colla-settings.component';
 
 export const configRoutes: Routes = [
   { path: '', component: ConfigComponent },
@@ -19,6 +20,13 @@ export const configRoutes: Routes = [
     component: LegalDocumentsComponent,
     data: { title: 'Privacitat i legal' },
     // Only ADMIN may edit the Privacy Policy / Transparency Clause texts.
+    canActivate: [rolesGuard(UserRole.ADMIN)],
+  },
+  {
+    path: 'colla',
+    component: CollaSettingsComponent,
+    data: { title: 'Configuració de la colla' },
+    // The colla's own parameters change what every member sees: ADMIN only.
     canActivate: [rolesGuard(UserRole.ADMIN)],
   },
 ];

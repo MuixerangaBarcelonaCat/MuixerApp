@@ -1,35 +1,51 @@
-import { buildCategoricalPalette, formatHex } from '@muixer/ui';
-import { FIGURE_PALETTE, figureCardTint, getFigureColor, getFigureTint } from './figure-palette.util';
+import { PAPER, buildCategoricalPalette, formatHex } from '@muixer/ui';
+import { fade } from '../theme/canvas-theme';
+import { pinDiscs } from './figure-link.util';
+import {
+  FIGURE_PALETTE,
+  getFigureBand,
+  getFigureColor,
+  getFigureTint,
+} from './figure-palette.util';
 
 describe('figure palette', () => {
   const categorical = buildCategoricalPalette('light').normal.map(formatHex);
 
-  it('uses the theme categorical colors, in order', () => {
-    expect(FIGURE_PALETTE).toEqual(categorical);
+  it('uses the theme categorical colors, with scarlet moved last: it is the conflict red, and the first figure of every segment would get it', () => {
+    expect(FIGURE_PALETTE).toEqual([...categorical.slice(1), categorical[0]]);
+    expect(FIGURE_PALETTE.at(-1)).toBe(categorical[0]);
+  });
+
+  it('heads a figure\'s tronc card with a band in its light color, closed by a rule in the dark tone of its pin rim', () => {
+    const light = buildCategoricalPalette('light').light.map(formatHex);
+    expect(getFigureBand(0)).toEqual({ fill: light[1], rule: pinDiscs(0, 0, 9, FIGURE_PALETTE[0])[1].stroke });
+    expect(getFigureBand(FIGURE_PALETTE.length - 1).fill).toBe(light[0]);
+    expect(getFigureBand(FIGURE_PALETTE.length + 2)).toEqual(getFigureBand(2));
+  });
+
+  it('darkens the band on the dark canvas, its rule a lighter tone of the figure colour', () => {
+    const dark = buildCategoricalPalette('dark').light.map(formatHex);
+    expect(getFigureBand(0, 'dark')).toEqual({ fill: dark[1], rule: fade(FIGURE_PALETTE[0], 0.25, PAPER.white) });
+    expect(getFigureBand(FIGURE_PALETTE.length - 1, 'dark').fill).toBe(dark[0]);
   });
 
   it('wraps around once every color has been used', () => {
-    expect(getFigureColor(0)).toBe(categorical[0]);
-    expect(getFigureColor(categorical.length + 2)).toBe(categorical[2]);
+    expect(getFigureColor(0)).toBe(FIGURE_PALETTE[0]);
+    expect(getFigureColor(FIGURE_PALETTE.length + 2)).toBe(FIGURE_PALETTE[2]);
   });
 
-  it('gives each figure a light tint: what the projection tronc panel background looks like (its color at 0x33 alpha over white), as an opaque color', () => {
-    // 0x33 / 0xff = 20%: each channel is 80% white + 20% the figure color.
-    expect(getFigureTint(0)).toBe(mixWithWhite(categorical[0], 0x33 / 0xff));
-    expect(getFigureTint(categorical.length + 2)).toBe(getFigureTint(2));
+  it('gives each figure a light tint: what the projection tronc panel background looks like (its color at 0x33 alpha over the paper), as an opaque color', () => {
+    // 0x33 / 0xff = 20%: each channel is 80% paper + 20% the figure color.
+    expect(getFigureTint(0)).toBe(mixWithPaper(FIGURE_PALETTE[0], 0x33 / 0xff));
+    expect(getFigureTint(FIGURE_PALETTE.length + 2)).toBe(getFigureTint(2));
   });
 
-  it('tints a figure card by mixing the figure color into the card surface: 12% fill, 60% border', () => {
-    expect(figureCardTint('#c74007')).toEqual({
-      background: 'color-mix(in oklab, #c74007 12%, oklch(var(--b1)))',
-      border: 'color-mix(in oklab, #c74007 60%, oklch(var(--b1)))',
-    });
-  });
 });
 
-function mixWithWhite(hex: string, amount: number): string {
+function mixWithPaper(hex: string, amount: number): string {
+  const at = (color: string, i: number) => parseInt(color.slice(1 + i * 2, 3 + i * 2), 16);
   const channel = (i: number) =>
-    Math.round(255 * (1 - amount) + parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) * amount)
+    Math.round(at(PAPER.white, i) * (1 - amount) + at(hex, i) * amount)
       .toString(16)
       .padStart(2, '0');
   return `#${channel(0)}${channel(1)}${channel(2)}`;

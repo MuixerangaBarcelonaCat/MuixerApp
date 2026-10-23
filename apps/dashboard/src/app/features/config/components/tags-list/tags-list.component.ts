@@ -6,21 +6,15 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { positionTypeChip } from '../../utils/position-type-chip.util';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
-import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService, DOMAIN_ICONS } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
 import { TaggingWizardModalComponent } from '../tagging-wizard-modal/tagging-wizard-modal.component';
 import { PersonService } from '../../../persons/services/person.service';
-import {
-  TRONC_NODE_PRESETS,
-  PINYA_NODE_PRESETS,
-  DIRECTION_NODE_PRESETS,
-  TagCategory,
-  TAG_CATEGORY_LABELS,
-} from '@muixer/shared';
+import { TagCategory, TAG_CATEGORY_LABELS } from '@muixer/shared';
 
 const CATEGORY_ORDER: Record<TagCategory, number> = {
   [TagCategory.PINYA]: 0,
@@ -71,15 +65,7 @@ export class TagsListComponent {
   readonly selectedTag = signal<TagWithCount | null>(null);
   readonly confirmDeleteTarget = signal<TagWithCount | null>(null);
   readonly deleting = signal(false);
-  readonly positionTypeMeta: Record<string, { label: string; color: string }> = [
-    ...TRONC_NODE_PRESETS.map((p) => ({ positionType: p.positionType, label: p.label, color: p.color })),
-    ...PINYA_NODE_PRESETS.map((p) => ({ positionType: p.positionType as string, label: p.label, color: p.color ?? '#64748b' })),
-    ...DIRECTION_NODE_PRESETS.map((p) => ({ positionType: p.positionType as string, label: p.label, color: p.color ?? '#64748b' })),
-    { positionType: 'base', label: 'Base', color: '#64748b' },
-  ].reduce<Record<string, { label: string; color: string }>>((acc, p) => {
-    acc[p.positionType] = { label: p.label, color: p.color };
-    return acc;
-  }, {});
+  protected readonly positionTypeChip = positionTypeChip;
 
   constructor() {
     this.loadTags();

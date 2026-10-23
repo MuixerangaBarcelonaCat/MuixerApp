@@ -1,7 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { CardComponent } from '@muixer/ui';
-import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
+import { CardComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { AuthService } from '../../core/auth/services/auth.service';
 
 @Component({
@@ -31,6 +30,12 @@ import { AuthService } from '../../core/auth/services/auth.service';
         </lib-card>
 
         @if (auth.isAdmin()) {
+          <lib-card sash="title" title="Configuració de la colla" [icon]="ICON_COLLA_SETTINGS" routerLink="colla">
+            <p class="text-md text-base-content/60">Camises, alçades, bloqueig i persones noves</p>
+          </lib-card>
+        }
+
+        @if (auth.isAdmin()) {
           <lib-card sash="title" title="Privacitat i legal" [icon]="ICON_LEGAL" routerLink="legal">
             <p class="text-md text-base-content/60">Política de privacitat i clàusules</p>
           </lib-card>
@@ -54,4 +59,5 @@ export class ConfigComponent {
   protected readonly ICON_SEASONS = DOMAIN_ICONS.CALENDAR_RANGE;
   protected readonly ICON_LEGAL = DOMAIN_ICONS.SHIELD_CHECK;
   protected readonly ICON_DESIGN_SYSTEM = DOMAIN_ICONS.DESIGN_SYSTEM;
+  protected readonly ICON_COLLA_SETTINGS = DOMAIN_ICONS.COLLA_SETTINGS;
 }

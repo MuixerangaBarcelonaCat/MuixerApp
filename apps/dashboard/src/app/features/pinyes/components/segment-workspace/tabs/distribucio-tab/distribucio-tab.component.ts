@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, FigureMode, TroncNodeItem, AssignmentDetail, getFigureColor } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, TroncPanelMeasureSpec, CompositionSlotWithNodes, FigureMode, TroncNodeItem, AssignmentDetail, getFigureColor, PinnedCardComponent, FigureLink, CardEdge, figureLink, pivotNodesFor, slotLocalToStage, FigureBand, getFigureBand, injectCanvasTheme } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -49,7 +49,14 @@ export interface TroncViewPanel {
   directionNodes: TroncNodeItem[];
   assignments: AssignmentDetail[];
   figureName: string;
-  color: string;
+  /** The figure colour, for the card pin; `null` for a segment's lone figure, which gets no pin. */
+  color: string | null;
+  /** The band behind the figure name on the card, in the figure colour — a lone figure's too. */
+  nameBand: FigureBand;
+  /** The card edge holding its pin: the one facing the figure, where the string leaves. */
+  pinEdge: CardEdge;
+  /** Degrees its card turns around the pin: −1 and +1 by turns, as in the projection. */
+  tilt: number;
 }
 
 const INITIAL_ZOOM = 0.75;
@@ -76,11 +83,12 @@ interface PendingSave extends SaveTarget {
   selector: 'app-distribucio-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent, FigureModeChangeComponent, CordonsChangeComponent],
+  imports: [LucideAngularModule, FigureCanvasComponent, TroncViewComponent, PinnedCardComponent, TroncPanelMeasurerComponent, FigurePropertiesPanelComponent, ButtonComponent, ModalComponent, FigureModeChangeComponent, CordonsChangeComponent],
   templateUrl: './distribucio-tab.component.html',
 })
 export class DistribucioTabComponent implements OnInit, OnDestroy {
   readonly ws = inject(SegmentWorkspaceStateService);
+  private readonly canvasTheme = injectCanvasTheme();
   private readonly canvasState = inject(CanvasStateService);
   private readonly distributionService = inject(SegmentDistributionService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -129,6 +137,54 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
   /** Each tronc panel's live world-space top-left, reported by (troncPanelMoved) — the
    *  same source of truth the (now visually hidden) Konva tronc panel positions itself with. */
   private readonly troncPanelPositions = signal<Map<string, { x: number; y: number }>>(new Map());
+  /** A figure's live position while it is dragged or rotated (`slotDragMoved`), until it settles. */
+  private readonly liveSlotTransforms = signal<Map<string, { offsetX: number; offsetY: number; angle: number }>>(new Map());
+
+  /** A segment's lone figure gets no pin and no string: its panel can only be its own. */
+  private readonly isSingleFigure = computed(() => this.slots().length === 1);
+
+  /**
+   * The string tying each tronc panel to its figure, as in the projection (`figureLink`), in stage
+   * coordinates: from the card edge facing the figure to the corner of its occupied nodes nearest
+   * the panel. Follows a figure or a panel while it is dragged; waits for the panel to be placed
+   * and measured.
+   */
+  private readonly figureLinksBySlot = computed((): Map<string, FigureLink> => {
+    const links = new Map<string, FigureLink>();
+    if (this.isSingleFigure()) return links;
+    const positions = this.troncPanelPositions();
+    const sizes = this.measuredTroncSizes();
+    const live = this.liveSlotTransforms();
+    const theme = this.canvasTheme();
+
+    for (const slot of this.slots()) {
+      const pos = positions.get(slot.slotId);
+      const size = sizes.get(slot.slotId);
+      if (!pos || !size) continue;
+      const placed = { ...slot, ...live.get(slot.slotId) };
+      const drawn = pivotNodesFor(slot.figureTemplate.nodes);
+      if (drawn.length === 0) continue;
+      const pivot = {
+        x: (Math.min(...drawn.map((n) => n.x - n.width / 2)) + Math.max(...drawn.map((n) => n.x + n.width / 2))) / 2,
+        y: (Math.min(...drawn.map((n) => n.y - n.height / 2)) + Math.max(...drawn.map((n) => n.y + n.height / 2))) / 2,
+      };
+      const occupied = new Set((slot.assignments ?? []).map((a) => a.figureNodeId));
+      const nodes = drawn.map((n) => ({
+        ...slotLocalToStage(n, placed, pivot),
+        width: n.width,
+        height: n.height,
+        rotation: n.rotation + (placed.angle ?? 0),
+        occupied: occupied.has(n.id),
+      }));
+      const card = { x: pos.x, y: pos.y, width: size.width, height: size.height };
+      const link = figureLink(nodes, card, getFigureColor(slot.sortOrder), 1, theme);
+      if (link) links.set(slot.slotId, link);
+    }
+    return links;
+  });
+
+  /** Handed to the canvas, which draws each string behind the figures and its pin above them. */
+  readonly figureLinks = computed((): FigureLink[] => [...this.figureLinksBySlot().values()]);
 
   /**
    * One overlay per slot whose position is already known (i.e. the canvas has rendered it at
@@ -141,6 +197,8 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     const positions = this.troncPanelPositions();
     const sizes = this.measuredTroncSizes();
     const itemsById = new Map(this.items().map((i) => [i.instanceId, i]));
+    const links = this.figureLinksBySlot();
+    const singleFigure = this.isSingleFigure();
 
     const panels: TroncViewPanel[] = [];
     for (const slot of this.slots()) {
@@ -162,7 +220,10 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
         directionNodes,
         assignments: troncViewAssignmentsFor(item?.assignments ?? [], slot.figureTemplate.nodes),
         figureName: slot.label ?? slot.figureTemplate.name,
-        color: getFigureColor(slot.sortOrder),
+        color: singleFigure ? null : getFigureColor(slot.sortOrder),
+        nameBand: getFigureBand(slot.sortOrder, this.canvasTheme().mode),
+        pinEdge: links.get(slot.slotId)?.cardEdge ?? 'top',
+        tilt: slot.sortOrder % 2 === 0 ? -1 : 1,
       });
     }
     return panels;
@@ -230,7 +291,18 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     this.save();
   }
 
+  /** Live position while a figure is dragged or rotated, so its string follows it. */
+  onSlotDragMoved(event: { slotId: string; offsetX: number; offsetY: number; angle: number }): void {
+    this.liveSlotTransforms.update((current) => new Map(current).set(event.slotId, event));
+  }
+
   private moveSlot(event: { slotId: string; offsetX: number; offsetY: number; angle: number }): void {
+    this.liveSlotTransforms.update((current) => {
+      if (!current.has(event.slotId)) return current;
+      const next = new Map(current);
+      next.delete(event.slotId);
+      return next;
+    });
     this.slots.update((current) =>
       current.map((s) =>
         s.slotId === event.slotId

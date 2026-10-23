@@ -16,6 +16,13 @@ export const personsRoutes: Route[] = [
       ),
   },
   {
+    path: 'camises',
+    loadComponent: () =>
+      import('./components/shirt-candidates/shirt-candidates.component').then(
+        (m) => m.ShirtCandidatesComponent,
+      ),
+  },
+  {
     path: ':id',
     loadComponent: () =>
       import('./components/person-detail/person-detail.component').then(

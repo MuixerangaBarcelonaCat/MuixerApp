@@ -1,9 +1,14 @@
-import { THEME_NAMES } from '@muixer/ui';
+import { ATTENDANCE_TONES, GENDER_TONES, NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService, heightRampTones } from '@muixer/ui';
+import { DEFAULT_COLLA_SETTINGS, Gender } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { PINYES_RENDER_SETTINGS, PinyesRenderSettings } from '../../settings/render-settings';
+import { buildCanvasTheme } from '../../theme/canvas-theme';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ButtonComponent } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
+import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
 function makeNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
@@ -69,12 +74,21 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
 describe('TroncViewComponent', () => {
   let component: TroncViewComponent;
   let fixture: ComponentFixture<TroncViewComponent>;
+  const renderSettings = signal<PinyesRenderSettings>({
+    shoulderHeightBaselineCm: DEFAULT_COLLA_SETTINGS.shoulderHeightBaselineCm,
+    troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds,
+  });
 
   beforeEach(async () => {
+    renderSettings.set({
+      shoulderHeightBaselineCm: DEFAULT_COLLA_SETTINGS.shoulderHeightBaselineCm,
+      troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds,
+    });
     await TestBed.configureTestingModule({
       imports: [TroncViewComponent],
       providers: [
         allLucideIconsProvider,
+        { provide: PINYES_RENDER_SETTINGS, useValue: renderSettings },
       ],
     }).compileComponents();
 
@@ -85,8 +99,8 @@ describe('TroncViewComponent', () => {
 
   // ── Floor grouping ────────────────────────────────────────────────────────
 
-  it('is pinned to the light theme until figure rendering is themed for dark mode', () => {
-    expect(fixture.nativeElement.dataset['theme']).toBe(THEME_NAMES.light);
+  it('follows the app theme instead of pinning the light one', () => {
+    expect(fixture.nativeElement.hasAttribute('data-theme')).toBe(false);
   });
 
 
@@ -282,6 +296,11 @@ describe('TroncViewComponent', () => {
 
   it('getHeightDisplay returns relative height (negative diff)', () => {
     expect(component.getHeightDisplay(135)).toBe('-5');
+  });
+
+  it("getHeightDisplay measures from the colla's baseline", () => {
+    renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: 130 }));
+    expect(component.getHeightDisplay(135)).toBe('+5');
   });
 
   it('getHeightDisplay returns absolute value when heightMode is absolute', () => {
@@ -521,11 +540,11 @@ describe('TroncViewComponent', () => {
       });
     });
 
-    it('uses the thresholds given as input', () => {
-      fixture.componentRef.setInput('heightThresholds', {
-        floor: { warning: 1, error: 2 },
-        support: { warning: 3, error: 5 },
-      });
+    it("uses the colla's thresholds", () => {
+      renderSettings.update((s) => ({
+        ...s,
+        troncHeightThresholds: { floor: { warning: 1, error: 2 }, support: { warning: 3, error: 5 } },
+      }));
       render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 142)]);
       expect((floorGap(0).querySelector('.badge') as HTMLElement).classList).toContain('badge-error');
     });
@@ -770,70 +789,6 @@ describe('TroncViewComponent', () => {
     expect(emitted).toEqual(['base-99']);
   });
 
-  // ── getAttendanceColor ────────────────────────────────────────────────────
-
-  describe('getAttendanceColor', () => {
-    it('ASSISTIT → green regardless of the phase', () => {
-      const a = makeAssignment('node-1', 'Pepet');
-      fixture.componentRef.setInput('assignments', [a]);
-      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ASSISTIT']]));
-      fixture.detectChanges();
-      expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
-    });
-
-    it('ANIRE → green for future event (before the event day)', () => {
-      const a = makeAssignment('node-1', 'Pepet');
-      fixture.componentRef.setInput('assignments', [a]);
-      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
-      fixture.componentRef.setInput('phase', 'before');
-      fixture.detectChanges();
-      expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
-    });
-
-    it('ANIRE → amber for past event (from the event day on)', () => {
-      const a = makeAssignment('node-1', 'Pepet');
-      fixture.componentRef.setInput('assignments', [a]);
-      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
-      fixture.componentRef.setInput('phase', 'after');
-      fixture.detectChanges();
-      expect(component.getAttendanceColor(a)).toBe('oklch(var(--wa))');
-    });
-
-    it('NO_VAIG → red regardless of the phase', () => {
-      const a = makeAssignment('node-1', 'Pepet');
-      fixture.componentRef.setInput('assignments', [a]);
-      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'NO_VAIG']]));
-      fixture.detectChanges();
-      expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
-    });
-
-    it('PENDENT → muted for future event (before the event day)', () => {
-      const a = makeAssignment('node-1', 'Pepet');
-      fixture.componentRef.setInput('assignments', [a]);
-      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
-      fixture.componentRef.setInput('phase', 'before');
-      fixture.detectChanges();
-      expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
-    });
-
-    it('PENDENT → red for past event (from the event day on)', () => {
-      const a = makeAssignment('node-1', 'Pepet');
-      fixture.componentRef.setInput('assignments', [a]);
-      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
-      fixture.componentRef.setInput('phase', 'after');
-      fixture.detectChanges();
-      expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
-    });
-
-    it('no status → muted fallback', () => {
-      const a = makeAssignment('node-1', 'Pepet');
-      fixture.componentRef.setInput('assignments', [a]);
-      fixture.componentRef.setInput('attendanceMap', new Map());
-      fixture.detectChanges();
-      expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
-    });
-  });
-
   // ── No-tronc state ────────────────────────────────────────────────────────
 
   it('hasTronc is false when no nodes exist', () => {
@@ -971,49 +926,35 @@ describe('TroncViewComponent', () => {
 
   // ── Z-level color coding ──────────────────────────────────────────────
 
-  describe('getZLevelColor', () => {
-    it('returns blue for z=1', () => {
-      expect(component.getZLevelColor(1)).toBe('#1E88E5');
+  describe('getNodeColor', () => {
+    it('draws a node with no stored color in the pencil tone of its type', () => {
+      expect(component.getNodeColor(makeNode({ positionType: 'puntal', color: null }))).toBe(NODE_TYPE_PALETTE['puntal'].pencil);
     });
 
-    it('returns green for z=2', () => {
-      expect(component.getZLevelColor(2)).toBe('#43A047');
+    it('draws a customized color as it is', () => {
+      expect(component.getNodeColor(makeNode({ positionType: 'puntal', color: '#123456' }))).toBe('#123456');
     });
 
-    it('returns fallback for unknown z', () => {
-      expect(component.getZLevelColor(99)).toBe('#78909C');
+    it('has no color for a node with neither a stored color nor a known type', () => {
+      expect(component.getNodeColor(makeNode({ positionType: 'segon', color: null }))).toBeNull();
     });
   });
 
-  describe('z-colored border rendering', () => {
-    it('renders z-colored class in assignment mode', () => {
-      fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
-      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('mode', 'assignment');
-      fixture.detectChanges();
-
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
-      expect(colored.length).toBeGreaterThan(0);
+  describe('getDirectionColor', () => {
+    it('returns the pencil tone of the direction flavour', () => {
+      expect(component.getDirectionColor('direccio-xicalla')).toBe(NODE_TYPE_PALETTE['direccio-xicalla'].pencil);
     });
 
-    it('does not render z-colored class in editor mode', () => {
-      fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
-      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('mode', 'editor');
-      fixture.detectChanges();
-
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
-      expect(colored.length).toBe(0);
+    it('returns the neutral pencil for an unknown flavour', () => {
+      expect(component.getDirectionColor(null)).toBe(NODE_TYPE_NEUTRAL.pencil);
     });
 
-    it('renders z-colored class in projection mode', () => {
-      fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
-      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('mode', 'projection');
-      fixture.detectChanges();
-
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
-      expect(colored.length).toBe(2);
+    it('takes the dark pencil when the app is dark', () => {
+      TestBed.inject(ThemeService).setPreference('dark');
+      expect(component.getDirectionColor('direccio-xicalla')).toBe(NODE_TYPE_PALETTE_DARK['direccio-xicalla'].pencil);
+      expect(component.getNodeColor(makeNode({ positionType: 'segona', color: null }))).toBe(NODE_TYPE_PALETTE_DARK['segona'].pencil);
+      TestBed.inject(ThemeService).setPreference('system');
+      localStorage.clear();
     });
   });
 
@@ -1079,13 +1020,6 @@ describe('TroncViewComponent', () => {
 
   // ── Unassign ──────────────────────────────────────────────────────────
 
-  it('nodeUnassigned emits node id', () => {
-    const emitted: string[] = [];
-    fixture.componentRef.instance.nodeUnassigned.subscribe((id: string) => emitted.push(id));
-    component.onUnassignNode('node-42');
-    expect(emitted).toEqual(['node-42']);
-  });
-
   // ── Projection mode ───────────────────────────────────────────────────────
 
   describe('projection mode', () => {
@@ -1097,19 +1031,53 @@ describe('TroncViewComponent', () => {
       fixture.detectChanges();
     });
 
-    it('does not render height badges', () => {
-      const badges = fixture.nativeElement.querySelectorAll('.height-badge');
-      expect(badges.length).toBe(0);
+    it('takes no figure colour: the panel draws no tint or border, the pinned card around it frames it', () => {
+      expect('panelColor' in component).toBe(false);
+      expect('panelBorderColor' in component).toBe(false);
+      const panel: HTMLElement = fixture.nativeElement.querySelector('.tronc-view');
+      expect(panel.style.backgroundColor).toBe('');
+      expect(panel.style.border).toBe('');
     });
 
-    it('does not render attendance dots', () => {
-      const dots = fixture.nativeElement.querySelectorAll('.attendance-dot');
-      expect(dots.length).toBe(0);
+    it('heads the panel with the figure name on a band in the figure colour, closed by a rule', () => {
+      fixture.componentRef.setInput('figureName', 'Pilar de 5');
+      fixture.componentRef.setInput('nameBand', { fill: '#cfe3da', rule: '#1a5543' });
+      fixture.detectChanges();
+
+      const band: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(band.textContent?.trim()).toBe('Pilar de 5');
+      expect(band.style.backgroundColor).toBe('rgb(207, 227, 218)');
+      expect(band.style.borderBottomColor).toBe('rgb(26, 85, 67)');
     });
 
-    it('renders person alias with text-base class for larger font', () => {
-      const aliases = fixture.nativeElement.querySelectorAll('.person-alias.text-base');
-      expect(aliases.length).toBeGreaterThan(0);
+    it('heads the panel the same way while staffing (the Troncs tab), not only in the projection', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('figureName', 'Pilar de 5');
+      fixture.componentRef.setInput('nameBand', { fill: '#cfe3da', rule: '#1a5543' });
+      fixture.detectChanges();
+
+      const band: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(band.textContent?.trim()).toBe('Pilar de 5');
+      expect(band.style.backgroundColor).toBe('rgb(207, 227, 218)');
+      expect(band.querySelector('span')?.className).toBe('text-sm font-semibold text-base-content truncate block');
+    });
+
+    it('leaves the name on plain paper without a band, keeping the same height', () => {
+      fixture.componentRef.setInput('figureName', 'Pilar de 5');
+      fixture.detectChanges();
+
+      const band: HTMLElement = fixture.nativeElement.querySelector('[data-role="figure-name"]');
+      expect(band.style.backgroundColor).toBe('');
+      expect(band.style.borderBottomColor).toBe('');
+      // The rule's room is reserved either way, so a measured panel matches the drawn one.
+      expect(band.classList).toContain('figure-name');
+    });
+
+    it('draws nodes in projection mode: no height and no observation', () => {
+      const appearance = component.appearanceByNodeId().get('node-1')!;
+      expect(appearance.text.value).toBe('Lluna');
+      expect(appearance.height).toBeNull();
+      expect(appearance.observation).toBeNull();
     });
 
     it('does not render editor controls (+ button, floor dropdown)', () => {
@@ -1137,8 +1105,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
-      const alias = fixture.nativeElement.querySelector('.person-alias');
-      expect(alias.textContent.trim()).toBe('Marta (X)');
+      expect(component.appearanceByNodeId().get('n1')!.text.value).toBe('Marta (X)');
     });
 
     it('appends the indicator to the alias for an assigned BASE node', () => {
@@ -1147,8 +1114,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
-      const alias = fixture.nativeElement.querySelector('.person-alias');
-      expect(alias.textContent.trim()).toBe('Joan (A)');
+      expect(component.appearanceByNodeId().get('b1')!.text.value).toBe('Joan (A)');
     });
 
     it('shows the alias alone when there is no indicator', () => {
@@ -1157,8 +1123,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
-      const alias = fixture.nativeElement.querySelector('.person-alias');
-      expect(alias.textContent.trim()).toBe('Marta');
+      expect(component.appearanceByNodeId().get('n1')!.text.value).toBe('Marta');
     });
 
     it('appends the indicator to the label of an unassigned TRONC node', () => {
@@ -1166,8 +1131,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
-      const label = fixture.nativeElement.querySelector('.node-label');
-      expect(label.textContent.trim()).toBe('Segona (X)');
+      expect(component.appearanceByNodeId().get('n1')!.text).toMatchObject({ kind: 'label', value: 'Segona (X)' });
     });
 
     it('appends the indicator to the label of an unassigned BASE node', () => {
@@ -1175,8 +1139,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
-      const label = fixture.nativeElement.querySelector('.node-label');
-      expect(label.textContent.trim()).toBe('Base 1 (A)');
+      expect(component.appearanceByNodeId().get('b1')!.text).toMatchObject({ kind: 'label', value: 'Base 1 (A)' });
     });
 
     it('appends the indicator to the aria-label', () => {
@@ -1236,17 +1199,17 @@ describe('TroncViewComponent', () => {
       expect(activeTags[0].textContent.trim()).toContain('Terça');
     });
 
-    it('onPositionTypeChange emits nodeUpdated with positionType and color', () => {
+    it('onPositionTypeChange emits the new positionType and clears the color, so the node follows its type', () => {
       const emitted: { nodeId: string; positionType?: string; color?: string | null }[] = [];
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
-      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
+      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#123456' });
+      const preset = { positionType: 'puntal', label: 'Puntal', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted.length).toBe(1);
       expect(emitted[0].positionType).toBe('puntal');
-      expect(emitted[0].color).toBe('#795548');
+      expect(emitted[0].color).toBeNull();
     });
 
     it('onPositionTypeChange updates label when it is a default preset label', () => {
@@ -1254,7 +1217,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
       const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
+      const preset = { positionType: 'puntal', label: 'Puntal', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBe('Puntal');
@@ -1265,40 +1228,16 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
       const node = makeNode({ id: 'n1', label: 'Mon node custom', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
+      const preset = { positionType: 'puntal', label: 'Puntal', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBeUndefined();
     });
   });
 
-  // ── Type-colored visual feedback (F1) ──────────────────────────────────
+  // ── Type badge (editor) ──────────────────────────────────
 
-  describe('type-colored node rendering', () => {
-    it('renders type-colored class on TRONC nodes in editor mode when color is set', () => {
-      fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, color: '#1E88E5' }),
-      ]);
-      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('mode', 'editor');
-      fixture.detectChanges();
-
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.type-colored');
-      expect(colored.length).toBe(1);
-    });
-
-    it('does not render type-colored class when color is null', () => {
-      fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, color: null }),
-      ]);
-      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('mode', 'editor');
-      fixture.detectChanges();
-
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.type-colored');
-      expect(colored.length).toBe(0);
-    });
-
+  describe('type badge', () => {
     it('renders type-badge inside TRONC node in editor mode', () => {
       fixture.componentRef.setInput('troncNodes', [
         makeNode({ id: 'n1', z: 1, positionType: 'segona', color: '#1E88E5' }),
@@ -1814,6 +1753,24 @@ describe('TroncViewComponent', () => {
       expect(component.hoveredPerson()?.info.alias).toBe('Pepet');
     });
 
+    it('anchors the card to the node and draws it in the page overlay, out of reach of a tilted (transformed) ancestor', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+      const target = makeButtonTarget();
+
+      component.onNodeHover(makeClickEvent(target), 'node-1');
+      fixture.detectChanges();
+
+      expect(component.hoveredPerson()?.anchor).toBe(target);
+      expect(fixture.nativeElement.querySelector('app-person-hover-card')).toBeNull();
+      expect(document.querySelector('.cdk-overlay-container app-person-hover-card')).not.toBeNull();
+
+      component.onNodeLeave();
+      fixture.detectChanges();
+      expect(document.querySelector('.cdk-overlay-container app-person-hover-card')).toBeNull();
+    });
+
     it('onNodeClick does not reveal a card for an unassigned node', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
       fixture.componentRef.setInput('assignments', []);
@@ -1839,8 +1796,7 @@ describe('TroncViewComponent', () => {
       const section = document.createElement('section');
       component.hoveredPerson.set({
         info: { alias: 'Pepet', attendanceStatus: null, isXicalla: false, shoulderHeight: null, notes: null, notesEmoji: null, positions: [] },
-        top: 0,
-        left: 0,
+        anchor: document.createElement('button'),
         positionType: null,
       });
 
@@ -1855,8 +1811,7 @@ describe('TroncViewComponent', () => {
       section.appendChild(child);
       component.hoveredPerson.set({
         info: { alias: 'Pepet', attendanceStatus: null, isXicalla: false, shoulderHeight: null, notes: null, notesEmoji: null, positions: [] },
-        top: 0,
-        left: 0,
+        anchor: document.createElement('button'),
         positionType: null,
       });
 
@@ -2385,20 +2340,145 @@ describe('TroncViewComponent', () => {
     });
   });
 
-  describe('observation emoji size', () => {
-    it('renders the emoji at a fixed size with a black outline', () => {
-      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
-      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+  // ── Node drawing (shared with the pinya canvas) ─────────────────────────
+
+  describe('node drawing', () => {
+    const appearance = (id = 'node-1') => component.appearanceByNodeId().get(id)!;
+
+    beforeEach(() => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' }), makeNode({ id: 'node-2', x: 1 })]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Marta', 170)]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+    });
+
+    it('draws every node with the shared node drawing', () => {
+      expect(fixture.nativeElement.querySelectorAll('.tronc-node app-node-drawing').length).toBe(3);
+    });
+
+    it('seeds each node\'s pen with its id, so every cell keeps its own strokes', () => {
+      const cells = fixture.debugElement.queryAll(By.css('[data-tronc-node-id]'));
+      expect(cells.length).toBe(3);
+      for (const cell of cells) {
+        const drawing = cell.query(By.directive(NodeDrawingComponent)).componentInstance as NodeDrawingComponent;
+        expect(drawing.sketchKey()).toBe(cell.nativeElement.getAttribute('data-tronc-node-id'));
+      }
+    });
+
+    it('draws every floor in the neutral paper tones while staffing', () => {
+      expect(appearance().fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL.wash });
+      expect(appearance('node-2').outline.color).toBe(NODE_TYPE_NEUTRAL.pencil);
+    });
+
+    it('shows attendance in the fill, for the phase', () => {
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+      fixture.componentRef.setInput('phase', 'started');
+      fixture.detectChanges();
+      expect(appearance().fill.style).toBe('hatch');
+    });
+
+    it('shows the height, the observation and the next-actuació star', () => {
       fixture.componentRef.setInput('personDetailsMap', new Map([
         ['person-node-1', { positions: [], isXicalla: false, notes: 'Lesió', notesEmoji: '🤕' }],
       ]));
+      fixture.componentRef.setInput('nextPerformanceMap', new Map([['person-node-1', 'ANIRE']]));
       fixture.detectChanges();
+      expect(appearance()).toMatchObject({ height: '+30', observation: { emoji: '🤕' }, star: true });
+    });
 
-      const emoji = Array.from(fixture.nativeElement.querySelectorAll('span'))
-        .find((el) => (el as HTMLElement).textContent?.trim() === '🤕') as HTMLElement;
-      expect(emoji).toBeTruthy();
-      expect(emoji.style.fontSize).toBe('1rem');
-      expect(emoji.style.textShadow).toContain('#000');
+    it('marks the selected node, the move source, a drop target and a conflict', () => {
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.componentRef.setInput('highlightedNodeIds', new Set(['node-2']));
+      fixture.componentRef.setInput('conflictPersonIds', new Set(['person-node-1']));
+      fixture.detectChanges();
+      expect(appearance().outline.width).toBe(3.2);
+      expect(appearance().conflictLoop).toBe(true);
+      expect(appearance('node-2').moveBadge).toBe(true);
+
+      component.dragOverNodeId.set('base-1');
+      fixture.detectChanges();
+      expect(appearance('base-1').outline.dash).toEqual([5, 4]);
+    });
+
+    it('shows each node in its type colors in the template editor', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1', positionType: 'segona' })]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+      expect(appearance().fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE['segona'].wash });
+      expect(appearance().text).toMatchObject({ kind: 'label', uppercase: false });
+    });
+
+    describe('when the app is dark', () => {
+      beforeEach(() => TestBed.inject(ThemeService).setPreference('dark'));
+      afterEach(() => {
+        TestBed.inject(ThemeService).setPreference('system');
+        localStorage.clear();
+      });
+
+      it('draws the floors in the dark neutral tones, a pending name haloed in the card it sits on', () => {
+        fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+        fixture.componentRef.setInput('phase', 'started');
+        fixture.detectChanges();
+        expect(appearance('node-2').outline.color).toBe(NODE_TYPE_NEUTRAL_DARK.pencil);
+        expect(appearance().text.halo).toBe(buildCanvasTheme('dark').card);
+      });
+
+      it('shows each node in its dark type colors in the template editor', () => {
+        fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1', positionType: 'segona' })]);
+        fixture.componentRef.setInput('assignments', []);
+        fixture.componentRef.setInput('mode', 'editor');
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE_DARK['segona'].wash });
+      });
+    });
+
+    describe('display modes', () => {
+      it('draws exactly as before in Posició (the default)', () => {
+        const before = appearance();
+        fixture.componentRef.setInput('displayMode', 'position');
+        fixture.detectChanges();
+        expect(appearance()).toEqual(before);
+      });
+
+      it('recolors the person by gender (from the roster) and keeps empty floors neutral', () => {
+        fixture.componentRef.setInput('personDetailsMap', new Map([
+          ['person-node-1', { positions: [], isXicalla: false, notes: null, notesEmoji: null, gender: Gender.FEMALE }],
+        ]));
+        fixture.componentRef.setInput('displayMode', 'gender');
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: GENDER_TONES.female.wash });
+        expect(appearance('node-2').outline.color).toBe(NODE_TYPE_NEUTRAL.pencil);
+      });
+
+      it('places the person on the height ramp of the domain it is given', () => {
+        fixture.componentRef.setInput('displayMode', 'height');
+        fixture.componentRef.setInput('heightDomain', { heights: [150, 170] });
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: heightRampTones(1, 'light').wash });
+      });
+
+      it('in Assistència fills solid in the semantic color and keeps the star, the height and the observation', () => {
+        fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+        fixture.componentRef.setInput('nextPerformanceMap', new Map([['person-node-1', 'ANIRE']]));
+        fixture.componentRef.setInput('phase', 'started');
+        fixture.componentRef.setInput('displayMode', 'attendance');
+        fixture.detectChanges();
+        fixture.componentRef.setInput('personDetailsMap', new Map([
+          ['person-node-1', { positions: [], isXicalla: false, notes: 'Lesió', notesEmoji: '🤕' }],
+        ]));
+        fixture.detectChanges();
+        expect(appearance().fill).toEqual({ style: 'solid', color: ATTENDANCE_TONES.warning.strong.wash });
+        expect(appearance()).toMatchObject({ star: true, height: '+30', observation: { emoji: '🤕' } });
+      });
+    });
+
+    it('says attendance and conflict in the accessible name, since the drawing is only visual', () => {
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
+      fixture.componentRef.setInput('conflictPersonIds', new Set(['person-node-1']));
+      fixture.detectChanges();
+      expect(component.getNodeAriaLabel(component.troncNodes()[0])).toBe('Segon: Marta, alçada +30, pendent, en conflicte');
     });
   });
 });

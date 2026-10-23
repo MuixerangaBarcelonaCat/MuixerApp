@@ -10,11 +10,13 @@ import {
   AttendanceStatus,
   EventType,
   FigureZone,
+  Gender,
   AssignmentArea,
   areaForZone,
   ConflictPlacement,
   TagCategory,
 } from '@muixer/shared';
+import { xicallaSql } from '../person/xicalla.sql';
 
 interface AvailablePersonPositionDto {
   id: string;
@@ -31,6 +33,8 @@ export interface AvailablePersonDto {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  /** Staff-only: feeds the workspace's Gènere display mode. Never part of AssignmentDetail (member projection). */
+  gender: Gender | null;
   isXicalla: boolean;
   notes: string | null;
   notesEmoji: string | null;
@@ -113,7 +117,7 @@ export class AvailablePersonsService {
     }
 
     if (isXicallaBool !== undefined) {
-      qb.andWhere('person.isXicalla = :isXicalla', { isXicalla: isXicallaBool });
+      qb.andWhere(`${xicallaSql('person')} = :isXicalla`, { isXicalla: isXicallaBool });
     }
 
     if (positionId) {
@@ -247,6 +251,7 @@ export class AvailablePersonsService {
         name: person.name,
         firstSurname: person.firstSurname,
         shoulderHeight: person.shoulderHeight,
+        gender: person.gender ?? null,
         isXicalla: person.isXicalla,
         notes: person.notes,
         notesEmoji: person.notesEmoji,

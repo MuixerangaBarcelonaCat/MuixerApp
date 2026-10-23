@@ -132,65 +132,29 @@
   -webkit-touch-callout: none;
 }
 
-// -- Tronc node button 
+// -- Tronc node button
+// The node itself is drawn by `app-node-drawing` (the same draw plan as the pinya canvas), which
+// fills the button; the button only carries the interaction, focus and the accessible name.
 
 .tronc-node {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   position: relative;
   min-height: 3rem;
-  padding: 0.25rem 0.4rem;
+  padding: 0;
+  border: none;
   border-radius: 0.25rem;
-  border: 1px solid oklch(var(--b3));
-  background: oklch(var(--b2));
+  background: transparent;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-  overflow: hidden;
-  text-align: center;
   outline: none;
-
-  &:hover:not(:disabled) {
-    background: oklch(var(--b3));
-    border-color: oklch(var(--bc) / 0.2);
-  }
 
   &:focus-visible {
     box-shadow: 0 0 0 2px oklch(var(--p));
-    border-color: oklch(var(--p));
   }
 
-  &.selected {
-    border-color: oklch(var(--p));
-    box-shadow: 0 0 0 2px oklch(var(--p) / 0.3);
-    background: oklch(var(--p) / 0.08);
-  }
+  // No z-index here: the drawing's raised layer (conflict loop, sticker, move badge) must stack
+  // above every cell's body, which a stacking context on the cell would prevent.
 
-  &.assigned {
-    background: oklch(var(--b1));
-  }
-
-  // Phase 3 — single conflict style for a person assigned >1 time in the segment.
-  // Same rose/magenta cue everywhere (canvas, tronc-view): "un conflicte és un conflicte", no per-kind styling.
-  &.conflict {
-    border-color: var(--conflict);
-    box-shadow: 0 0 0 2px rgb(225 29 72 / 0.55);
-    background: rgb(225 29 72 / 0.14);
-  }
-
-  // Green outline + glow, like the Konva canvas draws for a highlighted node (shadowBlur 12), so
-  // both tabs mark e.g. "person being moved" alike. Uses the theme's success token; the canvas
-  // still has a hard-coded emerald (`#10b981`) until it is adapted to the theme.
-  &.highlighted {
-    border-color: oklch(var(--su));
-    background: oklch(var(--su) / 0.08);
-    box-shadow: 0 0 12px oklch(var(--su) / 0.7);
-  }
-
-  // Nodes behind the uneven-supporter chip being hovered/focused. An outline, not a box-shadow,
-  // so it stacks over the selected/conflict/highlighted rings instead of replacing them.
+  // Nodes behind the uneven-supporter chip being hovered/focused.
   &.support-focus {
     outline: 2px solid oklch(var(--wa));
     outline-offset: 2px;
@@ -200,11 +164,6 @@
     outline-color: oklch(var(--er));
   }
 
-  &.z-colored {
-    border-left-width: 3px;
-    border-left-style: solid;
-  }
-
   // -- Drag-and-drop (assignment mode), pointer-based so it also works on touch.
   &[data-draggable] {
     cursor: grab;
@@ -212,116 +171,9 @@
     touch-action: none;
   }
 
-  // Source node while its person is being dragged: looks temporarily empty.
-  &.dragging {
-    background: oklch(var(--b2));
-
-    .height-badge,
-    .alias-row,
-    .attendance-dot {
-      visibility: hidden;
-    }
-  }
-
-  // Drop target while hovered during a drag: amber = swap, green = move into empty.
-  &.drag-over-swap {
-    border-color: oklch(var(--wa));
-    box-shadow: 0 0 0 2px oklch(var(--wa) / 0.4);
-    background: oklch(var(--wa) / 0.12);
-  }
-
-  &.drag-over-move {
-    border-color: oklch(var(--su));
-    box-shadow: 0 0 0 2px oklch(var(--su) / 0.4);
-    background: oklch(var(--su) / 0.12);
-  }
-}
-
-// -- Node content 
-
-.node-label {
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: oklch(var(--bc) / 0.6);
-  line-height: 1.2;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.height-badge {
-  position: absolute;
-  top: 2px;
-  left: 3px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: oklch(var(--bc) / 0.5);
-  line-height: 1;
-}
-
-.person-alias {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: oklch(var(--bc));
-  line-height: 1.2;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.alias-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.alias-row .person-alias {
-  min-width: 0;
-}
-
-.attendance-dot {
-  position: absolute;
-  bottom: 3px;
-  left: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-// -- Unassign button overlay 
-
-.unassign-btn {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  border: none;
-  background: oklch(var(--er));
-  color: oklch(var(--erc));
-  cursor: pointer;
-  padding: 0;
-  transition: transform 0.1s, opacity 0.1s;
-  opacity: 0.9;
-
-  &:hover {
-    transform: scale(1.15);
-    opacity: 1;
-  }
-
-  &:focus-visible {
-    outline: 2px solid oklch(var(--er));
-    outline-offset: 1px;
+  // Source node while its person is being dragged: fades until the drop.
+  &.dragging app-node-drawing {
+    opacity: 0.35;
   }
 }
 
@@ -439,32 +291,6 @@
   white-space: nowrap;
 }
 
-.stepper-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 0.25rem;
-  border: none;
-  background: oklch(var(--b3));
-  color: oklch(var(--bc) / 0.7);
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-  transition: background 0.1s, color 0.1s;
-
-  &:hover:not(:disabled) {
-    background: oklch(var(--p) / 0.15);
-    color: oklch(var(--p));
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-}
-
 .stepper-value {
   font-size: 0.7rem;
   font-weight: 700;
@@ -481,11 +307,6 @@
 }
 
 // -- Type-colored nodes (editor mode) 
-
-.tronc-node.type-colored {
-  border-left-width: 3px;
-  border-left-style: solid;
-}
 
 .type-badge {
   position: absolute;
@@ -504,60 +325,6 @@
   flex-wrap: wrap;
   gap: 0.25rem;
   padding: 0.15rem 0;
-}
-
-.preset-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.25rem;
-  border: 1px solid oklch(var(--b3));
-  background: oklch(var(--b2));
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: oklch(var(--bc) / 0.7);
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--preset-color, oklch(var(--bc) / 0.3));
-    background: color-mix(in srgb, var(--preset-color, transparent) 10%, oklch(var(--b2)));
-  }
-
-  &:focus-visible {
-    outline: 2px solid oklch(var(--p));
-    outline-offset: 1px;
-  }
-
-  &.active {
-    background: var(--preset-color);
-    border-color: var(--preset-color);
-    color: #fff;
-  }
-}
-
-// -- Color indicator row 
-
-.color-indicator-row {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.15rem 0.25rem;
-}
-
-.color-swatch {
-  display: inline-block;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
-  border: 1px solid oklch(var(--bc) / 0.15);
-  flex-shrink: 0;
-}
-
-.color-value {
-  color: oklch(var(--bc) / 0.5);
-  font-family: monospace;
 }
 
 // -- Directions section (collapsible, figures netes) 
@@ -625,11 +392,9 @@
 }
 
 .direction-node {
-  min-height: 1.75rem;
+  min-height: 2rem;
   min-width: 5.25rem;
   flex: 0 1 auto;
-  border-left-width: 3px;
-  border-left-style: solid;
 }
 
 .direction-projection-row {
@@ -651,10 +416,17 @@
 
 // -- Projection mode (compact) 
 
+// The figure name on a band across the whole card: the negative margins reach through the panel's
+// padding to the card edges. The rule's room is reserved with no band too, so sizes match.
+.figure-name {
+  flex-shrink: 0;
+  padding: 0.3rem 0.75rem 0.25rem 0.75rem;
+  border-bottom: 2px solid transparent;
+}
+
 .tronc-view.projection-mode {
   gap: 0.15rem;
   height: auto;
-  border-radius: 0.375rem;
   padding: 0.25rem 0.75rem 0.5rem 0.25rem;
 
   // Projection panels size to their content, so any residual vertical overflow is
@@ -674,11 +446,5 @@
 
   .tronc-node {
     min-height: 1.75rem;
-    padding: 0.1rem 0.3rem;
-
-    &.z-colored {
-      border-left-width: 3px;
-      border-left-style: solid;
-    }
   }
 }

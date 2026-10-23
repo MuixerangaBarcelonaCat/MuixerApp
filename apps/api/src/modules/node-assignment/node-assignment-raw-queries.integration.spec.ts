@@ -17,6 +17,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres regression suite for the multi-way-join/multi-query raw-SQL paths ARCH-8 flagged as
@@ -37,6 +39,7 @@ describe('NodeAssignmentService raw multi-join queries (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         NodeAssignmentService,
         ...realRepositoryProviders(db.dataSource, [
           NodeAssignment,

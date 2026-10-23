@@ -228,6 +228,19 @@ export async function installMockApi(page: Page): Promise<MockApi> {
     },
   });
 
+  // The colla's defaults (`DEFAULT_COLLA_SETTINGS`).
+  const COLLA_SETTINGS = {
+    collaName: 'Muixeranga de Barcelona',
+    shirtRequirements: { performances: 2, rehearsals: 6 },
+    shoulderHeightBaselineCm: 140,
+    troncHeightThresholds: { floor: { warning: 5, error: 10 }, support: { warning: 3, error: 5 } },
+    assignmentLockDays: 2,
+    autoCheckInPerformances: true,
+    defaultTagId: null,
+    majorityAge: 16,
+    rehearsalDefaults: { title: 'Assaig general', startTime: '18:45', location: 'Lleialtat Santsenca', locationUrl: null },
+  };
+
   const json = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: 'application/json', headers: CORS, body: JSON.stringify(body) });
 
@@ -283,6 +296,7 @@ export async function installMockApi(page: Page): Promise<MockApi> {
       return json(route, { data: assignments.map(assignmentDetail) });
     }
     if (method === 'GET' && path === '/tags') return json(route, []);
+    if (method === 'GET' && path === '/colla-settings') return json(route, COLLA_SETTINGS);
 
     // ── writes ────────────────────────────────────────────────────────────
     if (method === 'POST' && path === `/figure-instances/${INSTANCE_ID}/assignments`) {

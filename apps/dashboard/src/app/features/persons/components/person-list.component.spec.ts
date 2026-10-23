@@ -6,7 +6,16 @@ import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider
 import { ALL_COLUMNS, PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
-import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, TagCategory } from '@muixer/shared';
+import { signal as renderSettingsSignal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS as RENDER_DEFAULTS } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS, PinyesRenderSettings } from '@muixer/pinyes-render/settings';
+
+const renderSettings = renderSettingsSignal<PinyesRenderSettings>({
+  shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm,
+  troncHeightThresholds: RENDER_DEFAULTS.troncHeightThresholds,
+});
+
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;
@@ -24,7 +33,7 @@ describe('PersonListComponent', () => {
     alias: 'tester',
     phone: null,
     birthDate: null,
-    shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
+    shoulderHeight: 140,
     isXicalla: false,
     isMember: false,
     availability: AvailabilityStatus.AVAILABLE,
@@ -55,6 +64,7 @@ describe('PersonListComponent', () => {
       imports: [PersonListComponent],
       providers: [
         { provide: PersonService, useValue: personService },
+        { provide: PINYES_RENDER_SETTINGS, useValue: renderSettings },
         provideRouter([]),
         allLucideIconsProvider,
       ],
@@ -103,9 +113,24 @@ describe('PersonListComponent', () => {
     expect(fixture.componentInstance.formatShoulderHeightDisplay(150)).toBe('+10');
   });
 
+  it("shows relative heights from the colla's baseline", () => {
+    fixture.componentInstance.shoulderHeightRelative.set(true);
+    renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: 145 }));
+    try {
+      expect(fixture.componentInstance.formatShoulderHeightDisplay(150)).toBe('+5');
+    } finally {
+      renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm }));
+    }
+  });
+
   it('labels the tags column "Etiquetes" instead of "Posicions"', () => {
     const positionsColumn = fixture.componentInstance.allColumns.find(c => c.key === 'positions');
     expect(positionsColumn?.label).toBe('Etiquetes');
+  });
+
+  it('labels the xicalla column "Xicalla"', () => {
+    const column = fixture.componentInstance.allColumns.find(c => c.key === 'isXicalla');
+    expect(column?.label).toBe('Xicalla');
   });
 
   it('renders each tag as a color badge in the table', () => {

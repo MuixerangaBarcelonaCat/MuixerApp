@@ -38,6 +38,13 @@ describe('PersonService', () => {
     req.flush({ data: [], meta: { total: 0, page: 1, limit: 50 } });
   });
 
+  it('getShirtCandidates requests /persons/shirt-candidates', () => {
+    service.getShirtCandidates().subscribe((c) => expect(c).toEqual([]));
+    const req = httpMock.expectOne(`${environment.apiUrl}/persons/shirt-candidates`);
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
   it('getPositions requests /tags', () => {
     service.getPositions().subscribe((p) => expect(p).toEqual([]));
     const req = httpMock.expectOne(`${environment.apiUrl}/tags`);

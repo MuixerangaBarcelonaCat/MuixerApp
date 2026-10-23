@@ -9,6 +9,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
 import { TemplateEditorComponent, nodeToPayload } from './template-editor.component';
+import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.component';
 import { TroncSupportEditorComponent } from './tronc-support-editor/tronc-support-editor.component';
@@ -16,12 +17,13 @@ import { SupportLink } from './tronc-support-editor/tronc-support-editor.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService, ModalComponent, ButtonComponent } from '@muixer/ui';
+import { ToastService, ModalComponent, ButtonComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class StubFigureCanvas {
   readonly nodes = input<unknown[]>([]);
   readonly mode = input<string>('editor');
+  readonly readonlyLook = input<string>('projection');
   readonly gridEnabled = input<boolean>(true);
   readonly gridSpacing = input<number>(40);
   readonly snapToGrid = input<boolean>(false);
@@ -259,6 +261,19 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('canvasReadonlyLook computed', () => {
+    it('keeps the nodes filled in the Rengles tab', () => {
+      component.renglaEditMode.set(true);
+      expect(component.canvasReadonlyLook()).toBe('template');
+    });
+
+    it('draws the preview as the projection does', () => {
+      component.previewMode.set(true);
+      component.renglaEditMode.set(true);
+      expect(component.canvasReadonlyLook()).toBe('projection');
+    });
+  });
+
   describe('canvasMode computed', () => {
     it('should return readonly when previewMode is active', () => {
       component.previewMode.set(true);
@@ -337,14 +352,15 @@ describe('TemplateEditorComponent — Preview Mode', () => {
         expect(component.nodes()[0].positionType).toBe('agulla');
       });
 
-      it('updates positionType, label, color and shape from the preset', () => {
+      it('updates positionType, label and shape from the preset, and clears the color so the node follows its type', () => {
         const mansPreset = PINYA_NODE_PRESETS.find(p => p.positionType === 'mans')!;
+        component.nodes.update((nodes) => [{ ...nodes[0], color: '#123456' }, ...nodes.slice(1)]);
         component.applyPinyaPreset('mans');
 
         const node = component.nodes()[0];
         expect(node.positionType).toBe('mans');
         expect(node.label).toBe(mansPreset.label);
-        expect(node.color).toBe(mansPreset.color);
+        expect(node.color).toBeNull();
         expect(node.shape).toBe(mansPreset.shape);
       });
 
@@ -577,6 +593,46 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       component.onTroncNodeAdded({ z: 1, positionType: 'segona', label: 'Segon', sortOrder: 0 });
 
       expect(component.nodes()[0].standsOnNodeIds).toEqual([]);
+    });
+
+    it('stores no color: the node follows the palette of its type', () => {
+      component.templateId.set('template-1');
+
+      component.onTroncNodeAdded({ z: 1, positionType: 'segona', label: 'Segon', sortOrder: 0 });
+
+      expect(component.nodes()[0].color).toBeNull();
+    });
+  });
+
+  describe('type swatches', () => {
+    it('show the fill the node type gets on the canvas', () => {
+      expect(component.typeSwatch(FigureZone.PINYA, 'vents')).toBe(NODE_TYPE_PALETTE['vents'].wash);
+      expect(component.typeSwatch(FigureZone.BASE, 'base')).toBe(NODE_TYPE_NEUTRAL.wash);
+    });
+
+    it('show the dark fill when the app is dark, as the canvas then draws it', () => {
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        expect(component.typeSwatch(FigureZone.PINYA, 'vents')).toBe(NODE_TYPE_PALETTE_DARK['vents'].wash);
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
+    });
+  });
+
+  describe('new nodes store no color', () => {
+    it('for a base node', () => {
+      component.templateId.set('template-1');
+      component.onBaseNodeAdded({ sortOrder: 0 });
+      expect(component.nodes()[0].color).toBeNull();
+    });
+
+    it('for a pinya node added from a preset', () => {
+      component.templateId.set('template-1');
+      component.addPinyaNode(PINYA_NODE_PRESETS.find((p) => p.positionType === 'vents')!);
+      expect(component.nodes()[0].color).toBeNull();
     });
   });
 
@@ -1275,10 +1331,9 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       expect(options.length).toBe(PINYA_NODE_PRESETS.length);
       expect(options[0].querySelector('span')).toBeTruthy();
 
-      const agullaPreset = PINYA_NODE_PRESETS.find((p) => p.positionType === 'agulla')!;
       const swatch: HTMLElement | null = fixture.nativeElement.querySelector('[data-testid="lib-select-swatch"]');
       expect(swatch).toBeTruthy();
-      expect(component.presetForPositionType('agulla')?.color).toBe(agullaPreset.color);
+      expect(swatch!.style.backgroundColor).toBe(hexToRgb(NODE_TYPE_PALETTE['agulla'].wash));
 
       const mansPreset = PINYA_NODE_PRESETS.find((p) => p.positionType === 'mans')!;
       select!.value = 'mans';
@@ -1288,7 +1343,17 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       const node = component.nodes()[0];
       expect(node.positionType).toBe('mans');
       expect(node.label).toBe(mansPreset.label);
-      expect(node.color).toBe(mansPreset.color);
+      expect(node.color).toBeNull();
+    });
+
+    it('puts a customized node back on its type color when the color picker resets it', async () => {
+      await selectNode({ color: '#123456' });
+      const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
+
+      expect(picker.fallbackColor()).toBe(NODE_TYPE_PALETTE['agulla'].wash);
+      picker.colorReset.emit();
+
+      expect(component.nodes()[0].color).toBeNull();
     });
 
     it('does not render the position-type field for a non-PINYA node', async () => {
@@ -1401,3 +1466,8 @@ describe('nodeToPayload', () => {
     expect(nodeToPayload({ ...baseNode, standsOnNodeIds: ['base-1'] }).standsOnNodeIds).toEqual(['base-1']);
   });
 });
+
+function hexToRgb(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgb(${r}, ${g}, ${b})`;
+}

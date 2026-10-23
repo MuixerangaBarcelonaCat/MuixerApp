@@ -1,4 +1,5 @@
 import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict, getFigureTint, isRematMarker } from '@muixer/pinyes-render';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -7,7 +8,9 @@ import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService } from './node-assignment.service';
+import { EventService } from '../../events/services/event.service';
 import { ToastService } from '@muixer/ui';
+import { LayoutService } from '../../../core/services/layout.service';
 import { SegmentDistributionData } from '../models/distribution.model';
 
 const EVENT_ID = 'event-1';
@@ -133,6 +136,8 @@ describe('SegmentWorkspaceStateService', () => {
     getSegmentConflicts: ReturnType<typeof vi.fn>;
   };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+  let eventService: { getOne: ReturnType<typeof vi.fn> };
+  let layout: { isPhone: ReturnType<typeof signal<boolean>> };
 
   const configure = (opts: {
     segment?: SegmentDetail;
@@ -182,6 +187,8 @@ describe('SegmentWorkspaceStateService', () => {
       ),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    layout = { isPhone: signal(false) };
+    eventService = { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) };
 
     TestBed.configureTestingModule({
       providers: [
@@ -191,11 +198,40 @@ describe('SegmentWorkspaceStateService', () => {
         { provide: SegmentDistributionService, useValue: distributionService },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: ToastService, useValue: toast },
+        { provide: EventService, useValue: eventService },
+        { provide: LayoutService, useValue: layout },
       ],
     });
     service = TestBed.inject(SegmentWorkspaceStateService);
     state = TestBed.inject(AssignmentStateService);
   };
+
+  describe('display mode', () => {
+    it('starts in Posició', () => {
+      configure();
+      expect(service.displayMode()).toBe('position');
+    });
+
+    it('keeps the chosen mode across loads (prev/next segment reuses the workspace)', () => {
+      configure({ segment: makeSegment([makeInstance('inst-a')]) });
+      service.setDisplayMode('gender');
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.displayMode()).toBe('gender');
+    });
+
+    it('draws Posició on a phone whatever was chosen, and the choice again once wide', () => {
+      configure();
+      service.setDisplayMode('attendance');
+
+      layout.isPhone.set(true);
+      expect(service.effectiveDisplayMode()).toBe('position');
+
+      layout.isPhone.set(false);
+      expect(service.effectiveDisplayMode()).toBe('attendance');
+    });
+  });
 
   describe('load', () => {
     it('sets the segment name and builds one instance per segment instance with a template', () => {
@@ -329,6 +365,36 @@ describe('SegmentWorkspaceStateService', () => {
       service.load(EVENT_ID, SEGMENT_ID);
 
       expect(service.isLocked()).toBe(true);
+    });
+
+    describe('event phase', () => {
+      afterEach(() => vi.useRealTimers());
+
+      it("is 'before' until the event has loaded", () => {
+        configure();
+        eventService.getOne.mockReturnValue(new Subject());
+        service.load(EVENT_ID, SEGMENT_ID);
+        expect(service.phase()).toBe('before');
+      });
+
+      it('works out the phase from the event when the page opens', () => {
+        configure();
+        vi.useFakeTimers({ toFake: ['Date'] });
+        // 16:30 UTC = 18:30 in Valencia, after the 18:00 start.
+        vi.setSystemTime(new Date('2026-07-22T16:30:00Z'));
+
+        service.load(EVENT_ID, SEGMENT_ID);
+
+        expect(eventService.getOne).toHaveBeenCalledWith(EVENT_ID);
+        expect(service.phase()).toBe('started');
+      });
+
+      it('does not refetch the event when switching segments within it', () => {
+        configure();
+        service.load(EVENT_ID, SEGMENT_ID);
+        service.load(EVENT_ID, 'seg-other');
+        expect(eventService.getOne).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('resets shared assignment state on load', () => {

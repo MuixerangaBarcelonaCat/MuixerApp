@@ -5,7 +5,7 @@ import { Observable, Subscriber } from 'rxjs';
 import { Person } from '../../person/person.entity';
 import { User } from '../../user/user.entity';
 import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
-import { UserRole, DelegateType } from '@muixer/shared';
+import { UserRole, DelegateType, deriveIsXicalla } from '@muixer/shared';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { SyncEvent } from '../interfaces/sync-event.interface';
 import { SyncStrategy } from '../interfaces/sync-strategy.interface';
@@ -13,6 +13,8 @@ import {
   AvailabilityStatus,
   OnboardingStatus,
 } from '@muixer/shared';
+import { CollaSettingsService } from '../../colla-settings/colla-settings.service';
+import { formatDateOnly, getLocalToday } from '../../../common/utils/date.util';
 
 /**
  * Estratègia de sincronització de persones des del legacy APPsistència.
@@ -35,6 +37,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     private readonly userRepository: Repository<User>,
     @InjectRepository(PersonDelegate)
     private readonly personDelegateRepository: Repository<PersonDelegate>,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   /** Inicia la sincronització de persones i retorna un Observable SSE que emet events de progrés. Impedeix execucions simultànies. */
@@ -251,8 +254,10 @@ export class PersonSyncStrategy implements SyncStrategy {
   /**
    * After all persons have been upserted, resolves each user's own profile and
    * guardian relationships from this run's email groups:
-   * - Among the persons matched to a user by email, exactly one must have
-   *   isXicalla = false — that one becomes the user's own profile (`user.person`).
+   * - Among the persons matched to a user by email, exactly one must not be
+   *   Xicalla — that one becomes the user's own profile (`user.person`). Xicalla is
+   *   derived here in TS from the birth date this run wrote: the entities come from
+   *   `save()`, which never fills the virtual `isXicalla`.
    * - If zero non-Xicalla persons are found, there is nothing to link (skip).
    * - If more than one is found, the oldest by birth date wins (data error, warned).
    * - Every Xicalla person in the group gets a primary PARENT `PersonDelegate`
@@ -264,10 +269,19 @@ export class PersonSyncStrategy implements SyncStrategy {
     personsByUserId: Map<string, Person[]>,
     subscriber: any,
   ): Promise<void> {
+    const { majorityAge } = await this.collaSettings.get();
+    const today = getLocalToday();
+    const isXicalla = (p: Person) =>
+      deriveIsXicalla(
+        { birthDate: p.birthDate ? formatDateOnly(p.birthDate) : null, isXicallaManual: p.isXicallaManual },
+        majorityAge,
+        today,
+      );
+
     for (const [email, user] of emailToUser) {
       const managedPersons = personsByUserId.get(user.id) ?? [];
-      const nonXicallaPersons = managedPersons.filter((p) => !p.isXicalla);
-      const xicallaPersons = managedPersons.filter((p) => p.isXicalla);
+      const nonXicallaPersons = managedPersons.filter((p) => !isXicalla(p));
+      const xicallaPersons = managedPersons.filter((p) => isXicalla(p));
 
       let mainPerson: Person | null = null;
 
@@ -370,7 +384,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     onWarn: () => void,
   ): Promise<{ person: Person; wasNew: boolean }> {
     const alias = await this.deriveUniqueAlias(legacyPerson, undefined, subscriber, onWarn);
-    const isXicalla = this.deriveIsXicalla(legacyPerson.posicio);
+    const isXicallaManual = this.deriveIsXicalla(legacyPerson.posicio);
 
     const person = this.personRepository.create({
       legacyId: legacyPerson.id,
@@ -382,7 +396,8 @@ export class PersonSyncStrategy implements SyncStrategy {
       phone: legacyPerson.telefon || null,
       birthDate: this.parseDate(legacyPerson.data_naixement),
       shoulderHeight: this.parseInteger(legacyPerson.alcada_espatlles),
-      isXicalla,
+      // Only counts while the birth date is unknown; with one, the age decides on read.
+      isXicallaManual,
       isMember: legacyPerson.propi === 'Sí',
       availability: this.mapAvailability(legacyPerson.lesionat),
       onboardingStatus: this.mapOnboarding(legacyPerson.estat_acollida),
@@ -416,13 +431,15 @@ export class PersonSyncStrategy implements SyncStrategy {
     existing.isMember = legacyPerson.propi === 'Sí';
     existing.availability = this.mapAvailability(legacyPerson.lesionat);
     existing.onboardingStatus = this.mapOnboarding(legacyPerson.estat_acollida);
-    existing.shirtDate = this.parseDate(legacyPerson.instant_camisa);
+    // The camisa is also awarded in MuixerApp: a legacy record without a date never clears ours.
+    const legacyShirtDate = this.parseDate(legacyPerson.instant_camisa);
+    if (legacyShirtDate) existing.shirtDate = legacyShirtDate;
 
     // existing.isActive is already true here — upsertPerson() routes inactive
     // (manually-deactivated) persons to createPerson() instead.
     existing.lastSyncedAt = new Date();
 
-    // NEVER update: positions, isXicalla, notes (MuixerApp owns these)
+    // NEVER update: positions, isXicallaManual, notes (MuixerApp owns these)
 
     const saved = await this.personRepository.save(existing);
     return { person: saved, wasNew: false };

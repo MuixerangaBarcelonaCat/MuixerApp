@@ -7,6 +7,7 @@ import { TagService } from '../../services/tag.service';
 import { ToastService } from '@muixer/ui';
 import { TagWithCount } from '../../models/tag.model';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { positionTypeColor } from '@muixer/pinyes-render';
 
 const mockTag: TagWithCount = {
   id: 't1',
@@ -95,6 +96,19 @@ describe('TagFormModalComponent', () => {
 
       const select: HTMLSelectElement = editFixture.nativeElement.querySelector('select');
       expect(select.value).toBe(TagCategory.TRONC);
+    });
+  });
+
+  describe('position type colors', () => {
+    it('colors each position type chip with the type\'s canvas pencil tone, the base in the neutral one', () => {
+      const presets = component.positionTypeGroups.flatMap((g) => g.presets);
+      for (const preset of presets) expect(preset.color).toBe(positionTypeColor(preset.positionType));
+    });
+
+    it('gives a new tag the color of the first position type picked for it', () => {
+      const vents = component.positionTypeGroups.flatMap((g) => g.presets).find((p) => p.positionType === 'vents')!;
+      component.togglePositionType(vents);
+      expect(component.form.get('color')!.value).toBe(positionTypeColor('vents'));
     });
   });
 

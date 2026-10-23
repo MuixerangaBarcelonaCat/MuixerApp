@@ -10,9 +10,10 @@ import { SegmentWorkspaceStateService } from '../../../../services/segment-works
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
+import { EventService } from '../../../../../events/services/event.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ describe('NodesTabComponent', () => {
         AssignmentStateService,
         UndoRedoService,
         { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+        { provide: EventService, useValue: { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) } },
         {
           provide: SegmentDistributionService,
           useValue: {
@@ -391,6 +393,35 @@ describe('NodesTabComponent', () => {
       });
 
       expect(ws.selectedInstanceId()).toBe(INST_B);
+    });
+
+    it('shows each preset swatch in the fill its nodes get on the canvas', async () => {
+      await setup({ instances: [makeInstance(INST_A)] });
+      const vents = component.adHocPresets.find((p) => p.positionType === 'vents')!;
+      expect(component.presetSwatch(vents)).toBe(NODE_TYPE_PALETTE['vents'].wash);
+    });
+
+    it('shows the dark fill in each preset swatch when the app is dark', async () => {
+      await setup({ instances: [makeInstance(INST_A)] });
+      const [vents] = component.adHocPresets.filter((p) => p.positionType === 'vents');
+      const theme = TestBed.inject(ThemeService);
+      try {
+        theme.setPreference('dark');
+        expect(component.presetSwatch(vents)).toBe(NODE_TYPE_PALETTE_DARK['vents'].wash);
+      } finally {
+        theme.setPreference('system');
+        localStorage.clear();
+      }
+    });
+
+    it('sends no color for a new node: it follows the palette of its type', async () => {
+      await setup({ instances: [makeInstance(INST_A)] });
+      ws.selectInstance(INST_A);
+      component.onPresetSelected({ ...component.adHocPresets.find((p) => p.positionType === 'vents')!, requiresCustomLabel: false });
+
+      component.onCanvasClicked({ x: 10, y: 20 });
+
+      expect(assignmentService.createAdHocNode.mock.calls[0][1].color).toBeUndefined();
     });
 
     it('creates a decoration node on the first figure when none was selected before entering', async () => {

@@ -1,4 +1,6 @@
-import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+
+const BASELINE = 140;
 import type { Person } from '../../features/persons/models/person.model';
 import {
   formatPhone,
@@ -50,22 +52,23 @@ describe('person.util', () => {
   });
 
   it('formatShoulderHeightCm shows cm', () => {
-    expect(formatShoulderHeightCm(SHOULDER_HEIGHT_BASELINE_CM)).toBe(`${SHOULDER_HEIGHT_BASELINE_CM} cm`);
+    expect(formatShoulderHeightCm(140)).toBe('140 cm');
     expect(formatShoulderHeightCm(null)).toBe('—');
   });
 
-  it('formatShoulderHeightRelative uses baseline 140', () => {
-    expect(formatShoulderHeightRelative(150, SHOULDER_HEIGHT_BASELINE_CM)).toBe('+10');
-    expect(formatShoulderHeightRelative(135, SHOULDER_HEIGHT_BASELINE_CM)).toBe('-5');
-    expect(formatShoulderHeightRelative(SHOULDER_HEIGHT_BASELINE_CM, SHOULDER_HEIGHT_BASELINE_CM)).toBe('0');
-    expect(formatShoulderHeightRelative(null)).toBe('—');
+  it('formatShoulderHeightRelative measures from the given baseline', () => {
+    expect(formatShoulderHeightRelative(150, BASELINE)).toBe('+10');
+    expect(formatShoulderHeightRelative(135, BASELINE)).toBe('-5');
+    expect(formatShoulderHeightRelative(BASELINE, BASELINE)).toBe('0');
+    expect(formatShoulderHeightRelative(150, 145)).toBe('+5');
+    expect(formatShoulderHeightRelative(null, BASELINE)).toBe('—');
   });
 
   it('shoulderHeightRelativeTone classifies delta', () => {
-    expect(shoulderHeightRelativeTone(150)).toBe('positive');
-    expect(shoulderHeightRelativeTone(135)).toBe('negative');
-    expect(shoulderHeightRelativeTone(SHOULDER_HEIGHT_BASELINE_CM)).toBe('zero');
-    expect(shoulderHeightRelativeTone(null)).toBe('empty');
+    expect(shoulderHeightRelativeTone(150, BASELINE)).toBe('positive');
+    expect(shoulderHeightRelativeTone(135, BASELINE)).toBe('negative');
+    expect(shoulderHeightRelativeTone(BASELINE, BASELINE)).toBe('zero');
+    expect(shoulderHeightRelativeTone(null, BASELINE)).toBe('empty');
   });
 
   describe('formatPhone', () => {

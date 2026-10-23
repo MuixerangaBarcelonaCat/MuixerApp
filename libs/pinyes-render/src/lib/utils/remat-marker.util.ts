@@ -15,7 +15,7 @@ export function isRematMarker(node: { positionType?: string | null }): boolean {
 /**
  * The marker drawn where a REMAT figure stands — it shows no pinya and no base, so otherwise
  * nothing on the canvas says where it is. It looks like a circular decoration node in the
- * figure's light tint (`getFigureTint`, like the projection's tronc panel background), with no
+ * figure's light tint (`getFigureTint`), with no
  * text, but it is never stored: every view (segment workspace, Distribució,
  * composition editor, projection) puts it first among the figure's drawn nodes — so its
  * decorations are drawn on top of it — and it disappears as soon as the mode changes. The

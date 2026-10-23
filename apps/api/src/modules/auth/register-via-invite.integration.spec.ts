@@ -26,6 +26,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres suite for `AuthService.registerViaInvite`: the one place in this feature that
@@ -48,6 +50,7 @@ describe('AuthService.registerViaInvite (integration)', () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'integration-test-secret', signOptions: { expiresIn: 900 } })],
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         AuthService,
         PersonService,
         PersonDelegateService,
@@ -145,6 +148,18 @@ describe('AuthService.registerViaInvite (integration)', () => {
     const auditEntries = await auditRepo.find({ where: { actorUserId: user.id } });
     expect(auditEntries).toHaveLength(1);
     expect(auditEntries[0].action).toBe(AuditAction.CONSENT_ACCEPTED);
+  });
+
+  it('makes an underage member xicalla from the birth date they register with', async () => {
+    const { person } = await seedInvitedUser('raw-token-xic');
+
+    await service.registerViaInvite({
+      ...registrationPayload('raw-token-xic'),
+      birthDate: `${new Date().getFullYear() - 14}-01-15`,
+    });
+
+    const reloadedPerson = await personRepo.findOneOrFail({ where: { id: person.id } });
+    expect(reloadedPerson.isXicalla).toBe(true);
   });
 
   it('rejects an expired invite token and leaves the account untouched', async () => {
