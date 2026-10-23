@@ -27,7 +27,11 @@ describe('AttendanceListComponent — getStatusBadgeVariant', () => {
     expect(withPhase('before').getStatusBadgeVariant(status)).toBe(expected);
   });
 
-  it.each(['day', 'after'] as const)('ANIRE (not arrived) is a warning from the event day on (%s)', (phase) => {
+  it('ANIRE is still a success on the event day before the start time', () => {
+    expect(withPhase('day').getStatusBadgeVariant(AttendanceStatus.ANIRE)).toBe('success');
+  });
+
+  it.each(['started', 'after'] as const)('ANIRE (not arrived) is a warning from the start time on (%s)', (phase) => {
     expect(withPhase(phase).getStatusBadgeVariant(AttendanceStatus.ANIRE)).toBe('warning');
   });
 });
@@ -138,8 +142,8 @@ describe('AttendanceListComponent — default filter', () => {
     expect(options).toEqual(['Tots (215)', 'No presentat (48)', 'Va vindre (3)', 'No va vindre (9)', 'Sense resposta (155)']);
   });
 
-  it('labels the dropdown options on the event day', async () => {
-    const { el } = await setup({ phase: 'day' });
+  it('labels the dropdown options once the event has started', async () => {
+    const { el } = await setup({ phase: 'started' });
     const options = Array.from(el.querySelectorAll('select option')).map((o) => o.textContent?.trim());
     expect(options).toEqual(['Tots (215)', 'No ha arribat (48)', 'Ha arribat (3)', 'No vindrà (9)', 'Pendents (155)']);
   });
@@ -173,8 +177,13 @@ describe('AttendanceListComponent — inline status', () => {
     expect(statusButtons().filter((b) => b.getAttribute('aria-pressed') === 'true')).toEqual([]);
   });
 
-  it('offers Ha arribat / No ha arribat / No vindrà on the event day', async () => {
+  it('offers Ha arribat / Ve / No vindrà on the event day before the start time', async () => {
     const { statusButtons } = await setup({ phase: 'day' });
+    expect(statusButtons().map((b) => b.textContent?.trim())).toEqual(['Ha arribat', 'Ve', 'No vindrà']);
+  });
+
+  it('offers Ha arribat / No ha arribat / No vindrà once the event has started', async () => {
+    const { statusButtons } = await setup({ phase: 'started' });
     expect(statusButtons().map((b) => b.textContent?.trim())).toEqual(['Ha arribat', 'No ha arribat', 'No vindrà']);
   });
 

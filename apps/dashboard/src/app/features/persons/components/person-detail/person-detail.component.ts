@@ -24,6 +24,7 @@ import {
   InputComponent,
   ModalComponent,
   SelectComponent,
+  DOMAIN_ICONS,
 } from '@muixer/ui';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
@@ -41,7 +42,6 @@ import {
   formatPhone,
   getFullName,
 } from '../../../../shared/utils';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
 import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';

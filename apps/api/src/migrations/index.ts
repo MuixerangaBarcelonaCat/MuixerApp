@@ -60,6 +60,7 @@ import { UniqueFigureInstanceSortOrder1786000000000 } from './1786000000000-Uniq
 import { AddSeasonConstraints1786100000000 } from './1786100000000-AddSeasonConstraints';
 import { DropEventSeasonId1786200000000 } from './1786200000000-DropEventSeasonId';
 import { AddNodeStandsOn1786300000000 } from './1786300000000-AddNodeStandsOn';
+import { NullPresetNodeColors1786400000000 } from './1786400000000-NullPresetNodeColors';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -123,4 +124,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddSeasonConstraints1786100000000,
   DropEventSeasonId1786200000000,
   AddNodeStandsOn1786300000000,
+  NullPresetNodeColors1786400000000,
 ];

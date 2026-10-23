@@ -12,9 +12,8 @@
     <span class="sr-only">S'està carregant la projecció...</span>
   </div>
 } @else if (segmentData()) {
-  <!-- The figure stays on the light theme it's drawn for; the HUD on top is always dark. -->
+  <!-- The figure follows the page theme; the HUD on top is always dark. -->
   <div
-    libThemeScope="light"
     class="flex flex-col overflow-hidden bg-base-100"
     [class.h-screen]="!embedded()"
     [class.w-screen]="!embedded()"

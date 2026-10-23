@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import rough from 'roughjs';
 import { TemplatePreviewDrawingComponent } from './template-preview-drawing.component';
 import { buildSilhouetteMarkup } from './template-preview-drawing.render';
-import { hashSeed, layoutTroncSilhouette, layoutTroncGroup } from '../../utils/tronc-silhouette-layout.util';
+import { hashSeed } from '@muixer/pinyes-render';
+import { layoutTroncSilhouette, layoutTroncGroup } from '../../utils/tronc-silhouette-layout.util';
 
 describe('TemplatePreviewDrawingComponent', () => {
   let fixture: ComponentFixture<TemplatePreviewDrawingComponent>;

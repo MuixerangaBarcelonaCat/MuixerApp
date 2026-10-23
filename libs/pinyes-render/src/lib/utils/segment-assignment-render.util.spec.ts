@@ -2,6 +2,7 @@ import {
   boundingBoxCenter,
   buildSegmentRenderNodes,
   pivotNodesFor,
+  slotLocalToStage,
   stageToSlotLocal,
   targetTabForZone,
 } from './segment-assignment-render.util';
@@ -86,7 +87,7 @@ describe('buildSegmentRenderNodes', () => {
       ...slot.figureTemplate.nodes,
     ] as CompositionSlotWithNodes['figureTemplate']['nodes'];
 
-    const result = buildSegmentRenderNodes([slot], [], null, new Set(), new Set());
+    const result = buildSegmentRenderNodes([slot], [], null, new Set(), null);
 
     expect(result.map((r) => [r.node.id, r.isInteractive])).toEqual([
       [marker.id, false],
@@ -98,7 +99,7 @@ describe('buildSegmentRenderNodes', () => {
     // Two pre-snapshot instances of the same template share node ids.
     const slots = [makeSlot('inst-a', ['n1']), makeSlot('inst-b', ['n1'])];
 
-    const result = buildSegmentRenderNodes(slots, [], null, new Set(), new Set());
+    const result = buildSegmentRenderNodes(slots, [], null, new Set(), null);
 
     expect(result).toHaveLength(2);
     const keys = result.map((r) => r.key);
@@ -110,7 +111,7 @@ describe('buildSegmentRenderNodes', () => {
     const slots = [makeSlot('inst-a', ['n1']), makeSlot('inst-b', ['n1'])];
     const assignment = makeAssignment('as-1', 'inst-b', 'n1');
 
-    const result = buildSegmentRenderNodes(slots, [assignment], null, new Set(), new Set());
+    const result = buildSegmentRenderNodes(slots, [assignment], null, new Set(), null);
 
     expect(result.find((r) => r.slotId === 'inst-a')?.assignment).toBeNull();
     expect(result.find((r) => r.slotId === 'inst-b')?.assignment).toBe(assignment);
@@ -124,7 +125,7 @@ describe('buildSegmentRenderNodes', () => {
       [],
       { slotId: 'inst-b', nodeId: 'n1' },
       new Set(),
-      new Set(),
+      null,
     );
 
     expect(result.find((r) => r.slotId === 'inst-a')?.isSelected).toBe(false);
@@ -134,7 +135,7 @@ describe('buildSegmentRenderNodes', () => {
   it('dims all nodes of dimmed slots', () => {
     const slots = [makeSlot('inst-a', ['n1', 'n2']), makeSlot('inst-b', ['n3'])];
 
-    const result = buildSegmentRenderNodes(slots, [], null, new Set(['inst-a']), new Set());
+    const result = buildSegmentRenderNodes(slots, [], null, new Set(['inst-a']), null);
 
     expect(result.filter((r) => r.isDimmed).map((r) => r.key).sort()).toEqual([
       'inst-a:n1',
@@ -142,13 +143,13 @@ describe('buildSegmentRenderNodes', () => {
     ]);
   });
 
-  it('marks highlighted nodes by node id', () => {
-    const slots = [makeSlot('inst-a', ['n1', 'n2'])];
+  it('marks the move source only in its own slot, not in another copy of the same template', () => {
+    // Pre-snapshot instances of one template share node ids.
+    const slots = [makeSlot('inst-a', ['n1', 'n2']), makeSlot('inst-b', ['n1', 'n2'])];
 
-    const result = buildSegmentRenderNodes(slots, [], null, new Set(), new Set(['n2']));
+    const result = buildSegmentRenderNodes(slots, [], null, new Set(), { slotId: 'inst-b', nodeId: 'n2' });
 
-    expect(result.find((r) => r.node.id === 'n2')?.isHighlighted).toBe(true);
-    expect(result.find((r) => r.node.id === 'n1')?.isHighlighted).toBe(false);
+    expect(result.filter((r) => r.isMoveSource).map((r) => r.key)).toEqual(['inst-b:n2']);
   });
 
   it('orders nodes by slot sortOrder so lower slots paint first', () => {
@@ -157,7 +158,7 @@ describe('buildSegmentRenderNodes', () => {
       makeSlot('inst-a', ['n1'], { sortOrder: 0 }),
     ];
 
-    const result = buildSegmentRenderNodes(slots, [], null, new Set(), new Set());
+    const result = buildSegmentRenderNodes(slots, [], null, new Set(), null);
 
     expect(result.map((r) => r.slotId)).toEqual(['inst-a', 'inst-b']);
   });
@@ -229,6 +230,26 @@ describe('stageToSlotLocal', () => {
     const result = stageToSlotLocal({ x: 0, y: 10 }, slot, { x: 0, y: 0 });
 
     expect(result).toEqual({ x: 10, y: 0 });
+  });
+});
+
+describe('slotLocalToStage', () => {
+  it('places a point of the figure on the stage: rotated around the pivot, then moved to the slot offset', () => {
+    const slot = makeSlot('inst-a', [], { offsetX: 500, offsetY: 300, angle: 90 });
+
+    const result = slotLocalToStage({ x: 110, y: 100 }, slot, { x: 100, y: 100 });
+
+    expect(result.x).toBeCloseTo(500);
+    expect(result.y).toBeCloseTo(310);
+  });
+
+  it('undoes stageToSlotLocal', () => {
+    const slot = makeSlot('inst-a', [], { offsetX: 40, offsetY: -20, angle: 30 });
+    const pivot = { x: 12, y: 7 };
+
+    const back = stageToSlotLocal(slotLocalToStage({ x: 80, y: 50 }, slot, pivot), slot, pivot);
+
+    expect(back).toEqual({ x: 80, y: 50 });
   });
 });
 

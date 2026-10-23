@@ -1,8 +1,28 @@
 <div class="flex h-full min-h-0">
-  <!-- Troncs, wrapping into new rows -->
-  <div class="relative flex-1 min-w-0 overflow-y-auto">
-    <!-- Undo/redo -->
-    <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+  <div class="flex flex-1 min-w-0 flex-col">
+  <!-- Display mode, legend, undo/redo: a strip above the panels rather than floating over them —
+       the panels flow from the top-left and can't be panned aside, as the pinya canvas can. -->
+  <div class="shrink-0 flex items-start justify-end gap-2 px-2 pt-2" data-testid="troncs-toolbar">
+    <!-- The mode's key, in line: it holds the «Altres marques». The panels are paper in Posició, so
+         that key lists no types. On a phone there's no mode, and the «Altres marques» sits in the toolbar. -->
+    @if (!isPhone()) {
+      <app-display-mode-key
+        class="min-w-0"
+        layout="inline"
+        legendPalette="neutral"
+        [mode]="ws.displayMode()"
+        [people]="keyPeople()"
+        [heightDomain]="heightDomain()"
+        [heightMode]="state.heightMode()"
+        [phase]="phase()"
+      />
+    }
+    <div class="shrink-0 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
+      @if (isPhone()) {
+        <app-node-legend [phase]="phase()" palette="neutral" />
+      } @else {
+        <app-display-mode-switcher [mode]="ws.displayMode()" (modeChange)="ws.setDisplayMode($event)" />
+      }
       <lib-button
         variant="ghost"
         size="xs"
@@ -26,11 +46,14 @@
         <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
       </lib-button>
     </div>
+  </div>
 
+  <!-- Troncs, wrapping into new rows -->
+  <div class="relative flex-1 min-h-0 overflow-y-auto">
     <!-- Moving a person: says who, offers a cross to cancel. Sticky + zero height so it stays in view
          while the figures scroll, without pushing them down. -->
     @if (movingAlias(); as alias) {
-      <div class="sticky top-2 z-10 h-0 flex justify-center pointer-events-none pl-2 pr-24">
+      <div class="sticky top-2 z-10 h-0 flex justify-center pointer-events-none px-2">
         <app-move-banner class="block max-w-full pointer-events-auto" [alias]="alias" (cancelled)="cancelMove()" />
       </div>
     }
@@ -53,20 +76,12 @@
     } @else {
       <div class="flex flex-wrap content-start items-start gap-6 p-4">
         @for (figure of figures(); track figure.instance.instanceId) {
-          <!-- Pinned light with the tronc panel it frames (figure rendering isn't themed for dark
-               yet, DEBT F19); the panel is transparent so the figure tint shows through it. -->
-          <div
-            libThemeScope="light"
-            data-figure-card
-            class="flex flex-col gap-2 shrink-0 p-3 rounded-lg border-2"
-            [style.border-color]="figure.tint.border"
-            [style.background-color]="figure.tint.background"
-          >
-            <h2 class="text-lg font-semibold text-base-content/70 text-center">
-              {{ figure.instance.label }}
-            </h2>
+          <!-- A paper card pinned in the figure colour, like the projection's tronc panels; the
+               tronc panel heads it with the figure name on its band, as in every other tab. -->
+          <lib-pinned-card class="shrink-0" [color]="figure.color">
             <app-tronc-view
-              class="bg-transparent"
+              [figureName]="figure.instance.label"
+              [nameBand]="figure.band"
               [instanceId]="figure.instance.instanceId"
               [troncNodes]="figure.troncNodes"
               [baseNodes]="figure.baseNodes"
@@ -76,20 +91,21 @@
               [selectedNodeId]="ws.selectedInstanceId() === figure.instance.instanceId ? state.selectedNodeId() : null"
               mode="assignment"
               [heightMode]="state.heightMode()"
-              [highlightedNodeIds]="highlightedNodeIds()"
+              [highlightedNodeIds]="highlightedNodeIds(figure.instance.instanceId)"
               [attendanceMap]="attendanceMap()"
               [phase]="phase()"
+              [nextPerformanceMap]="state.nextPerformanceRegistry()"
               [personDetailsMap]="personDetailsMap()"
+              [displayMode]="ws.effectiveDisplayMode()"
+              [heightDomain]="heightDomain()"
               [personDragEnabled]="!isTouch()"
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
               (nodeContextMenu)="onTroncNodeContextMenu(figure.instance.instanceId, $event)"
-              (nodeClicked)="onTroncNodeClicked($event)"
-              (nodeUnassigned)="onTroncNodeUnassigned(figure.instance.instanceId, $event)"
               (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
               (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
               (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
             />
-          </div>
+          </lib-pinned-card>
         }
         @if (!ws.isLocked()) {
           <div class="self-stretch flex items-center justify-center min-w-40 p-3 rounded-lg border-2 border-dashed border-base-300">
@@ -154,6 +170,7 @@
         </svg>
       </div>
     }
+  </div>
   </div>
 
   <!-- Person panel: a side column on desktop; on touch it lives in a modal opened by tapping a node -->

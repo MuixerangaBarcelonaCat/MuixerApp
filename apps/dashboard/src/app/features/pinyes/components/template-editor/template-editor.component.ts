@@ -1,4 +1,4 @@
-import { FigureCanvasComponent, CanvasNode, TroncViewComponent, FigureTemplateDetail, FigureNodeItem, CreateFigureNodePayload, RenglaModel, isGhostEligible, calculateGhostPosition, StageTransform } from '@muixer/pinyes-render';
+import { FigureCanvasComponent, CanvasNode, TroncViewComponent, FigureTemplateDetail, FigureNodeItem, CreateFigureNodePayload, RenglaModel, isGhostEligible, calculateGhostPosition, StageTransform, nodeFill } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -16,7 +16,6 @@ import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
@@ -25,14 +24,14 @@ import { TroncSupportEditorComponent } from './tronc-support-editor/tronc-suppor
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
-import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS, sanitizeStandsOn } from '@muixer/shared';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, sanitizeStandsOn } from '@muixer/shared';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { NodeDpadComponent } from '../../../../shared/components/controls/node-dpad/node-dpad.component';
 import { NodeActionsComponent } from '../../../../shared/components/controls/node-actions/node-actions.component';
-import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
+import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService, TabsComponent, TabDef, ModalComponent, InputComponent, ButtonComponent, SelectComponent, LiftHoverDirective } from '@muixer/ui';
+import { ToastService, TabsComponent, TabDef, ModalComponent, InputComponent, ButtonComponent, SelectComponent, LiftHoverDirective, DOMAIN_ICONS, ThemeService } from '@muixer/ui';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
 import { CanComponentDeactivate } from '../../../../core/guards/unsaved-changes.guard';
 
@@ -80,6 +79,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly router = inject(Router);
+  private readonly themeMode = inject(ThemeService).mode;
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
@@ -144,6 +144,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return 'editor' as const;
   });
 
+  /** The Rengles tab keeps the nodes filled, as while editing; the preview looks like the projection. */
+  readonly canvasReadonlyLook = computed(() => (this.previewMode() ? 'projection' : 'template'));
+
   readonly troncMode = computed<'editor' | 'projection'>(() =>
     this.previewMode() ? 'projection' : 'editor',
   );
@@ -202,7 +205,17 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   readonly NodeShape = NodeShape;
   readonly pinyaPositions = PINYA_NODE_PRESETS;
 
-  /** Backs the "Tipus de posició" select's [swatchColor]/[swatchShape] — see the template comment. */
+  /** Swatch for a node type: the fill its nodes get on the canvas while their color isn't customized. */
+  typeSwatch(zone: FigureZone, positionType: string | null): string {
+    return nodeFill({ zone, positionType, color: null }, this.themeMode());
+  }
+
+  /** What a missing color resolves to on the canvas: the type's fill, or none for a decoration. */
+  colorFallback(zone: FigureZone, positionType: string | null): string | null {
+    return zone === FigureZone.DECORATION ? null : this.typeSwatch(zone, positionType);
+  }
+
+  /** Backs the "Tipus de posició" select's [swatchShape] — see the template comment. */
   presetForPositionType(positionType: string | null): NodePreset | null {
     return PINYA_NODE_PRESETS.find((p) => p.positionType === positionType) ?? null;
   }
@@ -231,7 +244,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return isGhostEligible(node, renglaMax);
   });
 
-  readonly getPresetColorsForZone = getPresetColorsForZone;
+  readonly nodeColorPresets = nodeColorPresets();
   readonly isNodeColorEditable = isNodeColorEditable;
 
   readonly saveStatusLabel = computed(() => {
@@ -338,7 +351,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         (max, n) => Math.max(max, n.x + n.width),
         0,
       );
-      const presetColor = TRONC_NODE_PRESETS.find((p) => p.positionType === event.positionType)?.color ?? null;
       const newNode: FigureNodeItem = {
         id,
         label: event.label,
@@ -350,7 +362,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         width: 1,
         height: 40,
         rotation: 0,
-        color: presetColor,
+        color: null,
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
         climbIndicator: null,
@@ -434,7 +446,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         width: DEFAULT_NODE_WIDTH,
         height: DEFAULT_NODE_HEIGHT,
         rotation: 0,
-        color: '#EEEEEE',
+        color: null,
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
         climbIndicator: null,
@@ -472,7 +484,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     this.updateNode(id, {
       positionType: preset.positionType,
       label: preset.label,
-      color: preset.color,
+      // Clears a customized color: the node follows the palette of its new type.
+      color: null,
       shape: preset.shape,
     });
     this.scheduleAutosave();
@@ -483,7 +496,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
       FigureZone.PINYA,
       0,
       pos.positionType,
-      pos.color,
+      null,
       pos.label,
       pos.shape,
     );

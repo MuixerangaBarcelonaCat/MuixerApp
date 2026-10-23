@@ -8,10 +8,9 @@ import {
 import { RouterLink } from '@angular/router';
 import { SeasonService } from '../../../events/services/season.service';
 import { Season } from '../../../events/models/event.model';
-import { AlertComponent, ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { AlertComponent, ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService, DOMAIN_ICONS } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { SeasonFormModalComponent } from '../season-form-modal/season-form-modal.component';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-season-list',

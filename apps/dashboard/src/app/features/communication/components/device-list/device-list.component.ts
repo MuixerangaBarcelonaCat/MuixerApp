@@ -10,10 +10,9 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { LucideAngularModule, Search } from 'lucide-angular';
 import { DeviceSummary, normalizeForSearch } from '@muixer/shared';
-import { AlertComponent, BadgeComponent, ButtonComponent, ButtonGroupComponent, EmptyStateComponent, InputComponent } from '@muixer/ui';
+import { AlertComponent, BadgeComponent, ButtonComponent, ButtonGroupComponent, EmptyStateComponent, InputComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { NotificationService } from '../../services/notification.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-device-list',
