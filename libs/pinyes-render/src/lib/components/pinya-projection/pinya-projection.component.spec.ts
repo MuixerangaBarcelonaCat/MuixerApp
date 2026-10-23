@@ -815,6 +815,41 @@ describe('PinyaProjectionComponent', () => {
       expect(panel.naturalH).toBe(333);
     });
 
+    // A segment with no saved distribution is laid out from the measured sizes: if that layout
+    // fed back into what gets measured, every measurement would ask for another, forever (the
+    // canvas redrew ~44 times a second with nobody touching it).
+    describe('no measure loop (segment with no saved distribution)', () => {
+      const unplaced = () => {
+        const nodes = [
+          makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 400, height: 300 }),
+          makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 }),
+        ];
+        setData(makeSegmentData([makeInstance(nodes, ['p1'], { id: 'i1' })]));
+      };
+
+      it('measures the same panels after the sizes arrive', () => {
+        unplaced();
+        const before = measurerStub().panels();
+
+        measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+        fixture.detectChanges();
+
+        expect(measurerStub().panels()).toBe(before);
+      });
+
+      it('leaves the layout alone when the same sizes are reported again', () => {
+        unplaced();
+        measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+        fixture.detectChanges();
+        const nodes = component.distributionNodes();
+
+        measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+        fixture.detectChanges();
+
+        expect(component.distributionNodes()).toBe(nodes);
+      });
+    });
+
     it('reflects the measured size in distributionFitBounds too (camera auto-fit padding)', () => {
       const nodes = [
         makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 400, height: 300 }),

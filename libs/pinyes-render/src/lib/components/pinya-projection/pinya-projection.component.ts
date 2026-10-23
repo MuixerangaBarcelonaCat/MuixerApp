@@ -142,10 +142,16 @@ export class PinyaProjectionComponent {
   /** Each instance's real, DOM-measured tronc panel size — see `getTroncPanelNaturalSize`. */
   private readonly measuredTroncSizes = signal<Map<string, { width: number; height: number }>>(new Map());
 
-  /** One measurement panel per effective instance — see `TroncPanelMeasurerComponent`. */
+  /**
+   * One measurement panel per instance — see `TroncPanelMeasurerComponent`. From
+   * `filteredInstances()`, never `effectiveInstances()`: a segment with no saved distribution is
+   * laid out from the measured sizes, so measuring the laid-out instances would ask for a new
+   * measurement after every one, forever. A panel's size depends only on its nodes, assignments
+   * and name, none of which the layout changes.
+   */
   protected readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() => {
     if (this.scope() === ImportScope.PINYA) return [];
-    return this.effectiveInstances().map((inst) => ({
+    return this.filteredInstances().map((inst) => ({
       instanceId: inst.id,
       troncNodes: this.getInstanceTroncNodes(inst),
       baseNodes: this.getInstanceBaseNodes(inst),
@@ -155,8 +161,13 @@ export class PinyaProjectionComponent {
     }));
   });
 
+  /** The same sizes again change nothing: re-laying out the segment would redraw the canvas for nothing. */
   onMeasuredSizesReady(sizes: Map<string, { width: number; height: number }>): void {
-    this.measuredTroncSizes.set(sizes);
+    const current = this.measuredTroncSizes();
+    const same =
+      sizes.size === current.size &&
+      [...sizes].every(([id, size]) => current.get(id)?.width === size.width && current.get(id)?.height === size.height);
+    if (!same) this.measuredTroncSizes.set(sizes);
   }
 
   /** Bumped on every `(flightLanded)` from the canvas — drives the marker's one-shot arrival bounce. */
