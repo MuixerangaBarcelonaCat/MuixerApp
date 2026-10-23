@@ -3,6 +3,7 @@ import { ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { elideDe, OwnPositionSubject } from '@muixer/shared';
 import { ThemeScopeDirective } from '@muixer/ui';
 import { StageTransform, stageToScreen } from '../../utils/rengla-coordinates.util';
+import { applyCssDelta, CssDelta, IDENTITY_CSS_DELTA } from '../../utils/gesture-math.util';
 
 /** How long the one-shot arrival bounce plays before its class is cleared again. */
 const ARRIVAL_BOUNCE_MS = 400;
@@ -43,6 +44,8 @@ export class OwnPositionMarkerComponent {
   readonly target = input<MarkerTarget | null>(null);
   readonly stageTransform = input<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
   readonly viewport = input.required<MarkerViewport>();
+  /** How far a pan/pinch in progress has moved the drawn canvas past `stageTransform` (see `FigureCanvasComponent.gestureMoved`). */
+  readonly gestureDelta = input<CssDelta>(IDENTITY_CSS_DELTA);
 
   /** Who the marker points at — the caller by default, or someone looked up via the PWA's person
    *  search. Only changes the chevron's `aria-label`; the ring/chevron themselves are identical. */
@@ -89,7 +92,8 @@ export class OwnPositionMarkerComponent {
   protected readonly screenPosition = computed((): { x: number; y: number } | null => {
     const t = this.target();
     if (!t) return null;
-    return t.kind === 'world' ? stageToScreen(t.x, t.y, this.stageTransform()) : { x: t.x, y: t.y };
+    const committed = t.kind === 'world' ? stageToScreen(t.x, t.y, this.stageTransform()) : { x: t.x, y: t.y };
+    return applyCssDelta(committed, this.gestureDelta());
   });
 
   protected readonly isOffscreen = computed(() => {

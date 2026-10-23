@@ -1,3 +1,5 @@
+import { mulberry32 } from '@muixer/pinyes-render';
+
 /**
  * Pure, seeded layout for the template-preview drawing (`TemplatePreviewDrawingComponent`):
  * places one "person" mark per tronc/base floor from a template's `troncProfile`
@@ -7,7 +9,7 @@
  *
  * Deterministic: the same profile + seed always produce the same positions, so a card's
  * drawing doesn't reshuffle on every re-render. Seed a call from something stable per figure
- * (its name, or name+profile) via `hashSeed`.
+ * (its name, or name+profile) via `hashSeed` (`@muixer/pinyes-render`).
  */
 
 const UNIT = 14;
@@ -31,28 +33,6 @@ export interface SilhouetteLayout {
   width: number;
   height: number;
   people: SilhouettePerson[];
-}
-
-/** FNV-1a string hash — small, fast, good enough spread for a visual seed (not cryptographic). */
-export function hashSeed(input: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-/** mulberry32 — small deterministic PRNG, seeded by a plain 32-bit int. */
-function mulberry32(seed: number): () => number {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 export function layoutTroncSilhouette(

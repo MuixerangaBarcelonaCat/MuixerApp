@@ -1,8 +1,7 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { AlertComponent, ButtonComponent, CardComponent } from '@muixer/ui';
-import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
+import { AlertComponent, ButtonComponent, CardComponent, DOMAIN_ICONS } from '@muixer/ui';
 
 @Component({
   selector: 'app-global-sync',

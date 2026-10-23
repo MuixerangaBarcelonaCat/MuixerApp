@@ -3,7 +3,7 @@ export type {
   FigureAreaCount,
 } from '@muixer/shared';
 
-import { FigureZone, ImportScope, TagCategory } from '@muixer/shared';
+import { FigureZone, Gender, ImportScope, TagCategory } from '@muixer/shared';
 import type { EventSegmentSummary as SharedEventSegmentSummary } from '@muixer/shared';
 
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
@@ -140,6 +140,8 @@ export interface AvailablePerson {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  /** Staff-only (the roster endpoint); drives the workspace's Gènere display mode. */
+  gender: Gender | null;
   isXicalla: boolean;
   notes: string | null;
   notesEmoji: string | null;

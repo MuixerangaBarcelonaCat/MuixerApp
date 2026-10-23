@@ -1,8 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal, OnInit, computed } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ButtonComponent, CardComponent, EmptyStateComponent } from '@muixer/ui';
-import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
+import { ButtonComponent, CardComponent, EmptyStateComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { EventService } from '../events/services/event.service';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { EventListItem, EventType } from '../events/models/event.model';

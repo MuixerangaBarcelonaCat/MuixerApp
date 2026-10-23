@@ -2,8 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { DOMAIN_ICONS } from '../../../../../shared/constants/domain-icons';
-import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, ModalComponent, EmptyStateComponent } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, ModalComponent, EmptyStateComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { CompositionService } from '../../../services/composition.service';
 import { CompositionFilterParams, CompositionListItem } from '../../../models/composition.model';
 import { TemplatePreviewDrawingComponent } from '../../template-preview-drawing/template-preview-drawing.component';

@@ -73,6 +73,7 @@ Cada posició dins d'un template. Camps clau:
 | `positionType` | Tipus semàntic. PINYA: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap`… · DIRECTION: `direccio-tronc`, `direccio-xicalla`, `direccio-pinya` (el «sabor» de la direcció viu al `positionType`, igual que a PINYA) |
 | `ringLevel` | Anell concèntric al qual pertany (1 = primer cordó). `null` per no-pinya i `cordo-obert` |
 | `originNodeId` | ID opcional per traçar llinatge quan es dupliquen o deriven nodes d'un altre template |
+| `color` | Color personalitzat, o `null` si no s'ha personalitzat. Amb `null` el node es pinta amb els colors del seu tipus (`NODE_TYPE_PALETTE` de `@muixer/ui`, resolt amb `resolveNodeTones` de `@muixer/pinyes-render`), de manera que un canvi de paleta arriba a totes les plantilles i instàncies. Cap escriptura no copia el color del preset: ni l'editor de plantilles, ni els nodes ad-hoc, ni el snapshot (que copia el `null`). Els nodes `BASE` sempre es pinten neutres: el seu color no es pot editar |
 | `standsOnNodeIds` | Només `TRONC`: IDs dels nodes `BASE`/`TRONC` del pis just de davall (`z - 1`) sobre els quals va aquesta persona quan la figura està alçada. `uuid[]` sense FK; `[]` a la resta de zones. Vegeu [Estructura del tronc](#estructura-del-tronc-qui-va-damunt-de-qui) |
 
 ### FigureInstance (Instància)
@@ -243,8 +244,8 @@ nodes (`duplicate`, `save-from-instance`) en canvi generen ids nous i remapegen 
 
 | Mètode | Ruta | Descripció |
 |--------|------|-----------|
-| `GET` | `/node-assignments/available-persons` | Membres filtrats per `search`, `height±2`, `isXicalla`, `excludeAssigned`, ordenats per proximitat d'alçada |
-| `GET` | `/node-assignments/next-performance` | Propera `ACTUACIO` (per als assajos, mostra 🎭) |
+| `GET` | `/node-assignments/available-persons` | Membres filtrats per `search`, `height±2`, `isXicalla`, `excludeAssigned`, ordenats per proximitat d'alçada. Porta el `gender` de cada persona (per al mode Gènere, vegeu «Modes de visualització»): només els tècnics ho veuen |
+| `GET` | `/node-assignments/next-performance` | Propera `ACTUACIO` (per als assajos, mostra ★) |
 
 ### Projecció (`/events/:eventId/segments/:segmentId`)
 
@@ -363,6 +364,82 @@ freePersonsCount: computed<number>
 totalConfirmedCount: computed<number>
 ```
 
+### Dibuix dels nodes (canvas i tronc)
+
+Un node es dibuixa igual al canvas de la pinya (Konva) i als panells de tronc (DOM), en quatre passos. Tot el camí viu a `libs/pinyes-render/src/lib/node-render/` (`attendance`, `appearance`, `draw-plan`, `outline`, `sketch`, `icons`, `fonts`, `konva-painter`); els tres primers passos són funcions pures, amb tests:
+
+```
+dades + estat ─▶ resolveNodeAppearance() ─▶ nodeDrawPlan(mida) ─┬─▶ drawNodePlan()        (Konva, canvas)
+                 → NodeAppearance             → DrawPrimitive[]  └─▶ <app-node-drawing>    (SVG, cel·la del tronc)
+attendanceVisual(estat, fase) → confirmed | pending | absent
+```
+
+1. **`attendanceVisual(status, phase)`** (`attendance.ts`): abans de l'hora d'inici, `ANIRE` és confirmat, `PENDENT` pendent i `NO_VAIG` absent; des de l'hora d'inici, `ANIRE` (no ha arribat) és pendent i `PENDENT`/`NO_VAIG` absents. `ASSISTIT` sempre és confirmat, i un estat desconegut també (sense informació no hi ha marca).
+2. **`resolveNodeAppearance(input, theme)`** decideix *què* es veu, sense coordenades. Un canal visual per tipus d'estat:
+   - **Ompliment = assistència.** Confirmat: aiguada sòlida del tipus, contorn de tinta. Pendent: tramat en el to llapis del tipus, el nom amb un halo de paper; la separació i el gruix de les línies són proporcionals a l'alçada del node, de manera que el tramat té la mateixa densitat a qualsevol mida, pantalla o zoom. Absent: sense ompliment, contorn esvaït i el nom ratllat. Posició buida: contorn llapis i l'etiqueta de la posició en majúscules.
+   - **Contorn = tipus**, o tinta mentre s'actua sobre el node: seleccionat o origen d'un moviment (3,2), destí d'un arrossegament (discontinu). Els nodes extra (`isAdHoc`) sempre són discontinus.
+   - **Conflicte**: un llaç roig al voltant del node i la icona `CircleAlert` (la de conflictes de tota l'app); a la projecció, només la icona.
+   - Modes: `workspace` (totes les insígnies), `projection` (sense alçada ni observació), `template` (editor de plantilles: tots els nodes amb l'aiguada del tipus i l'etiqueta tal com s'ha escrit). `palette: 'neutral'` dibuixa en el to de paper (`NODE_TYPE_NEUTRAL`).
+3. **`nodeDrawPlan(appearance, mida, theme, measure)`** decideix *on*: primitives (`shape`, `text`, `strike`, `icon`, `disc`, `loop`) amb (0, 0) al centre del node. Anatomia: alçada a dalt a l'esquerra, adhesiu d'observació sobre la vora de dalt a la dreta, nom al centre, ★ (ve a la propera actuació) a baix a l'esquerra, icona de conflicte a baix a la dreta, insígnia de moviment al mig de la vora de dalt. Les mides són fraccions de l'alçada del node (`NODE_TEXT_SCALE`). El nom va en Quicksand 700 a una sola mida (0,28 de l'alçada) i es talla amb «…» si no hi cap; a la projecció (`mode: 'projection'`: Previsualitza, la PWA, la previsualització de l'editor) va en Atkinson 700 i s'ajusta entre 0,42 i 0,26 de l'alçada amb `fitNodeName()`. El text d'una decoració segueix la mateixa regla: a la projecció, Atkinson tan gran com hi càpia (fins a 0,45 de l'alçada, partint línies); a la resta, Quicksand a la mida d'un nom en un node estàndard, per gran que siga la decoració. El llaç de conflicte, l'adhesiu d'observació i la insígnia de moviment surten de la vora del node: el pla els marca `raised` i els pintors els posen per damunt de tots els nodes (al canvas, una capa per figura damunt dels nodes; al tronc, un segon `<svg>` posicionat amb `z-index: 1` dins de cada cel·la, que no en té cap, així que queda per damunt del cos de totes les cel·les). Les línies s'aprimen en nodes de menys de 40 d'alçada. La geometria del contorn (`nodeOutline()`) i les icones (`lucidePaths()`, de Lucide) són compartides.
+   Les formes, el tramat, el llaç de conflicte i l'adhesiu es dibuixen a mà alçada: el pla porta els traços de rough.js com a camins (`sketch` a `shape`, `loop` i a l'adhesiu), fets per `sketch.ts` amb la soltesa de la previsualització (rugositat 0,6, un sol traç; el llaç, 1,3 i dos traços). La desviació del traç va amb la mida (`sketchWobble()`): un 5% del costat més curt de la forma, entre 0,4 i 2, així que un node petit tremola el mateix que un d'estàndard en proporció, i un de gran no tremola més. El contorn es dibuixa 2 unitats per dins del node a cada costat (`NODE_SKETCH_INSET`, menys en nodes petits), perquè dos nodes veïns no es toquen mai; l'adhesiu i la insígnia de moviment segueixen eixa vora, i el node continua ocupant el mateix espai per als clics i els arrossegaments. La llavor és un hash de l'id del node (`size.seed`), així que els traços d'un node no canvien d'un redibuix a l'altre, i es guarden en memòria cau. El text, les icones, la ratlla i la insígnia de moviment queden nets.
+4. **Pintors**, sense decisions, que pinten els mateixos camins: `drawNodePlan()` (`konva-painter.ts`) els posa en un `Konva.Shape` amb `Path2D` en memòria cau, que rep els clics i els arrossegaments sobre el contorn net (dins inclòs), mai sobre els traços; `NodeDrawingComponent` (`app-node-drawing`) omple la cel·la del tronc amb un `<svg>` de `<path>`, que mesura amb un `ResizeObserver` i que sembra amb `sketchKey` (l'id del node).
+
+**Canvas.** `FigureCanvasComponent.paintNode()` passa per aquest camí en tots els modes (`segment-assignment`, `readonly`, `editor` en mode `template`, `composition`). L'origen d'un moviment és `moveSourceNode` (`{ slotId, nodeId }`): les còpies d'una mateixa plantilla abans del snapshot comparteixen ids de node. En arrossegar, el node destí es redibuixa com a destí (contorn discontinu) i la píndola de l'arrossegament mostra `ArrowLeftRight` (intercanvi) o `ArrowDown` (moure a un node buit). El canvas mesura els noms amb les fonts que té quan dibuixa (`CANVAS_FONTS_LOADED`): als editors dibuixa de seguida i redibuixa una vegada quan arriben; a la projecció (`readonly`) les espera abans del primer dibuix. A la projecció, `distributionNodes()` encongeix tots els nodes perquè el segment càpia a la pantalla; el canvas rep eixa escala (`nodeScale`) i dibuixa cada node a la seua mida natural dins d'un grup escalat (`scaledNodeDrawPlan()`), de manera que en un mòbil el nom, el marge i el traç tenen la mateixa proporció que en una pantalla gran. En `readonly`, `readonlyLook` tria l'aspecte dels nodes: el de la projecció (per defecte) o el de l'editor (`template`, la pestanya Rengles). El paper és una graella de punts en el to `crease` (`dotGrid()`: un punt a cada encreuament, de la mateixa mida a la pantalla a qualsevol zoom, amb el pas doblat quan s'allunya fins que els punts queden a 12 px) damunt d'un gra molt suau, en CSS sota l'escenari (`paperGrain(mode)`). Ni els nodes ni la píndola de l'arrossegament fan ombra.
+
+**Tronc.** Cada cel·la continua sent un `<button>` (focus, `aria-label`, arrossegament, targeta de la persona, que es mostra en una capa superposada de CDK ancorada a la cel·la, perquè l'escala del panell a la projecció i a Distribució no la desplace); dins, `app-node-drawing` és decoratiu (`aria-hidden`), i l'`aria-label` diu també l'assistència i el conflicte. En `assignment` i `projection` tots els pisos van en el to de paper; en `editor`, amb els colors del tipus.
+
+**Estructura del tronc.** L'editor de qui va damunt de qui (`TroncSupportEditorComponent`, pestanya Tronc de l'editor de plantilles) també dibuixa els nodes amb `app-node-drawing`, en mode `template`: el node seleccionat i el que s'està connectant amb contorn de tinta, els nodes on pot anar amb contorn discontinu.
+
+**Fase de l'assistència a la projecció.** La projecció (`/events/:eventId/segments/:segmentId/projection` i la de `/me`) retorna `event: { date, startTime }`, i `PinyaProjectionComponent` en calcula la fase amb `getEventPhase()`, la mateixa regla que el workspace. Una resposta sense `event` (guardada a la memòria cau de la PWA abans d'aquest canvi) es llig com a `after`.
+
+**Altres marques.** `NodeLegendComponent` (`app-node-legend`, un botó ⓘ sense text, «Altres marques», dins de la clau del mode de visualització; en un mòbil, a la barra d'eines) explica els ompliments amb les paraules de la fase (`attendanceLegend(phase)`) i les marques; cada mostra és un `app-node-drawing`, així que no es pot desfasar del dibuix. Fora de Posició, les mostres van en el to de paper (els colors són del mode, i els explica la clau), i en Assistència no hi ha ompliments que explicar: tots els nodes són sòlids.
+
+**Mode fosc.** El dibuix de les figures segueix el tema de la pàgina. `buildCanvasTheme(mode)` en té una versió fosca (l'opció D2 de la previsualització): el canvas és el color de les targetes fosques (`INK.dark`), la tinta passa a ser el blanc del paper i els tipus prenen `NODE_TYPE_PALETTE_DARK`, amb una aiguada fosca i un llapis clar. Els components lligen el tema amb `injectCanvasTheme()`, un senyal sobre `ThemeService.mode()`: el canvas ho redibuixa tot quan canvia, i el panell del tronc, la targeta, la llegenda i les mostres de color el segueixen per enllaç. Al tronc damunt d'una targeta, el halo dels noms pendents és la cara de la targeta (`card`), no el canvas.
+
+### Modes de visualització (pestanyes Pinyes i Troncs)
+
+Les pestanyes Pinyes i Troncs del workspace poden pintar els nodes segons quatre criteris (`DisplayMode`, `node-render/display-mode.ts`):
+
+| Mode | Color d'una persona | Ompliment |
+|------|---------------------|-----------|
+| **Posició** (`position`, per defecte) | El del tipus de posició, com sempre | L'assistència (sòlid / tramat / buit i ratllat) |
+| **Alçada** (`height`) | Una rampa groc → rosa → violeta blavós (`heightRampTones(t)`), que va pel costat càlid i no passa mai pel verd (roig al costat de verd o blau es llegiria com a dolent → bo). Cada persona hi va segons el lloc que ocupa entre les de la pestanya ordenades per alçada, no segons els cm: la majoria tenen alçades del mig, i així les del mig es reparteixen la major part dels colors. Les persones amb la mateixa alçada van al mateix lloc. Sense alçada, el to neutre | L'assistència |
+| **Assistència** (`attendance`) | Els colors semàntics de la llista d'assistència: èxit = ha arribat, o ve abans de l'hora d'inici; avís = pendent abans de l'hora d'inici, o no ha arribat des d'ella; error = no vindrà, o sense resposta des de l'hora d'inici (`attendanceTone()`). El to més fosc vol dir que ve a la propera actuació (`ATTENDANCE_TONES[to].strong`) | Sempre sòlid; l'error (inclòs sense resposta un cop començat) va ratllat |
+| **Gènere** (`gender`) | Violeta (dona), or (home), neutre (altre o sense dades) | L'assistència |
+
+- **Només recolora.** Fora de Posició, els nodes buits van en el to neutre, perquè un color de tipus no es confonga amb un del mode. L'alçada, l'observació, l'estrela, el conflicte, la selecció, el moviment i els nodes extra es veuen igual en tots els modes (l'estrela també en Assistència, damunt del to fosc que diu el mateix). Les decoracions no canvien mai.
+- **Un sol camí.** El canvas (`FigureCanvasComponent.appearanceInput()`) i el panell del tronc (`TroncViewComponent.appearanceByNodeId`) passen pels mateixos `personDisplayFacts()` → `displayModeOverrides()`, que tornen els `tones`, la `fillPolicy` (`'attendance'` o `'solid'`) i, per a un node buit, `palette: 'neutral'`. `resolveNodeAppearance()` fa servir eixos `tones` en lloc dels del tipus. Les entrades noves (`displayMode`, `heightDomain`) valen Posició per defecte, així que la projecció, la PWA, l'editor i Distribució no canvien.
+- **Estat.** `SegmentWorkspaceStateService.displayMode` és un per a les dues pestanyes: es manté en canviar de pestanya i de segment (anterior/següent), i torna a Posició en obrir el workspace. `effectiveDisplayMode` és el que es dibuixa: en un mòbil (`LayoutService.isPhone`, per davall de `sm`) sempre és Posició, sense selector ni clau.
+- **Selector.** `DisplayModeSwitcherComponent` (dashboard, `components/display-mode-switcher/`): un `lib-button-group` a la barra d'eines de cada pestanya, amb icones (`Shapes`, `Ruler`, `CalendarCheck`, `VenusAndMars`) i el nom a partir de `md`. Les tecles 1–4 hi canvien (`displayModeForKey()`), mai mentre s'escriu ni amb un modificador.
+- **Rang d'alçades.** Cada pestanya calcula el seu `heightDomain` amb les persones dels nodes que dibuixa: Pinyes, els de la pinya de totes les figures (no els del tronc); Troncs, els de tronc, base i direccions. El mateix rang per a tots els panells.
+- **Clau.** `DisplayModeKeyComponent` (`lib/components/display-mode-key/`) diu què vol dir cada color amb `displayModeKey()` (o `positionKey()` en Posició): només els colors que apareixen a la pestanya, cadascun amb quants nodes el porten (una persona en dos llocs compta dues voltes, com al canvas). Cada color és un quadrat dibuixat amb el mateix traç que els nodes (`sketchShape()`), amb l'aiguada i el llapis; la barra d'alçades també, amb degradats SVG de les aiguades i els llapis de la rampa, i davall els cm de cada quart de la pestanya (la persona més baixa, ¼, la del mig, ¾ i la més alta), igual d'espaiats perquè la rampa va per llocs; en cm o relatius, segons `heightMode`, i amb la unitat només a l'última marca. En Assistència, quan algú ve a la propera actuació, totes les files porten els dos tons (el fosc amb l'estrela), alineats en dues columnes, i una línia més menuda «Ve a la propera actuació N ★». Posició llista els tipus de pinya dibuixats, sense recompte; als panells del tronc, que van en paper, no en llista cap. La clau es pot plegar i porta el botó ⓘ «Altres marques». A Pinyes és una targeta davall de la barra d'eines, alineada a la dreta; a Troncs va en línia dins de la franja de la barra d'eines, damunt dels panells (que no es poden apartar com el canvas), i mai no els tapa.
+- **Gènere i privacitat.** El gènere només arriba en la llista de persones del personal (`available-persons`, TECHNICAL/ADMIN), via `personDetailsMap`. No és a `AssignmentDetail`, perquè eixe tipus també arriba a la projecció dels membres (`/me/.../projection`).
+- **Colors.** Els tokens són a `libs/ui/src/lib/tokens/display-modes.ts` (vegeu [[DESIGN_SYSTEM]]). Es van triar a la [previsualització](https://claude.ai/artifact/4iZmT2i6CPoowChKKRJfqx), i els valors aprovats estan fixats a `display-modes.spec.ts`.
+- **Millora possible.** Un mode «Etiquetes»: si les etiquetes de la persona encaixen amb el tipus del node (la mateixa comprovació que el punt del panell de persones, [[TAGS]] §3). No cal cap canvi al backend.
+
+### Panell del tronc: targeta amb xinxeta i fil
+
+Un panell de tronc (projecció, Previsualitza, PWA, la capa de Distribució i les targetes de la pestanya Troncs) va sobre una **targeta de paper**: `PinnedCardComponent` (`lib-pinned-card`), una cara de paper (`card`, vora `cardBorder`) damunt d'un cant pla de paper més fosc (`cardEdge`, desplaçat 4/5 px avall a la dreta, sense ombra), subjecta per una **xinxeta** del color de la figura al mig d'una vora. La targeta va sempre dreta. El nom de la figura va sobre una **franja** del color clar de la figura, d'una vora a l'altra de la targeta, tancada per una ratlla de 2 px en el to fosc de la xinxeta (`getFigureBand()`). La dibuixa sempre el `tronc-view`, en qualsevol mode, quan rep `figureName` i `nameBand`: la projecció, Distribució i la pestanya Troncs fan servir la mateixa capçalera. Les direccions i els pisos queden sobre la cara de la targeta. En mode fosc, la targeta és un pas més clara que el canvas, damunt d'un cant més fosc; la franja pren la variant fosca del color (un to que recula) i la ratlla, el color de la figura mesclat un 25% cap al paper, perquè es veja sobre la targeta fosca. El `tronc-view` ja no pinta fons ni vora de color (`panelColor`/`panelBorderColor` han desaparegut).
+
+A la projecció i a Distribució, un **fil** que penja una mica uneix cada targeta amb la seua pinya (`figureLink()`, `utils/figure-link.util.ts`, tot en coordenades del món del canvas):
+- La **xinxeta de la pinya** va a la cantonada més pròxima al panell d'entre els nodes ocupats de la figura (de tots els nodes si encara no hi ha ningú), amb la rotació del node aplicada (`nearestFigureCorner()`).
+- La **xinxeta de la targeta** va al mig de la vora que mira cap a la xinxeta de la pinya (`cardPin()`), amb el centre damunt de la vora: el fil sempre ix cap a fora i no travessa mai els noms.
+- El fil és una corba quadràtica que penja un 10% de la seua llargària (`stringCurve()`), del color de la figura mesclat un 20% cap al `thread` del tema (la tinta sobre paper, el blanc del paper sobre el canvas fosc), de 2 px a mida natural.
+- El canvas (`figureLinks`, en qualsevol mode) dibuixa els fils en una capa entre la graella i els nodes, i la xinxeta de la pinya en una capa damunt dels nodes, amb un `effect` propi: redibuixar un fil no reconstrueix les figures. Les dues capes s'amaguen mentre no hi ha cap fil. En `readonly`, en canvi, fils i xinxetes van en dos grups de la capa dels nodes (davall i damunt d'ells), perquè la projecció tinga un sol llenç: allí no s'arrossega res. La xinxeta de la targeta la dibuixa la targeta. Totes dues surten de `pinDiscs()`.
+- A Distribució, el fil segueix la figura mentre s'arrossega o es gira (`slotDragMoved`) i el panell mentre s'arrossega (`troncPanelMoved`); els nodes passen a coordenades de l'escenari amb `slotLocalToStage()`. Espera que el panell estiga col·locat i mesurat.
+- Una figura sola en el segment té xinxeta i franja del nom, però no fil (el seu panell només pot ser el seu). La paleta de figures (`FIGURE_PALETTE`) posa l'escarlata al final perquè és el roig dels conflictes.
+
+### Rendiment de la projecció
+
+La projecció (`PinyaProjectionComponent`) s'ha de moure bé en mòbils vells, on redibuixar tot el segment (traços de rough.js, noms amb halo) costa més d'un fotograma. Per això el canvas en `readonly` amb `deferGestureRedraw` (només el passa la projecció) **no redibuixa mai durant un moviment**:
+
+- **Gestos tàctils.** En arrossegar o fer el gest de pinça, l'escenari de Konva es queda on és i el canvas mou el que ja té dibuixat amb una transformació CSS (`cssDelta()`, `gesture-math.util.ts`), una vegada per fotograma. En alçar l'últim dit, l'escenari pren la vista nova i es dibuixa una sola vegada, en el mateix moment (`commitGesture()`, amb el redibuix automàtic de Konva aturat, que si no el dibuixaria dues vegades). El ratolí i la roda (Dashboard) continuen redibuixant.
+- **Panells del tronc i marcador.** El canvas emet el desplaçament (`gestureMoved`) i la projecció mou la capa dels panells amb la mateixa transformació, en el mateix fotograma; el marcador «sou ací» el rep com a `gestureDelta`. En acabar, la capa perd la transformació després que els panells s'hagen recol·locat (`afterNextRender`), així que mai no salten.
+- **Troba'm.** El vol fa el mateix camí que un gest (`flyByCss()`): CSS a cada fotograma i un sol dibuix en arribar. Un dit que l'interromp continua des d'on era.
+- **Vores.** Moure el llenç deixaria paper buit a les vores. Davall hi ha una **còpia de tot el segment** (`underlayPlan()`, `underlay.util.ts`), amb el costat llarg a `UNDERLAY_MAX_SIDE` píxels (3072), dibuixada quan el telèfon està inactiu cada vegada que canvia el dibuix (dades, tema). Una vista nova només la recol·loca, mai la redibuixa, així que serveix per a gestos seguits. Només es veu durant un gest, i ocupa fins a uns 37 MB.
+- **Un sol llenç.** La graella s'amaga quan no n'hi ha, i els fils van en la capa dels nodes (vegeu la secció anterior).
+- **Càrrega.** El canvas es munta quan els panells del tronc ja s'han mesurat (`layoutReady`) i espera les fonts: el segment es construeix una sola vegada. El mesurador (`TroncPanelMeasurerComponent`) es desmunta després de mesurar i torna quan canvien les dades. `measurePanels` surt de `filteredInstances()`, no de les instàncies col·locades: un segment sense distribució es col·loca a partir de les mides, i mesurar el resultat tornava a demanar una mesura a cada fotograma.
+
 ### PinyesOnboardingModalComponent (P5.5)
 
 Modal informatiu que explica conceptes al Cap de Pinyes:
@@ -393,7 +470,7 @@ SegmentWorkspaceComponent inicialitza:
         │
         ▼
 Renderitza canvas Konva:
-  - Nodes buits: color de zona, clickables
+  - Nodes buits: color del tipus (o el personalitzat), clickables
   - Nodes ocupats: foto/alias de persona, popover en click
   - PersonPanel lateral: llista persones filtrades (ANIRE/PENDENT/NO_VAIG)
         │
@@ -495,13 +572,15 @@ Component Angular standalone reutilitzable que renderitza el tronc amb **CSS Gri
 
 **Modes d'operació**:
 - **`editor`**: Controls per editar posició X, amplada, afegir/eliminar nodes, afegir pisos
-- **`assignment`**: Visualització d'assignacions amb àlies, alçada, attendance status i la columna d'alçades acumulades per pis
+- **`assignment`**: Visualització d'assignacions i la columna d'alçades acumulades per pis
+- **`projection`**: Panell compacte de la projecció
+
+Els nodes es dibuixen amb `app-node-drawing`, igual que al canvas — vegeu [Dibuix dels nodes](#dibuix-dels-nodes-canvas-i-tronc).
 
 **Característiques clau**:
 - **Toggle orientació**: P1 dalt (ascendent) ↔ P1 baix (descendent)
 - **Alçades acumulades** (només `assignment`): a la dreta de cada pis, la diferència d'alçada acumulada i els avisos de persones damunt de suports desnivellats — vegeu [Alçades acumulades](#alçades-acumulades)
 - **Grid doblejat intern**: Usa `x*2` i `width*2` internament per suportar 0.5u steps amb CSS Grid (que només accepta enters)
-- **Inline styling per colors**: `[style.color]` i `[style.background-color]` per evitar problemes de CSS specificity
 - **Add floor/node UX**: Botó `+` a la capçalera (pis nou damunt de tot) i botó `+` inline a cada pis (a la fila de bases, afegeix una base). En mode `editor`, un pis buit per davall del superior es continua mostrant (`fillGaps`) per poder tornar-lo a omplir sense eliminar els de damunt
 - **Geometria compartida**: pisos, columnes i grid viuen a `tronc-layout.util.ts` (`layoutTroncFloors`, `troncTotalColumns`, `troncNodeGridColumn`, `baseNodeGridColumn`), que també fa servir l'editor d'estructura del tronc
 - **Columna extra grid**: Dedicada al botó + per evitar line-break quan totes les posicions estan ocupades
@@ -708,7 +787,7 @@ Els `<kbd>←</kbd>` / `<kbd>→</kbd>` del HUD passen de ser decoratius a `<but
 
 #### 6. Ellipsis als noms de nodes Konva
 
-A `FigureCanvasComponent`, els labels en mode projecció/readonly usaven `wrap: 'word'`, cosa que permetia desbordament multilínia sense retallar. Es va canviar a `wrap: 'none'` (posteriorment evolucionat a `fitFontSizeForNode()` per reduir la font abans de truncar).
+A `FigureCanvasComponent`, els labels en mode projecció/readonly usaven `wrap: 'word'`, cosa que permetia desbordament multilínia sense retallar. Es va canviar a `wrap: 'none'` (posteriorment evolucionat a `fitFontSizeForNode()`, i ara a `fitNodeName()`, que redueix la font abans de truncar).
 
 #### 7. Fons configurable (blanc / negre)
 
@@ -871,7 +950,7 @@ En mode projecció, el cursor s'amaga després de 3s d'inactivitat (`cursor-none
 | `projection-view.component.ts/html` | Grid CSS, `viewMode`, panells flotants, HUD |
 | `figure-projection.component.ts/html` | Bases incloses, mode standalone per ruta |
 | `figure-projection.component.spec.ts` | Tests `pinyaNodes` inclou BASE |
-| `figure-canvas.component.ts` | Ellipsis / `fitFontSizeForNode` en mode readonly |
+| `figure-canvas.component.ts` | Ellipsis / ajust de la font en mode readonly (ara `fitNodeName()`) |
 | `segment-canvas.component.ts` | BASE incloses a mini-previews (legacy edit mode) |
 | `pinyes.routes.ts` | Rutes `/project` i `/project/:instanceId` |
 | `assignment-canvas.component.html` | Botó "Projectar" per figura activa |
@@ -1165,7 +1244,8 @@ l'amplada) decideix el layout del workspace (`segment-workspace`):
   comença amb un clic dret sobre una persona col·locada (`contextmenu`: `segmentNodeContextMenu`
   al canvas, `nodeContextMenu` a `tronc-view`) o, en tàctil, amb un toc mantingut sobre ella (pel
   mateix camí, via `LongPressDetector`; en tàctil l'arrossegament de persones està desactivat). Apareix el bàner `app-move-banner` («S'està movent <ÀLIES>», amb una ✕) i el node origen es
-  ressalta amb `highlightedNodeIds`. El següent node premut és el destí: buit → la mou, ocupat →
+  marca amb la insígnia de moviment (`moveSourceNode` al canvas, `highlightedNodeIds` per instància a
+  cada `tronc-view`). El següent node premut és el destí: buit → la mou, ocupat →
   s'intercanvien (inclòs entre figures), reutilitzant `drop()`, així que és el mateix pas de
   desfer que un arrossegament. Cancel·len el mode: prémer fora d'un node, la ✕, Escape, prémer
   el mateix node, o desaparèixer l'assignació (p. ex. en desfer-la). Un node decoratiu es

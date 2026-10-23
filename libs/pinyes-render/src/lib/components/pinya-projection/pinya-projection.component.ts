@@ -2,19 +2,21 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { THEME_NAMES } from '@muixer/ui';
-import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase } from '@muixer/shared';
+import { FigureZone, ImportScope, computeInstanceDisplayNames, getSegmentInstanceLabel, isNodeVisibleByModeAndCordons, OwnPositionSubject, EventPhase, getEventPhase } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
-import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
+import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { TroncPanelMeasurerComponent, TroncPanelMeasureSpec } from '../tronc-panel-measurer/tronc-panel-measurer.component';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
@@ -23,9 +25,13 @@ import { rematMarkerNode } from '../../utils/remat-marker.util';
 import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
-import { getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '../../utils/figure-palette.util';
+import { FigureBand, getFigureBand, getFigureColor } from '../../utils/figure-palette.util';
+import { CardEdge, FigureLink, figureLink } from '../../utils/figure-link.util';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
+import { PinnedCardComponent } from '../pinned-card/pinned-card.component';
 import { describeOwnPlacement, findOwnPlacements, findOwnTroncCellRect } from '../../utils/own-position.util';
 import { BoundsNode } from '../../utils/fit-to-bounds.util';
+import { CssDelta, cssTransformString, IDENTITY_CSS_DELTA } from '../../utils/gesture-math.util';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from '../own-position-banner/own-position-banner.component';
 import { MarkerTarget, OwnPositionMarkerComponent } from '../own-position-marker/own-position-marker.component';
 
@@ -44,8 +50,12 @@ interface DistributionTroncPanel {
   naturalW: number;
   naturalH: number;
   scale: number;
+  /** The figure colour, for the card pin. */
   color: string;
-  borderColor: string;
+  /** The band behind the figure name on the card, in the figure colour — a lone figure's too. */
+  nameBand: FigureBand;
+  /** The card edge holding its pin: the one facing the figure, where the string leaves. */
+  pinEdge: CardEdge;
 }
 
 /**
@@ -59,13 +69,13 @@ interface DistributionTroncPanel {
   selector: 'lib-pinya-projection',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'contents', '[attr.data-theme]': 'pinnedTheme' },
-  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
+  host: { class: 'contents' },
+  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, TroncPanelMeasurerComponent, PinnedCardComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
-  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
-  protected readonly pinnedTheme = THEME_NAMES.light;
+  private readonly theme = injectCanvasTheme();
+  private readonly injector = inject(Injector);
 
   readonly data = input.required<ProjectionSegmentData>();
 
@@ -76,10 +86,15 @@ export class PinyaProjectionComponent {
   readonly showZoomControls = input<boolean>(true);
 
   /**
-   * Before / on / after the event day, for the attendance colours and hover labels. Defaults to
-   * 'after': a projection has always read attendance as arrivals.
+   * Before / on / after the event day, for the attendance fills and hover labels, from the event
+   * in the payload — the same rule as the workspace. Worked out when the data arrives (each
+   * prev/next fetch). A payload with no event reads attendance as answers: drawing a confirmed
+   * person as a no-show is worse than the reverse.
    */
-  readonly phase = input<EventPhase>('after');
+  readonly phase = computed<EventPhase>(() => {
+    const event = this.data().event;
+    return event ? getEventPhase(event.date, event.startTime) : 'before';
+  });
 
   /**
    * The viewer's own `Person.id` — enables the "you are here" banner. `null` (the default, and
@@ -106,6 +121,9 @@ export class PinyaProjectionComponent {
    *  attach/detach pattern used elsewhere in this canvas family. */
   private readonly figuresContainer = viewChild<ElementRef<HTMLDivElement>>('figuresContainer');
 
+  /** The tronc panels, moved as one by a pan/pinch in progress — see `onGestureMoved`. */
+  private readonly panelsLayer = viewChild<ElementRef<HTMLDivElement>>('panelsLayer');
+
   /** For imperatively calling flyToBounds()/cancelFlight() — see `maybeFlyOnArrival`/`onTroba`. */
   private readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvas');
 
@@ -118,13 +136,22 @@ export class PinyaProjectionComponent {
   /** Real Konva stage transform — updated via (stageTransformChanged) from FigureCanvasComponent. */
   protected readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
 
+  /** How far a pan/pinch in progress has moved the drawn canvas past `stageTransform`, for the marker. */
+  protected readonly gestureDelta = signal<CssDelta>(IDENTITY_CSS_DELTA);
+
   /** Each instance's real, DOM-measured tronc panel size — see `getTroncPanelNaturalSize`. */
   private readonly measuredTroncSizes = signal<Map<string, { width: number; height: number }>>(new Map());
 
-  /** One measurement panel per effective instance — see `TroncPanelMeasurerComponent`. */
+  /**
+   * One measurement panel per instance — see `TroncPanelMeasurerComponent`. From
+   * `filteredInstances()`, never `effectiveInstances()`: a segment with no saved distribution is
+   * laid out from the measured sizes, so measuring the laid-out instances would ask for a new
+   * measurement after every one, forever. A panel's size depends only on its nodes, assignments
+   * and name, none of which the layout changes.
+   */
   protected readonly measurePanels = computed<TroncPanelMeasureSpec[]>(() => {
     if (this.scope() === ImportScope.PINYA) return [];
-    return this.effectiveInstances().map((inst) => ({
+    return this.filteredInstances().map((inst) => ({
       instanceId: inst.id,
       troncNodes: this.getInstanceTroncNodes(inst),
       baseNodes: this.getInstanceBaseNodes(inst),
@@ -134,8 +161,30 @@ export class PinyaProjectionComponent {
     }));
   });
 
+  /** The panels the last report measured; `null` until the first one. */
+  private readonly measuredPanels = signal<TroncPanelMeasureSpec[] | null>(null);
+
+  /**
+   * The measurer is mounted only while it has something to measure: it lays out two hidden copies
+   * of every panel, which would otherwise stay in the page for the whole session.
+   */
+  protected readonly measuring = computed(() => this.measuredPanels() !== this.measurePanels());
+
+  /**
+   * The canvas mounts once the panels are measured: the layout depends on their sizes, so drawn
+   * before, it would build the whole scene once with guessed sizes and again with the real ones.
+   * Later data (the next segment) keeps it mounted, showing the previous one until then.
+   */
+  protected readonly layoutReady = computed(() => this.measuredPanels() !== null);
+
+  /** The same sizes again change nothing: re-laying out the segment would redraw the canvas for nothing. */
   onMeasuredSizesReady(sizes: Map<string, { width: number; height: number }>): void {
-    this.measuredTroncSizes.set(sizes);
+    const current = this.measuredTroncSizes();
+    const same =
+      sizes.size === current.size &&
+      [...sizes].every(([id, size]) => current.get(id)?.width === size.width && current.get(id)?.height === size.height);
+    if (!same) this.measuredTroncSizes.set(sizes);
+    this.measuredPanels.set(this.measurePanels());
   }
 
   /** Bumped on every `(flightLanded)` from the canvas — drives the marker's one-shot arrival bounce. */
@@ -150,9 +199,9 @@ export class PinyaProjectionComponent {
   });
 
   /**
-   * The neutral single-figure colors are for a segment that holds one figure — not for the
+   * A segment that holds one figure: its panel can only be its own, so it gets no string. Not the
    * Dashboard's single-figure preview (`instanceId`) of a larger one, where the figure keeps the
-   * color it has everywhere else.
+   * string it has everywhere else.
    */
   private readonly isSingleFigureSegment = computed(() => this.data().instances.length === 1);
 
@@ -270,9 +319,16 @@ export class PinyaProjectionComponent {
     () => new Set((this.data().conflicts ?? []).map((c) => c.personId)),
   );
 
-  /** personId → attendanceStatus, derived from the projection response. */
+  /**
+   * personId → attendanceStatus, derived from the projection response. The response only carries
+   * stored answers, and no row means PENDENT: every placed person starts as PENDENT, as the
+   * workspace's roster does, so someone who never answered is drawn pending, not confirmed.
+   */
   readonly attendanceMap = computed(() => {
     const map = new Map<string, AttendanceStatus>();
+    for (const inst of this.data().instances) {
+      for (const a of inst.assignments) map.set(a.person.id, 'PENDENT');
+    }
     const pa = this.data().personAttendance;
     if (pa) {
       for (const [personId, status] of Object.entries(pa)) {
@@ -374,6 +430,14 @@ export class PinyaProjectionComponent {
     });
   });
 
+  /** Maps the distribution coordinates of every figure onto the container, fitting them all. */
+  private readonly distributionTransform = computed(() =>
+    computeDistributionTransform(this.effectiveInstances(), this.containerWidth(), this.containerHeight()),
+  );
+
+  /** The fit-to-screen scale `distributionNodes` bakes into every node's size: the canvas draws each node at its natural size, scaled by it. */
+  readonly distributionScale = computed(() => this.distributionTransform().scale);
+
   /**
    * All pinya/base/decoration nodes from every instance, translated into a shared
    * screen-space coordinate system using each instance's effective (stored or
@@ -384,15 +448,13 @@ export class PinyaProjectionComponent {
    * projectionX/Y therefore represents the world position of that center, not the
    * top-left corner. Rotation must be applied around the same center.
    */
-  readonly distributionNodes = computed((): InstanceNodeItem[] => {
+  private readonly distributionNodesByInstance = computed((): Map<string, InstanceNodeItem[]> => {
     const instances = this.effectiveInstances();
-    const { scale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
-    const result: InstanceNodeItem[] = [];
+    const { scale, offsetX, offsetY } = this.distributionTransform();
+    const result = new Map<string, InstanceNodeItem[]>();
     for (const inst of instances) {
+      const placed: InstanceNodeItem[] = [];
+      result.set(inst.id, placed);
       const projX = inst.projectionX ?? 0;
       const projY = inst.projectionY ?? 0;
       const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;
@@ -419,7 +481,7 @@ export class PinyaProjectionComponent {
         const relY = node.y - centerY;
         const rotX = cosA * relX - sinA * relY;
         const rotY = sinA * relX + cosA * relY;
-        result.push({
+        placed.push({
           ...node,
           x: (projX + rotX) * scale + offsetX,
           y: (projY + rotY) * scale + offsetY,
@@ -431,6 +493,9 @@ export class PinyaProjectionComponent {
     }
     return result;
   });
+
+  /** Every figure's nodes in one list, for the canvas: see `distributionNodesByInstance`. */
+  readonly distributionNodes = computed((): InstanceNodeItem[] => [...this.distributionNodesByInstance().values()].flat());
 
   /** Combined assignments from all instances for the unified distribution canvas. */
   readonly distributionAssignments = computed((): AssignmentDetail[] =>
@@ -449,11 +514,7 @@ export class PinyaProjectionComponent {
   readonly distributionFitBounds = computed((): { x: number; y: number; width: number; height: number }[] => {
     if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
-    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
+    const { scale: distScale, offsetX, offsetY } = this.distributionTransform();
 
     return instances.map((inst) => {
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
@@ -482,6 +543,43 @@ export class PinyaProjectionComponent {
   });
 
   /**
+   * The string tying each tronc panel to its pinya, in canvas-world units like the nodes (so it
+   * pans and zooms with them and never depends on the live stage transform): from a pin on the
+   * card edge facing the figure to the corner of the figure's occupied nodes nearest the panel
+   * (`figureLink`). Empty while the panels are hidden, and for a segment's lone figure.
+   */
+  private readonly figureLinksByInstance = computed((): Map<string, FigureLink> => {
+    const links = new Map<string, FigureLink>();
+    const bounds = this.distributionFitBounds();
+    if (bounds.length === 0 || this.isSingleFigureSegment()) return links;
+    const instances = this.effectiveInstances();
+    const { scale: distScale } = this.distributionTransform();
+    const nodesByInstance = this.distributionNodesByInstance();
+    const theme = this.theme();
+
+    instances.forEach((inst, i) => {
+      const color = getFigureColor(inst.sortOrder);
+      const b = bounds[i];
+      const occupied = new Set(inst.assignments.map((a) => a.node.id));
+      const nodes = (nodesByInstance.get(inst.id) ?? []).map((n) => ({
+        x: n.x,
+        y: n.y,
+        width: n.width,
+        height: n.height,
+        rotation: n.rotation,
+        occupied: occupied.has(n.id),
+      }));
+      const card = { x: b.x - b.width / 2, y: b.y - b.height / 2, width: b.width, height: b.height };
+      const link = figureLink(nodes, card, color, distScale, theme);
+      if (link) links.set(inst.id, link);
+    });
+    return links;
+  });
+
+  /** Handed to the canvas, which draws each string behind the nodes and its pin above them. */
+  readonly figureLinks = computed((): FigureLink[] => [...this.figureLinksByInstance().values()]);
+
+  /**
    * Tronc panels for the distribution view.
    *
    * Positioning uses two stacked transforms:
@@ -498,14 +596,10 @@ export class PinyaProjectionComponent {
   readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
     if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
-    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
+    const { scale: distScale, offsetX, offsetY } = this.distributionTransform();
     const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
     const totalScale = distScale * stageScale;
-    const singleFigure = this.isSingleFigureSegment();
+    const links = this.figureLinksByInstance();
 
     return instances.map((inst) => {
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
@@ -539,67 +633,17 @@ export class PinyaProjectionComponent {
         screenY = figScreenY - figHalfH * totalScale - naturalH * totalScale - TRONC_GAP_PX * totalScale;
       }
 
-      const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(inst.sortOrder);
-      const borderColor = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : color;
-      return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color, borderColor };
-    });
-  });
-
-  /** Canvas-space outlines for each pinya/base node, rendered inside Konva below the node layer. */
-  readonly distributionNodeOutlines = computed((): OutlineBox[] => {
-    const instances = this.effectiveInstances();
-    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
-
-    const singleFigure = this.isSingleFigureSegment();
-
-    return instances.flatMap((inst) => {
-      const color = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : getFigureColor(inst.sortOrder);
-      const projX = inst.projectionX ?? 0;
-      const projY = inst.projectionY ?? 0;
-      const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;
-      const cosA = Math.cos(angleRad);
-      const sinA = Math.sin(angleRad);
-
-      // pivotNodesFor: must match distributionNodes()'s pivot exactly, or the glow is
-      // centered on a different point than the nodes it sits behind.
-      const pinyaBaseNodes = this.visiblePivotNodes(inst);
-      let centerX = 0, centerY = 0;
-      if (pinyaBaseNodes.length > 0) {
-        const mnX = Math.min(...pinyaBaseNodes.map((n) => n.x - n.width / 2));
-        const mxX = Math.max(...pinyaBaseNodes.map((n) => n.x + n.width / 2));
-        const mnY = Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2));
-        const mxY = Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2));
-        centerX = (mnX + mxX) / 2;
-        centerY = (mnY + mxY) / 2;
-      }
-
-      // Decoration and ad-hoc nodes are excluded: this glow is the figure's own per-instance
-      // color, applied uniformly to every occupying node's silhouette — a decoration node keeps
-      // its own independent color (including "sense fons"/null, rendered as a transparent
-      // fill), and an ad-hoc ("extra") node is likewise not part of the figure's own structure,
-      // so painting the figure's color behind either made it look tinted with whichever figure
-      // it happened to sit on.
-      return this.getInstanceProjectionNodes(inst)
-        .filter((node) => node.zone !== FigureZone.DECORATION && !node.isAdHoc)
-        .map((node): OutlineBox => {
-          const relX = node.x - centerX;
-          const relY = node.y - centerY;
-          const rotX = cosA * relX - sinA * relY;
-          const rotY = sinA * relX + cosA * relY;
-          return {
-            x: (projX + rotX) * distScale + offsetX,
-            y: (projY + rotY) * distScale + offsetY,
-            width: node.width * distScale,
-            height: node.height * distScale,
-            rotation: (inst.projectionAngle ?? 0) + (node.rotation ?? 0),
-            color,
-            shape: (node as { shape?: string }).shape ?? 'RECTANGLE',
-          };
-        });
+      return {
+        instance: inst,
+        screenX,
+        screenY,
+        naturalW,
+        naturalH,
+        scale: totalScale,
+        color: getFigureColor(inst.sortOrder),
+        nameBand: getFigureBand(inst.sortOrder, this.theme().mode),
+        pinEdge: links.get(inst.id)?.cardEdge ?? 'top',
+      };
     });
   });
 
@@ -619,8 +663,39 @@ export class PinyaProjectionComponent {
     });
   }
 
+  /**
+   * A gesture that ends commits its transform here. The panels layer keeps its delta until change
+   * detection has laid the panels out at the new transform: until then, old position + delta is
+   * exactly where they belong, so no frame shows them out of place.
+   */
   onStageTransformChanged(t: { x: number; y: number; scaleX: number; scaleY: number }): void {
     this.stageTransform.set(t);
+    if (this.gestureDelta() === IDENTITY_CSS_DELTA) return;
+    this.gestureDelta.set(IDENTITY_CSS_DELTA);
+    afterNextRender(
+      {
+        write: () => {
+          const style = this.panelsLayer()?.nativeElement.style;
+          if (!style) return;
+          style.transform = '';
+          style.willChange = '';
+        },
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /**
+   * Once per frame of a pan/pinch: moves the tronc panels by the canvas's own delta, written
+   * straight to the element (not through change detection) so both move in the same frame.
+   */
+  onGestureMoved(delta: CssDelta): void {
+    const style = this.panelsLayer()?.nativeElement.style;
+    if (style) {
+      style.willChange = 'transform';
+      style.transform = cssTransformString(delta);
+    }
+    this.gestureDelta.set(delta);
   }
 
   /** Troba'm (banner button) and the chevron tap both fly to the current placement on demand. */
@@ -653,11 +728,7 @@ export class PinyaProjectionComponent {
    * physical size on screen — the same regardless of what else is in the segment.
    */
   private flyTo(bounds: BoundsNode[]): void {
-    const { scale: distScale } = computeDistributionTransform(
-      this.effectiveInstances(),
-      this.containerWidth(),
-      this.containerHeight(),
-    );
+    const { scale: distScale } = this.distributionTransform();
     const options =
       this.ownPositionState()?.kind === 'PINYA'
         ? { maxScale: PINYA_FLIGHT_MAX_SCALE / distScale }

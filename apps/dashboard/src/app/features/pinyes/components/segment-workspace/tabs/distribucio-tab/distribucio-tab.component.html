@@ -18,8 +18,10 @@
       [gridSpacing]="gridSpacing"
       [snapToGrid]="snapToGrid"
       [troncPanelVisualHidden]="true"
+      [figureLinks]="figureLinks()"
       (slotSelected)="onSlotSelected($event)"
       (slotMoved)="onSlotMoved($event)"
+      (slotDragMoved)="onSlotDragMoved($event)"
       (troncMoved)="onTroncMoved($event)"
       (troncPanelMoved)="onTroncPanelMoved($event)"
       (stageTransformChanged)="onStageTransformChanged($event)"
@@ -35,16 +37,17 @@
         [style.width.px]="panel.width"
         [style.transform]="'scale(' + panel.scale + ')'"
       >
-        <app-tronc-view
-          mode="projection"
-          [troncNodes]="panel.troncNodes"
-          [baseNodes]="panel.baseNodes"
-          [directionNodes]="panel.directionNodes"
-          [assignments]="panel.assignments"
-          [panelColor]="panel.color"
-          [panelBorderColor]="panel.color"
-          [figureName]="panel.figureName"
-        />
+        <lib-pinned-card [color]="panel.color" [edge]="panel.pinEdge">
+          <app-tronc-view
+            mode="projection"
+            [troncNodes]="panel.troncNodes"
+            [baseNodes]="panel.baseNodes"
+            [directionNodes]="panel.directionNodes"
+            [assignments]="panel.assignments"
+            [figureName]="panel.figureName"
+            [nameBand]="panel.nameBand"
+          />
+        </lib-pinned-card>
       </div>
     }
 

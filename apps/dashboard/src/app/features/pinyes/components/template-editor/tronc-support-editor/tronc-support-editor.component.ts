@@ -1,20 +1,25 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, input, output, signal, viewChild } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { AlertComponent, EmptyStateComponent, THEME_NAMES } from '@muixer/ui';
+import { AlertComponent, EmptyStateComponent } from '@muixer/ui';
 import {
   baseNodeGridColumn,
+  injectCanvasTheme,
   FigureNodeItem,
   layoutTroncFloors,
+  NodeAppearance,
+  NodeDrawingComponent,
+  resolveNodeAppearance,
   troncNodeGridColumn,
   troncTotalColumns,
 } from '@muixer/pinyes-render';
-import { FigureZone, isValidStandsOnTarget, TRONC_NODE_PRESETS } from '@muixer/shared';
+import { isValidStandsOnTarget } from '@muixer/shared';
 import { SupportLink } from './tronc-support-editor.model';
 
 /** Height of a floor row. Fixed, so line endpoints can be computed instead of measured. */
 export const ROW_HEIGHT_REM = 2.75;
 /** Vertical room between floors, where the links are drawn. */
 export const FLOOR_GAP_REM = 2.5;
+
 
 /** Minimum pointer travel (px) before a press on a handle becomes a drag rather than a click. */
 const DRAG_THRESHOLD_PX = 6;
@@ -46,17 +51,15 @@ interface PendingDrag {
 @Component({
   selector: 'app-tronc-support-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, AlertComponent, EmptyStateComponent],
+  imports: [LucideAngularModule, AlertComponent, EmptyStateComponent, NodeDrawingComponent],
   host: {
-    '[attr.data-theme]': 'pinnedTheme',
     '(document:keydown.escape)': 'cancelConnect()',
   },
   templateUrl: './tronc-support-editor.component.html',
   styleUrl: './tronc-support-editor.component.scss',
 })
 export class TroncSupportEditorComponent {
-  /** Pinned light, like the tronc panel it sits next to (figure rendering, see DESIGN_SYSTEM.md). */
-  protected readonly pinnedTheme = THEME_NAMES.light;
+  private readonly theme = injectCanvasTheme();
   protected readonly ROW_HEIGHT_REM = ROW_HEIGHT_REM;
 
   readonly troncNodes = input<FigureNodeItem[]>([]);
@@ -171,10 +174,37 @@ export class TroncSupportEditorComponent {
     return row * (ROW_HEIGHT_REM + FLOOR_GAP_REM);
   }
 
-  nodeColor(node: FigureNodeItem): string | null {
-    if (node.zone !== FigureZone.TRONC) return null;
-    return node.color ?? TRONC_NODE_PRESETS.find((p) => p.positionType === node.positionType)?.color ?? null;
-  }
+  /**
+   * How every node is drawn (`app-node-drawing`), as in the tronc panel next to it: type colors and
+   * the label as typed. The selected node and the one being connected get the ink outline, the
+   * nodes it can stand on the dashed one.
+   */
+  readonly appearanceByNodeId = computed(() => {
+    const selectedId = this.selectedNodeId();
+    const sourceId = this.connectFrom();
+    const source = this.sourceNode();
+    const map = new Map<string, NodeAppearance>();
+    const theme = this.theme();
+    for (const node of [...this.troncNodes(), ...this.baseNodes()]) {
+      map.set(
+        node.id,
+        resolveNodeAppearance(
+          {
+            zone: node.zone,
+            positionType: node.positionType,
+            color: node.color,
+            label: node.label,
+            person: null,
+            selected: node.id === selectedId || node.id === sourceId,
+            dropTarget: source && isValidStandsOnTarget(source, node) ? 'move' : null,
+            mode: 'template',
+          },
+          theme,
+        ),
+      );
+    }
+    return map;
+  });
 
   handleDisabled(node: FigureNodeItem): boolean {
     return this.unsupportedFloors().has(node.z);

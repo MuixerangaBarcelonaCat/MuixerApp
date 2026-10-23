@@ -306,20 +306,54 @@ describe('EventListComponent', () => {
     });
   });
 
-  describe('past/future detection', () => {
-    it('isEventPast returns true for past date', () => {
-      expect(component.isEventPast('2020-01-01', null)).toBe(true);
+  describe('past/future (Valencia time) — an event on 22/07/2026 at 18:00', () => {
+    const makeItem = () => ({
+      date: '2026-07-22',
+      startTime: '18:00',
+      attendanceSummary: {
+        confirmed: 5, declined: 3, pending: 7, attended: 20,
+        lateCancel: 1, children: 2, childrenAttended: 1, total: 35,
+      },
+    }) as Parameters<typeof component.formatAttendance>[0];
+    const isPastGroup = () => component.groupSeparator().predicate(makeItem());
+    const pills = () => component.tableColumns().find((c) => c.key === 'attendance')!.pills!(makeItem());
+    const at = (iso: string) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(iso));
+    };
+
+    afterEach(() => vi.useRealTimers());
+
+    it('stays in the upcoming group for its whole day, even once started', () => {
+      // 21:30 UTC = 23:30 in Valencia.
+      at('2026-07-22T21:30:00Z');
+      expect(isPastGroup()).toBe(false);
     });
 
-    it('isEventPast returns false for future date', () => {
-      expect(component.isEventPast('2099-01-01', null)).toBe(false);
+    it('moves to «Events passats» at midnight in Valencia, before the UTC date changes', () => {
+      // 22:30 UTC on 22 Jul = 00:30 on 23 Jul in Valencia.
+      at('2026-07-22T22:30:00Z');
+      expect(isPastGroup()).toBe(true);
     });
 
-    it('uses startTime for precision', () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const dateStr = yesterday.toISOString().slice(0, 10);
-      expect(component.isEventPast(dateStr, '23:59')).toBe(true);
+    it('shows confirmations before the event day', () => {
+      at('2026-07-21T10:00:00Z');
+      expect(component.formatAttendance(makeItem())).toBe('✓5 ✗3 ?7');
+      expect(component.formatAdults(makeItem())).toBe('3');
+    });
+
+    it('shows arrivals from the morning of the event day, with those still to come in green', () => {
+      // 10:00 UTC = 12:00 in Valencia, before the 18:00 start.
+      at('2026-07-22T10:00:00Z');
+      expect(component.formatAttendance(makeItem())).toBe('✓20 !5 ✗3');
+      expect(component.formatAdults(makeItem())).toBe('18');
+      expect(pills()[1]).toEqual({ text: '!5', class: 'text-success' });
+    });
+
+    it('shows those not yet arrived in amber from the start time', () => {
+      // 16:30 UTC = 18:30 in Valencia.
+      at('2026-07-22T16:30:00Z');
+      expect(pills()[1]).toEqual({ text: '!5', class: 'text-warning' });
     });
   });
 
@@ -332,29 +366,6 @@ describe('EventListComponent', () => {
 
     it('returns empty string for falsy input', () => {
       expect(component.formatDate('')).toBe('');
-    });
-  });
-
-  describe('getConfirmedCount / getDeclinedCount', () => {
-    const summary = {
-      confirmed: 10, declined: 5, pending: 3,
-      attended: 20, lateCancel: 1, children: 4, childrenAttended: 2, total: 40,
-    };
-
-    it('returns attended for past event (getConfirmedCount)', () => {
-      expect(component.getConfirmedCount(summary, true)).toBe(20);
-    });
-
-    it('returns confirmed for future event (getConfirmedCount)', () => {
-      expect(component.getConfirmedCount(summary, false)).toBe(10);
-    });
-
-    it('returns declined for past event (getDeclinedCount)', () => {
-      expect(component.getDeclinedCount(summary, true)).toBe(5);
-    });
-
-    it('returns declined for future event (getDeclinedCount)', () => {
-      expect(component.getDeclinedCount(summary, false)).toBe(5);
     });
   });
 

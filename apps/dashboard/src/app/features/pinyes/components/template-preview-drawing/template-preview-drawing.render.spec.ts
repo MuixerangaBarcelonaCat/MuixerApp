@@ -7,7 +7,8 @@ import {
   buildPinyaMarkup,
   buildGroundLineMarkup,
 } from './template-preview-drawing.render';
-import { layoutTroncSilhouette, hashSeed } from '../../utils/tronc-silhouette-layout.util';
+import { hashSeed } from '@muixer/pinyes-render';
+import { layoutTroncSilhouette } from '../../utils/tronc-silhouette-layout.util';
 
 function makeRc(): RoughSVG {
   return rough.svg(document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement);

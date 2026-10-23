@@ -24,8 +24,8 @@ import {
   SelectComponent,
   ToastService,
   type BadgeVariant,
+  ICON_XICALLA,
 } from '@muixer/ui';
-import { ICON_XICALLA } from '../../../../shared/constants/domain-icons';
 import { AttendanceService } from '../../services/attendance.service';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import {
@@ -33,7 +33,7 @@ import {
   AttendanceFilterParams,
   AttendanceCrudResponse,
 } from '../../models/attendance.model';
-import { AttendanceStatus, attendanceGroupLabel, attendanceStatusLabel, AttendanceSummary, EventPhase, ICON_OBSERVACIONS, isArrivalPhase } from '@muixer/shared';
+import { AttendanceStatus, attendanceGroupLabel, attendanceStatusLabel, AttendanceSummary, EventPhase, ICON_OBSERVACIONS, isArrivalPhase, isStartedPhase } from '@muixer/shared';
 
 /** Order of the statuses in the filter dropdown, with the summary counter each one reads. */
 const FILTER_OPTIONS: { status: AttendanceStatus; count: keyof AttendanceSummary }[] = [
@@ -115,12 +115,12 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
   editingAttendance = signal<AttendanceItem | null>(null);
 
   /**
-   * The statuses offered on each row: what is being asked before the event, arrivals on its day.
+   * The statuses offered on each row: what is being asked before the event day, arrivals on it.
    * PENDENT is never a button — it is "none selected", reached by clicking the active one again.
    * After the event day there are no buttons: each row shows a read-only badge.
    */
   readonly statusOptions = computed(() =>
-    this.phase() === 'day'
+    isArrivalPhase(this.phase())
       ? [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG]
       : [AttendanceStatus.ANIRE, AttendanceStatus.NO_VAIG],
   );
@@ -292,10 +292,10 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
   }
 
   getStatusBadgeVariant(status: AttendanceStatus): BadgeVariant {
-    const arrivals = isArrivalPhase(this.phase());
+    const started = isStartedPhase(this.phase());
     const variants: Record<AttendanceStatus, BadgeVariant> = {
       [AttendanceStatus.PENDENT]: 'ghost',
-      [AttendanceStatus.ANIRE]: arrivals ? 'warning' : 'success',
+      [AttendanceStatus.ANIRE]: started ? 'warning' : 'success',
       [AttendanceStatus.NO_VAIG]: 'error',
       [AttendanceStatus.ASSISTIT]: 'success',
     };
