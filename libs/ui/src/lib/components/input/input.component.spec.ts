@@ -73,6 +73,14 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('datetime-local');
   });
 
+  it('supports the time type, for a time of day alone (rehearsal start time)', () => {
+    // Typed on purpose: `setInput` accepts anything, so this is what pins the value to `InputType`.
+    const type: InputType = 'time';
+    fixture.componentRef.setInput('type', type);
+    fixture.detectChanges();
+    expect(nativeInput().type).toBe('time');
+  });
+
   describe('inputMode', () => {
     it('sets no inputmode attribute by default', () => {
       expect(nativeInput().getAttribute('inputmode')).toBeNull();
