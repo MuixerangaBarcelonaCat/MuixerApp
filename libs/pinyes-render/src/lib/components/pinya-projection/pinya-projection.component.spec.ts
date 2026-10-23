@@ -222,18 +222,19 @@ describe('PinyaProjectionComponent', () => {
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
-    it('keeps a figure\'s own color in the single-figure preview of a multi-figure segment', () => {
+    it('keeps a figure\'s own color and string in the single-figure preview of a multi-figure segment', () => {
       setData(makeSegmentData([figure('a', 0), figure('b', 1)]));
       fixture.componentRef.setInput('instanceId', 'b');
       fixture.detectChanges();
 
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[1]]);
+      expect(component.figureLinks().map((l) => l.color)).toEqual([FIGURE_PALETTE[1]]);
     });
 
-    it('gives a figure no color when the segment itself has only it: nothing to tell it apart from', () => {
+    it('colors the figure of a single-figure segment too', () => {
       setData(makeSegmentData([figure('a', 0)]));
 
-      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([null]);
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[0]]);
     });
   });
 
@@ -306,13 +307,12 @@ describe('PinyaProjectionComponent', () => {
       expect(canvas.figureLinks()).toEqual(component.figureLinks());
     });
 
-    it('draws no pin and no string when the segment holds a single figure (its panel can only be its own), but keeps the name band', () => {
+    it('pins the card of a single figure in its colour, but draws no string (its panel can only be its own)', () => {
       setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 })]));
 
       expect(component.figureLinks()).toEqual([]);
       const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
-      expect(card.color()).toBeNull();
-      // The name band stays: it's the card's colour, not a link to tell figures apart.
+      expect([card.color(), card.edge()]).toEqual([FIGURE_PALETTE[0], 'top']);
       const view = fixture.debugElement.query(By.directive(TroncViewStub)).componentInstance as TroncViewStub;
       expect(view.nameBand()).toEqual(getFigureBand(0));
     });
@@ -336,15 +336,15 @@ describe('PinyaProjectionComponent', () => {
       expect(component.figureLinks()).toEqual([]);
     });
 
-    it('lays each panel on a card pinned in the figure colour on the edge facing its figure, alternately askew', () => {
+    it('lays each panel on a card pinned in the figure colour on the edge facing its figure', () => {
       const a = makeInstance([pinyaNode('a-p'), troncNode('a-t')], ['a-p'], { id: 'a', sortOrder: 0, projectionX: 0, projectionY: 0 });
       const b = makeInstance([pinyaNode('b-p'), troncNode('b-t')], ['b-p'], { id: 'b', sortOrder: 1, projectionX: 900, projectionY: 0 });
       setData(makeSegmentData([a, b]));
 
       const cards = fixture.debugElement.queryAll(By.directive(PinnedCardComponent)).map((d) => d.componentInstance as PinnedCardComponent);
-      expect(cards.map((c) => [c.color(), c.edge(), c.tilt()])).toEqual([
-        [FIGURE_PALETTE[0], 'bottom', -1],
-        [FIGURE_PALETTE[1], 'bottom', 1],
+      expect(cards.map((c) => [c.color(), c.edge()])).toEqual([
+        [FIGURE_PALETTE[0], 'bottom'],
+        [FIGURE_PALETTE[1], 'bottom'],
       ]);
       expect(fixture.debugElement.queryAll(By.css('lib-pinned-card app-tronc-view'))).toHaveLength(2);
       const views = fixture.debugElement.queryAll(By.directive(TroncViewStub)).map((d) => d.componentInstance as TroncViewStub);

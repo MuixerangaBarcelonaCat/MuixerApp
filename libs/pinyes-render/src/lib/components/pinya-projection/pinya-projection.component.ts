@@ -46,14 +46,12 @@ interface DistributionTroncPanel {
   naturalW: number;
   naturalH: number;
   scale: number;
-  /** The figure colour, for the card pin; `null` for a segment's lone figure, which gets no pin. */
-  color: string | null;
+  /** The figure colour, for the card pin. */
+  color: string;
   /** The band behind the figure name on the card, in the figure colour — a lone figure's too. */
   nameBand: FigureBand;
   /** The card edge holding its pin: the one facing the figure, where the string leaves. */
   pinEdge: CardEdge;
-  /** Degrees the card turns around its pin: −1 and +1 by turns, so neighbouring cards differ. */
-  tilt: number;
 }
 
 /**
@@ -162,9 +160,9 @@ export class PinyaProjectionComponent {
   });
 
   /**
-   * The neutral single-figure colors are for a segment that holds one figure — not for the
+   * A segment that holds one figure: its panel can only be its own, so it gets no string. Not the
    * Dashboard's single-figure preview (`instanceId`) of a larger one, where the figure keeps the
-   * color it has everywhere else.
+   * string it has everywhere else.
    */
   private readonly isSingleFigureSegment = computed(() => this.data().instances.length === 1);
 
@@ -393,10 +391,13 @@ export class PinyaProjectionComponent {
     });
   });
 
-  /** The fit-to-screen scale `distributionNodes` bakes into every node's size: the canvas draws each node at its natural size, scaled by it. */
-  readonly distributionScale = computed(
-    () => computeDistributionTransform(this.effectiveInstances(), this.containerWidth(), this.containerHeight()).scale,
+  /** Maps the distribution coordinates of every figure onto the container, fitting them all. */
+  private readonly distributionTransform = computed(() =>
+    computeDistributionTransform(this.effectiveInstances(), this.containerWidth(), this.containerHeight()),
   );
+
+  /** The fit-to-screen scale `distributionNodes` bakes into every node's size: the canvas draws each node at its natural size, scaled by it. */
+  readonly distributionScale = computed(() => this.distributionTransform().scale);
 
   /**
    * All pinya/base/decoration nodes from every instance, translated into a shared
@@ -410,11 +411,7 @@ export class PinyaProjectionComponent {
    */
   private readonly distributionNodesByInstance = computed((): Map<string, InstanceNodeItem[]> => {
     const instances = this.effectiveInstances();
-    const { scale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
+    const { scale, offsetX, offsetY } = this.distributionTransform();
     const result = new Map<string, InstanceNodeItem[]>();
     for (const inst of instances) {
       const placed: InstanceNodeItem[] = [];
@@ -478,11 +475,7 @@ export class PinyaProjectionComponent {
   readonly distributionFitBounds = computed((): { x: number; y: number; width: number; height: number }[] => {
     if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
-    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
+    const { scale: distScale, offsetX, offsetY } = this.distributionTransform();
 
     return instances.map((inst) => {
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
@@ -511,14 +504,6 @@ export class PinyaProjectionComponent {
   });
 
   /**
-   * A figure's colour, for its pin and string: `null` when the segment holds only it — its panel can
-   * only be its own, so it gets no pin and no string.
-   */
-  private figureColor(inst: ProjectionInstance): string | null {
-    return this.isSingleFigureSegment() ? null : getFigureColor(inst.sortOrder);
-  }
-
-  /**
    * The string tying each tronc panel to its pinya, in canvas-world units like the nodes (so it
    * pans and zooms with them and never depends on the live stage transform): from a pin on the
    * card edge facing the figure to the corner of the figure's occupied nodes nearest the panel
@@ -527,15 +512,14 @@ export class PinyaProjectionComponent {
   private readonly figureLinksByInstance = computed((): Map<string, FigureLink> => {
     const links = new Map<string, FigureLink>();
     const bounds = this.distributionFitBounds();
-    if (bounds.length === 0) return links;
+    if (bounds.length === 0 || this.isSingleFigureSegment()) return links;
     const instances = this.effectiveInstances();
-    const { scale: distScale } = computeDistributionTransform(instances, this.containerWidth(), this.containerHeight());
+    const { scale: distScale } = this.distributionTransform();
     const nodesByInstance = this.distributionNodesByInstance();
     const theme = this.theme();
 
     instances.forEach((inst, i) => {
-      const color = this.figureColor(inst);
-      if (!color) return;
+      const color = getFigureColor(inst.sortOrder);
       const b = bounds[i];
       const occupied = new Set(inst.assignments.map((a) => a.node.id));
       const nodes = (nodesByInstance.get(inst.id) ?? []).map((n) => ({
@@ -573,11 +557,7 @@ export class PinyaProjectionComponent {
   readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
     if (this.scope() === ImportScope.PINYA) return [];
     const instances = this.effectiveInstances();
-    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
-      instances,
-      this.containerWidth(),
-      this.containerHeight(),
-    );
+    const { scale: distScale, offsetX, offsetY } = this.distributionTransform();
     const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
     const totalScale = distScale * stageScale;
     const links = this.figureLinksByInstance();
@@ -621,10 +601,9 @@ export class PinyaProjectionComponent {
         naturalW,
         naturalH,
         scale: totalScale,
-        color: this.figureColor(inst),
+        color: getFigureColor(inst.sortOrder),
         nameBand: getFigureBand(inst.sortOrder, this.theme().mode),
         pinEdge: links.get(inst.id)?.cardEdge ?? 'top',
-        tilt: inst.sortOrder % 2 === 0 ? -1 : 1,
       };
     });
   });
@@ -679,11 +658,7 @@ export class PinyaProjectionComponent {
    * physical size on screen — the same regardless of what else is in the segment.
    */
   private flyTo(bounds: BoundsNode[]): void {
-    const { scale: distScale } = computeDistributionTransform(
-      this.effectiveInstances(),
-      this.containerWidth(),
-      this.containerHeight(),
-    );
+    const { scale: distScale } = this.distributionTransform();
     const options =
       this.ownPositionState()?.kind === 'PINYA'
         ? { maxScale: PINYA_FLIGHT_MAX_SCALE / distScale }
