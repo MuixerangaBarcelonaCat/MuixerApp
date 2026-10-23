@@ -297,6 +297,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private pinyaLayer!: Konva.Layer;
   /** Above the nodes: the pins the strings end at on each figure. */
   private pinLayer!: Konva.Layer;
+  /**
+   * `readonly` mode: the strings and pins live on `pinyaLayer` instead, under and over the nodes,
+   * so the projection clears and composites one canvas, not three (see `renderFigureLinks`).
+   */
+  private linkGroup: Konva.Group | null = null;
+  private pinGroup: Konva.Group | null = null;
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
@@ -1250,14 +1256,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    * to a fixed area around world (0,0). One shape for every dot: this runs on every pan frame.
    */
   private renderGrid(): void {
-    // Nothing to erase or draw (e.g. projection, `[gridEnabled]="false"`): skip the redraw.
-    if (!this.gridEnabled() && this.gridLayer.getChildren().length === 0) return;
-    this.gridLayer.destroyChildren();
-
+    // No grid (e.g. projection, `[gridEnabled]="false"`): its canvas is hidden, so the browser
+    // neither clears nor composites it.
     if (!this.gridEnabled()) {
-      this.gridLayer.batchDraw();
+      if (this.gridLayer.getChildren().length > 0) this.gridLayer.destroyChildren();
+      this.gridLayer.visible(false);
       return;
     }
+    this.gridLayer.destroyChildren();
+    this.gridLayer.visible(true);
 
     const scale = this.stage.scaleX() || 1;
     const left = -this.stage.x() / scale;
@@ -2148,23 +2155,54 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     return group;
   }
 
+  /**
+   * The tronc panel strings and their pins. On their own canvases, shown only while there are any
+   * — except in `readonly`, which keeps them on the nodes' canvas (`linkGroup`/`pinGroup`): nothing
+   * there is dragged, so they never need redrawing apart from the nodes.
+   */
   private renderFigureLinks(links: FigureLink[]): void {
+    const readonly = this.mode() === 'readonly';
     this.linkLayer.destroyChildren();
     this.pinLayer.destroyChildren();
+    this.linkGroup?.destroy();
+    this.pinGroup?.destroy();
+    this.linkGroup = this.pinGroup = null;
+
+    const linkGroup = readonly ? new Konva.Group({ listening: false }) : null;
+    const pinGroup = readonly ? new Konva.Group({ listening: false }) : null;
+    this.linkGroup = linkGroup;
+    this.pinGroup = pinGroup;
+    const strings = linkGroup ?? this.linkLayer;
+    const pins = pinGroup ?? this.pinLayer;
     for (const link of links) {
       const { string, pin } = drawFigureLink(link, this.theme());
-      this.linkLayer.add(string);
-      this.pinLayer.add(pin);
+      strings.add(string);
+      pins.add(pin);
     }
-    this.linkLayer.batchDraw();
-    this.pinLayer.batchDraw();
+    this.linkLayer.visible(!readonly && links.length > 0);
+    this.pinLayer.visible(!readonly && links.length > 0);
+
+    if (linkGroup && pinGroup) {
+      // Under the nodes already drawn; the pins over them.
+      this.pinyaLayer.add(linkGroup, pinGroup);
+      linkGroup.moveToBottom();
+      this.pinyaLayer.batchDraw();
+    } else {
+      this.linkLayer.batchDraw();
+      this.pinLayer.batchDraw();
+    }
     this.invalidateUnderlay();
   }
+
 
   private renderReadonlyNodes(): void {
     this.transformer.nodes([]);
     this.transformer.remove();
+    // The strings and pins outlive the nodes (`renderFigureLinks`): lifted out, put back below.
+    this.linkGroup?.remove();
+    this.pinGroup?.remove();
     this.pinyaLayer.destroyChildren();
+    if (this.linkGroup) this.pinyaLayer.add(this.linkGroup);
 
     const assignmentByNodeId = new Map(this.assignments().map((a) => [a.node.id, a]));
     const raisedLayer = new Konva.Group({ listening: false });
@@ -2183,6 +2221,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.pinyaLayer.add(group);
     }
     this.pinyaLayer.add(raisedLayer);
+    if (this.pinGroup) this.pinyaLayer.add(this.pinGroup);
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();

@@ -5,7 +5,8 @@ import { ATTENDANCE_TONES, GENDER_TONES, ThemeService } from '@muixer/ui';
 import { paperGrain } from '../../theme/paper-grain';
 import { AssignmentDetail } from '../../models/assignment.model';
 import { NodeAppearanceInput } from '../../node-render/appearance';
-import { CanvasNode, FigureCanvasComponent } from './figure-canvas.component';
+import { CanvasMode, CanvasNode, FigureCanvasComponent } from './figure-canvas.component';
+import { FigureLink } from '../../utils/figure-link.util';
 
 describe('FigureCanvasComponent', () => {
   // The Konva stage needs a real canvas (absent in jsdom) — only the host is under test here.
@@ -282,9 +283,10 @@ describe('FigureCanvasComponent', () => {
         const s = setup(deferGestureRedraw);
         const component = s.component as UnderlayInternals;
         const internals = component as unknown as Record<string, unknown>;
-        const layer = () => ({ destroyChildren: jest.fn(), add: jest.fn(), batchDraw: jest.fn() });
+        const layer = () => ({ destroyChildren: jest.fn(), add: jest.fn(), batchDraw: jest.fn(), visible: jest.fn() });
         internals['linkLayer'] = layer();
         internals['pinLayer'] = layer();
+        internals['pinyaLayer'] = { ...layer(), listening: jest.fn(() => true), drawHit: jest.fn() };
         component.contentScreenRect = jest.fn(() => CONTENT);
         component.drawUnderlay = jest.fn(() => document.createElement('canvas'));
         return { ...s, component };
@@ -416,6 +418,112 @@ describe('FigureCanvasComponent', () => {
       expect(stage.batchDraw).toHaveBeenCalledTimes(1);
       expect(container.style.transform).toBe('');
       expect(moved).toEqual([]);
+    });
+  });
+
+  // Every Konva layer is a full-screen canvas the browser clears and composites: the projection
+  // keeps only the one it needs.
+  describe('layers (fewer canvases)', () => {
+    /** A Konva layer's surface, enough to tell what is drawn on it and whether it shows. */
+    function fakeLayer() {
+      const children: unknown[] = [];
+      return {
+        children,
+        visible: jest.fn(),
+        add: jest.fn((...nodes: unknown[]) => children.push(...nodes)),
+        destroyChildren: jest.fn(() => children.splice(0)),
+        getChildren: () => children,
+        batchDraw: jest.fn(),
+      };
+    }
+    const LINK: FigureLink = {
+      cardEdge: 'top',
+      string: { from: { x: 0, y: 0 }, control: { x: 5, y: 10 }, to: { x: 10, y: 0 } },
+      stringColor: '#123456',
+      stringWidth: 2,
+      pin: { x: 10, y: 0 },
+      pinRadius: 4,
+      color: '#abcdef',
+    };
+    type LayerInternals = Record<string, unknown> & {
+      renderGrid(): void;
+      renderFigureLinks(links: FigureLink[]): void;
+      renderReadonlyNodes(): void;
+    };
+
+    // Konva probes a real canvas the first time it makes a shape; jsdom has none.
+    beforeEach(() => jest.spyOn(Konva.Util, 'isCanvasFarblingActive').mockReturnValue(false));
+
+    function setupLayers(mode: CanvasMode) {
+      const fixture = render();
+      fixture.componentRef.setInput('mode', mode);
+      const c = fixture.componentInstance as unknown as LayerInternals;
+      const layers = { grid: fakeLayer(), link: fakeLayer(), pinya: fakeLayer(), pin: fakeLayer() };
+      c['gridLayer'] = layers.grid;
+      c['linkLayer'] = layers.link;
+      c['pinyaLayer'] = layers.pinya;
+      c['pinLayer'] = layers.pin;
+      c['stage'] = { scaleX: () => 1, x: () => 0, y: () => 0, width: () => 400, height: () => 800, batchDraw: jest.fn() };
+      c['transformer'] = { nodes: jest.fn(), remove: jest.fn() };
+      return { fixture, c, layers };
+    }
+
+    it('hides the grid canvas while there is no grid', () => {
+      const { fixture, c, layers } = setupLayers('readonly');
+      fixture.componentRef.setInput('gridEnabled', false);
+
+      c.renderGrid();
+
+      expect(layers.grid.visible).toHaveBeenLastCalledWith(false);
+    });
+
+    it('shows the grid canvas when the grid is on (template editor)', () => {
+      const { fixture, c, layers } = setupLayers('editor');
+      fixture.componentRef.setInput('gridEnabled', true);
+
+      c.renderGrid();
+
+      expect(layers.grid.visible).toHaveBeenLastCalledWith(true);
+    });
+
+    it('in readonly, draws the strings under the nodes and their pins over them, on the nodes canvas', () => {
+      const { c, layers } = setupLayers('readonly');
+
+      c.renderFigureLinks([LINK]);
+
+      expect(layers.link.visible).toHaveBeenLastCalledWith(false);
+      expect(layers.pin.visible).toHaveBeenLastCalledWith(false);
+      expect(layers.link.add).not.toHaveBeenCalled();
+      expect(layers.pin.add).not.toHaveBeenCalled();
+      const [strings, pins] = layers.pinya.children as Konva.Group[];
+      expect(strings.getChildren()[0]).toBeInstanceOf(Konva.Path);
+      expect(pins.getChildren()[0]).toBeInstanceOf(Konva.Group);
+    });
+
+    it('in readonly, keeps the strings and pins when the nodes are drawn again, in their places', () => {
+      const { c, layers } = setupLayers('readonly');
+      c.renderFigureLinks([LINK]);
+      const [strings, pins] = layers.pinya.children;
+
+      c.renderReadonlyNodes();
+
+      const children = layers.pinya.children;
+      expect(children[0]).toBe(strings);
+      expect(children.at(-2)).toBe(pins); // above the nodes and their raised pieces; the transformer last
+      expect(children.at(-1)).toBe(c['transformer']);
+    });
+
+    it('elsewhere, keeps the strings on their own canvases, shown only while there are any', () => {
+      const { c, layers } = setupLayers('segment-assignment');
+
+      c.renderFigureLinks([LINK]);
+      expect(layers.link.visible).toHaveBeenLastCalledWith(true);
+      expect(layers.pin.visible).toHaveBeenLastCalledWith(true);
+      expect(layers.link.children).toHaveLength(1);
+
+      c.renderFigureLinks([]);
+      expect(layers.link.visible).toHaveBeenLastCalledWith(false);
+      expect(layers.pin.visible).toHaveBeenLastCalledWith(false);
     });
   });
 
