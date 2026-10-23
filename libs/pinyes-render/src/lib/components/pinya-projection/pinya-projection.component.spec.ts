@@ -1,7 +1,7 @@
 import { PAPER, ThemeService } from '@muixer/ui';
 import { fade } from '../../theme/canvas-theme';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, input, output } from '@angular/core';
+import { Component, effect, input, output, untracked } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { FigureZone, ImportScope, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projection.component';
@@ -72,8 +72,17 @@ class TroncViewStub {
 
 @Component({ selector: 'lib-tronc-panel-measurer', standalone: true, template: '' })
 class TroncPanelMeasurerStub {
+  /** Off: a test reports the sizes itself (`sizesReady.emit`). On: reported as soon as the panels arrive, like the real one. */
+  static autoReport = true;
   readonly panels = input<TroncPanelMeasureSpec[]>([]);
   readonly sizesReady = output<Map<string, { width: number; height: number }>>();
+
+  constructor() {
+    effect(() => {
+      this.panels();
+      if (TroncPanelMeasurerStub.autoReport) untracked(() => this.sizesReady.emit(new Map()));
+    });
+  }
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -762,6 +771,40 @@ describe('PinyaProjectionComponent', () => {
   describe('measured tronc panel sizes', () => {
     const measurerStub = (): TroncPanelMeasurerStub =>
       fixture.debugElement.query(By.directive(TroncPanelMeasurerStub)).componentInstance as TroncPanelMeasurerStub;
+    const canvasStub = () => fixture.debugElement.query(By.directive(FigureCanvasStub));
+
+    beforeEach(() => (TroncPanelMeasurerStub.autoReport = false));
+    afterEach(() => (TroncPanelMeasurerStub.autoReport = true));
+
+    // The layout depends on the measured panels: drawn before they are, the canvas would build the
+    // whole scene once with guessed sizes and once more with the real ones.
+    it('mounts the canvas only once the panels are measured', () => {
+      // Created with its data, as the apps do (the suite's own fixture already measured none).
+      fixture = TestBed.createComponent(PinyaProjectionComponent);
+      component = fixture.componentInstance;
+      const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i1' })]));
+      expect(canvasStub()).toBeNull();
+
+      measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+      fixture.detectChanges();
+
+      expect(canvasStub()).not.toBeNull();
+    });
+
+    // Its two hidden copies of every panel would otherwise stay laid out for the whole session.
+    it('unmounts the measurer once it has reported, and brings it back to measure new data', () => {
+      const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i1' })]));
+      measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.directive(TroncPanelMeasurerStub))).toBeNull();
+
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i2' })]));
+
+      expect(measurerStub().panels().map((p) => p.instanceId)).toEqual(['i2']);
+      expect(canvasStub()).not.toBeNull(); // the previous segment stays on screen meanwhile
+    });
 
     it('passes one measurement panel per effective instance', () => {
       const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
@@ -827,14 +870,13 @@ describe('PinyaProjectionComponent', () => {
         setData(makeSegmentData([makeInstance(nodes, ['p1'], { id: 'i1' })]));
       };
 
-      it('measures the same panels after the sizes arrive', () => {
+      it('measures nothing more once the sizes arrive', () => {
         unplaced();
-        const before = measurerStub().panels();
 
         measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
         fixture.detectChanges();
 
-        expect(measurerStub().panels()).toBe(before);
+        expect(fixture.debugElement.query(By.directive(TroncPanelMeasurerStub))).toBeNull();
       });
 
       it('leaves the layout alone when the same sizes are reported again', () => {
@@ -843,7 +885,7 @@ describe('PinyaProjectionComponent', () => {
         fixture.detectChanges();
         const nodes = component.distributionNodes();
 
-        measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+        component.onMeasuredSizesReady(new Map([['i1', { width: 555, height: 333 }]]));
         fixture.detectChanges();
 
         expect(component.distributionNodes()).toBe(nodes);

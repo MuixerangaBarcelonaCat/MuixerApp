@@ -7,6 +7,7 @@ import {
   OnDestroy,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -36,7 +37,7 @@ import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
 import { DisplayMode, HeightDomain, displayModeOverrides, personDisplayFacts } from '../../node-render/display-mode';
 import { nodeDrawPlan, scaledNodeDrawPlan } from '../../node-render/draw-plan';
-import { loadCanvasFonts } from '../../node-render/fonts';
+import { CANVAS_FONTS_LOADED } from '../../node-render/fonts';
 import { hashSeed } from '../../node-render/sketch';
 import { dotGrid } from '../../utils/dot-grid.util';
 import { paperGrain } from '../../theme/paper-grain';
@@ -139,6 +140,10 @@ const ZOOM_MAX = 5;
 export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   /** The canvas colours for the theme on screen; a change redraws everything. */
   private readonly theme = injectCanvasTheme();
+  /** Whether the canvas faces have loaded: Konva fits text to the faces it measures as it draws. */
+  private readonly fontsLoaded = inject(CANVAS_FONTS_LOADED);
+  /** Set when the first drawing came before the faces (or was held back for them) — see `initialRender`. */
+  private awaitingFonts = false;
   protected readonly paperGrain = computed(() => paperGrain(this.theme().mode));
 
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
@@ -427,6 +432,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    // The canvas faces arrived after the first drawing (see `initialRender`): draw with them.
+    effect(() => {
+      if (!this.fontsLoaded()) return;
+      untracked(() => {
+        if (!this.stage || !this.awaitingFonts || this.destroyed) return;
+        this.awaitingFonts = false;
+        this.renderAll();
+      });
+    });
+
     // A theme change recolours everything, the grid included.
     effect(() => {
       this.theme();
@@ -453,6 +468,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * The first drawing. With the canvas faces loaded, drawn once. Before they are, the editors draw
+   * at once with the fallback face and again when they arrive; the projection waits for them
+   * rather than build its whole scene twice (an old phone feels each build).
+   */
+  private initialRender(): void {
+    if (this.fontsLoaded()) {
+      this.renderAll();
+      return;
+    }
+    this.awaitingFonts = true;
+    if (this.mode() !== 'readonly') this.renderAll();
+  }
+
   private setCursor(cursor: string): void {
     if (this.isPlacementMode()) {
       this.stage.container().style.cursor = 'crosshair';
@@ -463,12 +492,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.initStage();
-    this.renderAll();
-    // Konva measures text as it draws: once the canvas faces arrive, draw again with them.
-    void loadCanvasFonts(globalThis.document?.fonts).then(() => {
-      if (this.destroyed) return;
-      this.renderAll();
-    });
+    this.initialRender();
 
     this.resizeObserver = new ResizeObserver(() => {
       this.resizeStage();

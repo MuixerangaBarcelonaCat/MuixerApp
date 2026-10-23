@@ -1,5 +1,7 @@
 import Konva from 'konva';
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { CANVAS_FONTS_LOADED } from '../../node-render/fonts';
 import { FigureZone, Gender } from '@muixer/shared';
 import { ATTENDANCE_TONES, GENDER_TONES, ThemeService } from '@muixer/ui';
 import { paperGrain } from '../../theme/paper-grain';
@@ -524,6 +526,54 @@ describe('FigureCanvasComponent', () => {
       c.renderFigureLinks([]);
       expect(layers.link.visible).toHaveBeenLastCalledWith(false);
       expect(layers.pin.visible).toHaveBeenLastCalledWith(false);
+    });
+  });
+
+  // Konva fits names to the faces it measures when it draws: a name drawn before the faces load is
+  // drawn again once they do, and every drawing builds the whole scene.
+  describe('first drawing and the canvas faces', () => {
+    function setupFonts(mode: CanvasMode, loaded: boolean) {
+      const fontsLoaded = signal(loaded);
+      TestBed.overrideProvider(CANVAS_FONTS_LOADED, { useValue: fontsLoaded.asReadonly() });
+      const fixture = render();
+      fixture.componentRef.setInput('mode', mode);
+      const c = fixture.componentInstance as unknown as { stage: unknown; renderAll: jest.Mock; initialRender(): void };
+      c.renderAll = jest.fn();
+      c.stage = {};
+      return { fixture, c, fontsLoaded };
+    }
+
+    it('draws at once, and only once, when the faces are already loaded', () => {
+      const { fixture, c } = setupFonts('readonly', true);
+
+      c.initialRender();
+      fixture.detectChanges();
+
+      expect(c.renderAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('in the projection, waits for the faces before drawing at all', () => {
+      const { fixture, c, fontsLoaded } = setupFonts('readonly', false);
+
+      c.initialRender();
+      fixture.detectChanges();
+      expect(c.renderAll).not.toHaveBeenCalled();
+
+      fontsLoaded.set(true);
+      fixture.detectChanges();
+      expect(c.renderAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('in the editors, draws at once with the fallback face, and again once the faces load', () => {
+      const { fixture, c, fontsLoaded } = setupFonts('editor', false);
+
+      c.initialRender();
+      fixture.detectChanges();
+      expect(c.renderAll).toHaveBeenCalledTimes(1);
+
+      fontsLoaded.set(true);
+      fixture.detectChanges();
+      expect(c.renderAll).toHaveBeenCalledTimes(2);
     });
   });
 

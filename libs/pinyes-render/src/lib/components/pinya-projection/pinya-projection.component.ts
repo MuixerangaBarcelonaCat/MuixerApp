@@ -161,6 +161,22 @@ export class PinyaProjectionComponent {
     }));
   });
 
+  /** The panels the last report measured; `null` until the first one. */
+  private readonly measuredPanels = signal<TroncPanelMeasureSpec[] | null>(null);
+
+  /**
+   * The measurer is mounted only while it has something to measure: it lays out two hidden copies
+   * of every panel, which would otherwise stay in the page for the whole session.
+   */
+  protected readonly measuring = computed(() => this.measuredPanels() !== this.measurePanels());
+
+  /**
+   * The canvas mounts once the panels are measured: the layout depends on their sizes, so drawn
+   * before, it would build the whole scene once with guessed sizes and again with the real ones.
+   * Later data (the next segment) keeps it mounted, showing the previous one until then.
+   */
+  protected readonly layoutReady = computed(() => this.measuredPanels() !== null);
+
   /** The same sizes again change nothing: re-laying out the segment would redraw the canvas for nothing. */
   onMeasuredSizesReady(sizes: Map<string, { width: number; height: number }>): void {
     const current = this.measuredTroncSizes();
@@ -168,6 +184,7 @@ export class PinyaProjectionComponent {
       sizes.size === current.size &&
       [...sizes].every(([id, size]) => current.get(id)?.width === size.width && current.get(id)?.height === size.height);
     if (!same) this.measuredTroncSizes.set(sizes);
+    this.measuredPanels.set(this.measurePanels());
   }
 
   /** Bumped on every `(flightLanded)` from the canvas — drives the marker's one-shot arrival bounce. */

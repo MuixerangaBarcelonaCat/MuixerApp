@@ -3,8 +3,11 @@
      (drawn by Konva). Figures with no saved position are placed by figure-placement.util, so they
      always show on this same canvas. -->
 <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
-  <lib-tronc-panel-measurer [panels]="measurePanels()" (sizesReady)="onMeasuredSizesReady($event)" />
+  @if (measuring()) {
+    <lib-tronc-panel-measurer [panels]="measurePanels()" (sizesReady)="onMeasuredSizesReady($event)" />
+  }
 
+  @if (layoutReady()) {
   <app-figure-canvas
     #figureCanvas
     class="block w-full h-full"
@@ -24,6 +27,7 @@
     (gestureMoved)="onGestureMoved($event)"
     (flightLanded)="onFlightLanded()"
   />
+  }
 
   <!-- Moved as one by a pan/pinch in progress (`onGestureMoved`), by the same delta as the canvas. -->
   <div #panelsLayer data-testid="tronc-panels-layer" class="absolute inset-0 pointer-events-none origin-top-left">
