@@ -4,6 +4,27 @@ import { By } from '@angular/platform-browser';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { ModalComponent } from './modal.component';
 
+@Component({
+  imports: [ModalComponent],
+  template: `<lib-modal [open]="true" title="Defineix la persona responsable"><button>Acció</button></lib-modal>`,
+})
+class TitledModalHostComponent {}
+
+describe('ModalComponent title attribute', () => {
+  // A static `title="…"` feeds the input but Angular also leaves it on the host element, where the
+  // browser shows it as a native tooltip over everything inside.
+  it('does not leave the title on the host as a native tooltip', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TitledModalHostComponent],
+      providers: [allLucideIconsProvider],
+    }).compileComponents();
+    const host = TestBed.createComponent(TitledModalHostComponent);
+    host.detectChanges();
+
+    expect(host.nativeElement.querySelector('lib-modal').hasAttribute('title')).toBe(false);
+  });
+});
+
 describe('ModalComponent', () => {
   let fixture: ComponentFixture<ModalComponent>;
 

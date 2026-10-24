@@ -15,6 +15,29 @@ class HostComponent {
   text = 'projected body content';
 }
 
+@Component({
+  imports: [CardComponent],
+  template: `<lib-card title="Informació de la colla"><button>Acció</button></lib-card>`,
+})
+class TitledHostComponent {}
+
+describe('CardComponent title attribute', () => {
+  // A static `title="…"` feeds the input but Angular also leaves it on the host element, where the
+  // browser shows it as a native tooltip over everything inside the card.
+  it('does not leave the title on the host as a native tooltip', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TitledHostComponent],
+      providers: [allLucideIconsProvider, provideRouter([])],
+    }).compileComponents();
+    const host = TestBed.createComponent(TitledHostComponent);
+    host.detectChanges();
+
+    const card: HTMLElement = host.nativeElement.querySelector('lib-card');
+    expect(card.hasAttribute('title')).toBe(false);
+    expect(card.textContent).toContain('Informació de la colla');
+  });
+});
+
 describe('CardComponent', () => {
   let fixture: ComponentFixture<CardComponent>;
 

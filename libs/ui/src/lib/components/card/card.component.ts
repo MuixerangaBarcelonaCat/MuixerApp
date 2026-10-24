@@ -50,6 +50,9 @@ const FRINGE_MAX_LENGTH = 34;
   imports: [LucideAngularModule, NgTemplateOutlet, RouterLink, LiftHoverDirective],
   templateUrl: './card.component.html',
   styleUrls: ['./card.component.scss'],
+  // A static `title="…"` feeds the input but would also stay on the host as a native tooltip
+  // shown over the whole card; the title is rendered in the card itself instead.
+  host: { '[attr.title]': 'null' },
 })
 export class CardComponent {
   sash = input<CardSash>('none');
