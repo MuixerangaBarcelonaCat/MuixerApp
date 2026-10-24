@@ -48,4 +48,24 @@ describe('PersonSearchInputComponent', () => {
       expect(personService.getAll).toHaveBeenCalledWith({ search: 'mar', limit: 10, isActive: true, isXicalla: false });
     });
   });
+
+  describe('inline', () => {
+    const list = () => fixture.nativeElement.querySelector('ul') as HTMLElement;
+    const showResults = () => {
+      fixture.componentInstance.results.set([{ id: 'p1', alias: 'PEP', name: 'Pep', firstSurname: 'Puig' } as Person]);
+      fixture.componentInstance.open.set(true);
+      fixture.detectChanges();
+    };
+
+    it('floats the results over the page by default', () => {
+      showResults();
+      expect(list().classList).toContain('absolute');
+    });
+
+    it('lays the results out in the flow when inline, so a scrolling container (a modal) does not clip them', () => {
+      fixture.componentRef.setInput('inline', true);
+      showResults();
+      expect(list().classList).not.toContain('absolute');
+    });
+  });
 });

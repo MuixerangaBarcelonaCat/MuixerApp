@@ -146,16 +146,9 @@
 
   @if (newPersonModalOpen()) {
     <app-person-new-modal
-      (closed)="newPersonModalOpen.set(false)"
+      (closed)="onNewPersonModalClosed()"
       (created)="onPersonCreated($event)"
     />
   }
-
-  <app-tutorial-modal
-    #activationTutorial
-    heading="Doneu accés a la persona"
-    [steps]="activationTutorialSteps"
-    (closed)="onActivationTutorialClosed()"
-  />
 
 </div>

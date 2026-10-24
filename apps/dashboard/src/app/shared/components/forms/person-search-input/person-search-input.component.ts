@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   input,
   output,
   signal,
@@ -13,6 +14,9 @@ import { LucideAngularModule, Search } from 'lucide-angular';
 import { BadgeComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { PersonService } from '../../../../features/persons/services/person.service';
 import { Person } from '../../../../features/persons/models/person.model';
+
+const FLOATING_CLASS = 'absolute z-dropdown mt-1 shadow-overlay';
+const INLINE_CLASS = 'mt-2';
 
 @Component({
   selector: 'app-person-search-input',
@@ -31,6 +35,13 @@ export class PersonSearchInputComponent implements OnDestroy {
   excludeIds = input<string[]>([]);
   /** Restricts results to xicalla (`true`) or adults (`false`), by the effective value; unset = both. */
   isXicalla = input<boolean>();
+  /**
+   * Lay the results out in the flow instead of floating them. Needed inside a scrolling container
+   * such as `lib-modal`'s body, which would clip a floating list; an overlay can't help there,
+   * since the native <dialog> sits in the top layer above anything attached to the page.
+   */
+  inline = input(false);
+  protected readonly dropdownClass = computed(() => (this.inline() ? INLINE_CLASS : FLOATING_CLASS));
 
   selected = output<Person>();
 

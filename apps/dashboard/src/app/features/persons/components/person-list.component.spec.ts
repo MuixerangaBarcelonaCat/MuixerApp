@@ -329,28 +329,37 @@ describe('PersonListComponent', () => {
     });
   });
 
-  describe('onPersonCreated (activation tutorial)', () => {
-    it('closes the new-person modal and opens the activation tutorial instead of navigating immediately', () => {
+  describe('Persona nova', () => {
+    it('keeps the guided modal open after creating, so it can go on to access', () => {
       fixture.componentInstance.newPersonModalOpen.set(true);
 
       fixture.componentInstance.onPersonCreated(mockPerson as never);
-      fixture.detectChanges();
+
+      expect(fixture.componentInstance.newPersonModalOpen()).toBe(true);
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('opens the new person\'s profile once the modal closes', () => {
+      fixture.componentInstance.newPersonModalOpen.set(true);
+      fixture.componentInstance.onPersonCreated(mockPerson as never);
+
+      fixture.componentInstance.onNewPersonModalClosed();
+
+      expect(fixture.componentInstance.newPersonModalOpen()).toBe(false);
+      expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
+    });
+
+    it('stays on the list when the modal closes without creating anyone', () => {
+      fixture.componentInstance.newPersonModalOpen.set(true);
+
+      fixture.componentInstance.onNewPersonModalClosed();
 
       expect(fixture.componentInstance.newPersonModalOpen()).toBe(false);
       expect(router.navigate).not.toHaveBeenCalled();
-      // lib-modal drives the native <dialog> via showModal()/the `open` attribute, not a
-      // CSS-only `.modal-open` class.
-      const dialog = fixture.nativeElement.querySelector('dialog[open]');
-      expect(dialog).toBeTruthy();
     });
 
-    it('navigates to the created person\'s detail page once the activation tutorial is closed', () => {
-      fixture.componentInstance.onPersonCreated(mockPerson as never);
-      fixture.detectChanges();
-
-      fixture.componentInstance.onActivationTutorialClosed();
-
-      expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
+    it('no longer shows the activation tutorial', () => {
+      expect(fixture.nativeElement.querySelector('app-tutorial-modal')).toBeNull();
     });
   });
 

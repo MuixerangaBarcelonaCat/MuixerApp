@@ -36,13 +36,13 @@
       </div>
     }
   </div>
-} @else if (!autoGenerate() || error()) {
+} @else if (withButton() && (!autoGenerate() || error())) {
   <div class="mt-2">
     <lib-button variant="primary" size="sm" [loading]="generating()" (clicked)="generate()">
       Crea l'enllaç d'invitació
     </lib-button>
   </div>
-} @else {
+} @else if (autoGenerate() || generating()) {
   <div class="flex justify-center py-4">
     <span class="loading loading-spinner loading-sm text-primary"></span>
   </div>

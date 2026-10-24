@@ -62,6 +62,22 @@ describe('InviteLinkPanelComponent', () => {
     expect(personService.createInviteLink).toHaveBeenCalledWith('person-1');
   });
 
+  it('leaves the button to its parent with withButton false, which drives generate()', () => {
+    fixture = TestBed.createComponent(InviteLinkPanelComponent);
+    fixture.componentRef.setInput('personId', 'person-1');
+    fixture.componentRef.setInput('alias', 'Pepa');
+    fixture.componentRef.setInput('withButton', false);
+    fixture.detectChanges();
+
+    expect(button("Crea l'enllaç d'invitació")).toBeUndefined();
+
+    fixture.componentInstance.generate();
+    fixture.detectChanges();
+
+    expect(personService.createInviteLink).toHaveBeenCalledWith('person-1');
+    expect(fixture.componentInstance.link()).toEqual(LINK);
+  });
+
   it('creates the link straight away with autoGenerate', () => {
     create({ autoGenerate: true });
 

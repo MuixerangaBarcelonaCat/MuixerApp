@@ -29,11 +29,14 @@ export class InviteLinkPanelComponent implements OnInit {
   alias = input.required<string>();
   /** Create the link on arrival (the caller's own button already asked for it). */
   autoGenerate = input(false);
+  /** Show the panel's own «Crea l'enllaç d'invitació»; off when a parent's footer holds it. */
+  withButton = input(true);
 
   generated = output<InviteLinkResponse>();
 
-  protected readonly link = signal<InviteLinkResponse | null>(null);
-  protected readonly generating = signal(false);
+  /** Read by a parent that owns the button (its loading state, which footer to show). */
+  readonly link = signal<InviteLinkResponse | null>(null);
+  readonly generating = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly expiry = computed(() => {
     const link = this.link();

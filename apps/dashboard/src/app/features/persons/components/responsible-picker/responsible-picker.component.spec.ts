@@ -56,6 +56,8 @@ describe('ResponsiblePickerComponent', () => {
     const input = search().componentInstance as PersonSearchInputComponent;
     expect(input.isXicalla()).toBe(false);
     expect(input.excludeIds()).toEqual(['child-1']);
+    // The picker lives in modals, whose scrolling body would clip a floating list.
+    expect(input.inline()).toBe(true);
   });
 
   it('emits the picked adult with the relation, and shows them with their access', () => {

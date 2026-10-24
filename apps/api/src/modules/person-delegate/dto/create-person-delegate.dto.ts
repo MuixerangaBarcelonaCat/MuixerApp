@@ -13,7 +13,7 @@ import { DelegateType } from '@muixer/shared';
 
 /** The delegate is named either by account (`userId`) or by person (`responsiblePersonId`), never both. */
 @ValidatorConstraint({ name: 'exactlyOneDelegateTarget', async: false })
-export class ExactlyOneDelegateTargetConstraint implements ValidatorConstraintInterface {
+class ExactlyOneDelegateTargetConstraint implements ValidatorConstraintInterface {
   validate(_value: unknown, args: ValidationArguments): boolean {
     const { userId, responsiblePersonId } = args.object as CreatePersonDelegateDto;
     return (userId === undefined) !== (responsiblePersonId === undefined);
