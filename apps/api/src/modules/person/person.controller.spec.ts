@@ -13,6 +13,7 @@ describe('PersonController', () => {
     findAll: jest.fn(),
     findOne: jest.fn(),
     findShirtCandidates: jest.fn(),
+    createProvisional: jest.fn(),
   };
   const auditService = {
     record: jest.fn().mockResolvedValue(undefined),
@@ -67,6 +68,24 @@ describe('PersonController', () => {
         }),
       );
       expect(result).toEqual({ id: 'person-1', alias: 'x' });
+    });
+  });
+
+  describe('createProvisional', () => {
+    it('passes the alias and the xicalla flag to the service', async () => {
+      personService.createProvisional.mockResolvedValue({ id: 'p', alias: '~Pepa' });
+
+      await controller.createProvisional({ alias: 'Pepa', isXicalla: true });
+
+      expect(personService.createProvisional).toHaveBeenCalledWith('Pepa', true);
+    });
+
+    it('defaults the xicalla flag to false', async () => {
+      personService.createProvisional.mockResolvedValue({ id: 'p', alias: '~Pepa' });
+
+      await controller.createProvisional({ alias: 'Pepa' });
+
+      expect(personService.createProvisional).toHaveBeenCalledWith('Pepa', false);
     });
   });
 

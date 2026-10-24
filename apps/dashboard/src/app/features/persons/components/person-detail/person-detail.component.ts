@@ -52,7 +52,7 @@ import {
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
-import { DelegateType, Gender, LegalDocumentType, TAG_CATEGORY_LABELS, TagCategory, deriveIsXicalla } from '@muixer/shared';
+import { DELEGATE_TYPE_LABELS, DelegateType, Gender, LegalDocumentType, TAG_CATEGORY_LABELS, TagCategory, deriveIsXicalla } from '@muixer/shared';
 import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
 import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
@@ -498,14 +498,8 @@ export class PersonDetailComponent implements OnInit {
 
   // ── Delegates ──
 
-  private static readonly DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
-    [DelegateType.PARENT]: 'Pare/Mare',
-    [DelegateType.GUARDIAN]: 'Tutor/a',
-    [DelegateType.OTHER]: 'Altres',
-  };
-
   getDelegateTypeLabel(type: DelegateType): string {
-    return PersonDetailComponent.DELEGATE_TYPE_LABELS[type] ?? type;
+    return DELEGATE_TYPE_LABELS[type] ?? type;
   }
 
   loadDelegates(): void {

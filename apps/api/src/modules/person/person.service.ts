@@ -205,13 +205,18 @@ export class PersonService {
 
     // Assistències de la temporada en curs, resoltes només per a la pàgina carregada: unir-les
     // a la consulta paginada multiplicaria les files contra `person.positions`.
-    const attendedCounts = await this.loadAttendedCounts(data.map((person) => person.id));
-    for (const person of data) {
-      (person as Person & { attendedCount: number }).attendedCount =
-        attendedCounts.get(person.id) ?? 0;
-    }
+    const pageIds = data.map((person) => person.id);
+    const [attendedCounts, withResponsible] = await Promise.all([
+      this.loadAttendedCounts(pageIds),
+      this.personDelegateService.findPersonIdsWithResponsible(pageIds),
+    ]);
+    const rows = data.map((person) => ({
+      ...person,
+      attendedCount: attendedCounts.get(person.id) ?? 0,
+      hasResponsible: withResponsible.has(person.id),
+    }));
 
-    const responseData = plainToInstance(PersonResponseDto, data, {
+    const responseData = plainToInstance(PersonResponseDto, rows, {
       excludeExtraneousValues: true,
     });
 
@@ -288,9 +293,12 @@ export class PersonService {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    return plainToInstance(PersonResponseDto, person, {
-      excludeExtraneousValues: true,
-    });
+    const withResponsible = await this.personDelegateService.findPersonIdsWithResponsible([person.id]);
+    return plainToInstance(
+      PersonResponseDto,
+      { ...person, hasResponsible: withResponsible.has(person.id) },
+      { excludeExtraneousValues: true },
+    );
   }
 
   /** Crea una nova persona amb les posicions i mentor indicats. */
@@ -341,7 +349,7 @@ export class PersonService {
    * The alias is automatically prefixed with "~" to avoid collisions with regular persons.
    * Provisional persons appear in attendance but are excluded from the default census view.
    */
-  async createProvisional(alias: string): Promise<PersonResponseDto> {
+  async createProvisional(alias: string, isXicalla = false): Promise<PersonResponseDto> {
     const provisionalAlias = `${PROVISIONAL_PREFIX}${alias}`.slice(
       0,
       MAX_ALIAS_LENGTH,
@@ -362,6 +370,8 @@ export class PersonService {
       firstSurname: '',
       isProvisional: true,
       isActive: true,
+      // No birth date yet, so the manual flag is the effective value until one is entered.
+      isXicallaManual: isXicalla,
     });
 
     const saved = await this.personRepository.save(person);

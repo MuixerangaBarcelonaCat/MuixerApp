@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { DelegateType, UserRole } from '@muixer/shared';
+import { AccessStatus, DelegateType, UserRole, resolveAccessStatus } from '@muixer/shared';
 import { PersonDelegate } from './person-delegate.entity';
 import { PersonDelegateService } from './person-delegate.service';
 import { Person } from '../person/person.entity';
@@ -150,5 +150,58 @@ describe('PersonDelegate (integration)', () => {
     const primaries = delegates.filter((d) => d.isPrimary);
     expect(primaries).toHaveLength(1);
     expect(primaries[0].user.email).toBe('second-parent@test.cat');
+  });
+
+  describe('linking a responsible person by person id', () => {
+    const saveChild = () =>
+      personRepo.save(personRepo.create({ name: 'Pepa', firstSurname: '', alias: '~Pepa', isXicallaManual: true }));
+    const saveAdult = (alias: string, birthDate: string | null = null) =>
+      personRepo.save(
+        personRepo.create({ name: alias, firstSurname: '', alias, birthDate: birthDate as never, isXicallaManual: false }),
+      );
+
+    const accessOf = async (personId: string) => {
+      const person = (await personRepo.findOne({ where: { id: personId }, relations: ['user'] })) as Person;
+      const withResponsible = await service.findPersonIdsWithResponsible([personId]);
+      return resolveAccessStatus({ user: person.user ?? null, hasResponsible: withResponsible.has(personId) }, new Date());
+    };
+
+    it('gives an adult with no account an inactive stub and links it as primary', async () => {
+      const child = await saveChild();
+      const adult = await saveAdult('~Joan');
+
+      const created = await service.create(child.id, {
+        responsiblePersonId: adult.id,
+        delegateType: DelegateType.PARENT,
+        isPrimary: true,
+      });
+
+      expect(created.isPrimary).toBe(true);
+      const stub = await userRepo.findOne({ where: { person: { id: adult.id } } });
+      expect(stub).toMatchObject({ email: null, role: UserRole.MEMBER, isActive: false, inviteExpiresAt: null });
+      expect(await accessOf(adult.id)).toBe(AccessStatus.NONE);
+      expect(await accessOf(child.id)).toBe(AccessStatus.MANAGED);
+    });
+
+    it('reuses the account an adult already has', async () => {
+      const child = await saveChild();
+      const adult = await saveAdult('Marta');
+      await userRepo.save(userRepo.create({ email: 'marta@test.cat', role: UserRole.MEMBER, isActive: true, person: adult }));
+
+      await service.create(child.id, { responsiblePersonId: adult.id, delegateType: DelegateType.GUARDIAN, isPrimary: true });
+
+      expect(await userRepo.count()).toBe(1);
+      expect(await accessOf(child.id)).toBe(AccessStatus.MANAGED);
+    });
+
+    it('refuses a responsible person who is xicalla by age, leaving no stub behind', async () => {
+      const child = await saveChild();
+      const teen = await saveAdult('Teen', '2015-01-01');
+
+      await expect(
+        service.create(child.id, { responsiblePersonId: teen.id, delegateType: DelegateType.PARENT, isPrimary: true }),
+      ).rejects.toThrow(BadRequestException);
+      expect(await userRepo.count()).toBe(0);
+    });
   });
 });

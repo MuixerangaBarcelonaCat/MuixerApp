@@ -72,6 +72,7 @@ describe('Person shirt candidates (integration)', () => {
           provide: PersonDelegateService,
           useValue: {
             getPrimary: jest.fn().mockResolvedValue(null),
+            findPersonIdsWithResponsible: jest.fn().mockResolvedValue(new Set()),
             assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
           },
         },

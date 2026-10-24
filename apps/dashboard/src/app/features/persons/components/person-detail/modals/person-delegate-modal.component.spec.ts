@@ -202,7 +202,7 @@ describe('PersonDelegateModalComponent', () => {
   it('renders every delegate type option by default, without a partner option', () => {
     const options = fixture.nativeElement.querySelectorAll('#delegate-type option');
     const labels = Array.from(options).map((o) => (o as HTMLOptionElement).textContent?.trim());
-    expect(labels).toEqual(['Pare/Mare', 'Tutor/a', 'Altres']);
+    expect(labels).toEqual(['Pare/mare', 'Tutor/a', 'Altres']);
   });
 
   it('restricts type options to PARENT/GUARDIAN when isXicalla and isPrimary are both set', () => {
@@ -212,7 +212,7 @@ describe('PersonDelegateModalComponent', () => {
 
     const options = fixture.nativeElement.querySelectorAll('#delegate-type option');
     const labels = Array.from(options).map((o) => (o as HTMLOptionElement).textContent?.trim());
-    expect(labels).toEqual(['Pare/Mare', 'Tutor/a']);
+    expect(labels).toEqual(['Pare/mare', 'Tutor/a']);
   });
 
   it('does not restrict type options for a Xicalla secondary manager (isPrimary false)', () => {

@@ -40,6 +40,7 @@ describe('PersonService xicalla (integration)', () => {
           provide: PersonDelegateService,
           useValue: {
             getPrimary: jest.fn().mockResolvedValue(null),
+            findPersonIdsWithResponsible: jest.fn().mockResolvedValue(new Set()),
             assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
           },
         },
@@ -106,6 +107,12 @@ describe('PersonService xicalla (integration)', () => {
     it('answers with the derived value, not an unset one', async () => {
       const created = await service.createProvisional('nou');
       expect(created.isXicalla).toBe(false);
+    });
+
+    it('marks a new provisional person as xicalla by the manual flag', async () => {
+      const created = await service.createProvisional('petita', true);
+      expect(created.isXicalla).toBe(true);
+      expect((await stored(created.id)).isXicallaManual).toBe(true);
     });
   });
 

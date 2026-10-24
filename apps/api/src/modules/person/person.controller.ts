@@ -98,7 +98,7 @@ export class PersonController {
   @ApiResponse({ status: 400, description: 'Àlies invàlid' })
   @ApiResponse({ status: 409, description: 'Àlies ja en ús' })
   createProvisional(@Body() dto: CreateProvisionalPersonDto) {
-    return this.personService.createProvisional(dto.alias);
+    return this.personService.createProvisional(dto.alias, dto.isXicalla ?? false);
   }
 
   @Patch(':id')

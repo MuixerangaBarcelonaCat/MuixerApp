@@ -12,7 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { DelegateType, UserRole } from '@muixer/shared';
+import { DELEGATE_TYPE_LABELS, DelegateType, UserRole } from '@muixer/shared';
 import { AlertComponent, BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent } from '@muixer/ui';
 import { UserService } from '../../../../config/services/user.service';
 import { UserDto } from '../../../../config/models/user.model';
@@ -62,10 +62,10 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
   }
 
   private readonly allDelegateTypes: { value: DelegateType; label: string }[] = [
-    { value: DelegateType.PARENT, label: 'Pare/Mare' },
-    { value: DelegateType.GUARDIAN, label: 'Tutor/a' },
-    { value: DelegateType.OTHER, label: 'Altres' },
-  ];
+    DelegateType.PARENT,
+    DelegateType.GUARDIAN,
+    DelegateType.OTHER,
+  ].map((value) => ({ value, label: DELEGATE_TYPE_LABELS[value] }));
 
   readonly delegateTypes = computed(() =>
     this.isPrimary() && this.isXicalla()

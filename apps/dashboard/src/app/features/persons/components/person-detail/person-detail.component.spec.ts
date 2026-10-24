@@ -649,7 +649,7 @@ describe('PersonDetailComponent', () => {
       fixture.detectChanges();
       const relationSpan = fixture.nativeElement.querySelector('.ml-1');
       expect(relationSpan).toBeTruthy();
-      expect(relationSpan.textContent.trim()).toBe('(Pare/Mare)');
+      expect(relationSpan.textContent.trim()).toBe('(Pare/mare)');
     });
 
     it('opens the delegate modal with isPrimary true from "Defineix adult responsable"', () => {
@@ -672,7 +672,7 @@ describe('PersonDetailComponent', () => {
       const text = fixture.nativeElement.textContent;
       expect(text).toContain('Responsable');
       expect(text).toContain('parent@test.com');
-      expect(text).toContain('Pare/Mare');
+      expect(text).toContain('Pare/mare');
     });
 
     it('shows the primary manager\'s alias (not email) and links to their person page when self-managed', () => {
@@ -919,7 +919,7 @@ describe('PersonDetailComponent', () => {
     });
 
     it('getDelegateTypeLabel returns correct labels, including OTHER', () => {
-      expect(component.getDelegateTypeLabel(DelegateType.PARENT)).toBe('Pare/Mare');
+      expect(component.getDelegateTypeLabel(DelegateType.PARENT)).toBe('Pare/mare');
       expect(component.getDelegateTypeLabel(DelegateType.GUARDIAN)).toBe('Tutor/a');
       expect(component.getDelegateTypeLabel(DelegateType.OTHER)).toBe('Altres');
     });

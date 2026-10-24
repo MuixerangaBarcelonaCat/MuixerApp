@@ -7,7 +7,7 @@ import { Tag } from '../tag/tag.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
-import { TagCategory } from '@muixer/shared';
+import { AccessStatus, TagCategory } from '@muixer/shared';
 import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
@@ -46,6 +46,7 @@ describe('PersonService', () => {
 
   const mockPersonDelegateService = {
     getPrimary: jest.fn().mockResolvedValue(null),
+    findPersonIdsWithResponsible: jest.fn().mockResolvedValue(new Set()),
     assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
   };
 
@@ -136,6 +137,49 @@ describe('PersonService', () => {
       const result = await service.findOne('123');
 
       expect(result.user?.isActive).toBe(true);
+    });
+
+    it("exposes the linked user's invite expiry", async () => {
+      const expiresAt = new Date('2099-01-01T00:00:00Z');
+      mockPersonRepository.findOne.mockResolvedValue({
+        id: '123',
+        alias: 'test',
+        user: { id: 'u1', email: null, isActive: false, inviteExpiresAt: expiresAt },
+      });
+
+      const result = await service.findOne('123');
+
+      expect(result.user?.inviteExpiresAt).toEqual(expiresAt);
+    });
+
+    it('resolves accessStatus from the linked user', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({
+        id: '123',
+        alias: 'test',
+        user: { id: 'u1', email: null, isActive: false, inviteExpiresAt: new Date('2099-01-01T00:00:00Z') },
+      });
+
+      const result = await service.findOne('123');
+
+      expect(result.accessStatus).toBe(AccessStatus.INVITED);
+    });
+
+    it('resolves accessStatus MANAGED when someone else is responsible for the person', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '123', alias: 'test', user: null });
+      mockPersonDelegateService.findPersonIdsWithResponsible.mockResolvedValueOnce(new Set(['123']));
+
+      const result = await service.findOne('123');
+
+      expect(mockPersonDelegateService.findPersonIdsWithResponsible).toHaveBeenCalledWith(['123']);
+      expect(result.accessStatus).toBe(AccessStatus.MANAGED);
+    });
+
+    it('resolves accessStatus NONE with no account and no responsible', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '123', alias: 'test', user: null });
+
+      const result = await service.findOne('123');
+
+      expect(result.accessStatus).toBe(AccessStatus.NONE);
     });
 
     it('exposa tagCompliance calculada a partir de les etiquetes de la persona', async () => {
@@ -416,6 +460,25 @@ describe('PersonService', () => {
       expect(result.data.map((person) => person.attendedCount)).toEqual([0, 7]);
     });
 
+    it('resolves accessStatus per person, looking up responsibles for the loaded page only', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(3);
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 'a', alias: 'a', positions: [], user: { id: 'ua', email: 'a@b.c', isActive: true, inviteExpiresAt: null } },
+        { id: 'b', alias: 'b', positions: [], user: null },
+        { id: 'c', alias: 'c', positions: [], user: null },
+      ]);
+      mockPersonDelegateService.findPersonIdsWithResponsible.mockResolvedValueOnce(new Set(['b']));
+
+      const result = await service.findAll({ page: 1, limit: 10 });
+
+      expect(mockPersonDelegateService.findPersonIdsWithResponsible).toHaveBeenCalledWith(['a', 'b', 'c']);
+      expect(result.data.map((person) => person.accessStatus)).toEqual([
+        AccessStatus.ACTIVE,
+        AccessStatus.MANAGED,
+        AccessStatus.NONE,
+      ]);
+    });
+
     it('skips the attendance query entirely when the page is empty', async () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
@@ -597,6 +660,32 @@ describe('PersonService', () => {
 
       expect(mockPersonRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ alias: '~Joan', isProvisional: true, isActive: true }),
+      );
+    });
+
+    it('writes the xicalla flag to isXicallaManual (a provisional person has no birth date)', async () => {
+      const savedPerson = { id: 'prov-1', alias: '~Pepa', positions: [] };
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
+      mockPersonRepository.create.mockReturnValue(savedPerson);
+      mockPersonRepository.save.mockResolvedValue(savedPerson);
+
+      await service.createProvisional('Pepa', true);
+
+      expect(mockPersonRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isXicallaManual: true }),
+      );
+    });
+
+    it('leaves isXicallaManual false by default', async () => {
+      const savedPerson = { id: 'prov-1', alias: '~Joan', positions: [] };
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
+      mockPersonRepository.create.mockReturnValue(savedPerson);
+      mockPersonRepository.save.mockResolvedValue(savedPerson);
+
+      await service.createProvisional('Joan');
+
+      expect(mockPersonRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isXicallaManual: false }),
       );
     });
 
