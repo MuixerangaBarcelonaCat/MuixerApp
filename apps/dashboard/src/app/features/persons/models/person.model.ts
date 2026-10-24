@@ -1,4 +1,4 @@
-import { AvailabilityStatus, OnboardingStatus, FigureZone, Gender, TagCategory, TagCompliance } from '@muixer/shared';
+import { AccessStatus, AvailabilityStatus, OnboardingStatus, FigureZone, Gender, TagCategory, TagCompliance } from '@muixer/shared';
 
 export interface Position {
   id: string;
@@ -29,7 +29,9 @@ export interface Person {
   notesEmoji: string | null;
   isActive: boolean;
   positions: Position[];
-  user: { id: string; email: string | null; isActive: boolean } | null;
+  user: { id: string; email: string | null; isActive: boolean; inviteExpiresAt: string | null } | null;
+  /** Accés a l'app, resolt pel backend en llegir (`resolveAccessStatus`). */
+  accessStatus: AccessStatus;
   tagCompliance: TagCompliance;
   /** ASSISTIT attendances in the current season. Only populated on the list endpoint. */
   attendedCount: number;

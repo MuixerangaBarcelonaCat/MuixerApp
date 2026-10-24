@@ -11,7 +11,9 @@ export interface PersonDelegateItem {
   createdAt: string;
   user: {
     id: string;
-    email: string;
+    email: string | null;
+    isActive: boolean;
+    inviteExpiresAt: string | null;
     person: { id: string; alias: string; phone: string | null } | null;
   };
   person: {
@@ -20,11 +22,14 @@ export interface PersonDelegateItem {
   };
 }
 
-export interface CreateDelegatePayload {
-  userId: string;
+/** The delegate is named by account (`userId`) or by person (`responsiblePersonId`), never both. */
+export type CreateDelegatePayload = (
+  | { userId: string; responsiblePersonId?: never }
+  | { responsiblePersonId: string; userId?: never }
+) & {
   delegateType: DelegateType;
   isPrimary?: boolean;
-}
+};
 
 export interface UpdateDelegatePayload {
   delegateType?: DelegateType;

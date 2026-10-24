@@ -46,6 +46,8 @@ import {
 } from '../../../../shared/utils';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
+import { ResponsibleModalComponent } from './modals/responsible-modal.component';
+import { PersonAccessCardComponent } from '../person-access-card/person-access-card.component';
 import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
 import {
   PersonDelegateService,
@@ -93,6 +95,8 @@ const NOTES_PRESETS: { choice: Exclude<NotesChoice, 'ALTRE'>; emoji: string; tex
     SelectComponent,
     PaginationComponent,
     PersonDelegateModalComponent,
+    ResponsibleModalComponent,
+    PersonAccessCardComponent,
     EmojiPickerComponent,
   ],
   templateUrl: './person-detail.component.html',
@@ -150,9 +154,8 @@ export class PersonDetailComponent implements OnInit {
     return groups.filter((g) => g.tags.length > 0);
   });
 
-  creatingInviteLink = signal(false);
   delegateModalOpen = signal(false);
-  delegateModalIsPrimary = signal(false);
+  responsibleModalOpen = signal(false);
 
   // ── Delegates ──
   delegates = signal<PersonDelegateItem[]>([]);
@@ -425,38 +428,15 @@ export class PersonDetailComponent implements OnInit {
     this.notesChoice.set(this.notesChoiceFor(person.notes, person.notesEmoji));
   }
 
-  createInviteLink() {
-    const p = this.person();
-    if (!p || this.creatingInviteLink()) return;
-
-    this.creatingInviteLink.set(true);
-    this.personService.createInviteLink(p.id).subscribe({
-      next: async ({ inviteUrl }) => {
-        this.creatingInviteLink.set(false);
-        const copied = await this.copyToClipboard(inviteUrl);
-        this.toast.success(
-          copied
-            ? 'Enllaç d\'invitació copiat al portapapers.'
-            : `Enllaç d'invitació: ${inviteUrl}`,
-        );
-        const id = this.route.snapshot.paramMap.get('id');
-        if (id) this.loadPerson(id);
-      },
-      error: (err) => {
-        this.creatingInviteLink.set(false);
-        this.toast.error(err?.error?.message ?? 'Error en crear l\'enllaç d\'invitació');
-      },
-    });
-  }
-
-  private async copyToClipboard(text: string): Promise<boolean> {
-    if (!navigator.clipboard) return false;
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      return false;
-    }
+  /**
+   * Re-reads what an access change touches (the person's `accessStatus` and their delegates) without
+   * the page spinner or resetting the form, which may hold unsaved edits.
+   */
+  refreshAccess(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+    this.personService.getOne(id).subscribe({ next: (person) => this.person.set(person) });
+    this.loadDelegates();
   }
 
   // ── F3 History ──
@@ -515,18 +495,36 @@ export class PersonDetailComponent implements OnInit {
     });
   }
 
-  openDelegateModal(isPrimary = false): void {
-    this.delegateModalIsPrimary.set(isPrimary);
+  openDelegateModal(): void {
     this.delegateModalOpen.set(true);
   }
 
   onDelegateAdded(): void {
     this.delegateModalOpen.set(false);
     this.loadDelegates();
-    this.toast.success('Delegat afegit correctament.');
+    this.toast.success("S'ha afegit la delegació.");
+  }
+
+  openResponsibleModal(): void {
+    this.responsibleModalOpen.set(true);
+  }
+
+  onResponsibleSaved(): void {
+    this.responsibleModalOpen.set(false);
+    this.refreshAccess();
+    this.toast.success("S'ha vinculat la persona responsable.");
   }
 
   confirmingDelegateRemoval = signal<PersonDelegateItem | null>(null);
+  /** The responsible is unlinked; any other delegate's delegació is removed. */
+  removalCopy = computed(() => {
+    const delegate = this.confirmingDelegateRemoval();
+    if (!delegate) return null;
+    const name = delegate.user.person?.alias ?? delegate.user.email ?? '';
+    return delegate.isPrimary
+      ? { title: 'Desvincula la persona responsable', question: `Voleu desvincular ${name} com a persona responsable?`, action: 'Desvincula' }
+      : { title: 'Elimina la delegació', question: `Voleu eliminar la delegació de ${name}?`, action: 'Elimina' };
+  });
 
   askRemoveDelegate(delegate: PersonDelegateItem): void {
     this.confirmingDelegateRemoval.set(delegate);
@@ -546,8 +544,11 @@ export class PersonDetailComponent implements OnInit {
     this.delegateService.removeDelegate(personId, delegate.id).subscribe({
       next: () => {
         this.removingDelegateId.set(null);
-        this.loadDelegates();
-        this.toast.success('S\'ha eliminat la delegació.');
+        this.toast.success(
+          delegate.isPrimary ? "S'ha desvinculat la persona responsable." : "S'ha eliminat la delegació.",
+        );
+        if (delegate.isPrimary) this.refreshAccess();
+        else this.loadDelegates();
       },
       error: (err) => {
         this.removingDelegateId.set(null);

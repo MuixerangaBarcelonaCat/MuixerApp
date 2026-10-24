@@ -29,6 +29,8 @@ export class PersonSearchInputComponent implements OnDestroy {
 
   placeholder = input('Cerca persona...');
   excludeIds = input<string[]>([]);
+  /** Restricts results to xicalla (`true`) or adults (`false`), by the effective value; unset = both. */
+  isXicalla = input<boolean>();
 
   selected = output<Person>();
 
@@ -51,15 +53,18 @@ export class PersonSearchInputComponent implements OnDestroy {
 
     this.loading.set(true);
     this.debounceTimer = setTimeout(() => {
-      this.personService.getAll({ search: value, limit: 10, isActive: true }).subscribe({
-        next: (resp) => {
-          const excludeSet = new Set(this.excludeIds());
-          this.results.set(resp.data.filter((p) => !excludeSet.has(p.id)));
-          this.open.set(true);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+      const isXicalla = this.isXicalla();
+      this.personService
+        .getAll({ search: value, limit: 10, isActive: true, ...(isXicalla === undefined ? {} : { isXicalla }) })
+        .subscribe({
+          next: (resp) => {
+            const excludeSet = new Set(this.excludeIds());
+            this.results.set(resp.data.filter((p) => !excludeSet.has(p.id)));
+            this.open.set(true);
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        });
     }, 300);
   }
 

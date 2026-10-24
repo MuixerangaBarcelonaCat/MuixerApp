@@ -49,7 +49,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
     defaultVisible: true,
     sortField: 'isActive',
   },
-  { key: 'inviteExpiresAt', label: 'Invitació expira', defaultVisible: false },
+  { key: 'inviteExpiresAt', label: 'Venciment de la invitació', defaultVisible: false },
   {
     key: 'createdAt',
     label: 'Creat',

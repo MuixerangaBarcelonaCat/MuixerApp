@@ -1,0 +1,49 @@
+@if (error()) {
+  <lib-alert variant="error" dense>{{ error() }}</lib-alert>
+}
+
+@if (link(); as created) {
+  <div class="flex flex-col gap-4">
+    <p class="text-sm">Envieu este enllaç a <strong>{{ alias() }}</strong>, per exemple per WhatsApp.</p>
+
+    <lib-input
+      label="Enllaç d'invitació"
+      class="font-mono"
+      readonly
+      [ngModel]="created.inviteUrl"
+    />
+
+    <div class="flex flex-wrap gap-2">
+      <lib-button variant="primary" size="sm" (clicked)="copy()">
+        <lucide-icon [img]="CopyIcon" [size]="16" aria-hidden="true" />
+        Copia
+      </lib-button>
+      @if (canShare) {
+        <lib-button variant="neutral" outline size="sm" (clicked)="share()">
+          <lucide-icon [img]="ShareIcon" [size]="16" aria-hidden="true" />
+          Comparteix
+        </lib-button>
+      }
+    </div>
+
+    @if (expiry(); as e) {
+      <div class="flex flex-col gap-1 text-sm">
+        <p>L'enllaç venç el {{ e.date }} a les {{ e.time }}.</p>
+        <p class="text-base-content/60">
+          Només es mostra ara. Si el perdeu, en podeu crear un altre des de la fitxa de la persona, però
+          l'anterior deixarà de funcionar.
+        </p>
+      </div>
+    }
+  </div>
+} @else if (!autoGenerate() || error()) {
+  <div class="mt-2">
+    <lib-button variant="primary" size="sm" [loading]="generating()" (clicked)="generate()">
+      Crea l'enllaç d'invitació
+    </lib-button>
+  </div>
+} @else {
+  <div class="flex justify-center py-4">
+    <span class="loading loading-spinner loading-sm text-primary"></span>
+  </div>
+}

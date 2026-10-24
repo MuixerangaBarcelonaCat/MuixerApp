@@ -1,4 +1,4 @@
-import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { AccessStatus, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 
 const BASELINE = 140;
 import type { Person } from '../../features/persons/models/person.model';
@@ -33,6 +33,7 @@ describe('person.util', () => {
     isActive: true,
     positions: [],
     user: null,
+    accessStatus: AccessStatus.NONE,
     tagCompliance: { ok: true, missing: [] },
     attendedCount: 0,
     createdAt: '',

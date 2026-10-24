@@ -52,6 +52,21 @@ describe('PersonService', () => {
     req.flush([]);
   });
 
+  it('createProvisional posts the alias and the xicalla flag', () => {
+    service.createProvisional('Pepa', true).subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/persons/provisional`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ alias: 'Pepa', isXicalla: true });
+    req.flush({});
+  });
+
+  it('createProvisional sends isXicalla false by default', () => {
+    service.createProvisional('Joan').subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/persons/provisional`);
+    expect(req.request.body).toEqual({ alias: 'Joan', isXicalla: false });
+    req.flush({});
+  });
+
   it('createInviteLink posts to /users/invite-link with the personId', () => {
     const expected = { inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' };
     service.createInviteLink('p1').subscribe((res) => {

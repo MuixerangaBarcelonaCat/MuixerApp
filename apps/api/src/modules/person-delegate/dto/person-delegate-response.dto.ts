@@ -22,6 +22,13 @@ class DelegateUserDto {
   @Expose()
   email: string;
 
+  /** With `inviteExpiresAt`, what `resolveAccessStatus` needs to show the responsible's own access. */
+  @Expose()
+  isActive: boolean;
+
+  @Expose()
+  inviteExpiresAt: Date | null;
+
   /** The delegate's own linked person, if self-managed — lets the UI link to their profile. */
   @Expose()
   @Type(() => DelegateUserPersonDto)

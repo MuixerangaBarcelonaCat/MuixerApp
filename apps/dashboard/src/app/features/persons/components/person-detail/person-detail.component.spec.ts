@@ -1,8 +1,8 @@
 import { PersonAssignmentEntry } from '@muixer/pinyes-render';
-import { TagCategory } from '@muixer/shared';
+import { AccessStatus, TagCategory } from '@muixer/shared';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { DelegateType } from '@muixer/shared';
 import { PersonDetailComponent } from './person-detail.component';
@@ -13,10 +13,13 @@ import { TagService } from '../../../config/services/tag.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
-import { ToastService } from '@muixer/ui';
 import { signal } from '@angular/core';
 import { CollaSettings, DEFAULT_COLLA_SETTINGS } from '@muixer/shared';
 import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
+import { PersonAccessCardComponent } from '../person-access-card/person-access-card.component';
+import { ResponsibleModalComponent } from './modals/responsible-modal.component';
+import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
+import { By } from '@angular/platform-browser';
 
 const makePerson = (overrides: Partial<Person> = {}): Person => ({
   id: 'p1',
@@ -38,6 +41,7 @@ const makePerson = (overrides: Partial<Person> = {}): Person => ({
   isActive: true,
   positions: [],
   user: null,
+  accessStatus: AccessStatus.NONE,
   tagCompliance: { ok: true, missing: [] },
   attendedCount: 0,
   createdAt: '2026-01-01T00:00:00Z',
@@ -238,11 +242,11 @@ describe('PersonDetailComponent', () => {
       expect(editButton.closest('.flex-wrap')?.className).toContain('flex-wrap');
     });
 
-    it('lets the "Informació de la colla" button row wrap instead of cutting off "Defineix adult responsable"', () => {
+    it('lets the access card\'s button row wrap instead of cutting off "Defineix una persona responsable"', () => {
       component.editing.set(true);
       fixture.detectChanges();
       const linkButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (btn) => (btn as HTMLElement).textContent?.trim() === 'Defineix adult responsable',
+        (btn) => (btn as HTMLElement).textContent?.trim() === 'Defineix una persona responsable',
       ) as HTMLElement;
       // lib-button's host is `display: contents`, so the real <button> nests one level deeper
       // in the DOM than it visually renders — .closest() walks past that wrapper to find the
@@ -580,53 +584,106 @@ describe('PersonDetailComponent', () => {
       isActive: true,
       isPrimary: true,
       createdAt: '2026-07-01T00:00:00Z',
-      user: { id: 'user-1', email: 'parent@test.com', person: null },
+      user: { id: 'user-1', email: 'parent@test.com', isActive: true, inviteExpiresAt: null, person: null },
       person: { id: 'p1', alias: 'child' },
       ...overrides,
     });
 
-    it('shows invite/link buttons when the person has no manager', () => {
-      component.delegates.set([]);
-      fixture.detectChanges();
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain("Crea enllaç d'invitació");
-      expect(text).toContain('Defineix adult responsable');
-    });
+    const card = () => fixture.debugElement.query(By.directive(PersonAccessCardComponent));
+    const buttonWith = (label: string) =>
+      Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === label,
+      ) as HTMLButtonElement | undefined;
 
-    it('still shows invite/link buttons when there are secondary delegates but no responsable', () => {
-      component.delegates.set([
-        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u2', email: 'aunt@test.com', person: null } }),
-      ]);
-      fixture.detectChanges();
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain("Crea enllaç d'invitació");
-      expect(text).toContain('Defineix adult responsable');
-      expect(text).toContain('Delegacions');
-    });
-
-    it('disables "Crea enllaç d\'invitació" for a xicalla, with an explanatory tooltip', () => {
-      component.person.set(makePerson({ isXicalla: true }));
-      component.delegates.set([]);
+    it('shows the access card, fed with the person and their responsible', () => {
+      const responsible = makeDelegateItem();
+      component.delegates.set([responsible, makeDelegateItem({ id: 'del-2', isPrimary: false })]);
       fixture.detectChanges();
 
-      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
-      ) as HTMLButtonElement;
-      expect(btn.disabled).toBe(true);
-
-      const tooltip = btn.closest('.tooltip') as HTMLElement | null;
-      expect(tooltip?.getAttribute('data-tip')).toContain('responsable legal');
+      const instance = card().componentInstance as PersonAccessCardComponent;
+      expect(instance.person()).toEqual(component.person());
+      expect(instance.responsible()).toEqual(responsible);
     });
 
-    it('keeps "Crea enllaç d\'invitació" enabled for a non-xicalla person', () => {
+    it('offers the invite first for an adult with no access', () => {
       component.person.set(makePerson({ isXicalla: false }));
       component.delegates.set([]);
       fixture.detectChanges();
 
-      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
-      ) as HTMLButtonElement;
-      expect(btn.disabled).toBe(false);
+      expect(buttonWith("Crea l'enllaç d'invitació")).toBeTruthy();
+      expect(buttonWith('Defineix una persona responsable')).toBeTruthy();
+    });
+
+    it('offers only a responsible for a xicalla, never an invite', () => {
+      component.person.set(makePerson({ isXicalla: true }));
+      component.delegates.set([]);
+      fixture.detectChanges();
+
+      expect(buttonWith("Crea l'enllaç d'invitació")).toBeUndefined();
+      expect(buttonWith('Defineix la persona responsable')).toBeTruthy();
+    });
+
+    it('opens the responsible modal from the card', () => {
+      component.person.set(makePerson({ isXicalla: true }));
+      fixture.detectChanges();
+
+      (card().componentInstance as PersonAccessCardComponent).defineResponsible.emit();
+      fixture.detectChanges();
+
+      const modal = fixture.debugElement.query(By.directive(ResponsibleModalComponent));
+      expect(modal).toBeTruthy();
+      expect((modal.componentInstance as ResponsibleModalComponent).isXicalla()).toBe(true);
+    });
+
+    it('reloads the person and their delegates once a responsible is linked', () => {
+      component.openResponsibleModal();
+      fixture.detectChanges();
+      mockPersonService.getOne.mockClear();
+      mockDelegateService.getByPerson.mockClear();
+
+      const modal = fixture.debugElement.query(By.directive(ResponsibleModalComponent));
+      (modal.componentInstance as ResponsibleModalComponent).saved.emit(makeDelegateItem());
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.directive(ResponsibleModalComponent))).toBeNull();
+      expect(mockPersonService.getOne).toHaveBeenCalledWith('p1');
+      expect(mockDelegateService.getByPerson).toHaveBeenCalledWith('p1');
+    });
+
+    it('reloads the person and their delegates when the card creates a link', () => {
+      fixture.detectChanges();
+      mockPersonService.getOne.mockClear();
+      mockDelegateService.getByPerson.mockClear();
+
+      (card().componentInstance as PersonAccessCardComponent).changed.emit();
+
+      expect(mockPersonService.getOne).toHaveBeenCalledWith('p1');
+      expect(mockDelegateService.getByPerson).toHaveBeenCalledWith('p1');
+    });
+
+    it('asks before unlinking the responsible, in their own words', () => {
+      const responsible = makeDelegateItem({
+        user: { id: 'u1', email: null, isActive: false, inviteExpiresAt: null, person: { id: 'joan', alias: 'Joan', phone: null } },
+      });
+      component.delegates.set([responsible]);
+      fixture.detectChanges();
+
+      (card().componentInstance as PersonAccessCardComponent).removeResponsible.emit(responsible);
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Desvincula la persona responsable');
+      expect(text).toContain('Voleu desvincular Joan com a persona responsable?');
+    });
+
+    it('shows the account email among the personal data, never «Pendent d\'activar»', () => {
+      component.person.set(makePerson({ user: { id: 'u1', email: null, isActive: false, inviteExpiresAt: null } }));
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain("Pendent d'activar");
+
+      component.person.set(makePerson({ user: { id: 'u1', email: 'pepa@test.cat', isActive: true, inviteExpiresAt: null } }));
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('pepa@test.cat');
     });
 
     it('does not show the "Delegacions" title when there are none and not in edit mode', () => {
@@ -644,48 +701,6 @@ describe('PersonDetailComponent', () => {
       expect(text).toContain('Cap delegació');
     });
 
-    it('shows the relació text with a visible gap from the name (not glued together)', () => {
-      component.delegates.set([makeDelegateItem()]);
-      fixture.detectChanges();
-      const relationSpan = fixture.nativeElement.querySelector('.ml-1');
-      expect(relationSpan).toBeTruthy();
-      expect(relationSpan.textContent.trim()).toBe('(Pare/mare)');
-    });
-
-    it('opens the delegate modal with isPrimary true from "Defineix adult responsable"', () => {
-      component.delegates.set([]);
-      component.editing.set(true);
-      fixture.detectChanges();
-      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === 'Defineix adult responsable',
-      ) as HTMLElement;
-      btn.click();
-      fixture.detectChanges();
-
-      expect(component.delegateModalOpen()).toBe(true);
-      expect(component.delegateModalIsPrimary()).toBe(true);
-    });
-
-    it('shows "Responsable" with the primary manager\'s email and type badge', () => {
-      component.delegates.set([makeDelegateItem()]);
-      fixture.detectChanges();
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Responsable');
-      expect(text).toContain('parent@test.com');
-      expect(text).toContain('Pare/mare');
-    });
-
-    it('shows the primary manager\'s alias (not email) and links to their person page when self-managed', () => {
-      component.delegates.set([
-        makeDelegateItem({ user: { id: 'user-1', email: 'parent@test.com', person: { id: 'parent-person', alias: 'ParentAlias', phone: null } } }),
-      ]);
-      fixture.detectChanges();
-      const link = fixture.nativeElement.querySelector('a[href*="/persons/parent-person"]') as HTMLAnchorElement | null;
-      expect(link).toBeTruthy();
-      expect(link!.textContent).toContain('ParentAlias');
-      expect(fixture.nativeElement.textContent).not.toContain('parent@test.com');
-    });
-
     describe('phone display', () => {
       it('hides the +34 prefix on the person\'s own phone', () => {
         component.person.set(makePerson({ phone: '+34612345678' }));
@@ -699,7 +714,7 @@ describe('PersonDetailComponent', () => {
       it('hides the +34 prefix on the responsable\'s phone', () => {
         component.person.set(makePerson({ phone: null }));
         component.delegates.set([
-          makeDelegateItem({ user: { id: 'u', email: 'p@test.com', person: { id: 'pp', alias: 'Pare', phone: '+34612345678' } } }),
+          makeDelegateItem({ user: { id: 'u', email: 'p@test.com', isActive: true, inviteExpiresAt: null, person: { id: 'pp', alias: 'Pare', phone: '+34612345678' } } }),
         ]);
         fixture.detectChanges();
 
@@ -720,6 +735,8 @@ describe('PersonDetailComponent', () => {
       const parentUser = (phone: string | null) => ({
         id: 'user-1',
         email: 'parent@test.com',
+        isActive: true,
+        inviteExpiresAt: null,
         person: { id: 'parent-person', alias: 'ParentAlias', phone },
       });
 
@@ -767,8 +784,8 @@ describe('PersonDetailComponent', () => {
     it('shows a titled, comma-separated "Delegacions" list for secondary managers, with a remove action each when in edit mode', () => {
       component.delegates.set([
         makeDelegateItem(),
-        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.GUARDIAN, user: { id: 'u2', email: 'guardian@test.com', person: null } }),
-        makeDelegateItem({ id: 'del-3', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u3', email: 'aunt@test.com', person: { id: 'aunt-person', alias: 'AuntAlias', phone: null } } }),
+        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.GUARDIAN, user: { id: 'u2', email: 'guardian@test.com', isActive: true, inviteExpiresAt: null, person: null } }),
+        makeDelegateItem({ id: 'del-3', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u3', email: 'aunt@test.com', isActive: true, inviteExpiresAt: null, person: { id: 'aunt-person', alias: 'AuntAlias', phone: null } } }),
       ]);
       component.editing.set(true);
       fixture.detectChanges();
@@ -782,157 +799,53 @@ describe('PersonDetailComponent', () => {
       const link = fixture.nativeElement.querySelector('a[href*="/persons/aunt-person"]') as HTMLAnchorElement | null;
       expect(link).toBeTruthy();
 
-      const removeButtons = fixture.nativeElement.querySelectorAll('[aria-label^="Elimina delegat "]');
+      const removeButtons = fixture.nativeElement.querySelectorAll('[aria-label^="Elimina la delegació de "]');
       expect(removeButtons.length).toBe(2);
     });
 
     it('does not show remove actions for delegates when not in edit mode', () => {
       component.delegates.set([
         makeDelegateItem(),
-        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.GUARDIAN, user: { id: 'u2', email: 'guardian@test.com', person: null } }),
+        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.GUARDIAN, user: { id: 'u2', email: 'guardian@test.com', isActive: true, inviteExpiresAt: null, person: null } }),
       ]);
       fixture.detectChanges();
-      const removeButtons = fixture.nativeElement.querySelectorAll('[aria-label^="Elimina delegat "]');
+      const removeButtons = fixture.nativeElement.querySelectorAll('[aria-label^="Elimina la delegació de "]');
       expect(removeButtons.length).toBe(0);
     });
 
-    it('shows the "Afegeix" action once a primary manager exists and in edit mode', () => {
-      component.delegates.set([makeDelegateItem()]);
-      component.editing.set(true);
-      fixture.detectChanges();
-      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === '+ Afegeix',
-      );
-      expect(btn).toBeTruthy();
-    });
-
-    it('shows "Afegeix" in edit mode even when there is no manager yet (delegates are independent of the responsable)', () => {
+    it('shows "Afegeix" in edit mode, independent of the responsible', () => {
       component.delegates.set([]);
       component.editing.set(true);
       fixture.detectChanges();
-      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === '+ Afegeix',
-      );
-      expect(btn).toBeTruthy();
+      expect(buttonWith('+ Afegeix')).toBeTruthy();
     });
 
-    it('does not show "Afegeix" when not in edit mode, even with a manager', () => {
+    it('does not show "Afegeix" when not in edit mode', () => {
       component.delegates.set([makeDelegateItem()]);
       fixture.detectChanges();
-      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === '+ Afegeix',
-      );
-      expect(btn).toBeFalsy();
+      expect(buttonWith('+ Afegeix')).toBeFalsy();
     });
 
-    it('shows a remove action for the responsable when in edit mode', () => {
-      component.delegates.set([makeDelegateItem()]);
+    it('opens the delegation modal from "Afegeix"', () => {
       component.editing.set(true);
       fixture.detectChanges();
-      const removeBtn = fixture.nativeElement.querySelector(
-        '[aria-label="Elimina responsable parent@test.com"]',
+
+      buttonWith('+ Afegeix')!.click();
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.directive(PersonDelegateModalComponent))).toBeTruthy();
+    });
+
+    it('confirms a delegation removal in its own words', () => {
+      component.askRemoveDelegate(
+        makeDelegateItem({ id: 'del-2', isPrimary: false, user: { id: 'u2', email: 'aunt@test.com', isActive: true, inviteExpiresAt: null, person: null } }),
       );
-      expect(removeBtn).toBeTruthy();
-    });
-
-    it('does not show a remove action for the responsable when not in edit mode', () => {
-      component.delegates.set([makeDelegateItem()]);
-      fixture.detectChanges();
-      const removeBtn = fixture.nativeElement.querySelector(
-        '[aria-label="Elimina responsable parent@test.com"]',
-      );
-      expect(removeBtn).toBeFalsy();
-    });
-
-    it('creates an invite link, copies it to the clipboard and shows a success toast', async () => {
-      const writeText = vi.fn().mockResolvedValue(undefined);
-      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-      const createInviteLink = vi.fn().mockReturnValue(
-        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
-      );
-      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
-        createInviteLink;
-      component.person.set(makePerson());
-
-      component.createInviteLink();
-      await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(createInviteLink).toHaveBeenCalledWith('p1');
-      expect(writeText).toHaveBeenCalledWith('http://localhost:4300/activate?token=abc');
-      const toastService = TestBed.inject(ToastService);
-      expect(toastService.toasts().at(-1)?.message).toContain('portapapers');
-    });
-
-    it('falls back to showing the link in the toast when the clipboard API is unavailable', async () => {
-      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
-      const createInviteLink = vi.fn().mockReturnValue(
-        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
-      );
-      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
-        createInviteLink;
-      component.person.set(makePerson());
-
-      component.createInviteLink();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      const toastService = TestBed.inject(ToastService);
-      expect(toastService.toasts().at(-1)?.message).toContain('http://localhost:4300/activate?token=abc');
-    });
-
-    it('shows an error toast when creating the invite link fails', async () => {
-      const createInviteLink = vi.fn().mockReturnValue(
-        throwError(() => ({ error: { message: 'Aquesta persona ja té un compte actiu' } })),
-      );
-      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
-        createInviteLink;
-      component.person.set(makePerson());
-
-      component.createInviteLink();
-      fixture.detectChanges();
-
-      const toastService = TestBed.inject(ToastService);
-      expect(toastService.toasts().at(-1)?.message).toBe('Aquesta persona ja té un compte actiu');
-    });
-
-    it('shows a "Compte actiu" indicator instead of the invite button once the account is active', () => {
-      component.person.set(makePerson({ user: { id: 'u1', email: 'active@test.com', isActive: true } }));
-      fixture.detectChanges();
-
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Compte actiu');
-      expect(text).not.toContain("Crea enllaç d'invitació");
-    });
-
-    it('shows a regenerate button and a "Pendent d\'activar" badge when the linked account is inactive', () => {
-      component.person.set(makePerson({ user: { id: 'u1', email: null, isActive: false } }));
-      fixture.detectChanges();
-
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain("Pendent d'activar");
-      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
-      ) as HTMLButtonElement | undefined;
-      expect(btn).toBeTruthy();
-      expect(btn?.disabled).toBe(false);
-    });
-
-    it('getDelegateTypeLabel returns correct labels, including OTHER', () => {
-      expect(component.getDelegateTypeLabel(DelegateType.PARENT)).toBe('Pare/mare');
-      expect(component.getDelegateTypeLabel(DelegateType.GUARDIAN)).toBe('Tutor/a');
-      expect(component.getDelegateTypeLabel(DelegateType.OTHER)).toBe('Altres');
-    });
-
-    it('askRemoveDelegate opens confirm dialog', () => {
-      const delegate = makeDelegateItem();
-      component.askRemoveDelegate(delegate);
-      fixture.detectChanges();
-      // lib-modal is always rendered (not conditionally mounted) and drives the native `open`
-      // attribute via showModal()/close() — no `role="alertdialog"` to select on.
       const dialog = fixture.nativeElement.querySelector('dialog[open]');
       expect(dialog).toBeTruthy();
-      expect(fixture.nativeElement.textContent).toContain('parent@test.com');
+      expect(dialog.textContent).toContain('Elimina la delegació');
+      expect(dialog.textContent).toContain('Voleu eliminar la delegació de aunt@test.com?');
     });
 
     it('cancelRemoveDelegate closes confirm dialog', () => {
@@ -942,6 +855,12 @@ describe('PersonDetailComponent', () => {
       fixture.detectChanges();
       const dialog = fixture.nativeElement.querySelector('dialog[open]');
       expect(dialog).toBeNull();
+    });
+
+    it('getDelegateTypeLabel returns correct labels, including OTHER', () => {
+      expect(component.getDelegateTypeLabel(DelegateType.PARENT)).toBe('Pare/mare');
+      expect(component.getDelegateTypeLabel(DelegateType.GUARDIAN)).toBe('Tutor/a');
+      expect(component.getDelegateTypeLabel(DelegateType.OTHER)).toBe('Altres');
     });
   });
 

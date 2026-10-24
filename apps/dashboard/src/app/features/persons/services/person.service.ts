@@ -39,9 +39,12 @@ export class PersonService extends ApiService {
     return this.get<Position[]>('/tags');
   }
 
-  /** Crea una persona provisional amb l'àlies indicat. El backend afegeix automàticament el prefix `~`. */
-  createProvisional(alias: string): Observable<Person> {
-    return this.post<Person>('/persons/provisional', { alias });
+  /**
+   * Crea una persona provisional amb l'àlies indicat. El backend afegeix automàticament el prefix `~`.
+   * `isXicalla` és el valor marcat a mà: compta mentre la persona no tinga data de naixement.
+   */
+  createProvisional(alias: string, isXicalla = false): Observable<Person> {
+    return this.post<Person>('/persons/provisional', { alias, isXicalla });
   }
 
   /** Actualitza parcialment una persona. Usat per edicions de detall i per a les transicions provisional↔regular. */
