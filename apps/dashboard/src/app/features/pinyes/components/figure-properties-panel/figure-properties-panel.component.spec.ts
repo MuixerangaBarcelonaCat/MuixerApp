@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS } from '@muixer/ui';
 import { FigurePropertiesPanelComponent, FigurePropertiesEntry } from './figure-properties-panel.component';
 
 const makeEntry = (overrides: Partial<FigurePropertiesEntry> = {}): FigurePropertiesEntry => ({

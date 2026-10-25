@@ -10,21 +10,25 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ConnectedPosition, OverlayModule } from '@angular/cdk/overlay';
 import { LucideAngularModule, Scale } from 'lucide-angular';
-import { ButtonComponent, InputComponent, BadgeComponent, THEME_NAMES } from '@muixer/ui';
+import { ButtonComponent, InputComponent, BadgeComponent, NODE_TYPE_PALETTE } from '@muixer/ui';
+import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
+import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
+import { attendanceVisual } from '../../node-render/attendance';
+import { NodeAppearance, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
+import { DisplayMode, HeightDomain, displayModeOverrides, personDisplayFacts } from '../../node-render/display-mode';
 import {
   analyzeTroncHeights,
+  attendanceStatusLabel,
   CumulativeHeight,
-  DIRECTION_NODE_PRESETS,
   DIRECTION_SLOTS,
   DirectionAssignmentEntry,
   EventPhase,
   FigureZone,
+  Gender,
   FloorHeightGap,
   formatDirectionNames,
-  ICON_OBSERVACIONS,
-  isArrivalPhase,
-  SHOULDER_HEIGHT_BASELINE_CM,
   TRONC_HEIGHT_THRESHOLDS,
   TRONC_NODE_PRESETS,
   TRONC_Z_DEFAULTS,
@@ -34,7 +38,8 @@ import {
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
-import { FitTextDirective } from '../../directives/fit-text.directive';
+import { FigureBand } from '../../utils/figure-palette.util';
+import { positionTypeColor } from '../../theme/node-color';
 import { LongPressDetector } from '../../utils/long-press.util';
 import {
   baseNodeGridColumn,
@@ -91,6 +96,13 @@ type TroncFloor = TroncLayoutFloor<TroncNodeItem>;
 
 const MAX_TRONC_Z = 5;
 
+/** How each panel mode draws its nodes: the template editor shows types, staffing and projection the shared paper tone. */
+const APPEARANCE_MODE: Record<'editor' | 'assignment' | 'projection', NodeAppearanceMode> = {
+  editor: 'template',
+  assignment: 'workspace',
+  projection: 'projection',
+};
+
 /** Minimum pointer movement (px) before a pointerdown is treated as a drag rather than a tap/click. */
 const DRAG_THRESHOLD_PX = 6;
 
@@ -104,14 +116,12 @@ function knownCm(height: CumulativeHeight | undefined): number {
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, FitTextDirective, ButtonComponent, InputComponent, BadgeComponent],
-  host: { '[attr.data-theme]': 'pinnedTheme' },
+  imports: [FormsModule, OverlayModule, LucideAngularModule, PersonHoverCardComponent, NodeDrawingComponent, ButtonComponent, InputComponent, BadgeComponent],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
 export class TroncViewComponent {
-  /** Figure rendering stays on the light theme until it's themed for dark mode (see DEBT.md). */
-  protected readonly pinnedTheme = THEME_NAMES.light;
+  private readonly theme = injectCanvasTheme();
 
   // ── Inputs ─────────────────────────────────────────────────────────────────
 
@@ -141,29 +151,29 @@ export class TroncViewComponent {
   /** Before / on / after the event day: from the event day on, ANIRE is a no-show and PENDENT a no-answer. */
   readonly phase = input<EventPhase>('before');
 
-  /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes. */
-  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
+  /** personId → attendance status for the next actuació: `ANIRE` shows the star. */
+  readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
 
-  readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
+  /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes; gender feeds the Gènere mode. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null; gender?: Gender | null }>>(new Map());
+
+  /** Staffing: what the node colors stand for. `position` (the default) draws as always. */
+  readonly displayMode = input<DisplayMode>('position');
+  /** Alçada: the shortest → tallest assigned person the ramp stretches over (the whole tab, not this panel). */
+  readonly heightDomain = input<HeightDomain | null>(null);
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
-  /** Projection mode only: color used for the panel border and tinted background. */
-  readonly panelColor = input<string | null>(null);
-
-  /** Projection mode only: color used for the panel border, if different from panelColor. */
-  readonly panelBorderColor = input<string | null>(null);
-
-  /** Projection mode only: figure name shown as a header inside the panel. */
+  /** The figure name heading the panel, in any mode; `null` draws no heading (the template editor). */
   readonly figureName = input<string | null>(null);
+
+  /** The band in the figure colour behind the name (`getFigureBand`); `null` leaves plain paper. */
+  readonly nameBand = input<FigureBand | null>(null);
 
   // ── Outputs ────────────────────────────────────────────────────────────────
 
   /** Emits the clicked node id. Emits null when deselecting. */
   readonly nodeSelected = output<string | null>();
-
-  /** Emits for popover positioning (assigned node clicked). */
-  readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
   /**
    * Assignment mode: a node was right-clicked (the same gesture a long press will trigger on
@@ -189,9 +199,6 @@ export class TroncViewComponent {
   /** Editor only: delete all TRONC nodes at a given z-level. */
   readonly floorRemoved = output<number>();
 
-  /** Assignment mode: request unassignment for a node id. */
-  readonly nodeUnassigned = output<string>();
-
   /** Assignment mode: a person was dragged off a node (possibly of a sibling tronc-view) and dropped here. */
   readonly nodeDropped = output<{
     sourceInstanceId: string;
@@ -211,7 +218,21 @@ export class TroncViewComponent {
   /** Whether the directions section is expanded. */
   readonly directionsExpanded = signal(true);
 
-  readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
+  /**
+   * The person card and the node it is anchored to. The card is drawn in the page overlay (a CDK
+   * connected overlay), not in place: in the projection and Distribució the panel is scaled, and a
+   * transformed ancestor would make an in-place `position: fixed` card measure from it instead of the
+   * viewport.
+   */
+  readonly hoveredPerson = signal<{ info: PersonHoverInfo; anchor: HTMLElement; positionType: string | null } | null>(null);
+
+  /** Right of the node by preference, left of it when the viewport leaves no room. */
+  protected readonly hoverCardPositions: ConnectedPosition[] = [
+    { originX: 'end', originY: 'top', overlayX: 'start', overlayY: 'top', offsetX: 8 },
+    { originX: 'start', originY: 'top', overlayX: 'end', overlayY: 'top', offsetX: -8 },
+    { originX: 'end', originY: 'bottom', overlayX: 'start', overlayY: 'bottom', offsetX: 8 },
+    { originX: 'start', originY: 'bottom', overlayX: 'end', overlayY: 'bottom', offsetX: -8 },
+  ];
 
   /** Assignment-mode drag-and-drop: id of the node whose person is currently being dragged. */
   readonly draggingNodeId = signal<string | null>(null);
@@ -384,6 +405,65 @@ export class TroncViewComponent {
     return result;
   });
 
+  /**
+   * How every node is drawn (`app-node-drawing`), through the same appearance model as the pinya
+   * canvas: attendance in the fill, the state marks in the outline, the corner badges.
+   */
+  readonly appearanceByNodeId = computed(() => {
+    const mode = this.mode();
+    const assignmentByNodeId = new Map(this.assignments().map((a) => [a.node.id, a]));
+    const details = this.personDetailsMap();
+    const attendance = this.attendanceMap();
+    const nextPerformance = this.nextPerformanceMap();
+    const conflicts = this.conflictPersonIds();
+    const moveSources = this.highlightedNodeIds();
+    const selectedId = this.selectedNodeId();
+    const dragOverId = this.dragOverNodeId();
+    const phase = this.phase();
+    const heightMode = this.heightMode();
+    // Staffing and the projection draw the panel on a tronc card; the template editor on the page.
+    const canvasTheme = this.theme();
+    const display = { mode: this.displayMode(), phase, heightDomain: this.heightDomain(), themeMode: canvasTheme.mode };
+    const sources = { attendance, nextPerformance, details };
+    const theme = mode === 'editor' ? canvasTheme : { ...canvasTheme, paper: canvasTheme.card };
+
+    const map = new Map<string, NodeAppearance>();
+    for (const node of [...this.troncNodes(), ...this.baseNodes(), ...this.directionNodes()]) {
+      const person = assignmentByNodeId.get(node.id)?.person;
+      const notes = person ? details.get(person.id) : undefined;
+      const overrides = displayModeOverrides(person ? personDisplayFacts(person, sources) : null, display);
+      map.set(
+        node.id,
+        resolveNodeAppearance(
+          {
+            zone: node.zone,
+            positionType: node.positionType,
+            color: node.color,
+            label: this.displayLabel(node),
+            person: person
+              ? {
+                  name: formatAssignedLabel(person.alias, node.climbIndicator),
+                  height: formatShoulderHeight(person.shoulderHeight, heightMode),
+                  nextActuacio: nextPerformance.get(person.id) === 'ANIRE',
+                  observation: notes?.notes ? { emoji: notes.notesEmoji } : null,
+                }
+              : null,
+            attendance: person ? attendanceVisual(attendance.get(person.id), phase) : undefined,
+            selected: node.id === selectedId,
+            moveSource: moveSources.has(node.id),
+            dropTarget: node.id === dragOverId ? (person ? 'swap' : 'move') : null,
+            conflict: !!person && conflicts.has(person.id),
+            palette: mode === 'editor' ? 'type' : 'neutral',
+            mode: APPEARANCE_MODE[mode],
+            ...overrides,
+          },
+          theme,
+        ),
+      );
+    }
+    return map;
+  });
+
   /** The currently selected TRONC node (null if BASE or nothing selected). */
   readonly selectedTroncNode = computed(() => {
     const id = this.selectedNodeId();
@@ -429,7 +509,6 @@ export class TroncViewComponent {
     if (this.longPress.swallowsClick()) return;
     this.nodeSelected.emit(node.id);
     if (this.isAssigned(node.id)) {
-      this.nodeClicked.emit({ nodeId: node.id, event });
       // Touch has no hover: a tap reveals the same person card mouseenter shows.
       this.onNodeHover(event, node.id);
     }
@@ -450,14 +529,6 @@ export class TroncViewComponent {
 
   isDragging(nodeId: string): boolean {
     return this.draggingNodeId() === nodeId;
-  }
-
-  isDragOverSwap(nodeId: string): boolean {
-    return this.dragOverNodeId() === nodeId && this.isAssigned(nodeId);
-  }
-
-  isDragOverMove(nodeId: string): boolean {
-    return this.dragOverNodeId() === nodeId && !this.isAssigned(nodeId);
   }
 
   onNodePointerDown(node: TroncNodeItem, event: PointerEvent): void {
@@ -578,7 +649,8 @@ export class TroncViewComponent {
       x: node.x,
       width: node.width,
       positionType: preset.positionType,
-      color: preset.color,
+      // Clears a customized color: the node follows the palette of its new type.
+      color: null,
       ...(isLabelDefault ? { label: preset.label } : {}),
     });
   }
@@ -634,6 +706,7 @@ export class TroncViewComponent {
   // ── Presets exposed to template ──────────────────────────────────────────────
 
   readonly presets = TRONC_NODE_PRESETS;
+  protected readonly positionTypeColor = positionTypeColor;
   readonly Scale = Scale;
 
   // ── Template helpers ───────────────────────────────────────────────────────
@@ -644,10 +717,6 @@ export class TroncViewComponent {
 
   isSelected(nodeId: string): boolean {
     return this.selectedNodeId() === nodeId;
-  }
-
-  isHighlighted(nodeId: string): boolean {
-    return this.highlightedNodeIds().has(nodeId);
   }
 
   getAssignment(nodeId: string): AssignmentDetail | undefined {
@@ -661,23 +730,12 @@ export class TroncViewComponent {
   }
 
   getHeightDisplay(shoulderHeight: number | null): string {
-    if (shoulderHeight == null || shoulderHeight === 0) return '';
-    if (this.heightMode() === 'absolute') return `${shoulderHeight}`;
-    const diff = shoulderHeight - SHOULDER_HEIGHT_BASELINE_CM;
-    return diff >= 0 ? `+${diff}` : `${diff}`;
+    return formatShoulderHeight(shoulderHeight, this.heightMode()) ?? '';
   }
 
   getAttendanceStatus(assignment: AssignmentDetail): AttendanceStatus | null {
     const personId = assignment.person.id;
     return this.attendanceMap().get(personId) ?? null;
-  }
-
-  getNotes(assignment: AssignmentDetail): string | null {
-    return this.personDetailsMap().get(assignment.person.id)?.notes ?? null;
-  }
-
-  getNotesEmoji(assignment: AssignmentDetail): string | null {
-    return this.personDetailsMap().get(assignment.person.id)?.notesEmoji ?? null;
   }
 
   onNodeHover(event: MouseEvent, nodeId: string): void {
@@ -689,7 +747,6 @@ export class TroncViewComponent {
       this.hoveredPerson.set(null);
       return;
     }
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const details = this.personDetailsMap().get(assignment.person.id);
     const node = [...this.troncNodes(), ...this.baseNodes(), ...this.directionNodes()].find((n) => n.id === nodeId);
     this.hoveredPerson.set({
@@ -703,24 +760,13 @@ export class TroncViewComponent {
         notesEmoji: details?.notesEmoji ?? null,
         positions: details?.positions ?? [],
       },
-      top: rect.top,
-      left: rect.right + 8,
+      anchor: event.currentTarget as HTMLElement,
       positionType: node?.positionType ?? null,
     });
   }
 
   onNodeLeave(): void {
     this.hoveredPerson.set(null);
-  }
-
-  getAttendanceColor(assignment: AssignmentDetail): string {
-    const status = this.getAttendanceStatus(assignment);
-    const past = isArrivalPhase(this.phase());
-    if (status === 'ASSISTIT') return 'oklch(var(--su))';
-    if (status === 'ANIRE') return past ? 'oklch(var(--wa))' : 'oklch(var(--su))';
-    if (status === 'NO_VAIG') return 'oklch(var(--er))';
-    if (status === 'PENDENT') return past ? 'oklch(var(--er))' : 'oklch(var(--bc) / 0.2)';
-    return 'oklch(var(--bc) / 0.2)';
   }
 
   /** Only the chip that set the highlight may clear it: leaving one chip must not undo focusing another. */
@@ -782,14 +828,6 @@ export class TroncViewComponent {
     return `${p.assigned}/${p.total}`;
   }
 
-  getZLevelColor(z: number): string {
-    return TRONC_Z_DEFAULTS[z]?.color ?? (z === 0 ? '#607D8B' : '#78909C');
-  }
-
-  onUnassignNode(nodeId: string): void {
-    this.nodeUnassigned.emit(nodeId);
-  }
-
   /** Right-click in assignment mode: replaces the browser menu with the move gesture. */
   onNodeContextMenu(node: TroncNodeItem, event: MouseEvent): void {
     if (this.mode() !== 'assignment') return;
@@ -804,7 +842,6 @@ export class TroncViewComponent {
     if (this.longPress.swallowsClick()) return;
     this.nodeSelected.emit(node.id);
     if (this.isAssigned(node.id)) {
-      this.nodeClicked.emit({ nodeId: node.id, event });
       this.onNodeHover(event, node.id);
     }
   }
@@ -817,14 +854,14 @@ export class TroncViewComponent {
     const assignment = this.getAssignment(node.id);
     if (!assignment) return `Node ${this.displayLabel(node)}, sense assignar`;
     const height = this.getHeightDisplay(assignment.person.shoulderHeight);
-    const label = `${node.label}: ${this.displayAlias(node, assignment)}, alçada ${height}`;
+    const parts = [`${node.label}: ${formatAssignedLabel(assignment.person.alias, node.climbIndicator)}, alçada ${height}`];
     const cumulative = this.cumulativeCm(node.id);
-    return cumulative === null ? label : `${label}, alçada acumulada ${cumulative} cm`;
-  }
-
-  /** Person alias with the node's climb indicator appended, e.g. "Marta (X)". */
-  displayAlias(node: TroncNodeItem, assignment: AssignmentDetail): string {
-    return formatAssignedLabel(assignment.person.alias, node.climbIndicator);
+    if (cumulative !== null) parts.push(`alçada acumulada ${cumulative} cm`);
+    // Attendance and conflict are drawn, not written: say them too.
+    const status = this.getAttendanceStatus(assignment);
+    if (status) parts.push(attendanceStatusLabel(status, this.phase()).toLowerCase());
+    if (this.isConflict(node.id)) parts.push('en conflicte');
+    return parts.join(', ');
   }
 
   /** Node label with its climb indicator appended, e.g. "Segona (X)", shown when unassigned. */
@@ -860,18 +897,15 @@ export class TroncViewComponent {
     return `${halfCols + 1} / span 2`;
   }
 
+  /** A customized color as it is, else the pencil tone of the node's type; null when neither exists. */
   getNodeColor(node: TroncNodeItem): string | null {
-    return node.color ?? null;
+    if (node.color) return node.color;
+    return node.positionType && NODE_TYPE_PALETTE[node.positionType] ? positionTypeColor(node.positionType, this.theme().mode) : null;
   }
 
   /** Border/accent colour for a direction flavour, by `positionType`. */
   getDirectionColor(positionType: string | null): string {
-    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.color ?? '#64748b';
-  }
-
-  /** Short row caption for a direction flavour, by `positionType`. */
-  getDirectionLabel(positionType: string | null): string {
-    return DIRECTION_NODE_PRESETS.find((p) => p.positionType === positionType)?.shortLabel ?? 'Dir.';
+    return positionTypeColor(positionType ?? '', this.theme().mode);
   }
 
   getPositionTypeBadge(node: TroncNodeItem): string {

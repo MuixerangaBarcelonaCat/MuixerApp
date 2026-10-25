@@ -6,24 +6,19 @@ import {
   computed,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { positionTypeChip } from '../../utils/position-type-chip.util';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
 import { PersonService } from '../../../persons/services/person.service';
 import { Person } from '../../../persons/models/person.model';
-import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService, DOMAIN_ICONS } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
 import { ColumnDef } from '../../../../shared/models/column-def.model';
-import {
-  TRONC_NODE_PRESETS,
-  PINYA_NODE_PRESETS,
-  DIRECTION_NODE_PRESETS,
-  TAG_CATEGORY_LABELS,
-} from '@muixer/shared';
+import { TAG_CATEGORY_LABELS } from '@muixer/shared';
 
 @Component({
   selector: 'app-tag-detail',
@@ -68,15 +63,7 @@ export class TagDetailComponent {
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.limit())));
   readonly excludeIds = computed(() => this.persons().map((p) => p.id));
 
-  readonly positionTypeMeta: Record<string, { label: string; color: string }> = [
-    ...TRONC_NODE_PRESETS.map((p) => ({ positionType: p.positionType, label: p.label, color: p.color })),
-    ...PINYA_NODE_PRESETS.map((p) => ({ positionType: p.positionType as string, label: p.label, color: p.color ?? '#64748b' })),
-    ...DIRECTION_NODE_PRESETS.map((p) => ({ positionType: p.positionType as string, label: p.label, color: p.color ?? '#64748b' })),
-    { positionType: 'base', label: 'Base', color: '#64748b' },
-  ].reduce<Record<string, { label: string; color: string }>>((acc, p) => {
-    acc[p.positionType] = { label: p.label, color: p.color };
-    return acc;
-  }, {});
+  protected readonly positionTypeChip = positionTypeChip;
 
   readonly columns: ColumnDef<Person>[] = [
     {

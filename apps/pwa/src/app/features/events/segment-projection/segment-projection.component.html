@@ -16,8 +16,8 @@
     />
   </div>
 } @else {
-  <!-- The figure stays on the light theme it's drawn for; the HUD on top is always dark. -->
-  <div libThemeScope="light" class="relative flex flex-col h-screen w-screen overflow-hidden bg-base-100">
+  <!-- The figure follows the page theme; the HUD on top is always dark. -->
+  <div class="relative flex flex-col h-screen w-screen overflow-hidden bg-base-100">
     <lib-pinya-projection
       #projection
       [data]="data()!"

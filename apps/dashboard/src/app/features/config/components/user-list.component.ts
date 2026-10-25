@@ -7,7 +7,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { UserService } from '../services/user.service';
 import { UserDto, UserFilterParams, UserSortOrder } from '../models/user.model';
 import { UserRole } from '@muixer/shared';
@@ -34,6 +33,7 @@ import {
   InputComponent,
   ModalComponent,
   ToastService,
+  DOMAIN_ICONS,
 } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 

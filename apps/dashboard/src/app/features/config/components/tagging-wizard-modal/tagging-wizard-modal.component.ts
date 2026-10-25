@@ -11,9 +11,9 @@ import {
   TabDef,
   TabsComponent,
   ToastService,
+  DOMAIN_ICONS,
 } from '@muixer/ui';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
-import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatShoulderHeightRelative } from '../../../../shared/utils';
 import { PersonService } from '../../../persons/services/person.service';
 import { Person, PersonFilterParams, Position } from '../../../persons/models/person.model';

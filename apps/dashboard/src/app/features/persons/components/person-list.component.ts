@@ -2,8 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, UserPlus, Link, Search } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, CheckboxComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC } from '@muixer/ui';
-import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
+import { ButtonComponent, ButtonGroupComponent, CheckboxComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC, DOMAIN_ICONS } from '@muixer/ui';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';

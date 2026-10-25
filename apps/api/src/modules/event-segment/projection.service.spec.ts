@@ -16,7 +16,7 @@ const makeSegment = (id: string, sortOrder: number): Partial<EventSegment> => ({
   id,
   sortOrder,
   name: null,
-  event: { id: EVENT_ID } as EventSegment['event'],
+  event: { id: EVENT_ID, date: '2026-10-17', startTime: '19:30' } as unknown as EventSegment['event'],
 });
 
 const makeInstance = (): Partial<FigureInstance> => ({
@@ -119,6 +119,14 @@ describe('ProjectionService', () => {
     const result = await service.getProjection(EVENT_ID, SEGMENT_2_ID);
     expect(result.segment.prevSegmentId).toBe(SEGMENT_ID);
     expect(result.segment.nextSegmentId).toBeNull();
+  });
+
+  // ── event day ────────────────────────────────────────────────────────────
+
+  it("returns the event's date and start time, so the client can tell the event phase", async () => {
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    expect(result.event).toEqual({ date: '2026-10-17', startTime: '19:30' });
+    expect(mockSegmentRepo.findOne).toHaveBeenCalledWith(expect.objectContaining({ relations: { event: true } }));
   });
 
   // ── personAttendance ─────────────────────────────────────────────────────
@@ -344,6 +352,7 @@ describe('ProjectionService', () => {
       await service.getProjection(EVENT_ID, SEGMENT_ID);
       expect(mockSegmentRepo.findOne).toHaveBeenCalledWith({
         where: { id: SEGMENT_ID, event: { id: EVENT_ID } },
+        relations: { event: true },
       });
     });
 
@@ -360,6 +369,7 @@ describe('ProjectionService', () => {
       await service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true });
       expect(mockSegmentRepo.findOne).toHaveBeenCalledWith({
         where: { id: SEGMENT_ID, event: { id: EVENT_ID }, isPublished: true },
+        relations: { event: true },
       });
     });
 

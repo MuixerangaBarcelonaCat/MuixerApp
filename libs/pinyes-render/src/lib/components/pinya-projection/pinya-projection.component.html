@@ -1,7 +1,7 @@
 <!-- ── Grid de figures ────────────────────────────────────────────────────── -->
-<!-- Canvas unificat: pinya nodes + outlines per figura (renderitzats al Konva).
-     Les figures sense posició desada s'ubiquen amb l'algorisme de col·locació
-     (figure-placement.util) perquè sempre es mostren amb aquest mateix canvas. -->
+<!-- One canvas for every figure: pinya nodes, plus the string tying each tronc panel to its pinya
+     (drawn by Konva). Figures with no saved position are placed by figure-placement.util, so they
+     always show on this same canvas. -->
 <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
   <lib-tronc-panel-measurer [panels]="measurePanels()" (sizesReady)="onMeasuredSizesReady($event)" />
 
@@ -11,40 +11,43 @@
     mode="readonly"
     [gridEnabled]="false"
     [showZoomControls]="showZoomControls()"
+    [nodeScale]="distributionScale()"
     [nodes]="distributionNodes()"
     [assignments]="distributionAssignments()"
     [conflictPersonIds]="conflictPersonIds()"
     [attendanceMap]="attendanceMap()"
     [phase]="phase()"
     [fitExtraBounds]="distributionFitBounds()"
-    [outlineBoxes]="distributionNodeOutlines()"
+    [figureLinks]="figureLinks()"
     (stageTransformChanged)="onStageTransformChanged($event)"
     (flightLanded)="onFlightLanded()"
   />
 
   @for (panel of distributionTroncPanels(); track panel.instance.id) {
+    <!-- Not clipped: the card's paper edge and its pin reach a few pixels past the panel. -->
     <div
-      class="absolute pointer-events-none overflow-hidden origin-top-left"
+      class="absolute pointer-events-none origin-top-left"
       [style.left.px]="panel.screenX"
       [style.top.px]="panel.screenY"
       [style.width.px]="panel.naturalW"
       [style.height.px]="panel.naturalH"
       [style.transform]="'scale(' + panel.scale + ')'"
     >
-      <app-tronc-view
-        class="block w-full h-full"
-        mode="projection"
-        [troncNodes]="getInstanceTroncNodes(panel.instance)"
-        [baseNodes]="getInstanceBaseNodes(panel.instance)"
-        [directionNodes]="getInstanceDirectionNodes(panel.instance)"
-        [assignments]="panel.instance.assignments"
-        [conflictPersonIds]="conflictPersonIds()"
-        [attendanceMap]="attendanceMap()"
-        [phase]="phase()"
-        [panelColor]="panel.color"
-        [panelBorderColor]="panel.borderColor"
-        [figureName]="getInstanceName(panel.instance)"
-      />
+      <lib-pinned-card class="h-full" [color]="panel.color" [edge]="panel.pinEdge">
+        <app-tronc-view
+          class="block w-full h-full"
+          mode="projection"
+          [troncNodes]="getInstanceTroncNodes(panel.instance)"
+          [baseNodes]="getInstanceBaseNodes(panel.instance)"
+          [directionNodes]="getInstanceDirectionNodes(panel.instance)"
+          [assignments]="panel.instance.assignments"
+          [conflictPersonIds]="conflictPersonIds()"
+          [attendanceMap]="attendanceMap()"
+          [phase]="phase()"
+          [figureName]="getInstanceName(panel.instance)"
+          [nameBand]="panel.nameBand"
+        />
+      </lib-pinned-card>
     </div>
   }
 

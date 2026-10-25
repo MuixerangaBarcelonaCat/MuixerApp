@@ -2,10 +2,9 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { News, NewsStatus, NotificationScheduleEntry } from '@muixer/shared';
-import { ButtonComponent, CardComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, CardComponent, ToastService, DOMAIN_ICONS } from '@muixer/ui';
 import { NewsService } from './services/news.service';
 import { NotificationService } from './services/notification.service';
-import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
 import { getNewsStatus, formatDate } from '../../shared/utils';
 
 const NEWS_PREVIEW_LIMIT = 3;

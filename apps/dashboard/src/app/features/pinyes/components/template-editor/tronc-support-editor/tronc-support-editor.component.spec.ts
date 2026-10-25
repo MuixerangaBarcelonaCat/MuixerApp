@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
-import { EmptyStateComponent } from '@muixer/ui';
-import { FigureNodeItem } from '@muixer/pinyes-render';
+import { EmptyStateComponent, NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
+import { FigureNodeItem, NodeDrawingComponent } from '@muixer/pinyes-render';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../../testing/lucide-test-provider';
 import { SupportLink } from './tronc-support-editor.model';
@@ -101,6 +101,62 @@ describe('TroncSupportEditorComponent', () => {
   });
 
   afterEach(() => vi.restoreAllMocks());
+
+  describe('node drawing (shared with the tronc panel)', () => {
+    const appearance = (id: string) => component.appearanceByNodeId().get(id)!;
+
+    beforeEach(() => render());
+
+    it('draws every node with the shared node drawing', () => {
+      expect(qa('.support-node app-node-drawing').length).toBe(5);
+    });
+
+    it('seeds each node\'s pen with its id, as the tronc panel does', () => {
+      const cells = fixture.debugElement.queryAll(By.css('[data-support-node-id]'));
+      expect(cells.length).toBe(5);
+      for (const cell of cells) {
+        const drawing = cell.query(By.directive(NodeDrawingComponent)).componentInstance as NodeDrawingComponent;
+        expect(drawing.sketchKey()).toBe(cell.nativeElement.getAttribute('data-support-node-id'));
+      }
+    });
+
+    it('fills a tronc node with the wash of its type and the base with the neutral paper tone', () => {
+      expect(appearance('t1').fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE['terça'].wash });
+      expect(appearance('b1').fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL.wash });
+    });
+
+    it('follows the app theme instead of pinning the light one', () => {
+      expect(fixture.nativeElement.hasAttribute('data-theme')).toBe(false);
+    });
+
+    it('draws in the dark palette when the app is dark', () => {
+      TestBed.inject(ThemeService).setPreference('dark');
+      expect(appearance('t1').fill).toEqual({ style: 'solid', color: NODE_TYPE_PALETTE_DARK['terça'].wash });
+      expect(appearance('b1').fill).toEqual({ style: 'solid', color: NODE_TYPE_NEUTRAL_DARK.wash });
+      TestBed.inject(ThemeService).setPreference('system');
+      localStorage.clear();
+    });
+
+    it('draws a customized tronc node in its own color', () => {
+      render([S1, S2, { ...T1, color: '#123456' }]);
+      expect(appearance('t1').fill).toEqual({ style: 'solid', color: '#123456' });
+    });
+
+    it('writes the label as typed', () => {
+      expect(appearance('t1').text).toMatchObject({ kind: 'label', value: 'T1', uppercase: false });
+    });
+
+    it('outlines the selected node and the node being connected in ink, the targets dashed', () => {
+      fixture.componentRef.setInput('selectedNodeId', 't1');
+      component.onHandleClick(S2, click());
+      fixture.detectChanges();
+
+      expect(appearance('t1').outline.width).toBe(3.2);
+      expect(appearance('s2').outline.width).toBe(3.2);
+      expect(appearance('b1').outline.dash).toEqual([5, 4]);
+      expect(appearance('s1').outline.dash).toBeNull();
+    });
+  });
 
   describe('rendering', () => {
     it('shows one row per floor, top floor first', () => {

@@ -1,0 +1,148 @@
+<section
+  [attr.data-layout]="layout()"
+  [attr.aria-label]="'Significat dels colors: ' + title()"
+  class="bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 text-sm text-base-content"
+  [class]="layout() === 'card' ? 'flex flex-col gap-2 w-max max-w-72 p-2' : 'flex flex-wrap items-center gap-x-4 gap-y-1 px-2 py-1'"
+>
+  <div class="flex items-center gap-1">
+    <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 px-1" data-testid="key-title">{{ title() }}</h3>
+    @if (layout() === 'card') {
+      <span class="flex-1"></span>
+    }
+    <app-node-legend [phase]="phase()" [palette]="legendPalette()" [displayMode]="mode()" />
+    <span class="inline-flex" data-testid="key-toggle">
+    <lib-button
+      variant="ghost"
+      size="xs"
+      shape="square"
+      [ariaExpanded]="open()"
+      [ariaControls]="bodyId"
+      [ariaLabel]="open() ? 'Amaga el significat dels colors' : 'Mostra el significat dels colors'"
+      (clicked)="toggle()"
+    >
+      <lucide-icon [img]="open() ? ChevronUp : ChevronDown" [size]="14" aria-hidden="true" />
+    </lib-button>
+    </span>
+  </div>
+
+  @if (open()) {
+    <div
+      [id]="bodyId"
+      [class]="layout() === 'card' ? 'flex flex-col gap-1 px-1 pb-1' : 'flex flex-wrap items-center gap-x-4 gap-y-1'"
+    >
+      @if (empty()) {
+        <p class="text-base-content/60" [class.text-right]="layout() === 'card'">Encara no hi ha cap persona assignada.</p>
+      }
+
+      @if (gradient(); as g) {
+        <div class="flex flex-col gap-0.5 w-48" [class.self-end]="layout() === 'card'">
+          <svg
+            class="block"
+            [attr.width]="barWidth"
+            [attr.height]="barHeight"
+            [attr.viewBox]="g.viewBox"
+            overflow="visible"
+            aria-hidden="true"
+            focusable="false"
+            data-testid="key-gradient"
+          >
+            <defs>
+              <linearGradient [attr.id]="g.washId">
+                @for (stop of g.ramp; track stop.offset) {
+                  <stop [attr.offset]="stop.offset" [attr.stop-color]="stop.wash" />
+                }
+              </linearGradient>
+              <linearGradient [attr.id]="g.pencilId">
+                @for (stop of g.ramp; track stop.offset) {
+                  <stop [attr.offset]="stop.offset" [attr.stop-color]="stop.pencil" />
+                }
+              </linearGradient>
+            </defs>
+            @for (path of g.paths; track $index) {
+              <path
+                [attr.data-role]="path.role"
+                [attr.d]="path.d"
+                [attr.fill]="path.fill ?? 'none'"
+                [attr.stroke]="path.stroke ?? 'none'"
+                [attr.stroke-width]="path.strokeWidth"
+              />
+            }
+          </svg>
+          <div class="flex text-xs font-semibold tabular-nums text-base-content/70" [class]="g.ticks.length === 1 ? 'justify-center' : 'justify-between'">
+            @for (tick of g.ticks; track $index) {
+              <span data-testid="gradient-tick">{{ tick }}</span>
+            }
+          </div>
+        </div>
+      }
+
+      @if (rows().length > 0) {
+        <ul [class]="layout() === 'card' ? 'flex flex-col items-end gap-1' : 'flex flex-wrap items-center gap-x-4 gap-y-1'">
+          @for (row of rows(); track row.id) {
+            <li class="flex items-center gap-2" [class.justify-end]="layout() === 'card'" data-testid="key-row">
+              @if (layout() === 'inline') {
+                <ng-container *ngTemplateOutlet="squares; context: { $implicit: row }" />
+              }
+              <span>{{ row.label }}</span>
+              @if (row.count !== null) {
+                <span class="font-semibold tabular-nums text-base-content/70"><span class="sr-only">: </span>{{ row.count }}</span>
+              }
+              @if (layout() === 'card') {
+                <ng-container *ngTemplateOutlet="squares; context: { $implicit: row }" />
+              }
+            </li>
+          }
+        </ul>
+      }
+
+      @if (note(); as n) {
+        <!-- The star sits where the squares go, as wide as a row's two: right under the darker, starred square. -->
+        <p class="flex items-center gap-2 text-xs text-base-content/60" [class.justify-end]="layout() === 'card'" data-testid="key-note">
+          @if (layout() === 'inline') {
+            <ng-container *ngTemplateOutlet="noteStar" />
+          }
+          <span>{{ n.label }}<span class="sr-only">: </span><span class="ml-1 font-semibold tabular-nums" data-testid="key-note-count">{{ n.count }}</span></span>
+          @if (layout() === 'card') {
+            <ng-container *ngTemplateOutlet="noteStar" />
+          }
+        </p>
+      }
+    </div>
+  }
+</section>
+
+<ng-template #squares let-row>
+  <span class="flex shrink-0 gap-1" aria-hidden="true">
+    @for (swatch of row.swatches; track swatch.key) {
+      <span
+        class="relative flex items-center justify-center w-4 h-4"
+        [attr.data-wash]="swatch.tones.wash"
+        [attr.data-pencil]="swatch.tones.pencil"
+        data-testid="key-swatch"
+      >
+        <svg class="absolute inset-0" width="16" height="16" viewBox="-8 -8 16 16" overflow="visible" focusable="false">
+          @for (path of swatch.paths; track $index) {
+            <path
+              [attr.data-role]="path.role"
+              [attr.d]="path.d"
+              [attr.fill]="path.fill ?? 'none'"
+              [attr.stroke]="path.stroke ?? 'none'"
+              [attr.stroke-width]="path.strokeWidth"
+            />
+          }
+        </svg>
+        @if (swatch.star) {
+          <lucide-icon [img]="Star" [size]="10" class="relative fill-current" [style.color]="starColor()" data-testid="key-star" />
+        }
+      </span>
+    }
+  </span>
+</ng-template>
+
+<ng-template #noteStar>
+  <span class="flex shrink-0 justify-end w-9" aria-hidden="true">
+    <span class="flex items-center justify-center w-4 h-4">
+      <lucide-icon [img]="Star" [size]="12" class="fill-current" [style.color]="starColor()" data-testid="key-note-star" />
+    </span>
+  </span>
+</ng-template>
