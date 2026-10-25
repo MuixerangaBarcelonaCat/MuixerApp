@@ -5,7 +5,53 @@ import {
   zoomAroundPoint,
   getEventClientPoint,
   computeRotationAngleDeg,
+  cssDelta,
+  applyCssDelta,
+  cssTransformString,
+  IDENTITY_CSS_DELTA,
 } from './gesture-math.util';
+import { stageToScreen } from './rengla-coordinates.util';
+
+describe('cssDelta', () => {
+  const committed = { x: 40, y: -20, scaleX: 2, scaleY: 2 };
+
+  it('is the identity when the live transform is the committed one', () => {
+    expect(cssDelta(committed, committed)).toEqual(IDENTITY_CSS_DELTA);
+  });
+
+  it('is a plain translation for a pan', () => {
+    expect(cssDelta(committed, { ...committed, x: 70, y: -5 })).toEqual({ k: 1, tx: 30, ty: 15 });
+  });
+
+  // The canvas was drawn at `committed`; the delta must move every drawn pixel to where `live` puts it.
+  it('maps where `committed` drew a world point onto where `live` would draw it', () => {
+    const live = { x: -100, y: 35, scaleX: 3.5, scaleY: 3.5 };
+    const delta = cssDelta(committed, live);
+    for (const [wx, wy] of [[0, 0], [12, -7], [300, 180]]) {
+      const drawn = stageToScreen(wx, wy, committed);
+      const moved = applyCssDelta(drawn, delta);
+      const expected = stageToScreen(wx, wy, live);
+      expect(moved.x).toBeCloseTo(expected.x);
+      expect(moved.y).toBeCloseTo(expected.y);
+    }
+  });
+});
+
+describe('applyCssDelta', () => {
+  it('scales about the origin, then translates', () => {
+    expect(applyCssDelta({ x: 10, y: 20 }, { k: 2, tx: 5, ty: -5 })).toEqual({ x: 25, y: 35 });
+  });
+});
+
+describe('cssTransformString', () => {
+  it('is empty for the identity, so the element keeps no transform', () => {
+    expect(cssTransformString(IDENTITY_CSS_DELTA)).toBe('');
+  });
+
+  it('translates then scales, as `applyCssDelta` does with a top-left origin', () => {
+    expect(cssTransformString({ k: 1.5, tx: 12, ty: -3 })).toBe('translate(12px, -3px) scale(1.5)');
+  });
+});
 
 describe('touchDistance', () => {
   it('returns 0 for two identical points', () => {

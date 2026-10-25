@@ -49,14 +49,12 @@ export interface TroncViewPanel {
   directionNodes: TroncNodeItem[];
   assignments: AssignmentDetail[];
   figureName: string;
-  /** The figure colour, for the card pin; `null` for a segment's lone figure, which gets no pin. */
-  color: string | null;
+  /** The figure colour, for the card pin. */
+  color: string;
   /** The band behind the figure name on the card, in the figure colour — a lone figure's too. */
   nameBand: FigureBand;
   /** The card edge holding its pin: the one facing the figure, where the string leaves. */
   pinEdge: CardEdge;
-  /** Degrees its card turns around the pin: −1 and +1 by turns, as in the projection. */
-  tilt: number;
 }
 
 const INITIAL_ZOOM = 0.75;
@@ -140,7 +138,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
   /** A figure's live position while it is dragged or rotated (`slotDragMoved`), until it settles. */
   private readonly liveSlotTransforms = signal<Map<string, { offsetX: number; offsetY: number; angle: number }>>(new Map());
 
-  /** A segment's lone figure gets no pin and no string: its panel can only be its own. */
+  /** A segment's lone figure gets no string: its panel can only be its own. */
   private readonly isSingleFigure = computed(() => this.slots().length === 1);
 
   /**
@@ -207,7 +205,6 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     const sizes = this.measuredTroncSizes();
     const itemsById = new Map(this.items().map((i) => [i.instanceId, i]));
     const pinEdges = this.pinEdgesBySlot();
-    const singleFigure = this.isSingleFigure();
 
     const panels: TroncViewPanel[] = [];
     for (const slot of this.slots()) {
@@ -229,10 +226,9 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
         directionNodes,
         assignments: troncViewAssignmentsFor(item?.assignments ?? [], slot.figureTemplate.nodes),
         figureName: slot.label ?? slot.figureTemplate.name,
-        color: singleFigure ? null : getFigureColor(slot.sortOrder),
+        color: getFigureColor(slot.sortOrder),
         nameBand: getFigureBand(slot.sortOrder, this.canvasTheme().mode),
         pinEdge: pinEdges.get(slot.slotId) ?? 'top',
-        tilt: slot.sortOrder % 2 === 0 ? -1 : 1,
       });
     }
     return panels;
