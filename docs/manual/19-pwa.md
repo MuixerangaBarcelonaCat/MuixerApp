@@ -111,7 +111,7 @@ Si li toca estar en dos llocs alhora, apareix en roig: «Sou en més d'un lloc a
 
 Si el membre toca una prova, s'obri la figura a pantalla completa, amb la pinya i els troncs.
 
-- La pantalla es mou sola fins al lloc del membre, que queda marcat.
+- La pantalla es mou sola fins al lloc del membre, que queda marcat. Cada tronc va en una targeta amb una xinxeta, unida amb un fil a la seua pinya, i la figura segueix el mode fosc o clar del mòbil (vegeu [Previsualitza i projecció](16-previsualitza-i-projeccio.md), «Com es veu la projecció»).
 - Una frase que comença per «Sou …» diu on és. El botó «Troba'm» torna a portar-lo al seu lloc.
 - Si no té lloc en eixa prova, la frase diu «No teniu cap posició en este segment.».
 

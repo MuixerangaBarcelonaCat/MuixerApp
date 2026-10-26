@@ -33,7 +33,7 @@ Es fa igual que a la pestanya «Troncs» (vegeu [Assignació de troncs](12-assig
 - **Moure o intercanviar:** arrossegueu una persona a un altre lloc, o feu clic dret sobre ella i després cliqueu el lloc de destí. Mentre es mou, ix «S'està movent …», amb una creu per a cancel·lar-ho.
 - **«Desfer» i «Refer»:** dalt a la dreta del dibuix, o Ctrl+Z i Ctrl+Maj+Z.
 
-Cada persona del dibuix porta un punt de color que diu si ve: verd si ve (o ha arribat), taronja si encara no ha contestat abans de l'event o si no ha arribat el dia de l'event, i roig si no ve. 🎭 vol dir que vindrà a la pròxima actuació. Una vora roja vol dir que la persona té dos llocs en este segment (vegeu [Conflictes](14-conflictes.md)).
+L'assistència de cada persona es veu en l'ompliment del seu lloc: ple si ve (o ha arribat), ratlles si encara no ha contestat o no ha arribat, i buit amb el nom ratllat si no ve. Una estrella (★) vol dir que vindrà a la propera actuació. Un llaç roig amb una icona d'advertència vol dir que la persona té dos llocs en este segment (vegeu [Conflictes](14-conflictes.md)). La taula completa i els modes «Alçada», «Assistència» i «Gènere», que canvien els colors, són a [Assignació de troncs](12-assignacio-troncs.md), «Canviar els colors».
 
 ### Els comptadors del panell
 
@@ -101,7 +101,7 @@ Per a què serveix: quan una figura encara no té ningú posat, segueix la plant
 
 - **«Reinicialitza» esborra també el tronc i les direccions** de la figura, i no es pot desfer.
 - **«Importa pinya» amb «Pinya i tronc»** pot omplir llocs del tronc.
-- **La importació no mira qui ve** i pot deixar gent en dos llocs. Reviseu els colors i els conflictes just després.
+- **La importació no mira qui ve** i pot deixar gent en dos llocs. Reviseu els ompliments i els conflictes just després.
 - **«Assignar igualment» crea un conflicte a posta.** Feu-lo servir només si la persona realment farà les dues coses.
 - **Per a desplaçar el dibuix** no hi ha d'haver cap lloc seleccionat: premeu Esc primer.
 - **En tauleta**, tocar un lloc obri la llista en una finestra, i la selecció no avança sola: cada lloc és tocar i triar. Per a moure algú, cal mantindre el dit damunt.

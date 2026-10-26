@@ -17,7 +17,7 @@ Per a comprovar com es veurà el segment a la pantalla gran de l'assaig. La proj
 
 ### Revisar mentre assigneu
 
-Obriu «Previsualitza». És la mateixa imatge que es projectarà, sense eixir de l'espai de treball. Hi ixen els colors d'assistència i les vores roges dels conflictes.
+Obriu «Previsualitza». És la mateixa imatge que es projectarà, sense eixir de l'espai de treball. Hi ixen els ompliments d'assistència (ple, ratlles o buit) i els llaços roigs dels conflictes. Al «Previsualitza» no hi ha selector de mode: es veu sempre com es projectarà.
 
 ### Projectar a l'assaig
 
@@ -44,7 +44,14 @@ Obriu «Previsualitza». És la mateixa imatge que es projectarà, sense eixir d
 | Esc | Torna enrere |
 | ? | Mostra o amaga l'ajuda |
 
-En pantalla tàctil: amb un dit desplaceu la vista i amb dos dits (pinça) feu zoom.
+En pantalla tàctil: amb un dit desplaceu la vista i amb dos dits (pinça) feu zoom. El moviment és fluid també en mòbils antics: mentre moveu el dit, la imatge es desplaça tal com és i es redibuixa en alçar el dit, de manera que durant un instant les vores poden mostrar una versió més borrosa.
+
+### Com es veu la projecció
+
+- **Fons de quadern.** El fons és de paper amb una graella de punts. Si el dispositiu està en mode fosc, la projecció també es veu fosca.
+- **Targetes de tronc.** Cada tronc va en una targeta de paper amb una xinxeta del color de la figura. Un fil que penja uneix la targeta amb la seua pinya, i la xinxeta de la pinya se situa a la cantonada més pròxima. Una figura que va sola en el segment té xinxeta, però no fil.
+- **Noms.** Els noms s'ajusten a la mida del lloc (es fan més menuts i, si no hi caben, acaben en «…»). Els llocs de la projecció no mostren alçada ni observacions.
+- **Assistència.** La projecció usa els mateixos ompliments que l'espai de treball, segons si l'event ja ha començat. El botó ⓘ «Altres marques» explica cada marca.
 
 ### Què veuen els membres
 

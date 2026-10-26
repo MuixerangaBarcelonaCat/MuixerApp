@@ -44,10 +44,10 @@ L'ordre importa perquè decideix quina persona del tronc va damunt de quina base
 
 Feu clic en un lloc. Al panell de la dreta trobareu:
 
-- «Tipus de posició»: canvia el tipus i el color del lloc;
+- «Tipus de posició»: canvia el tipus del lloc i, mentre no n'hàgeu triat un de propi, també el color (cada tipus té el seu);
 - «Aparença»:
   - «Etiqueta»: el nom del lloc;
-  - «Color»;
+  - «Color»: si no el canvieu, el lloc es pinta amb el color del seu tipus, també en mode fosc. Si en trieu un, es veu igual en mode clar i en fosc;
   - «Indicador»: una marca curta, de fins a 6 caràcters, que eixirà al costat de la persona assignada;
   - «Forma»: «El·lipse» o «Rectangle»;
 - «Posició»: «Amplada (px)», «Alçada (px)», «Rotació (°)», X i Y;
