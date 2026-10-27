@@ -41,6 +41,7 @@ Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense co
    - **Si no en teníem cap** (persona donada d'alta a mà), el correu l'escriu ella. Si ja pertany a un altre compte, li dirà que aquest correu ja existeix — llavors cal mirar si eixa persona ja té compte o si hi ha una fitxa duplicada.
 4. **L'enllaç caduca als 3 dies.** La targeta mostra quan venç; si ha vençut, l'admin en crea un de nou. Crear-ne un mentre l'anterior encara és vigent demana confirmació: sempre l'últim que s'ha enviat és el vàlid, els anteriors deixen de funcionar.
 5. **Un cop el compte ja està actiu**, la targeta mostra «Compte actiu» i cap acció — a partir d'ací la persona entra sempre amb el seu email i contrasenya.
+6. **Per a veure-ho de tota la colla**, la llista de persones té la columna **«Accés»** i el filtre **«Accés a l'app»**: «Compte actiu», «Invitació enviada», «Invitació vençuda», «Amb responsable» (xicalla que hi entra a través d'una persona adulta) o «Sense accés». Per exemple, filtrant «Invitació vençuda» es veu a qui cal enviar un enllaç nou.
 
 **Login del dia a dia (compte ja actiu):** email + contrasenya, tant al Dashboard com a la PWA. La sessió es manté sola una bona temporada (8 hores al Dashboard, 7 dies a la PWA) sense haver de tornar a introduir res — només cal tornar a fer login si ha passat molt de temps o s'ha fet "Tanca la sessió".
 
@@ -252,6 +253,10 @@ tècnic està desactivada (§8.1).
 `ACTIVE` (compte actiu) · `INVITED` (invitació vigent) · `INVITE_EXPIRED` (vençuda) · `MANAGED`
 (té un delegat primari actiu) · `NONE`. Un compte-esborrany sense cap invitació compta com a
 `NONE`.
+
+La llista de persones el mostra a la columna «Accés» (amb els mateixos colors que la targeta) i
+s'hi pot filtrar amb «Accés a l'app»: `GET /persons?accessStatus=…` aplica
+`applyAccessStatusFilter` amb l'hora actual. No s'hi pot ordenar.
 
 ```
 PWA (membre)                              Backend
@@ -522,6 +527,8 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 | `interfaces/auth.interfaces.ts` | `JwtPayload`, `PersonSummary`, `UserProfile` |
 | `interfaces/invite.interfaces.ts` | `InviteLinkResponse`, `RecoveryLinkResponse`, `PersonRegistrationData`, `RegisterViaInviteRequest`, `InviteRegistrationContext` |
 | `interfaces/me/pending-dependent.interface.ts` | `PendingDependent`, `DependentRegistrationRequest` |
+| `enums/access-status.enum.ts` | `AccessStatus` (`ACTIVE`/`INVITED`/`INVITE_EXPIRED`/`MANAGED`/`NONE`) |
+| `utils/person-access.util.ts` | `resolveAccessStatus`, `ACCESS_STATUS_LABELS` |
 
 ---
 
