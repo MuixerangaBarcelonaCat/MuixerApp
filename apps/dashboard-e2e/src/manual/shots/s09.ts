@@ -7,6 +7,8 @@ const ws = `/events/${process.env['MANUAL_WS_EVENT_ID'] ?? TARGETS.workspaceEven
 const projection = `${ws}/segments/${process.env['MANUAL_WS_SEGMENT_ID'] ?? TARGETS.workspaceSegmentId}`;
 // An ASSAIG with attendance answers (roll call, attendance stats).
 const assaig = `/events/${process.env['MANUAL_PARTICIPATION_EVENT_ID'] ?? TARGETS.eventAssaigId}`;
+/** PWA profile: the line under the alias is name + surname. */
+const PROFILE_FULL_NAME = 'app-profile h2 + p';
 
 /**
  * Shows the push banner as a member who never answered sees it. Headless Chromium reports
@@ -117,6 +119,7 @@ export const s09: ManualShot[] = [
     app: 'dashboard',
     path: '/communication/notifications/devices',
     ready: 'table tbody td:first-child',
+    blur: ['app-device-list tbody td:first-child'], // «Membre» shows name + surname only
     settle: 500,
   },
 
@@ -216,6 +219,7 @@ export const s09: ManualShot[] = [
     app: 'pwa',
     path: '/profile',
     ready: '[data-testid="profile-stat-tile"] > *',
+    blur: [PROFILE_FULL_NAME],
     prepare: dismissPushBanner,
     highlight: 'div.grid.grid-cols-3',
   },
@@ -224,6 +228,7 @@ export const s09: ManualShot[] = [
     app: 'pwa',
     path: '/profile',
     ready: '[data-testid="profile-stat-tile"] > *',
+    blur: [PROFILE_FULL_NAME],
     prepare: async (page) => {
       await dismissPushBanner(page);
       await page.getByRole('button', { name: /delegaci/ }).click();

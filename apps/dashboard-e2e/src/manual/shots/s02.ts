@@ -22,6 +22,8 @@ const DETAIL_READY = `${INFO_PERSONAL} dl`;
 /** Every personal field of the sheet in edit mode except the alias. */
 const PERSONAL_INPUTS = `${INFO_PERSONAL} lib-input:not([formcontrolname="alias"]) input`;
 const SHIRT_READY = '[data-testid^="shirt-row-"]';
+/** «Nom complet» and «Telèfon» columns of the persons table. */
+const LIST_PERSONAL = 'app-data-table td[data-col="fullName"], app-data-table td[data-col="phone"]';
 async function startEditing(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Edita' }).click();
   await page.locator(`${INFO_PERSONAL} input`).first().waitFor();
@@ -64,6 +66,7 @@ export const s02: ManualShot[] = [
     app: 'dashboard',
     path: '/persons',
     ready: LIST_READY,
+    blur: [LIST_PERSONAL],
     settle: 500,
   },
   {
@@ -79,6 +82,7 @@ export const s02: ManualShot[] = [
         .scrollIntoViewIfNeeded();
     },
     highlight: '[data-testid="lib-select-multi"] li[role="option"]:has-text("Falten etiquetes")',
+    blur: [LIST_PERSONAL],
   },
   {
     file: '03-persones-provisionals.png',
@@ -90,6 +94,7 @@ export const s02: ManualShot[] = [
       await page.waitForLoadState('networkidle');
     },
     highlight: 'lib-button-group > *', // Cens / Provisionals
+    blur: [LIST_PERSONAL],
     settle: 500,
   },
   {
@@ -101,12 +106,15 @@ export const s02: ManualShot[] = [
       await page.getByRole('button', { name: 'Persona nova' }).click();
       await page.locator('dialog[open]').waitFor();
     },
+    blur: [LIST_PERSONAL],
   },
   {
     file: '03-persona-fitxa.png',
     app: 'dashboard',
     path: `/persons/${PERSON.history}`, // a filled-in sheet with pinyes history
     ready: DETAIL_READY,
+    // Full name under the alias title and every personal field except the alias (the bold one).
+    blur: ['div.flex-1:has(> div > h1) > p', `${INFO_PERSONAL} dd:not(.font-medium)`],
     settle: 800, // delegates and history load after the person
   },
   {
@@ -193,6 +201,7 @@ export const s02: ManualShot[] = [
       // Keep only the 4 rows the list shows.
       await page.addStyleTag({ content: 'dialog[open] [role="listbox"] li:nth-child(n+5) { display: none; }' });
     },
+    blur: ['dialog[open] [role="listbox"] li span.opacity-70, dialog[open] [role="listbox"] li span.text-sm:not(.font-medium)'], // emails; the alias line stays
     clip: 'dialog[open] .modal-box', // the sheet behind is the same as 03-persona-edicio
     settle: 800, // the user list is debounced
   },

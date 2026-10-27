@@ -25,8 +25,8 @@ async function blockWrites(page: Page): Promise<void> {
   });
 }
 
-/** The logged-in user's name and email in the header chip, blurred in every shot. */
-const ALWAYS_BLUR = ['app-user-chip .leading-tight > span:first-child', 'app-user-chip .menu-title span:first-child'];
+/** The logged-in user's email in the header chip menu, blurred in every shot (the chip's name is the alias). */
+const ALWAYS_BLUR = ['app-user-chip .menu-title span:first-child'];
 
 const pathOf = (url: string) => new URL(url).pathname + new URL(url).search;
 
