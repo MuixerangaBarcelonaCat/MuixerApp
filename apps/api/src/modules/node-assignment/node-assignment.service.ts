@@ -51,6 +51,8 @@ import { Person } from '../person/person.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { lockWindow } from '../../common/utils/lock.util';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
 
@@ -339,6 +341,7 @@ export class NodeAssignmentService {
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
     private readonly dataSource: DataSource,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   // ── B.4 — Instance nodes (live template or snapshot) ──────────────────────
@@ -1959,20 +1962,9 @@ export class NodeAssignmentService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
-    if (lockDays <= 0) {
-      return { locked: false, lockDate: null, lockDays: 0 };
-    }
-
-    const eventDate = new Date(event.date);
-    const lockDate = new Date(eventDate);
-    lockDate.setDate(lockDate.getDate() + lockDays);
-
-    return {
-      locked: new Date() > lockDate,
-      lockDate: lockDate.toISOString().slice(0, 10),
-      lockDays,
-    };
+    const { assignmentLockDays } = await this.collaSettings.get();
+    const lockDays = Math.max(0, assignmentLockDays);
+    return { ...lockWindow(event.date, lockDays), lockDays };
   }
 
   /**
@@ -1980,26 +1972,22 @@ export class NodeAssignmentService {
    * (segment CRUD/reorder, instance creation/reorder, composition apply).
    */
   async checkEventLockByEventId(eventId: string): Promise<void> {
-    const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
+    const { assignmentLockDays: lockDays } = await this.collaSettings.get();
     if (lockDays <= 0) return;
 
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) return;
 
-    const eventDate = new Date(event.date);
-    const lockDate = new Date(eventDate);
-    lockDate.setDate(lockDate.getDate() + lockDays);
-
-    if (new Date() > lockDate) {
+    if (lockWindow(event.date, lockDays).locked) {
       throw new ForbiddenException(
-        `Aquest event està bloquejat (event del ${eventDate.toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
+        `Aquest event està bloquejat (event del ${new Date(event.date).toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
       );
     }
   }
 
   /** Shared by NodeAssignmentService's own mutations and by FigureInstanceService for the paths that also touch assignment data (mode change, instance removal). */
   async checkEventLock(instanceId: string): Promise<void> {
-    const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
+    const { assignmentLockDays: lockDays } = await this.collaSettings.get();
     if (lockDays <= 0) return;
 
     const instance = await this.figureInstanceRepository.findOne({
@@ -2026,13 +2014,9 @@ export class NodeAssignmentService {
       return;
     }
 
-    const eventDate = new Date(event.date);
-    const lockDate = new Date(eventDate);
-    lockDate.setDate(lockDate.getDate() + lockDays);
-
-    if (new Date() > lockDate) {
+    if (lockWindow(event.date, lockDays).locked) {
       throw new ForbiddenException(
-        `Les assignacions d'aquest event estan bloquejades (event del ${eventDate.toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
+        `Les assignacions d'aquest event estan bloquejades (event del ${new Date(event.date).toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
       );
     }
   }

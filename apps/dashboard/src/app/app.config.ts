@@ -9,6 +9,8 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { appRoutes } from './app.routes';
 import { authInterceptor } from './core/auth/interceptors/auth.interceptor';
 import { AuthService } from './core/auth/services/auth.service';
+import { CollaSettingsService } from './core/services/colla-settings.service';
+import { PINYES_RENDER_SETTINGS } from '@muixer/pinyes-render/settings';
 import {
   LUCIDE_ICONS,
   LucideIconProvider,
@@ -100,6 +102,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAppInitializer(() => inject(AuthService).init()),
+    { provide: PINYES_RENDER_SETTINGS, useFactory: () => inject(CollaSettingsService).renderSettings },
     {
       provide: LUCIDE_ICONS,
       multi: true,

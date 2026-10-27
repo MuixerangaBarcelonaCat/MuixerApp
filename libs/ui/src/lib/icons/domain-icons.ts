@@ -14,6 +14,8 @@ import {
   LayoutGrid,
   Newspaper,
   ShieldCheck,
+  Shirt,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Star,
@@ -59,6 +61,8 @@ export const DOMAIN_ICONS = {
   ACTUACIO: Star,
   PERSONA: Users,
   XICALLA: Baby,
+  /** La camisa de la colla: el lliurament que fa oficial un membre. */
+  CAMISA: Shirt,
   OBSERVACIONS: CircleAlert,
   NOTICIA: Newspaper,
   BELL: Bell,
@@ -70,4 +74,6 @@ export const DOMAIN_ICONS = {
   SHIELD_CHECK: ShieldCheck,
   DESIGN_SYSTEM: Sparkles,
   MANUAL: BookOpen,
+  /** La configuració de la colla (`/config/colla`). */
+  COLLA_SETTINGS: SlidersHorizontal,
 } as const;

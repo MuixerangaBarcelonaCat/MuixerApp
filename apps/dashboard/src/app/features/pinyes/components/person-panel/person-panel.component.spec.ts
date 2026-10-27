@@ -7,8 +7,16 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { PersonPanelComponent, ROSTER_MAX_AGE_MS } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { TagService } from '../../../config/services/tag.service';
+import { signal as renderSettingsSignal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS as RENDER_DEFAULTS } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS, PinyesRenderSettings } from '@muixer/pinyes-render/settings';
+
+const renderSettings = renderSettingsSignal<PinyesRenderSettings>({
+  shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm,
+  troncHeightThresholds: RENDER_DEFAULTS.troncHeightThresholds,
+});
+
 
 const makeAvailablePerson = (
   id = 'person-1',
@@ -19,7 +27,7 @@ const makeAvailablePerson = (
   alias: 'Pepet',
   name: 'Pere',
   firstSurname: 'Garcia',
-  shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
+  shoulderHeight: 140,
   gender: null,
   isXicalla: false,
   notes: null,
@@ -66,6 +74,7 @@ describe('PersonPanelComponent', () => {
       imports: [PersonPanelComponent],
       providers: [
         { provide: NodeAssignmentService, useValue: assignmentService },
+        { provide: PINYES_RENDER_SETTINGS, useValue: renderSettings },
         { provide: TagService, useValue: { getAll: vi.fn().mockReturnValue(of([])) } },
         allLucideIconsProvider,
       ],
@@ -725,6 +734,16 @@ describe('PersonPanelComponent', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 142 });
       const result = component.formatHeight(person);
       expect(result).toBe('+2');
+    });
+
+    it("formatHeight measures from the colla's baseline", () => {
+      fixture.componentRef.setInput('heightMode', 'relative');
+      renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: 145 }));
+      try {
+        expect(component.formatHeight(makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 142 }))).toBe('-3');
+      } finally {
+        renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm }));
+      }
     });
   });
 

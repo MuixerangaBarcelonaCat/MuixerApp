@@ -4,8 +4,22 @@ import { of, throwError } from 'rxjs';
 import { EventFormModalComponent } from './event-form-modal.component';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
-import { EventType } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { CollaSettings, DEFAULT_COLLA_SETTINGS, EventType } from '@muixer/shared';
+import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
 import { EventDetail } from '../../models/event.model';
+
+const REHEARSAL_DEFAULTS = {
+  title: 'Assaig de prova',
+  startTime: '19:30',
+  location: 'Local de prova',
+  locationUrl: 'https://maps.example/local',
+};
+const collaSettings = signal<CollaSettings>({
+  ...DEFAULT_COLLA_SETTINGS,
+  rehearsalDefaults: REHEARSAL_DEFAULTS,
+});
+const collaSettingsProvider = { provide: CollaSettingsService, useValue: { settings: collaSettings } };
 
 const mockSeason = { id: 'season-1', name: 'Temporada 2025-2026', startDate: '2025-09-01', endDate: '2026-08-31', description: null, eventCount: 5, rehearsalCount: 5, performanceCount: 0 };
 
@@ -37,6 +51,7 @@ async function buildFixture(inputs: {
     providers: [
       { provide: EventService, useValue: eventService },
       { provide: SeasonService, useValue: seasonService },
+      collaSettingsProvider,
     ],
   }).compileComponents();
 
@@ -59,9 +74,39 @@ describe('EventFormModalComponent', () => {
   });
 
   describe('create mode — no presetEventType', () => {
-    it('title starts empty', async () => {
+    const prefilled = (fixture: ComponentFixture<EventFormModalComponent>) => {
+      const { title, startTime, location, locationUrl } = fixture.componentInstance.form.getRawValue();
+      return { title, startTime, location, locationUrl };
+    };
+    const EMPTY = { title: '', startTime: '', location: '', locationUrl: '' };
+
+    it("starts as a rehearsal, with the colla's rehearsal title, time and place", async () => {
       const fixture = await buildFixture();
-      expect(fixture.componentInstance.form.get('title')?.value).toBe('');
+      expect(prefilled(fixture)).toEqual(REHEARSAL_DEFAULTS);
+    });
+
+    it('empties them on switching to a performance, and fills them again on switching back', async () => {
+      const fixture = await buildFixture();
+      const type = fixture.componentInstance.form.controls.eventType;
+
+      type.setValue(EventType.ACTUACIO);
+      expect(prefilled(fixture)).toEqual(EMPTY);
+
+      type.setValue(EventType.ASSAIG);
+      expect(prefilled(fixture)).toEqual(REHEARSAL_DEFAULTS);
+    });
+
+    it('keeps whatever someone typed when the type changes', async () => {
+      const fixture = await buildFixture();
+      const { title, location, eventType } = fixture.componentInstance.form.controls;
+      title.setValue('Assaig de la Mercè');
+      title.markAsDirty();
+      location.setValue('Plaça Sant Jaume');
+      location.markAsDirty();
+
+      eventType.setValue(EventType.ACTUACIO);
+
+      expect(prefilled(fixture)).toEqual({ ...EMPTY, title: 'Assaig de la Mercè', location: 'Plaça Sant Jaume' });
     });
 
     it('eventType control is enabled', async () => {
@@ -76,9 +121,24 @@ describe('EventFormModalComponent', () => {
   });
 
   describe('create mode — presetEventType = ASSAIG', () => {
-    it('pre-fills title with Assaig general', async () => {
+    it("pre-fills the colla's rehearsal title, start time and place", async () => {
       const fixture = await buildFixture({ presetEventType: EventType.ASSAIG });
-      expect(fixture.componentInstance.form.get('title')?.value).toBe('Assaig general');
+      const { title, startTime, location, locationUrl } = fixture.componentInstance.form.getRawValue();
+      expect({ title, startTime, location, locationUrl }).toEqual(REHEARSAL_DEFAULTS);
+    });
+
+    it('leaves the start time and place link empty when the colla has none', async () => {
+      collaSettings.set({
+        ...DEFAULT_COLLA_SETTINGS,
+        rehearsalDefaults: { title: 'Assaig', startTime: null, location: '', locationUrl: null },
+      });
+      try {
+        const fixture = await buildFixture({ presetEventType: EventType.ASSAIG });
+        expect(fixture.componentInstance.form.get('startTime')?.value).toBe('');
+        expect(fixture.componentInstance.form.get('locationUrl')?.value).toBe('');
+      } finally {
+        collaSettings.set({ ...DEFAULT_COLLA_SETTINGS, rehearsalDefaults: REHEARSAL_DEFAULTS });
+      }
     });
 
     it('eventType control is disabled', async () => {
@@ -98,9 +158,10 @@ describe('EventFormModalComponent', () => {
   });
 
   describe('create mode — presetEventType = ACTUACIO', () => {
-    it('does not pre-fill title', async () => {
+    it('does not pre-fill title, start time or place', async () => {
       const fixture = await buildFixture({ presetEventType: EventType.ACTUACIO });
-      expect(fixture.componentInstance.form.get('title')?.value).toBe('');
+      const { title, startTime, location, locationUrl } = fixture.componentInstance.form.getRawValue();
+      expect({ title, startTime, location, locationUrl }).toEqual({ title: '', startTime: '', location: '', locationUrl: '' });
     });
 
     it('eventType control is disabled', async () => {
@@ -162,6 +223,7 @@ describe('EventFormModalComponent', () => {
         providers: [
           { provide: EventService, useValue: eventService },
           { provide: SeasonService, useValue: seasonService },
+          collaSettingsProvider,
         ],
       }).compileComponents();
       const fixture = TestBed.createComponent(EventFormModalComponent);
@@ -190,6 +252,7 @@ describe('EventFormModalComponent', () => {
         providers: [
           { provide: EventService, useValue: eventService },
           { provide: SeasonService, useValue: seasonService },
+          collaSettingsProvider,
         ],
       }).compileComponents();
       const fixture = TestBed.createComponent(EventFormModalComponent);

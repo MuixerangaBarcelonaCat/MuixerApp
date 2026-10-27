@@ -21,6 +21,8 @@ import {
   teardownIntegrationDb,
   truncateAllTables,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres round trip of `standsOnNodeIds` (uuid[]): the editor's client ids survive
@@ -60,6 +62,7 @@ describe('FigureTemplate standsOnNodeIds (integration)', () => {
     db = await setupIntegrationDb();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         FigureTemplateService,
         NodeAssignmentService,
         ...realRepositoryProviders(db.dataSource, [

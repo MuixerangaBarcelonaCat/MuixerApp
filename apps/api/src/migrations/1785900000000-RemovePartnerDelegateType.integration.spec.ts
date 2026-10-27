@@ -44,13 +44,15 @@ describe('RemovePartnerDelegateType (integration)', () => {
     await pre.runMigrations();
 
     const user = await pre.getRepository(User).save({ email: 'delegate@test.com', passwordHash: 'x' });
-    const personRepo = pre.getRepository(Person);
-    const partner = await personRepo.save({ name: 'Partner', firstSurname: 'A', alias: 'partner' });
-    const child = await personRepo.save({ name: 'Child', firstSurname: 'B', alias: 'child' });
+    // Raw SQL: the Person entity describes the schema at HEAD, which this older schema predates.
+    const [partner, child] = await pre.query(
+      `INSERT INTO "persons" ("name", "firstSurname", "alias")
+       VALUES ('Partner', 'A', 'partner'), ('Child', 'B', 'child') RETURNING "id"`,
+    );
     const delegateRepo = pre.getRepository(PersonDelegate);
     // PARTNER no longer exists at HEAD, so the cast forces the legacy value in.
-    await delegateRepo.save({ user, person: partner, delegateType: 'PARTNER' as DelegateType });
-    await delegateRepo.save({ user, person: child, delegateType: DelegateType.PARENT });
+    await delegateRepo.save({ user, person: partner as Person, delegateType: 'PARTNER' as DelegateType });
+    await delegateRepo.save({ user, person: child as Person, delegateType: DelegateType.PARENT });
     await pre.destroy();
 
     dataSource = dataSourceFor(upToTarget);

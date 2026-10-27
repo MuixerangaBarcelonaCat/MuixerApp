@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { EventType, AttendanceStatus, NOT_REGISTERED_STATUS } from '@muixer/shared';
+import { EventType, AttendanceStatus, NOT_REGISTERED_STATUS, DEFAULT_COLLA_SETTINGS } from '@muixer/shared';
 import { AttendanceService } from './attendance.service';
 import { AuditService } from '../audit/audit.service';
 import { Attendance } from './attendance.entity';
@@ -14,6 +14,8 @@ import {
   truncateAllTables,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres suite for the "no row ≡ PENDENT" model: a person with no attendance row (or a
@@ -24,6 +26,7 @@ import {
 describe('AttendanceService pending model (integration)', () => {
   let db: IntegrationDb;
   let service: AttendanceService;
+  const collaSettings = new CollaSettingsStub();
 
   const EVENT_DATE = '2026-05-10';
 
@@ -32,6 +35,7 @@ describe('AttendanceService pending model (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: collaSettings },
         AttendanceService,
         ...realRepositoryProviders(db.dataSource, [Attendance, Event, Person]),
         { provide: DataSource, useValue: db.dataSource },
@@ -46,10 +50,8 @@ describe('AttendanceService pending model (integration)', () => {
     await teardownIntegrationDb(db);
   });
 
-  const originalLockDays = process.env.ASSIGNMENT_LOCK_DAYS;
-
   afterEach(async () => {
-    process.env.ASSIGNMENT_LOCK_DAYS = originalLockDays;
+    collaSettings.set({ assignmentLockDays: DEFAULT_COLLA_SETTINGS.assignmentLockDays });
     await truncateAllTables(db.dataSource);
   });
 
@@ -214,7 +216,7 @@ describe('AttendanceService pending model (integration)', () => {
     it('returns NO_REGISTRAT for a no-op on a person created after the event', async () => {
       const event = await saveEvent();
       const late = await savePerson('TARDA', '2026-05-11T10:00:00Z');
-      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+      collaSettings.set({ assignmentLockDays: 0 });
 
       const { attendance } = await service.set(event.id, late.id, {});
 
@@ -236,6 +238,21 @@ describe('AttendanceService pending model (integration)', () => {
       expect(summary.pending).toBe(2);
       expect(summary.confirmed).toBe(1);
       expect(summary.total).toBe(3);
+    });
+
+    it('counts children by the effective xicalla: a known birth date wins over the manual flag', async () => {
+      const event = await saveEvent('2099-01-01');
+      const kid = await savePerson('KID', '2026-01-01T10:00:00Z', { birthDate: '2020-01-01' as never, isXicallaManual: false });
+      const adult = await savePerson('GRAN', '2026-01-01T10:00:00Z', { birthDate: '1990-01-01' as never, isXicallaManual: true });
+      const unknown = await savePerson('NOBD', '2026-01-01T10:00:00Z', { isXicallaManual: true });
+      await saveRow(event, kid, AttendanceStatus.ASSISTIT);
+      await saveRow(event, adult, AttendanceStatus.ASSISTIT);
+      await saveRow(event, unknown, AttendanceStatus.ANIRE);
+
+      const summary = await service.recalculateSummary(event.id);
+
+      expect(summary.children).toBe(2);
+      expect(summary.childrenAttended).toBe(1);
     });
 
     it('leaves NO_REGISTRAT persons out of pending and total', async () => {
