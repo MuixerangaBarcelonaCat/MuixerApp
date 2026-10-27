@@ -1,7 +1,6 @@
 import {
   Component,
   ChangeDetectionStrategy,
-  computed,
   inject,
   signal,
   input,
@@ -12,7 +11,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { DelegateType, UserRole } from '@muixer/shared';
+import { DELEGATE_TYPE_LABELS, DelegateType, UserRole } from '@muixer/shared';
 import { AlertComponent, BadgeComponent, ButtonComponent, InputComponent, ModalComponent, SelectComponent } from '@muixer/ui';
 import { UserService } from '../../../../config/services/user.service';
 import { UserDto } from '../../../../config/models/user.model';
@@ -36,10 +35,6 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
 
   personId = input.required<string>();
   existingDelegateUserIds = input<string[]>([]);
-  /** Whether this delegate is being created as the person's primary manager. */
-  isPrimary = input<boolean>(false);
-  /** Restricts the type selector to PARENT/GUARDIAN when set together with isPrimary (Phase 3's rule). */
-  isXicalla = input<boolean>(false);
 
   closed = output<void>();
   saved = output<PersonDelegateItem>();
@@ -61,19 +56,12 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
     return this.roleLabels[role] ?? null;
   }
 
-  private readonly allDelegateTypes: { value: DelegateType; label: string }[] = [
-    { value: DelegateType.PARENT, label: 'Pare/Mare' },
-    { value: DelegateType.GUARDIAN, label: 'Tutor/a' },
-    { value: DelegateType.OTHER, label: 'Altres' },
-  ];
-
-  readonly delegateTypes = computed(() =>
-    this.isPrimary() && this.isXicalla()
-      ? this.allDelegateTypes.filter(
-          (t) => t.value === DelegateType.PARENT || t.value === DelegateType.GUARDIAN,
-        )
-      : this.allDelegateTypes,
-  );
+  /** A delegació only lets someone manage attendance: any relation fits, unlike a responsible. */
+  readonly delegateTypes: { value: DelegateType; label: string }[] = [
+    DelegateType.PARENT,
+    DelegateType.GUARDIAN,
+    DelegateType.OTHER,
+  ].map((value) => ({ value, label: DELEGATE_TYPE_LABELS[value] }));
 
   ngOnInit(): void {
     this.search$
@@ -118,7 +106,7 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
       .createDelegate(this.personId(), {
         userId: user.id,
         delegateType: this.selectedType(),
-        isPrimary: this.isPrimary(),
+        isPrimary: false,
       })
       .subscribe({
         next: (delegate) => {
@@ -128,7 +116,7 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
         error: (err) => {
           this.saving.set(false);
           this.error.set(
-            err?.error?.message ?? "Error en crear la delegació",
+            err?.error?.message ?? "No s'ha pogut afegir la delegació.",
           );
         },
       });

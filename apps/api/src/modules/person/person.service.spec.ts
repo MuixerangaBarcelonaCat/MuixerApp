@@ -7,7 +7,9 @@ import { Tag } from '../tag/tag.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
-import { TagCategory } from '@muixer/shared';
+import { AccessStatus, TagCategory } from '@muixer/shared';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -44,13 +46,18 @@ describe('PersonService', () => {
 
   const mockPersonDelegateService = {
     getPrimary: jest.fn().mockResolvedValue(null),
+    findPersonIdsWithResponsible: jest.fn().mockResolvedValue(new Set()),
     assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
   };
 
+  let collaSettings: CollaSettingsStub;
+
   beforeEach(async () => {
+    collaSettings = new CollaSettingsStub();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PersonService,
+        { provide: CollaSettingsService, useValue: collaSettings },
         {
           provide: getRepositoryToken(Person),
           useValue: mockPersonRepository,
@@ -132,6 +139,49 @@ describe('PersonService', () => {
       expect(result.user?.isActive).toBe(true);
     });
 
+    it("exposes the linked user's invite expiry", async () => {
+      const expiresAt = new Date('2099-01-01T00:00:00Z');
+      mockPersonRepository.findOne.mockResolvedValue({
+        id: '123',
+        alias: 'test',
+        user: { id: 'u1', email: null, isActive: false, inviteExpiresAt: expiresAt },
+      });
+
+      const result = await service.findOne('123');
+
+      expect(result.user?.inviteExpiresAt).toEqual(expiresAt);
+    });
+
+    it('resolves accessStatus from the linked user', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({
+        id: '123',
+        alias: 'test',
+        user: { id: 'u1', email: null, isActive: false, inviteExpiresAt: new Date('2099-01-01T00:00:00Z') },
+      });
+
+      const result = await service.findOne('123');
+
+      expect(result.accessStatus).toBe(AccessStatus.INVITED);
+    });
+
+    it('resolves accessStatus MANAGED when someone else is responsible for the person', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '123', alias: 'test', user: null });
+      mockPersonDelegateService.findPersonIdsWithResponsible.mockResolvedValueOnce(new Set(['123']));
+
+      const result = await service.findOne('123');
+
+      expect(mockPersonDelegateService.findPersonIdsWithResponsible).toHaveBeenCalledWith(['123']);
+      expect(result.accessStatus).toBe(AccessStatus.MANAGED);
+    });
+
+    it('resolves accessStatus NONE with no account and no responsible', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '123', alias: 'test', user: null });
+
+      const result = await service.findOne('123');
+
+      expect(result.accessStatus).toBe(AccessStatus.NONE);
+    });
+
     it('exposa tagCompliance calculada a partir de les etiquetes de la persona', async () => {
       mockPersonRepository.findOne.mockResolvedValue({
         id: 'p1',
@@ -169,6 +219,8 @@ describe('PersonService', () => {
 
       mockPersonRepository.create.mockReturnValue(mockPerson);
       mockPersonRepository.save.mockResolvedValue(mockPerson);
+      // The response is read back after the write (isXicalla is worked out on read).
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
       const result = await service.create(createDto);
 
@@ -193,6 +245,8 @@ describe('PersonService', () => {
       mockPositionRepository.findBy.mockResolvedValue(mockPositions);
       mockPersonRepository.create.mockReturnValue(mockPerson);
       mockPersonRepository.save.mockResolvedValue(mockPerson);
+      // The response is read back after the write (isXicalla is worked out on read).
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
       const result = await service.create(createDto);
 
@@ -220,13 +274,45 @@ describe('PersonService', () => {
       expect(mockPersonRepository.save).not.toHaveBeenCalled();
     });
 
-    it('assigna «Persona Nova» quan no ve cap etiqueta de xicalla ni d\'altres', async () => {
+    it("gives the colla's default tag when no xicalla or altres tag comes", async () => {
       const personaNova = { id: 'tag-nova', slug: 'persona-nova', category: TagCategory.PINYA } as Tag;
+      collaSettings.set({ defaultTagId: 'tag-nova' });
       mockPositionRepository.findOne.mockResolvedValue(personaNova);
       mockPersonRepository.create.mockImplementation((data) => data as Person);
       mockPersonRepository.save.mockImplementation(async (person) => person as Person);
 
       await service.create({ name: 'Nova', firstSurname: 'Persona', alias: 'nova' } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions).toEqual([personaNova]);
+      expect(mockPositionRepository.findOne).toHaveBeenCalledWith({ where: { id: 'tag-nova' } });
+    });
+
+    it('gives no tag when the colla has no default tag', async () => {
+      collaSettings.set({ defaultTagId: null });
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({ name: 'Nova', firstSurname: 'Persona', alias: 'nova' } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions ?? []).toEqual([]);
+      expect(mockPositionRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('does not add the default tag twice when it already comes', async () => {
+      const personaNova = { id: 'tag-nova', slug: 'persona-nova', category: TagCategory.PINYA } as Tag;
+      collaSettings.set({ defaultTagId: 'tag-nova' });
+      mockPositionRepository.findBy.mockResolvedValue([personaNova]);
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({
+        name: 'Nova',
+        firstSurname: 'Persona',
+        alias: 'nova',
+        positionIds: ['tag-nova'],
+      } as CreatePersonDto);
 
       const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
       expect(saved.positions).toEqual([personaNova]);
@@ -374,6 +460,25 @@ describe('PersonService', () => {
       expect(result.data.map((person) => person.attendedCount)).toEqual([0, 7]);
     });
 
+    it('resolves accessStatus per person, looking up responsibles for the loaded page only', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(3);
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 'a', alias: 'a', positions: [], user: { id: 'ua', email: 'a@b.c', isActive: true, inviteExpiresAt: null } },
+        { id: 'b', alias: 'b', positions: [], user: null },
+        { id: 'c', alias: 'c', positions: [], user: null },
+      ]);
+      mockPersonDelegateService.findPersonIdsWithResponsible.mockResolvedValueOnce(new Set(['b']));
+
+      const result = await service.findAll({ page: 1, limit: 10 });
+
+      expect(mockPersonDelegateService.findPersonIdsWithResponsible).toHaveBeenCalledWith(['a', 'b', 'c']);
+      expect(result.data.map((person) => person.accessStatus)).toEqual([
+        AccessStatus.ACTIVE,
+        AccessStatus.MANAGED,
+        AccessStatus.NONE,
+      ]);
+    });
+
     it('skips the attendance query entirely when the page is empty', async () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
       mockQueryBuilder.getMany.mockResolvedValue([]);
@@ -406,6 +511,65 @@ describe('PersonService', () => {
         expect.stringContaining('attendances'),
         'attended_count',
       );
+    });
+  });
+
+  describe('findShirtCandidates', () => {
+    const row = (alias: string, performancesAttended: number, rehearsalsAttended: number) => ({
+      id: `id-${alias}`,
+      alias,
+      name: 'Nom',
+      firstSurname: 'Cognom',
+      secondSurname: null,
+      isXicalla: false,
+      joinDate: null,
+      performancesAttended,
+      rehearsalsAttended,
+      lastAttendedDate: null,
+    });
+
+    it('marks who has the right to a camisa and sorts them first, then by closeness', async () => {
+      mockPersonRepository.query.mockResolvedValueOnce([
+        row('Lluny', 0, 1),
+        row('Dret', 2, 6),
+        row('Prop', 1, 6),
+      ]);
+
+      const result = await service.findShirtCandidates();
+
+      expect(result.map((c) => c.alias)).toEqual(['Dret', 'Prop', 'Lluny']);
+      expect(result[0]).toEqual(
+        expect.objectContaining({ id: 'id-Dret', isEligible: true, missingTotal: 0 }),
+      );
+      expect(result[1]).toEqual(
+        expect.objectContaining({ isEligible: false, missingTotal: 1, missingPerformances: 1, missingRehearsals: 0 }),
+      );
+      expect(result[2]).toEqual(expect.objectContaining({ isEligible: false, missingTotal: 7 }));
+    });
+
+    it("measures against the colla's own requirements", async () => {
+      collaSettings.set({ shirtRequirements: { performances: 1, rehearsals: 1 } });
+      mockPersonRepository.query.mockResolvedValueOnce([row('Lluny', 0, 1), row('Prop', 1, 1)]);
+
+      const result = await service.findShirtCandidates();
+
+      expect(result.map((c) => [c.alias, c.isEligible])).toEqual([
+        ['Prop', true],
+        ['Lluny', false],
+      ]);
+    });
+
+    it('counts only ASSISTIT on statistic events of active, non-provisional persons without camisa', async () => {
+      mockPersonRepository.query.mockResolvedValueOnce([]);
+
+      await service.findShirtCandidates();
+
+      const [sql, params] = mockPersonRepository.query.mock.calls[0];
+      expect(sql).toContain('"shirtDate" IS NULL');
+      expect(sql).toContain('"isActive"');
+      expect(sql).toContain('"isProvisional"');
+      expect(sql).toContain('"countsForStatistics"');
+      expect(params).toEqual(['ASSISTIT', 'ACTUACIO', 'ASSAIG']);
     });
   });
 
@@ -486,8 +650,9 @@ describe('PersonService', () => {
   // --- createProvisional ---
   describe('createProvisional', () => {
     it('creates a provisional person with ~ prefix', async () => {
-      mockPersonRepository.findOne.mockResolvedValue(null);
       const savedPerson = { id: 'prov-1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, isActive: true, positions: [] };
+      // Alias check finds nobody; the response is then read back after the write.
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
       mockPersonRepository.create.mockReturnValue(savedPerson);
       mockPersonRepository.save.mockResolvedValue(savedPerson);
 
@@ -495,6 +660,32 @@ describe('PersonService', () => {
 
       expect(mockPersonRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ alias: '~Joan', isProvisional: true, isActive: true }),
+      );
+    });
+
+    it('writes the xicalla flag to isXicallaManual (a provisional person has no birth date)', async () => {
+      const savedPerson = { id: 'prov-1', alias: '~Pepa', positions: [] };
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
+      mockPersonRepository.create.mockReturnValue(savedPerson);
+      mockPersonRepository.save.mockResolvedValue(savedPerson);
+
+      await service.createProvisional('Pepa', true);
+
+      expect(mockPersonRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isXicallaManual: true }),
+      );
+    });
+
+    it('leaves isXicallaManual false by default', async () => {
+      const savedPerson = { id: 'prov-1', alias: '~Joan', positions: [] };
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
+      mockPersonRepository.create.mockReturnValue(savedPerson);
+      mockPersonRepository.save.mockResolvedValue(savedPerson);
+
+      await service.createProvisional('Joan');
+
+      expect(mockPersonRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isXicallaManual: false }),
       );
     });
 
@@ -506,10 +697,10 @@ describe('PersonService', () => {
     });
 
     it('truncates alias to 20 chars when prefixed', async () => {
-      mockPersonRepository.findOne.mockResolvedValue(null);
       const alias = 'MoltLlargAliasXXXXXX'; // 20 chars → ~MoltLlargAliasXXXXX (20 chars)
       const expected = `~${alias}`.slice(0, 20);
       const savedPerson = { id: 'p', alias: expected, name: alias, firstSurname: '', isProvisional: true, isActive: true, positions: [] };
+      mockPersonRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(savedPerson);
       mockPersonRepository.create.mockReturnValue(savedPerson);
       mockPersonRepository.save.mockResolvedValue(savedPerson);
 
@@ -538,7 +729,8 @@ describe('PersonService', () => {
       const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
       mockPersonRepository.findOne
         .mockResolvedValueOnce(person)
-        .mockResolvedValueOnce(null);
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(person);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
       await service.update('1', { alias: 'FreeAlias' });
@@ -717,6 +909,46 @@ describe('PersonService', () => {
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
       await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
+    });
+
+    const adultByDate = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, birthDate: '1990-01-01', isXicallaManual: false, isXicalla: false, positions: [], mentor: null };
+
+    it('re-validates when a new birth date makes the person xicalla, with no flag sent', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { birthDate: '2020-01-01' });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).toHaveBeenCalledWith('1');
+    });
+
+    it('does not re-validate when the flag is sent but the birth date keeps the person an adult', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
+    });
+
+    it('re-validates when the birth date is cleared and the manual flag makes the person xicalla', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate, isXicallaManual: true });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { birthDate: null });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).toHaveBeenCalledWith('1');
+    });
+
+    it('judges the age with the colla majority age', async () => {
+      // 12 years old: xicalla with the default 16, an adult when the colla sets 10.
+      collaSettings.set({ majorityAge: 10 });
+      mockPersonRepository.findOne.mockResolvedValue({ ...adultByDate });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { birthDate: `${new Date().getFullYear() - 12}-01-01` });
 
       expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
     });

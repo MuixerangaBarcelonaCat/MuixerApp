@@ -31,6 +31,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ChangeEmailDto } from './dto/change-email.dto';
 import { JWT_ACCESS_TTL, PASSWORD_RESET_TTL } from './constants/auth.constants';
 import { hashToken } from '../../common/utils/hash-token.util';
+import { formatDateOnly } from '../../common/utils/date.util';
 
 const BCRYPT_ROUNDS = 12;
 /** Prefix `PersonService.createProvisional` applies to provisional aliases; stripped on promotion. */
@@ -358,9 +359,7 @@ export class AuthService {
         secondSurname: person.secondSurname,
         gender: person.gender,
         phone: person.phone,
-        birthDate: person.birthDate instanceof Date
-          ? person.birthDate.toISOString().slice(0, 10)
-          : (person.birthDate ?? null),
+        birthDate: person.birthDate ? formatDateOnly(person.birthDate) : null,
       },
       expiresAt: user.inviteExpiresAt.toISOString(),
       legalDocument: { content: legalDocument.content, version: legalDocument.version },

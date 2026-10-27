@@ -10,7 +10,7 @@ import { ToastService } from '@muixer/ui';
 import { positionTypeColor } from '@muixer/pinyes-render';
 import { TagWithCount } from '../../models/tag.model';
 import { Person } from '../../../persons/models/person.model';
-import { TagCategory, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { AccessStatus, TagCategory, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 
 const mockTag = (overrides: Partial<TagWithCount> = {}): TagWithCount => ({
   id: 't1',
@@ -45,6 +45,7 @@ const mockPerson = (overrides: Partial<Person> = {}): Person => ({
   isActive: true,
   positions: [],
   user: null,
+  accessStatus: AccessStatus.NONE,
   tagCompliance: { ok: true, missing: [] },
   attendedCount: 0,
   createdAt: '2025-01-01',

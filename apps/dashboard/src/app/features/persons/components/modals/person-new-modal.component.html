@@ -1,21 +1,111 @@
 <lib-modal [open]="true" title="Persona nova" (closed)="close()">
+  @if (subtitle(); as sub) {
+    <p class="-mt-2 mb-4 text-sm text-base-content/60">{{ sub }}</p>
+  }
+
   @if (error()) {
     <div class="mb-4">
       <lib-alert variant="error" dense>{{ error() }}</lib-alert>
     </div>
   }
 
-  <lib-input
-    label="Àlies"
-    placeholder="Àlies"
-    [ngModel]="alias()"
-    (ngModelChange)="alias.set($event)"
-    [disabled]="creating()"
-    (keydown.enter)="create()"
-  />
+  @switch (step()) {
+    @case ('alias') {
+      <div class="flex flex-col gap-4">
+        <lib-input
+          label="Àlies"
+          placeholder="Àlies"
+          [ngModel]="alias()"
+          (ngModelChange)="alias.set($event)"
+          [disabled]="saving()"
+          (keydown.enter)="create()"
+        />
+        <div class="flex flex-col gap-1">
+          <lib-checkbox size="sm" [ngModel]="isXicalla()" (ngModelChange)="isXicalla.set($event)" [disabled]="saving()">
+            <span class="text-sm">Xicalla</span>
+          </lib-checkbox>
+          <p class="ml-7 text-xs text-base-content/60">
+            Menor de {{ majorityAge() }} anys.
+          </p>
+        </div>
+      </div>
+    }
+
+    @case ('invite') {
+      <div class="flex flex-col gap-4">
+        @if (!linkCreated()) {
+          <p class="text-sm">S'ha creat la persona <strong>{{ personAlias() }}</strong>.</p>
+          <p class="text-sm">
+            Per a donar-li accés a l'app, creeu un enllaç d'invitació i envieu-lo a {{ personAlias() }}. En obrir-lo,
+            completarà les seues dades i triarà una contrasenya.
+          </p>
+        }
+        <app-invite-link-panel [personId]="person()!.id" [alias]="personAlias()" [withButton]="false" />
+      </div>
+    }
+
+    @case ('responsible') {
+      <div class="flex flex-col gap-4">
+        <p class="text-sm">
+          S'ha creat <strong>{{ personAlias() }}</strong>. Com que és xicalla, la seua assistència i les seues dades les
+          gestiona una persona adulta responsable des del seu compte.
+        </p>
+        <app-responsible-picker
+          [personId]="person()!.id"
+          [isXicalla]="true"
+          (selectionChange)="responsibleSelection.set($event)"
+        />
+      </div>
+    }
+
+    @case ('responsible-invite') {
+      <div class="flex flex-col gap-4">
+        @if (!linkCreated()) {
+          <p class="text-sm">
+            <strong>{{ responsibleAlias() }}</strong> ({{ responsibleRelation() }}) és ara la persona responsable de
+            <strong>{{ personAlias() }}</strong>. {{ responsibleAlias() }} encara no té accés a l'app: envieu-li este
+            enllaç. En activar el compte, també podrà completar les dades de {{ personAlias() }}.
+          </p>
+        }
+        <app-invite-link-panel
+          [personId]="responsibleSelection()!.person.id"
+          [alias]="responsibleAlias()"
+          [withButton]="false"
+        />
+      </div>
+    }
+  }
 
   <div modalFooter>
-    <lib-button variant="ghost" size="sm" [disabled]="creating()" (clicked)="close()">Cancel·la</lib-button>
-    <lib-button variant="primary" size="sm" [disabled]="!alias().trim()" [loading]="creating()" (clicked)="create()">Crea</lib-button>
+    @switch (step()) {
+      @case ('alias') {
+        <lib-button variant="ghost" size="sm" [disabled]="saving()" (clicked)="close()">Cancel·la</lib-button>
+        <lib-button variant="primary" size="sm" [disabled]="!alias().trim()" [loading]="saving()" (clicked)="create()">
+          Crea
+        </lib-button>
+      }
+      @case ('responsible') {
+        <lib-button variant="ghost" size="sm" [disabled]="saving()" (clicked)="close()">Omet</lib-button>
+        <lib-button
+          variant="primary"
+          size="sm"
+          [disabled]="!responsibleSelection()"
+          [loading]="saving()"
+          (clicked)="linkResponsible()"
+        >
+          Vincula
+        </lib-button>
+      }
+      @default {
+        @if (linkCreated()) {
+          <lib-button variant="primary" size="sm" (clicked)="close()">Fet</lib-button>
+        } @else {
+          <lib-button variant="ghost" size="sm" [disabled]="linkGenerating()" (clicked)="close()">Omet</lib-button>
+          <lib-button variant="primary" size="sm" [loading]="linkGenerating()" (clicked)="generateLink()">
+            Crea l'enllaç d'invitació
+          </lib-button>
+        }
+      }
+    }
   </div>
 </lib-modal>

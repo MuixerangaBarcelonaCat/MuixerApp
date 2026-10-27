@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { InviteLinkResponse } from '@muixer/shared';
+import { InviteLinkResponse, ShirtCandidate } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -29,14 +29,22 @@ export class PersonService extends ApiService {
     return this.get<Person>(`/persons/${id}`);
   }
 
+  /** Persones pendents de camisa, ja ordenades: primer qui hi té dret, després de més a menys a prop. */
+  getShirtCandidates(): Observable<ShirtCandidate[]> {
+    return this.get<ShirtCandidate[]>('/persons/shirt-candidates');
+  }
+
   /** Carrega totes les posicions muixerangueres disponibles (per als filtres i formularis). */
   getPositions(): Observable<Position[]> {
     return this.get<Position[]>('/tags');
   }
 
-  /** Crea una persona provisional amb l'àlies indicat. El backend afegeix automàticament el prefix `~`. */
-  createProvisional(alias: string): Observable<Person> {
-    return this.post<Person>('/persons/provisional', { alias });
+  /**
+   * Crea una persona provisional amb l'àlies indicat. El backend afegeix automàticament el prefix `~`.
+   * `isXicalla` és el valor marcat a mà: compta mentre la persona no tinga data de naixement.
+   */
+  createProvisional(alias: string, isXicalla = false): Observable<Person> {
+    return this.post<Person>('/persons/provisional', { alias, isXicalla });
   }
 
   /** Actualitza parcialment una persona. Usat per edicions de detall i per a les transicions provisional↔regular. */

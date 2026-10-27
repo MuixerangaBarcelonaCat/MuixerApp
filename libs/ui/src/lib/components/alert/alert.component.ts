@@ -42,6 +42,8 @@ const VARIANT_ASSERTIVE: Record<AlertVariant, boolean> = {
   imports: [LucideAngularModule, ButtonComponent],
   templateUrl: './alert.component.html',
   styleUrls: ['./alert.component.scss'],
+  // A static `title="…"` feeds the input but would also stay on the host as a native tooltip.
+  host: { '[attr.title]': 'null' },
 })
 export class AlertComponent {
   variant = input<AlertVariant>('info');

@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import {
   NotFoundException,
   ConflictException,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { DelegateType } from '@muixer/shared';
+import { DelegateType, UserRole } from '@muixer/shared';
 import { PersonDelegateService } from './person-delegate.service';
 import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
@@ -304,6 +304,168 @@ describe('PersonDelegateService', () => {
     });
   });
 
+  describe('messages shown in the dashboard', () => {
+    const personId = 'person-1';
+
+    it('names self-delegation in Catalan', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: personId });
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user-self', person: { id: personId } });
+
+      await expect(
+        service.create(personId, { userId: 'user-self', delegateType: DelegateType.OTHER }),
+      ).rejects.toThrow(new BadRequestException("Una persona no pot ser delegada d'ella mateixa."));
+    });
+
+    it('names a primary for someone with their own account', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: personId, user: { id: 'own' } });
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'other' } });
+
+      await expect(
+        service.create(personId, { userId: 'user-1', delegateType: DelegateType.PARENT, isPrimary: true }),
+      ).rejects.toThrow(new BadRequestException("Esta persona ja té accés propi a l'app."));
+    });
+
+    it('names a duplicate delegate in Catalan', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: personId });
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'other' } });
+      mockDelegateRepository.findOne.mockResolvedValue({ id: 'existing' });
+
+      await expect(
+        service.create(personId, { userId: 'user-1', delegateType: DelegateType.OTHER }),
+      ).rejects.toThrow(new ConflictException("Esta persona ja és delegada d'aquest membre."));
+    });
+
+    it('names the relation rule for a xicalla with «persona responsable»', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: personId, isXicalla: true });
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'other' } });
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.create(personId, { userId: 'user-1', delegateType: DelegateType.OTHER, isPrimary: true }),
+      ).rejects.toThrow(
+        new BadRequestException("La persona responsable d'un membre de la xicalla ha de ser pare/mare o tutor/a."),
+      );
+    });
+
+    it('names the adult rule with «persona responsable»', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: personId, isXicalla: true });
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user-1', person: null });
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.create(personId, { userId: 'user-1', delegateType: DelegateType.PARENT, isPrimary: true }),
+      ).rejects.toThrow(new BadRequestException('La persona responsable ha de ser adulta.'));
+    });
+  });
+
+  describe('create by responsible person', () => {
+    const childId = 'child-1';
+    const adultId = 'adult-1';
+    const child = { id: childId, alias: '~Pepa', isXicalla: true, user: null };
+    const dto = { responsiblePersonId: adultId, delegateType: DelegateType.PARENT, isPrimary: true };
+
+    const findPersons = (persons: Record<string, unknown>) =>
+      mockPersonRepository.findOne.mockImplementation(({ where }: { where: { id: string } }) =>
+        Promise.resolve(persons[where.id] ?? null),
+      );
+
+    const makeManager = () => {
+      const delegateRepo = makeTxRepo();
+      return {
+        create: jest.fn((_entity: unknown, data: Record<string, unknown>) => data),
+        save: jest.fn((_entity: unknown, data: Record<string, unknown>) =>
+          Promise.resolve({ id: 'user-stub', ...data }),
+        ),
+        getRepository: jest.fn(() => delegateRepo),
+        delegateRepo,
+      };
+    };
+
+    it('links through the existing account when the adult already has one', async () => {
+      const adultUser = { id: 'user-adult', person: { id: adultId } };
+      findPersons({ [childId]: child, [adultId]: { id: adultId, isActive: true, isXicalla: false, user: adultUser } });
+      mockUserRepository.findOne.mockResolvedValue(adultUser);
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      await service.create(childId, dto);
+
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'user-adult' } }),
+      );
+      expect(txRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ user: adultUser, isPrimary: true, delegateType: DelegateType.PARENT }),
+      );
+    });
+
+    it('creates the adult a stub account and links it, in one transaction, when they have none', async () => {
+      const adult = { id: adultId, isActive: true, isXicalla: false, user: null };
+      findPersons({ [childId]: child, [adultId]: adult });
+      const manager = makeManager();
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+
+      await service.create(childId, dto);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(manager.create).toHaveBeenCalledWith(User, expect.objectContaining({ person: adult, isActive: false }));
+      expect(manager.delegateRepo.update).toHaveBeenCalledWith({ person: { id: childId } }, { isPrimary: false });
+      expect(manager.delegateRepo.create).toHaveBeenCalledWith({
+        person: child,
+        user: expect.objectContaining({ id: 'user-stub' }),
+        delegateType: DelegateType.PARENT,
+        isPrimary: true,
+      });
+    });
+
+    it('throws NotFoundException when the responsible person does not exist', async () => {
+      findPersons({ [childId]: child });
+
+      await expect(service.create(childId, dto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('refuses a person as their own responsible', async () => {
+      findPersons({ [childId]: child });
+
+      await expect(service.create(childId, { ...dto, responsiblePersonId: childId })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('refuses an inactive responsible person', async () => {
+      findPersons({ [childId]: child, [adultId]: { id: adultId, isActive: false, isXicalla: false, user: null } });
+
+      await expect(service.create(childId, dto)).rejects.toThrow(BadRequestException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('refuses a xicalla as responsible person (effective value)', async () => {
+      findPersons({ [childId]: child, [adultId]: { id: adultId, isActive: true, isXicalla: true, user: null } });
+
+      await expect(service.create(childId, dto)).rejects.toThrow(
+        new BadRequestException('La persona responsable ha de ser adulta.'),
+      );
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('creates no stub when the child already manages their own account', async () => {
+      findPersons({
+        [childId]: { ...child, isXicalla: false, user: { id: 'user-child' } },
+        [adultId]: { id: adultId, isActive: true, isXicalla: false, user: null },
+      });
+
+      await expect(service.create(childId, dto)).rejects.toThrow(BadRequestException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('creates no stub when the relation does not qualify for a xicalla', async () => {
+      findPersons({ [childId]: child, [adultId]: { id: adultId, isActive: true, isXicalla: false, user: null } });
+
+      await expect(service.create(childId, { ...dto, delegateType: DelegateType.OTHER })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Xicalla integrity rule', () => {
     const personId = 'child-1';
     const userId = 'user-1';
@@ -576,6 +738,57 @@ describe('PersonDelegateService', () => {
     });
   });
 
+  describe('ensureAccountHolder', () => {
+    const makeManager = () => {
+      const repo = { update: jest.fn().mockResolvedValue({ affected: 0 }) };
+      return {
+        create: jest.fn((_entity: unknown, data: Record<string, unknown>) => data),
+        save: jest.fn((_entity: unknown, data: Record<string, unknown>) =>
+          Promise.resolve({ id: 'user-new', ...data }),
+        ),
+        getRepository: jest.fn(() => repo),
+        repo,
+      };
+    };
+
+    it('returns the existing user without creating one', async () => {
+      const user = { id: 'user-1' } as User;
+      const manager = makeManager();
+
+      const result = await service.ensureAccountHolder({ id: 'person-1', user } as Person, manager as never);
+
+      expect(result).toBe(user);
+      expect(manager.create).not.toHaveBeenCalled();
+    });
+
+    it('creates an inactive MEMBER stub with no email and no invite', async () => {
+      const person = { id: 'person-1', user: null } as unknown as Person;
+      const manager = makeManager();
+
+      const result = await service.ensureAccountHolder(person, manager as never);
+
+      expect(manager.create).toHaveBeenCalledWith(User, {
+        email: null,
+        role: UserRole.MEMBER,
+        person,
+        isActive: false,
+      });
+      expect(result).toEqual(expect.objectContaining({ id: 'user-new', isActive: false }));
+    });
+
+    it('demotes any primary delegate of that person in the same manager', async () => {
+      const person = { id: 'person-1', user: null } as unknown as Person;
+      const manager = makeManager();
+
+      await service.ensureAccountHolder(person, manager as never);
+
+      expect(manager.repo.update).toHaveBeenCalledWith(
+        { person: { id: 'person-1' }, isPrimary: true },
+        { isPrimary: false },
+      );
+    });
+  });
+
   describe('findProvisionalPrimaryDependents', () => {
     it('returns provisional persons where the user is the primary delegate', async () => {
       const userId = 'user-1';
@@ -599,6 +812,27 @@ describe('PersonDelegateService', () => {
       const result = await service.findProvisionalPrimaryDependents('user-1');
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('findPersonIdsWithResponsible', () => {
+    it('returns the ids, among those asked for, that have an active primary delegate', async () => {
+      mockDelegateRepository.find.mockResolvedValue([{ id: 'del-1', person: { id: 'person-b' } }]);
+
+      const result = await service.findPersonIdsWithResponsible(['person-a', 'person-b']);
+
+      expect(result).toEqual(new Set(['person-b']));
+      expect(mockDelegateRepository.find).toHaveBeenCalledWith({
+        where: { person: { id: In(['person-a', 'person-b']) }, isPrimary: true, isActive: true },
+        relations: ['person'],
+      });
+    });
+
+    it('skips the query for an empty list', async () => {
+      const result = await service.findPersonIdsWithResponsible([]);
+
+      expect(result).toEqual(new Set());
+      expect(mockDelegateRepository.find).not.toHaveBeenCalled();
     });
   });
 

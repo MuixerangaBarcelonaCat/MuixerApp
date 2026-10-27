@@ -85,7 +85,7 @@ describe('DelegationsModalComponent', () => {
 
       const text = fixture.nativeElement.textContent as string;
       expect(text).toContain('Mare');
-      expect(text).toContain('Pare/Mare');
+      expect(text).toContain('Pare/mare');
       expect(text).toContain('oncle@a.com');
       expect(text).toContain('Altres');
     });
@@ -185,12 +185,12 @@ describe('DelegationsModalComponent', () => {
       expect(select.value).toBe('');
     });
 
-    it('offers Pare/Mare, Tutor/a and Altres as relationship types — no partner option', () => {
+    it('offers Pare/mare, Tutor/a and Altres as relationship types — no partner option', () => {
       const options = fixture.nativeElement.querySelectorAll(
         '#delegate-type select option[value]:not([value=""])',
       );
       const labels = Array.from(options).map((o) => (o as HTMLOptionElement).textContent?.trim());
-      expect(labels).toEqual(['Pare/Mare', 'Tutor/a', 'Altres']);
+      expect(labels).toEqual(['Pare/mare', 'Tutor/a', 'Altres']);
     });
 
     it('disables submit until a relationship type is selected', () => {

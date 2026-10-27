@@ -1,11 +1,11 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, UserPlus, Link, Search } from 'lucide-angular';
+import { LucideAngularModule, Search } from 'lucide-angular';
 import { ButtonComponent, ButtonGroupComponent, CheckboxComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC, DOMAIN_ICONS } from '@muixer/ui';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
-import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
+import { ACCESS_STATUS_LABELS, AccessStatus, TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
 import {
   formatPhone,
   getFullName,
@@ -14,7 +14,6 @@ import {
   formatShoulderHeightCm,
   formatShoulderHeightRelative,
 } from '../../../shared/utils';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { PageHeaderComponent } from '../../../shared/components/data/page-header/page-header.component';
 import { FilterBarComponent } from '../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent } from '../../../shared/components/data/active-filters/active-filters.component';
@@ -25,34 +24,10 @@ import { ActiveFilter } from '../../../shared/components/data/active-filters/act
 import { ColumnDef } from '../../../shared/models/column-def.model';
 import { EventType } from '@muixer/shared';
 import { PersonNewModalComponent } from './modals/person-new-modal.component';
-import { TutorialModalComponent } from '../../../shared/components/tutorial-modal/tutorial-modal.component';
-import { TutorialStep } from '../../../shared/components/tutorial-modal/tutorial-step.model';
+import { accessStatusBadgeClass } from './access-status-badge/access-status-badge.component';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 const STORAGE_KEY = 'person-list-visible-columns';
-
-const ACTIVATION_TUTORIAL_STEPS: TutorialStep[] = [
-  {
-    title: 'Persona creada',
-    description: "Acabeu de crear una persona provisional. El pas següent és donar-li accés a l'aplicació.",
-    icon: UserPlus,
-  },
-  {
-    title: "Genereu l'enllaç d'invitació",
-    description:
-      'Aneu a la llista de persones, obriu la pestanya "Provisionals" i entreu al perfil de la persona. ' +
-      'Feu clic a "Crea enllaç d\'invitació": l\'enllaç es copiarà automàticament al portapapers ' +
-      'perquè el pugueu enviar per WhatsApp.',
-    icon: Link,
-  },
-  {
-    title: 'Per a la xicalla',
-    description:
-      'Per a la xicalla, cal crear dues persones: una per a l\'adult responsable i una altra per a la xicalla. ' +
-      'Creeu l\'enllaç d\'invitació per a la persona adulta. Després, des del perfil de la xicalla, ' +
-      'feu clic a "Defineix adult responsable" per vincular-la amb aquest adult.',
-    icon: DOMAIN_ICONS.XICALLA,
-  },
-];
 
 export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'alias', label: 'Alies', defaultVisible: true, sortField: 'alias', primary: true },
@@ -61,13 +36,14 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
   { key: 'positions', label: 'Etiquetes', defaultVisible: true, type: 'colorBadges' },
+  { key: 'accessStatus', label: 'Accés', defaultVisible: true, type: 'badge' },
   // "(temp. actual)" avoids reading as "never attends": attendedCount is 0 both for a genuine
   // newcomer and whenever there is no current season — the label scopes it explicitly instead.
   { key: 'attendedCount', label: 'Assistències (temp. actual)', defaultVisible: false, sortField: 'attendedCount' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
-  { key: 'isXicalla', label: 'Menor de 16', defaultVisible: false, sortField: 'isXicalla' },
+  { key: 'isXicalla', label: 'Xicalla', defaultVisible: false, sortField: 'isXicalla' },
   { key: 'shirtDate', label: 'Data camisa', defaultVisible: false, sortField: 'shirtDate' },
   { key: 'notes', label: 'Notes', defaultVisible: false },
   { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
@@ -94,24 +70,23 @@ export const ALL_COLUMNS: ColumnDef[] = [
     EmptyStateComponent,
     DataTableComponent,
     PersonNewModalComponent,
-    TutorialModalComponent,
   ],
   templateUrl: './person-list.component.html',
 })
 export class PersonListComponent {
   readonly ICON_PERSONA = DOMAIN_ICONS.PERSONA;
-  readonly activationTutorialSteps = ACTIVATION_TUTORIAL_STEPS;
+  readonly ICON_CAMISA = DOMAIN_ICONS.CAMISA;
   protected readonly SearchIcon = Search;
 
   private readonly personService = inject(PersonService);
   private readonly router = inject(Router);
-  private readonly activationTutorial = viewChild<TutorialModalComponent>('activationTutorial');
-  private pendingActivationPerson = signal<Person | null>(null);
+  /** Created in «Persona nova»; its profile opens once the guided modal is closed. */
+  private createdPerson: Person | null = null;
 
   Math = Math;
 
   readonly allColumns = ALL_COLUMNS;
-  readonly shoulderBaselineCm = SHOULDER_HEIGHT_BASELINE_CM;
+  private readonly renderSettings = injectPinyesRenderSettings();
 
   searchInput = '';
 
@@ -142,7 +117,8 @@ export class PersonListComponent {
     const pos = this.selectedPositions().length > 0;
     const actius = this.activeFilters().isActive === true;
     const tagRule = this.activeFilters().tagRuleOk !== undefined;
-    return Boolean(s || pos || actius || tagRule);
+    const access = this.activeFilters().accessStatus !== undefined;
+    return Boolean(s || pos || actius || tagRule || access);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -218,6 +194,17 @@ export class PersonListComponent {
 
   toggleTagRuleFilter(): void {
     this.toggleFilter('tagRuleOk', false);
+  }
+
+  /** `''` is «Tots»: no access filter. */
+  onAccessStatusChange(status: AccessStatus | ''): void {
+    this.activeFilters.update((filters) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { accessStatus: _a, ...rest } = filters;
+      return status ? { ...rest, accessStatus: status } : rest;
+    });
+    this.page.set(1);
+    this.loadPersons();
   }
 
   /** Renders `TagCompliance.missing` into the Catalan warning text for the badge/tooltip. */
@@ -310,14 +297,13 @@ export class PersonListComponent {
   }
 
   onPersonCreated(person: Person) {
-    this.newPersonModalOpen.set(false);
-    this.pendingActivationPerson.set(person);
-    this.activationTutorial()?.open();
+    this.createdPerson = person;
   }
 
-  onActivationTutorialClosed() {
-    const person = this.pendingActivationPerson();
-    this.pendingActivationPerson.set(null);
+  onNewPersonModalClosed() {
+    this.newPersonModalOpen.set(false);
+    const person = this.createdPerson;
+    this.createdPerson = null;
     if (person) {
       this.router.navigate(['/persons', person.id]);
     }
@@ -328,7 +314,7 @@ export class PersonListComponent {
       return '—';
     }
     if (this.shoulderHeightRelative()) {
-      return formatShoulderHeightRelative(value, this.shoulderBaselineCm);
+      return formatShoulderHeightRelative(value, this.renderSettings().shoulderHeightBaselineCm);
     }
     return formatShoulderHeightCm(value);
   }
@@ -395,6 +381,8 @@ export class PersonListComponent {
     if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Etiquetes (${this.selectedPositions().length})` });
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
     if (this.activeFilters().tagRuleOk === false) chips.push({ key: 'tagRuleOk', label: 'Falten etiquetes' });
+    const accessStatus = this.activeFilters().accessStatus;
+    if (accessStatus) chips.push({ key: 'accessStatus', label: ACCESS_STATUS_LABELS[accessStatus] });
     return chips;
   });
 
@@ -408,6 +396,7 @@ export class PersonListComponent {
     else if (key === 'positions') this.clearPositionsChip();
     else if (key === 'isActive') this.clearActiusChip();
     else if (key === 'tagRuleOk') this.toggleTagRuleFilter();
+    else if (key === 'accessStatus') this.onAccessStatusChange('');
   }
 
   onSortChangeFromTable(event: { field: string; order: 'ASC' | 'DESC' | undefined }): void {
@@ -439,6 +428,7 @@ export class PersonListComponent {
       case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
       case 'attendedCount': return String(person.attendedCount ?? 0);
       case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
+      case 'accessStatus': return ACCESS_STATUS_LABELS[person.accessStatus];
       case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
       case 'isActive': return person.isActive ? 'Actiu' : 'Inactiu';
       case 'isMember': return person.isMember ? 'Sí' : 'No';
@@ -457,6 +447,9 @@ export class PersonListComponent {
     ALL_COLUMNS.map(col => ({
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
+      ...(col.key === 'accessStatus' && {
+        badgeClass: (person: Person) => accessStatusBadgeClass(person.accessStatus),
+      }),
       ...(col.key === 'positions' && {
         // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag,
         // flagged with a warning icon/color instead of a real tag color. It carries the
@@ -477,4 +470,6 @@ export class PersonListComponent {
   protected readonly TagCategory = TagCategory;
   protected readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
   readonly tagCategories = Object.values(TagCategory);
+  protected readonly accessStatuses = Object.values(AccessStatus);
+  protected readonly ACCESS_STATUS_LABELS = ACCESS_STATUS_LABELS;
 }

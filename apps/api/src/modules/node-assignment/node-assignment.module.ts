@@ -13,6 +13,7 @@ import { NodeAssignmentController } from './node-assignment.controller';
 import { NodeAssignmentService } from './node-assignment.service';
 import { AvailablePersonsService } from './available-persons.service';
 import { EventParticipationService } from './event-participation.service';
+import { CollaSettingsModule } from '../colla-settings/colla-settings.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { EventParticipationService } from './event-participation.service';
       EventSegment,
       FigureTemplate,
     ]),
+    CollaSettingsModule,
   ],
   controllers: [NodeAssignmentController],
   providers: [NodeAssignmentService, AvailablePersonsService, EventParticipationService],

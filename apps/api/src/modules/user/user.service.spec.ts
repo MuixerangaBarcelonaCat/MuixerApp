@@ -59,7 +59,7 @@ describe('UserService', () => {
   let mockPersonRepo: Record<string, jest.Mock>;
   let mockDataSource: { transaction: jest.Mock };
   let mockTokenService: { revokeAllUserTokens: jest.Mock };
-  let mockPersonDelegateService: { demotePrimaryIfAny: jest.Mock };
+  let mockPersonDelegateService: { demotePrimaryIfAny: jest.Mock; ensureAccountHolder: jest.Mock };
   let mockConfigService: { get: jest.Mock };
 
   beforeEach(async () => {
@@ -96,6 +96,7 @@ describe('UserService', () => {
 
     mockPersonDelegateService = {
       demotePrimaryIfAny: jest.fn().mockResolvedValue(undefined),
+      ensureAccountHolder: jest.fn(),
     };
 
     mockConfigService = {
@@ -300,6 +301,16 @@ describe('UserService', () => {
       );
     });
 
+    it('refuses a xicalla (effective value): they get in through their responsible person', async () => {
+      mockPersonRepo.findOne.mockResolvedValue(makePerson({ isXicalla: true }));
+
+      await expect(service.createOrRefreshInviteLink('person-uuid')).rejects.toThrow(
+        new BadRequestException("La xicalla accedeix a l'app a través de la persona responsable."),
+      );
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+      expect(mockUserRepo.save).not.toHaveBeenCalled();
+    });
+
     it('throws BadRequestException when the linked user is already active', async () => {
       const person = makePerson({ user: makeUser({ isActive: true }) });
       mockPersonRepo.findOne.mockResolvedValue(person);
@@ -309,41 +320,24 @@ describe('UserService', () => {
       );
     });
 
-    it('creates a new inactive user with a null email when the person has none', async () => {
+    it('creates the account holder through ensureAccountHolder in one transaction when the person has none', async () => {
       const person = makePerson({ user: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
 
       const createdUser = makeUser({ isActive: false, email: null, person });
       const manager = makeTransactionManager();
-      manager.save.mockResolvedValueOnce(createdUser);
       mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
-      mockUserRepo.save.mockImplementation(async (u: User) => u);
-
-      await service.createOrRefreshInviteLink('person-uuid');
-
-      expect(manager.create).toHaveBeenCalledWith(
-        User,
-        expect.objectContaining({ email: null, role: UserRole.MEMBER, isActive: false, person }),
-      );
-    });
-
-    it('demotes any prior primary delegate atomically when creating the user', async () => {
-      const person = makePerson({ user: null });
-      mockPersonRepo.findOne.mockResolvedValue(person);
-
-      const createdUser = makeUser({ isActive: false, email: null, person });
-      const manager = makeTransactionManager();
-      manager.save.mockResolvedValueOnce(createdUser);
-      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+      mockPersonDelegateService.ensureAccountHolder.mockResolvedValue(createdUser);
       mockUserRepo.save.mockImplementation(async (u: User) => u);
 
       await service.createOrRefreshInviteLink('person-uuid');
 
       expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(mockPersonDelegateService.demotePrimaryIfAny).toHaveBeenCalledWith(
-        person.id,
-        manager,
+      expect(mockPersonDelegateService.ensureAccountHolder).toHaveBeenCalledWith(person, manager);
+      expect(mockUserRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ inviteToken: expect.any(String), inviteExpiresAt: expect.any(Date) }),
       );
+      expect(manager.create).not.toHaveBeenCalled();
     });
 
     it('reuses the existing user without opening a transaction when inactive', async () => {

@@ -21,6 +21,8 @@ let nextId = 0;
   imports: [LucideAngularModule, ButtonComponent],
   templateUrl: './modal.component.html',
   styleUrls: ['./modal.component.scss'],
+  // A static `title="…"` feeds the input but would also stay on the host as a native tooltip.
+  host: { '[attr.title]': 'null' },
 })
 export class ModalComponent {
   protected readonly XIcon = X;

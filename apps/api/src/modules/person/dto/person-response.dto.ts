@@ -1,11 +1,13 @@
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import {
+  AccessStatus,
   AvailabilityStatus,
   Gender,
   OnboardingStatus,
   TagCategory,
   TagCompliance,
   evaluateTagCompliance,
+  resolveAccessStatus,
 } from '@muixer/shared';
 
 class PositionResponseDto {
@@ -37,6 +39,10 @@ class PersonSelfUserDto {
 
   @Expose()
   isActive: boolean;
+
+  /** Vigència de l'última invitació; `null` si mai no se n'ha enviat cap o el compte ja és actiu. */
+  @Expose()
+  inviteExpiresAt: Date | null;
 }
 
 export class PersonResponseDto {
@@ -118,6 +124,16 @@ export class PersonResponseDto {
   @Expose()
   @Type(() => PersonSelfUserDto)
   user: PersonSelfUserDto | null;
+
+  /** Accés a l'app, resolt en llegir: el servei hi aporta `hasResponsible` (delegat principal actiu). */
+  @Expose()
+  @Transform(({ obj }) =>
+    resolveAccessStatus(
+      { user: obj.user ?? null, hasResponsible: obj.hasResponsible ?? false },
+      new Date(),
+    ),
+  )
+  accessStatus: AccessStatus;
 
   @Expose()
   createdAt: Date;

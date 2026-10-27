@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
-import { UserListComponent } from './user-list.component';
+import { ALL_COLUMNS, UserListComponent } from './user-list.component';
 import { UserService } from '../services/user.service';
 import { ToastService } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
@@ -606,6 +606,10 @@ describe('UserListComponent', () => {
       expect(
         component.getCellValue(mockUser({ isActive: false, email: null }), 'email'),
       ).toBe("Pendent d'activar");
+    });
+
+    it('labels the invite expiry column «Venciment de la invitació»', () => {
+      expect(ALL_COLUMNS.find((c) => c.key === 'inviteExpiresAt')?.label).toBe('Venciment de la invitació');
     });
 
     it('formats null inviteExpiresAt as —', () => {

@@ -20,6 +20,7 @@ import { Person, PersonFilterParams, Position } from '../../../persons/models/pe
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
 import { TaggingMode, advance, isTagCompliant } from './tagging-queue.util';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 const PAGE_SIZE = 100;
 const CATEGORY_ORDER: TagCategory[] = [TagCategory.PINYA, TagCategory.TRONC, TagCategory.XICALLA, TagCategory.ALTRES];
@@ -72,7 +73,12 @@ export class TaggingWizardModalComponent {
 
   readonly closed = output<void>();
 
-  readonly formatHeight = formatShoulderHeightRelative;
+  private readonly renderSettings = injectPinyesRenderSettings();
+
+  /** Shoulder height relative to the colla's baseline. */
+  formatHeight(value: number | null): string {
+    return formatShoulderHeightRelative(value, this.renderSettings().shoulderHeightBaselineCm);
+  }
   readonly ExternalLinkIcon = ExternalLink;
   readonly modeTabs: TabDef[] = [
     { id: 'pending', label: 'Pendents' },

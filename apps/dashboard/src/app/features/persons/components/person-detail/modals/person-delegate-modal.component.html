@@ -1,8 +1,4 @@
-<lib-modal
-  [open]="true"
-  [title]="isPrimary() ? 'Vincula un delegat' : 'Afegeix un altre delegat'"
-  (closed)="close()"
->
+<lib-modal [open]="true" title="Afegeix una delegació" (closed)="close()">
   @if (error()) {
     <div class="mb-4">
       <lib-alert variant="error" dense>{{ error() }}</lib-alert>
@@ -18,7 +14,7 @@
       (ngModelChange)="onTypeChange($event)"
       [disabled]="saving()"
     >
-      @for (t of delegateTypes(); track t.value) {
+      @for (t of delegateTypes; track t.value) {
         <option [value]="t.value">{{ t.label }}</option>
       }
     </lib-select>

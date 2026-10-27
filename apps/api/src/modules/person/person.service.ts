@@ -15,11 +15,23 @@ import {
   type PersonSortOrder,
 } from './constants/person-sort.constants';
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
-import { TagCategory } from '@muixer/shared';
+import { applyAccessStatusFilter } from './utils/access-status-filter.util';
+import {
+  AttendanceStatus,
+  CollaSettings,
+  EventType,
+  ShirtCandidate,
+  TagCategory,
+  deriveIsXicalla,
+  shirtCandidateComparator,
+  shirtProgress,
+} from '@muixer/shared';
+import { formatDateOnly, getLocalToday } from '../../common/utils/date.util';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { xicallaSql } from './xicalla.sql';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
-const DEFAULT_TAG_SLUG = 'persona-nova';
 
 /**
  * L'event `e` és de la temporada en curs: la temporada que conté la seua data (derivada, no guardada)
@@ -51,6 +63,25 @@ const ATTENDED_COUNT_EXPRESSION = `(SELECT COUNT(*)::int FROM attendances a
      AND a.status = 'ASSISTIT'
      AND ${EVENT_IN_CURRENT_SEASON})`;
 
+/**
+ * Persones actives i no provisionals sense camisa, amb les actuacions i assajos amb assistència
+ * marcada de tota la història (només esdeveniments que compten per a estadístiques) i la data de
+ * la darrera, per a desfer empats.
+ * `$1` = ASSISTIT, `$2` = ACTUACIO, `$3` = ASSAIG.
+ */
+const SHIRT_CANDIDATES_QUERY = `SELECT p.id, p.alias, p.name, p."firstSurname", p."secondSurname",
+     ${xicallaSql('p')} AS "isXicalla", p."joinDate",
+     (COUNT(DISTINCT e.id) FILTER (WHERE e."eventType" = $2))::int AS "performancesAttended",
+     (COUNT(DISTINCT e.id) FILTER (WHERE e."eventType" = $3))::int AS "rehearsalsAttended",
+     MAX(e.date)::text AS "lastAttendedDate"
+   FROM persons p
+   LEFT JOIN attendances a ON a."personId" = p.id AND a.status = $1
+   LEFT JOIN events e ON e.id = a."eventId" AND e."countsForStatistics" = true
+   WHERE p."isActive" = true AND p."isProvisional" = false AND p."shirtDate" IS NULL
+   GROUP BY p.id`;
+
+type ShirtCandidateRow = Omit<ShirtCandidate, 'isEligible' | 'missingTotal'>;
+
 @Injectable()
 export class PersonService {
   constructor(
@@ -59,6 +90,7 @@ export class PersonService {
     @InjectRepository(Tag)
     private readonly positionRepository: Repository<Tag>,
     private readonly personDelegateService: PersonDelegateService,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   /** Retorna una llista paginada i ordenada de persones aplicant tots els filtres disponibles. Usa `unaccent` per cerques insensibles a accents. */
@@ -74,6 +106,7 @@ export class PersonService {
       isXicalla,
       isMember,
       isProvisional,
+      accessStatus,
       page = 1,
       limit = 50,
       sortBy,
@@ -135,7 +168,7 @@ export class PersonService {
     }
 
     if (isXicalla !== undefined) {
-      queryBuilder.andWhere('person.isXicalla = :isXicalla', { isXicalla });
+      queryBuilder.andWhere(`${xicallaSql('person')} = :isXicalla`, { isXicalla });
     }
 
     if (isMember !== undefined) {
@@ -146,6 +179,10 @@ export class PersonService {
       queryBuilder.andWhere('person.isProvisional = :isProvisional', {
         isProvisional,
       });
+    }
+
+    if (accessStatus !== undefined) {
+      applyAccessStatusFilter(queryBuilder, accessStatus, new Date());
     }
 
     const total = await queryBuilder.getCount();
@@ -174,13 +211,18 @@ export class PersonService {
 
     // Assistències de la temporada en curs, resoltes només per a la pàgina carregada: unir-les
     // a la consulta paginada multiplicaria les files contra `person.positions`.
-    const attendedCounts = await this.loadAttendedCounts(data.map((person) => person.id));
-    for (const person of data) {
-      (person as Person & { attendedCount: number }).attendedCount =
-        attendedCounts.get(person.id) ?? 0;
-    }
+    const pageIds = data.map((person) => person.id);
+    const [attendedCounts, withResponsible] = await Promise.all([
+      this.loadAttendedCounts(pageIds),
+      this.personDelegateService.findPersonIdsWithResponsible(pageIds),
+    ]);
+    const rows = data.map((person) => ({
+      ...person,
+      attendedCount: attendedCounts.get(person.id) ?? 0,
+      hasResponsible: withResponsible.has(person.id),
+    }));
 
-    const responseData = plainToInstance(PersonResponseDto, data, {
+    const responseData = plainToInstance(PersonResponseDto, rows, {
       excludeExtraneousValues: true,
     });
 
@@ -219,9 +261,36 @@ export class PersonService {
     return positions;
   }
 
+  /**
+   * Persones pendents de camisa: primer qui ja hi té dret, després de més a menys a prop
+   * (`shirtCandidateComparator`), segons els requisits de la colla. Llista completa, sense paginar.
+   */
+  async findShirtCandidates(): Promise<ShirtCandidate[]> {
+    const [rows, { shirtRequirements }]: [ShirtCandidateRow[], CollaSettings] = await Promise.all([
+      this.personRepository.query(SHIRT_CANDIDATES_QUERY, [
+        AttendanceStatus.ASSISTIT,
+        EventType.ACTUACIO,
+        EventType.ASSAIG,
+      ]),
+      this.collaSettings.get(),
+    ]);
+
+    return rows
+      .map((row) => ({ ...row, ...shirtProgress(row, shirtRequirements) }))
+      .sort(shirtCandidateComparator(shirtRequirements));
+  }
+
   /** Retorna una persona per ID incloent posicions, mentor i gestor. Llança NotFoundException si no existeix. */
   async findOne(id: string): Promise<PersonResponseDto> {
-    const person = await this.personRepository.findOne({
+    return this.loadResponse(id, this.personRepository);
+  }
+
+  /**
+   * Reads the person back as the response. Used after every write too: `isXicalla` is worked out by
+   * the database on read, and `save()` never refreshes it.
+   */
+  private async loadResponse(id: string, personRepository: Repository<Person>): Promise<PersonResponseDto> {
+    const person = await personRepository.findOne({
       where: { id },
       relations: ['positions', 'mentor', 'user'],
     });
@@ -230,33 +299,40 @@ export class PersonService {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    return plainToInstance(PersonResponseDto, person, {
-      excludeExtraneousValues: true,
-    });
+    const withResponsible = await this.personDelegateService.findPersonIdsWithResponsible([person.id]);
+    return plainToInstance(
+      PersonResponseDto,
+      { ...person, hasResponsible: withResponsible.has(person.id) },
+      { excludeExtraneousValues: true },
+    );
   }
 
   /** Crea una nova persona amb les posicions i mentor indicats. */
   async create(createPersonDto: CreatePersonDto): Promise<PersonResponseDto> {
-    const { positionIds, mentorId, ...personData } = createPersonDto;
+    const { positionIds, mentorId, isXicalla, ...personData } = createPersonDto;
 
     const person = this.personRepository.create(personData);
+    if (isXicalla !== undefined && !personData.birthDate) {
+      person.isXicallaManual = isXicalla;
+    }
 
     if (positionIds && positionIds.length > 0) {
       person.positions = await this.findPositionsOrThrow(positionIds);
     }
 
-    // Regla mínima d'etiquetatge: qui no és de xicalla ni d'«altres» entra com a persona nova,
-    // perquè la tècnica puga fer-ne el seguiment fins que se li puga assignar una posició.
-    const categories = (person.positions ?? []).map((tag) => tag.category);
+    // Regla mínima d'etiquetatge: qui no és de xicalla ni d'«altres» rep l'etiqueta per defecte
+    // de la colla (persona nova), perquè la tècnica puga fer-ne el seguiment fins que se li puga
+    // assignar una posició. La colla pot no tindre'n cap.
+    const tags = person.positions ?? [];
+    const categories = tags.map((tag) => tag.category);
     const needsDefault =
       !categories.includes(TagCategory.XICALLA) && !categories.includes(TagCategory.ALTRES);
+    const { defaultTagId } = await this.collaSettings.get();
 
-    if (needsDefault) {
-      const defaultTag = await this.positionRepository.findOne({
-        where: { slug: DEFAULT_TAG_SLUG },
-      });
+    if (needsDefault && defaultTagId && !tags.some((tag) => tag.id === defaultTagId)) {
+      const defaultTag = await this.positionRepository.findOne({ where: { id: defaultTagId } });
       if (defaultTag) {
-        person.positions = [...(person.positions ?? []), defaultTag];
+        person.positions = [...tags, defaultTag];
       }
     }
 
@@ -271,9 +347,7 @@ export class PersonService {
     }
 
     const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return this.loadResponse(saved.id, this.personRepository);
   }
 
   /**
@@ -281,7 +355,7 @@ export class PersonService {
    * The alias is automatically prefixed with "~" to avoid collisions with regular persons.
    * Provisional persons appear in attendance but are excluded from the default census view.
    */
-  async createProvisional(alias: string): Promise<PersonResponseDto> {
+  async createProvisional(alias: string, isXicalla = false): Promise<PersonResponseDto> {
     const provisionalAlias = `${PROVISIONAL_PREFIX}${alias}`.slice(
       0,
       MAX_ALIAS_LENGTH,
@@ -302,12 +376,12 @@ export class PersonService {
       firstSurname: '',
       isProvisional: true,
       isActive: true,
+      // No birth date yet, so the manual flag is the effective value until one is entered.
+      isXicallaManual: isXicalla,
     });
 
     const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    return this.loadResponse(saved.id, this.personRepository);
   }
 
   /**
@@ -337,8 +411,13 @@ export class PersonService {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    const { positionIds, mentorId, isProvisional, ...personData } =
+    const { positionIds, mentorId, isProvisional, isXicalla, ...personData } =
       updatePersonDto;
+
+    // The DTO's `isXicalla` is the manual flag: it only lands while the birth date is unknown
+    // (after this request). With a birth date it is ignored, and the response shows the real value.
+    const birthDate = personData.birthDate !== undefined ? personData.birthDate : person.birthDate;
+    const isXicallaManual = isXicalla !== undefined && birthDate == null ? isXicalla : person.isXicallaManual;
 
     // Only promotion (provisional → regular) is supported
     if (isProvisional !== undefined) {
@@ -376,7 +455,15 @@ export class PersonService {
       person.isProvisional = isProvisional;
     }
 
-    if (personData.isXicalla === true && person.isXicalla === false) {
+    // The effective value can turn true from the flag, a new birth date or a cleared one; any of
+    // them must not slip a xicalla past the primary-delegate rule.
+    const { majorityAge } = await this.collaSettings.get();
+    const willBeXicalla = deriveIsXicalla(
+      { birthDate: birthDate == null ? null : formatDateOnly(birthDate), isXicallaManual },
+      majorityAge,
+      getLocalToday(),
+    );
+    if (willBeXicalla && !person.isXicalla) {
       await this.personDelegateService.assertPrimaryQualifiesForXicalla(person.id);
     }
 
@@ -392,6 +479,7 @@ export class PersonService {
     }
 
     Object.assign(person, personData);
+    person.isXicallaManual = isXicallaManual;
 
     if (positionIds !== undefined) {
       if (positionIds.length > 0) {
@@ -415,10 +503,8 @@ export class PersonService {
       }
     }
 
-    const saved = await personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
+    await personRepository.save(person);
+    return this.loadResponse(person.id, personRepository);
   }
 
   /** Soft delete: marca la persona com a inactiva (`isActive = false`) sense eliminar-la de la DB. */

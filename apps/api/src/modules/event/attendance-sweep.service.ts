@@ -7,6 +7,7 @@ import { getLocalToday } from '../../common/utils/date.util';
 import { AttendanceService } from './attendance.service';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 
 /**
  * Public performances (`ACTUACIO`) have no arrival-confirmation tablet like rehearsals do, so
@@ -17,6 +18,8 @@ import { Event } from './event.entity';
  * Never touches `ASSAIG` (tablet is the source of truth), `PENDENT` or `NO_VAIG`, and never
  * modifies `respondedAt` (the original «Vinc» response stands). Only ever reads `ANIRE`, so a
  * second run — or a late `ANIRE` created afterwards — is handled correctly and idempotently.
+ *
+ * The colla can turn it off (`autoCheckInPerformances`).
  */
 @Injectable()
 export class AttendanceSweepService {
@@ -28,10 +31,13 @@ export class AttendanceSweepService {
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly attendanceService: AttendanceService,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async sweepTodaysPerformances(): Promise<void> {
+    if (!(await this.collaSettings.get()).autoCheckInPerformances) return;
+
     const performances = await this.eventRepository.find({
       where: { eventType: EventType.ACTUACIO, date: getLocalToday() as unknown as Date },
     });

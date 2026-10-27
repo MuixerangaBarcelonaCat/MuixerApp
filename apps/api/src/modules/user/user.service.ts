@@ -148,20 +148,16 @@ export class UserService {
       relations: ['user'],
     });
     if (!person) throw new BadRequestException('Person not found');
+    // Effective value (by age when the birth date is known): a xicalla never holds an account.
+    if (person.isXicalla) {
+      throw new BadRequestException("La xicalla accedeix a l'app a través de la persona responsable.");
+    }
 
     let user: User;
     if (!person.user) {
-      user = await this.dataSource.transaction(async (manager) => {
-        const newUser = manager.create(User, {
-          email: null,
-          role: UserRole.MEMBER,
-          person,
-          isActive: false,
-        });
-        const savedUser = await manager.save(User, newUser);
-        await this.personDelegateService.demotePrimaryIfAny(person.id, manager);
-        return savedUser;
-      });
+      user = await this.dataSource.transaction((manager) =>
+        this.personDelegateService.ensureAccountHolder(person, manager),
+      );
     } else if (person.user.isActive) {
       throw new BadRequestException('Aquesta persona ja té un compte actiu');
     } else {

@@ -2,6 +2,10 @@
 
   <!-- Capçalera -->
   <app-page-header title="Persones" [count]="totalPersons()">
+    <lib-button variant="primary" outline size="sm" routerLink="/persons/camises">
+      <lucide-icon [img]="ICON_CAMISA" [size]="14" aria-hidden="true" />
+      Camises
+    </lib-button>
     <lib-button variant="primary" size="sm" (clicked)="openNewPersonModal()">
       <lucide-icon name="Plus" [size]="14" />
       Persona nova
@@ -54,6 +58,20 @@
         </lib-select>
       </div>
     }
+
+    <!-- Accés a l'app -->
+    <div class="w-full sm:w-48">
+      <lib-select
+        label="Accés a l'app"
+        [ngModel]="activeFilters().accessStatus ?? ''"
+        (ngModelChange)="onAccessStatusChange($event)"
+      >
+        <option value="">Tots</option>
+        @for (status of accessStatuses; track status) {
+          <option [value]="status">{{ ACCESS_STATUS_LABELS[status] }}</option>
+        }
+      </lib-select>
+    </div>
 
     <!-- Actius -->
     <div class="w-fit">
@@ -142,16 +160,9 @@
 
   @if (newPersonModalOpen()) {
     <app-person-new-modal
-      (closed)="newPersonModalOpen.set(false)"
+      (closed)="onNewPersonModalClosed()"
       (created)="onPersonCreated($event)"
     />
   }
-
-  <app-tutorial-modal
-    #activationTutorial
-    heading="Doneu accés a la persona"
-    [steps]="activationTutorialSteps"
-    (closed)="onActivationTutorialClosed()"
-  />
 
 </div>

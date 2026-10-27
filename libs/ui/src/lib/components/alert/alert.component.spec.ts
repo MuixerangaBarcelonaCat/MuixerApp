@@ -5,6 +5,27 @@ import { Bell } from 'lucide-angular';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { AlertComponent } from './alert.component';
 
+@Component({
+  imports: [AlertComponent],
+  template: `<lib-alert variant="info" title="Sessió a punt de caducar">Text</lib-alert>`,
+})
+class TitledAlertHostComponent {}
+
+describe('AlertComponent title attribute', () => {
+  // A static `title="…"` feeds the input but Angular also leaves it on the host element, where the
+  // browser shows it as a native tooltip over everything inside.
+  it('does not leave the title on the host as a native tooltip', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TitledAlertHostComponent],
+      providers: [allLucideIconsProvider],
+    }).compileComponents();
+    const host = TestBed.createComponent(TitledAlertHostComponent);
+    host.detectChanges();
+
+    expect(host.nativeElement.querySelector('lib-alert').hasAttribute('title')).toBe(false);
+  });
+});
+
 describe('AlertComponent', () => {
   let fixture: ComponentFixture<AlertComponent>;
 

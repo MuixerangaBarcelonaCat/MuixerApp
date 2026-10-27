@@ -58,7 +58,9 @@ apps/pwa/          → Angular 21 PWA for members
 apps/*-e2e/        → Playwright (e2e + responsive audit suite)
 libs/shared/       → Shared enums, constants, interfaces — import via @muixer/shared
 libs/pinyes-render/→ Shared figure rendering (Konva canvas, tronc panels, projection) — import via
-                     @muixer/pinyes-render; consumed by both apps/dashboard and apps/pwa
+                     @muixer/pinyes-render; consumed by both apps/dashboard and apps/pwa. The
+                     render-settings token alone is @muixer/pinyes-render/settings (no Konva:
+                     safe for app.config / root services)
 docs/              → Topic documentation (see docs/MAP.md)
 .cursor/rules/     → Agent coding rules (important patterns)
 .agents/skills/    → Stack-specific agent skills
@@ -76,20 +78,21 @@ Modules under `src/modules/`:
 |--------|---------|
 | `auth` | JWT (15min) + httpOnly refresh token (7d), Passport, token rotation, invite accept, bootstrap |
 | `user` | admin/member accounts (`users`), roles, invite provisioning; OneToOne `Person` |
-| `person` | CRUD + soft delete via `isActive` boolean |
+| `person` | CRUD + soft delete via `isActive` boolean. `isXicalla` is derived on read, never stored: a `@VirtualColumn` over `xicallaSql()` (by age vs the colla `majorityAge` when `birthDate` is set, else the `isXicallaManual` column); write `isXicallaManual`, re-read after a save, TS mirror `deriveIsXicalla` — see [docs/DATA_MODEL.md](docs/DATA_MODEL.md) invariant 14. `GET /persons/shirt-candidates`: active, non-provisional persons with `shirtDate` null plus their `ASSISTIT` counts per type (all seasons, `countsForStatistics` events only), eligible first then closest, ties broken by most recent attendance (`lastAttendedDate`) then alias — requirements from the colla settings (`shirtRequirements`, default 2 actuacions + 6 assajos), rule `shirtProgress` / `shirtCandidateComparator` in `@muixer/shared`. The camisa is awarded through the regular `PATCH /persons/:id { shirtDate }`; the legacy sync only writes `shirtDate` when legacy has one (never clears it) |
 | `person-delegate` | delegation: attendance on behalf of others (`managedBy` / `mentor`) |
-| `season` · `event` | seasons, events and attendance. An event's season is derived from its date, not stored; see [docs/DATA_MODEL.md](docs/DATA_MODEL.md) invariant 12. Attendance is a status of (person, event): **no row ≡ `PENDENT`**, single write endpoint `PUT /events/:id/attendance/:personId` (no create/delete); a person created after the event day with no answer resolves to the derived `NO_REGISTRAT` (never stored, left out of event lists/counts, PWA shows it as Pendent); `attendanceSummary.pending`/`total` are computed on read — see [docs/DATA_MODEL.md](docs/DATA_MODEL.md) invariant 11. `AttendanceSweepService` (cron `EVERY_DAY_AT_3AM`): for every `ACTUACIO` dated today, flips `ANIRE` → `ASSISTIT` (performances have no arrival tablet); never touches `ASSAIG`/`PENDENT`/`NO_VAIG`/`respondedAt`, idempotent |
+| `season` · `event` | seasons, events and attendance. An event's season is derived from its date, not stored; see [docs/DATA_MODEL.md](docs/DATA_MODEL.md) invariant 12. Attendance is a status of (person, event): **no row ≡ `PENDENT`**, single write endpoint `PUT /events/:id/attendance/:personId` (no create/delete); a person created after the event day with no answer resolves to the derived `NO_REGISTRAT` (never stored, left out of event lists/counts, PWA shows it as Pendent); `attendanceSummary.pending`/`total` are computed on read — see [docs/DATA_MODEL.md](docs/DATA_MODEL.md) invariant 11. `AttendanceSweepService` (cron `EVERY_DAY_AT_3AM`): for every `ACTUACIO` dated today, flips `ANIRE` → `ASSISTIT` (performances have no arrival tablet), unless the colla setting `autoCheckInPerformances` is off; never touches `ASSAIG`/`PENDENT`/`NO_VAIG`/`respondedAt`, idempotent |
 | `figure` | `FigureTemplate`, `FigureNode`, `Rengla` |
 | `composition` | `Composition` + `CompositionEntry` |
 | `event-segment` | `EventSegment`, `FigureInstance`, `InstanceNode`, distribution, `ProjectionService` |
 | `node-assignment` | assignment logic, lazy snapshot, ad-hoc nodes |
-| `tag` | CRUD of person labels; entity maps to the legacy-named `positions` table (M:N with Person via `person_positions`); `category` **is the group** (PINYA/TRONC/XICALLA/ALTRES); person assignment via `POST/DELETE /tags/:id/persons`. `positionTypes` points at figure-node `positionType`s with no FK, no validation and no server-side filtering — see [docs/TAGS.md](docs/TAGS.md) |
+| `tag` | CRUD of person labels; entity maps to the legacy-named `positions` table (M:N with Person via `person_positions`); `category` **is the group** (PINYA/TRONC/XICALLA/ALTRES); person assignment via `POST/DELETE /tags/:id/persons`. `positionTypes` points at figure-node `positionType`s with no FK, no validation and no server-side filtering. The colla's default tag for new persons (`defaultTagId` setting) can't be deleted (409) — see [docs/TAGS.md](docs/TAGS.md) |
 | `event-summary` | `GET /events/:id/summary.pdf` (TECHNICAL/ADMIN): printable event summary (header, notes, numbered segments with directors + tronc floors, two flowing columns). Compiled in-process by Typst (`@myriaddreamin/typst-ts-node-compiler`) from `assets/typst/event-summary.typ`; data enters as JSON only; notes rendered by vendored `cmarker` with `raw-typst: false` — see [docs/EVENT_SUMMARY_PDF.md](docs/EVENT_SUMMARY_PDF.md) |
 | `me` | member-scoped API consumed by the PWA (own events/attendance, published segments + projection) |
+| `colla-settings` | single-row `colla_settings` table (unique index on a constant): colla name, shirt requirements, shoulder-height baseline, tronc height thresholds, lock days (`assignmentLockDays`, replaced the `ASSIGNMENT_LOCK_DAYS` env var), `autoCheckInPerformances`, `defaultTagId`, `majorityAge`, `rehearsalDefaults` (title, `HH:mm` start time, place and place link a new rehearsal starts with in the event form; performances start empty). `GET /colla-settings/public` (`@Public`, name only — PWA login), `GET /colla-settings` (any role), `PATCH /colla-settings` (ADMIN, audited as `COLLA_SETTINGS_UPDATED` with a from/to diff). `CollaSettingsService.get()` is cached (60 s; refreshed on update) and recreates the row with `DEFAULT_COLLA_SETTINGS` if missing; specs use `CollaSettingsStub`. Frontends: a root `CollaSettingsService` per app (defaults until loaded) that provides `PINYES_RENDER_SETTINGS` |
 | `legal` | legal documents (terms/privacy) + versioning, consent read/accept |
 | `audit` | `AuditLog` entity + service; records sensitive mutations |
 | `mail` | `MailService` + provider abstraction; used by `auth` for password reset (invites still don't email — see Authentication) |
-| `sync` | SSE strategy pattern for legacy data import; imports no tags at all — only `Person.isXicalla` is still derived from the legacy `posicio` field |
+| `sync` | SSE strategy pattern for legacy data import; imports no tags at all — only `Person.isXicallaManual` is still derived from the legacy `posicio` field (on create) |
 | `push-notification` | Web Push (VAPID) notifications: `PushSubscription` entity, provider abstraction (`console` dev / `web-push` prod via `PUSH_PROVIDER` env), `PushSubscriptionService` (register/unsubscribe/status, max 10/user), `PushNotificationService` (send with target resolution: ALL/EVENT_ATTENDANCE/PERSON, async via `push.requested` event), `PushNotificationCronService` (scheduled news push, stale sub cleanup). Controllers: `me/push-subscriptions` (MEMBER+) + `notifications` (TECHNICAL/ADMIN) + `push-subscriptions/summary`. Requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` env vars. |
 
 **TypeORM conventions:** UUID primary keys · `createdAt`/`updatedAt` always present · soft delete = `isActive: boolean` (not `@DeleteDateColumn`) · enums imported from `@muixer/shared` · table names plural snake_case.
@@ -106,10 +109,10 @@ All components are standalone + `OnPush` + Signals. No NgRx. No `@Input()`/`@Out
 
 Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 
-- `/home` · `/persons` · `/rehearsals`, `/performances` (events feature: list + sync)
+- `/home` · `/persons` (+ `/persons/camises` → `ShirtCandidatesComponent`: who is pending their camisa, award it with a date; non-eligible persons can still get it, with a warning) · `/rehearsals`, `/performances` (events feature: list + sync)
 - `/events/:id` → `EventDetailComponent`, `/events/:id/confirmation` → `AttendanceConfirmationComponent`
 - `/pinyes` → Pinyes module (see below) · `/sync` → legacy sync SSE UI
-- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags` (inclou l'assistent d'etiquetatge de persones), `/config/seasons`, `/config/legal` (ADMIN only)
+- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags` (inclou l'assistent d'etiquetatge de persones), `/config/seasons`, `/config/legal` (ADMIN only), `/config/colla` → `CollaSettingsComponent` (ADMIN only)
 - `/design-system` → live token/component reference (ADMIN only, see below)
 
 **Shared components** (`shared/components/`): `data/` (page-header, data-table, filter-bar, active-filters, column-toggle, pagination, stat-card) · `forms/` (emoji-picker, person-search-input) · `layout/` (header, tab-nav, user-chip). Compose list pages with these — never build raw table/pagination HTML. Buttons/badges/cards/inputs/modals/toasts/empty-states come from `@muixer/ui` (`lib-button`/`lib-badge`/`lib-card`/`lib-input`/`lib-modal`/`lib-toast-container`/`lib-empty-state`) — see **Design system** below before adding a new one of these by hand. Rich text is `lib-markdown-editor`, imported from `@muixer/ui/markdown-editor` (**not** the barrel) and always behind an `@defer` — it carries Tiptap; rendering stored markdown for display is `lib-markdown-view` (or `MarkdownService`) from `@muixer/ui/markdown`, behind an `@defer` on screens that load with the app.
@@ -143,7 +146,7 @@ Full detail (endpoints, frontend architecture, error handling, guide for new wor
 | Concept | Description |
 |---------|-------------|
 | FigureTemplate / FigureNode | Reusable blueprint + nodes (PINYA, TRONC, BASE, directions, DECORATION) |
-| Stands-on (`standsOnNodeIds`) | TRONC only: the BASE/TRONC nodes on floor `z - 1` this person stands on. `uuid[]`, rule in `@muixer/shared` `tronc-support.util`, remapped on snapshot/duplicate/save-from-instance. Consumed by `analyzeTroncHeights` (`@muixer/shared` `tronc-height.util`): cumulative heights + floor/uneven-support warnings in the Troncs tab, thresholds in `TRONC_HEIGHT_THRESHOLDS` — see [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md) «Estructura del tronc» / «Alçades acumulades» |
+| Stands-on (`standsOnNodeIds`) | TRONC only: the BASE/TRONC nodes on floor `z - 1` this person stands on. `uuid[]`, rule in `@muixer/shared` `tronc-support.util`, remapped on snapshot/duplicate/save-from-instance. Consumed by `analyzeTroncHeights` (`@muixer/shared` `tronc-height.util`): cumulative heights + floor/uneven-support warnings in the Troncs tab, thresholds from the colla settings (`troncHeightThresholds`, read via `injectPinyesRenderSettings()`) — see [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md) «Estructura del tronc» / «Alçades acumulades» |
 | Rengla | Radial sequence of pinya nodes per cordó |
 | Composition / CompositionEntry | Reusable multi-figure composition |
 | FigureInstance | A template/composition placed in a segment; lightweight until 1st assignment |
@@ -175,7 +178,7 @@ Full detail (endpoints, frontend architecture, error handling, guide for new wor
 
 Source of truth: `apps/api/src/modules/database/entities.ts`. Full entity/field table + relations: [docs/DATA_MODEL.md](docs/DATA_MODEL.md) (regenerate with `pnpm run docs:model`).
 
-Core entities: User, Person, PersonDelegate, Tag, Season, Event, Attendance, RefreshToken, FigureTemplate, FigureNode, Rengla, Composition, CompositionEntry, EventSegment, FigureInstance, InstanceNode, NodeAssignment, LegalDocument, AuditLog.
+Core entities: User, Person, PersonDelegate, Tag, Season, Event, Attendance, RefreshToken, FigureTemplate, FigureNode, Rengla, Composition, CompositionEntry, EventSegment, FigureInstance, InstanceNode, NodeAssignment, LegalDocument, AuditLog, CollaSettings.
 
 **Enums (`@muixer/shared`):** `UserRole` · `AttendanceStatus` (PENDENT/ANIRE/NO_VAIG/ASSISTIT) · `AvailabilityStatus` · `OnboardingStatus` · `EventType` (ASSAIG/ACTUACIO) · `FigureMode` (COMPLETA/PEU/REMAT/NETA) · `FigureZone` · `NodeShape` · `TagCategory` (PINYA/TRONC/XICALLA/ALTRES) · `Gender` · `ClientType` (dashboard/pwa) · `SegmentMoveConflictResolution`.
 

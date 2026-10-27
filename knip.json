@@ -23,6 +23,7 @@
         "apps/*/postcss.config.js",
         "apps/*/eslint.config.mjs",
         "libs/pinyes-render/src/index.ts",
+        "libs/pinyes-render/src/settings.ts",
         "libs/pinyes-render/src/test-setup.ts",
         "libs/pinyes-render/eslint.config.mjs",
         "scripts/*.mjs",

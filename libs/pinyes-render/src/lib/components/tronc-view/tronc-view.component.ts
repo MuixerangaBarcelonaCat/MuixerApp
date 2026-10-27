@@ -15,6 +15,7 @@ import { LucideAngularModule, Scale } from 'lucide-angular';
 import { ButtonComponent, InputComponent, BadgeComponent, NODE_TYPE_PALETTE } from '@muixer/ui';
 import { NodeDrawingComponent } from '../node-drawing/node-drawing.component';
 import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
+import { injectPinyesRenderSettings } from '../../settings/render-settings';
 import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearance, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
 import { DisplayMode, HeightDomain, displayModeOverrides, personDisplayFacts } from '../../node-render/display-mode';
@@ -29,10 +30,8 @@ import {
   Gender,
   FloorHeightGap,
   formatDirectionNames,
-  TRONC_HEIGHT_THRESHOLDS,
   TRONC_NODE_PRESETS,
   TRONC_Z_DEFAULTS,
-  TroncHeightThresholds,
   TroncNodePreset,
 } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
@@ -122,6 +121,8 @@ function knownCm(height: CumulativeHeight | undefined): number {
 })
 export class TroncViewComponent {
   private readonly theme = injectCanvasTheme();
+  /** Relative-height baseline and the floor spread / uneven-supporter thresholds (yellow / red). */
+  private readonly renderSettings = injectPinyesRenderSettings();
 
   // ── Inputs ─────────────────────────────────────────────────────────────────
 
@@ -142,8 +143,6 @@ export class TroncViewComponent {
   /** Assignment mode: whether a placed person can be dragged onto another node. Off on touch, where a long press starts the move instead. */
   readonly personDragEnabled = input(true);
   readonly heightMode = input<HeightMode>('relative');
-  /** Where the floor spread and uneven-supporter warnings turn yellow / red. */
-  readonly heightThresholds = input<TroncHeightThresholds>(TRONC_HEIGHT_THRESHOLDS);
   readonly highlightedNodeIds = input<Set<string>>(new Set());
 
   /** personId → AttendanceStatus for the next actuació */
@@ -335,7 +334,7 @@ export class TroncViewComponent {
         standsOnNodeIds: n.standsOnNodeIds,
       })),
       this.heightByNodeId(),
-      this.heightThresholds(),
+      this.renderSettings().troncHeightThresholds,
     ),
   );
 
@@ -421,6 +420,7 @@ export class TroncViewComponent {
     const dragOverId = this.dragOverNodeId();
     const phase = this.phase();
     const heightMode = this.heightMode();
+    const baselineCm = this.renderSettings().shoulderHeightBaselineCm;
     // Staffing and the projection draw the panel on a tronc card; the template editor on the page.
     const canvasTheme = this.theme();
     const display = { mode: this.displayMode(), phase, heightDomain: this.heightDomain(), themeMode: canvasTheme.mode };
@@ -443,7 +443,7 @@ export class TroncViewComponent {
             person: person
               ? {
                   name: formatAssignedLabel(person.alias, node.climbIndicator),
-                  height: formatShoulderHeight(person.shoulderHeight, heightMode),
+                  height: formatShoulderHeight(person.shoulderHeight, heightMode, baselineCm),
                   nextActuacio: nextPerformance.get(person.id) === 'ANIRE',
                   observation: notes?.notes ? { emoji: notes.notesEmoji } : null,
                 }
@@ -730,7 +730,7 @@ export class TroncViewComponent {
   }
 
   getHeightDisplay(shoulderHeight: number | null): string {
-    return formatShoulderHeight(shoulderHeight, this.heightMode()) ?? '';
+    return formatShoulderHeight(shoulderHeight, this.heightMode(), this.renderSettings().shoulderHeightBaselineCm) ?? '';
   }
 
   getAttendanceStatus(assignment: AssignmentDetail): AttendanceStatus | null {

@@ -99,6 +99,19 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
     (o instància) amb `z` exactament un menys. El servei de plantilles ho valida en cada save (400);
     el snapshot, `duplicate` i `save-from-instance` remapegen els ids a les còpies. Vegeu
     [[PINYES_MODULE]] «Estructura del tronc».
+14. **`Person.isXicalla` es calcula en llegir, no es desa.** És un `@VirtualColumn` sobre
+    `xicallaSql()` (`person/xicalla.sql.ts`): amb `birthDate`, xicalla si encara no ha complit
+    `colla_settings.majorityAge` (un 29 de febrer compta l'1 de març en anys no de traspàs); sense,
+    la columna `isXicallaManual`, marcada a mà o pel sync. L'edat de majoria es llig amb una
+    subconsulta (si falta la fila, la de `DEFAULT_COLLA_SETTINGS`), així que canviar-la s'aplica a
+    l'instant sense reescriure res. TypeORM no escriu mai una columna virtual ni la refresca després
+    d'un `save()`: s'escriu `isXicallaManual` (el DTO hi mapeja `isXicalla`, i l'ignora si hi ha data)
+    i les respostes es tornen a llegir. Mirall en TS per a escriptures i per a l'editor:
+    `deriveIsXicalla` (`@muixer/shared`), amb una prova d'integració que en garanteix la paritat.
+    La regla del gestor principal d'un membre de la xicalla es comprova quan el valor efectiu passa a
+    cert en editar la persona (marca, data nova o data esborrada); **no** es torna a comprovar quan
+    puja `majorityAge` ni quan el sync reescriu `birthDate`: els gestors principals que ja hi havia
+    es mantenen.
 
 ---
 
@@ -106,8 +119,8 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-10-08 des de les entitats TypeORM amb `pnpm run docs:model`.
-> **23 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
+> Generat el 2026-10-13 des de les entitats TypeORM amb `pnpm run docs:model`.
+> **24 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
 
@@ -115,6 +128,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 |-------|---------|------:|
 | `attendances` | `Attendance` | 10 |
 | `audit_logs` | `AuditLog` | 8 |
+| `colla_settings` | `CollaSettingsEntity` | 20 |
 | `composition_entries` | `CompositionEntry` | 13 |
 | `compositions` | `Composition` | 6 |
 | `event_segments` | `EventSegment` | 11 |
@@ -143,7 +157,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 |------|--------|
 | `AssignmentArea` | `TRONC` · `PINYA` · `DIRECTION` |
 | `AttendanceStatus` | `PENDENT` · `ANIRE` · `NO_VAIG` · `ASSISTIT` |
-| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` · `ATTENDANCE_LOCK_OVERRIDE` |
+| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` · `ATTENDANCE_LOCK_OVERRIDE` · `COLLA_SETTINGS_UPDATED` |
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `BeforeEventOffsetUnit` | `DAYS` · `HOURS` |
 | `ClientType` | `dashboard` · `pwa` |
@@ -200,6 +214,33 @@ Definició: [`apps/api/src/modules/audit/audit-log.entity.ts`](../apps/api/src/m
 | `metadata` | `jsonb` | `Record<string, unknown>` | sí | — |
 | `ipAddress` | `varchar` | `string` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
+
+### `colla_settings` — `CollaSettingsEntity`
+
+Definició: [`apps/api/src/modules/colla-settings/colla-settings.entity.ts`](../apps/api/src/modules/colla-settings/colla-settings.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `collaName` | `varchar` | `string` | no | — |
+| `shirtRequiredPerformances` | `int` | `number` | no | — |
+| `shirtRequiredRehearsals` | `int` | `number` | no | — |
+| `shoulderHeightBaselineCm` | `int` | `number` | no | — |
+| `troncFloorWarningCm` | `int` | `number` | no | — |
+| `troncFloorErrorCm` | `int` | `number` | no | — |
+| `troncSupportWarningCm` | `int` | `number` | no | — |
+| `troncSupportErrorCm` | `int` | `number` | no | — |
+| `assignmentLockDays` | `int` | `number` | no | — |
+| `autoCheckInPerformances` | `boolean` | `boolean` | no | — |
+| `defaultTagId` | `uuid` | `string` | sí | — |
+| `defaultTag` | `relation` | `Tag` | sí | ManyToOne → `Tag`, onDelete SET NULL |
+| `majorityAge` | `int` | `number` | no | — |
+| `rehearsalDefaultTitle` | `varchar` | `string` | no | — |
+| `rehearsalDefaultStartTime` | `varchar` | `string` | sí | — |
+| `rehearsalDefaultLocation` | `varchar` | `string` | no | — |
+| `rehearsalDefaultLocationUrl` | `varchar` | `string` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
 
 ### `composition_entries` — `CompositionEntry`
 
@@ -506,7 +547,7 @@ Definició: [`apps/api/src/modules/person/person.entity.ts`](../apps/api/src/mod
 | `birthDate` | `date` | `Date` | sí | — |
 | `shoulderHeight` | `int` | `number` | sí | — |
 | `gender` | `enum` | `Gender` | sí | enum `Gender` |
-| `isXicalla` | `boolean` | `boolean` | no | default `false` |
+| `isXicallaManual` | `boolean` | `boolean` | no | default `false` |
 | `isActive` | `boolean` | `boolean` | no | default `true` |
 | `isMember` | `boolean` | `boolean` | no | default `false` |
 | `isProvisional` | `boolean` | `boolean` | no | default `false` |

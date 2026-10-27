@@ -6,7 +6,16 @@ import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider
 import { ALL_COLUMNS, PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
-import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
+import { AccessStatus, AvailabilityStatus, OnboardingStatus, TagCategory } from '@muixer/shared';
+import { signal as renderSettingsSignal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS as RENDER_DEFAULTS } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS, PinyesRenderSettings } from '@muixer/pinyes-render/settings';
+
+const renderSettings = renderSettingsSignal<PinyesRenderSettings>({
+  shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm,
+  troncHeightThresholds: RENDER_DEFAULTS.troncHeightThresholds,
+});
+
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;
@@ -24,7 +33,7 @@ describe('PersonListComponent', () => {
     alias: 'tester',
     phone: null,
     birthDate: null,
-    shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
+    shoulderHeight: 140,
     isXicalla: false,
     isMember: false,
     availability: AvailabilityStatus.AVAILABLE,
@@ -35,6 +44,7 @@ describe('PersonListComponent', () => {
     positions: [],
     tagCompliance: { ok: true, missing: [] },
     attendedCount: 0,
+    accessStatus: AccessStatus.ACTIVE,
     createdAt: '2024-01-01',
     updatedAt: '2024-01-02',
   };
@@ -55,6 +65,7 @@ describe('PersonListComponent', () => {
       imports: [PersonListComponent],
       providers: [
         { provide: PersonService, useValue: personService },
+        { provide: PINYES_RENDER_SETTINGS, useValue: renderSettings },
         provideRouter([]),
         allLucideIconsProvider,
       ],
@@ -103,9 +114,24 @@ describe('PersonListComponent', () => {
     expect(fixture.componentInstance.formatShoulderHeightDisplay(150)).toBe('+10');
   });
 
+  it("shows relative heights from the colla's baseline", () => {
+    fixture.componentInstance.shoulderHeightRelative.set(true);
+    renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: 145 }));
+    try {
+      expect(fixture.componentInstance.formatShoulderHeightDisplay(150)).toBe('+5');
+    } finally {
+      renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm }));
+    }
+  });
+
   it('labels the tags column "Etiquetes" instead of "Posicions"', () => {
     const positionsColumn = fixture.componentInstance.allColumns.find(c => c.key === 'positions');
     expect(positionsColumn?.label).toBe('Etiquetes');
+  });
+
+  it('labels the xicalla column "Xicalla"', () => {
+    const column = fixture.componentInstance.allColumns.find(c => c.key === 'isXicalla');
+    expect(column?.label).toBe('Xicalla');
   });
 
   it('renders each tag as a color badge in the table', () => {
@@ -304,28 +330,37 @@ describe('PersonListComponent', () => {
     });
   });
 
-  describe('onPersonCreated (activation tutorial)', () => {
-    it('closes the new-person modal and opens the activation tutorial instead of navigating immediately', () => {
+  describe('Persona nova', () => {
+    it('keeps the guided modal open after creating, so it can go on to access', () => {
       fixture.componentInstance.newPersonModalOpen.set(true);
 
       fixture.componentInstance.onPersonCreated(mockPerson as never);
-      fixture.detectChanges();
+
+      expect(fixture.componentInstance.newPersonModalOpen()).toBe(true);
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('opens the new person\'s profile once the modal closes', () => {
+      fixture.componentInstance.newPersonModalOpen.set(true);
+      fixture.componentInstance.onPersonCreated(mockPerson as never);
+
+      fixture.componentInstance.onNewPersonModalClosed();
+
+      expect(fixture.componentInstance.newPersonModalOpen()).toBe(false);
+      expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
+    });
+
+    it('stays on the list when the modal closes without creating anyone', () => {
+      fixture.componentInstance.newPersonModalOpen.set(true);
+
+      fixture.componentInstance.onNewPersonModalClosed();
 
       expect(fixture.componentInstance.newPersonModalOpen()).toBe(false);
       expect(router.navigate).not.toHaveBeenCalled();
-      // lib-modal drives the native <dialog> via showModal()/the `open` attribute, not a
-      // CSS-only `.modal-open` class.
-      const dialog = fixture.nativeElement.querySelector('dialog[open]');
-      expect(dialog).toBeTruthy();
     });
 
-    it('navigates to the created person\'s detail page once the activation tutorial is closed', () => {
-      fixture.componentInstance.onPersonCreated(mockPerson as never);
-      fixture.detectChanges();
-
-      fixture.componentInstance.onActivationTutorialClosed();
-
-      expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
+    it('no longer shows the activation tutorial', () => {
+      expect(fixture.nativeElement.querySelector('app-tutorial-modal')).toBeNull();
     });
   });
 
@@ -340,6 +375,65 @@ describe('PersonListComponent', () => {
     it('keeps other prefixes and shows a dash when empty', () => {
       expect(cell('+33612345678')).toBe('+33612345678');
       expect(cell(null)).toBe('—');
+    });
+  });
+
+  describe("accés a l'app", () => {
+    const el = () => fixture.nativeElement as HTMLElement;
+    const lastFilters = () => personService.getAll.mock.calls.at(-1)![0];
+    const chipLabels = () => fixture.componentInstance.activeFilterChips().map((c) => c.label);
+
+    it('shows a visible «Accés» column that is not sortable', () => {
+      const column = ALL_COLUMNS.find((c) => c.key === 'accessStatus');
+      expect(column).toMatchObject({ label: 'Accés', defaultVisible: true });
+      expect(column?.sortField).toBeUndefined();
+    });
+
+    it("draws each person's status as the semantic badge", () => {
+      fixture.componentInstance.persons.set([
+        { ...mockPerson, accessStatus: AccessStatus.INVITE_EXPIRED } as never,
+      ]);
+      fixture.detectChanges();
+
+      const badge = Array.from(el().querySelectorAll('.badge')).find(
+        (b) => b.textContent?.trim() === 'Invitació vençuda',
+      );
+      expect(badge?.classList).toContain('badge-error');
+    });
+
+    it('offers every status in an «Accés a l\'app» select, with «Tots» for no filter', () => {
+      const options = Array.from(el().querySelectorAll('option')).map((o) => o.textContent?.trim());
+      expect(el().textContent).toContain("Accés a l'app");
+      expect(options).toEqual(
+        expect.arrayContaining(['Tots', 'Compte actiu', 'Invitació enviada', 'Invitació vençuda', 'Amb responsable', 'Sense accés']),
+      );
+    });
+
+    it('filters by the chosen status from the first page, with a chip', () => {
+      fixture.componentInstance.goToPage(2);
+      fixture.componentInstance.onAccessStatusChange(AccessStatus.INVITE_EXPIRED);
+
+      expect(lastFilters()).toMatchObject({ accessStatus: AccessStatus.INVITE_EXPIRED, page: 1 });
+      expect(chipLabels()).toContain('Invitació vençuda');
+      expect(fixture.componentInstance.hasFilterChips()).toBe(true);
+    });
+
+    it('«Tots» drops the filter', () => {
+      fixture.componentInstance.onAccessStatusChange(AccessStatus.NONE);
+      fixture.componentInstance.onAccessStatusChange('');
+
+      expect(lastFilters().accessStatus).toBeUndefined();
+      expect(chipLabels()).not.toContain('Sense accés');
+    });
+
+    it('removing the chip, or clearing the filters, drops it', () => {
+      fixture.componentInstance.onAccessStatusChange(AccessStatus.MANAGED);
+      fixture.componentInstance.onRemoveFilterChip('accessStatus');
+      expect(lastFilters().accessStatus).toBeUndefined();
+
+      fixture.componentInstance.onAccessStatusChange(AccessStatus.MANAGED);
+      fixture.componentInstance.clearFilters();
+      expect(lastFilters().accessStatus).toBeUndefined();
     });
   });
 });

@@ -38,11 +38,33 @@ describe('PersonService', () => {
     req.flush({ data: [], meta: { total: 0, page: 1, limit: 50 } });
   });
 
+  it('getShirtCandidates requests /persons/shirt-candidates', () => {
+    service.getShirtCandidates().subscribe((c) => expect(c).toEqual([]));
+    const req = httpMock.expectOne(`${environment.apiUrl}/persons/shirt-candidates`);
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
   it('getPositions requests /tags', () => {
     service.getPositions().subscribe((p) => expect(p).toEqual([]));
     const req = httpMock.expectOne(`${environment.apiUrl}/tags`);
     expect(req.request.method).toBe('GET');
     req.flush([]);
+  });
+
+  it('createProvisional posts the alias and the xicalla flag', () => {
+    service.createProvisional('Pepa', true).subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/persons/provisional`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ alias: 'Pepa', isXicalla: true });
+    req.flush({});
+  });
+
+  it('createProvisional sends isXicalla false by default', () => {
+    service.createProvisional('Joan').subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/persons/provisional`);
+    expect(req.request.body).toEqual({ alias: 'Joan', isXicalla: false });
+    req.flush({});
   });
 
   it('createInviteLink posts to /users/invite-link with the personId', () => {

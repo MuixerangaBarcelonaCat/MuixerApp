@@ -43,10 +43,10 @@ export class CreatePersonDto {
   @MaxLength(20)
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'Data de naixement (ISO 8601)', example: '2000-01-15' })
+  @ApiPropertyOptional({ description: 'Data de naixement (ISO 8601); null l\'esborra', example: '2000-01-15', nullable: true, type: String })
   @IsDateString()
   @IsOptional()
-  birthDate?: string;
+  birthDate?: string | null;
 
   @ApiPropertyOptional({ description: 'Alçada d\'espatlles en cm', minimum: 50, maximum: 250 })
   @Type(() => Number)
@@ -61,7 +61,10 @@ export class CreatePersonDto {
   @IsOptional()
   gender?: Gender;
 
-  @ApiPropertyOptional({ description: 'És xicalla (< 16 anys)', default: false })
+  @ApiPropertyOptional({
+    description: "És xicalla, marcat a mà: només s'alça mentre no hi ha data de naixement; amb data, es calcula per l'edat i s'ignora",
+    default: false,
+  })
   @IsBoolean()
   @IsOptional()
   isXicalla?: boolean;

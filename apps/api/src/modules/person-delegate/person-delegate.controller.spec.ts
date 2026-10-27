@@ -59,6 +59,27 @@ describe('PersonDelegateController', () => {
     });
   });
 
+  describe('findAll — the delegate account state', () => {
+    it("exposes whether the delegate's account is active and when its invite expires, never the token", async () => {
+      const expiresAt = new Date('2026-10-27T10:00:00Z');
+      mockService.findByPerson.mockResolvedValue([
+        {
+          id: 'del-1',
+          delegateType: DelegateType.PARENT,
+          isActive: true,
+          isPrimary: true,
+          user: { id: 'user-1', email: null, isActive: false, inviteExpiresAt: expiresAt, inviteToken: 'HASH' },
+          person: { id: 'person-1', alias: 'child' },
+        },
+      ]);
+
+      const [delegate] = await controller.findAll('person-1');
+
+      expect(delegate.user).toMatchObject({ isActive: false, inviteExpiresAt: expiresAt });
+      expect((delegate.user as unknown as Record<string, unknown>)['inviteToken']).toBeUndefined();
+    });
+  });
+
   describe('findAll — delegate phone', () => {
     it('exposes the delegate\'s own person phone so the UI can show it for xicalla', async () => {
       mockService.findByPerson.mockResolvedValue([

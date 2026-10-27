@@ -212,6 +212,12 @@ describe('TaggingWizardModalComponent', () => {
     expect(fixture.nativeElement.textContent).toContain("Alçada d'espatlles: +5");
   });
 
+  it('labels a xicalla person with the «Xicalla» badge', async () => {
+    await setup([{ ...person('a'), isXicalla: true }]);
+    expect(fixture.nativeElement.textContent).toContain('Xicalla');
+    expect(fixture.nativeElement.textContent).not.toContain('Menor de 16');
+  });
+
   it('shows 0 for the baseline height', async () => {
     await setup([{ ...person('a'), shoulderHeight: 140 }]);
     expect(fixture.nativeElement.textContent).toContain("Alçada d'espatlles: 0");

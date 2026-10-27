@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuditAction, JwtPayload, UserRole } from '@muixer/shared';
 import { Request } from 'express';
+import { PATH_METADATA } from '@nestjs/common/constants';
 import { PersonController } from './person.controller';
 import { PersonService } from './person.service';
 import { AuditService } from '../audit/audit.service';
@@ -11,6 +12,8 @@ describe('PersonController', () => {
   const personService = {
     findAll: jest.fn(),
     findOne: jest.fn(),
+    findShirtCandidates: jest.fn(),
+    createProvisional: jest.fn(),
   };
   const auditService = {
     record: jest.fn().mockResolvedValue(undefined),
@@ -65,6 +68,42 @@ describe('PersonController', () => {
         }),
       );
       expect(result).toEqual({ id: 'person-1', alias: 'x' });
+    });
+  });
+
+  describe('createProvisional', () => {
+    it('passes the alias and the xicalla flag to the service', async () => {
+      personService.createProvisional.mockResolvedValue({ id: 'p', alias: '~Pepa' });
+
+      await controller.createProvisional({ alias: 'Pepa', isXicalla: true });
+
+      expect(personService.createProvisional).toHaveBeenCalledWith('Pepa', true);
+    });
+
+    it('defaults the xicalla flag to false', async () => {
+      personService.createProvisional.mockResolvedValue({ id: 'p', alias: '~Pepa' });
+
+      await controller.createProvisional({ alias: 'Pepa' });
+
+      expect(personService.createProvisional).toHaveBeenCalledWith('Pepa', false);
+    });
+  });
+
+  describe('findShirtCandidates', () => {
+    it('returns the candidates from the service as a plain array', async () => {
+      const candidates = [{ id: 'a', alias: 'x', isEligible: true }];
+      personService.findShirtCandidates.mockResolvedValue(candidates);
+
+      await expect(controller.findShirtCandidates()).resolves.toBe(candidates);
+    });
+
+    // Nest matches routes in declaration order: behind `:id`, «shirt-candidates» would hit ParseUUIDPipe.
+    it('is routed at shirt-candidates, declared before :id', () => {
+      const methods = Object.getOwnPropertyNames(PersonController.prototype);
+      expect(Reflect.getMetadata(PATH_METADATA, PersonController.prototype.findShirtCandidates)).toBe(
+        'shirt-candidates',
+      );
+      expect(methods.indexOf('findShirtCandidates')).toBeLessThan(methods.indexOf('findOne'));
     });
   });
 });

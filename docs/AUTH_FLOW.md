@@ -34,13 +34,14 @@ Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense co
 **Regla d'or:** només pot entrar a l'app algú que ja existisca com a **Persona** al Dashboard (encara que siga una fitxa provisional, a mitges). Els perfils els creen i gestionen sempre els admins/tècnics; ningú es dona d'alta pel seu compte.
 
 **Com fa "login" un membre per primera vegada — no hi ha registre lliure:**
-1. Algú del Dashboard (ADMIN/TECHNICAL) entra a la fitxa de la persona i prem **"Crea enllaç d'invitació"**.
-2. Este enllaç **no s'envia sol per correu** — l'admin l'ha de copiar i enviar-lo a mà (WhatsApp, normalment) a la persona.
+1. Algú del Dashboard (ADMIN/TECHNICAL) crea l'enllaç d'invitació: en acabar de donar d'alta la persona a «Persona nova», o més tard des de la targeta **«Accés a l'app»** de la seua fitxa. Una xicalla no en rep mai: hi entra a través de la seua persona responsable.
+2. Este enllaç **no s'envia sol per correu** — es mostra una sola vegada, i l'admin l'ha de copiar (o compartir, des del mòbil) i enviar-lo a mà (WhatsApp, normalment) a la persona.
 3. La persona obre l'enllaç al mòbil → s'obre la PWA a la pantalla **"Activa el teu compte"**, ja amb **totes les dades que tenim d'ella prellenades** (nom, cognoms, gènere, telèfon, data de naixement) → les revisa i corregeix, completa el que falte, tria una contrasenya, accepta la política de privacitat → **ja queda dins**, sense haver de tornar a fer login.
    - **Si ja teníem el seu correu** (ve del sistema antic), apareix escrit i **no el pot canviar** — si és incorrecte, l'ha de canviar un tècnic des del Dashboard abans que ella active el compte.
    - **Si no en teníem cap** (persona donada d'alta a mà), el correu l'escriu ella. Si ja pertany a un altre compte, li dirà que aquest correu ja existeix — llavors cal mirar si eixa persona ja té compte o si hi ha una fitxa duplicada.
-4. **L'enllaç caduca als 3 dies.** Si caduca abans que la persona l'active, l'admin torna a prémer el mateix botó i genera un enllaç nou — sempre l'últim que s'ha enviat és el vàlid, els anteriors deixen de funcionar.
-5. **Un cop el compte ja està actiu, el botó d'invitació desapareix** de la fitxa i es mostra l'indicador "Compte actiu" — a partir d'ací la persona entra sempre amb el seu email i contrasenya.
+4. **L'enllaç caduca als 3 dies.** La targeta mostra quan venç; si ha vençut, l'admin en crea un de nou. Crear-ne un mentre l'anterior encara és vigent demana confirmació: sempre l'últim que s'ha enviat és el vàlid, els anteriors deixen de funcionar.
+5. **Un cop el compte ja està actiu**, la targeta mostra «Compte actiu» i cap acció — a partir d'ací la persona entra sempre amb el seu email i contrasenya.
+6. **Per a veure-ho de tota la colla**, la llista de persones té la columna **«Accés»** i el filtre **«Accés a l'app»**: «Compte actiu», «Invitació enviada», «Invitació vençuda», «Amb responsable» (xicalla que hi entra a través d'una persona adulta) o «Sense accés». Per exemple, filtrant «Invitació vençuda» es veu a qui cal enviar un enllaç nou.
 
 **Login del dia a dia (compte ja actiu):** email + contrasenya, tant al Dashboard com a la PWA. La sessió es manté sola una bona temporada (8 hores al Dashboard, 7 dies a la PWA) sense haver de tornar a introduir res — només cal tornar a fer login si ha passat molt de temps o s'ha fet "Tanca la sessió".
 
@@ -219,20 +220,43 @@ Dashboard (admin)                         Backend
 ──────────────────                        ───────
 POST /users/invite-link             →     UserController.createInviteLink()
 { personId }                              UserService.createOrRefreshInviteLink()
-                                          ├─ person.user inexistent? → crea User
-                                          │   (email: null, isActive: false, role: MEMBER)
-                                          │   i degrada el delegat primari si n'hi ha
+                                          ├─ xicalla (valor efectiu)? → 400: hi accedeix
+                                          │   a través de la persona responsable (§7.1)
+                                          ├─ person.user inexistent? →
+                                          │   PersonDelegateService.ensureAccountHolder():
+                                          │   crea User (email: null, isActive: false,
+                                          │   role: MEMBER) i degrada el delegat primari
                                           ├─ person.user actiu? → 400 (ja té compte)
                                           ├─ genera token (randomBytes) + SHA-256 hash
                                           ├─ inviteExpiresAt = now + INVITE_TOKEN_TTL_HOURS
                                     ←     { inviteUrl, expiresAt }
 ```
 
-El botó **"Crea enllaç d'invitació"** no es desactiva mai: repetir la crida regenera el
-token (i és l'única manera de "reenviar" un enllaç caducat). Un cop el compte és actiu, el
-botó desapareix i es mostra només l'indicador "Compte actiu": per a un compte que ja existeix
-l'única via de recuperació és el correu (§8), perquè l'acció equivalent generada pel tècnic
-està desactivada (§8.1).
+Al Dashboard, l'enllaç es crea des de dos llocs, i en tots dos es mostra **una sola vegada**
+(`InviteLinkPanelComponent`: Copia, Comparteix on el navegador ho permet, i el venciment en hora
+de València). Del token només se'n guarda el hash, així que no es pot tornar a mostrar:
+
+- **«Persona nova»** (`PersonNewModalComponent`) és un flux guiat. Primer crea la persona
+  provisional (àlies + «Xicalla», que alça `isXicallaManual`); després, a una persona adulta li
+  ofereix l'enllaç i a la xicalla, la persona responsable (§7.1).
+- **La targeta «Accés a l'app»** de la fitxa (`PersonAccessCardComponent`) mostra l'estat
+  (`accessStatus`, vegeu més avall) i l'única acció que el fa avançar. Tornar a crear un enllaç
+  encara vigent demana confirmació, perquè l'anterior deixa de funcionar; un de vençut es
+  reemplaça sense preguntar.
+
+Un cop el compte és actiu, la targeta mostra «Compte actiu» i cap acció: per a un compte que ja
+existeix l'única via de recuperació és el correu (§8), perquè l'acció equivalent generada pel
+tècnic està desactivada (§8.1).
+
+**`accessStatus`** es calcula en llegir (`resolveAccessStatus` a `@muixer/shared`; el filtre SQL
+`applyAccessStatusFilter` n'és el mirall, amb una spec d'integració de paritat), en aquest ordre:
+`ACTIVE` (compte actiu) · `INVITED` (invitació vigent) · `INVITE_EXPIRED` (vençuda) · `MANAGED`
+(té un delegat primari actiu) · `NONE`. Un compte-esborrany sense cap invitació compta com a
+`NONE`.
+
+La llista de persones el mostra a la columna «Accés» (amb els mateixos colors que la targeta) i
+s'hi pot filtrar amb «Accés a l'app»: `GET /persons?accessStatus=…` aplica
+`applyAccessStatusFilter` amb l'hora actual. No s'hi pot ordenar.
 
 ```
 PWA (membre)                              Backend
@@ -269,6 +293,16 @@ ja el tenim (§6.0). El formulari, doncs, és de **revisió**, no d'alta des de 
 ---
 
 ## 7. Dependents (xicalla) pendents de completar
+
+### 7.1 Vincular la persona responsable
+
+La persona responsable (el delegat primari) es tria **per persona**, no per compte:
+`POST /persons/:id/delegates` accepta `responsiblePersonId` en lloc de `userId` (mai tots dos).
+Si l'adult ja té compte, es fa servir; si no, es comprova primer tota regla que pot fallar i
+després, en una sola transacció, `ensureAccountHolder` li crea el compte-esborrany i es vincula.
+Així es pot vincular la xicalla abans d'haver enviat cap invitació a l'adult, que a més es pot
+crear al moment, com a provisional, des del mateix selector (`ResponsiblePickerComponent`). La
+persona responsable ha d'estar activa i no pot ser xicalla (valor efectiu).
 
 Una xicalla mai té compte propi: es vincula com a `PersonDelegate` primari a un membre ja
 registrat (abans o després que este activi el seu propi compte — cap dels dos ordres bloqueja
@@ -493,6 +527,8 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 | `interfaces/auth.interfaces.ts` | `JwtPayload`, `PersonSummary`, `UserProfile` |
 | `interfaces/invite.interfaces.ts` | `InviteLinkResponse`, `RecoveryLinkResponse`, `PersonRegistrationData`, `RegisterViaInviteRequest`, `InviteRegistrationContext` |
 | `interfaces/me/pending-dependent.interface.ts` | `PendingDependent`, `DependentRegistrationRequest` |
+| `enums/access-status.enum.ts` | `AccessStatus` (`ACTIVE`/`INVITED`/`INVITE_EXPIRED`/`MANAGED`/`NONE`) |
+| `utils/person-access.util.ts` | `resolveAccessStatus`, `ACCESS_STATUS_LABELS` |
 
 ---
 

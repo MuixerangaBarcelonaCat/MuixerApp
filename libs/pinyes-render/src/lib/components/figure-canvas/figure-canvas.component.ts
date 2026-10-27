@@ -32,6 +32,7 @@ import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.ut
 import { getFigureColor } from '../../utils/figure-palette.util';
 import { withAlpha } from '../../theme/canvas-theme';
 import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
+import { injectPinyesRenderSettings } from '../../settings/render-settings';
 import { nodeFill } from '../../theme/node-color';
 import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
@@ -144,6 +145,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private readonly fontsLoaded = inject(CANVAS_FONTS_LOADED);
   /** Set when the first drawing came before the faces (or was held back for them) — see `initialRender`. */
   private awaitingFonts = false;
+  private readonly renderSettings = injectPinyesRenderSettings();
   protected readonly paperGrain = computed(() => paperGrain(this.theme().mode));
 
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
@@ -400,6 +402,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.compositionSlots();
       this.assignments();
       this.heightMode();
+      this.renderSettings();
       this.attendanceMap();
       this.nextPerformanceMap();
       this.selectedSegmentNode();
@@ -420,6 +423,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.nodes();
       this.assignments();
       this.heightMode();
+      this.renderSettings();
       this.attendanceMap();
       this.nextPerformanceMap();
       this.phase();
@@ -1837,7 +1841,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       person: person
         ? {
             name: formatAssignedLabel(person.alias, node.climbIndicator),
-            height: formatShoulderHeight(person.shoulderHeight, this.heightMode()),
+            height: formatShoulderHeight(person.shoulderHeight, this.heightMode(), this.renderSettings().shoulderHeightBaselineCm),
             nextActuacio: this.nextPerformanceMap().get(person.id) === 'ANIRE',
             observation: details?.notes ? { emoji: details.notesEmoji } : null,
           }

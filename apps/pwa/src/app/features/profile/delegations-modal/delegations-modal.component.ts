@@ -10,7 +10,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { DelegateType } from '@muixer/shared';
+import { DELEGATE_TYPE_LABELS, DelegateType } from '@muixer/shared';
 import { LucideAngularModule, Users } from 'lucide-angular';
 import { ProfileDelegate, ProfileService } from '../services/profile.service';
 import {
@@ -23,12 +23,6 @@ import {
   SelectComponent,
   ToastService,
 } from '@muixer/ui';
-
-const DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
-  [DelegateType.PARENT]: 'Pare/Mare',
-  [DelegateType.GUARDIAN]: 'Tutor/a',
-  [DelegateType.OTHER]: 'Altres',
-};
 
 @Component({
   selector: 'app-delegations-modal',

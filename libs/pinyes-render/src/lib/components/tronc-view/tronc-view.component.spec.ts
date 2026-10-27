@@ -1,5 +1,7 @@
 import { ATTENDANCE_TONES, GENDER_TONES, NODE_TYPE_NEUTRAL, NODE_TYPE_NEUTRAL_DARK, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService, heightRampTones } from '@muixer/ui';
-import { Gender } from '@muixer/shared';
+import { DEFAULT_COLLA_SETTINGS, Gender } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { PINYES_RENDER_SETTINGS, PinyesRenderSettings } from '../../settings/render-settings';
 import { buildCanvasTheme } from '../../theme/canvas-theme';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -72,12 +74,21 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
 describe('TroncViewComponent', () => {
   let component: TroncViewComponent;
   let fixture: ComponentFixture<TroncViewComponent>;
+  const renderSettings = signal<PinyesRenderSettings>({
+    shoulderHeightBaselineCm: DEFAULT_COLLA_SETTINGS.shoulderHeightBaselineCm,
+    troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds,
+  });
 
   beforeEach(async () => {
+    renderSettings.set({
+      shoulderHeightBaselineCm: DEFAULT_COLLA_SETTINGS.shoulderHeightBaselineCm,
+      troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds,
+    });
     await TestBed.configureTestingModule({
       imports: [TroncViewComponent],
       providers: [
         allLucideIconsProvider,
+        { provide: PINYES_RENDER_SETTINGS, useValue: renderSettings },
       ],
     }).compileComponents();
 
@@ -285,6 +296,11 @@ describe('TroncViewComponent', () => {
 
   it('getHeightDisplay returns relative height (negative diff)', () => {
     expect(component.getHeightDisplay(135)).toBe('-5');
+  });
+
+  it("getHeightDisplay measures from the colla's baseline", () => {
+    renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: 130 }));
+    expect(component.getHeightDisplay(135)).toBe('+5');
   });
 
   it('getHeightDisplay returns absolute value when heightMode is absolute', () => {
@@ -524,11 +540,11 @@ describe('TroncViewComponent', () => {
       });
     });
 
-    it('uses the thresholds given as input', () => {
-      fixture.componentRef.setInput('heightThresholds', {
-        floor: { warning: 1, error: 2 },
-        support: { warning: 3, error: 5 },
-      });
+    it("uses the colla's thresholds", () => {
+      renderSettings.update((s) => ({
+        ...s,
+        troncHeightThresholds: { floor: { warning: 1, error: 2 }, support: { warning: 3, error: 5 } },
+      }));
       render([], [b1(), b2()], [makeAssignment('b1', 'Anna', 140), makeAssignment('b2', 'Bea', 142)]);
       expect((floorGap(0).querySelector('.badge') as HTMLElement).classList).toContain('badge-error');
     });

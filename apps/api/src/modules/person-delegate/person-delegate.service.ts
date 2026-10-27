@@ -6,8 +6,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
-import { DelegateType } from '@muixer/shared';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { DelegateType, UserRole } from '@muixer/shared';
 import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
 import { User } from '../user/user.entity';
@@ -61,6 +61,10 @@ export class PersonDelegateService {
     personId: string,
     dto: CreatePersonDelegateDto,
   ): Promise<PersonDelegate> {
+    if (dto.responsiblePersonId !== undefined) {
+      return this.createForResponsiblePerson(personId, dto.responsiblePersonId, dto);
+    }
+
     const person = await this.personRepo.findOne({
       where: { id: personId },
       relations: ['user'],
@@ -79,13 +83,13 @@ export class PersonDelegateService {
 
     if (user.person && user.person.id === personId) {
       throw new BadRequestException(
-        'A user cannot delegate for their own linked person',
+        "Una persona no pot ser delegada d'ella mateixa.",
       );
     }
 
     if (dto.isPrimary && person.user) {
       throw new BadRequestException(
-        'Esta persona ja gestiona el seu propi compte',
+        "Esta persona ja té accés propi a l'app.",
       );
     }
 
@@ -94,7 +98,7 @@ export class PersonDelegateService {
     });
     if (existing) {
       throw new ConflictException(
-        'This user is already a delegate for this person',
+        "Esta persona ja és delegada d'aquest membre.",
       );
     }
 
@@ -140,7 +144,7 @@ export class PersonDelegateService {
 
     if (dto.isPrimary && delegate.person.user) {
       throw new BadRequestException(
-        'Esta persona ja gestiona el seu propi compte',
+        "Esta persona ja té accés propi a l'app.",
       );
     }
 
@@ -181,11 +185,7 @@ export class PersonDelegateService {
     user: User,
     delegateType: DelegateType,
   ): Promise<void> {
-    if (delegateType !== DelegateType.PARENT && delegateType !== DelegateType.GUARDIAN) {
-      throw new BadRequestException(
-        'El gestor principal d\'un membre de la xicalla ha de ser pare/mare o tutor/a',
-      );
-    }
+    this.assertXicallaPrimaryType(delegateType);
 
     if (user.person) return;
 
@@ -194,9 +194,82 @@ export class PersonDelegateService {
     });
     if (!otherNonXicallaDelegate) {
       throw new BadRequestException(
-        'El gestor principal ha de ser una persona adulta: amb compte propi o que gestioni una altra persona que no siga xicalla',
+        'La persona responsable ha de ser adulta.',
       );
     }
+  }
+
+  private assertXicallaPrimaryType(delegateType: DelegateType): void {
+    if (delegateType !== DelegateType.PARENT && delegateType !== DelegateType.GUARDIAN) {
+      throw new BadRequestException(
+        "La persona responsable d'un membre de la xicalla ha de ser pare/mare o tutor/a.",
+      );
+    }
+  }
+
+  /**
+   * Links a delegate named by person rather than by account. An adult who already has an account
+   * goes through the usual `userId` path. One who has none gets an inactive stub account
+   * (`ensureAccountHolder`) and the link in one transaction; every rule that could still fail is
+   * checked first, since a brand-new account can't clash with an existing delegate and, holding a
+   * person, always qualifies as an adult manager.
+   */
+  private async createForResponsiblePerson(
+    personId: string,
+    responsiblePersonId: string,
+    dto: CreatePersonDelegateDto,
+  ): Promise<PersonDelegate> {
+    if (responsiblePersonId === personId) {
+      throw new BadRequestException('Una persona no pot ser la seua pròpia persona responsable.');
+    }
+
+    const responsible = await this.personRepo.findOne({
+      where: { id: responsiblePersonId },
+      relations: ['user'],
+    });
+    if (!responsible) {
+      throw new NotFoundException(`Person #${responsiblePersonId} not found`);
+    }
+    if (!responsible.isActive) {
+      throw new BadRequestException('La persona responsable ha d\'estar activa.');
+    }
+    // Effective value (by age when the birth date is known).
+    if (responsible.isXicalla) {
+      throw new BadRequestException('La persona responsable ha de ser adulta.');
+    }
+
+    if (responsible.user) {
+      return this.create(personId, {
+        userId: responsible.user.id,
+        delegateType: dto.delegateType,
+        isPrimary: dto.isPrimary,
+      });
+    }
+
+    const person = await this.personRepo.findOne({
+      where: { id: personId },
+      relations: ['user'],
+    });
+    if (!person) {
+      throw new NotFoundException(`Person #${personId} not found`);
+    }
+    if (dto.isPrimary && person.user) {
+      throw new BadRequestException("Esta persona ja té accés propi a l'app.");
+    }
+    if (dto.isPrimary && person.isXicalla) {
+      this.assertXicallaPrimaryType(dto.delegateType);
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const user = await this.ensureAccountHolder(responsible, manager);
+      const repo = manager.getRepository(PersonDelegate);
+      if (dto.isPrimary) {
+        await repo.update({ person: { id: personId } }, { isPrimary: false });
+      }
+      return repo.save(
+        repo.create({ person, user, delegateType: dto.delegateType, isPrimary: dto.isPrimary ?? false }),
+      );
+    });
   }
 
   /**
@@ -210,6 +283,16 @@ export class PersonDelegateService {
       relations: ['person'],
     });
     return delegates.map((d) => d.person);
+  }
+
+  /** Of `personIds`, the ones someone else manages (an active primary delegate): feeds `accessStatus`. */
+  async findPersonIdsWithResponsible(personIds: string[]): Promise<Set<string>> {
+    if (personIds.length === 0) return new Set();
+    const delegates = await this.delegateRepo.find({
+      where: { person: { id: In(personIds) }, isPrimary: true, isActive: true },
+      relations: ['person'],
+    });
+    return new Set(delegates.map((d) => d.person.id));
   }
 
   async getPrimary(personId: string): Promise<PersonDelegate | null> {
@@ -240,6 +323,22 @@ export class PersonDelegateService {
    * deleting the row (§2.5: self-linking demotes rather than destroys a prior
    * guardian relationship). Pass `manager` to participate in a caller's transaction.
    */
+  /**
+   * The person's own account, creating an inactive MEMBER stub (no email, no invite) when there is
+   * none yet: what an invite link or a responsible link hangs off. A person with their own account
+   * manages themselves, so any primary delegate is demoted in the same transaction. Lives here, not
+   * in `UserService`, because `UserModule` already imports this module.
+   */
+  async ensureAccountHolder(person: Person, manager: EntityManager): Promise<User> {
+    if (person.user) return person.user;
+    const user = await manager.save(
+      User,
+      manager.create(User, { email: null, role: UserRole.MEMBER, person, isActive: false }),
+    );
+    await this.demotePrimaryIfAny(person.id, manager);
+    return user;
+  }
+
   async demotePrimaryIfAny(personId: string, manager?: EntityManager): Promise<void> {
     const repo = manager ? manager.getRepository(PersonDelegate) : this.delegateRepo;
     await repo.update({ person: { id: personId }, isPrimary: true }, { isPrimary: false });

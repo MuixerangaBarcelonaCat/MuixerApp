@@ -1,0 +1,126 @@
+<section class="flex flex-col gap-3" aria-labelledby="access-card-title">
+  <div class="flex items-center justify-between gap-2">
+    <h3 id="access-card-title" class="text-xs font-medium text-base-content/50">Accés a l'app</h3>
+    <app-access-status-badge [status]="status()" />
+  </div>
+
+  @switch (status()) {
+    @case (AccessStatus.ACTIVE) {
+      @if (person().user?.email; as email) {
+        <p class="text-sm">Correu: {{ email }}</p>
+      }
+    }
+
+    @case (AccessStatus.INVITED) {
+      @if (ownExpiry(); as e) {
+        <p class="text-sm">L'enllaç venç el {{ e.date }} a les {{ e.time }}.</p>
+      }
+      @if (!person().isXicalla) {
+        <div>
+          <lib-button variant="neutral" outline size="sm" (clicked)="inviteSelf(true)">Torna a crear l'enllaç</lib-button>
+        </div>
+      }
+    }
+
+    @case (AccessStatus.INVITE_EXPIRED) {
+      @if (ownExpiry(); as e) {
+        <p class="text-sm">L'enllaç va vèncer el {{ e.date }} sense que s'activara el compte.</p>
+      }
+      @if (!person().isXicalla) {
+        <div>
+          <lib-button variant="primary" size="sm" (clicked)="inviteSelf(false)">Crea un enllaç nou</lib-button>
+        </div>
+      }
+    }
+
+    @case (AccessStatus.MANAGED) {
+      @if (responsible(); as r) {
+        <p class="text-sm">
+          A través de
+          @if (r.user.person; as rp) {
+            <a class="link link-primary" [routerLink]="['/persons', rp.id]">{{ rp.alias }}</a>
+          } @else {
+            <span>{{ r.user.email }}</span>
+          }
+          ({{ responsibleRelation() }}).
+        </p>
+
+        @if (responsibleAlias(); as alias) {
+          <div class="flex items-center justify-between gap-2 rounded-btn bg-base-200 px-3 py-2">
+            <span class="text-sm">Accés de {{ alias }}</span>
+            @if (responsibleStatus(); as rs) {
+              <app-access-status-badge [status]="rs" size="xs" />
+            }
+          </div>
+
+          @if (responsibleStatus() === AccessStatus.INVITED) {
+            <div>
+              <lib-button variant="neutral" outline size="sm" (clicked)="inviteResponsible()">
+                Torna a crear l'enllaç per a {{ alias }}
+              </lib-button>
+            </div>
+          } @else if (responsibleStatus() !== AccessStatus.ACTIVE) {
+            <div>
+              <lib-button variant="primary" size="sm" (clicked)="inviteResponsible()">
+                Crea l'enllaç per a {{ alias }}
+              </lib-button>
+            </div>
+          }
+        }
+
+        @if (editing()) {
+          <div>
+            <lib-button variant="error" ghost size="sm" (clicked)="removeResponsible.emit(r)">
+              Desvincula la persona responsable
+            </lib-button>
+          </div>
+        }
+      }
+    }
+
+    @default {
+      @if (person().isXicalla) {
+        <p class="text-sm">La xicalla accedeix a l'app a través d'una persona adulta responsable.</p>
+        <div>
+          <lib-button variant="primary" size="sm" (clicked)="defineResponsible.emit()">
+            Defineix la persona responsable
+          </lib-button>
+        </div>
+      } @else {
+        <p class="text-sm">Esta persona encara no pot entrar a l'app.</p>
+        <div class="flex flex-wrap gap-2">
+          <lib-button variant="primary" size="sm" (clicked)="inviteSelf(false)">Crea l'enllaç d'invitació</lib-button>
+          <lib-button variant="ghost" size="sm" (clicked)="defineResponsible.emit()">
+            Defineix una persona responsable
+          </lib-button>
+        </div>
+      }
+    }
+  }
+</section>
+
+@if (confirmTarget(); as target) {
+  <lib-modal [open]="true" title="Torna a crear l'enllaç" (closed)="confirmTarget.set(null)">
+    <p class="text-sm">
+      L'enllaç que ja heu enviat a <strong>{{ target.alias }}</strong> deixarà de funcionar. Voleu crear-ne un de nou?
+    </p>
+    <div modalFooter>
+      <lib-button variant="ghost" size="sm" (clicked)="confirmTarget.set(null)">Cancel·la</lib-button>
+      <lib-button variant="primary" size="sm" (clicked)="confirmRegenerate()">Crea un enllaç nou</lib-button>
+    </div>
+  </lib-modal>
+}
+
+@if (inviteTarget(); as target) {
+  <lib-modal [open]="true" title="Enllaç d'invitació" (closed)="inviteTarget.set(null)">
+    <app-invite-link-panel
+      [personId]="target.personId"
+      [alias]="target.alias"
+      [autoGenerate]="true"
+      (generated)="changed.emit()"
+    />
+    <div modalFooter>
+      <lib-button variant="primary" size="sm" (clicked)="inviteTarget.set(null)">Fet</lib-button>
+    </div>
+  </lib-modal>
+}

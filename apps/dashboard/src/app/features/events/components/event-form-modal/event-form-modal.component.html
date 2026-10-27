@@ -36,22 +36,13 @@
       [errorText]="fieldError('date') ?? undefined"
     />
 
-    <!-- Hora inici (raw: lib-input's InputType has no "time" — component-API gap, not forced) -->
-    <div class="form-control">
-      <label class="label" for="startTime">
-        <span class="label-text font-medium">Hora inici</span>
-      </label>
-      <input
-        id="startTime"
-        type="time"
-        class="input input-bordered"
-        [class.input-error]="fieldError('startTime')"
-        formControlName="startTime"
-      />
-      @if (fieldError('startTime')) {
-        <div class="label"><span class="label-text-alt text-error">{{ fieldError('startTime') }}</span></div>
-      }
-    </div>
+    <!-- Hora inici -->
+    <lib-input
+      label="Hora inici"
+      type="time"
+      formControlName="startTime"
+      [errorText]="fieldError('startTime') ?? undefined"
+    />
 
     <!-- Lloc -->
     <lib-input

@@ -9,6 +9,8 @@ import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * El filtre «no compleix la regla» ha de tornar exactament qui no satisfà cap de les tres
@@ -38,12 +40,14 @@ describe('Person tag rule filter (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         PersonService,
         ...realRepositoryProviders(db.dataSource, [Person, Tag]),
         {
           provide: PersonDelegateService,
           useValue: {
             getPrimary: jest.fn().mockResolvedValue(null),
+            findPersonIdsWithResponsible: jest.fn().mockResolvedValue(new Set()),
             assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
           },
         },

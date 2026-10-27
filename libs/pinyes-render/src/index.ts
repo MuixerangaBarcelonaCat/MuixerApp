@@ -37,3 +37,5 @@ export * from './lib/utils/own-position.util';
 export * from './lib/theme/canvas-theme';
 export * from './lib/theme/inject-canvas-theme';
 export * from './lib/theme/node-color';
+
+export * from './lib/settings/render-settings';

@@ -1,7 +1,7 @@
 import { IsString, IsOptional, IsEnum, IsInt, Min, Max, IsUUID, IsIn } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { AvailabilityStatus } from '@muixer/shared';
+import { AccessStatus, AvailabilityStatus } from '@muixer/shared';
 import { PERSON_SORT_BY_FIELDS, PERSON_SORT_ORDER_VALUES } from '../constants/person-sort.constants';
 
 const toBool = ({ value }: { value: unknown }) =>
@@ -49,6 +49,11 @@ export class PersonFilterDto {
   @IsOptional()
   @Transform(toBool)
   isProvisional?: boolean;
+
+  @ApiPropertyOptional({ description: "Filtrar per estat d'accés a l'app", enum: AccessStatus })
+  @IsEnum(AccessStatus)
+  @IsOptional()
+  accessStatus?: AccessStatus;
 
   @ApiPropertyOptional({ description: 'Número de pàgina (comença a 1)', default: 1 })
   @IsInt()

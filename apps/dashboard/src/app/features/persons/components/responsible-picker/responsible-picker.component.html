@@ -1,0 +1,67 @@
+<div class="flex flex-col gap-4">
+  <lib-select label="Relació" [ngModel]="selectedType()" (ngModelChange)="onTypeChange($event)">
+    @for (t of delegateTypes(); track t.value) {
+      <option [value]="t.value">{{ t.label }}</option>
+    }
+  </lib-select>
+
+  @if (selectedPerson(); as person) {
+    <lib-form-field label="Persona responsable">
+      <div class="flex items-center justify-between gap-2 rounded-btn border border-base-300 px-3 py-2">
+        <span class="text-sm">
+          <span class="font-mono font-semibold">{{ person.alias }}</span>
+          @if (person.name) {
+            <span class="text-base-content/60"> · {{ person.name }} {{ person.firstSurname }}</span>
+          }
+        </span>
+        <span class="flex items-center gap-2">
+          <app-access-status-badge [status]="person.accessStatus" size="xs" />
+          <lib-button variant="ghost" size="xs" (clicked)="clear()">Canvia</lib-button>
+        </span>
+      </div>
+    </lib-form-field>
+  } @else if (!creating()) {
+    <lib-form-field label="Cerca una persona adulta">
+      <app-person-search-input
+        placeholder="Àlies, nom o cognoms"
+        [isXicalla]="false"
+        [inline]="true"
+        [excludeIds]="excludeIds()"
+        (selected)="pick($event)"
+      />
+    </lib-form-field>
+    <div>
+      <lib-button variant="ghost" size="sm" (clicked)="openCreate()">+ Crea la persona adulta</lib-button>
+    </div>
+  }
+
+  @if (creating()) {
+    <fieldset class="flex flex-col gap-3 rounded-box border border-base-300 bg-base-200 p-4">
+      <legend class="px-1 text-sm font-semibold">Crea la persona adulta</legend>
+      @if (createError()) {
+        <lib-alert variant="error" dense>{{ createError() }}</lib-alert>
+      }
+      <lib-input
+        label="Àlies"
+        hint="Es crearà com a persona provisional. Després podreu enviar-li l'enllaç d'invitació."
+        [ngModel]="newAlias()"
+        (ngModelChange)="newAlias.set($event)"
+        [disabled]="saving()"
+        (keydown.enter)="createAdult()"
+      />
+      <div class="flex justify-end gap-2">
+        <lib-button variant="ghost" size="sm" [disabled]="saving()" (clicked)="cancelCreate()">Cancel·la</lib-button>
+        <lib-button
+          variant="neutral"
+          outline
+          size="sm"
+          [disabled]="!newAlias().trim()"
+          [loading]="saving()"
+          (clicked)="createAdult()"
+        >
+          Crea i selecciona
+        </lib-button>
+      </div>
+    </fieldset>
+  }
+</div>
