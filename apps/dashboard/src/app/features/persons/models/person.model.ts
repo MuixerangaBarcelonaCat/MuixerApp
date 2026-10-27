@@ -59,6 +59,7 @@ export interface PersonFilterParams {
   isMember?: boolean;
   isProvisional?: boolean;
   tagRuleOk?: boolean;
+  accessStatus?: AccessStatus;
   page?: number;
   limit?: number;
   /** API sort field (see backend PERSON_SORT_BY_FIELDS) */

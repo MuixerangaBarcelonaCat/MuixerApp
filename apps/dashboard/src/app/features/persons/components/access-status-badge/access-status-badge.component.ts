@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { ACCESS_STATUS_LABELS, AccessStatus } from '@muixer/shared';
-import { BadgeComponent, BadgeSize, BadgeVariant } from '@muixer/ui';
+import { BadgeComponent, BadgeSize, BadgeVariant, badgeClasses } from '@muixer/ui';
 
 /** Semantic colors, as in the attendance list; «Sense accés» is a quiet outline, not an alarm. */
 const VARIANTS: Record<AccessStatus, BadgeVariant> = {
@@ -10,6 +10,13 @@ const VARIANTS: Record<AccessStatus, BadgeVariant> = {
   [AccessStatus.MANAGED]: 'info',
   [AccessStatus.NONE]: 'neutral',
 };
+
+const isOutlined = (status: AccessStatus) => status === AccessStatus.NONE;
+
+/** The badge's classes, for raw-markup callers such as a data-table `badge` column. */
+export function accessStatusBadgeClass(status: AccessStatus, size: BadgeSize = 'sm'): string {
+  return [badgeClasses(VARIANTS[status], size), isOutlined(status) ? 'badge-outline' : ''].filter(Boolean).join(' ');
+}
 
 @Component({
   selector: 'app-access-status-badge',
@@ -24,5 +31,5 @@ export class AccessStatusBadgeComponent {
 
   protected readonly label = computed(() => ACCESS_STATUS_LABELS[this.status()]);
   protected readonly variant = computed(() => VARIANTS[this.status()]);
-  protected readonly outline = computed(() => this.status() === AccessStatus.NONE);
+  protected readonly outline = computed(() => isOutlined(this.status()));
 }

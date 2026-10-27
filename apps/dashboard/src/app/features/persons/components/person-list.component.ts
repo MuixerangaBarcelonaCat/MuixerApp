@@ -5,7 +5,7 @@ import { LucideAngularModule, Search } from 'lucide-angular';
 import { ButtonComponent, ButtonGroupComponent, CheckboxComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, SEMANTIC, DOMAIN_ICONS } from '@muixer/ui';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
-import { TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
+import { ACCESS_STATUS_LABELS, AccessStatus, TagCategory, TAG_CATEGORY_LABELS, TagCompliance } from '@muixer/shared';
 import {
   formatPhone,
   getFullName,
@@ -24,6 +24,7 @@ import { ActiveFilter } from '../../../shared/components/data/active-filters/act
 import { ColumnDef } from '../../../shared/models/column-def.model';
 import { EventType } from '@muixer/shared';
 import { PersonNewModalComponent } from './modals/person-new-modal.component';
+import { accessStatusBadgeClass } from './access-status-badge/access-status-badge.component';
 import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 const STORAGE_KEY = 'person-list-visible-columns';
@@ -35,6 +36,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
   { key: 'positions', label: 'Etiquetes', defaultVisible: true, type: 'colorBadges' },
+  { key: 'accessStatus', label: 'Accés', defaultVisible: true, type: 'badge' },
   // "(temp. actual)" avoids reading as "never attends": attendedCount is 0 both for a genuine
   // newcomer and whenever there is no current season — the label scopes it explicitly instead.
   { key: 'attendedCount', label: 'Assistències (temp. actual)', defaultVisible: false, sortField: 'attendedCount' },
@@ -115,7 +117,8 @@ export class PersonListComponent {
     const pos = this.selectedPositions().length > 0;
     const actius = this.activeFilters().isActive === true;
     const tagRule = this.activeFilters().tagRuleOk !== undefined;
-    return Boolean(s || pos || actius || tagRule);
+    const access = this.activeFilters().accessStatus !== undefined;
+    return Boolean(s || pos || actius || tagRule || access);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -191,6 +194,17 @@ export class PersonListComponent {
 
   toggleTagRuleFilter(): void {
     this.toggleFilter('tagRuleOk', false);
+  }
+
+  /** `''` is «Tots»: no access filter. */
+  onAccessStatusChange(status: AccessStatus | ''): void {
+    this.activeFilters.update((filters) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { accessStatus: _a, ...rest } = filters;
+      return status ? { ...rest, accessStatus: status } : rest;
+    });
+    this.page.set(1);
+    this.loadPersons();
   }
 
   /** Renders `TagCompliance.missing` into the Catalan warning text for the badge/tooltip. */
@@ -367,6 +381,8 @@ export class PersonListComponent {
     if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Etiquetes (${this.selectedPositions().length})` });
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
     if (this.activeFilters().tagRuleOk === false) chips.push({ key: 'tagRuleOk', label: 'Falten etiquetes' });
+    const accessStatus = this.activeFilters().accessStatus;
+    if (accessStatus) chips.push({ key: 'accessStatus', label: ACCESS_STATUS_LABELS[accessStatus] });
     return chips;
   });
 
@@ -380,6 +396,7 @@ export class PersonListComponent {
     else if (key === 'positions') this.clearPositionsChip();
     else if (key === 'isActive') this.clearActiusChip();
     else if (key === 'tagRuleOk') this.toggleTagRuleFilter();
+    else if (key === 'accessStatus') this.onAccessStatusChange('');
   }
 
   onSortChangeFromTable(event: { field: string; order: 'ASC' | 'DESC' | undefined }): void {
@@ -411,6 +428,7 @@ export class PersonListComponent {
       case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
       case 'attendedCount': return String(person.attendedCount ?? 0);
       case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
+      case 'accessStatus': return ACCESS_STATUS_LABELS[person.accessStatus];
       case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
       case 'isActive': return person.isActive ? 'Actiu' : 'Inactiu';
       case 'isMember': return person.isMember ? 'Sí' : 'No';
@@ -429,6 +447,9 @@ export class PersonListComponent {
     ALL_COLUMNS.map(col => ({
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
+      ...(col.key === 'accessStatus' && {
+        badgeClass: (person: Person) => accessStatusBadgeClass(person.accessStatus),
+      }),
       ...(col.key === 'positions' && {
         // «Falten etiquetes» rides along as one more badge in the same cell — not a real tag,
         // flagged with a warning icon/color instead of a real tag color. It carries the
@@ -449,4 +470,6 @@ export class PersonListComponent {
   protected readonly TagCategory = TagCategory;
   protected readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
   readonly tagCategories = Object.values(TagCategory);
+  protected readonly accessStatuses = Object.values(AccessStatus);
+  protected readonly ACCESS_STATUS_LABELS = ACCESS_STATUS_LABELS;
 }

@@ -1,13 +1,20 @@
+import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AccessStatus, DelegateType, UserRole, resolveAccessStatus } from '@muixer/shared';
 import {
   IntegrationDb,
+  realRepositoryProviders,
   setupIntegrationDb,
   teardownIntegrationDb,
 } from '../../test-integration/integration-db';
 import { Person } from './person.entity';
 import { User } from '../user/user.entity';
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
+import { Tag } from '../tag/tag.entity';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
+import { PersonService } from './person.service';
 import { applyAccessStatusFilter } from './utils/access-status-filter.util';
 
 const NOW = new Date('2026-10-24T10:00:00Z');
@@ -96,5 +103,39 @@ describe('Person access status filter (integration)', () => {
       .sort();
 
     expect((await aliasesFor(status)).sort()).toEqual(expected);
+  });
+
+  // The filter as the list uses it. Only the clock-independent statuses: findAll compares
+  // invitations against the real now, not the fixed NOW above.
+  describe('PersonService.findAll({ accessStatus })', () => {
+    let service: PersonService;
+
+    beforeAll(async () => {
+      const module = await Test.createTestingModule({
+        providers: [
+          { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
+          PersonService,
+          ...realRepositoryProviders(ds, [Person, Tag]),
+          {
+            provide: PersonDelegateService,
+            useValue: {
+              getPrimary: jest.fn().mockResolvedValue(null),
+              findPersonIdsWithResponsible: jest.fn().mockResolvedValue(new Set()),
+            },
+          },
+        ],
+      }).compile();
+      service = module.get(PersonService);
+    });
+
+    it.each([
+      [AccessStatus.ACTIVE, ['active', 'active-managed', 'zz-manager']],
+      [AccessStatus.MANAGED, ['managed', 'stub-managed']],
+    ])('%s returns only those persons', async (accessStatus, aliases) => {
+      const { data, total } = await service.findAll({ page: 1, limit: 100, accessStatus });
+
+      expect(data.map((p) => p.alias).sort()).toEqual(aliases);
+      expect(total).toBe(aliases.length);
+    });
   });
 });

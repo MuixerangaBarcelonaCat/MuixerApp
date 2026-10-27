@@ -15,6 +15,7 @@ import {
   type PersonSortOrder,
 } from './constants/person-sort.constants';
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
+import { applyAccessStatusFilter } from './utils/access-status-filter.util';
 import {
   AttendanceStatus,
   CollaSettings,
@@ -105,6 +106,7 @@ export class PersonService {
       isXicalla,
       isMember,
       isProvisional,
+      accessStatus,
       page = 1,
       limit = 50,
       sortBy,
@@ -177,6 +179,10 @@ export class PersonService {
       queryBuilder.andWhere('person.isProvisional = :isProvisional', {
         isProvisional,
       });
+    }
+
+    if (accessStatus !== undefined) {
+      applyAccessStatusFilter(queryBuilder, accessStatus, new Date());
     }
 
     const total = await queryBuilder.getCount();

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AccessStatus } from '@muixer/shared';
-import { AccessStatusBadgeComponent } from './access-status-badge.component';
+import { AccessStatusBadgeComponent, accessStatusBadgeClass } from './access-status-badge.component';
 
 describe('AccessStatusBadgeComponent', () => {
   let fixture: ComponentFixture<AccessStatusBadgeComponent>;
@@ -31,5 +31,13 @@ describe('AccessStatusBadgeComponent', () => {
     const badge = render(AccessStatus.NONE);
     expect(badge.textContent?.trim()).toBe('Sense accés');
     expect(badge.classList).toContain('badge-outline');
+  });
+
+  // Tables draw raw badge markup (no <lib-badge> per cell): the same classes, from the same map.
+  it.each(Object.values(AccessStatus))('accessStatusBadgeClass(%s) matches the badge', (status) => {
+    const badge = render(status);
+    const classes = accessStatusBadgeClass(status).split(' ');
+    expect(classes.every((cls) => badge.classList.contains(cls))).toBe(true);
+    expect(badge.classList.contains('badge-outline')).toBe(classes.includes('badge-outline'));
   });
 });

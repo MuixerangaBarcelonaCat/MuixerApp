@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { AccessStatus } from '@muixer/shared';
 import { PersonFilterDto } from './person-filter.dto';
 
 async function validateDto(plain: object): Promise<PersonFilterDto> {
@@ -36,5 +37,18 @@ describe('PersonFilterDto', () => {
     expect(dto.page).toBe(1);
     expect(dto.limit).toBe(25);
     expect(dto.sortBy).toBeUndefined();
+  });
+
+  it('accepts an access status to filter by', async () => {
+    const dto = await validateDto({ accessStatus: AccessStatus.INVITE_EXPIRED });
+    expect(dto.accessStatus).toBe(AccessStatus.INVITE_EXPIRED);
+  });
+
+  it('rejects an unknown access status', async () => {
+    await expect(validateDto({ accessStatus: 'BANNED' })).rejects.toBeDefined();
+  });
+
+  it('never sorts by access status', async () => {
+    await expect(validateDto({ sortBy: 'accessStatus', sortOrder: 'ASC' })).rejects.toBeDefined();
   });
 });

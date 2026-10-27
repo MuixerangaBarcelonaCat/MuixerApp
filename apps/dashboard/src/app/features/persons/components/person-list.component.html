@@ -59,6 +59,20 @@
       </div>
     }
 
+    <!-- Accés a l'app -->
+    <div class="w-full sm:w-48">
+      <lib-select
+        label="Accés a l'app"
+        [ngModel]="activeFilters().accessStatus ?? ''"
+        (ngModelChange)="onAccessStatusChange($event)"
+      >
+        <option value="">Tots</option>
+        @for (status of accessStatuses; track status) {
+          <option [value]="status">{{ ACCESS_STATUS_LABELS[status] }}</option>
+        }
+      </lib-select>
+    </div>
+
     <!-- Actius -->
     <div class="w-fit">
       <lib-form-field label="Estat">
