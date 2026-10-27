@@ -17,6 +17,8 @@ import { Person } from '../person/person.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 import {
   EventType,
   FigureZone,
@@ -202,10 +204,11 @@ const mockDataSource = {
 
 describe('NodeAssignmentService', () => {
   let service: NodeAssignmentService;
+  let collaSettings: CollaSettingsStub;
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    process.env.ASSIGNMENT_LOCK_DAYS = '0';
+    collaSettings = new CollaSettingsStub({ assignmentLockDays: 0 });
     mockAssignmentRepo.createQueryBuilder.mockReturnValue(mockQb);
     mockQb.innerJoin.mockReturnThis();
     mockQb.where.mockReturnThis();
@@ -230,14 +233,11 @@ describe('NodeAssignmentService', () => {
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: CollaSettingsService, useValue: collaSettings },
       ],
     }).compile();
 
     service = module.get<NodeAssignmentService>(NodeAssignmentService);
-  });
-
-  afterEach(() => {
-    delete process.env.ASSIGNMENT_LOCK_DAYS;
   });
 
   // ── getByInstance ──────────────────────────────────────────────────────
@@ -2776,7 +2776,7 @@ describe('NodeAssignmentService', () => {
       });
 
     beforeEach(() => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
     });
 
     it('assign() throws ForbiddenException when event is locked', async () => {
@@ -2819,8 +2819,8 @@ describe('NodeAssignmentService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('allows assign() when ASSIGNMENT_LOCK_DAYS=0 (lock disabled)', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+    it('allows assign() when the lock is disabled (0 days)', async () => {
+      collaSettings.set({ assignmentLockDays: 0 });
 
       const inode = makeInstanceNode();
       const a = makeAssignment();
@@ -2901,7 +2901,7 @@ describe('NodeAssignmentService', () => {
     it('returns locked=true for old event', async () => {
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 10);
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
 
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: oldDate });
 
@@ -2914,7 +2914,7 @@ describe('NodeAssignmentService', () => {
 
     it('returns locked=false for recent event', async () => {
       const today = new Date();
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
 
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: today });
 
@@ -2923,8 +2923,8 @@ describe('NodeAssignmentService', () => {
       expect(status.locked).toBe(false);
     });
 
-    it('returns locked=false when ASSIGNMENT_LOCK_DAYS=0', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+    it('returns locked=false when the lock is disabled (0 days)', async () => {
+      collaSettings.set({ assignmentLockDays: 0 });
 
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: new Date('2020-01-01') });
 
@@ -2935,7 +2935,7 @@ describe('NodeAssignmentService', () => {
     });
 
     it('throws NotFoundException if event not found', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       mockEventRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getLockStatus('bad-id')).rejects.toThrow(NotFoundException);
@@ -2948,7 +2948,7 @@ describe('NodeAssignmentService', () => {
     it('throws ForbiddenException for an old event', async () => {
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 10);
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: oldDate });
 
       await expect(service.checkEventLockByEventId('e1')).rejects.toThrow(ForbiddenException);
@@ -2956,21 +2956,21 @@ describe('NodeAssignmentService', () => {
 
     it('does not throw for a recent event', async () => {
       const today = new Date();
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: today });
 
       await expect(service.checkEventLockByEventId('e1')).resolves.toBeUndefined();
     });
 
-    it('does not throw when ASSIGNMENT_LOCK_DAYS=0 (lock disabled)', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+    it('does not throw when the lock is disabled (0 days)', async () => {
+      collaSettings.set({ assignmentLockDays: 0 });
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: new Date('2020-01-01') });
 
       await expect(service.checkEventLockByEventId('e1')).resolves.toBeUndefined();
     });
 
     it('does not throw when the event is not found', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       mockEventRepo.findOne.mockResolvedValue(null);
 
       await expect(service.checkEventLockByEventId('missing')).resolves.toBeUndefined();
@@ -3037,7 +3037,7 @@ describe('NodeAssignmentService', () => {
     });
 
     it('rejects when event is locked', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       const lockedDate = new Date();
       lockedDate.setDate(lockedDate.getDate() - 10);
       mockInstanceRepo.findOne.mockResolvedValue(
@@ -3904,7 +3904,7 @@ describe('NodeAssignmentService', () => {
     });
 
     it('throws ForbiddenException when event is locked', async () => {
-      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      collaSettings.set({ assignmentLockDays: 2 });
       const lockedDate = new Date();
       lockedDate.setDate(lockedDate.getDate() - 10);
 

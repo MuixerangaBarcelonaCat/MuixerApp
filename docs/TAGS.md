@@ -211,11 +211,11 @@ Són dos conceptes diferents que conviuen a posta.
 
 | | `Person.isXicalla` | Grup XICALLA |
 | --- | --- | --- |
-| Què és | booleà d'edat: menor de 16 anys | etiquetes «Xicalla» i «Xiquets/es de la colla» |
-| On viu | columna de `persons` | files de `person_positions` |
-| D'on ve | derivat del camp `posicio` del legacy en crear la persona; després, editable a mà | assignat a mà des del Dashboard |
+| Què és | booleà d'edat: no ha complit l'edat de majoria de la colla (`majorityAge`, per defecte 16) | etiquetes «Xicalla» i «Xiquets/es de la colla» |
+| On viu | calculat en llegir: per l'edat si hi ha `birthDate`; si no, la columna `isXicallaManual` (vegeu [[DATA_MODEL]] invariant 14) | files de `person_positions` |
+| D'on ve | la data de naixement; sense data, la marca manual (que el sync deriva del camp `posicio` del legacy en crear la persona) | assignat a mà des del Dashboard |
 | Què governa | delegats obligatoris per a menors, recomptes d'assistència i quin `Person` es lliga al compte d'usuari | la regla mínima (§4) |
-| Etiqueta a la UI | «Menor de 16» | «Xicalla» |
+| Etiqueta a la UI | «Xicalla» (columna, insígnia i casella; amb data, la casella és de només lectura) | «Xicalla» |
 
 **Quan filtrar per cadascun:** `isXicalla` per a qualsevol cosa d'edat o de tutela legal; el
 grup XICALLA per a saber qui participa com a xicalla a les figures. No coincideixen sempre:
@@ -226,9 +226,12 @@ l'edat mentre que l'etiqueta descriu la participació.
 
 ## 6. Valor per defecte a l'alta
 
-`PersonService.create` assigna automàticament l'etiqueta **«Persones Noves»** (`persona-nova`,
-grup PINYA) quan la petició no porta cap etiqueta de XICALLA ni d'ALTRES. Si no troba
-l'etiqueta al catàleg —algú l'ha esborrada— no fa res ni falla: l'alta continua.
+`PersonService.create` assigna automàticament l'**etiqueta per defecte de la colla** quan la
+petició no porta cap etiqueta de XICALLA ni d'ALTRES (i encara no la porta). Quina és la tria un
+administrador a `/config/colla` (`defaultTagId` de la configuració de la colla); la migració que
+la va crear hi va posar **«Persones Noves»** (`persona-nova`, grup PINYA). Amb «Cap» no se n'assigna
+cap. L'etiqueta per defecte no es pot esborrar (409); si de totes maneres desapareix, la clau
+forana la deixa a «Cap».
 
 S'aplica al servei, no a la UI, perquè valga per a qualsevol camí d'alta que hi passe. Les
 persones creades pel sync legacy no hi passen (el sync alça la persona directament amb el
@@ -247,8 +250,8 @@ El catàleg d'etiquetes i qui les porta són **exclusivament de MuixerApp**.
 
 El sync amb l'App legacy ja no importa cap etiqueta: `person-sync.strategy.ts` no crea ni
 sobreescriu cap fila de `positions` ni de `person_positions`. L'únic que continua derivant del
-camp legacy `posicio` és el booleà `Person.isXicalla` (`deriveIsXicalla`, claus `CANALLA` i
-`NENS COLLA`), i només en crear la persona. Vegeu [[SYNC_ARCHITECTURE]].
+camp legacy `posicio` és la marca manual `Person.isXicallaManual` (claus `CANALLA` i
+`NENS COLLA`), i només en crear la persona; amb data de naixement, mana l'edat. Vegeu [[SYNC_ARCHITECTURE]].
 
 Conseqüència pràctica: un sync no pot ressuscitar ni sobreescriure una etiqueta. El que
 s'edita a `/config/tags` es queda com està.

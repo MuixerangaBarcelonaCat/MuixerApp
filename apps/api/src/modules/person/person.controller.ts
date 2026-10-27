@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
-import { AuditAction, JwtPayload, UserRole } from '@muixer/shared';
+import { AuditAction, JwtPayload, ShirtCandidate, UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
@@ -47,6 +47,20 @@ export class PersonController {
         limit: filters.limit || 50,
       },
     };
+  }
+
+  // Declarat abans de `:id`: Nest resol les rutes en ordre de declaració.
+  @Get('shirt-candidates')
+  @ApiOperation({
+    summary: 'Persones pendents de camisa',
+    description:
+      'Persones actives i no provisionals sense data de camisa, amb les actuacions i assajos amb ' +
+      'assistència marcada (de tota la història, només esdeveniments que compten per a ' +
+      'estadístiques). Primer qui ja hi té dret; després, de més a menys a prop.',
+  })
+  @ApiResponse({ status: 200, description: 'Llista de candidats (sense paginar)' })
+  findShirtCandidates(): Promise<ShirtCandidate[]> {
+    return this.personService.findShirtCandidates();
   }
 
   @Get(':id')

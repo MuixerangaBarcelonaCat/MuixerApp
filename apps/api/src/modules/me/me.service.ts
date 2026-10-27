@@ -39,6 +39,7 @@ import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { News } from '../news/news.entity';
 import { formatDateOnly, getLocalToday } from '../../common/utils/date.util';
 import { isPastLockWindow } from '../../common/utils/lock.util';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import { AttendanceService, withLivePending } from '../event/attendance.service';
 import { personPendingAtEventSql, resolveAttendanceStatus } from '../../common/utils/attendance-status.util';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
@@ -49,6 +50,7 @@ import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 import { DependentRegistrationDto } from './dto/dependent-registration.dto';
 import { CreateMemberDelegateDto } from './dto/create-member-delegate.dto';
+import { xicallaSql } from '../person/xicalla.sql';
 
 const PROVISIONAL_ALIAS_PREFIX = '~';
 
@@ -74,6 +76,7 @@ export class MeService {
     private readonly eventSegmentService: EventSegmentService,
     private readonly newsService: NewsService,
     private readonly seasonService: SeasonService,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   async resolveManagedPersons(
@@ -291,22 +294,22 @@ export class MeService {
       .createQueryBuilder('attendance')
       .leftJoin('attendance.person', 'person')
       .select('attendance.status', 'status')
-      .addSelect('person."isXicalla"', 'isXicalla')
+      .addSelect(xicallaSql('person'), 'isXicalla')
       .addSelect('COUNT(*)', 'count')
       .where('attendance."eventId" = :eventId', { eventId })
       .andWhere('attendance.status <> :pendent', { pendent: AttendanceStatus.PENDENT })
       .groupBy('attendance.status')
-      .addGroupBy('person."isXicalla"')
+      .addGroupBy('"isXicalla"')
       .getRawMany<{ status: AttendanceStatus; isXicalla: boolean; count: string }>();
 
     // No row ≡ PENDENT: pending is counted over people, not attendance rows.
     const pendingRows = await this.personRepository
       .createQueryBuilder('p')
       .innerJoin(Event, 'e', 'e.id = :eventId', { eventId })
-      .select('p."isXicalla"', 'isXicalla')
+      .select(xicallaSql('p'), 'isXicalla')
       .addSelect('COUNT(*)', 'count')
       .where(personPendingAtEventSql('p', 'e'))
-      .groupBy('p."isXicalla"')
+      .groupBy('"isXicalla"')
       .getRawMany<{ isXicalla: boolean; count: string }>();
 
     const byStatus: EventAttendanceStats['byStatus'] = {
@@ -399,7 +402,7 @@ export class MeService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    if (isPastLockWindow(event.date)) {
+    if (isPastLockWindow(event.date, (await this.collaSettings.get()).assignmentLockDays)) {
       throw new BadRequestException('No es pot modificar l\'assistència d\'un event passat');
     }
 
@@ -592,9 +595,7 @@ export class MeService {
       secondSurname: person.secondSurname,
       gender: person.gender,
       phone: person.phone,
-      birthDate: person.birthDate instanceof Date
-        ? person.birthDate.toISOString().slice(0, 10)
-        : (person.birthDate ?? null),
+      birthDate: person.birthDate ? formatDateOnly(person.birthDate) : null,
     };
   }
 

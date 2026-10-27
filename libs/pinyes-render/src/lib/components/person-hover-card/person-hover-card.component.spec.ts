@@ -2,6 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PersonHoverCardComponent } from './person-hover-card.component';
 import { AvailablePersonPosition, PersonHoverInfo } from '../../models/assignment.model';
 import { TagCategory } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS } from '../../settings/render-settings';
 
 const makeInfo = (overrides: Partial<PersonHoverInfo> = {}): PersonHoverInfo => ({
   alias: 'Pepet',
@@ -53,6 +56,24 @@ describe('PersonHoverCardComponent', () => {
     ) as HTMLElement;
     expect(tag.classList).toContain('badge-neutral');
     expect(tag.style.backgroundColor).toBe('');
+  });
+
+  it("shows the relative height from the colla's baseline", () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [PersonHoverCardComponent],
+      providers: [
+        {
+          provide: PINYES_RENDER_SETTINGS,
+          useValue: signal({ shoulderHeightBaselineCm: 130, troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds }),
+        },
+      ],
+    });
+    const card = TestBed.createComponent(PersonHoverCardComponent);
+    card.componentRef.setInput('info', makeInfo({ shoulderHeight: 135 }));
+    card.componentRef.setInput('heightMode', 'relative');
+
+    expect(card.componentInstance.formatHeight()).toBe('+5');
   });
 
   describe('cumulative height', () => {

@@ -19,6 +19,7 @@ import {
   classifyPlacementKind,
   conflictRelevantPlacements,
 } from '@muixer/shared';
+import { xicallaSql } from '../person/xicalla.sql';
 
 /** Attendance statuses that mean "this person is coming / came". */
 const CONFIRMED_STATUSES: readonly AttendanceStatus[] = [
@@ -231,7 +232,7 @@ export class EventParticipationService {
               p.name               AS "name",
               p."firstSurname"     AS "firstSurname",
               p."shoulderHeight"   AS "shoulderHeight",
-              p."isXicalla"        AS "isXicalla",
+              ${xicallaSql('p')}   AS "isXicalla",
               p."isActive"         AS "isActive",
               p.notes              AS "notes",
               p."notesEmoji"       AS "notesEmoji",

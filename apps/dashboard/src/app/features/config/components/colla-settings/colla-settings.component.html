@@ -1,0 +1,186 @@
+<div class="flex flex-col gap-4 w-full max-w-4xl mx-auto">
+
+  <!-- Capçalera -->
+  <div class="flex items-center gap-3">
+    <lib-button variant="ghost" shape="circle" size="sm" ariaLabel="Torna a Configuració" routerLink="/config">
+      <lucide-icon name="ArrowLeft" [size]="18" aria-hidden="true" />
+    </lib-button>
+    <div class="flex-1 min-w-0">
+      <app-page-header title="Configuració de la colla" />
+      <p class="text-xs text-base-content/60 mt-0.5">Paràmetres propis de la colla. Només els podeu canviar els administradors.</p>
+    </div>
+  </div>
+
+  @if (loadFailed()) {
+    <lib-alert variant="error">No s'ha pogut carregar la configuració de la colla.</lib-alert>
+  } @else if (!loaded()) {
+    <div class="flex justify-center py-12">
+      <span class="loading loading-spinner loading-md text-base-content/40" aria-label="S'està carregant"></span>
+    </div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="save()" class="flex flex-col gap-4" novalidate>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <lib-card title="Colla" [icon]="ICONS.PERSONA">
+          <lib-input
+            label="Nom de la colla"
+            required
+            formControlName="collaName"
+            [maxLength]="100"
+            hint="Es mostra a la pantalla d'inici de sessió de l'app de membres."
+            [errorText]="fieldError('collaName')"
+          />
+        </lib-card>
+
+        <lib-card title="Camises" [icon]="ICONS.CAMISA">
+          <div formGroupName="shirtRequirements" class="flex flex-col gap-3">
+            <p class="text-sm text-base-content/60">
+              Esdeveniments amb l'assistència marcada que calen per rebre la camisa, comptant totes les temporades.
+            </p>
+            <div class="grid grid-cols-2 gap-4">
+              <lib-input label="Actuacions" type="number" required [min]="0" [max]="50" formControlName="performances"
+                [errorText]="fieldError('shirtRequirements.performances')" />
+              <lib-input label="Assajos" type="number" required [min]="0" [max]="50" formControlName="rehearsals"
+                [errorText]="fieldError('shirtRequirements.rehearsals')" />
+            </div>
+          </div>
+        </lib-card>
+
+        <lib-card title="Alçades" [icon]="ICONS.TRONC">
+          <div class="flex flex-col gap-4">
+            <lib-input
+              label="Alçada de referència (cm)"
+              type="number"
+              required
+              [min]="50"
+              [max]="250"
+              formControlName="shoulderHeightBaselineCm"
+              hint="Les alçades relatives es mostren respecte d'esta alçada d'espatlles."
+              [errorText]="fieldError('shoulderHeightBaselineCm')"
+            />
+
+            <div formGroupName="troncHeightThresholds" class="flex flex-col gap-4">
+              <fieldset formGroupName="floor" class="flex flex-col gap-2">
+                <legend class="text-sm font-semibold text-base-content mb-1">Diferència dins d'un pis del tronc</legend>
+                <div class="grid grid-cols-2 gap-4">
+                  <lib-input label="Avís a partir de (cm)" type="number" required [min]="1" [max]="50" formControlName="warning"
+                    [errorText]="fieldError('troncHeightThresholds.floor.warning')" />
+                  <lib-input label="Error a partir de (cm)" type="number" required [min]="1" [max]="50" formControlName="error"
+                    [errorText]="thresholdError('floor')" />
+                </div>
+              </fieldset>
+
+              <fieldset formGroupName="support" class="flex flex-col gap-2">
+                <legend class="text-sm font-semibold text-base-content mb-1">Desnivell entre les persones que aguanten algú</legend>
+                <div class="grid grid-cols-2 gap-4">
+                  <lib-input label="Avís a partir de (cm)" type="number" required [min]="1" [max]="50" formControlName="warning"
+                    [errorText]="fieldError('troncHeightThresholds.support.warning')" />
+                  <lib-input label="Error a partir de (cm)" type="number" required [min]="1" [max]="50" formControlName="error"
+                    [errorText]="thresholdError('support')" />
+                </div>
+              </fieldset>
+            </div>
+          </div>
+        </lib-card>
+
+        <lib-card title="Assistència" [icon]="ICONS.CALENDAR_RANGE">
+          <div class="flex flex-col gap-4">
+            <lib-input
+              label="Dies de bloqueig"
+              type="number"
+              required
+              [min]="0"
+              [max]="365"
+              formControlName="assignmentLockDays"
+              hint="Passats estos dies des de l'esdeveniment, ja no es poden canviar l'assistència ni les assignacions. Amb 0 no es bloquegen mai."
+              [errorText]="fieldError('assignmentLockDays')"
+            />
+            <div class="flex flex-col gap-1">
+              <lib-checkbox formControlName="autoCheckInPerformances">
+                <span class="text-sm">Marca com a assistides les actuacions del dia</span>
+              </lib-checkbox>
+              <p class="text-xs text-base-content/60 ml-7">
+                Cada nit, qui havia dit «Vaig» a una actuació de l'endemà passa a «He assistit».
+              </p>
+            </div>
+          </div>
+        </lib-card>
+
+        <lib-card title="Assajos nous" [icon]="ICONS.ASSAIG">
+          <div formGroupName="rehearsalDefaults" class="flex flex-col gap-3">
+            <p class="text-sm text-base-content/60">
+              Un assaig nou ja comença amb estes dades. Les actuacions comencen buides.
+            </p>
+            <lib-input label="Títol" formControlName="title" [maxLength]="200"
+              [errorText]="fieldError('rehearsalDefaults.title')" />
+            <lib-input label="Hora d'inici" type="time" formControlName="startTime"
+              hint="Deixeu-la buida perquè no s'òmpliga cap hora."
+              [errorText]="fieldError('rehearsalDefaults.startTime')" />
+            <lib-input label="Lloc" formControlName="location" [maxLength]="200"
+              [errorText]="fieldError('rehearsalDefaults.location')" />
+            <lib-input label="Enllaç del lloc" type="url" formControlName="locationUrl" placeholder="https://"
+              [errorText]="fieldError('rehearsalDefaults.locationUrl')" />
+          </div>
+        </lib-card>
+
+        <lib-card title="Persones" [icon]="ICONS.XICALLA">
+          <div class="flex flex-col gap-4">
+            <lib-input
+              label="Majoria d'edat (anys)"
+              type="number"
+              required
+              [min]="1"
+              [max]="25"
+              formControlName="majorityAge"
+              hint="Qui té data de naixement i no arriba a esta edat compta com a xicalla."
+              [errorText]="fieldError('majorityAge')"
+            />
+            <lib-select
+              label="Etiqueta per defecte"
+              formControlName="defaultTagId"
+              data-testid="colla-default-tag"
+              hint="La reben les persones noves que no són de xicalla ni d'«altres»."
+            >
+              <option value="">Cap</option>
+              @for (group of tagGroups(); track group.label) {
+                <optgroup [label]="group.label">
+                  @for (tag of group.tags; track tag.id) {
+                    <option [value]="tag.id">{{ tag.name }}</option>
+                  }
+                </optgroup>
+              }
+            </lib-select>
+          </div>
+        </lib-card>
+
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <lib-button variant="ghost" size="sm" [disabled]="!form.dirty || saving()" (clicked)="discard()">
+          Descarta els canvis
+        </lib-button>
+        <lib-button
+          variant="primary"
+          size="sm"
+          data-testid="colla-settings-save"
+          [disabled]="!canSave()"
+          [loading]="saving()"
+          (clicked)="save()"
+        >
+          Alça
+        </lib-button>
+      </div>
+    </form>
+  }
+</div>
+
+<lib-modal [open]="confirmingMajorityAge()" title="Voleu canviar la majoria d'edat?" (closed)="cancelMajorityAge()">
+  <p class="text-sm">
+    Qui és xicalla es calcula a partir de la data de naixement. Si passeu de {{ storedMajorityAge() }} a
+    {{ form.controls.majorityAge.value }} anys, canviarà qui ho és a totes les pantalles.
+  </p>
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="cancelMajorityAge()">Cancel·la</lib-button>
+    <lib-button variant="primary" size="sm" (clicked)="confirmMajorityAge()">Canvia-la</lib-button>
+  </div>
+</lib-modal>

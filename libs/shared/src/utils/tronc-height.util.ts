@@ -13,12 +13,6 @@ export interface TroncHeightThresholds {
   support: HeightGapThreshold;
 }
 
-/** Hard-coded until the colla has its own settings (DEBT.md F20). */
-export const TRONC_HEIGHT_THRESHOLDS: TroncHeightThresholds = {
-  floor: { warning: 5, error: 10 },
-  support: { warning: 3, error: 5 },
-};
-
 export type HeightGapLevel = 'ok' | 'warning' | 'error';
 
 /** Why a cumulative height can't be known, most actionable first. */
@@ -74,7 +68,8 @@ export function heightGapLevel(gapCm: number, threshold: HeightGapThreshold): He
 export function analyzeTroncHeights(
   nodes: readonly TroncSupportNode[],
   shoulderHeightByNodeId: ReadonlyMap<string, number | null>,
-  thresholds: TroncHeightThresholds = TRONC_HEIGHT_THRESHOLDS,
+  /** The colla's `troncHeightThresholds` setting. */
+  thresholds: TroncHeightThresholds,
 ): TroncHeightAnalysis {
   const structural = sanitizeStandsOn(
     nodes.filter((n) => n.zone === FigureZone.BASE || n.zone === FigureZone.TRONC),

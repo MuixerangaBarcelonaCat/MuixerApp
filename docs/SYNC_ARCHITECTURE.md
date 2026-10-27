@@ -41,10 +41,10 @@ accessos HTTP. Les tres estratègies (`PersonSyncStrategy`, `EventSyncStrategy`,
 | `propi` (Sí/No) | `isMember` | Sempre sync |
 | `lesionat` (Sí/No) | `availability` | Sempre sync |
 | `estat_acollida` | `onboardingStatus` | Sempre sync |
-| `instant_camisa` | `shirtDate` | Sempre sync |
-| `posicio` | *(ja no s'importa)* | Només se'n deriva `isXicalla`. Les etiquetes són propietat exclusiva de MuixerApp — vegeu [[TAGS]] |
+| `instant_camisa` | `shirtDate` | Sync només si el legacy en té; mai esborra una data posada a MuixerApp (la camisa també es lliura des de Persones → Camises) |
+| `posicio` | *(ja no s'importa)* | Només se'n deriva `isXicallaManual`. Les etiquetes són propietat exclusiva de MuixerApp — vegeu [[TAGS]] |
 | `observacions` | `notes` | **Només en CREATE** — mai sobreescrit |
-| — | `isXicalla` | **Derivat** de `posicio` — Només en CREATE |
+| — | `isXicallaManual` | **Derivat** de `posicio` — Només en CREATE. Només compta sense `birthDate`; amb data, `isXicalla` surt de l'edat ([[DATA_MODEL]] invariant 14). La persona principal de cada compte es tria amb el valor calculat en TS a partir de la data que acaba d'escriure el sync |
 | — | `isActive` | `true` si present al legacy; `false` si desapareix |
 
 **Lògica especial:** persones presents a la DB però absents de la resposta del legacy API

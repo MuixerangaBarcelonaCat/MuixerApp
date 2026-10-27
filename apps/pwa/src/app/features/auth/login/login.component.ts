@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Mail, Lock } from 'lucide-angular';
 import { AlertComponent, ButtonComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { CollaSettingsService } from '../../../core/services/colla-settings.service';
 
 @Component({
   selector: 'app-login',
@@ -18,6 +19,8 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
+
+  protected readonly collaName = inject(CollaSettingsService).collaName;
 
   protected readonly Mail = Mail;
   protected readonly Lock = Lock;

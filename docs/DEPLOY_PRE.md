@@ -260,7 +260,7 @@ docker exec -it muixer-postgres-pre psql -U muixer_pre -d muixer_pre -c \
 | `JWT_REFRESH_TTL_PWA` | `604800` | 7 dies en segons |
 | `REFRESH_TOKEN_COOKIE` | `muixer_rt` | No canviar |
 | `SETUP_TOKEN` | **Generar / Eliminar** | `uuidgen` — **Eliminar un cop creats els admins** |
-| `ASSIGNMENT_LOCK_DAYS` | `2` | Dies post-event per bloquejar assignacions |
+| `ASSIGNMENT_LOCK_DAYS` | Obsoleta | Només la llig una vegada la migració `CreateCollaSettings` per a sembrar «Dies de bloqueig» de la configuració de la colla. Es pot eliminar després d'eixe desplegament |
 
 > **⚠️ Important**: `DATABASE_URL` ha d'usar `postgres` com a hostname (nom del servei al `docker-compose.pre.yml`), mai `localhost`.
 

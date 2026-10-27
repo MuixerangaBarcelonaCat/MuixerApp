@@ -14,6 +14,9 @@ import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.
 import { SeasonService } from '../../../events/services/season.service';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ToastService } from '@muixer/ui';
+import { signal } from '@angular/core';
+import { CollaSettings, DEFAULT_COLLA_SETTINGS } from '@muixer/shared';
+import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
 
 const makePerson = (overrides: Partial<Person> = {}): Person => ({
   id: 'p1',
@@ -67,6 +70,7 @@ describe('PersonDetailComponent', () => {
     removeDelegate: ReturnType<typeof vi.fn>;
     updateDelegate: ReturnType<typeof vi.fn>;
   };
+  const collaSettings = signal<CollaSettings>(DEFAULT_COLLA_SETTINGS);
   let mockPersonService: {
     getOne: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -96,6 +100,7 @@ describe('PersonDetailComponent', () => {
         { provide: NodeAssignmentService, useValue: { getPersonHistory: () => of({ data: [], meta: { total: 0, page: 1, limit: 20 } }) } },
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
         { provide: PersonDelegateService, useValue: mockDelegateService },
+        { provide: CollaSettingsService, useValue: { settings: collaSettings } },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -106,9 +111,87 @@ describe('PersonDetailComponent', () => {
       ],
     }).compileComponents();
 
+    collaSettings.set(DEFAULT_COLLA_SETTINGS);
     fixture = TestBed.createComponent(PersonDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  describe('xicalla', () => {
+    const yearsAgo = (n: number) => `${new Date().getFullYear() - n}-01-01`;
+
+    const editPerson = (overrides: Partial<Person>) => {
+      component.person.set(makePerson(overrides));
+      component.cancelEditing();
+      component.startEditing();
+      fixture.detectChanges();
+    };
+
+    const xicallaCheckbox = (): HTMLInputElement => {
+      const labels = Array.from(fixture.nativeElement.querySelectorAll('lib-checkbox')) as HTMLElement[];
+      const host = labels.find((l) => l.textContent?.trim() === 'Xicalla')!;
+      return host.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    };
+
+    const setBirthDate = (value: string) => {
+      component.form.controls.birthDate.setValue(value);
+      fixture.detectChanges();
+    };
+
+    const sentPayload = () => {
+      component.save();
+      return mockPersonService.update.mock.calls.at(-1)![1];
+    };
+
+    it('labels the view-mode badge «Xicalla»', () => {
+      component.person.set(makePerson({ isXicalla: true }));
+      fixture.detectChanges();
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('lib-badge')) as HTMLElement[];
+      expect(badges.some((b) => b.textContent?.trim() === 'Xicalla')).toBe(true);
+      expect(fixture.nativeElement.textContent).not.toContain('Menor de 16');
+    });
+
+    it('lets the flag be set by hand when there is no birth date, and sends it', () => {
+      editPerson({ birthDate: null, isXicalla: false });
+      expect(xicallaCheckbox().disabled).toBe(false);
+
+      component.form.controls.isXicalla.setValue(true);
+      expect(sentPayload()).toMatchObject({ birthDate: null, isXicalla: true });
+    });
+
+    it('works the flag out from the birth date, read-only, and does not send it', () => {
+      editPerson({ birthDate: yearsAgo(8), isXicalla: true });
+
+      expect(xicallaCheckbox().disabled).toBe(true);
+      expect(xicallaCheckbox().checked).toBe(true);
+      expect(fixture.nativeElement.textContent).toContain('Es calcula a partir de la data de naixement.');
+      expect(sentPayload()).not.toHaveProperty('isXicalla');
+    });
+
+    it('updates the worked-out flag as the birth date is edited', () => {
+      editPerson({ birthDate: yearsAgo(8), isXicalla: true });
+      setBirthDate(yearsAgo(40));
+      expect(xicallaCheckbox().checked).toBe(false);
+    });
+
+    it('keeps the value on screen when the birth date is cleared, and lets it be edited', () => {
+      editPerson({ birthDate: yearsAgo(8), isXicalla: true });
+      setBirthDate('');
+
+      expect(xicallaCheckbox().disabled).toBe(false);
+      expect(xicallaCheckbox().checked).toBe(true);
+      expect(sentPayload()).toMatchObject({ birthDate: null, isXicalla: true });
+    });
+
+    it('judges the age with the colla age of majority', () => {
+      collaSettings.set({ ...DEFAULT_COLLA_SETTINGS, majorityAge: 10 });
+      editPerson({ birthDate: yearsAgo(12), isXicalla: false });
+      expect(xicallaCheckbox().checked).toBe(false);
+
+      collaSettings.set({ ...DEFAULT_COLLA_SETTINGS, majorityAge: 16 });
+      fixture.detectChanges();
+      expect(xicallaCheckbox().checked).toBe(true);
+    });
   });
 
   describe('Historial de pinyes table', () => {

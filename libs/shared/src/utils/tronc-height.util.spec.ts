@@ -1,10 +1,15 @@
 import { FigureZone } from '../enums/figure-zone.enum';
-import {
-  analyzeTroncHeights,
-  heightGapLevel,
-  TRONC_HEIGHT_THRESHOLDS,
-} from './tronc-height.util';
+import { DEFAULT_COLLA_SETTINGS } from '../constants/colla-settings.constants';
+import { analyzeTroncHeights as analyzeWith, heightGapLevel, TroncHeightThresholds } from './tronc-height.util';
 import { TroncSupportNode } from './tronc-support.util';
+
+// Floor 5/10 cm, uneven supporters 3/5 cm.
+const DEFAULT_THRESHOLDS = DEFAULT_COLLA_SETTINGS.troncHeightThresholds;
+const analyzeTroncHeights = (
+  nodes: readonly TroncSupportNode[],
+  shoulderHeightByNodeId: ReadonlyMap<string, number | null>,
+  thresholds: TroncHeightThresholds = DEFAULT_THRESHOLDS,
+) => analyzeWith(nodes, shoulderHeightByNodeId, thresholds);
 
 const base = (id: string): TroncSupportNode => ({ id, zone: FigureZone.BASE, z: 0, standsOnNodeIds: [] });
 const tronc = (id: string, z: number, standsOnNodeIds: string[] = []): TroncSupportNode => ({
@@ -38,15 +43,6 @@ describe('heightGapLevel', () => {
     expect(heightGapLevel(4.4, t)).toBe('ok');
     expect(heightGapLevel(4.5, t)).toBe('warning');
     expect(heightGapLevel(9.5, t)).toBe('error');
-  });
-});
-
-describe('TRONC_HEIGHT_THRESHOLDS', () => {
-  it('flags a floor at 5/10 cm and uneven supporters at 3/5 cm', () => {
-    expect(TRONC_HEIGHT_THRESHOLDS).toEqual({
-      floor: { warning: 5, error: 10 },
-      support: { warning: 3, error: 5 },
-    });
   });
 });
 
@@ -238,7 +234,7 @@ describe('analyzeTroncHeights — floor spread', () => {
 
   it('uses custom thresholds', () => {
     const { floors } = analyzeTroncHeights([base('b1'), base('b2')], heights({ b1: 140, b2: 142 }), {
-      ...TRONC_HEIGHT_THRESHOLDS,
+      ...DEFAULT_THRESHOLDS,
       floor: { warning: 1, error: 2 },
     });
     expect(floors.get(0)).toMatchObject({ level: 'error' });
@@ -297,7 +293,7 @@ describe('analyzeTroncHeights — uneven supporters', () => {
     const { supports } = analyzeTroncHeights(
       [base('b1'), base('b2'), tronc('s1', 1, ['b1', 'b2'])],
       heights({ b1: 140, b2: 141 }),
-      { ...TRONC_HEIGHT_THRESHOLDS, support: { warning: 1, error: 8 } },
+      { ...DEFAULT_THRESHOLDS, support: { warning: 1, error: 8 } },
     );
     expect(supports.get('s1')).toMatchObject({ level: 'warning' });
   });

@@ -16,12 +16,13 @@ import { FormsModule } from '@angular/forms';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { Subscription } from 'rxjs';
-import { DIRECTION_ZONES, FigureZone, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM, attendanceGroupLabel, EventPhase, isArrivalPhase, isStartedPhase } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, normalizeForSearch, attendanceGroupLabel, EventPhase, isArrivalPhase, isStartedPhase } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 /**
  * A node click re-fetches the roster only when it is older than this, so attendance changes (members
@@ -52,6 +53,7 @@ interface PersonSearchResult {
   templateUrl: './person-panel.component.html',
 })
 export class PersonPanelComponent {
+  private readonly renderSettings = injectPinyesRenderSettings();
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
 
   readonly eventId = input.required<string>();
@@ -149,7 +151,7 @@ export class PersonPanelComponent {
     const sortMode = this.heightSortMode();
     const value = sortMode !== null ? (sortMode === 'max' ? 1000 : -1000) : this.height();
     if (value === null) return null;
-    return this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + value : value;
+    return this.heightMode() === 'relative' ? this.renderSettings().shoulderHeightBaselineCm + value : value;
   });
 
   /**
@@ -677,7 +679,7 @@ export class PersonPanelComponent {
     if (person.shoulderHeight === null || person.shoulderHeight === 0) return '-';
     const h = person.shoulderHeight;
     if (this.heightMode() === 'relative') {
-      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
+      const diff = h - this.renderSettings().shoulderHeightBaselineCm;
       return diff >= 0 ? `+${diff}` : `${diff}`;
     }
     return `${h} cm`;

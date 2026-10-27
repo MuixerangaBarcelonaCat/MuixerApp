@@ -78,7 +78,7 @@ avisos i quins números veu el tècnic:
 | Migració que elimini constraints | **No existeix** |
 | Zona a l'assignació | **No existeix.** La zona viu al node (`instance_nodes.zone`); tota pregunta tronc/pinya és un JOIN. No hi ha índex per zona |
 | Comptadors de persones distintes al servidor | **No existeixen.** `freePersonsCount` / `totalConfirmedCount` es calculen al client (`assignment-state.service.ts:52-68`) i **no es renderitzen enlloc** |
-| Lock | Només temporal i per event (`ASSIGNMENT_LOCK_DAYS`, `node-assignment.service.ts:1292-1374`). Cap lock per segment ni per figura — i no se n'afegeix cap |
+| Lock | Només temporal i per event (`assignmentLockDays` de la configuració de la colla, `NodeAssignmentService.checkEventLock*`). Cap lock per segment ni per figura — i no se n'afegeix cap |
 
 ### Bugs de "primera coincidència" ja presents (independents del canvi de règim)
 

@@ -21,6 +21,7 @@ import { News } from '../news/news.entity';
 import { PushSubscription } from '../push-notification/entities/push-subscription.entity';
 import { NotificationLog } from '../push-notification/entities/notification-log.entity';
 import { NotificationSchedule } from '../push-notification/entities/notification-schedule.entity';
+import { CollaSettingsEntity } from '../colla-settings/colla-settings.entity';
 
 /** Single source of truth for the entity list, shared by the Nest TypeOrmModule and the integration-test DataSource. */
 export const ENTITIES = [
@@ -47,4 +48,5 @@ export const ENTITIES = [
   PushSubscription,
   NotificationLog,
   NotificationSchedule,
+  CollaSettingsEntity,
 ];

@@ -13,8 +13,9 @@ import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular'
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService, TextareaComponent, InputComponent, SelectComponent, ButtonComponent, BadgeComponent, BadgeVariant, ThemeService } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
-import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isStartedPhase } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_ZONES, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isStartedPhase } from '@muixer/shared';
 import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-presets.util';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 @Component({
   selector: 'app-ad-hoc-node-properties',
@@ -33,6 +34,7 @@ import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-pr
   templateUrl: './ad-hoc-node-properties.component.html',
 })
 export class AdHocNodePropertiesComponent {
+  private readonly renderSettings = injectPinyesRenderSettings();
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
   private readonly themeMode = inject(ThemeService).mode;
@@ -76,7 +78,7 @@ export class AdHocNodePropertiesComponent {
     const h = this.assignment()?.person?.shoulderHeight;
     if (h === null || h === undefined || h === 0) return null;
     if (this.heightMode() === 'relative') {
-      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
+      const diff = h - this.renderSettings().shoulderHeightBaselineCm;
       return diff >= 0 ? `+${diff}` : `${diff}`;
     }
     return `${h} cm`;

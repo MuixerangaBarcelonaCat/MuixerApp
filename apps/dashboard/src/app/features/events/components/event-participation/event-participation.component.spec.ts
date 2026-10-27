@@ -23,6 +23,15 @@ import { AuthService } from '../../../../core/auth/services/auth.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import { conflictRelevantPlacements, EventPhase, TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { signal as renderSettingsSignal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS as RENDER_DEFAULTS } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS, PinyesRenderSettings } from '@muixer/pinyes-render/settings';
+
+const renderSettings = renderSettingsSignal<PinyesRenderSettings>({
+  shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm,
+  troncHeightThresholds: RENDER_DEFAULTS.troncHeightThresholds,
+});
+
 
 const EVENT_ID = 'event-1';
 const USER_ID = 'user-1';
@@ -314,6 +323,7 @@ describe('EventParticipationComponent', () => {
         allLucideIconsProvider,
         authStub(userId),
         { provide: ParticipationService, useValue: { getByEvent: () => of(response) } },
+        { provide: PINYES_RENDER_SETTINGS, useValue: renderSettings },
         {
           provide: TagService,
           useValue: {
@@ -464,6 +474,16 @@ describe('EventParticipationComponent', () => {
     ] as const)('formats %s relative to the baseline as %s', async (shoulderHeight, expected) => {
       const fixture = await setup();
       expect(fixture.componentInstance.formatHeight(shoulderHeight)).toBe(expected);
+    });
+
+    it("measures from the colla's baseline", async () => {
+      const fixture = await setup();
+      renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: 145 }));
+      try {
+        expect(fixture.componentInstance.formatHeight(150)).toBe('+5');
+      } finally {
+        renderSettings.update((s) => ({ ...s, shoulderHeightBaselineCm: RENDER_DEFAULTS.shoulderHeightBaselineCm }));
+      }
     });
 
     it('renders the shoulderHeight value through the column', async () => {

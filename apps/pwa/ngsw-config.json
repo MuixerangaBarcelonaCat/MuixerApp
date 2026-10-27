@@ -20,6 +20,16 @@
   ],
   "dataGroups": [
     {
+      "name": "colla-settings",
+      "urls": ["/api/colla-settings", "/api/colla-settings/public"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "timeout": "3s",
+        "maxAge": "30d",
+        "maxSize": 2
+      }
+    },
+    {
       "name": "segment-projection",
       "urls": ["/api/me/events/*/segments/*/projection"],
       "cacheConfig": {

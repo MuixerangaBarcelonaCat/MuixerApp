@@ -23,8 +23,6 @@ export const envValidationSchema = Joi.object({
 
   SETUP_TOKEN: Joi.string().allow('').optional(),
 
-  ASSIGNMENT_LOCK_DAYS: Joi.number().default(2),
-
   LEGACY_API_URL: Joi.string().allow('').optional(),
   LEGACY_API_USERNAME: Joi.string().allow('').optional(),
   LEGACY_API_PASSWORD: Joi.string().allow('').optional(),
