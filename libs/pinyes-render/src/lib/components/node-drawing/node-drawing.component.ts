@@ -13,6 +13,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { NodeShape } from '@muixer/shared';
 import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { NodeAppearance } from '../../node-render/appearance';
+import { CANVAS_FONTS_LOADED } from '../../node-render/fonts';
 import { DrawPrimitive, nodeDrawPlan } from '../../node-render/draw-plan';
 import { NODE_ICON_PATHS } from '../../node-render/icons';
 import { SketchPath, hashSeed } from '../../node-render/sketch';
@@ -176,6 +177,7 @@ export class NodeDrawingComponent {
   readonly sketchKey = input<string>('');
 
   private readonly measure = inject(NODE_NAME_MEASURE);
+  private readonly fontsLoaded = inject(CANVAS_FONTS_LOADED);
   private readonly theme = injectCanvasTheme();
   private readonly size = signal<{ width: number; height: number } | null>(null);
 
@@ -183,6 +185,8 @@ export class NodeDrawingComponent {
     const size = this.size();
     if (!size) return null;
     const { width, height } = size;
+    // Names are measured with the faces the browser has at this point: measure again once they load.
+    this.fontsLoaded();
     const seed = hashSeed(this.sketchKey());
     const plan = nodeDrawPlan(this.appearance(), { width, height, shape: this.shape(), seed }, this.theme(), this.measure);
     return {

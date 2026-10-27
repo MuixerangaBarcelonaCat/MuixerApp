@@ -279,6 +279,10 @@ export class SegmentWorkspaceStateService {
     this.phase.set('before');
     this.eventService.getOne(eventId).subscribe({
       next: (ev) => this.phase.set(getEventPhase(ev.date, ev.startTime)),
+      error: () =>
+        this.toast.error(
+          "No s'ha pogut carregar l'esdeveniment. Torneu a carregar la pàgina per a veure bé l'assistència.",
+        ),
     });
   }
 

@@ -1753,7 +1753,7 @@ describe('TroncViewComponent', () => {
       expect(component.hoveredPerson()?.info.alias).toBe('Pepet');
     });
 
-    it('anchors the card to the node and draws it in the page overlay, out of reach of a tilted (transformed) ancestor', () => {
+    it('anchors the card to the node and draws it in the page overlay, out of reach of a scaled (transformed) ancestor', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
       fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
       fixture.detectChanges();

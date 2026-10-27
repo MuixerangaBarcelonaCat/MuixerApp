@@ -14,7 +14,7 @@ import {
   ThemeMode,
   heightRampTones,
 } from '@muixer/ui';
-import { AttendanceFill } from './attendance';
+import { ATTENDANCE_STATUS_ORDER, AttendanceFill, joinAttendanceLabels } from './attendance';
 
 /**
  * The segment workspace's display modes: what a node's color stands for. `position` is the type
@@ -89,7 +89,8 @@ function heightQuarters({ heights }: HeightDomain): number[] {
 
 /**
  * The app's semantic reading of an attendance status, as the attendance list and the node panel
- * badge it: until the start, coming is success; from the start, coming but not here is a warning.
+ * badge it: until the start, coming is success; from the start, coming but not here is a warning,
+ * and no answer joins not coming as an error (the blank of the solid/hatched/blank scheme).
  */
 export function attendanceTone(status: AttendanceStatusValue | null, phase: EventPhase): AttendanceTone {
   switch (status) {
@@ -100,7 +101,7 @@ export function attendanceTone(status: AttendanceStatusValue | null, phase: Even
     case AttendanceStatus.NO_VAIG:
       return 'error';
     default:
-      return 'warning';
+      return isStartedPhase(phase) ? 'error' : 'warning';
   }
 }
 
@@ -174,7 +175,7 @@ export interface DisplayOverrides {
   tones?: NodeTones;
   palette?: 'neutral';
   fillPolicy?: NodeFillPolicy;
-  /** Overrides the attendance fill: in Assistència only «No vindrà» is struck. */
+  /** Overrides the attendance fill: in Assistència only the error group (not coming, or no answer once started) is struck. */
   attendance?: AttendanceFill;
 }
 
@@ -192,7 +193,7 @@ export function displayModeOverrides(facts: DisplayFacts | null, ctx: DisplayCon
   return {
     tones,
     fillPolicy: 'solid',
-    attendance: facts.attendance === AttendanceStatus.NO_VAIG ? 'absent' : 'confirmed',
+    attendance: attendanceTone(facts.attendance, ctx.phase) === 'error' ? 'absent' : 'confirmed',
   };
 }
 
@@ -221,12 +222,6 @@ export interface DisplayKey {
 const GENDER_ORDER: GenderGroup[] = ['female', 'male', 'other'];
 const GENDER_LABEL: Record<GenderGroup, string> = { female: 'Dona', male: 'Home', other: 'Altre o sense dades' };
 const TONE_ORDER: AttendanceTone[] = ['success', 'warning', 'error'];
-const STATUS_ORDER = [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, AttendanceStatus.PENDENT, AttendanceStatus.NO_VAIG];
-
-/** «Ha arribat», «Ve» → «Ha arribat o ve», as the node legend joins them. */
-function joinLabels(labels: string[]): string {
-  return labels.map((l, i) => (i === 0 ? l : l.charAt(0).toLowerCase() + l.slice(1))).join(' o ');
-}
 
 /**
  * The key of a mode for the people drawn in a tab (one entry per node): only the rows that appear,
@@ -261,9 +256,10 @@ export function displayModeKey(people: DisplayFacts[], ctx: DisplayContext): Dis
       for (const tone of TONE_ORDER) {
         const inTone = people.filter((p) => attendanceTone(p.attendance, ctx.phase) === tone);
         if (inTone.length === 0) continue;
-        const present = STATUS_ORDER.filter((s) => inTone.some((p) => status(p) === s));
+        // «Sense resposta» counts with «No va vindre» once started, but the red row is named after the latter alone.
+        const present = tone === 'error' ? [AttendanceStatus.NO_VAIG] : ATTENDANCE_STATUS_ORDER.filter((s) => inTone.some((p) => status(p) === s));
         const swatches = coming > 0 ? [plain(tones[tone].base), starred(tones[tone].strong)] : [plain(tones[tone].base)];
-        const label = joinLabels(present.map((s) => attendanceStatusLabel(s, ctx.phase)));
+        const label = joinAttendanceLabels(present.map((s) => attendanceStatusLabel(s, ctx.phase)));
         rows.push(row(tone, label, swatches, inTone.length));
       }
       return { gradient: null, rows, note: coming > 0 ? { label: 'Ve a la propera actuació', count: coming } : null };

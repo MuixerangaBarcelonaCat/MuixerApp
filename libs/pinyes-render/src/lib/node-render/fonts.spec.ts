@@ -1,4 +1,5 @@
-import { CANVAS_FONTS, loadCanvasFonts } from './fonts';
+import { TestBed } from '@angular/core/testing';
+import { CANVAS_FONTS, CANVAS_FONTS_LOADED, loadCanvasFonts } from './fonts';
 
 describe('loadCanvasFonts', () => {
   it('loads the name and label faces the canvas draws with', async () => {
@@ -18,5 +19,28 @@ describe('loadCanvasFonts', () => {
 
   it('resolves at once where there is no font loading API', async () => {
     await expect(loadCanvasFonts(undefined)).resolves.toBeUndefined();
+  });
+});
+
+describe('CANVAS_FONTS_LOADED', () => {
+  const originalFonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+  afterEach(() => {
+    if (originalFonts) Object.defineProperty(document, 'fonts', originalFonts);
+    else delete (document as unknown as Record<string, unknown>)['fonts'];
+  });
+
+  it('turns true once the canvas faces have loaded, so SVG names can be measured again', async () => {
+    let finish: () => void = () => undefined;
+    const pending = new Promise<void>((resolve) => (finish = resolve));
+    Object.defineProperty(document, 'fonts', { configurable: true, value: { load: () => pending } });
+
+    const loaded = TestBed.inject(CANVAS_FONTS_LOADED);
+    expect(loaded()).toBe(false);
+
+    finish();
+    await pending;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(loaded()).toBe(true);
   });
 });

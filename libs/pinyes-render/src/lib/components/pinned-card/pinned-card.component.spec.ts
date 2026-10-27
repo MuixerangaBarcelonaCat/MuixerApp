@@ -12,12 +12,11 @@ const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i
 @Component({
   standalone: true,
   imports: [PinnedCardComponent],
-  template: `<lib-pinned-card [color]="color()" [edge]="edge()" [tilt]="tilt()"><p data-content>Pilar</p></lib-pinned-card>`,
+  template: `<lib-pinned-card [color]="color()" [edge]="edge()"><p data-content>Pilar</p></lib-pinned-card>`,
 })
 class HostComponent {
-  readonly color = signal<string | null>('#3b6fc2');
+  readonly color = signal('#3b6fc2');
   readonly edge = signal<CardEdge>('top');
-  readonly tilt = signal(0);
 }
 
 describe('PinnedCardComponent', () => {
@@ -26,11 +25,10 @@ describe('PinnedCardComponent', () => {
     localStorage.clear();
   });
 
-  function render(set: Partial<{ color: string | null; edge: CardEdge; tilt: number }> = {}) {
+  function render(set: Partial<{ color: string; edge: CardEdge }> = {}) {
     const fixture = TestBed.createComponent(HostComponent);
-    if (set.color !== undefined) fixture.componentInstance.color.set(set.color);
+    if (set.color) fixture.componentInstance.color.set(set.color);
     if (set.edge) fixture.componentInstance.edge.set(set.edge);
-    if (set.tilt != null) fixture.componentInstance.tilt.set(set.tilt);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     return {
@@ -68,16 +66,6 @@ describe('PinnedCardComponent', () => {
     expect(circles[1].getAttribute('fill')).toBe('#277c64');
   });
 
-  it('draws no pin when it has no colour (a lone figure: nothing to tie it to)', () => {
-    expect(render({ color: null }).pin).toBeNull();
-  });
-
-  it('turns slightly askew around its pin', () => {
-    const { card } = render({ edge: 'bottom', tilt: -1 });
-    expect(card.style.transform).toBe('rotate(-1deg)');
-    expect(card.style.transformOrigin).toBe('50% 100%');
-  });
-
   it('turns into a dark card, a step above the dark canvas, when the app is dark', () => {
     TestBed.inject(ThemeService).setPreference('dark');
     const dark = buildCanvasTheme('dark');
@@ -88,7 +76,9 @@ describe('PinnedCardComponent', () => {
     expect(pin.querySelectorAll('circle')[0].getAttribute('fill')).toBe(dark.pinShadow);
   });
 
-  it('stays straight by default', () => {
-    expect(render().card.style.transform).toBe('');
+  it('stands straight, whatever edge holds the pin', () => {
+    for (const edge of ['top', 'bottom', 'left', 'right'] as const) {
+      expect(render({ edge }).card.style.transform).toBe('');
+    }
   });
 });

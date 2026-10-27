@@ -1,4 +1,4 @@
-import { attendanceLegend, attendanceVisual } from './attendance';
+import { attendanceLegend, attendanceVisual, joinAttendanceLabels } from './attendance';
 
 describe('attendanceVisual', () => {
   it.each(['before', 'day'] as const)(
@@ -52,5 +52,12 @@ describe('attendanceLegend', () => {
       { fill: 'pending', label: 'No ha arribat' },
       { fill: 'absent', label: 'Pendent o no vindrà' },
     ]);
+  });
+});
+
+describe('joinAttendanceLabels', () => {
+  it('joins the statuses a swatch stands for with «o», lowercasing all but the first', () => {
+    expect(joinAttendanceLabels(['Ha arribat', 'Ve'])).toBe('Ha arribat o ve');
+    expect(joinAttendanceLabels(['No vindrà'])).toBe('No vindrà');
   });
 });

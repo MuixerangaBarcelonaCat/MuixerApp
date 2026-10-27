@@ -29,8 +29,8 @@ const valenciaWallClock = new Intl.DateTimeFormat('en-CA', {
 
 /** `now` as Valencia wall-clock `YYYY-MM-DD` and `HH:mm`. */
 function valenciaDateAndTime(now: Date): { date: string; time: string } {
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    valenciaWallClock.formatToParts(now).find((p) => p.type === type)?.value ?? '';
+  const parts = valenciaWallClock.formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '';
   return {
     date: `${part('year')}-${part('month')}-${part('day')}`,
     time: `${part('hour')}:${part('minute')}`,

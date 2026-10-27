@@ -1,3 +1,5 @@
+import { StageTransform } from './rengla-coordinates.util';
+
 export interface Point {
   x: number;
   y: number;
@@ -38,6 +40,35 @@ export function zoomAroundPoint(
     x: focalPoint.x - worldPoint.x * newScale,
     y: focalPoint.y - worldPoint.y * newScale,
   };
+}
+
+/**
+ * A CSS transform (top-left origin) that moves pixels drawn at one stage transform to where another
+ * would draw them: `screen' = screen · k + (tx, ty)`. The projection pans and pinches by moving the
+ * already-drawn canvas with it, and redraws only when the gesture ends.
+ */
+export interface CssDelta {
+  k: number;
+  tx: number;
+  ty: number;
+}
+
+export const IDENTITY_CSS_DELTA: CssDelta = { k: 1, tx: 0, ty: 0 };
+
+/** The delta from what was drawn at `committed` to what `live` would draw. Stage scale is uniform. */
+export function cssDelta(committed: StageTransform, live: StageTransform): CssDelta {
+  const k = live.scaleX / committed.scaleX;
+  return { k, tx: live.x - k * committed.x, ty: live.y - k * committed.y };
+}
+
+export function applyCssDelta(point: Point, delta: CssDelta): Point {
+  return { x: point.x * delta.k + delta.tx, y: point.y * delta.k + delta.ty };
+}
+
+/** For `style.transform` with `transform-origin: 0 0`; empty for the identity. */
+export function cssTransformString(delta: CssDelta): string {
+  if (delta.k === 1 && delta.tx === 0 && delta.ty === 0) return '';
+  return `translate(${delta.tx}px, ${delta.ty}px) scale(${delta.k})`;
 }
 
 /**
