@@ -16,6 +16,7 @@ export const MANUAL_PAGES: readonly ManualPage[] = [
   { slug: '04-etiquetes', title: 'Etiquetes', group: 'La base' },
   { slug: '05-temporades', title: 'Temporades', group: 'La base' },
   { slug: '06-usuaris-i-acces', title: 'Usuaris i accés', group: 'La base' },
+  { slug: '21-configuracio-colla', title: 'Configuració de la colla', group: 'La base' },
   { slug: '07-assajos-i-actuacions', title: 'Assajos i actuacions', group: 'Events' },
   { slug: '08-plantilles', title: 'Plantilles', group: 'Plantilles' },
   { slug: '09-plantilles-pinya', title: 'Plantilla: pinya i rengles', group: 'Plantilles' },

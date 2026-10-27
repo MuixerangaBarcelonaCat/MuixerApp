@@ -15,6 +15,8 @@ export interface ManualShot {
   prepare?: (page: Page) => Promise<void>;
   /** Locator outlined in red for the shot. */
   highlight?: string;
+  /** Elements blurred in the shot: personal data (names, surnames, email, phone). Aliases are not. */
+  blur?: string[];
   /** Shoot only this element instead of the viewport. */
   clip?: string;
   settle?: number;

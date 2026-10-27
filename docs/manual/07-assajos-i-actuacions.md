@@ -55,9 +55,9 @@ El botó «…» de la dreta («Accions») té «Veure detall» i «Gestionar pi
 
 1. Feu clic a «Assaig nou» o «Actuació nova».
 2. El «Tipus» ja ve triat i no es pot canviar.
-3. «Títol»: en els assajos ve «Assaig general». Canvieu-lo si cal.
+3. Un assaig nou ja ve amb el «Títol», l'«Hora inici», el «Lloc» i l'«URL mapa» de la colla (per defecte, «Assaig general» a les 18:45). Els administradors els canvien a [Configuració de la colla](21-configuracio-colla.md). Una actuació nova ve buida.
 4. Trieu la «Data». Davall apareix «Temporada: ...». Si diu «Esta data no és dins de cap temporada.», no podreu crear l'event: primer cal crear la temporada. Vegeu [Temporades](05-temporades.md).
-5. Si voleu, ompliu «Hora inici», «Lloc», «URL mapa» (l'enllaç de Google Maps) i «Descripció».
+5. Si voleu, ompliu o canvieu «Hora inici», «Lloc», «URL mapa» (l'enllaç de Google Maps) i «Descripció».
 6. Deixeu marcat «Compta per a estadístiques», llevat que siga un event que no ha de comptar (vegeu més avall).
 7. Feu clic a «Crea esdeveniment». S'obri el detall de l'event nou.
 
@@ -86,7 +86,7 @@ Insígnies:
 - «Assaig» o «Actuació»;
 - «Passat»: ja ha passat l'hora d'inici;
 - «Sense estadística»: no compta per a les estadístiques;
-- «Assignacions bloquejades»: fa més de 2 dies que es va fer l'event, i ja no es poden canviar les figures ni qui hi va.
+- «Assignacions bloquejades»: han passat els dies de bloqueig de la colla (2, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)), i ja no es poden canviar les figures ni qui hi va.
 
 Botons:
 
@@ -165,7 +165,7 @@ Si algú toca una targeta que no és la seua, corregiu-ho a la pestanya «Assist
 
 ## Actuacions: arribada automàtica
 
-Les actuacions no tenen tauleta. Per això, a les 3 de la matinada del dia de l'actuació, l'app passa a «Ha arribat» tothom que havia dit que venia.
+Les actuacions no tenen tauleta. Per això, si la colla té marcat «Marca com a assistides les actuacions del dia» ([Configuració de la colla](21-configuracio-colla.md)), a les 3 de la matinada del dia de l'actuació l'app passa a «Ha arribat» tothom que havia dit que venia.
 
 - El mateix dia, a la pestanya «Assistència», marqueu «No ha arribat» a qui al final no ha vingut.
 - Este canvi automàtic no toca mai els assajos, ni qui no havia contestat, ni qui havia dit que no venia.
@@ -177,7 +177,7 @@ Les actuacions no tenen tauleta. Per això, a les 3 de la matinada del dia de l'
 - Si canvieu «Ve» o «No ve» en un event de l'app antiga, la sincronització següent ho pot tornar a canviar. «Ha arribat» sí que es manté.
 - Sense temporada no es pot crear cap event en eixa data.
 - L'endemà de l'event, la llista d'assistència del Dashboard ja només es pot llegir. Si cal corregir-la, feu-ho des de «Passa llista» a l'app del mòbil. Vegeu [L'app dels membres (PWA)](19-pwa.md).
-- 2 dies després de l'event apareix «Assignacions bloquejades»: ja no es poden tocar les figures.
+- Passats els dies de bloqueig (2, si no s'ha canviat) apareix «Assignacions bloquejades»: ja no es poden tocar les figures.
 - «Veure detall» i «Gestionar pinyes» porten al mateix lloc.
 - La «Confirmació» es pot obrir qualsevol dia i marca «Ha arribat» igualment. Feu-la servir només el dia de l'assaig.
 - Si no sou administradors, el «Sincronitza» del detall està gris, i el de les llistes obri una pantalla que no podreu fer funcionar. Demaneu la sincronització a un administrador.

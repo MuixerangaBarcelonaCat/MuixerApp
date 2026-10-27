@@ -71,7 +71,7 @@ Quan la pantalla fa servir una paraula diferent de la que diem a la plaça, s'in
 - **Segment (prova)**: cada bloc d'un assaig o d'una actuació. A la plaça en diem prova; la pantalla en diu segment, per exemple al botó «Segment nou».
 - **Temporada**: un període de dates que agrupa els events per a les estadístiques. Vegeu [Temporades](05-temporades.md).
 - **Tronc**: la part de la figura que puja per damunt de la pinya, per pisos. És la feina dels tècnics de troncs i de xicalla.
-- **Xicalla**: els xiquets i xiquetes de la colla. A la fitxa de la persona apareix com a «Menor de 16».
+- **Xicalla**: els xiquets i xiquetes de la colla. A la fitxa de la persona apareix com a «Xicalla»: es calcula a partir de la data de naixement.
 
 ## Relacionat
 

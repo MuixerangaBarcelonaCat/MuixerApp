@@ -75,7 +75,7 @@ L'assistent «Etiqueta persones» va persona per persona perquè les pugueu etiq
 2. Trieu la pestanya:
    - «Pendents»: només les persones actives a qui falten etiquetes (vegeu la regla mínima, més avall);
    - «Tothom»: totes les persones actives, per ordre de primer cognom.
-3. Per a cada persona veieu una fitxa amb l'àlies, «Menor de 16» si escau, l'«Alçada d'espatlles» i les observacions. Davall hi ha un bloc per grup amb un comptador «N / M».
+3. Per a cada persona veieu una fitxa amb l'àlies, «Xicalla» si escau, l'«Alçada d'espatlles» i les observacions. Davall hi ha un bloc per grup amb un comptador «N / M».
 4. Feu clic a una etiqueta per a posar-la o llevar-la. **S'alça al moment**: no hi ha cap botó «Alça».
 5. Feu clic a «Següent» o «Anterior» per a canviar de persona. Per a anar a algú concret, escriviu-ne l'àlies a «Salta a una persona...».
 6. «Veu el detall» obri la fitxa de la persona en una pestanya nova.
@@ -111,6 +111,8 @@ També podeu posar i llevar etiquetes des de la fitxa de cada persona. Vegeu [Pe
 
 Primer heu de llevar-la de totes les persones. Si encara la porta algú, el modal «Eliminar etiqueta» ja ho avisa («Aquesta etiqueta té N persones assignades.»), i si feu clic a «Elimina» ix l'error «No es pot esborrar: hi ha persones amb aquesta etiqueta assignada.».
 
+Tampoc no es pot esborrar l'etiqueta per defecte de les persones noves: ix «No es pot esborrar: és l'etiqueta per defecte de les persones noves.». Un administrador l'ha de canviar abans a [Configuració de la colla](21-configuracio-colla.md).
+
 ## Si sou de pinyes
 
 - Les etiquetes de Pinya són les que fan pujar la gent quan seleccioneu un lloc de pinya (MANS, VENT, LATERAL...).
@@ -120,7 +122,7 @@ Primer heu de llevar-la de totes les persones. Si encara la porta algú, el moda
 ## Si sou de troncs o xicalla
 
 - Les etiquetes de Tronc apunten a pisos (Segona, Terça, Alçadora...) i a «Base». «Tècnica» apunta a les direccions.
-- La casella «Xicalla» del panell de persones **no** mira l'etiqueta Xicalla: mira el camp «Menor de 16» de la fitxa de la persona. Ve desmarcada. Si no veieu cap infant al panell, marqueu-la.
+- La casella «Xicalla» del panell de persones **no** mira l'etiqueta Xicalla: mira el camp «Xicalla» de la fitxa de la persona, que es calcula per l'edat. Ve desmarcada. Si no veieu cap infant al panell, marqueu-la.
 - Per a veure només la xicalla que participa a les figures, trieu l'etiqueta «Xicalla» a «Totes les etiquetes».
 - Vegeu [Assignació de troncs](12-assignacio-troncs.md).
 
@@ -128,7 +130,7 @@ Primer heu de llevar-la de totes les persones. Si encara la porta algú, el moda
 
 - Una etiqueta no col·loca ningú ni impedeix col·locar ningú. Només ordena i marca el panell de persones; el filtre manual sí que amaga la resta mentre està actiu.
 - Una etiqueta amb «Posicions de figura» buit no fa pujar mai ningú, però continua servint per a filtrar i per a la regla mínima.
-- «Menor de 16» i l'etiqueta «Xicalla» són coses diferents: la primera és l'edat; la segona, si participa a les figures.
+- El camp «Xicalla» de la fitxa i l'etiqueta «Xicalla» són coses diferents: la primera és l'edat; la segona, si participa a les figures.
 - El filtre de dalt de la llista d'etiquetes només té «Totes», «Pinya» i «Tronc».
 - A la pestanya «Pendents» de l'assistent, a l'última persona no podeu fer clic a «Següent» fins que tinga prou etiquetes.
 

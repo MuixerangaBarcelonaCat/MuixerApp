@@ -27,7 +27,7 @@ Unes quantes paraules que es repeteixen:
 D'esquerra a dreta:
 
 1. **Fletxa de tornar** («Torna arrere»): torna a l'event, a la pestanya d'on veníeu.
-2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat dos dies de l'event i no es pot canviar res.
+2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat els dies de bloqueig de l'event (2, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)) i no es pot canviar res.
 3. **Pestanyes** «Pinyes», «Troncs», «Distribució», «Nodes extra» i «Previsualitza». L'app recorda si l'última vegada vau treballar a «Pinyes» o a «Troncs» i la torna a obrir.
 4. **Fletxes de segment anterior i següent**, amb la posició del segment («3/7»). En canviar de segment, continueu a la mateixa pestanya.
 5. **«Ajuda»** (icona d'interrogant).
@@ -106,8 +106,8 @@ També ho podeu fer al revés: feu clic primer en una persona de la llista (qued
 
 **Filtres:**
 
-- **Alçada.** Escriviu una diferència respecte de 140 cm d'alçada d'espatlles («+5», «-10»). La llista **no amaga ningú**: només posa primer les persones que s'hi acosten més. «Max» posa primer les més altes i «Min» les més baixes. Les persones sense alçada registrada van al final.
-- **«Xicalla».** Mostra o amaga les persones que tenen marcat «Menor de 16» a la seua fitxa (no mira l'etiqueta de xicalla). Comença desactivada i canvia sola: s'activa quan cliqueu un lloc del tronc i es desactiva quan cliqueu una base, una direcció o un lloc de pinya. La podeu canviar a mà quan vulgueu.
+- **Alçada.** Escriviu una diferència, com «+5» o «-10», respecte de l'alçada de referència de la colla: 140 cm d'espatlles, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md). La llista **no amaga ningú**: només posa primer les persones que s'hi acosten més. «Max» posa primer les més altes i «Min» les més baixes. Les persones sense alçada registrada van al final.
+- **«Xicalla».** Mostra o amaga les persones que tenen marcat «Xicalla» a la seua fitxa (no mira l'etiqueta de xicalla). Comença desactivada i canvia sola: s'activa quan cliqueu un lloc del tronc i es desactiva quan cliqueu una base, una direcció o un lloc de pinya. La podeu canviar a mà quan vulgueu.
 - **«Totes les etiquetes».** Mostra només qui porta l'etiqueta que trieu. Té un cercador d'etiquetes, i la «✕» lleva el filtre. És l'únic lloc on una etiqueta amaga gent.
 
 **Grups.** El nom dels grups canvia segons el dia:
@@ -137,7 +137,7 @@ També ho podeu fer al revés: feu clic primer en una persona de la llista (qued
 
 ![Diferències d'alçades al costat de cada pis](img/12-troncs-alcades.png)
 
-Cada lloc ple mostra l'alçada de la persona com a diferència respecte de 140 cm d'espatlles («+6», «-3»).
+Cada lloc ple mostra l'alçada de la persona com a diferència respecte de l'alçada de referència («+6», «-3»).
 
 A la dreta de cada pis, l'app calcula a quina alçada queden les espatlles de cada persona amb la figura alçada, sumant-hi les persones que té davall. Hi pot eixir:
 
@@ -167,7 +167,7 @@ De moment, els límits (5 i 10 cm per pis, 3 i 5 cm entre suports) són fixos.
 
 - Sou els primers. Assigneu el tronc i les direccions abans que pinyes comence.
 - Per a la xicalla: quan cliqueu un lloc del tronc, la casella «Xicalla» ja s'activa sola. Si busqueu un adult per a un pis de dalt, desactiveu-la.
-- La casella «Xicalla» es guia pel camp «Menor de 16» de la fitxa de la persona, no per l'etiqueta. Si una criatura ix com a adult, o no ix, reviseu eixe camp a [Persones](03-persones.md).
+- La casella «Xicalla» es guia pel camp «Xicalla» de la fitxa de la persona, no per l'etiqueta. Es calcula per la data de naixement. Si una criatura ix com a adult, o no ix, reviseu-ne la data de naixement a [Persones](03-persones.md).
 - Abans de donar el tronc per bo, mireu la diferència d'alçades de cada pis i els xips de la balança.
 - «Importa tronc» és la manera ràpida de repetir el tronc d'un assaig anterior. Després repasseu els llocs ratllats o buits: la importació no mira qui ve.
 - Si treballeu des de la tauleta el dia de l'assaig:
@@ -187,7 +187,7 @@ De moment, els límits (5 i 10 cm per pis, 3 i 5 cm entre suports) són fixos.
 - **El camp d'alçada no filtra, només ordena.** Si no trobeu algú, és més avall.
 - **Intro amb el cercador buit** posa la primera persona lliure de la llista en el lloc seleccionat.
 - **Dos tècnics en el mateix segment no veuen els canvis de l'altre** fins que no canvien de pestanya o recarreguen la pàgina. Si tots dos ocupeu el mateix lloc, al segon li ix «Este lloc ja està ocupat.». Repartiu-vos els segments.
-- **«Bloquejat»:** dos dies després de l'event ja no es pot canviar res.
+- **«Bloquejat»:** passats els dies de bloqueig de la colla, ja no es pot canviar res.
 - **L'«Ajuda» de dalt és la del creador de figures.** Hi ha algunes dreceres de teclat que no funcionen en esta pantalla; feu cas d'esta pàgina.
 
 ## Relacionat

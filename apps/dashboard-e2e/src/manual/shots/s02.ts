@@ -19,6 +19,9 @@ const LIST_READY = 'app-data-table tbody a[href^="/persons/"]';
 const INFO_PERSONAL = 'lib-card[title="Informació personal"]';
 const INFO_COLLA = 'lib-card[title="Informació de la colla"]';
 const DETAIL_READY = `${INFO_PERSONAL} dl`;
+/** Every personal field of the sheet in edit mode except the alias. */
+const PERSONAL_INPUTS = `${INFO_PERSONAL} lib-input:not([formcontrolname="alias"]) input`;
+const SHIRT_READY = '[data-testid^="shirt-row-"]';
 async function startEditing(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Edita' }).click();
   await page.locator(`${INFO_PERSONAL} input`).first().waitFor();
@@ -147,6 +150,27 @@ export const s02: ManualShot[] = [
     clip: 'div.collapse:has-text("Historial de pinyes")',
     settle: 1000,
   },
+  {
+    file: '03-persones-camises.png',
+    app: 'dashboard',
+    path: '/persons/camises',
+    ready: SHIRT_READY,
+    blur: [`${SHIRT_READY} p.truncate`], // full name under the alias
+    settle: 500,
+  },
+  {
+    // Someone still «En curs», so the dialog shows the missing-requirements warning. Never clicks «Lliura».
+    file: '03-persones-camisa-lliurament.png',
+    app: 'dashboard',
+    path: '/persons/camises',
+    ready: SHIRT_READY,
+    prepare: async (page) => {
+      await page.locator('[data-testid="shirt-in-progress"] button:has-text("Lliura la camisa")').first().click();
+      await page.locator('dialog[open]').waitFor();
+    },
+    clip: 'dialog[open] .modal-box',
+    settle: 500,
+  },
   // Edit mode survives a navigation to another person (same component), so these go last.
   {
     file: '03-persona-edicio.png',
@@ -155,6 +179,7 @@ export const s02: ManualShot[] = [
     ready: DETAIL_READY,
     prepare: startEditing, // never clicks «Alça»
     highlight: `${INFO_COLLA} [data-tag-group]`,
+    blur: [PERSONAL_INPUTS],
   },
   {
     file: '03-persona-delegat.png',

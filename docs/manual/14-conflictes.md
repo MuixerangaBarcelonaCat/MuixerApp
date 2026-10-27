@@ -63,7 +63,7 @@ També podeu anar al lloc, clicar-lo i posar-hi una altra persona.
 - **Una importació pot crear conflictes sense preguntar** (vegeu [Assignació de troncs](12-assignacio-troncs.md) i [Assignació de pinyes](13-assignacio-pinyes.md)).
 - **«Assignar igualment»**, a la finestra «Persona ja assignada», crea un conflicte a posta.
 - **La barra roja ix plegada.** El número ja vos diu que hi ha feina pendent.
-- **Amb el segment bloquejat** (dos dies després de l'event), els botons del panell estan desactivats.
+- **Amb el segment bloquejat** (passats els dies de bloqueig de la colla, 2 si no s'ha canviat), els botons del panell estan desactivats.
 - **Els conflictes no impedeixen publicar ni projectar.** Si publiqueu el segment, els membres veuran la persona en els dos llocs a l'app.
 
 ## Relacionat

@@ -228,7 +228,7 @@ La persona es crea com a provisional i queda marcada com a present. Després, co
 
 ![Formulari per a afegir una persona provisional a Passa llista](img/19-pwa-passa-llista-provisional.png)
 
-**«Canvi fora de termini».** Si canvieu l'assistència d'un esdeveniment que va passar fa més de 2 dies, l'app us ho avisa amb el diàleg «Canvi fora de termini».
+**«Canvi fora de termini».** Si canvieu l'assistència d'un esdeveniment que ja ha passat els dies de bloqueig de la colla (2, si no s'ha canviat), l'app us ho avisa amb el diàleg «Canvi fora de termini».
 
 - «Força el canvi» fa el canvi igualment, i el canvi queda registrat.
 - «Cancel·la» no canvia res.

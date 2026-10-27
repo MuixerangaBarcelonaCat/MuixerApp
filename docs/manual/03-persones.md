@@ -8,7 +8,8 @@
 
 - buscar una persona;
 - veure i corregir la seua fitxa: etiquetes, observacions i estat;
-- donar-li accés a l'app del mòbil.
+- donar-li accés a l'app del mòbil;
+- lliurar la camisa a qui ja hi té dret.
 
 Moltes dades personals vénen de l'app antiga. Vegeu [Dades de l'app antiga](02-dades-app-antiga.md).
 
@@ -54,7 +55,7 @@ Passeu el ratolí per damunt de la insígnia per a veure què falta, per exemple
 
 ### Triar les columnes
 
-- «Columnes visibles (N de M)» mostra o amaga columnes. Per defecte no es veuen «Telèfon», «Data naixement», «Alçada», «Assistències (temp. actual)», «Acollida», «Membre», «Menor de 16», «Data camisa», «Notes», «Creat» ni «Actualitzat».
+- «Columnes visibles (N de M)» mostra o amaga columnes. Per defecte no es veuen «Telèfon», «Data naixement», «Alçada», «Assistències (temp. actual)», «Acollida», «Membre», «Xicalla», «Data camisa», «Notes», «Creat» ni «Actualitzat».
 - L'elecció queda guardada en eixe navegador.
 - Feu clic a la capçalera d'una columna per a ordenar la llista.
 
@@ -81,10 +82,10 @@ La persona queda com a **provisional**:
 ![La fitxa d'una persona](img/03-persona-fitxa.png)
 
 - Dalt hi ha l'àlies. Si cal, també hi ha les insígnies «Provisional» o «Inactiu».
-- «Informació personal»: «Nom», «Primer cognom», «Segon cognom», «Àlies», «Gènere», «Correu», «Telèfon», «Naixement» i «Alçada espatlles». Al costat de l'alçada, entre parèntesis, hi ha la diferència respecte de 140 cm.
+- «Informació personal»: «Nom», «Primer cognom», «Segon cognom», «Àlies», «Gènere», «Correu», «Telèfon», «Naixement» i «Alçada espatlles». Al costat de l'alçada, entre parèntesis, hi ha la diferència respecte de l'alçada de referència de la colla (140 cm, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)).
 - «Informació de la colla»:
   - «Etiquetes»;
-  - «Estat»: «Actiu» o «Inactiu», i també «Membre» i «Menor de 16» quan toca;
+  - «Estat»: «Actiu» o «Inactiu», i també «Membre» i «Xicalla» quan toca;
   - «Acollida»;
   - «Data camisa» (o «Camisa: No»);
   - «Observacions tècniques», si n'hi ha.
@@ -96,6 +97,7 @@ La persona queda com a **provisional**:
 1. Feu clic a «Edita».
 2. Canvieu el que calga:
    - Les etiquetes es marquen i es desmarquen amb un clic. Estan agrupades per categoria.
+   - «Xicalla» es calcula sola a partir de la «Data de naixement» i la majoria d'edat de la colla (16 anys, si no s'ha canviat). Amb data de naixement, la casella està desactivada i davall diu «Es calcula a partir de la data de naixement.». Sense data, la marqueu a mà.
    - A «Observacions tècniques», trieu una opció ràpida (🤕 Baixa llarga, 🍃 Sense càrrega, ⏰️ Restricció horària o 🐣 Cuida xicalla) o «Altre», per a escriure-hi una observació i triar-ne la icona.
 3. Feu clic a «Alça». Apareix «Alçat correctament».
 
@@ -104,6 +106,26 @@ La persona queda com a **provisional**:
 ![La fitxa en mode «Edita»](img/03-persona-edicio.png)
 
 Recordeu que alguns camps els torna a escriure l'app antiga en cada importació (vegeu «Compte amb»).
+
+### Lliurar camises
+
+Per a rebre la camisa, cal haver anat a un nombre d'actuacions i d'assajos. Per defecte, 2 actuacions i 6 assajos, comptant totes les temporades. Els administradors ho canvien a [Configuració de la colla](21-configuracio-colla.md).
+
+1. A «Persones», feu clic a «Camises».
+2. La llista mostra les persones actives que encara no tenen camisa, en dos blocs:
+   - «Poden rebre la camisa»: ja compleixen els requisits;
+   - «En curs»: encara no, ordenades de les que estan més a prop a les que menys.
+3. Cada fila té una marca per cada actuació (estrela) i cada assaig (calendari) que cal. La marca s'ompli en verd quan la persona ja hi ha anat. Al costat, «N/M» diu quantes en porta i quantes calen.
+4. Feu clic a «Lliura la camisa». S'obri «Lliurament de la camisa».
+5. Trieu la «Data de lliurament» (per defecte, hui) i feu clic a «Lliura». Apareix «S'ha lliurat la camisa a …» i la persona desapareix de la llista.
+
+![La llista «Camises»](img/03-persones-camises.png)
+
+També podeu lliurar-la a qui encara no compleix els requisits. En eixe cas, el diàleg avisa del que li falta, per exemple «Encara no compleix els requisits: li falta 1 actuació.».
+
+![La finestra «Lliurament de la camisa» amb l'avís de requisits](img/03-persones-camisa-lliurament.png)
+
+Només compten els events amb l'assistència marcada («Ha arribat») i que tenen «Compta per a estadístiques». La data de lliurament queda a «Data camisa» de la fitxa.
 
 ### Donar accés a l'app del mòbil
 
@@ -170,12 +192,13 @@ Per a llevar una delegació, en mode «Edita» feu clic a la «✕» del costat 
 
 - L'«Alçada espatlles» és la dada que fa servir el filtre d'alçada de l'assignació de troncs ([Assignació de troncs](12-assignacio-troncs.md)). Ve de l'app antiga: si és incorrecta, corregiu-la allà.
 - La columna «Alçada» de la llista, amagada per defecte, permet ordenar la gent per alçada.
-- «Menor de 16» vol dir que la persona és de la xicalla.
+- «Xicalla» vol dir que la persona és menor d'edat. Si té data de naixement, es calcula sola; si no, es marca a mà.
 - Per a donar accés a la família d'un xiquet o d'una xiqueta, seguiu els passos de «Xicalla: l'adult responsable».
 
 ## Compte amb
 
-- **Camps que torna a escriure l'app antiga.** En cada importació, l'app antiga torna a escriure nom, cognoms, àlies, telèfon, naixement, «Alçada espatlles», «Membre», «Acollida» i «Data camisa». En canvi, les etiquetes, el «Gènere», «Menor de 16», les «Observacions tècniques» i les delegacions es mantenen. Vegeu [Dades de l'app antiga](02-dades-app-antiga.md).
+- **Camps que torna a escriure l'app antiga.** En cada importació, l'app antiga torna a escriure nom, cognoms, àlies, telèfon, naixement, «Alçada espatlles», «Membre», «Acollida» i «Data camisa». En canvi, les etiquetes, el «Gènere», «Xicalla», les «Observacions tècniques» i les delegacions es mantenen. Vegeu [Dades de l'app antiga](02-dades-app-antiga.md).
+- **«Data camisa» i l'app antiga.** Si l'app antiga té una data de camisa, la importació la torna a escriure. Si no en té cap, la importació no esborra la que heu posat al Dashboard.
 - **No hi ha botó per a esborrar persones.** Per a donar algú de baixa, feu clic a «Edita», desmarqueu «Actiu» i feu clic a «Alça». Si la persona encara és a l'app antiga, la importació següent la tornarà a crear ([Dades de l'app antiga](02-dades-app-antiga.md)).
 - **Àlies repetits.** Dues persones no poden tindre el mateix àlies. Si ho proveu, apareix «Ja existeix una persona amb l'àlies…» (o «Ja existeix una persona provisional amb l'àlies…»). Recordeu que l'àlies d'una persona provisional comença per «~».
 - **La invitació.** Envieu-la el mateix dia: caduca als 3 dies. Cada clic en crea una de nova i l'anterior deixa de funcionar. Si la persona ja té el compte actiu, apareix «Aquesta persona ja té un compte actiu».
@@ -189,6 +212,7 @@ Per a llevar una delegació, en mode «Edita» feu clic a la «✕» del costat 
 - [Dades de l'app antiga](02-dades-app-antiga.md)
 - [Etiquetes](04-etiquetes.md)
 - [Usuaris i accés](06-usuaris-i-acces.md)
+- [Configuració de la colla](21-configuracio-colla.md)
 - [Assignació de troncs](12-assignacio-troncs.md)
 - [Participació](17-participacio.md)
 - [L'app dels membres (PWA)](19-pwa.md)

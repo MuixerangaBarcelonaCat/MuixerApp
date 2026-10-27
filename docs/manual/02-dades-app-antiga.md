@@ -94,7 +94,7 @@ Per a importar només l'assistència d'un event, obriu l'event i feu clic al seu
 
 **Ve de l'app antiga només la primera vegada.** Després es canvia al Dashboard:
 
-- «Menor de 16»;
+- «Xicalla», per a qui no té data de naixement (amb data, es calcula sola);
 - «Observacions tècniques».
 
 Un exemple: a l'app antiga, una persona té 140 cm d'alçada d'espatlles. Si la corregiu a 145 al Dashboard, després de la importació tornarà a dir 140. Corregiu-la a l'app antiga.
@@ -106,7 +106,7 @@ Les etiquetes no es perden mai en importar. Les podeu treballar tranquil·lament
 ## Si sou de troncs o xicalla
 
 - L'«Alçada espatlles» ve de l'app antiga. És la dada que fa servir el filtre d'alçada de l'assignació de troncs ([Assignació de troncs](12-assignacio-troncs.md)). Si una alçada és incorrecta, corregiu-la a l'app antiga.
-- «Menor de 16» només es copia la primera vegada, a partir de la posició que la persona té a l'app antiga. Quan un xiquet o una xiqueta passa a adult, canvieu-ho al Dashboard.
+- «Xicalla» es calcula a partir de la data de naixement i la majoria d'edat de la colla ([Configuració de la colla](21-configuracio-colla.md)). Només quan una persona no té data de naixement es fa servir la marca manual, que es copia la primera vegada a partir de la posició de l'app antiga. Si un xiquet sense data passa a adult, desmarqueu-la al Dashboard.
 - Si a l'app antiga una persona de la xicalla té el mateix correu que un adult, eixe adult queda com a responsable seu (relació «Pare/Mare»).
 
 ## Compte amb

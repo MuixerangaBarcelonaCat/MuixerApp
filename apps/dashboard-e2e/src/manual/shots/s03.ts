@@ -100,6 +100,25 @@ export const s03: ManualShot[] = [
     clip: 'dialog[open] .modal-box',
   },
 
+  // ── 21 Configuració de la colla (ADMIN) ─────────────────────
+  {
+    file: '21-config-colla.png',
+    app: 'dashboard',
+    path: '/config/colla',
+    ready: '[data-testid="colla-settings-save"]',
+    settle: 500,
+  },
+  {
+    file: '21-config-colla-persones.png',
+    app: 'dashboard',
+    path: '/config/colla',
+    ready: '[data-testid="colla-settings-save"]',
+    prepare: async (page) => {
+      await page.locator('lib-card[title="Persones"] > *').scrollIntoViewIfNeeded();
+    },
+    clip: 'lib-card[title="Persones"] > *',
+  },
+
   // ── 06 Usuaris i accés ───────────────────────────────────────
   {
     file: '06-usuaris-llista.png',
