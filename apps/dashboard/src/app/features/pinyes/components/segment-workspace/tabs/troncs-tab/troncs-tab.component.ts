@@ -30,8 +30,6 @@ interface TroncFigure {
   color: string;
   /** The band behind the figure name at the top of its card. */
   band: FigureBand;
-  /** Degrees its card turns around the pin: −1 and +1 by turns, as in the projection. */
-  tilt: number;
 }
 
 /**
@@ -282,9 +280,6 @@ export class TroncsTabComponent implements OnInit {
     return ref && this.actions.assignmentFor(ref) ? 'Canvia la persona' : 'Assigna una persona';
   });
 
-  /** A segment's lone figure gets no pin on its card: there is no other panel to tell it from. */
-  readonly singleFigure = computed(() => this.ws.instances().length === 1);
-
   readonly figures = computed<TroncFigure[]>(() =>
     this.ws
       .instances()
@@ -301,7 +296,6 @@ export class TroncsTabComponent implements OnInit {
           ) as unknown as TroncNodeItem[],
           color: getFigureColor(instance.sortOrder),
           band: getFigureBand(instance.sortOrder, this.canvasTheme().mode),
-          tilt: instance.sortOrder % 2 === 0 ? -1 : 1,
         };
       })
       .filter((f) => f.troncNodes.length > 0 || f.baseNodes.length > 0 || f.directionNodes.length > 0),

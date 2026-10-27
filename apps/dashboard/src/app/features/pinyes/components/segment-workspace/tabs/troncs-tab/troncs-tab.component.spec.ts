@@ -1129,7 +1129,7 @@ describe('TroncsTabComponent', () => {
       expect(component.figures().map((f) => f.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
-    it('lays each tronc on a paper card pinned at the top in its figure colour, alternately askew', async () => {
+    it('lays each tronc on a paper card pinned at the top in its figure colour', async () => {
       await setup({
         instances: [makeInstance(INST_A, { sortOrder: 0 }), makeInstance(INST_B, { sortOrder: 1 })],
         nodesByInstance: {
@@ -1140,9 +1140,9 @@ describe('TroncsTabComponent', () => {
       fixture.detectChanges();
 
       const cards = fixture.debugElement.queryAll(By.directive(PinnedCardComponent));
-      expect(cards.map((d) => d.componentInstance as PinnedCardComponent).map((c) => [c.color(), c.edge(), c.tilt()])).toEqual([
-        [FIGURE_PALETTE[0], 'top', -1],
-        [FIGURE_PALETTE[1], 'top', 1],
+      expect(cards.map((d) => d.componentInstance as PinnedCardComponent).map((c) => [c.color(), c.edge()])).toEqual([
+        [FIGURE_PALETTE[0], 'top'],
+        [FIGURE_PALETTE[1], 'top'],
       ]);
       // The tronc panel heads the card with the figure name on its band, as in every other tab:
       // the tab draws no heading of its own.
@@ -1176,7 +1176,7 @@ describe('TroncsTabComponent', () => {
       }
     });
 
-    it('pins no card when the segment holds a single figure (nothing to tell it apart from), but keeps its name band', async () => {
+    it('pins the card of a single figure in its colour too', async () => {
       await setup({
         instances: [makeInstance(INST_A, { sortOrder: 0 })],
         nodesByInstance: { [INST_A]: [makeNode('n1', 'TRONC')] },
@@ -1184,8 +1184,7 @@ describe('TroncsTabComponent', () => {
       fixture.detectChanges();
 
       const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
-      expect(card.color()).toBeNull();
-      // The name band stays: it's the card's colour, not a link to tell figures apart.
+      expect(card.color()).toBe(FIGURE_PALETTE[0]);
       expect(troncStubs()[0].nameBand()).toEqual(getFigureBand(0));
     });
 

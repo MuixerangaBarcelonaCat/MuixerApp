@@ -219,8 +219,9 @@ export class TroncViewComponent {
 
   /**
    * The person card and the node it is anchored to. The card is drawn in the page overlay (a CDK
-   * connected overlay), not in place: the panel sits in a tilted pinned card, and a transformed
-   * ancestor would make an in-place `position: fixed` card measure from it instead of the viewport.
+   * connected overlay), not in place: in the projection and Distribució the panel is scaled, and a
+   * transformed ancestor would make an in-place `position: fixed` card measure from it instead of the
+   * viewport.
    */
   readonly hoveredPerson = signal<{ info: PersonHoverInfo; anchor: HTMLElement; positionType: string | null } | null>(null);
 

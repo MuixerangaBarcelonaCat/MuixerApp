@@ -62,10 +62,11 @@ describe('attendanceTone', () => {
     expect(attendanceTone('NO_VAIG', phase)).toBe('error');
   });
 
-  it.each(['started', 'after'] as const)('from the start (%s): coming but not here yet turns warning', (phase) => {
+  it.each(['started', 'after'] as const)('from the start (%s): coming but not here yet turns warning, no answer joins not coming as error', (phase) => {
     expect(attendanceTone('ASSISTIT', phase)).toBe('success');
     expect(attendanceTone('ANIRE', phase)).toBe('warning');
-    expect(attendanceTone('PENDENT', phase)).toBe('warning');
+    expect(attendanceTone('PENDENT', phase)).toBe('error');
+    expect(attendanceTone(null, phase)).toBe('error');
     expect(attendanceTone('NO_VAIG', phase)).toBe('error');
   });
 
@@ -174,9 +175,15 @@ describe('displayModeOverrides', () => {
       fillPolicy: 'solid',
       attendance: 'absent',
     });
-    // PENDENT after the start is "absent" for the attendance fill, but it isn't struck here: it's a warning.
+    // PENDENT after the start is blank like NO_VAIG: same color, same strike.
     expect(displayModeOverrides(facts({ attendance: 'PENDENT', nextActuacio: true }), c)).toEqual({
-      tones: ATTENDANCE_TONES.warning.strong,
+      tones: ATTENDANCE_TONES.error.strong,
+      fillPolicy: 'solid',
+      attendance: 'absent',
+    });
+    // ...but before the start it is still a hatched warning, not struck.
+    expect(displayModeOverrides(facts({ attendance: 'PENDENT' }), ctx({ mode: 'attendance', phase: 'day' }))).toEqual({
+      tones: ATTENDANCE_TONES.warning.base,
       fillPolicy: 'solid',
       attendance: 'confirmed',
     });
@@ -257,9 +264,16 @@ describe('displayModeKey', () => {
     ]);
     expect(displayModeKey(people, ctx({ mode: 'attendance', phase: 'started' })).rows.map((r) => r.label)).toEqual([
       'Ha arribat',
-      'No ha arribat o pendent',
+      'No ha arribat',
       'No vindrà',
     ]);
+    expect(displayModeKey(people, ctx({ mode: 'attendance', phase: 'after' })).rows.map((r) => r.label)).toEqual([
+      'Va vindre',
+      'No presentat',
+      'No va vindre',
+    ]);
+    // Someone with no answer is counted in the red row without being named in it.
+    expect(displayModeKey(people, ctx({ mode: 'attendance', phase: 'after' })).rows[2].count).toBe(2);
   });
 
   it('draws the darker shade with the star, as the canvas does, and notes what it means only when someone comes', () => {

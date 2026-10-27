@@ -210,6 +210,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     return nodeFill({ zone, positionType, color: null }, this.themeMode());
   }
 
+  /** What a missing color resolves to on the canvas: the type's fill, or none for a decoration. */
+  colorFallback(zone: FigureZone, positionType: string | null): string | null {
+    return zone === FigureZone.DECORATION ? null : this.typeSwatch(zone, positionType);
+  }
+
   /** Backs the "Tipus de posició" select's [swatchShape] — see the template comment. */
   presetForPositionType(positionType: string | null): NodePreset | null {
     return PINYA_NODE_PRESETS.find((p) => p.positionType === positionType) ?? null;

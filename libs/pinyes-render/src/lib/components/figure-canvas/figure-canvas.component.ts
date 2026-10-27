@@ -7,6 +7,7 @@ import {
   OnDestroy,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -24,7 +25,7 @@ import {
   isGhostEligible,
   isGhostPositionOccupied,
 } from '../../utils/ghost-clone.util';
-import { screenToStage } from '../../utils/rengla-coordinates.util';
+import { screenToStage, StageTransform } from '../../utils/rengla-coordinates.util';
 import { BoundsNode, computeFitTransform } from '../../utils/fit-to-bounds.util';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
@@ -37,11 +38,12 @@ import { attendanceVisual } from '../../node-render/attendance';
 import { NodeAppearanceInput, NodeAppearanceMode, formatShoulderHeight, resolveNodeAppearance } from '../../node-render/appearance';
 import { DisplayMode, HeightDomain, displayModeOverrides, personDisplayFacts } from '../../node-render/display-mode';
 import { nodeDrawPlan, scaledNodeDrawPlan } from '../../node-render/draw-plan';
-import { loadCanvasFonts } from '../../node-render/fonts';
+import { CANVAS_FONTS_LOADED } from '../../node-render/fonts';
 import { hashSeed } from '../../node-render/sketch';
 import { dotGrid } from '../../utils/dot-grid.util';
 import { paperGrain } from '../../theme/paper-grain';
-import { createNodeShape, drawFigureLink, drawIcon, drawNodePlan, measureText } from '../../node-render/konva-painter';
+import { createNodeShape, drawFigureLink, drawIcon, drawLayersRegion, drawNodePlan, measureText } from '../../node-render/konva-painter';
+import { Rect, UNDERLAY_MAX_SIDE, underlayPlan, unionRect, whenIdle } from '../../utils/underlay.util';
 import { FigureLink } from '../../utils/figure-link.util';
 import {
   boundingBoxCenter,
@@ -53,7 +55,11 @@ import {
 } from '../../utils/segment-assignment-render.util';
 import {
   clampScale,
+  applyCssDelta,
   computeRotationAngleDeg,
+  CssDelta,
+  cssDelta,
+  cssTransformString,
   getEventClientPoint,
   Point,
   touchDistance,
@@ -135,6 +141,10 @@ const ZOOM_MAX = 5;
 export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   /** The canvas colours for the theme on screen; a change redraws everything. */
   private readonly theme = injectCanvasTheme();
+  /** Whether the canvas faces have loaded: Konva fits text to the faces it measures as it draws. */
+  private readonly fontsLoaded = inject(CANVAS_FONTS_LOADED);
+  /** Set when the first drawing came before the faces (or was held back for them) — see `initialRender`. */
+  private awaitingFonts = false;
   private readonly renderSettings = injectPinyesRenderSettings();
   protected readonly paperGrain = computed(() => paperGrain(this.theme().mode));
 
@@ -205,6 +215,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    * hosts (e.g. the composition editor) leave this `false` and keep today's placeholder.
    */
   readonly troncPanelVisualHidden = input<boolean>(false);
+  /**
+   * Touch pan/pinch moves the already-drawn canvas with a CSS transform (`gestureMoved`) and
+   * redraws it once, when the last finger lifts (`stageTransformChanged`): an old phone can't
+   * redraw every node each frame. Set by the projection, whose host moves its own overlays (the
+   * tronc panels) by the same `gestureMoved` delta.
+   */
+  readonly deferGestureRedraw = input(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeMoved = output<{ id: string; x: number; y: number }>();
@@ -246,6 +263,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     scaleX: number;
     scaleY: number;
   }>();
+  /**
+   * `deferGestureRedraw` only: once per frame of a touch gesture, how far the drawn canvas has
+   * moved from the last `stageTransformChanged` (a CSS transform, top-left origin).
+   */
+  readonly gestureMoved = output<CssDelta>();
   readonly ghostCloneRequested = output<{
     sourceNode: CanvasNode;
     targetPosition: { x: number; y: number };
@@ -282,6 +304,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private pinyaLayer!: Konva.Layer;
   /** Above the nodes: the pins the strings end at on each figure. */
   private pinLayer!: Konva.Layer;
+  /**
+   * `readonly` mode: the strings and pins live on `pinyaLayer` instead, under and over the nodes,
+   * so the projection clears and composites one canvas, not three (see `renderFigureLinks`).
+   */
+  private linkGroup: Konva.Group | null = null;
+  private pinGroup: Konva.Group | null = null;
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
@@ -294,9 +322,18 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private wheelHandler: ((e: WheelEvent) => void) | null = null;
   /** In-flight `flyToBounds()` tween, if any — cancelled by any user gesture (see `cancelFlight`). */
   private flightTween: Konva.Tween | null = null;
+  /** `deferGestureRedraw`: the pending frame of a flight that moves pixels instead (see `flyByCss`). */
+  private flightFrame: number | null = null;
   /** Pending rAF that will flush one `stageTransformChanged` emission — see `scheduleStageTransform`. */
   private stageTransformFrame: number | null = null;
-  private gestureEndHandler: (() => void) | null = null;
+  private gestureEndHandler: ((e: TouchEvent) => void) | null = null;
+  /** `deferGestureRedraw`: where the gesture has moved the view; the stage still holds what was drawn. */
+  private liveView: StageTransform | null = null;
+  /** Pending rAF that applies `liveView` as a CSS transform — see `setView`. */
+  private gestureFrame: number | null = null;
+  /** `deferGestureRedraw`: the softer copy of the whole segment that fills the edges a gesture reveals — see `buildUnderlay`. */
+  private underlay: { canvas: HTMLCanvasElement; rect: Rect; view: StageTransform } | null = null;
+  private cancelUnderlayBuild: (() => void) | null = null;
 
   private activeGhostGroup: Konva.Group | null = null;
   private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -399,6 +436,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    // The canvas faces arrived after the first drawing (see `initialRender`): draw with them.
+    effect(() => {
+      if (!this.fontsLoaded()) return;
+      untracked(() => {
+        if (!this.stage || !this.awaitingFonts || this.destroyed) return;
+        this.awaitingFonts = false;
+        this.renderAll();
+      });
+    });
+
     // A theme change recolours everything, the grid included.
     effect(() => {
       this.theme();
@@ -425,6 +472,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * The first drawing. With the canvas faces loaded, drawn once. Before they are, the editors draw
+   * at once with the fallback face and again when they arrive; the projection waits for them
+   * rather than build its whole scene twice (an old phone feels each build).
+   */
+  private initialRender(): void {
+    if (this.fontsLoaded()) {
+      this.renderAll();
+      return;
+    }
+    this.awaitingFonts = true;
+    if (this.mode() !== 'readonly') this.renderAll();
+  }
+
   private setCursor(cursor: string): void {
     if (this.isPlacementMode()) {
       this.stage.container().style.cursor = 'crosshair';
@@ -435,12 +496,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.initStage();
-    this.renderAll();
-    // Konva measures text as it draws: once the canvas faces arrive, draw again with them.
-    void loadCanvasFonts(globalThis.document?.fonts).then(() => {
-      if (this.destroyed) return;
-      this.renderAll();
-    });
+    this.initialRender();
 
     this.resizeObserver = new ResizeObserver(() => {
       this.resizeStage();
@@ -452,8 +508,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.destroyed = true;
     // A pending long press must not fire into a destroyed component (emitting on it throws).
     this.longPress.cancel();
-    this.cancelFlight();
+    this.stopFlight();
     if (this.stageTransformFrame !== null) cancelAnimationFrame(this.stageTransformFrame);
+    if (this.gestureFrame !== null) cancelAnimationFrame(this.gestureFrame);
+    this.dropUnderlay();
     this.clearAllGhostTimers();
     this.clearPersonDragVisuals();
     this.resizeObserver?.disconnect();
@@ -497,6 +555,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.deferGestureRedraw()) {
+      this.flyByCss({ x: fit.x, y: fit.y, scaleX: fit.scale, scaleY: fit.scale }, options?.durationMs ?? 1000);
+      return;
+    }
+
     this.flightTween = new Konva.Tween({
       node: this.stage,
       duration: (options?.durationMs ?? 1000) / 1000,
@@ -515,11 +578,49 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.flightTween.play();
   }
 
-  /** Stops an in-flight `flyToBounds()` tween exactly where it is. Called at the head of every
-   *  gesture handler — fighting the user's finger is worse than not animating at all. */
-  cancelFlight(): void {
+  /**
+   * The flight of a deferred canvas: like a gesture, it moves the drawn canvas by CSS each frame
+   * (the same easing and path as the Konva tween) and redraws once, where it lands.
+   */
+  private flyByCss(to: StageTransform, durationMs: number): void {
+    const from = this.viewNow();
+    const start = performance.now();
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / durationMs);
+      const p = Konva.Easings.EaseInOut(t, 0, 1, 1);
+      const scale = from.scaleX + (to.scaleX - from.scaleX) * p;
+      this.liveView = { x: from.x + (to.x - from.x) * p, y: from.y + (to.y - from.y) * p, scaleX: scale, scaleY: scale };
+      if (t < 1) {
+        this.applyLiveView();
+        this.flightFrame = requestAnimationFrame(step);
+        return;
+      }
+      this.flightFrame = null;
+      this.commitGesture();
+      this.flightLanded.emit();
+    };
+    this.flightFrame = requestAnimationFrame(step);
+  }
+
+  /**
+   * Stops an in-flight `flyToBounds()` exactly where it is. A deferred flight leaves the canvas
+   * moved there, uncommitted: a touch that stops it carries on from there as its own gesture,
+   * which commits when it ends.
+   */
+  private stopFlight(): void {
     this.flightTween?.destroy();
     this.flightTween = null;
+    if (this.flightFrame !== null) cancelAnimationFrame(this.flightFrame);
+    this.flightFrame = null;
+  }
+
+  /** Stops an in-flight `flyToBounds()` exactly where it is, and commits a deferred one there.
+   *  Called at the head of every gesture handler — fighting the user's finger is worse than not
+   *  animating at all. */
+  cancelFlight(): void {
+    const flying = this.flightFrame !== null;
+    this.stopFlight();
+    if (flying) this.commitGesture();
   }
 
   fitToScreen(): void {
@@ -668,6 +769,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.stageTransformFrame = null;
     }
     this.renderGrid();
+    this.placeUnderlay();
     this.stageTransformChanged.emit({
       x: this.stage.x(),
       y: this.stage.y(),
@@ -848,33 +950,26 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const getTouchPoint = (touch: Touch): Point => ({ x: touch.clientX, y: touch.clientY });
 
-    // Read-only projection: nothing in the scene needs hit-testing *during* a pan/pinch, but
-    // Konva redraws the hit canvas together with the scene on every frame. Suspend it for the
-    // gesture and rebuild it once in the capture phase of touchend — i.e. before Konva resolves
-    // the tap target — so a tap on a person right after a pan still behaves exactly as before.
-    const suspendHitGraph = (): void => {
-      if (this.mode() === 'readonly' && this.pinyaLayer.listening()) this.pinyaLayer.listening(false);
-    };
-    this.gestureEndHandler = () => {
-      if (this.pinyaLayer.listening()) return;
-      this.pinyaLayer.listening(true);
-      this.pinyaLayer.drawHit();
-    };
+    // Runs in the capture phase of touchend, i.e. before Konva resolves the tap target, so the
+    // hit graph is already where the gesture left the view — see `onGestureEnd`.
+    this.gestureEndHandler = (e) => this.onGestureEnd(e);
     const container = this.stage.container();
     container.addEventListener('touchend', this.gestureEndHandler, true);
     container.addEventListener('touchcancel', this.gestureEndHandler, true);
 
     this.stage.on('touchstart', (e) => {
-      this.cancelFlight();
+      this.stopFlight();
       const touches = e.evt.touches;
       if (touches.length > 1) this.longPress.cancel();
       if (touches.length === 1 && !e.target.draggable() && this.canPanOrZoom()) {
         panStart = getTouchPoint(touches[0]);
-        panStageStart = { x: this.stage.x(), y: this.stage.y() };
+        panStageStart = this.viewNow();
       } else if (touches.length === 2) {
         panStart = null;
         pinchStartDist = touchDistance(getTouchPoint(touches[0]), getTouchPoint(touches[1]));
-        pinchStartScale = this.stage.scaleX();
+        pinchStartScale = this.viewNow().scaleX;
+        // The rect is the container's layout box, which the CSS transform of a deferred gesture
+        // doesn't change.
         pinchRect = this.stage.container().getBoundingClientRect();
         this.userAdjustedView = true;
         e.evt.preventDefault();
@@ -894,24 +989,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const rect = pinchRect ?? this.stage.container().getBoundingClientRect();
         const midpoint = touchMidpoint(p1, p2);
         const focal = { x: midpoint.x - rect.left, y: midpoint.y - rect.top };
-        const newPos = zoomAroundPoint(this.stage.position(), this.stage.scaleX(), newScale, focal);
-        this.stage.scale({ x: newScale, y: newScale });
-        this.stage.position(newPos);
-        this.zoomLevel.set(newScale);
-        suspendHitGraph();
-        this.stage.batchDraw();
-        this.scheduleStageTransform();
+        const view = this.viewNow();
+        const newPos = zoomAroundPoint(view, view.scaleX, newScale, focal);
+        this.setView({ ...newPos, scaleX: newScale, scaleY: newScale });
       } else if (touches.length === 1 && panStart) {
         e.evt.preventDefault();
         this.userAdjustedView = true;
         const pos = getTouchPoint(touches[0]);
-        this.stage.position({
+        const view = this.viewNow();
+        this.setView({
+          ...view,
           x: panStageStart.x + (pos.x - panStart.x),
           y: panStageStart.y + (pos.y - panStart.y),
         });
-        suspendHitGraph();
-        this.stage.batchDraw();
-        this.scheduleStageTransform();
       }
     });
 
@@ -922,12 +1012,174 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (remaining.length === 1) {
         // One finger lifted mid-pinch: resume single-finger pan from here.
         panStart = getTouchPoint(remaining[0]);
-        panStageStart = { x: this.stage.x(), y: this.stage.y() };
+        panStageStart = this.viewNow();
       } else {
         panStart = null;
       }
-      this.emitStageTransform();
+      // A deferred gesture reports its transform when it commits (`onGestureEnd`), not before.
+      if (!this.deferGestureRedraw()) this.emitStageTransform();
     });
+  }
+
+  /** The view on screen: where a deferred gesture has moved it, or else the stage's own transform. */
+  private viewNow(): StageTransform {
+    return this.liveView ?? this.committedView();
+  }
+
+  /** What the stage last drew at. */
+  private committedView(): StageTransform {
+    return { x: this.stage.x(), y: this.stage.y(), scaleX: this.stage.scaleX(), scaleY: this.stage.scaleY() };
+  }
+
+  /**
+   * Moves the view to `view` for a touch gesture. Deferred (`deferGestureRedraw`): records it and,
+   * once per frame, moves the drawn canvas there with a CSS transform. Otherwise: moves the stage
+   * and redraws it, with the hit graph suspended — nothing needs hit-testing mid-gesture, and
+   * `onGestureEnd` rebuilds it before Konva resolves the next tap.
+   */
+  private setView(view: StageTransform): void {
+    if (this.deferGestureRedraw()) {
+      this.liveView = view;
+      if (this.gestureFrame !== null) return;
+      this.gestureFrame = requestAnimationFrame(() => {
+        this.gestureFrame = null;
+        this.applyLiveView();
+      });
+      return;
+    }
+    this.stage.scale({ x: view.scaleX, y: view.scaleY });
+    this.stage.position({ x: view.x, y: view.y });
+    this.zoomLevel.set(view.scaleX);
+    if (this.mode() === 'readonly' && this.pinyaLayer.listening()) this.pinyaLayer.listening(false);
+    this.stage.batchDraw();
+    this.scheduleStageTransform();
+  }
+
+  /** Moves the drawn canvas (and its underlay) to `liveView` by CSS, and tells the host by how much. */
+  private applyLiveView(): void {
+    if (!this.liveView) return;
+    const delta = cssDelta(this.committedView(), this.liveView);
+    const style = this.containerRef.nativeElement.style;
+    style.transformOrigin = '0 0';
+    style.willChange = 'transform';
+    style.transform = cssTransformString(delta);
+    if (this.underlay) this.underlay.canvas.style.visibility = 'visible';
+    this.gestureMoved.emit(delta);
+  }
+
+  /**
+   * Capture phase of touchend/touchcancel, before Konva resolves the tap target. Once the last
+   * finger lifts, a deferred gesture commits: the stage takes the live view and redraws there
+   * (scene and hit graph) in this same task, so the canvas never shows the old drawing unmoved.
+   * A non-deferred gesture only has the hit graph to rebuild.
+   */
+  private onGestureEnd(e: Pick<TouchEvent, 'touches'>): void {
+    if (e.touches.length > 0) return;
+    if (this.liveView) {
+      this.commitGesture();
+      return;
+    }
+    if (!this.pinyaLayer || this.pinyaLayer.listening()) return;
+    this.pinyaLayer.listening(true);
+    this.pinyaLayer.drawHit();
+  }
+
+  private commitGesture(): void {
+    const view = this.liveView;
+    if (!view) return;
+    this.liveView = null;
+    if (this.gestureFrame !== null) {
+      cancelAnimationFrame(this.gestureFrame);
+      this.gestureFrame = null;
+    }
+    // Konva would queue a redraw of its own for the new transform: it is drawn right here instead.
+    const autoDraw = Konva.autoDrawEnabled;
+    Konva.autoDrawEnabled = false;
+    try {
+      this.stage.scale({ x: view.scaleX, y: view.scaleY });
+      this.stage.position({ x: view.x, y: view.y });
+    } finally {
+      Konva.autoDrawEnabled = autoDraw;
+    }
+    this.zoomLevel.set(view.scaleX);
+    this.stage.draw();
+    const style = this.containerRef.nativeElement.style;
+    style.transform = '';
+    style.willChange = '';
+    this.emitStageTransform();
+  }
+
+  /**
+   * The drawing changed: the copy shows what is gone. Drops it, and (deferred canvas only) draws a
+   * new one once the phone is idle.
+   */
+  private invalidateUnderlay(): void {
+    this.dropUnderlay();
+    if (this.deferGestureRedraw()) this.cancelUnderlayBuild = whenIdle(() => this.buildUnderlay());
+  }
+
+  private dropUnderlay(): void {
+    this.cancelUnderlayBuild?.();
+    this.cancelUnderlayBuild = null;
+    this.underlay?.canvas.remove();
+    this.underlay = null;
+  }
+
+  /**
+   * The whole segment, drawn with its longest side at `UNDERLAY_MAX_SIDE` device px, hidden under
+   * the Konva content until a gesture moves the container (the two move together). One copy serves
+   * every view: a new transform only moves it (`placeUnderlay`), so back-to-back flicks always
+   * find it. Mid-gesture the stage isn't where the screen shows it: it waits for the gesture.
+   */
+  private buildUnderlay(): void {
+    if (this.liveView) {
+      this.cancelUnderlayBuild = whenIdle(() => this.buildUnderlay());
+      return;
+    }
+    this.cancelUnderlayBuild = null;
+    const content = this.contentScreenRect();
+    const plan = content && underlayPlan(content, UNDERLAY_MAX_SIDE);
+    if (!plan) return;
+    const canvas = this.drawUnderlay(plan);
+    canvas.dataset['role'] = 'gesture-underlay';
+    Object.assign(canvas.style, { position: 'absolute', pointerEvents: 'none', visibility: 'hidden' });
+    // Before Konva's content div, which is positioned too: the canvas paints over it.
+    this.containerRef.nativeElement.prepend(canvas);
+    this.underlay = { canvas, rect: plan.rect, view: this.committedView() };
+    this.placeUnderlay();
+  }
+
+  /** Puts the copy where the stage's current transform draws what it shows. */
+  private placeUnderlay(): void {
+    if (!this.underlay) return;
+    const { canvas, rect, view } = this.underlay;
+    const delta = cssDelta(view, this.committedView());
+    const { x, y } = applyCssDelta(rect, delta);
+    Object.assign(canvas.style, {
+      left: `${x}px`,
+      top: `${y}px`,
+      width: `${rect.width * delta.k}px`,
+      height: `${rect.height * delta.k}px`,
+      visibility: 'hidden',
+    });
+  }
+
+  private drawLayers(): Konva.Layer[] {
+    return [this.linkLayer, this.pinyaLayer, this.pinLayer];
+  }
+
+  /** Everything drawn, in screen px at the stage's transform. */
+  private contentScreenRect(): Rect | null {
+    return unionRect(
+      this.drawLayers()
+        .filter((layer) => layer.isVisible())
+        .flatMap((layer) => layer.getChildren().filter((child) => !(child instanceof Konva.Transformer)))
+        .map((child) => child.getClientRect()),
+    );
+  }
+
+  private drawUnderlay(plan: { rect: Rect; pixelRatio: number }): HTMLCanvasElement {
+    return drawLayersRegion(this.drawLayers(), plan.rect, plan.pixelRatio);
   }
 
   /** Ctrl/plain wheel zoom toward the pointer, for desktop trackpads/mice (DEBT F2). */
@@ -1008,6 +1260,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     this.stage.batchDraw();
+    this.placeUnderlay();
   }
 
   private renderAll(): void {
@@ -1020,6 +1273,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderReadonlyNodes();
     } else {
       this.renderNodes();
+      this.updateTransformer();
     }
     this.renderFigureLinks(this.figureLinks());
   }
@@ -1030,14 +1284,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    * to a fixed area around world (0,0). One shape for every dot: this runs on every pan frame.
    */
   private renderGrid(): void {
-    // Nothing to erase or draw (e.g. projection, `[gridEnabled]="false"`): skip the redraw.
-    if (!this.gridEnabled() && this.gridLayer.getChildren().length === 0) return;
-    this.gridLayer.destroyChildren();
-
+    // No grid (e.g. projection, `[gridEnabled]="false"`): its canvas is hidden, so the browser
+    // neither clears nor composites it.
     if (!this.gridEnabled()) {
-      this.gridLayer.batchDraw();
+      if (this.gridLayer.getChildren().length > 0) this.gridLayer.destroyChildren();
+      this.gridLayer.visible(false);
       return;
     }
+    this.gridLayer.destroyChildren();
+    this.gridLayer.visible(true);
 
     const scale = this.stage.scaleX() || 1;
     const left = -this.stage.x() / scale;
@@ -1928,22 +2183,54 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     return group;
   }
 
+  /**
+   * The tronc panel strings and their pins. On their own canvases, shown only while there are any
+   * — except in `readonly`, which keeps them on the nodes' canvas (`linkGroup`/`pinGroup`): nothing
+   * there is dragged, so they never need redrawing apart from the nodes.
+   */
   private renderFigureLinks(links: FigureLink[]): void {
+    const readonly = this.mode() === 'readonly';
     this.linkLayer.destroyChildren();
     this.pinLayer.destroyChildren();
+    this.linkGroup?.destroy();
+    this.pinGroup?.destroy();
+    this.linkGroup = this.pinGroup = null;
+
+    const linkGroup = readonly ? new Konva.Group({ listening: false }) : null;
+    const pinGroup = readonly ? new Konva.Group({ listening: false }) : null;
+    this.linkGroup = linkGroup;
+    this.pinGroup = pinGroup;
+    const strings = linkGroup ?? this.linkLayer;
+    const pins = pinGroup ?? this.pinLayer;
     for (const link of links) {
       const { string, pin } = drawFigureLink(link, this.theme());
-      this.linkLayer.add(string);
-      this.pinLayer.add(pin);
+      strings.add(string);
+      pins.add(pin);
     }
-    this.linkLayer.batchDraw();
-    this.pinLayer.batchDraw();
+    this.linkLayer.visible(!readonly && links.length > 0);
+    this.pinLayer.visible(!readonly && links.length > 0);
+
+    if (linkGroup && pinGroup) {
+      // Under the nodes already drawn; the pins over them.
+      this.pinyaLayer.add(linkGroup, pinGroup);
+      linkGroup.moveToBottom();
+      this.pinyaLayer.batchDraw();
+    } else {
+      this.linkLayer.batchDraw();
+      this.pinLayer.batchDraw();
+    }
+    this.invalidateUnderlay();
   }
+
 
   private renderReadonlyNodes(): void {
     this.transformer.nodes([]);
     this.transformer.remove();
+    // The strings and pins outlive the nodes (`renderFigureLinks`): lifted out, put back below.
+    this.linkGroup?.remove();
+    this.pinGroup?.remove();
     this.pinyaLayer.destroyChildren();
+    if (this.linkGroup) this.pinyaLayer.add(this.linkGroup);
 
     const assignmentByNodeId = new Map(this.assignments().map((a) => [a.node.id, a]));
     const raisedLayer = new Konva.Group({ listening: false });
@@ -1962,9 +2249,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.pinyaLayer.add(group);
     }
     this.pinyaLayer.add(raisedLayer);
+    if (this.pinGroup) this.pinyaLayer.add(this.pinGroup);
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
+    this.invalidateUnderlay();
 
     if ((this.nodes().length > 0 || this.fitExtraBounds().length > 0) && !this.userAdjustedView) {
       setTimeout(() => {

@@ -405,7 +405,7 @@
                   </div>
                   <app-color-picker
                     [color]="node.color"
-                    [fallbackColor]="typeSwatch(node.zone, node.positionType)"
+                    [fallbackColor]="colorFallback(node.zone, node.positionType)"
                     (colorReset)="updateSelectedNodeProp('color', null)"
                     [presetColors]="nodeColorPresets"
                     (colorChange)="updateSelectedNodeProp('color', $event)"

@@ -1,8 +1,10 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FONT_FAMILY, ThemeService } from '@muixer/ui';
 import { FigureZone } from '@muixer/shared';
 import { buildCanvasTheme } from '../../theme/canvas-theme';
 import { NodeAppearanceInput, resolveNodeAppearance } from '../../node-render/appearance';
+import { CANVAS_FONTS_LOADED } from '../../node-render/fonts';
 import { NODE_NAME_MEASURE, NodeDrawingComponent } from './node-drawing.component';
 
 const theme = buildCanvasTheme();
@@ -186,6 +188,21 @@ describe('NodeDrawingComponent', () => {
 
   it('draws no raised layer when nothing reaches past the cell', () => {
     expect(render({ person: { name: 'Marta' } }).raised).toBeNull();
+  });
+
+  it('measures the name again once the canvas faces have loaded', () => {
+    const fontsLoaded = signal(false);
+    const measure = jest.fn((text: string, fontSize: number) => text.length * fontSize * 0.6);
+    TestBed.overrideProvider(NODE_NAME_MEASURE, { useValue: measure });
+    TestBed.overrideProvider(CANVAS_FONTS_LOADED, { useValue: fontsLoaded });
+    const { fixture } = render();
+    const before = measure.mock.calls.length;
+    expect(before).toBeGreaterThan(0);
+
+    fontsLoaded.set(true);
+    fixture.detectChanges();
+
+    expect(measure.mock.calls.length).toBeGreaterThan(before);
   });
 
   it('redraws when the cell changes size', () => {

@@ -2,6 +2,16 @@ import { AttendanceStatus } from '../enums/attendance-status.enum';
 import { attendanceGroupLabel, attendanceStatusLabel, getEventPhase, isArrivalPhase, isStartedPhase } from './event-phase.util';
 
 describe('getEventPhase', () => {
+  it('reads the Valencia wall clock once per call (lists call it several times per row)', () => {
+    const formatToParts = jest.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts');
+    try {
+      getEventPhase('2026-05-10', '19:00', new Date('2026-05-10T18:00:00Z'));
+      expect(formatToParts).toHaveBeenCalledTimes(1);
+    } finally {
+      formatToParts.mockRestore();
+    }
+  });
+
   it('is "before" until the event day starts (Valencia time)', () => {
     // 21:59 UTC on 9 May = 23:59 in Valencia (CEST), still the day before.
     expect(getEventPhase('2026-05-10', '19:00', new Date('2026-05-09T21:59:00Z'))).toBe('before');

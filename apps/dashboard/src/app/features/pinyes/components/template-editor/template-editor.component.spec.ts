@@ -622,6 +622,16 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('color fallback (what «Torna al color per defecte» returns to)', () => {
+    it("is the type's fill, as the canvas draws a node with no color", () => {
+      expect(component.colorFallback(FigureZone.PINYA, 'vents')).toBe(NODE_TYPE_PALETTE['vents'].wash);
+    });
+
+    it('is none for a decoration, which has no default fill (as in the Nodes extra tab)', () => {
+      expect(component.colorFallback(FigureZone.DECORATION, 'circle')).toBeNull();
+    });
+  });
+
   describe('new nodes store no color', () => {
     it('for a base node', () => {
       component.templateId.set('template-1');

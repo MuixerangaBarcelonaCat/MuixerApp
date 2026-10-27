@@ -25,7 +25,13 @@ export function attendanceVisual(status: string | null | undefined, phase: Event
 }
 
 const FILL_ORDER: AttendanceFill[] = ['confirmed', 'pending', 'absent'];
-const STATUS_ORDER = [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, AttendanceStatus.PENDENT, AttendanceStatus.NO_VAIG];
+/** The order statuses are named in wherever a swatch stands for several of them. */
+export const ATTENDANCE_STATUS_ORDER = [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, AttendanceStatus.PENDENT, AttendanceStatus.NO_VAIG];
+
+/** «Ha arribat», «Ve» → «Ha arribat o ve»: the statuses one swatch stands for. */
+export function joinAttendanceLabels(labels: string[]): string {
+  return labels.map((l, i) => (i === 0 ? l : l.charAt(0).toLowerCase() + l.slice(1))).join(' o ');
+}
 
 /**
  * The legend of the attendance fills for a phase: each fill with the statuses it stands for,
@@ -33,10 +39,9 @@ const STATUS_ORDER = [AttendanceStatus.ASSISTIT, AttendanceStatus.ANIRE, Attenda
  * only counts from then on.
  */
 export function attendanceLegend(phase: EventPhase): { fill: AttendanceFill; label: string }[] {
-  const statuses = STATUS_ORDER.filter((s) => s !== AttendanceStatus.ASSISTIT || isArrivalPhase(phase));
+  const statuses = ATTENDANCE_STATUS_ORDER.filter((s) => s !== AttendanceStatus.ASSISTIT || isArrivalPhase(phase));
   return FILL_ORDER.map((fill) => {
     const labels = statuses.filter((s) => attendanceVisual(s, phase) === fill).map((s) => attendanceStatusLabel(s, phase));
-    const label = labels.map((l, i) => (i === 0 ? l : l.charAt(0).toLowerCase() + l.slice(1))).join(' o ');
-    return { fill, label };
+    return { fill, label: joinAttendanceLabels(labels) };
   });
 }

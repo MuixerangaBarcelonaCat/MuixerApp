@@ -1,7 +1,7 @@
 import { PAPER, ThemeService } from '@muixer/ui';
 import { fade } from '../../theme/canvas-theme';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, input, output } from '@angular/core';
+import { Component, effect, input, output, untracked } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { FigureZone, ImportScope, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projection.component';
@@ -31,6 +31,8 @@ import {
   getFigureTint,
   isRematMarker,
   REMAT_MARKER_RADIUS,
+  CssDelta,
+  IDENTITY_CSS_DELTA,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -46,7 +48,9 @@ class FigureCanvasStub {
   readonly figureLinks = input<FigureLink[]>([]);
   readonly showZoomControls = input<boolean>(true);
   readonly nodeScale = input<number>(1);
+  readonly deferGestureRedraw = input(false);
   readonly flightLanded = output<void>();
+  readonly gestureMoved = output<CssDelta>();
   readonly flyToBounds = jest.fn();
   readonly cancelFlight = jest.fn();
 }
@@ -68,8 +72,17 @@ class TroncViewStub {
 
 @Component({ selector: 'lib-tronc-panel-measurer', standalone: true, template: '' })
 class TroncPanelMeasurerStub {
+  /** Off: a test reports the sizes itself (`sizesReady.emit`). On: reported as soon as the panels arrive, like the real one. */
+  static autoReport = true;
   readonly panels = input<TroncPanelMeasureSpec[]>([]);
   readonly sizesReady = output<Map<string, { width: number; height: number }>>();
+
+  constructor() {
+    effect(() => {
+      this.panels();
+      if (TroncPanelMeasurerStub.autoReport) untracked(() => this.sizesReady.emit(new Map()));
+    });
+  }
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -222,18 +235,19 @@ describe('PinyaProjectionComponent', () => {
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[0], FIGURE_PALETTE[1]]);
     });
 
-    it('keeps a figure\'s own color in the single-figure preview of a multi-figure segment', () => {
+    it('keeps a figure\'s own color and string in the single-figure preview of a multi-figure segment', () => {
       setData(makeSegmentData([figure('a', 0), figure('b', 1)]));
       fixture.componentRef.setInput('instanceId', 'b');
       fixture.detectChanges();
 
       expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[1]]);
+      expect(component.figureLinks().map((l) => l.color)).toEqual([FIGURE_PALETTE[1]]);
     });
 
-    it('gives a figure no color when the segment itself has only it: nothing to tell it apart from', () => {
+    it('colors the figure of a single-figure segment too', () => {
       setData(makeSegmentData([figure('a', 0)]));
 
-      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([null]);
+      expect(component.distributionTroncPanels().map((p) => p.color)).toEqual([FIGURE_PALETTE[0]]);
     });
   });
 
@@ -306,13 +320,12 @@ describe('PinyaProjectionComponent', () => {
       expect(canvas.figureLinks()).toEqual(component.figureLinks());
     });
 
-    it('draws no pin and no string when the segment holds a single figure (its panel can only be its own), but keeps the name band', () => {
+    it('pins the card of a single figure in its colour, but draws no string (its panel can only be its own)', () => {
       setData(makeSegmentData([makeInstance([pinyaNode('p1'), troncNode('t1')], ['p1'], { id: 'a', projectionX: 0, projectionY: 0 })]));
 
       expect(component.figureLinks()).toEqual([]);
       const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
-      expect(card.color()).toBeNull();
-      // The name band stays: it's the card's colour, not a link to tell figures apart.
+      expect([card.color(), card.edge()]).toEqual([FIGURE_PALETTE[0], 'top']);
       const view = fixture.debugElement.query(By.directive(TroncViewStub)).componentInstance as TroncViewStub;
       expect(view.nameBand()).toEqual(getFigureBand(0));
     });
@@ -336,15 +349,15 @@ describe('PinyaProjectionComponent', () => {
       expect(component.figureLinks()).toEqual([]);
     });
 
-    it('lays each panel on a card pinned in the figure colour on the edge facing its figure, alternately askew', () => {
+    it('lays each panel on a card pinned in the figure colour on the edge facing its figure', () => {
       const a = makeInstance([pinyaNode('a-p'), troncNode('a-t')], ['a-p'], { id: 'a', sortOrder: 0, projectionX: 0, projectionY: 0 });
       const b = makeInstance([pinyaNode('b-p'), troncNode('b-t')], ['b-p'], { id: 'b', sortOrder: 1, projectionX: 900, projectionY: 0 });
       setData(makeSegmentData([a, b]));
 
       const cards = fixture.debugElement.queryAll(By.directive(PinnedCardComponent)).map((d) => d.componentInstance as PinnedCardComponent);
-      expect(cards.map((c) => [c.color(), c.edge(), c.tilt()])).toEqual([
-        [FIGURE_PALETTE[0], 'bottom', -1],
-        [FIGURE_PALETTE[1], 'bottom', 1],
+      expect(cards.map((c) => [c.color(), c.edge()])).toEqual([
+        [FIGURE_PALETTE[0], 'bottom'],
+        [FIGURE_PALETTE[1], 'bottom'],
       ]);
       expect(fixture.debugElement.queryAll(By.css('lib-pinned-card app-tronc-view'))).toHaveLength(2);
       const views = fixture.debugElement.queryAll(By.directive(TroncViewStub)).map((d) => d.componentInstance as TroncViewStub);
@@ -382,9 +395,9 @@ describe('PinyaProjectionComponent', () => {
       expect(canvasPhase()).toBe('after');
     });
 
-    it("falls back to 'after' for a payload with no event (cached offline before it carried one)", () => {
+    it("falls back to 'before' for a payload with no event (cached offline before it carried one)", () => {
       setData(makeSegmentData([], { event: undefined }));
-      expect(canvasPhase()).toBe('after');
+      expect(canvasPhase()).toBe('before');
     });
   });
 
@@ -758,6 +771,40 @@ describe('PinyaProjectionComponent', () => {
   describe('measured tronc panel sizes', () => {
     const measurerStub = (): TroncPanelMeasurerStub =>
       fixture.debugElement.query(By.directive(TroncPanelMeasurerStub)).componentInstance as TroncPanelMeasurerStub;
+    const canvasStub = () => fixture.debugElement.query(By.directive(FigureCanvasStub));
+
+    beforeEach(() => (TroncPanelMeasurerStub.autoReport = false));
+    afterEach(() => (TroncPanelMeasurerStub.autoReport = true));
+
+    // The layout depends on the measured panels: drawn before they are, the canvas would build the
+    // whole scene once with guessed sizes and once more with the real ones.
+    it('mounts the canvas only once the panels are measured', () => {
+      // Created with its data, as the apps do (the suite's own fixture already measured none).
+      fixture = TestBed.createComponent(PinyaProjectionComponent);
+      component = fixture.componentInstance;
+      const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i1' })]));
+      expect(canvasStub()).toBeNull();
+
+      measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+      fixture.detectChanges();
+
+      expect(canvasStub()).not.toBeNull();
+    });
+
+    // Its two hidden copies of every panel would otherwise stay laid out for the whole session.
+    it('unmounts the measurer once it has reported, and brings it back to measure new data', () => {
+      const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i1' })]));
+      measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.directive(TroncPanelMeasurerStub))).toBeNull();
+
+      setData(makeSegmentData([makeInstance(nodes, [], { id: 'i2' })]));
+
+      expect(measurerStub().panels().map((p) => p.instanceId)).toEqual(['i2']);
+      expect(canvasStub()).not.toBeNull(); // the previous segment stays on screen meanwhile
+    });
 
     it('passes one measurement panel per effective instance', () => {
       const nodes = [makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 })];
@@ -809,6 +856,40 @@ describe('PinyaProjectionComponent', () => {
       const [panel] = component.distributionTroncPanels();
       expect(panel.naturalW).toBe(555);
       expect(panel.naturalH).toBe(333);
+    });
+
+    // A segment with no saved distribution is laid out from the measured sizes: if that layout
+    // fed back into what gets measured, every measurement would ask for another, forever (the
+    // canvas redrew ~44 times a second with nobody touching it).
+    describe('no measure loop (segment with no saved distribution)', () => {
+      const unplaced = () => {
+        const nodes = [
+          makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 400, height: 300 }),
+          makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 }),
+        ];
+        setData(makeSegmentData([makeInstance(nodes, ['p1'], { id: 'i1' })]));
+      };
+
+      it('measures nothing more once the sizes arrive', () => {
+        unplaced();
+
+        measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.directive(TroncPanelMeasurerStub))).toBeNull();
+      });
+
+      it('leaves the layout alone when the same sizes are reported again', () => {
+        unplaced();
+        measurerStub().sizesReady.emit(new Map([['i1', { width: 555, height: 333 }]]));
+        fixture.detectChanges();
+        const nodes = component.distributionNodes();
+
+        component.onMeasuredSizesReady(new Map([['i1', { width: 555, height: 333 }]]));
+        fixture.detectChanges();
+
+        expect(component.distributionNodes()).toBe(nodes);
+      });
     });
 
     it('reflects the measured size in distributionFitBounds too (camera auto-fit padding)', () => {
@@ -1204,6 +1285,52 @@ describe('PinyaProjectionComponent', () => {
 
       const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
       expect(marker.componentInstance.stageTransform()).toEqual({ x: 10, y: 20, scaleX: 2, scaleY: 2 });
+    });
+  });
+
+  // ── deferred gesture (pan/pinch moves pixels, redraws on release) ───────────
+
+  describe('deferred gesture', () => {
+    const canvasStub = () => fixture.debugElement.query(By.directive(FigureCanvasStub)).componentInstance as FigureCanvasStub;
+    const panelsLayer = () => fixture.nativeElement.querySelector('[data-testid="tronc-panels-layer"]') as HTMLElement;
+
+    beforeEach(() => {
+      const node = makeNode({ id: 'n1' });
+      setData(makeSegmentData([makeInstance([node], ['n1'], { id: 'i1' })]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+    });
+
+    it('asks the canvas to defer its gesture redraw', () => {
+      expect(canvasStub().deferGestureRedraw()).toBe(true);
+    });
+
+    it('moves the tronc panels by the same delta as the canvas, in the same frame', () => {
+      canvasStub().gestureMoved.emit({ k: 2, tx: 10, ty: -4 });
+
+      // No change detection: written straight to the element, as the canvas writes its own.
+      expect(panelsLayer().style.transform).toBe('translate(10px, -4px) scale(2)');
+    });
+
+    it('hands the marker the delta', () => {
+      canvasStub().gestureMoved.emit({ k: 2, tx: 10, ty: -4 });
+      fixture.detectChanges();
+
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.gestureDelta()).toEqual({ k: 2, tx: 10, ty: -4 });
+    });
+
+    it('drops the delta once the panels are laid out at the committed transform', () => {
+      canvasStub().gestureMoved.emit({ k: 2, tx: 10, ty: -4 });
+
+      component.onStageTransformChanged({ x: 10, y: -4, scaleX: 2, scaleY: 2 });
+      // Until the panels are re-laid out, old position + delta is where they belong.
+      expect(panelsLayer().style.transform).toBe('translate(10px, -4px) scale(2)');
+      fixture.detectChanges();
+
+      expect(panelsLayer().style.transform).toBe('');
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.gestureDelta()).toEqual(IDENTITY_CSS_DELTA);
     });
   });
 

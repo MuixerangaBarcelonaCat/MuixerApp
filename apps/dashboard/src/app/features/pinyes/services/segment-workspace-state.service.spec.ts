@@ -1,7 +1,7 @@
 import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, SegmentConflict, getFigureTint, isRematMarker } from '@muixer/pinyes-render';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { SegmentWorkspaceStateService } from './segment-workspace-state.service';
 import { AssignmentStateService } from './assignment-state.service';
@@ -387,6 +387,18 @@ describe('SegmentWorkspaceStateService', () => {
 
         expect(eventService.getOne).toHaveBeenCalledWith(EVENT_ID);
         expect(service.phase()).toBe('started');
+      });
+
+      it("tells the user when the event fails to load, keeping 'before'", () => {
+        configure();
+        eventService.getOne.mockReturnValue(throwError(() => new Error('boom')));
+
+        service.load(EVENT_ID, SEGMENT_ID);
+
+        expect(service.phase()).toBe('before');
+        expect(toast.error).toHaveBeenCalledWith(
+          "No s'ha pogut carregar l'esdeveniment. Torneu a carregar la pàgina per a veure bé l'assistència.",
+        );
       });
 
       it('does not refetch the event when switching segments within it', () => {

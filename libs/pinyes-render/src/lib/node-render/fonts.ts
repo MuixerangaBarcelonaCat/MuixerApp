@@ -1,3 +1,5 @@
+import { InjectionToken, Signal, signal } from '@angular/core';
+
 /** The faces the canvas draws text with: Atkinson for names, Quicksand for everything else. */
 export const CANVAS_FONTS = ['700 16px "Atkinson Hyperlegible Next"', '700 16px Quicksand'];
 
@@ -10,3 +12,16 @@ export async function loadCanvasFonts(fonts: FontFaceSet | undefined): Promise<v
   if (!fonts) return;
   await Promise.allSettled(CANVAS_FONTS.map((font) => fonts.load(font)));
 }
+
+/**
+ * True once the canvas faces have loaded (or failed to). The SVG node painter reads it so names
+ * fitted to the fallback font are measured again, as the Konva canvas redraws on `loadCanvasFonts`.
+ */
+export const CANVAS_FONTS_LOADED = new InjectionToken<Signal<boolean>>('CANVAS_FONTS_LOADED', {
+  providedIn: 'root',
+  factory: () => {
+    const loaded = signal(false);
+    void loadCanvasFonts(globalThis.document?.fonts).then(() => loaded.set(true));
+    return loaded.asReadonly();
+  },
+});

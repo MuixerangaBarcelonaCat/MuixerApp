@@ -496,7 +496,7 @@ describe('DistribucioTabComponent', () => {
         expect(linkA()).toMatchObject({ pin: { x: 115, y: 35 }, cardEdge: 'bottom' });
         expect(canvasStub().figureLinks()).toEqual(component.figureLinks());
         const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
-        expect([card.color(), card.edge(), card.tilt()]).toEqual([FIGURE_PALETTE[0], 'bottom', -1]);
+        expect([card.color(), card.edge()]).toEqual([FIGURE_PALETTE[0], 'bottom']);
         expect(fixture.debugElement.query(By.css('lib-pinned-card app-tronc-view'))).not.toBeNull();
         expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0));
       });
@@ -552,7 +552,19 @@ describe('DistribucioTabComponent', () => {
         expect(linkA()?.pin).toEqual({ x: 165, y: 35 });
       });
 
-      it('draws no pin and no string for a segment with a single figure, but keeps the name band', async () => {
+      it('leaves the tronc panels alone while a figure is dragged, as long as the pinned edge stays', async () => {
+        await twoFigures();
+        placePanelA();
+        const panels = component.troncViewPanels();
+
+        canvasStub().slotDragMoved.emit({ slotId: INST_A, offsetX: 150, offsetY: 50, angle: 0 });
+        fixture.detectChanges();
+
+        expect(linkA()?.pin).toEqual({ x: 165, y: 35 });
+        expect(component.troncViewPanels()).toBe(panels);
+      });
+
+      it('pins the card of a single figure in its colour, but draws no string', async () => {
         await setup();
         canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 300, y: -200 });
         measurerStub()?.sizesReady.emit(new Map([[INST_A, { width: 200, height: 100 }]]));
@@ -560,7 +572,7 @@ describe('DistribucioTabComponent', () => {
 
         expect(component.figureLinks()).toEqual([]);
         const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
-        expect(card.color()).toBeNull();
+        expect([card.color(), card.edge()]).toEqual([FIGURE_PALETTE[0], 'top']);
         expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0));
       });
     });
