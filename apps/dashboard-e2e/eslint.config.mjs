@@ -10,11 +10,12 @@ export default [
     rules: {},
   },
   {
-    // Audit/diagnostic scripts (not the product test suite): they intentionally
-    // walk routes, wait for the page to settle (networkidle / timeouts), branch
-    // on device/data state, and record metrics instead of asserting. The
-    // Playwright best-practice rules aimed at flaky product tests don't apply.
-    files: ['src/audit*/**/*.ts'],
+    // Audit/diagnostic scripts and manual screenshot generators (not the
+    // product test suite): they intentionally walk routes, wait for the page to
+    // settle (networkidle / timeouts), branch on device/data state, and record
+    // metrics or images instead of asserting. The Playwright best-practice
+    // rules aimed at flaky product tests don't apply.
+    files: ['src/audit*/**/*.ts', 'src/manual/**/*.ts'],
     rules: {
       'playwright/no-networkidle': 'off',
       'playwright/no-wait-for-timeout': 'off',
