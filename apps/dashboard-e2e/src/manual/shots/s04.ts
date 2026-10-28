@@ -107,6 +107,7 @@ export const s04: ManualShot[] = [
     path: `${ASSAIG}?tab=assistencia`,
     prepare: freshEvent(`${ASSAIG}?tab=assistencia`, 'app-attendance-list [data-testid="attendance-status"]'),
     highlight: 'app-attendance-list tbody tr:first-child [data-testid="attendance-status"]',
+    blur: ['app-attendance-list tbody td:nth-child(2)'], // «Nom»; «Àlies» stays
   },
   {
     // Nothing typed: the results column stays empty and shows no names.

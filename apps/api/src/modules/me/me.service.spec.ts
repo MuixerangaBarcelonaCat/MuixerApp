@@ -21,6 +21,8 @@ import { NodeAssignment } from '../node-assignment/entities/node-assignment.enti
 import { NewsService } from '../news/news.service';
 import { News } from '../news/news.entity';
 import { SeasonService } from '../season/season.service';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 const mockUser: JwtPayload = {
   sub: 'user-1',
@@ -70,11 +72,14 @@ describe('MeService', () => {
   let personRepo: jest.Mocked<Repository<Person>>;
   let newsService: jest.Mocked<NewsService>;
   let seasonService: jest.Mocked<SeasonService>;
+  let collaSettings: CollaSettingsStub;
 
   beforeEach(async () => {
+    collaSettings = new CollaSettingsStub();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MeService,
+        { provide: CollaSettingsService, useValue: collaSettings },
         {
           provide: getRepositoryToken(User),
           useValue: { findOne: jest.fn() },
@@ -1116,6 +1121,19 @@ describe('MeService', () => {
       await expect(
         service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lets a member answer for a past event when the colla disables the lock', async () => {
+      collaSettings.set({ assignmentLockDays: 0 });
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      eventRepo.findOne.mockResolvedValue({ ...mockEvent, date: new Date('2020-01-01') } as Event);
+      attendanceRepo.upsert.mockResolvedValue(undefined as never);
+      attendanceRepo.findOneOrFail.mockResolvedValue({ id: 'att-new', status: AttendanceStatus.ANIRE, respondedAt: new Date() } as never);
+      attendanceService.recalculateSummary.mockResolvedValue(EMPTY_SUMMARY);
+
+      await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE });
+
+      expect(attendanceRepo.upsert).toHaveBeenCalled();
     });
 
     it('should call recalculateSummary after upsert', async () => {

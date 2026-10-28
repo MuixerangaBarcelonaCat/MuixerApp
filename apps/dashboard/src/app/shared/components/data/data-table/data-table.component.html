@@ -87,6 +87,7 @@
                       'truncate max-w-[130px] relative': !first
                     }"
                     [attr.title]="!first ? getCellTitle(item, col) : null"
+                    [attr.data-col]="col.key"
                   >
                     @if (rowLink(); as link) {
                       @if (!first || !isTextCell(col)) {

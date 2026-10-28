@@ -78,7 +78,7 @@
         @for (figure of figures(); track figure.instance.instanceId) {
           <!-- A paper card pinned in the figure colour, like the projection's tronc panels; the
                tronc panel heads it with the figure name on its band, as in every other tab. -->
-          <lib-pinned-card class="shrink-0" [color]="singleFigure() ? null : figure.color" [tilt]="figure.tilt">
+          <lib-pinned-card class="shrink-0" [color]="figure.color">
             <app-tronc-view
               [figureName]="figure.instance.label"
               [nameBand]="figure.band"

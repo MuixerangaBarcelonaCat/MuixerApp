@@ -4,7 +4,22 @@ import { TARGETS } from '../../audit/audit-targets';
 
 const TAGS_READY = 'app-tags-list tbody tr td.font-medium';
 const USERS_READY = 'app-data-table tbody tr';
-// Users table: «Correu» and «Persona» (alias + name + surname) are personal data.
+/** Users table: «Correu» column and the name after the alias in «Persona» (see splitPersonCells). */
+const USERS_PERSONAL = ['app-data-table td[data-col="email"]', 'app-data-table td[data-col="person"] .manual-full-name'];
+
+/** «Persona» cells read «ALIAS · Name Surname»: wrap the name so it can be blurred without the alias. */
+const splitPersonCells = (page: Page) =>
+  page.locator('app-data-table td[data-col="person"]').evaluateAll((cells) => {
+    for (const td of cells) {
+      const text = [...td.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.includes(' · '));
+      if (!text) continue;
+      const [alias, ...rest] = text.textContent!.split(' · ');
+      const name = document.createElement('span');
+      name.className = 'manual-full-name';
+      name.textContent = rest.join(' · ');
+      text.replaceWith(`${alias} · `, name);
+    }
+  });
 
 const openTagEdit = async (page: Page, name: string) => {
   await page.getByRole('button', { name: `Edita ${name}` }).click();
@@ -48,7 +63,8 @@ export const s03: ManualShot[] = [
       await page.getByRole('dialog', { name: 'Etiqueta persones' }).getByRole('tab', { name: 'Tothom' }).click();
       await page.locator('app-tagging-wizard-modal [data-testid^="tag-group-"]').first().waitFor();
     },
-    // Name + surnames on the card and the observations: personal data.
+    // Name + surnames on the card and the observations: personal data. The alias badge stays.
+    blur: ['app-tagging-wizard-modal h3', 'app-tagging-wizard-modal p.rounded-box'],
     clip: 'dialog[open] .modal-box',
   },
   {
@@ -100,13 +116,34 @@ export const s03: ManualShot[] = [
     clip: 'dialog[open] .modal-box',
   },
 
+  // ── 21 Configuració de la colla (ADMIN) ─────────────────────
+  {
+    file: '21-config-colla.png',
+    app: 'dashboard',
+    path: '/config/colla',
+    ready: '[data-testid="colla-settings-save"]',
+    settle: 500,
+  },
+  {
+    file: '21-config-colla-persones.png',
+    app: 'dashboard',
+    path: '/config/colla',
+    ready: '[data-testid="colla-settings-save"]',
+    prepare: async (page) => {
+      await page.locator('lib-card[title="Persones"] > *').scrollIntoViewIfNeeded();
+    },
+    clip: 'lib-card[title="Persones"] > *',
+  },
+
   // ── 06 Usuaris i accés ───────────────────────────────────────
   {
     file: '06-usuaris-llista.png',
     app: 'dashboard',
     path: '/config/users',
     ready: USERS_READY,
+    prepare: splitPersonCells,
     highlight: 'button:has-text("Crea usuari")',
+    blur: USERS_PERSONAL,
   },
   {
     file: '06-usuari-accions.png',
@@ -114,10 +151,12 @@ export const s03: ManualShot[] = [
     path: '/config/users',
     ready: USERS_READY,
     prepare: async (page) => {
+      await splitPersonCells(page);
       await page.getByRole('button', { name: 'Accions' }).first().click();
       await page.getByRole('menu').waitFor();
     },
     highlight: '[role="menu"]',
+    blur: USERS_PERSONAL,
   },
   {
     file: '06-usuari-nou.png',
@@ -141,7 +180,7 @@ export const s03: ManualShot[] = [
       await page.getByRole('menuitem', { name: 'Assignar rol' }).click();
       await page.getByRole('dialog', { name: 'Assignar rol' }).waitFor();
     },
-    // The modal shows the user's email.
+    blur: ['dialog[open] p.mb-4'], // the user's email
     clip: 'dialog[open] .modal-box',
   },
 ];

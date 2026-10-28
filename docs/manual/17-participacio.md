@@ -22,7 +22,7 @@ Obriu l'event i aneu a la pestanya «Participació».
   - Si n'hi ha, «N persones en dos llocs alhora» (vegeu [Conflictes](14-conflictes.md)).
 - **Qui ix a la taula:** les persones que vénen (o han vingut) i qualsevol persona que tinga un lloc en algun segment, encara que no vinga. Si apareix algú que no ve, vol dir que té un lloc assignat i convé substituir-lo.
 - **Una columna per segment.** Cada casella diu el lloc i la figura (per exemple, «Mans C1 · Roscana»), o «—» si la persona no fa res en eixe segment. Davall dels filtres hi ha la llegenda: quines figures té cada segment i quins segments estan «(no publicat)».
-- **Marques davant de l'àlies:** «‼» té un conflicte; 👶 té marcat «Menor de 16»; un emoji o ⚠️ té observacions.
+- **Marques davant de l'àlies:** «‼» té un conflicte; 👶 és xicalla (camp «Xicalla» de la fitxa); un emoji o ⚠️ té observacions.
 - **«Pròxima actuació (data)»:** en un assaig, si la persona va a la pròxima actuació de la temporada. És la mateixa informació que la icona 🎭 del panell de persones.
 - **Més columnes:** amb «Columnes visibles» podeu mostrar «Nom», «Etiquetes», «Alçada», «Col·locacions» (quants llocs té en total), «Troncs» (quants al tronc), «% segments» (en quina part dels segments fa alguna cosa) i «Tronc» (tots els seus llocs de tronc de l'event en una casella). L'app recorda les columnes que trieu.
 - **Ordenar:** feu clic a la capçalera de «Persona», «Assistència», «Col·locacions», «Troncs», «% segments» o «Alçada».
@@ -36,7 +36,7 @@ Obriu l'event i aneu a la pestanya «Participació».
 - «Tots els segments» o un segment concret. Amb un segment, les columnes passen a ser «Figura», «Posició» i «Zona».
 - «Tota l'assistència»: les opcions canvien segons si l'event encara no ha arribat, és hui o ja ha passat.
 - «Tota l'àrea», «Només troncs» o «Només pinyes».
-- «Tota la colla», «Només xicalla» o «Sense xicalla» (es guia pel camp «Menor de 16»).
+- «Tota la colla», «Només xicalla» o «Sense xicalla» (es guia pel camp «Xicalla» de la fitxa).
 - «Totes les etiquetes». Les etiquetes que no porta ningú de l'event ixen amb «(0)».
 
 Els filtres actius ixen com a xips que podeu llevar un a un, o tots alhora.

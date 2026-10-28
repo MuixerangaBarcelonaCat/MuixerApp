@@ -6,6 +6,7 @@ import { EventPhase } from '@muixer/shared';
 import { HeightMode } from '../../models/assignment.model';
 import { injectCanvasTheme } from '../../theme/inject-canvas-theme';
 import { formatShoulderHeight } from '../../node-render/appearance';
+import { injectPinyesRenderSettings } from '../../settings/render-settings';
 import { SketchPath, hashSeed, sketchShape } from '../../node-render/sketch';
 import { DisplayFacts, DisplayMode, HeightDomain, displayModeKey, positionKey } from '../../node-render/display-mode';
 import { NodeLegendComponent } from '../node-legend/node-legend.component';
@@ -82,6 +83,7 @@ export class DisplayModeKeyComponent {
   protected readonly open = signal(true);
 
   private readonly theme = injectCanvasTheme();
+  private readonly renderSettings = injectPinyesRenderSettings();
 
   protected readonly title = computed(() => MODE_TITLE[this.mode()]);
 
@@ -128,7 +130,8 @@ export class DisplayModeKeyComponent {
     // Ranks spread the quarters evenly along the bar, so the marks space out evenly too. Five
     // labels share the bar's width: only the last carries the unit.
     const { quarters } = domain;
-    const ticks = quarters.map((cm, i) => `${formatShoulderHeight(cm, this.heightMode()) ?? cm}${i === quarters.length - 1 ? ' cm' : ''}`);
+    const baselineCm = this.renderSettings().shoulderHeightBaselineCm;
+    const ticks = quarters.map((cm, i) => `${formatShoulderHeight(cm, this.heightMode(), baselineCm) ?? cm}${i === quarters.length - 1 ? ' cm' : ''}`);
     return { ramp, washId, pencilId, paths, viewBox: `${-BAR_WIDTH / 2} ${-BAR_HEIGHT / 2} ${BAR_WIDTH} ${BAR_HEIGHT}`, ticks };
   });
 

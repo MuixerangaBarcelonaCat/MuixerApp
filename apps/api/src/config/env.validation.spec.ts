@@ -32,6 +32,11 @@ describe('envValidationSchema', () => {
     expect(error).toBeUndefined();
   });
 
+  it('no longer knows ASSIGNMENT_LOCK_DAYS: the lock is a colla setting, seeded once from it by a migration', () => {
+    expect(validate(validEnv).value.ASSIGNMENT_LOCK_DAYS).toBeUndefined();
+    expect(validate({ ...validEnv, ASSIGNMENT_LOCK_DAYS: '5' }).error).toBeUndefined();
+  });
+
   it('fills in defaults for optional numeric/string variables', () => {
     const { value, error } = validate(validEnv);
     expect(error).toBeUndefined();
@@ -40,7 +45,6 @@ describe('envValidationSchema', () => {
     expect(value.JWT_REFRESH_TTL_DASHBOARD).toBe(28800);
     expect(value.JWT_REFRESH_TTL_PWA).toBe(604800);
     expect(value.REFRESH_TOKEN_COOKIE).toBe('muixer_rt');
-    expect(value.ASSIGNMENT_LOCK_DAYS).toBe(2);
     expect(value.DB_SSL).toBe(false);
     expect(value.NODE_ENV).toBe('development');
   });

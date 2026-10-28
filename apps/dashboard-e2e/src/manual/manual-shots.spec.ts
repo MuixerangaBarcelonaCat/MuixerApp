@@ -25,6 +25,9 @@ async function blockWrites(page: Page): Promise<void> {
   });
 }
 
+/** The logged-in user's email in the header chip menu, blurred in every shot (the chip's name is the alias). */
+const ALWAYS_BLUR = ['app-user-chip .menu-title span:first-child'];
+
 const pathOf = (url: string) => new URL(url).pathname + new URL(url).search;
 
 async function goTo(page: Page, target: string): Promise<void> {
@@ -57,6 +60,8 @@ async function shoot(page: Page, shot: ManualShot): Promise<void> {
   if (shot.ready) await page.locator(shot.ready).first().waitFor({ state: 'attached', timeout: 20_000 });
   if (shot.prepare) await shot.prepare(page);
   if (shot.settle) await page.waitForTimeout(shot.settle);
+  const blur = [...ALWAYS_BLUR, ...(shot.blur ?? [])].join(', ');
+  const blurStyle = await page.addStyleTag({ content: `${blur} { filter: blur(5px) !important; }` });
 
   const highlight = shot.highlight ? page.locator(shot.highlight) : null;
   if (highlight) await outline(highlight, true);
@@ -67,6 +72,7 @@ async function shoot(page: Page, shot: ManualShot): Promise<void> {
   if (shot.clip) await page.locator(shot.clip).first().screenshot(options);
   else await page.screenshot(options);
   if (highlight) await outline(highlight, false);
+  await blurStyle.evaluate((el) => (el as Element).remove());
 }
 
 test('manual screenshots', async ({ page }, testInfo) => {

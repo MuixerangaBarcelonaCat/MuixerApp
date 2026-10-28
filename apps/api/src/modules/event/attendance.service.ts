@@ -9,6 +9,7 @@ import {
   TagCategory,
 } from '@muixer/shared';
 import { isPastLockWindow } from '../../common/utils/lock.util';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import {
   eventDateOnly,
   personExistedAtEventSql,
@@ -21,6 +22,7 @@ import { Event } from './event.entity';
 import { Person } from '../person/person.entity';
 import { AttendanceFilterDto } from './dto/attendance-filter.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
+import { xicallaSql } from '../person/xicalla.sql';
 
 /**
  * Sort key for the attendance list: accent/case-insensitive and with the provisional
@@ -54,6 +56,7 @@ export class AttendanceService {
     private readonly personRepository: Repository<Person>,
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly collaSettings: CollaSettingsService,
   ) {}
 
   /** Retorna una llista paginada d'assistències per a un event concret amb filtres per estat i cerca de persona. */
@@ -155,7 +158,7 @@ export class AttendanceService {
       throw new NotFoundException(`Person with ID ${personId} not found`);
     }
 
-    const locked = isPastLockWindow(event.date);
+    const locked = isPastLockWindow(event.date, (await this.collaSettings.get()).assignmentLockDays);
     if (locked && !dto.force) {
       throw new ForbiddenException('Este event està fora del marge per canviar assistència.');
     }
@@ -227,12 +230,12 @@ export class AttendanceService {
         .createQueryBuilder(Attendance, 'attendance')
         .innerJoin('attendance.person', 'person')
         .select('attendance.status', 'status')
-        .addSelect('person."isXicalla"', 'isXicalla')
+        .addSelect(xicallaSql('person'), 'isXicalla')
         .addSelect('COUNT(*)', 'count')
         .where('attendance."eventId" = :eventId', { eventId })
         .andWhere('attendance.status <> :pendent', { pendent: AttendanceStatus.PENDENT })
         .groupBy('attendance.status')
-        .addGroupBy('person."isXicalla"')
+        .addGroupBy('"isXicalla"')
         .getRawMany<{ status: AttendanceStatus; isXicalla: boolean; count: string }>();
 
       const pending = (await this.queryPendingCounts([eventId], manager)).get(eventId) ?? 0;

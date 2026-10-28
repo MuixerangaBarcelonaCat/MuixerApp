@@ -27,7 +27,7 @@ Unes quantes paraules que es repeteixen:
 D'esquerra a dreta:
 
 1. **Fletxa de tornar** («Torna arrere»): torna a l'event, a la pestanya d'on veníeu.
-2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat dos dies de l'event i no es pot canviar res.
+2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat els dies de bloqueig de l'event (2, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)) i no es pot canviar res.
 3. **Pestanyes** «Pinyes», «Troncs», «Distribució», «Nodes extra» i «Previsualitza». L'app recorda si l'última vegada vau treballar a «Pinyes» o a «Troncs» i la torna a obrir.
 4. **Fletxes de segment anterior i següent**, amb la posició del segment («3/7»). En canviar de segment, continueu a la mateixa pestanya.
 5. **«Ajuda»** (icona d'interrogant).
@@ -41,20 +41,39 @@ Hi ha una targeta per a cada figura que té tronc. Cada targeta té el mateix co
 - **Els pisos del tronc**, de la base cap amunt. El botó de les fletxes («Invertir orientació (P1 dalt / P1 baix)») posa la base a dalt o a baix, com us vaja millor.
 - **Al costat de cada pis**, quants llocs hi ha plens («3/4»).
 
-Cada lloc ple mostra l'àlies de la persona, la seua alçada (vegeu més avall), l'emoji d'observacions si en té, i un punt de color que diu si ve:
+Cada lloc ple mostra l'àlies de la persona, la seua alçada (vegeu més avall) i l'emoji d'observacions si en té. L'assistència es veu en l'ompliment del lloc:
 
-| Color del punt | Abans del dia de l'event | El dia de l'event i després |
+| Ompliment | Fins a l'hora d'inici | Des de l'hora d'inici |
 |---|---|---|
-| verd | ve | ha arribat |
-| taronja | — | va dir que venia però no ha arribat |
-| roig | no ve | no ve o no ha contestat |
-| gris | no ha contestat | — |
+| Ple (color sòlid) | ve, o ja ha arribat | ha arribat |
+| Ratlles (tramat) | no ha contestat | va dir que venia, però no ha arribat |
+| Buit, amb el nom ratllat | no ve | no vindrà o no ha contestat |
+
+Un lloc amb una estrela (★) vol dir que la persona ve a la propera actuació. Una vora roja en forma de llaç, amb una icona d'advertència, vol dir que la persona té més d'un lloc en este segment (vegeu [Conflictes](14-conflictes.md)). El lloc que esteu movent porta la insígnia «Moure». Els nodes extra tenen la vora discontínua.
 
 Els llocs buits mostren el nom del lloc.
 
 Si al segment li falta una figura, el botó «Figura» (amb un «+») obri el mateix selector de figures que «+ Figura» de la llista de segments.
 
 El botó redó de baix a la dreta («Mostra o amaga el mapa de figures») obri o tanca el **minimapa**: un plànol xicotet de com estan col·locades les figures, amb els mateixos colors que les targetes. Ajuda a orientar-se quan hi ha moltes figures.
+
+### Canviar els colors: els modes de visualització
+
+A les pestanyes «Pinyes» i «Troncs», a la barra d'eines hi ha un selector amb quatre modes. Canvia què volen dir els colors dels llocs ocupats. Només recolora: l'alçada, les observacions, l'estrella, els conflictes i els nodes extra es veuen igual en tots els modes. També podeu triar el mode amb les tecles 1 a 4 (no funcionen mentre escriviu ni amb Ctrl, Alt o Cmd premuts).
+
+| Mode (tecla) | Què diu el color |
+|---|---|
+| «Posició» (1) | El tipus de lloc (base, mà, vent…). És el mode normal. |
+| «Alçada» (2) | L'alçada de la persona, d'un groc (més baixa) a un violeta blavós (més alta). El color depén del lloc que ocupa la persona entre les de la pestanya ordenades per alçada, no dels centímetres. Sense alçada registrada, ix gris. |
+| «Assistència» (3) | Verd: ha arribat, o ve abans de l'hora d'inici. Taronja: encara no ha contestat abans de l'hora d'inici, o no ha arribat des d'ella. Roig: no vindrà, o no ha contestat des de l'hora d'inici. Un to més fosc vol dir que ve a la propera actuació. |
+| «Gènere» (4) | Violeta (dona), or (home) i gris («Altre o sense dades»). |
+
+- Fora de «Posició», els llocs buits es pinten en gris, perquè no es confonguen amb un color del mode.
+- Una targeta de clau explica què vol dir cada color i quants llocs el porten. Es pot plegar amb el botó de la clau. A «Pinyes» ix davall de la barra d'eines; a «Troncs», en línia sobre els panells.
+- El botó ⓘ «Altres marques» de la clau explica els ompliments, l'estrella, el conflicte, el moviment i els nodes extra.
+- El mode es manté en canviar de pestanya i de segment, i torna a «Posició» en tornar a obrir l'espai de treball.
+- El gènere només el veu el personal tècnic.
+- En un mòbil no hi ha selector ni clau: sempre es veu el mode «Posició».
 
 ### Posar una persona en un lloc
 
@@ -87,8 +106,8 @@ També ho podeu fer al revés: feu clic primer en una persona de la llista (qued
 
 **Filtres:**
 
-- **Alçada.** Escriviu una diferència respecte de 140 cm d'alçada d'espatlles («+5», «-10»). La llista **no amaga ningú**: només posa primer les persones que s'hi acosten més. «Max» posa primer les més altes i «Min» les més baixes. Les persones sense alçada registrada van al final.
-- **«Xicalla».** Mostra o amaga les persones que tenen marcat «Menor de 16» a la seua fitxa (no mira l'etiqueta de xicalla). Comença desactivada i canvia sola: s'activa quan cliqueu un lloc del tronc i es desactiva quan cliqueu una base, una direcció o un lloc de pinya. La podeu canviar a mà quan vulgueu.
+- **Alçada.** Escriviu una diferència, com «+5» o «-10», respecte de l'alçada de referència de la colla: 140 cm d'espatlles, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md). La llista **no amaga ningú**: només posa primer les persones que s'hi acosten més. «Max» posa primer les més altes i «Min» les més baixes. Les persones sense alçada registrada van al final.
+- **«Xicalla».** Mostra o amaga les persones que tenen marcat «Xicalla» a la seua fitxa (no mira l'etiqueta de xicalla). Comença desactivada i canvia sola: s'activa quan cliqueu un lloc del tronc i es desactiva quan cliqueu una base, una direcció o un lloc de pinya. La podeu canviar a mà quan vulgueu.
 - **«Totes les etiquetes».** Mostra només qui porta l'etiqueta que trieu. Té un cercador d'etiquetes, i la «✕» lleva el filtre. És l'únic lloc on una etiqueta amaga gent.
 
 **Grups.** El nom dels grups canvia segons el dia:
@@ -118,7 +137,7 @@ També ho podeu fer al revés: feu clic primer en una persona de la llista (qued
 
 ![Diferències d'alçades al costat de cada pis](img/12-troncs-alcades.png)
 
-Cada lloc ple mostra l'alçada de la persona com a diferència respecte de 140 cm d'espatlles («+6», «-3»).
+Cada lloc ple mostra l'alçada de la persona com a diferència respecte de l'alçada de referència («+6», «-3»).
 
 A la dreta de cada pis, l'app calcula a quina alçada queden les espatlles de cada persona amb la figura alçada, sumant-hi les persones que té davall. Hi pot eixir:
 
@@ -148,9 +167,9 @@ De moment, els límits (5 i 10 cm per pis, 3 i 5 cm entre suports) són fixos.
 
 - Sou els primers. Assigneu el tronc i les direccions abans que pinyes comence.
 - Per a la xicalla: quan cliqueu un lloc del tronc, la casella «Xicalla» ja s'activa sola. Si busqueu un adult per a un pis de dalt, desactiveu-la.
-- La casella «Xicalla» es guia pel camp «Menor de 16» de la fitxa de la persona, no per l'etiqueta. Si una criatura ix com a adult, o no ix, reviseu eixe camp a [Persones](03-persones.md).
+- La casella «Xicalla» es guia pel camp «Xicalla» de la fitxa de la persona, no per l'etiqueta. Es calcula per la data de naixement. Si una criatura ix com a adult, o no ix, reviseu-ne la data de naixement a [Persones](03-persones.md).
 - Abans de donar el tronc per bo, mireu la diferència d'alçades de cada pis i els xips de la balança.
-- «Importa tronc» és la manera ràpida de repetir el tronc d'un assaig anterior. Després repasseu els punts de color: la importació no mira qui ve.
+- «Importa tronc» és la manera ràpida de repetir el tronc d'un assaig anterior. Després repasseu els llocs ratllats o buits: la importació no mira qui ve.
 - Si treballeu des de la tauleta el dia de l'assaig:
   - Toqueu un lloc i ix la llista de persones en una finestra («Assigna una persona» o «Canvia la persona»).
   - Per a moure algú, mantingueu el dit damunt de la persona i després toqueu el lloc de destí.
@@ -162,13 +181,13 @@ De moment, els límits (5 i 10 cm per pis, 3 i 5 cm entre suports) són fixos.
 
 ## Compte amb
 
-- **La importació porta les persones encara que no vinguen.** Després d'importar, busqueu els punts rojos o grisos i substituïu eixes persones.
+- **La importació porta les persones encara que no vinguen.** Després d'importar, busqueu els llocs ratllats o buits (o canvieu al mode «Assistència») i substituïu eixes persones.
 - **La importació pot deixar gent en dos llocs.** Si una persona importada ja tenia un altre lloc en este segment, s'hi posa igualment. Mireu la barra roja de conflictes (vegeu [Conflictes](14-conflictes.md)).
 - **La importació també porta els nodes extra** de la figura d'origen, encara que només importeu el tronc (vegeu [Distribució i nodes extra](15-distribucio-i-nodes-extra.md)).
 - **El camp d'alçada no filtra, només ordena.** Si no trobeu algú, és més avall.
 - **Intro amb el cercador buit** posa la primera persona lliure de la llista en el lloc seleccionat.
 - **Dos tècnics en el mateix segment no veuen els canvis de l'altre** fins que no canvien de pestanya o recarreguen la pàgina. Si tots dos ocupeu el mateix lloc, al segon li ix «Este lloc ja està ocupat.». Repartiu-vos els segments.
-- **«Bloquejat»:** dos dies després de l'event ja no es pot canviar res.
+- **«Bloquejat»:** passats els dies de bloqueig de la colla, ja no es pot canviar res.
 - **L'«Ajuda» de dalt és la del creador de figures.** Hi ha algunes dreceres de teclat que no funcionen en esta pantalla; feu cas d'esta pàgina.
 
 ## Relacionat

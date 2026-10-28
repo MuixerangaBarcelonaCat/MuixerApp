@@ -1,10 +1,12 @@
 import Konva from 'konva';
+import { SceneCanvas } from 'konva/lib/Canvas';
 import { DrawPrimitive } from './draw-plan';
 import { CanvasIcon, NODE_ICON_PATHS } from './icons';
 import { NodeOutline, nodeOutline } from './outline';
 import { SketchPath } from './sketch';
 import { FigureLink, pinDiscs } from '../utils/figure-link.util';
 import { CanvasTheme } from '../theme/canvas-theme';
+import { Rect } from '../utils/underlay.util';
 
 /**
  * Konva side of the node renderer: turns a node draw plan (`nodeDrawPlan`, unit-tested) into Konva
@@ -244,4 +246,21 @@ export function measureText(text: string, fontSize: number, fontFamily: string):
   textProbe.fontSize(fontSize);
   textProbe.text(text);
   return textProbe.getTextWidth();
+}
+
+/**
+ * The visible `layers`, composited into one canvas covering `rect` (stage-container px, i.e.
+ * screen px at the stage's transform) at `pixelRatio`. Drawn straight into a single canvas: Konva's
+ * own `toCanvas` gives each layer a canvas of its own, plus a buffer as big as the region and its
+ * offset, which an old phone can't spare. Each shape multiplies its transform onto the context, so
+ * translating it first is all the offset needs; `Container.drawScene`, not the layer's own, which
+ * would clear the canvas between layers.
+ */
+export function drawLayersRegion(layers: Konva.Layer[], rect: Rect, pixelRatio: number): HTMLCanvasElement {
+  const out = new SceneCanvas({ width: rect.width, height: rect.height, pixelRatio });
+  out.getContext().translate(-rect.x, -rect.y);
+  for (const layer of layers) {
+    if (layer.isVisible()) Konva.Container.prototype.drawScene.call(layer, out);
+  }
+  return out._canvas;
 }

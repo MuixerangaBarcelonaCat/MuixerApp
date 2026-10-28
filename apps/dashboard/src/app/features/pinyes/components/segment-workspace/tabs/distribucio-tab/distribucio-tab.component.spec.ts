@@ -16,6 +16,7 @@ import { SegmentWorkspaceStateService } from '../../../../services/segment-works
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
+import { EventService } from '../../../../../events/services/event.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
@@ -212,6 +213,7 @@ describe('DistribucioTabComponent', () => {
         AssignmentStateService,
         UndoRedoService,
         { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+        { provide: EventService, useValue: { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) } },
         { provide: SegmentDistributionService, useValue: distributionService },
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: FigureInstanceService, useValue: instanceService },
@@ -388,6 +390,7 @@ describe('DistribucioTabComponent', () => {
           AssignmentStateService,
           UndoRedoService,
           { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+          { provide: EventService, useValue: { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) } },
           { provide: SegmentDistributionService, useValue: distributionService },
           { provide: NodeAssignmentService, useValue: assignmentService },
           { provide: FigureInstanceService, useValue: instanceService },
@@ -493,7 +496,7 @@ describe('DistribucioTabComponent', () => {
         expect(linkA()).toMatchObject({ pin: { x: 115, y: 35 }, cardEdge: 'bottom' });
         expect(canvasStub().figureLinks()).toEqual(component.figureLinks());
         const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
-        expect([card.color(), card.edge(), card.tilt()]).toEqual([FIGURE_PALETTE[0], 'bottom', -1]);
+        expect([card.color(), card.edge()]).toEqual([FIGURE_PALETTE[0], 'bottom']);
         expect(fixture.debugElement.query(By.css('lib-pinned-card app-tronc-view'))).not.toBeNull();
         expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0));
       });
@@ -561,7 +564,7 @@ describe('DistribucioTabComponent', () => {
         expect(component.troncViewPanels()).toBe(panels);
       });
 
-      it('draws no pin and no string for a segment with a single figure, but keeps the name band', async () => {
+      it('pins the card of a single figure in its colour, but draws no string', async () => {
         await setup();
         canvasStub().troncPanelMoved.emit({ slotId: INST_A, x: 300, y: -200 });
         measurerStub()?.sizesReady.emit(new Map([[INST_A, { width: 200, height: 100 }]]));
@@ -569,7 +572,7 @@ describe('DistribucioTabComponent', () => {
 
         expect(component.figureLinks()).toEqual([]);
         const card = fixture.debugElement.query(By.directive(PinnedCardComponent)).componentInstance as PinnedCardComponent;
-        expect(card.color()).toBeNull();
+        expect([card.color(), card.edge()]).toEqual([FIGURE_PALETTE[0], 'top']);
         expect(troncViewStubs()[0].nameBand()).toEqual(getFigureBand(0));
       });
     });

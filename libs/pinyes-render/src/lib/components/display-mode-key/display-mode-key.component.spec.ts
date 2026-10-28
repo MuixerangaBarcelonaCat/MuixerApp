@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { Gender } from '@muixer/shared';
+import { Provider, signal } from '@angular/core';
+import { DEFAULT_COLLA_SETTINGS, Gender } from '@muixer/shared';
+import { PINYES_RENDER_SETTINGS } from '../../settings/render-settings';
 import { ATTENDANCE_TONES, GENDER_TONES, NODE_TYPE_PALETTE, heightRampTones } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { DisplayFacts } from '../../node-render/display-mode';
@@ -17,10 +19,10 @@ const facts = (overrides: Partial<DisplayFacts> = {}): DisplayFacts => ({
 });
 
 describe('DisplayModeKeyComponent', () => {
-  function setup(inputs: Record<string, unknown>) {
+  function setup(inputs: Record<string, unknown>, providers: Provider[] = []) {
     TestBed.configureTestingModule({
       imports: [DisplayModeKeyComponent],
-      providers: [allLucideIconsProvider, { provide: NODE_NAME_MEASURE, useValue: (t: string, fs: number) => t.length * fs * 0.6 }],
+      providers: [allLucideIconsProvider, { provide: NODE_NAME_MEASURE, useValue: (t: string, fs: number) => t.length * fs * 0.6 }, ...providers],
     });
     const fixture = TestBed.createComponent(DisplayModeKeyComponent);
     for (const [key, value] of Object.entries(inputs)) fixture.componentRef.setInput(key, value);
@@ -138,6 +140,17 @@ describe('DisplayModeKeyComponent', () => {
     fixture.componentRef.setInput('heightMode', 'absolute');
     fixture.detectChanges();
     expect(ticks()).toEqual(['143', '150', '152', '160', '172 cm']);
+  });
+
+  it("measures the relative marks from the colla's baseline", () => {
+    const settings = signal({ shoulderHeightBaselineCm: 150, troncHeightThresholds: DEFAULT_COLLA_SETTINGS.troncHeightThresholds });
+    const { el } = setup(
+      { mode: 'height', people: [facts({ shoulderHeight: 150 })], heightDomain: { heights: [150, 160] } },
+      [{ provide: PINYES_RENDER_SETTINGS, useValue: settings }],
+    );
+    const ticks = Array.from(el.querySelectorAll('[data-testid="gradient-tick"]')).map((e) => e.textContent?.trim());
+    expect(ticks[0]).toBe('+0');
+    expect(ticks[ticks.length - 1]).toBe('+10 cm');
   });
 
   it('centers the one mark of a tab where everyone has the same height', () => {

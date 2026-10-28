@@ -1,14 +1,20 @@
-/** Days after an event's date past which edits linked to it are locked (same variable node-assignment uses). */
-export function getAssignmentLockDays(): number {
-  return parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
+export interface LockWindow {
+  locked: boolean;
+  /** `YYYY-MM-DD` the lock starts; `null` when the lock is disabled. */
+  lockDate: string | null;
 }
 
-/** True once `lockDays` days have elapsed since `eventDate`. `lockDays <= 0` disables the lock. */
-export function isPastLockWindow(eventDate: Date | string, lockDays: number = getAssignmentLockDays()): boolean {
-  if (lockDays <= 0) return false;
+/** Where `eventDate` stands against a lock of `lockDays` days (the colla setting `assignmentLockDays`). `lockDays <= 0` disables the lock. */
+export function lockWindow(eventDate: Date | string, lockDays: number): LockWindow {
+  if (lockDays <= 0) return { locked: false, lockDate: null };
 
   const lockDate = new Date(eventDate);
   lockDate.setDate(lockDate.getDate() + lockDays);
 
-  return new Date() > lockDate;
+  return { locked: new Date() > lockDate, lockDate: lockDate.toISOString().slice(0, 10) };
+}
+
+/** True once `lockDays` days have elapsed since `eventDate`. `lockDays <= 0` disables the lock. */
+export function isPastLockWindow(eventDate: Date | string, lockDays: number): boolean {
+  return lockWindow(eventDate, lockDays).locked;
 }

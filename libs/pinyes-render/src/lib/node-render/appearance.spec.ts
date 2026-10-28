@@ -1,4 +1,3 @@
-import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { FigureZone } from '@muixer/shared';
 import { NODE_TYPE_NEUTRAL, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK } from '@muixer/ui';
 import { buildCanvasTheme, contentOn, fade } from '../theme/canvas-theme';
@@ -272,18 +271,24 @@ describe('resolveNodeAppearance', () => {
 });
 
 describe('formatShoulderHeight', () => {
+  const BASELINE = 140;
+
   it('shows the height in cm in absolute mode', () => {
-    expect(formatShoulderHeight(148, 'absolute')).toBe('148');
+    expect(formatShoulderHeight(148, 'absolute', BASELINE)).toBe('148');
   });
 
   it('shows the signed difference from the baseline in relative mode', () => {
-    expect(formatShoulderHeight(SHOULDER_HEIGHT_BASELINE_CM + 4, 'relative')).toBe('+4');
-    expect(formatShoulderHeight(SHOULDER_HEIGHT_BASELINE_CM - 3, 'relative')).toBe('-3');
-    expect(formatShoulderHeight(SHOULDER_HEIGHT_BASELINE_CM, 'relative')).toBe('+0');
+    expect(formatShoulderHeight(BASELINE + 4, 'relative', BASELINE)).toBe('+4');
+    expect(formatShoulderHeight(BASELINE - 3, 'relative', BASELINE)).toBe('-3');
+    expect(formatShoulderHeight(BASELINE, 'relative', BASELINE)).toBe('+0');
+  });
+
+  it("measures from the colla's own baseline", () => {
+    expect(formatShoulderHeight(140, 'relative', 135)).toBe('+5');
   });
 
   it('shows nothing for an unknown height', () => {
-    expect(formatShoulderHeight(null, 'relative')).toBeNull();
-    expect(formatShoulderHeight(0, 'absolute')).toBeNull();
+    expect(formatShoulderHeight(null, 'relative', BASELINE)).toBeNull();
+    expect(formatShoulderHeight(0, 'absolute', BASELINE)).toBeNull();
   });
 });

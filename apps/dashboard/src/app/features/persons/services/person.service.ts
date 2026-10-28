@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { InviteLinkResponse } from '@muixer/shared';
+import { InviteLinkResponse, ShirtCandidate } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -27,6 +27,11 @@ export class PersonService extends ApiService {
   /** Carrega el detall complet d'una persona per ID, incloent posicions i mentor. */
   getOne(id: string): Observable<Person> {
     return this.get<Person>(`/persons/${id}`);
+  }
+
+  /** Persones pendents de camisa, ja ordenades: primer qui hi té dret, després de més a menys a prop. */
+  getShirtCandidates(): Observable<ShirtCandidate[]> {
+    return this.get<ShirtCandidate[]>('/persons/shirt-candidates');
   }
 
   /** Carrega totes les posicions muixerangueres disponibles (per als filtres i formularis). */

@@ -14,7 +14,6 @@ import {
   formatShoulderHeightCm,
   formatShoulderHeightRelative,
 } from '../../../shared/utils';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { PageHeaderComponent } from '../../../shared/components/data/page-header/page-header.component';
 import { FilterBarComponent } from '../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent } from '../../../shared/components/data/active-filters/active-filters.component';
@@ -27,6 +26,7 @@ import { EventType } from '@muixer/shared';
 import { PersonNewModalComponent } from './modals/person-new-modal.component';
 import { TutorialModalComponent } from '../../../shared/components/tutorial-modal/tutorial-modal.component';
 import { TutorialStep } from '../../../shared/components/tutorial-modal/tutorial-step.model';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 const STORAGE_KEY = 'person-list-visible-columns';
 
@@ -67,7 +67,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
-  { key: 'isXicalla', label: 'Menor de 16', defaultVisible: false, sortField: 'isXicalla' },
+  { key: 'isXicalla', label: 'Xicalla', defaultVisible: false, sortField: 'isXicalla' },
   { key: 'shirtDate', label: 'Data camisa', defaultVisible: false, sortField: 'shirtDate' },
   { key: 'notes', label: 'Notes', defaultVisible: false },
   { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
@@ -100,6 +100,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
 })
 export class PersonListComponent {
   readonly ICON_PERSONA = DOMAIN_ICONS.PERSONA;
+  readonly ICON_CAMISA = DOMAIN_ICONS.CAMISA;
   readonly activationTutorialSteps = ACTIVATION_TUTORIAL_STEPS;
   protected readonly SearchIcon = Search;
 
@@ -111,7 +112,7 @@ export class PersonListComponent {
   Math = Math;
 
   readonly allColumns = ALL_COLUMNS;
-  readonly shoulderBaselineCm = SHOULDER_HEIGHT_BASELINE_CM;
+  private readonly renderSettings = injectPinyesRenderSettings();
 
   searchInput = '';
 
@@ -328,7 +329,7 @@ export class PersonListComponent {
       return '—';
     }
     if (this.shoulderHeightRelative()) {
-      return formatShoulderHeightRelative(value, this.shoulderBaselineCm);
+      return formatShoulderHeightRelative(value, this.renderSettings().shoulderHeightBaselineCm);
     }
     return formatShoulderHeightCm(value);
   }

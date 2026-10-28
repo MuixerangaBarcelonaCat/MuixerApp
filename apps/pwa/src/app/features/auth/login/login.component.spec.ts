@@ -4,7 +4,8 @@ import { provideRouter, Router } from '@angular/router';
 import { of, throwError, Subject } from 'rxjs';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
+import { CollaSettingsService } from '../../../core/services/colla-settings.service';
 
 @Component({ standalone: true, template: '' })
 class StubComponent {}
@@ -14,9 +15,11 @@ describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let authService: { login: ReturnType<typeof vi.fn> };
   let router: Router;
+  const collaName = signal<string | null>('Muixeranga de Prova');
 
   beforeEach(async () => {
     authService = { login: vi.fn() };
+    collaName.set('Muixeranga de Prova');
 
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
@@ -26,6 +29,7 @@ describe('LoginComponent', () => {
           { path: 'login', component: StubComponent },
         ]),
         { provide: AuthService, useValue: authService },
+        { provide: CollaSettingsService, useValue: { collaName } },
       ],
     }).compileComponents();
 
@@ -33,6 +37,15 @@ describe('LoginComponent', () => {
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
     fixture.detectChanges();
+  });
+
+  it('names the colla once its name is known', () => {
+    const name = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="colla-name"]');
+    expect(name()?.textContent?.trim()).toBe('Muixeranga de Prova');
+
+    collaName.set(null);
+    fixture.detectChanges();
+    expect(name()).toBeNull();
   });
 
   it('renders email and password fields', () => {

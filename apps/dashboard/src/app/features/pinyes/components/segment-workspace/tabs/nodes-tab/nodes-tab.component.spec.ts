@@ -10,6 +10,7 @@ import { SegmentWorkspaceStateService } from '../../../../services/segment-works
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
+import { EventService } from '../../../../../events/services/event.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService, NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService } from '@muixer/ui';
@@ -218,6 +219,7 @@ describe('NodesTabComponent', () => {
         AssignmentStateService,
         UndoRedoService,
         { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+        { provide: EventService, useValue: { getOne: vi.fn().mockReturnValue(of({ id: EVENT_ID, date: '2026-07-22', startTime: '18:00' })) } },
         {
           provide: SegmentDistributionService,
           useValue: {

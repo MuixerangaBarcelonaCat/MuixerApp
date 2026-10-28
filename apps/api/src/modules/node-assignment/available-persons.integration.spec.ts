@@ -116,4 +116,21 @@ describe('AvailablePersonsService (integration)', () => {
     expect(byAlias.get('laia')).toBe(Gender.FEMALE);
     expect(byAlias.get('alex')).toBeNull();
   });
+
+  it('filters and reports by the effective xicalla: a known birth date wins over the manual flag', async () => {
+    const { event, segment } = await makeSegment();
+    const personRepo = db.dataSource.getRepository(Person);
+    await personRepo.save({ name: 'Nil', firstSurname: 'Mas', alias: 'kid', birthDate: '2020-01-01' as never, isXicallaManual: false });
+    await personRepo.save({ name: 'Pau', firstSurname: 'Mas', alias: 'adult', birthDate: '1990-01-01' as never, isXicallaManual: true });
+    await personRepo.save({ name: 'Joan', firstSurname: 'Mas', alias: 'nobd', isXicallaManual: true });
+
+    const xicalla = await service.getAvailablePersons(event.id, segment.id, { isXicalla: true });
+    expect(xicalla.map((r) => [r.alias, r.isXicalla]).sort()).toEqual([
+      ['kid', true],
+      ['nobd', true],
+    ]);
+
+    const adults = await service.getAvailablePersons(event.id, segment.id, { isXicalla: false });
+    expect(adults.map((r) => r.alias)).toEqual(['adult']);
+  });
 });

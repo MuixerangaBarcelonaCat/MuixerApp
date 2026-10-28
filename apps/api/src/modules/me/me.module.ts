@@ -13,6 +13,7 @@ import { NewsModule } from '../news/news.module';
 import { SeasonModule } from '../season/season.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
+import { CollaSettingsModule } from '../colla-settings/colla-settings.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { MeService } from './me.service';
     PersonModule,
     NewsModule,
     SeasonModule,
+    CollaSettingsModule,
   ],
   controllers: [MeController],
   providers: [MeService],

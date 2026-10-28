@@ -12,9 +12,10 @@ import { PersonSyncStrategy } from './strategies/person-sync.strategy';
 import { EventSyncStrategy } from './strategies/event-sync.strategy';
 import { AttendanceSyncStrategy } from './strategies/attendance-sync.strategy';
 import { SyncLockService } from './sync-lock.service';
+import { CollaSettingsModule } from '../colla-settings/colla-settings.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Person, Event, Attendance, Season, User, PersonDelegate])],
+  imports: [TypeOrmModule.forFeature([Person, Event, Attendance, Season, User, PersonDelegate]), CollaSettingsModule],
   controllers: [SyncController],
   providers: [
     LegacyApiClient,

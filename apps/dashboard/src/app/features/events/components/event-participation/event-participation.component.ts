@@ -1,5 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
-import { attendanceStatusLabel, conflictRelevantPlacements, DIRECTION_NODE_PRESETS, EventPhase, isStartedPhase, normalizeForSearch, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { attendanceStatusLabel, conflictRelevantPlacements, DIRECTION_NODE_PRESETS, EventPhase, isStartedPhase, normalizeForSearch } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -33,6 +33,7 @@ import {
   ParticipationSegment,
 } from '../../models/participation.model';
 import { eventReturnUrl } from '../../utils/event-return-url.util';
+import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 
 /** A row of the matrix. Same shape as the API person — placements are already keyed by segment. */
 export type ParticipationRow = ParticipationPerson;
@@ -134,6 +135,7 @@ const isScopedColumn = (key: string): boolean =>
   templateUrl: './event-participation.component.html',
 })
 export class EventParticipationComponent implements OnInit, OnDestroy {
+  private readonly renderSettings = injectPinyesRenderSettings();
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_XICALLA = ICON_XICALLA;
   readonly CONFLICT_GLYPH = CONFLICT_GLYPH;
@@ -676,11 +678,11 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     return classes[status] ?? 'badge-ghost';
   }
 
-  /** Relative to `SHOULDER_HEIGHT_BASELINE_CM`, same format as `person-panel.formatHeight`.
+  /** Relative to the colla's baseline, same format as `person-panel.formatHeight`.
    *  `null`/`0` means "not set". */
   formatHeight(shoulderHeight: number | null): string {
     if (shoulderHeight === null || shoulderHeight === 0) return '-';
-    const diff = shoulderHeight - SHOULDER_HEIGHT_BASELINE_CM;
+    const diff = shoulderHeight - this.renderSettings().shoulderHeightBaselineCm;
     return diff >= 0 ? `+${diff}` : `${diff}`;
   }
 

@@ -345,6 +345,23 @@ describe('EventParticipationService (integration)', () => {
     expect(result.persons[0].placements).toEqual({});
   });
 
+  it('reports the effective xicalla: a known birth date wins over the manual flag', async () => {
+    const event = await db.dataSource.getRepository(Event).save({
+      eventType: EventType.ASSAIG,
+      title: 'Xicalla',
+      date: new Date('2026-06-01'),
+    } as unknown as Event);
+    const kid = await makePerson('KID', { birthDate: '2020-01-01' as never, isXicallaManual: false });
+    const adult = await makePerson('GRAN', { birthDate: '1990-01-01' as never, isXicallaManual: true });
+    const unknown = await makePerson('NOBD', { isXicallaManual: true });
+    for (const p of [kid, adult, unknown]) await setAttendance(event, p, AttendanceStatus.ANIRE);
+
+    const result = await service.getEventParticipation(event.id);
+    const byAlias = Object.fromEntries(result.persons.map((p) => [p.alias, p.isXicalla]));
+
+    expect(byAlias).toEqual({ KID: true, GRAN: false, NOBD: true });
+  });
+
   it('runs a constant number of queries regardless of segment count (N+1 guard)', async () => {
     const { event } = await seedFullScenario();
     const spy = jest.spyOn(db.dataSource, 'query');

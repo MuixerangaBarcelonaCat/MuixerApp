@@ -2,6 +2,10 @@
 
   <!-- Capçalera -->
   <app-page-header title="Persones" [count]="totalPersons()">
+    <lib-button variant="primary" outline size="sm" routerLink="/persons/camises">
+      <lucide-icon [img]="ICON_CAMISA" [size]="14" aria-hidden="true" />
+      Camises
+    </lib-button>
     <lib-button variant="primary" size="sm" (clicked)="openNewPersonModal()">
       <lucide-icon name="Plus" [size]="14" />
       Persona nova

@@ -48,7 +48,7 @@ Les pestanyes de dalt porten a cada part del Dashboard:
 | «Assajos» i «Actuacions» | Els events | [Assajos i actuacions](07-assajos-i-actuacions.md) |
 | «Plantilles» | Les figures i les composicions | [Plantilles](08-plantilles.md) |
 | «Comunicació» | Notícies i notificacions | [Comunicació](18-comunicacio.md) |
-| «Configuració» | Usuaris, etiquetes, temporades i este manual | [Etiquetes](04-etiquetes.md), [Temporades](05-temporades.md), [Usuaris i accés](06-usuaris-i-acces.md) |
+| «Configuració» | Usuaris, etiquetes, temporades, configuració de la colla i este manual | [Etiquetes](04-etiquetes.md), [Temporades](05-temporades.md), [Usuaris i accés](06-usuaris-i-acces.md), [Configuració de la colla](21-configuracio-colla.md) |
 
 En una pantalla estreta, les pestanyes només mostren la icona. En un mòbil, es pleguen dins del botó «Navegar».
 

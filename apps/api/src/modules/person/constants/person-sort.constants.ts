@@ -1,3 +1,5 @@
+import { xicallaSql } from '../xicalla.sql';
+
 /**
  * Allowed `sortBy` query values for GET /persons (maps to `person.<column>` in SQL).
  */
@@ -35,7 +37,8 @@ export const PERSON_SORT_COLUMN_MAP: Record<PersonSortByField, string> = {
   onboardingStatus: 'person.onboardingStatus',
   isActive: 'person.isActive',
   isMember: 'person.isMember',
-  isXicalla: 'person.isXicalla',
+  // Worked out on read; contains '(' so findAll sorts it through an aliased addSelect.
+  isXicalla: xicallaSql('person'),
   shirtDate: 'person.shirtDate',
   createdAt: 'person.createdAt',
   updatedAt: 'person.updatedAt',

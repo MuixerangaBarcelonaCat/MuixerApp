@@ -51,7 +51,7 @@ No hi ha cap comptador directe. Compareu les xifres del segment («x/y pinyes, x
 
 ### Per què no trobe una persona al panell?
 Pot ser per alguna d'estes raons:
-- té marcat «Menor de 16» i la casella «Xicalla» està desmarcada;
+- és xicalla (camp «Xicalla» de la fitxa) i la casella «Xicalla» està desmarcada;
 - no ha confirmat i és a «Altres»;
 - ja està col·locada en una altra figura.
 

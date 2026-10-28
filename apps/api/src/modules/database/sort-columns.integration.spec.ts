@@ -27,6 +27,8 @@ import {
   teardownIntegrationDb,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * Real-Postgres regression suite for the BUG-3 class of bug: a `sortBy` whitelist entry that maps
@@ -54,6 +56,7 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
     beforeAll(async () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
+          { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
           PersonService,
           PersonDelegateService,
           ...realRepositoryProviders(db.dataSource, [Person, Tag, User, PersonDelegate]),
@@ -74,6 +77,7 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
     beforeAll(async () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
+          { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
           UserService,
           TokenService,
           PersonDelegateService,
@@ -96,6 +100,7 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
     beforeAll(async () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
+          { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
           EventService,
           SeasonService,
           AttendanceService,
@@ -118,6 +123,7 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         PersonService,
         PersonDelegateService,
         ...realRepositoryProviders(db.dataSource, [Person, Tag, User, PersonDelegate]),

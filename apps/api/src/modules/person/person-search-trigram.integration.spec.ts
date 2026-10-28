@@ -12,6 +12,8 @@ import {
   teardownIntegrationDb,
   realRepositoryProviders,
 } from '../../test-integration/integration-db';
+import { CollaSettingsService } from '../colla-settings/colla-settings.service';
+import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
 /**
  * The person search predicate was rewritten from `unaccent(col) ILIKE unaccent(:s)` to
@@ -36,6 +38,7 @@ describe('person search — trigram-indexable predicate (integration)', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: CollaSettingsService, useValue: new CollaSettingsStub() },
         PersonService,
         PersonDelegateService,
         ...realRepositoryProviders(db.dataSource, [Person, Tag, User, PersonDelegate]),
