@@ -23,6 +23,19 @@ export function movedHostUrl(
   }
 }
 
+// The old origin's push subscription outlives the move: without this, a member who keeps the old
+// app installed gets every notification twice. Browser-side only — no session here for the
+// authenticated DELETE; the API deactivates the endpoint on the next send (410, web-push.provider).
+export async function dropPushSubscription(): Promise<void> {
+  try {
+    const registration = await navigator.serviceWorker?.ready;
+    const subscription = await registration?.pushManager.getSubscription();
+    await subscription?.unsubscribe();
+  } catch {
+    // Push unsupported or already gone: nothing to drop.
+  }
+}
+
 @Component({
   selector: 'app-host-moved',
   standalone: true,

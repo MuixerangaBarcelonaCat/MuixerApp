@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { HostMovedComponent, movedHostUrl } from './shared/components/host-moved/host-moved.component';
+import { HostMovedComponent, dropPushSubscription, movedHostUrl } from './shared/components/host-moved/host-moved.component';
 import { ToastContainerComponent } from '@muixer/ui';
 import { SplashScreenComponent } from './shared/components/splash-screen/splash-screen.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
@@ -41,7 +41,11 @@ export class AppComponent {
   private checkPublicHost(here: Location): void {
     fetch('/app-host.txt', { cache: 'no-store' })
       .then((res) => (res.ok ? res.text() : null))
-      .then((body) => this.movedTo.set(movedHostUrl(body, here)))
+      .then((body) => {
+        const moved = movedHostUrl(body, here);
+        this.movedTo.set(moved);
+        if (moved) void dropPushSubscription();
+      })
       .catch(() => undefined);
   }
 }

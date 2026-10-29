@@ -9,6 +9,13 @@ function stubAppHost(body: string): void {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
 }
 
+function stubServiceWorker(subscription: { unsubscribe: () => Promise<boolean> } | null): void {
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    serviceWorker: { ready: Promise.resolve({ pushManager: { getSubscription: async () => subscription } }) },
+  });
+}
+
 describe('AppComponent', () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -84,5 +91,32 @@ describe('AppComponent', () => {
       'https://app-beta.muixerangabarcelona.cat/',
     );
     expect(compiled.querySelector('router-outlet')).toBeNull();
+  });
+
+  it('unsubscribes this origin from push when the host moved', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    stubServiceWorker({ unsubscribe });
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(unsubscribe).toHaveBeenCalled());
+  });
+
+  it('keeps push when the host did not move', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    stubServiceWorker({ unsubscribe });
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('survives a browser without service worker', async () => {
+    vi.stubGlobal('navigator', { ...navigator, serviceWorker: undefined });
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-host-moved')).toBeTruthy();
   });
 });
