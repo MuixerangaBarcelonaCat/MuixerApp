@@ -30,7 +30,7 @@ COPY --from=caddy-builder /usr/bin/caddy /usr/bin/caddy
 # Site addresses; override at build (--build-arg) or runtime (env)
 ARG SITE_ADDRESS=:80
 ENV SITE_ADDRESS=$SITE_ADDRESS
-ARG PWA_SITE_ADDRESS=app.beta.muixerangadebarcelona.com
+ARG PWA_SITE_ADDRESS=app-beta.muixerangabarcelona.cat
 ENV PWA_SITE_ADDRESS=$PWA_SITE_ADDRESS
 
 # Copy Caddy configuration

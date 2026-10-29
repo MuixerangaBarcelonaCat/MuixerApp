@@ -23,7 +23,7 @@ nx test dashboard          # Vitest — dashboard unit tests
 nx test pwa                # Vitest — PWA unit tests
 nx test api --testFile=apps/api/src/modules/person/person.service.spec.ts   # single file
 nx run api:test-integration  # Jest — integration tests against real Postgres (testcontainers)
-pnpm run ci:local          # lint + test + build (all, excludes e2e)
+pnpm run ci:local          # lint + test + build (all; e2e projects are linted, not run)
 
 # Lint / build / dead code
 nx lint api | nx lint dashboard | nx lint pwa

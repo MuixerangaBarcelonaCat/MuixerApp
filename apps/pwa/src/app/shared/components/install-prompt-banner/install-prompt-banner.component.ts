@@ -24,6 +24,9 @@ import { InstallPromptService } from '../../services/install-prompt.service';
           </p>
         } @else {
           <p class="text-sm">Afegeix Muixer a la pantalla d'inici del mòbil.</p>
+        }
+        <!-- Its own @if: a slotted node only projects when it is the block's single root. -->
+        @if (!installPrompt.isIos) {
           <span actions class="shrink-0 self-center">
             <lib-button size="sm" (clicked)="installPrompt.promptInstall()">Instal·la</lib-button>
           </span>

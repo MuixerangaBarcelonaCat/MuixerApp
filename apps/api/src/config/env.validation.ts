@@ -44,6 +44,8 @@ export const envValidationSchema = Joi.object({
 
   // PWA origin (no scheme) — used to build member-activation invite links.
   PWA_SITE_ADDRESS: Joi.string().default('localhost:4300'),
+  // Public PWA URL (with scheme). When set, invite links use it instead of PWA_SITE_ADDRESS.
+  PWA_PUBLIC_URL: Joi.string().uri({ scheme: ['https', 'http'] }).optional(),
   INVITE_TOKEN_TTL_HOURS: Joi.number().default(72),
 
   // Push Notifications (Web Push VAPID)

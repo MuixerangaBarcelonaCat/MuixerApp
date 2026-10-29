@@ -1,6 +1,6 @@
 @if (isLoading()) {
   <div
-    class="flex items-center justify-center h-screen w-screen bg-base-200"
+    class="flex items-center justify-center h-dvh w-screen bg-base-200"
     role="status"
     aria-live="polite"
   >
@@ -8,7 +8,7 @@
     <span class="sr-only">S'està carregant la projecció...</span>
   </div>
 } @else if (hasError() || !data()) {
-  <div class="flex items-center justify-center h-screen w-screen bg-base-200 p-4">
+  <div class="flex items-center justify-center h-dvh w-screen bg-base-200 p-4">
     <lib-empty-state
       message="No s'ha pogut carregar la projecció."
       actionLabel="Torna-ho a provar"
@@ -17,7 +17,7 @@
   </div>
 } @else {
   <!-- The figure follows the page theme; the HUD on top is always dark. -->
-  <div class="relative flex flex-col h-screen w-screen overflow-hidden bg-base-100">
+  <div class="relative flex flex-col h-dvh w-screen overflow-hidden bg-base-100">
     <lib-pinya-projection
       #projection
       [data]="data()!"
@@ -43,7 +43,7 @@
 
     <nav
       libThemeScope="dark"
-      class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-base-200/60 text-base-content/80 text-sm backdrop-blur-sm z-50"
+      class="fixed bottom-safe-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-base-200/60 text-base-content/80 text-sm backdrop-blur-sm z-50"
       aria-label="Navegació de la projecció"
     >
       <button

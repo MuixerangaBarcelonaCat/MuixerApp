@@ -15,7 +15,7 @@ interface Tab {
   imports: [RouterLink, RouterLinkActive, LucideAngularModule],
   template: `
     <nav
-      class="fixed bottom-0 inset-x-0 bg-base-100 border-t border-base-300 z-chrome"
+      class="fixed bottom-0 inset-x-0 bg-base-100 border-t border-base-300 z-chrome px-safe"
       style="padding-bottom: env(safe-area-inset-bottom, 0px)"
       aria-label="Navegació principal"
     >

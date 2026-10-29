@@ -323,6 +323,34 @@ Caddy obtindrà i renovarà el certificat Let's Encrypt automàticament en detec
 
 > El volum `caddy-data` persisteix els certificats entre redeploys per evitar re-emissions innecessàries (Let's Encrypt té límit de 5 certificats/domini/setmana).
 
+### Canvi de host de la PWA
+
+Una PWA instal·lada queda lligada al seu origen: si la PWA canvia de host, no es pot migrar i cal reinstal·lar-la. Tampoc es traspassa la sessió (cookie de refresc i `localStorage` són per host) ni la subscripció push (la cron neteja les velles quan caduquen).
+
+Per a guiar els membres, el `Caddyfile` respon `/app-host.txt` amb el valor de `$PWA_PUBLIC_URL` en text pla (sense JSON: no cal escapar res). En arrencar, la PWA el consulta en segon pla (`AppComponent` → `movedHostUrl`): si és una URL `https://` d'un altre host, mostra una pantalla bloquejant «L'app ha canviat d'adreça» amb el botó «Obre la nova app». Sense variable, en local, sense connexió o amb una URL no vàlida, no fa res.
+
+**Fase 1 — els dos hosts en paral·lel** (diverses setmanes):
+
+1. DNS del host nou apuntant al servidor.
+2. `.env.pre`:
+   ```
+   PWA_SITE_ADDRESS=<host vell>, <host nou>
+   PWA_PUBLIC_URL=https://<host nou>
+   ```
+   L'API també llig `.env.pre`: els enllaços d'invitació es construïxen amb `PWA_PUBLIC_URL` quan existix (si no, amb `PWA_SITE_ADDRESS`), així que durant la fase 1 ja apunten al host nou.
+3. `docker compose -f docker-compose.pre.yml up -d dashboard` (Caddy emet el certificat del host nou; no cal rebuild si la imatge ja porta la regla `/app-host.txt`).
+4. Comprovar:
+   - `curl https://<host nou>/app-host.txt` i `curl https://<host vell>/app-host.txt` → tots dos tornen la URL nova.
+   - Obrir el host nou: **no** ha d'aparéixer la pantalla. Obrir el vell: sí.
+
+> **⚠️** Un `PWA_PUBLIC_URL` mal escrit envia tots els membres a una adreça que no funciona. Es desfà corregint l'`.env.pre` i repetint el pas 3.
+
+No posar una 301 al host vell en esta fase: el service worker serveix `index.html` de la cau i, si `ngsw.json` redirigix, l'app instal·lada no s'actualitza i no arriba a vore l'avís.
+
+**Fase 2 — tancar el host vell**, quan ja no hi haja accessos: treure'l de `PWA_SITE_ADDRESS` i afegir al `Caddyfile` un bloc `<host vell> { redir https://<host nou>{uri} permanent }`.
+
+**Historial:** `app.beta.muixerangabarcelona.cat` → `app-beta.muixerangabarcelona.cat` (2026-10).
+
 ---
 
 ## Monitoratge i Salut

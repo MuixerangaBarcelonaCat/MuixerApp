@@ -175,9 +175,12 @@ export class UserService {
     user.inviteExpiresAt = expiresAt;
     await this.userRepository.save(user);
 
+    // PWA_PUBLIC_URL wins: during a host move PWA_SITE_ADDRESS lists both hosts (docs/DEPLOY_PRE.md).
     const protocol = this.configService.get<string>('NODE_ENV') === 'production' ? 'https' : 'http';
-    const pwaSiteAddress = this.configService.get<string>('PWA_SITE_ADDRESS');
-    const inviteUrl = `${protocol}://${pwaSiteAddress}/activate?token=${rawToken}`;
+    const pwaBase =
+      this.configService.get<string>('PWA_PUBLIC_URL')?.replace(/\/$/, '') ??
+      `${protocol}://${this.configService.get<string>('PWA_SITE_ADDRESS')}`;
+    const inviteUrl = `${pwaBase}/activate?token=${rawToken}`;
 
     return { inviteUrl, expiresAt: expiresAt.toISOString() };
   }
