@@ -408,6 +408,22 @@ describe('UserService', () => {
 
       expect(result.inviteUrl).toMatch(/^https?:\/\/app\.example\.com\/activate\?token=.+$/);
     });
+
+    it('prefers PWA_PUBLIC_URL over PWA_SITE_ADDRESS (host move: site address lists two hosts)', async () => {
+      const existingUser = makeUser({ id: 'user-uuid', isActive: false });
+      const person = makePerson({ user: existingUser });
+      mockPersonRepo.findOne.mockResolvedValue(person);
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
+      const env: Record<string, string> = {
+        PWA_SITE_ADDRESS: 'old.example.com, new.example.com',
+        PWA_PUBLIC_URL: 'https://new.example.com/',
+      };
+      mockConfigService.get.mockImplementation((key: string) => env[key]);
+
+      const result = await service.createOrRefreshInviteLink('person-uuid');
+
+      expect(result.inviteUrl).toMatch(/^https:\/\/new\.example\.com\/activate\?token=[0-9a-f]+$/);
+    });
   });
 
   // ---------------------------------------------------------------------------

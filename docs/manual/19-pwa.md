@@ -26,6 +26,8 @@ Per a canviar de pantalla, s'usa la barra de baix: «Inici», «Agenda» i «Per
 
 L'app s'actualitza sola: no cal desinstal·lar-la quan n'hi ha una versió nova. Quan arriba, dalt de la pantalla apareix l'avís «Hi ha una versió nova de l'app» amb el botó «Actualitza». Si no el toqueu, la versió nova es carrega la pròxima vegada que obriu l'app.
 
+L'app ha canviat d'adreça: ara és `app-beta.muixerangabarcelona.cat` (abans, `app.beta.muixerangabarcelona.cat`). Qui encara té instal·lada l'antiga veu, després d'actualitzar, una pantalla «L'app ha canviat d'adreça» amb el botó «Obre la nova app». Cal iniciar la sessió a la nova adreça, instal·lar-la de nou i esborrar l'antiga de la pantalla d'inici. Els avisos (notificacions) s'han de tornar a activar a la nova.
+
 ![Pantalla Inici de l'app dels membres](img/19-pwa-inici.png)
 
 ## Pas a pas

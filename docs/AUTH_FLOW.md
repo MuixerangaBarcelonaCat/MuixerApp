@@ -507,7 +507,8 @@ POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolic
 | `REFRESH_TOKEN_COOKIE` | `muixer_rt` | Nom de la cookie httpOnly |
 | `SETUP_TOKEN` | `uuid-aleatori` | Token per al bootstrap endpoint. Eliminar en prod |
 | `CORS_ORIGINS` | `http://localhost:4200,http://localhost:4300` | Orígens permesos (comma-separated) |
-| `PWA_SITE_ADDRESS` | `localhost:4300` | Host usat per construir `inviteUrl` (`/activate?token=`) |
+| `PWA_SITE_ADDRESS` | `localhost:4300` | Host usat per construir `inviteUrl` (`/activate?token=`) quan no hi ha `PWA_PUBLIC_URL` |
+| `PWA_PUBLIC_URL` | `https://app-beta.muixerangabarcelona.cat` | URL pública de la PWA (amb esquema). Si existeix, `inviteUrl` la fa servir en lloc de `PWA_SITE_ADDRESS`; també alimenta l'avís de canvi de host (docs/DEPLOY_PRE.md) |
 | `SITE_ADDRESS` | `localhost:4200` | Host usat per construir l'enllaç de `reset-password` (Dashboard) — **diferent** de `PWA_SITE_ADDRESS` |
 | `INVITE_TOKEN_TTL_HOURS` | `72` | Vida del token d'invitació en hores |
 | ~~`RECOVERY_LINK_TTL_HOURS`~~ | — | **Desactivada** amb l'enllaç de recuperació generat per un tècnic (§8.1). Si es rehabilita, useu un valor molt més curt que les 24 hores originals |
