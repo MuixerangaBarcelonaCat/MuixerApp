@@ -196,6 +196,7 @@ export class AuthService {
           this._accessToken.set(res.accessToken);
           this._currentUser.set(res.user);
           this.setSessionHint();
+          this.installPrompt.registerLogin();
         }),
         map(() => void 0),
       );

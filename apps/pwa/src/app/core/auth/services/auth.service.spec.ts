@@ -7,6 +7,8 @@ import {
 import { provideRouter } from '@angular/router';
 import { AuthResponse, ClientType, Gender, InviteRegistrationContext, UserProfile, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
+import { vi } from 'vitest';
+import { InstallPromptService } from '../../../shared/services/install-prompt.service';
 
 const mockUser: UserProfile = {
   id: 'u1',
@@ -245,5 +247,26 @@ describe('AuthService', () => {
 
     expect(service.isAuthenticated()).toBe(true);
     expect(service.getAccessToken()).toBe('jwt-token');
+  });
+
+  it('registerViaInvite() counts as a login so the install banner can show', () => {
+    const registerLogin = vi.spyOn(TestBed.inject(InstallPromptService), 'registerLogin');
+    service
+      .registerViaInvite({
+        token: 'raw-token',
+        email: 'new@test.cat',
+        password: 'newpass123',
+        name: 'Joan',
+        firstSurname: 'Garcia',
+        gender: Gender.MALE,
+        phone: '+34612345678',
+        birthDate: '2000-01-15',
+        legalAccepted: true,
+      })
+      .subscribe();
+
+    httpTesting.expectOne('/api/auth/invite/register').flush(mockAuthResponse);
+
+    expect(registerLogin).toHaveBeenCalledTimes(1);
   });
 });
