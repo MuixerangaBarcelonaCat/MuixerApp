@@ -6,7 +6,8 @@ dist
 .gitignore
 .env*
 !.env.example
-docs
+docs/*
+!docs/manual
 *.md
 coverage
 tmp
