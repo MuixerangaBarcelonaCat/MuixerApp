@@ -33,15 +33,15 @@ export class AppComponent {
 
   constructor() {
     inject(PinchZoomGuardService).install();
-    this.checkPublicHost(inject(DOCUMENT).location.host);
+    this.checkPublicHost(inject(DOCUMENT).location);
   }
 
   // Background check, never blocks boot. Plain fetch (not HttpClient) keeps it out of the
   // auth interceptor; any failure (dev server, offline, unset var) leaves the app as is.
-  private checkPublicHost(host: string): void {
+  private checkPublicHost(here: Location): void {
     fetch('/app-host.txt', { cache: 'no-store' })
       .then((res) => (res.ok ? res.text() : null))
-      .then((body) => this.movedTo.set(movedHostUrl(body, host)))
+      .then((body) => this.movedTo.set(movedHostUrl(body, here)))
       .catch(() => undefined);
   }
 }

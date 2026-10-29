@@ -7,11 +7,16 @@ import { ButtonComponent, CardComponent } from '@muixer/ui';
 // (`/app-host.txt`, env `PWA_PUBLIC_URL`) — see docs/DEPLOY_PRE.md «Canvi de host de la PWA».
 // Anything but a valid https URL on another host (unset var, dev server's HTML fallback, offline)
 // is ignored. `host` includes the port, so the same hostname on another port counts as moved.
-export function movedHostUrl(publicUrl: unknown, host: string): string | null {
+// Path and query are kept so an old invite link (`/activate?token=…`) still works on the new host.
+export function movedHostUrl(
+  publicUrl: unknown,
+  here: Pick<Location, 'host' | 'pathname' | 'search'>,
+): string | null {
   if (typeof publicUrl !== 'string') return null;
   try {
     const url = new URL(publicUrl.trim());
-    return url.protocol === 'https:' && url.host !== host ? url.href : null;
+    if (url.protocol !== 'https:' || url.host === here.host) return null;
+    return new URL(here.pathname + here.search, url.origin).href;
   } catch {
     return null;
   }
