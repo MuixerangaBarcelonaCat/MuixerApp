@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, input } from '@angular/core';
-import { ExternalLink, LucideAngularModule } from 'lucide-angular';
+import { Component, ChangeDetectionStrategy, inject, input, signal } from '@angular/core';
+import { Check, Copy, ExternalLink, LucideAngularModule } from 'lucide-angular';
 import { ButtonComponent, CardComponent } from '@muixer/ui';
+import { InstallPromptService } from '../../services/install-prompt.service';
 
 // An installed PWA is bound to its origin, so when the PWA changes host, members still on the
 // old one get a blocking screen pointing at the new address. The public URL comes from Caddy
@@ -35,14 +36,32 @@ export function movedHostUrl(
           <p>Esta adreça ja no s'actualitzarà. Per a continuar, instal·leu l'app des de la nova adreça:</p>
           <ol class="list-decimal space-y-1 pl-5">
             <li>Obriu la nova adreça amb el botó de baix.</li>
-            <li>Inicieu la sessió amb el vostre correu i contrasenya.</li>
-            <li>Instal·leu l'app: a Android, amb l'avís «Instal·la»; a iPhone, amb «Compartir» i després «Afegeix a l'inici».</li>
+            @if (standalone) {
+              <li>
+                Si s'obri dins d'esta app, passeu al navegador:
+                {{ isIos ? 'toqueu la icona de Safari o «Obre a Safari»' : 'toqueu ⋮ i després «Obre a Chrome»' }}.
+                També podeu copiar l'adreça i apegar-la al navegador.
+              </li>
+            }
+            <li>
+              Inicieu la sessió amb el vostre correu i contrasenya. Si veníeu d'un enllaç d'invitació, acabeu
+              d'activar el compte.
+            </li>
+            <li>
+              Instal·leu l'app: a Android, amb l'avís «Instal·la»; a iPhone, amb «Compartir» i després «Afegeix a
+              l'inici». A iPhone, cal tornar a iniciar la sessió dins de l'app nova.
+            </li>
+            <li>Activeu les notificacions a l'app nova.</li>
             <li>Esborreu esta app antiga de la pantalla d'inici.</li>
           </ol>
           <p class="break-all text-sm text-base-content/70">{{ url() }}</p>
           <lib-button [href]="url()" fullWidth>
             <lucide-icon [img]="ExternalLink" class="h-4 w-4" aria-hidden="true" />
             Obre la nova app
+          </lib-button>
+          <lib-button variant="neutral" outline fullWidth (clicked)="copy()">
+            <lucide-icon [img]="copied() ? Check : Copy" class="h-4 w-4" aria-hidden="true" />
+            {{ copied() ? "S'ha copiat l'adreça" : "Copia l'adreça" }}
           </lib-button>
         </lib-card>
       </div>
@@ -60,4 +79,21 @@ export function movedHostUrl(
 export class HostMovedComponent {
   url = input.required<string>();
   protected readonly ExternalLink = ExternalLink;
+  protected readonly Copy = Copy;
+  protected readonly Check = Check;
+
+  private readonly installPrompt = inject(InstallPromptService);
+  // Opened from the installed app, the button lands in an in-app browser that cannot install the PWA.
+  protected readonly standalone = this.installPrompt.isStandalone();
+  protected readonly isIos = this.installPrompt.isIos;
+  protected readonly copied = signal(false);
+
+  async copy(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.url());
+      this.copied.set(true);
+    } catch {
+      // No clipboard (old iOS, insecure context): the address stays visible above.
+    }
+  }
 }

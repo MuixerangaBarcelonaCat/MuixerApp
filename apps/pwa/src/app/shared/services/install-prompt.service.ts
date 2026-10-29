@@ -76,7 +76,7 @@ export class InstallPromptService {
     return this.getItem(INSTALL_DONE_KEY) === '1';
   }
 
-  private isStandalone(): boolean {
+  isStandalone(): boolean {
     return (
       window.matchMedia?.('(display-mode: standalone)').matches ||
       (navigator as unknown as { standalone?: boolean }).standalone === true
