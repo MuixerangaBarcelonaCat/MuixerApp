@@ -33,10 +33,11 @@ Forats detectats en el pas ja desplegat:
 6. **Fase 2 (redirecció 301) trenca l'avís si redirigix també `/app-host.txt`:** el `fetch` same-origin seguiria la redirecció a un altre origen sense CORS i fallaria en silenci → l'app vella deixaria de mostrar la pantalla. `/app-host.txt` ha de seguir responent al host vell.
 7. **No hi ha manera de saber qui encara usa el host vell:** Caddy no té `log` d'accés al bloc de la PWA. Sense dades, el tancament és a cegues.
 8. **Confirmat a la prova (2026-10-29): l'avís no ix en tornar de segon pla.** `AppComponent.checkPublicHost()` només s'executa al constructor. Una app instal·lada que estava en segon pla torna a primer pla sense rearrancar: no es consulta `/app-host.txt`. Si a més el procés venia d'abans del desplegament, el codi en memòria ni tan sols té `HostMovedComponent`, i només un arrencament en fred (matar l'app) el carrega. Arreglar el primer cas (Tasca 6) i, per a futurs canvis de host, tindre el codi de comprovació desplegat abans de canviar `PWA_PUBLIC_URL` (ara ja ho està).
-9. **Confirmat a la prova: després del login al navegador no ix el bàner «Instal·la l'app» (Android).** A Android el bàner només es mostra si s'ha rebut `beforeinstallprompt` (`InstallPromptService.recomputeShouldShow`). Eixe esdeveniment:
-   - no arriba mai en una pestanya personalitzada de Chrome (el que s'obri des d'una PWA instal·lada), ni en navegadors sense eixe esdeveniment (Firefox, alguns Samsung Internet);
-   - arriba una sola vegada per càrrega de pàgina i es pot llançar **abans** que Angular arrenque i que `InstallPromptService` registre el listener: es perd i, com que el login no recarrega la pàgina, no torna.
-   Resultat: cap bàner, cap indicació. Cal capturar l'esdeveniment abans d'Angular i, si no hi és, mostrar el bàner igualment amb instruccions manuals (Tasca 7).
+9. **Vist a la prova amb iPhone: després del login a Safari no ix el bàner «Instal·la l'app». Causa pendent de confirmar.** A iOS el bàner no depèn de cap esdeveniment: ix si no està marcada com a instal·lada, no és `standalone` i `muixer_login_count ≥ 1` sense descart previ (`install-prompt.service.spec.ts` ho cobrix: «shows after first login on iOS»). Per tant, en eixe Safari alguna d'estes condicions no es complia. Candidats, de més a menys probable:
+   - **Dades velles del host nou en eixe Safari.** Si abans ja s'havia provat `app-beta…` en eixe iPhone i s'havia tancat el bàner, `muixer_install_dismissed_at` el manté amagat fins a 10 logins més. Els membres no hauran visitat mai el host nou, així que no els afectaria.
+   - **La pàgina s'obria en el navegador intern de l'app instal·lada** (el full de Safari que s'obri des d'una app de la pantalla d'inici) i allí `isStandalone()` torna `true` o l'estat no és el de Safari.
+   **Diagnòstic (5 min, abans d'implementar res per a iOS):** obrir `https://app-beta.muixerangabarcelona.cat` en una **pestanya privada** de Safari, iniciar la sessió i mirar si ix el bàner. Si ix → era el primer candidat i no cal codi per a iOS. Si no ix → connectar l'iPhone al Mac (Safari → Desenvolupament) i a la consola mirar `localStorage` i `matchMedia('(display-mode: standalone)').matches`; amb això es decidix la tasca.
+10. **Risc a Android (no provat, preventiu):** allí el bàner només es mostra si s'ha rebut `beforeinstallprompt`, que no arriba en una pestanya personalitzada de Chrome (el que s'obri des d'una PWA instal·lada) ni en Firefox/Samsung Internet, i que es pot llançar abans que Angular registre el listener; com que el login no recarrega la pàgina, no torna. Resultat: cap bàner. Tasca 7.
 
 Fora d'abast: el Dashboard (no canvia de host) i el correu de «Heu oblidat la contrasenya?» (apunta a `SITE_ADDRESS`, el Dashboard).
 
@@ -51,7 +52,7 @@ Fora d'abast: el Dashboard (no canvia de host) i el correu de «Heu oblidat la c
    - **iPhone:** toca la icona de Safari / «Obre a Safari» (o «Copia l'adreça» i l'apega a Safari).
    - **Android:** menú ⋮ → «Obre a Chrome» (o «Copia l'adreça» i l'apega a Chrome).
 3. Al navegador, al host nou: «Inicia la sessió» amb correu i contrasenya.
-4. A Inici ix el bàner «Instal·la l'app» (amb Tasca 7, sempre; avui a Android pot no eixir):
+4. A Inici ix el bàner «Instal·la l'app» (a Android pot no eixir fins a la Tasca 7; a iPhone, vegeu el forat 9). Si no ix, instal·leu-la igualment des del menú del navegador:
    - **Android:** «Instal·la» → confirma. Si el bàner no té botó, menú ⋮ → «Instal·la l'app» (o «Afegeix a la pantalla d'inici»). L'app nova ja té la sessió.
    - **iPhone:** «Compartir» → «Afegeix a l'inici». Obri l'app nova des de la pantalla d'inici i **torna a iniciar la sessió** (dades separades de Safari).
 5. Dins de l'app nova: «Activa les notificacions» → «Activa».
@@ -391,6 +392,8 @@ it('shows manual menu instructions when the browser cannot prompt', () => {
 ---
 
 ## Verificació manual a pre (després de desplegar)
+
+- [ ] **Primer de tot (forat 9):** iPhone, pestanya privada de Safari al host nou → login → ix el bàner? Apuntar el resultat ací i, si no ix, afegir la tasca d'iOS amb el que diga la consola.
 
 - [ ] App vella en segon pla (sense matar-la) → canviar `PWA_PUBLIC_URL` / redesplegar → tornar a primer pla → ix la pantalla (Tasca 6).
 - [ ] Android, Chrome normal i pestanya oberta des de la PWA: després del login ix el bàner, amb botó o amb les instruccions del menú ⋮ (Tasca 7).
