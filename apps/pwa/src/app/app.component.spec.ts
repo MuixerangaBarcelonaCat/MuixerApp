@@ -119,4 +119,36 @@ describe('AppComponent', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-host-moved')).toBeTruthy();
   });
+
+  function setVisibility(state: DocumentVisibilityState): void {
+    Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  it('shows the host-moved screen when the app comes back to the foreground', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    setVisibility('visible');
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-host-moved')).toBeTruthy();
+    });
+  });
+
+  it('does not refetch once the screen is shown', async () => {
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(fixture.componentInstance['movedTo']()).not.toBeNull());
+    setVisibility('visible');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores the app going to the background', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    setVisibility('hidden');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });

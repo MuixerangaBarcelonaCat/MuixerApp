@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, inject, computed, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { HostMovedComponent, dropPushSubscription, movedHostUrl } from './shared/components/host-moved/host-moved.component';
@@ -33,7 +33,15 @@ export class AppComponent {
 
   constructor() {
     inject(PinchZoomGuardService).install();
-    this.checkPublicHost(inject(DOCUMENT).location);
+    const doc = inject(DOCUMENT);
+    this.checkPublicHost(doc.location);
+
+    // An installed app resumed from the background does not reboot: check again on every return.
+    const onVisible = () => {
+      if (doc.visibilityState === 'visible' && !this.movedTo()) this.checkPublicHost(doc.location);
+    };
+    doc.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => doc.removeEventListener('visibilitychange', onVisible));
   }
 
   // Background check, never blocks boot. Plain fetch (not HttpClient) keeps it out of the
