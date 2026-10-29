@@ -327,7 +327,14 @@ Caddy obtindrà i renovarà el certificat Let's Encrypt automàticament en detec
 
 Una PWA instal·lada queda lligada al seu origen: si la PWA canvia de host, no es pot migrar i cal reinstal·lar-la. Tampoc es traspassa la sessió (cookie de refresc i `localStorage` són per host) ni la subscripció push (la cron neteja les velles quan caduquen).
 
-Per a guiar els membres, el `Caddyfile` respon `/app-host.txt` amb el valor de `$PWA_PUBLIC_URL` en text pla (sense JSON: no cal escapar res). En arrencar, la PWA el consulta en segon pla (`AppComponent` → `movedHostUrl`): si és una URL `https://` d'un altre host, mostra una pantalla bloquejant «L'app ha canviat d'adreça» amb el botó «Obre la nova app». Sense variable, en local, sense connexió o amb una URL no vàlida, no fa res.
+Per a guiar els membres, el `Caddyfile` respon `/app-host.txt` amb el valor de `$PWA_PUBLIC_URL` en text pla (sense JSON: no cal escapar res). La PWA el consulta en segon pla en arrencar **i cada vegada que torna a primer pla** (`AppComponent` → `movedHostUrl`): si és una URL `https://` d'un altre host, mostra una pantalla bloquejant «L'app ha canviat d'adreça». Sense variable, en local, sense connexió o amb una URL no vàlida, no fa res.
+
+La pantalla:
+- porta a la mateixa ruta i query al host nou («Obre la nova app»): un enllaç d'invitació vell (`/activate?token=…`) seguix funcionant;
+- té «Copia l'adreça» i, si l'app està instal·lada, explica com passar del navegador intern al de veritat (Safari / Chrome), l'únic des d'on es pot instal·lar;
+- dona de baixa les notificacions de l'origen vell (només al navegador; l'API desactiva la subscripció en el pròxim enviament amb 410), així el membre no rep cada avís dues vegades.
+
+Una app que estava oberta des d'**abans** del desplegament que porta esta comprovació no la té en memòria: cal tancar-la del tot i tornar-la a obrir.
 
 **Fase 1 — els dos hosts en paral·lel** (diverses setmanes):
 
@@ -347,7 +354,43 @@ Per a guiar els membres, el `Caddyfile` respon `/app-host.txt` amb el valor de `
 
 No posar una 301 al host vell en esta fase: el service worker serveix `index.html` de la cau i, si `ngsw.json` redirigix, l'app instal·lada no s'actualitza i no arriba a vore l'avís.
 
-**Fase 2 — tancar el host vell**, quan ja no hi haja accessos: treure'l de `PWA_SITE_ADDRESS` i afegir al `Caddyfile` un bloc `<host vell> { redir https://<host nou>{uri} permanent }`.
+**Seguiment** (cada setmana): el bloc de la PWA del `Caddyfile` té `log`. Peticions a l'API pel host vell en els últims 7 dies:
+
+```bash
+docker compose -f docker-compose.pre.yml logs --since 168h dashboard \
+  | grep '"host":"<host vell>"' | grep -c '"uri":"/api/'
+```
+
+**Criteri de tall:** 7 dies seguits amb 0, o com a màxim 4 setmanes després de l'avís als membres.
+
+**Missatge per als membres** (WhatsApp):
+
+```
+📲 L'app de la colla ha canviat d'adreça: https://<host nou>
+1. Obriu l'adreça al navegador (Safari a iPhone, Chrome a Android).
+2. Inicieu la sessió amb el vostre correu i contrasenya.
+3. Instal·leu l'app: a Android, «Instal·la» (o menú ⋮ → «Instal·la l'app»); a iPhone, «Compartir» → «Afegeix a l'inici», i torneu a iniciar la sessió dins de l'app.
+4. Activeu les notificacions.
+5. Esborreu l'app antiga.
+L'app antiga deixarà de funcionar el <data de tall>.
+```
+
+**Fase 2 — tancar el host vell**, en complir el criteri: treure'l de `PWA_SITE_ADDRESS` i afegir al `Caddyfile` este bloc:
+
+```
+<host vell> {
+    handle /app-host.txt {
+        header Content-Type "text/plain; charset=utf-8"
+        header Cache-Control "no-store"
+        respond "{$PWA_PUBLIC_URL}"
+    }
+    handle {
+        redir https://<host nou>{uri} permanent
+    }
+}
+```
+
+`/app-host.txt` **no** es redirigix: la PWA el demana amb un `fetch` al seu origen, i una redirecció a un altre origen sense CORS fallaria en silenci; les apps velles que queden instal·lades arrenquen des de la cau del service worker i deixarien de mostrar la pantalla. Mantindre el DNS i este bloc indefinidament (cost zero).
 
 **Historial:** `app.beta.muixerangabarcelona.cat` → `app-beta.muixerangabarcelona.cat` (2026-10).
 

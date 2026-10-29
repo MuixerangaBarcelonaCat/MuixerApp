@@ -19,16 +19,28 @@ Este manual no és dins de l'app dels membres: només és al Dashboard.
 
 L'app dels membres té una adreça web diferent de la del Dashboard. Es pot instal·lar al mòbil de dues maneres:
 
-- **A Android:** amb el bàner «Instal·la l'app» → «Instal·la».
+- **A Android:** amb el bàner «Instal·la l'app» → «Instal·la». Si el bàner no té el botó, toqueu el menú ⋮ del navegador i després «Instal·la l'app» o «Afegeix a la pantalla d'inici».
 - **A l'iPhone:** al navegador, toqueu «Compartir» i després «Afegeix a l'inici».
 
 Per a canviar de pantalla, s'usa la barra de baix: «Inici», «Agenda» i «Perfil».
 
 L'app s'actualitza sola: no cal desinstal·lar-la quan n'hi ha una versió nova. Quan arriba, dalt de la pantalla apareix l'avís «Hi ha una versió nova de l'app» amb el botó «Actualitza». Si no el toqueu, la versió nova es carrega la pròxima vegada que obriu l'app.
 
-L'app ha canviat d'adreça: ara és `app-beta.muixerangabarcelona.cat` (abans, `app.beta.muixerangabarcelona.cat`). Qui encara té instal·lada l'antiga veu, després d'actualitzar, una pantalla «L'app ha canviat d'adreça» amb el botó «Obre la nova app». Cal iniciar la sessió a la nova adreça, instal·lar-la de nou i esborrar l'antiga de la pantalla d'inici. Els avisos (notificacions) s'han de tornar a activar a la nova.
-
 ![Pantalla Inici de l'app dels membres](img/19-pwa-inici.png)
+
+### Canvi d'adreça de l'app
+
+L'app ha canviat d'adreça: ara és `app-beta.muixerangabarcelona.cat` (abans, `app.beta.muixerangabarcelona.cat`). L'app instal·lada no es pot traslladar: cal instal·lar la nova i esborrar l'antiga.
+
+Qui obri l'adreça antiga veu la pantalla «L'app ha canviat d'adreça». Si no apareix, tanqueu l'app del tot (lleveu-la de les apps recents) i torneu-la a obrir. Passos:
+
+1. Toqueu «Obre la nova app». Si s'obri dins de la mateixa app, passeu al navegador: a l'iPhone, toqueu la icona de Safari o «Obre a Safari»; a Android, toqueu ⋮ i després «Obre a Chrome». També podeu tocar «Copia l'adreça» i apegar-la al navegador.
+2. Inicieu la sessió amb el vostre correu i contrasenya.
+3. Instal·leu l'app com s'explica dalt. A l'iPhone, cal tornar a iniciar la sessió dins de l'app nova.
+4. Activeu les notificacions a l'app nova.
+5. Esborreu l'app antiga de la pantalla d'inici.
+
+Qui entra per primera vegada o té un enllaç d'invitació no ha de fer res especial: l'enllaç ja porta a l'adreça nova, i en acabar d'activar el compte apareix el bàner «Instal·la l'app». Un enllaç d'invitació creat abans del canvi també funciona: la pantalla de canvi el porta a l'adreça nova.
 
 ## Pas a pas
 

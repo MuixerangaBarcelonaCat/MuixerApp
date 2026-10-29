@@ -44,6 +44,10 @@
 {$PWA_SITE_ADDRESS} {
     encode gzip
 
+    # Access log (JSON to stdout, `request.host` tells the hosts apart): during a PWA host move it
+    # shows who still uses the old one. See docs/DEPLOY_PRE.md «Canvi de host de la PWA».
+    log
+
     handle /api/* {
         rate_limit {
             zone auth {
