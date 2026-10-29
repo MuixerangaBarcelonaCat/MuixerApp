@@ -29,6 +29,12 @@ describe('movedHostUrl', () => {
     expect(movedHostUrl(`${target}/`, at('app.beta.muixerangabarcelona.cat', '/events/1'))).toBe(`${target}/events/1`);
   });
 
+  it('never leaves the public origin, even for a protocol-relative path', () => {
+    expect(movedHostUrl(target, at('app.beta.muixerangabarcelona.cat', '//evil.com/login', '?a=1'))).toBe(
+      `${target}//evil.com/login?a=1`,
+    );
+  });
+
   it.each([undefined, null, '', 'not a url', 'http://app-beta.muixerangabarcelona.cat', '<!doctype html>', 42])(
     'ignores an unset or invalid public URL (%s)',
     (url) => {

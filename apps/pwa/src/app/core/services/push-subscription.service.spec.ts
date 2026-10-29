@@ -157,6 +157,22 @@ describe('PushSubscriptionService', () => {
       http.expectNone('/api/notifications/vapid-public-key');
     });
 
+    it('does not re-subscribe when the opt-out lands while the status call is in flight (host move)', async () => {
+      Object.defineProperty(globalThis, 'Notification', {
+        value: { permission: 'granted', requestPermission: vi.fn() },
+        configurable: true,
+      });
+      mockPushManager.getSubscription.mockResolvedValueOnce(null);
+
+      const promise = service.syncOnStartup();
+      localStorage.setItem('muixer_push_opted_out', 'true');
+      http.expectOne('/api/me/push-subscriptions/status').flush({ isSubscribed: true, deviceCount: 1 });
+      await promise;
+
+      http.expectNone('/api/notifications/vapid-public-key');
+      http.expectNone('/api/me/push-subscriptions');
+    });
+
     it('does nothing when the device is already subscribed', async () => {
       Object.defineProperty(globalThis, 'Notification', {
         value: { permission: 'granted', requestPermission: vi.fn() },

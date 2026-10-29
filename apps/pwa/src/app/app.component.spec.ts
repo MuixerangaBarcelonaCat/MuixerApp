@@ -100,6 +100,8 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     await fixture.whenStable();
     await vi.waitFor(() => expect(unsubscribe).toHaveBeenCalled());
+    // Blocks PushSubscriptionService.syncOnStartup from subscribing this origin again.
+    expect(localStorage.getItem('muixer_push_opted_out')).toBe('true');
   });
 
   it('keeps push when the host did not move', async () => {

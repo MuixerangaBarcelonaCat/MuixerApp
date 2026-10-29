@@ -6,7 +6,7 @@ import { PushSubscriptionStatus } from '@muixer/shared';
 const PUSH_DISMISSED_KEY = 'muixer_push_dismissed_at';
 const PUSH_DISMISS_DAYS = 7;
 /** Set when the user explicitly turns notifications off in settings — blocks silent startup re-subscribe. */
-const PUSH_OPTED_OUT_KEY = 'muixer_push_opted_out';
+export const PUSH_OPTED_OUT_KEY = 'muixer_push_opted_out';
 
 @Injectable({ providedIn: 'root' })
 export class PushSubscriptionService {
@@ -59,6 +59,8 @@ export class PushSubscriptionService {
 
     const registration = await navigator.serviceWorker.ready;
     const existing = await registration.pushManager.getSubscription();
+    // Re-check: the opt-out may have landed during the awaits (the old host dropping push on a move).
+    if (this.getItem(PUSH_OPTED_OUT_KEY) === 'true') return;
     if (!existing || !this._isSubscribed()) {
       await this.subscribeAndRegister();
     }
