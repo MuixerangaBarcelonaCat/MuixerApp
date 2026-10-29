@@ -22,11 +22,16 @@ import { InstallPromptService } from '../../services/install-prompt.service';
             Toca <strong>Compartir</strong> i després
             <strong>"Afegeix a l'inici"</strong> per tenir Muixer com una app.
           </p>
-        } @else {
+        } @else if (installPrompt.canPromptInstall()) {
           <p class="text-sm">Afegeix Muixer a la pantalla d'inici del mòbil.</p>
+        } @else {
+          <p class="text-sm">
+            Toca <strong>⋮</strong> i després <strong>«Instal·la l'app»</strong> o
+            <strong>«Afegeix a la pantalla d'inici»</strong>.
+          </p>
         }
         <!-- Its own @if: a slotted node only projects when it is the block's single root. -->
-        @if (!installPrompt.isIos) {
+        @if (!installPrompt.isIos && installPrompt.canPromptInstall()) {
           <span actions class="shrink-0 self-center">
             <lib-button size="sm" (clicked)="installPrompt.promptInstall()">Instal·la</lib-button>
           </span>

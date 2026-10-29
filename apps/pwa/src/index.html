@@ -29,6 +29,11 @@
           document.documentElement.dataset.theme = 'colla-barcelona-' + theme;
         }
       } catch (e) {}
+      // Fires once per page load, possibly before Angular boots; InstallPromptService adopts it.
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__muixerInstallPrompt = e;
+      });
     </script>
   </head>
   <body class="bg-base-200 antialiased">

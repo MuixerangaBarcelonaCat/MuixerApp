@@ -13,20 +13,23 @@ const INSTALL_DONE_KEY = 'muixer_install_done';
 export class InstallPromptService {
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
 
-  private readonly _canInstallAndroid = signal(false);
+  private readonly _canPromptInstall = signal(false);
   private readonly _installed = signal(this.isInstalled());
 
-  readonly canInstallAndroid = this._canInstallAndroid.asReadonly();
+  /** The browser handed us `beforeinstallprompt`: the banner can show a real «Instal·la» button. */
+  readonly canPromptInstall = this._canPromptInstall.asReadonly();
   readonly isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  readonly isMobile = /Android|iPad|iPhone|iPod/.test(navigator.userAgent);
 
   readonly shouldShow = signal(false);
 
   constructor() {
+    // The event fires once per page load and can beat Angular's boot: index.html keeps it for us.
+    const early = (window as { __muixerInstallPrompt?: Event }).__muixerInstallPrompt;
+    if (early) this.adoptPrompt(early);
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
-      this.deferredPrompt = event as BeforeInstallPromptEvent;
-      this._canInstallAndroid.set(true);
-      this.recomputeShouldShow();
+      this.adoptPrompt(event);
     });
 
     window.addEventListener('appinstalled', () => {
@@ -46,6 +49,15 @@ export class InstallPromptService {
 
   promptInstall(): void {
     this.deferredPrompt?.prompt();
+    // A prompt event can only be used once.
+    this.deferredPrompt = null;
+    this._canPromptInstall.set(false);
+  }
+
+  private adoptPrompt(event: Event): void {
+    this.deferredPrompt = event as BeforeInstallPromptEvent;
+    this._canPromptInstall.set(true);
+    this.recomputeShouldShow();
   }
 
   dismiss(): void {
@@ -58,7 +70,9 @@ export class InstallPromptService {
       this.shouldShow.set(false);
       return;
     }
-    if (!this.isIos && !this._canInstallAndroid()) {
+    // Phones always get the banner (with menu instructions when there is no prompt event: Chrome
+    // custom tabs, Firefox, Samsung Internet); desktop only when the browser can actually prompt.
+    if (!this.isMobile && !this._canPromptInstall()) {
       this.shouldShow.set(false);
       return;
     }
