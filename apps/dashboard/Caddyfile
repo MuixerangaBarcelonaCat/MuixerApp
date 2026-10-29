@@ -46,7 +46,14 @@
 
     # Access log (JSON to stdout, `request.host` tells the hosts apart): during a PWA host move it
     # shows who still uses the old one. See docs/DEPLOY_PRE.md «Canvi de host de la PWA».
-    log
+    # `token` is dropped from the logged URI: invite links (`/activate?token=…`) are bearer secrets.
+    log {
+        format filter {
+            request>uri query {
+                delete token
+            }
+        }
+    }
 
     handle /api/* {
         rate_limit {
