@@ -32,6 +32,11 @@ Forats detectats en el pas ja desplegat:
 5. **L'app vella només veu la pantalla després d'actualitzar-se.** La primera obertura després del desplegament servix la versió de la cau (sense `HostMovedComponent`); el service worker baixa la nova i la pantalla ix a la segona obertura (o en tocar «Actualitza»). Cal comptar-ho en la comunicació.
 6. **Fase 2 (redirecció 301) trenca l'avís si redirigix també `/app-host.txt`:** el `fetch` same-origin seguiria la redirecció a un altre origen sense CORS i fallaria en silenci → l'app vella deixaria de mostrar la pantalla. `/app-host.txt` ha de seguir responent al host vell.
 7. **No hi ha manera de saber qui encara usa el host vell:** Caddy no té `log` d'accés al bloc de la PWA. Sense dades, el tancament és a cegues.
+8. **Confirmat a la prova (2026-10-29): l'avís no ix en tornar de segon pla.** `AppComponent.checkPublicHost()` només s'executa al constructor. Una app instal·lada que estava en segon pla torna a primer pla sense rearrancar: no es consulta `/app-host.txt`. Si a més el procés venia d'abans del desplegament, el codi en memòria ni tan sols té `HostMovedComponent`, i només un arrencament en fred (matar l'app) el carrega. Arreglar el primer cas (Tasca 6) i, per a futurs canvis de host, tindre el codi de comprovació desplegat abans de canviar `PWA_PUBLIC_URL` (ara ja ho està).
+9. **Confirmat a la prova: després del login al navegador no ix el bàner «Instal·la l'app» (Android).** A Android el bàner només es mostra si s'ha rebut `beforeinstallprompt` (`InstallPromptService.recomputeShouldShow`). Eixe esdeveniment:
+   - no arriba mai en una pestanya personalitzada de Chrome (el que s'obri des d'una PWA instal·lada), ni en navegadors sense eixe esdeveniment (Firefox, alguns Samsung Internet);
+   - arriba una sola vegada per càrrega de pàgina i es pot llançar **abans** que Angular arrenque i que `InstallPromptService` registre el listener: es perd i, com que el login no recarrega la pàgina, no torna.
+   Resultat: cap bàner, cap indicació. Cal capturar l'esdeveniment abans d'Angular i, si no hi és, mostrar el bàner igualment amb instruccions manuals (Tasca 7).
 
 Fora d'abast: el Dashboard (no canvia de host) i el correu de «Heu oblidat la contrasenya?» (apunta a `SITE_ADDRESS`, el Dashboard).
 
@@ -41,13 +46,13 @@ Fora d'abast: el Dashboard (no canvia de host) i el correu de «Heu oblidat la c
 
 ### A. Té l'app vella instal·lada
 
-1. Obri l'app vella. Primera obertura: res nou (o l'avís «Hi ha una versió nova» → «Actualitza»). Segona obertura: pantalla «L'app ha canviat d'adreça». Des d'este moment l'app vella també es dona de baixa de les notificacions (Tasca 3).
+1. Obri l'app vella. Si estava en segon pla des d'abans del desplegament, cal tancar-la del tot (traure-la de les apps recents) i tornar-la a obrir; si no, amb Tasca 6 la pantalla ix en tornar a primer pla. Primera obertura en fred: pot ser que encara isca la versió de la cau (o l'avís «Hi ha una versió nova» → «Actualitza»). Segona obertura: pantalla «L'app ha canviat d'adreça». Des d'este moment l'app vella també es dona de baixa de les notificacions (Tasca 3).
 2. Toca «Obre la nova app». Si s'obri dins de l'app (navegador intern), seguix l'ajuda de la pantalla (Tasca 2):
    - **iPhone:** toca la icona de Safari / «Obre a Safari» (o «Copia l'adreça» i l'apega a Safari).
    - **Android:** menú ⋮ → «Obre a Chrome» (o «Copia l'adreça» i l'apega a Chrome).
 3. Al navegador, al host nou: «Inicia la sessió» amb correu i contrasenya.
-4. A Inici ix el bàner «Instal·la l'app»:
-   - **Android:** «Instal·la» → confirma. L'app nova ja té la sessió.
+4. A Inici ix el bàner «Instal·la l'app» (amb Tasca 7, sempre; avui a Android pot no eixir):
+   - **Android:** «Instal·la» → confirma. Si el bàner no té botó, menú ⋮ → «Instal·la l'app» (o «Afegeix a la pantalla d'inici»). L'app nova ja té la sessió.
    - **iPhone:** «Compartir» → «Afegeix a l'inici». Obri l'app nova des de la pantalla d'inici i **torna a iniciar la sessió** (dades separades de Safari).
 5. Dins de l'app nova: «Activa les notificacions» → «Activa».
 6. Esborra l'app vella de la pantalla d'inici.
@@ -301,7 +306,94 @@ it('survives a browser without service worker', async () => { /* navigator.servi
 
 ---
 
+### Task 6: Tornar a comprovar el host en tornar a primer pla
+
+**Files:**
+- Modify: `apps/pwa/src/app/app.component.ts` (`checkPublicHost`)
+- Test: `apps/pwa/src/app/app.component.spec.ts`
+
+**Interfaces:**
+- Consumes: `movedHostUrl` (Tasca 1), `dropPushSubscription` (Tasca 3).
+
+Mateix patró que `AppUpdateService`: listener `visibilitychange` que, quan `document.visibilityState === 'visible'` i `movedTo()` encara és `null`, torna a cridar `checkPublicHost`. Es trau amb `DestroyRef.onDestroy`. Sense temporitzadors: `/app-host.txt` és `no-store` i molt lleuger.
+
+- [ ] **Step 1: Tests**
+
+```ts
+it('shows the host-moved screen when the app comes back to the foreground', async () => {
+  stubAppHost('');                       // boot: not moved
+  const fixture = TestBed.createComponent(AppComponent);
+  await fixture.whenStable();
+  stubAppHost('https://app-beta.muixerangabarcelona.cat');   // PWA_PUBLIC_URL set while in background
+  setVisibility('visible');               // Object.defineProperty(document, 'visibilityState', …) + dispatchEvent
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(fixture.nativeElement.querySelector('app-host-moved')).toBeTruthy();
+});
+
+it('does not refetch once the screen is shown', async () => { /* moved at boot → visible → fetch called once */ });
+```
+- [ ] **Step 2:** `nx test pwa --testFile=apps/pwa/src/app/app.component.spec.ts` → FAIL.
+- [ ] **Step 3:** Implementar.
+- [ ] **Step 4:** → PASS.
+- [ ] **Step 5:** `git commit -m "fix(pwa): recheck the public host when the app returns to the foreground"`
+
+### Task 7: Bàner d'instal·lació fiable a Android
+
+**Files:**
+- Modify: `apps/pwa/src/index.html` (script inline, abans del bundle)
+- Modify: `apps/pwa/src/app/shared/services/install-prompt.service.ts`
+- Modify: `apps/pwa/src/app/shared/components/install-prompt-banner/install-prompt-banner.component.ts`
+- Test: `install-prompt.service.spec.ts` (existix), create `install-prompt-banner.component.spec.ts`
+
+**Interfaces:**
+- Produces: `window.__muixerInstallPrompt?: Event` (capturat abans d'Angular); `InstallPromptService.canPromptInstall(): boolean` (signal, substituïx `canInstallAndroid`); `InstallPromptService.isMobile: boolean`.
+
+Canvis:
+1. `index.html`: `window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__muixerInstallPrompt = e; });` — al mateix `<script>` inline que ja aplica el tema.
+2. Constructor del servei: si `window.__muixerInstallPrompt` existix, l'adopta com a `deferredPrompt`; el listener propi es manté per als que arriben després.
+3. `recomputeShouldShow`: deixa de dependre de l'esdeveniment. Es mostra si no està instal·lada ni en `standalone`, és mòbil (`/Android|iPad|iPhone|iPod/` a l'`userAgent`) i es complix la regla de logins actual. Escriptori sense esdeveniment: no es mostra (com ara).
+4. Bàner, cas Android:
+   - amb `canPromptInstall()`: com ara, botó «Instal·la»;
+   - sense: text `Toqueu <strong>⋮</strong> i després <strong>«Instal·la l'app»</strong> o <strong>«Afegeix a la pantalla d'inici»</strong>.` i cap botó.
+   - `promptInstall()` posa `canPromptInstall` a `false` després de cridar `prompt()` (l'esdeveniment només es pot usar una vegada).
+
+- [ ] **Step 1: Tests**
+
+```ts
+it('adopts a beforeinstallprompt captured before Angular booted', () => {
+  (window as any).__muixerInstallPrompt = fakePromptEvent();
+  const svc = TestBed.inject(InstallPromptService);
+  expect(svc.canPromptInstall()).toBe(true);
+});
+
+it('shows the banner on Android after login even without beforeinstallprompt', () => {
+  mockUserAgent('Mozilla/5.0 (Linux; Android 14)'); mockStandalone(false);
+  const svc = TestBed.inject(InstallPromptService);
+  svc.registerLogin();
+  expect(svc.shouldShow()).toBe(true);
+  expect(svc.canPromptInstall()).toBe(false);
+});
+
+it('keeps the banner hidden on desktop without beforeinstallprompt', () => { /* Windows UA → shouldShow false */ });
+
+// banner component
+it('shows manual menu instructions when the browser cannot prompt', () => {
+  expect(text).toContain("«Instal·la l'app»"); expect(button('Instal·la')).toBeNull();
+});
+```
+- [ ] **Step 2:** `nx test pwa --testFile=apps/pwa/src/app/shared/services/install-prompt.service.spec.ts` → FAIL.
+- [ ] **Step 3:** Implementar.
+- [ ] **Step 4:** `nx test pwa` → PASS; `nx lint pwa`.
+- [ ] **Step 5:** Manual `19-pwa.md`: a «A Android», afegir l'alternativa del menú ⋮.
+- [ ] **Step 6:** `git commit -m "fix(pwa): show install guidance on Android even without beforeinstallprompt"`
+
+---
+
 ## Verificació manual a pre (després de desplegar)
+
+- [ ] App vella en segon pla (sense matar-la) → canviar `PWA_PUBLIC_URL` / redesplegar → tornar a primer pla → ix la pantalla (Tasca 6).
+- [ ] Android, Chrome normal i pestanya oberta des de la PWA: després del login ix el bàner, amb botó o amb les instruccions del menú ⋮ (Tasca 7).
 
 - [ ] `curl https://<vell>/app-host.txt` i `curl https://<nou>/app-host.txt` → URL nova.
 - [ ] Android: app vella instal·lada → obrir dues vegades → pantalla → «Obre la nova app» → «Obre a Chrome» → login → «Instal·la» → app nova amb sessió → activar notificacions → enviar un avís de prova des del Dashboard: arriba **una** vegada.
