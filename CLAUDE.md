@@ -127,6 +127,8 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 
 **Canvas:** Konva 10.x used imperatively — not `ng2-konva` (incompatible with Angular 20+).
 
+**User manual:** any user-visible change to a dashboard screen, tab, button or flow must update the matching page of `docs/manual/` in the same PR — see [User manual](#user-manual).
+
 ### Members PWA (`apps/pwa`)
 
 Angular 21 + Service Worker (offline cache; **no push yet**), signals + `rxResource`.
@@ -134,6 +136,8 @@ Angular 21 + Service Worker (offline cache; **no push yet**), signals + `rxResou
 **Routes:** `login` (alreadyAuthGuard) · `AppShell` behind `authGuard` + `rolesGuard(MEMBER, TECHNICAL, ADMIN)`: `home`, `events`, `events/:id`, `events/:eventId/segments/:segmentId` (segment projection, lazy), `profile` (placeholder).
 
 **Features:** login, home (next rehearsal/performance), event agenda, event detail (with a **Segments** list for published segments — titles auto-derived the same way as the Dashboard, via `computeSegmentDisplayName` in `@muixer/shared`, plus a muted "on sou" one-line summary per segment via `formatOwnPositionSummary`, e.g. «Vent (C1) a Roscana»), **segment projection** (`SegmentProjectionComponent`: fetches via `/me/events/:eventId/segments/:segmentId/projection`, renders `<lib-pinya-projection>` full-bleed with a back/prev/next HUD, passing `highlightPersonId` (the caller's own `Person.id`) so `PinyaProjectionComponent` can show the "you are here" ring/chevron overlay (`OwnPositionMarkerComponent`) and sentence banner (`OwnPositionBannerComponent`, both in `@muixer/pinyes-render`) and fly the camera to the caller's placement on arrival or on tap — inert (`null`) for the Dashboard's own use of the same component; `LayoutService.isFullscreen` hides the bottom tab bar and shell chrome while it's open), and **attendance confirmation** (`AttendanceButton`: Vaig/No vaig → ANIRE/NO_VAIG; `ASSISTIT` replaces the Vaig/No vaig selector with a read-only "He assistit" badge). `no-person-banner` for accounts with no linked Person. TECHNICAL/ADMIN accounts also see a **Passa llista** link after their own attendance buttons on the event detail screen, shown only on the day of the event (mark any attendee's attendance via the same staff `/events/:id/attendance*` endpoints the Dashboard uses).
+
+**User manual:** PWA changes visible to members are documented in `docs/manual/19-pwa.md` (plus the page of any other route you touch) in the same PR — see [User manual](#user-manual).
 
 **Design system:** shares the same token/component library (`@muixer/ui`) as the dashboard — see [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md); the dashboard's `/design-system` route is the canonical live reference for both apps. New or touched PWA UI should apply design-system tokens and reach for a `@muixer/ui` component whenever one fits, the same rule as the dashboard — don't hand-roll a raw button/card/modal when a shared primitive already covers it. Dark mode works the same as in the dashboard; the PWA's picker is in Configuració → Aparença.
 
@@ -213,4 +217,16 @@ Detail: [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) · SSE: [docs/SSE_AUTH.md](docs/S
 
 - After adding/removing an API module, a dashboard/PWA feature, or editing a `.entity.ts` file, run `pnpm run docs:map` and `pnpm run docs:model` and include the diff in your commit. These only touch the `<!-- BEGIN:AUTO -->…<!-- END:AUTO -->` sections of `docs/MAP.md` and `docs/DATA_MODEL.md` — never edit inside those markers by hand.
 - After creating a new doc under `docs/`, give it YAML frontmatter with a `tags: [domini|infra|qa|hub]`, a `*Veïns: [[...]]*` footer linking its 2–4 closest neighbors, and a row in the relevant table of `docs/MAP.md`.
+- After changing user-visible behaviour of the dashboard or the PWA, update `docs/manual/` and its screenshots (see [User manual](#user-manual)). API changes with no visible effect don't need it.
 - After resolving an item in [docs/DEBT.md](docs/DEBT.md), delete its row — don't mark it "✅ Resolved". The git log is the history; the doc only tracks what's still open.
+
+## User manual
+
+`docs/manual/` is the end-user manual for technicians (valencià, one page per screen, read the language-rules skill first), bundled into the dashboard at **Configuració → Manual** (`/config/manual`). Design: [docs/superpowers/specs/2026-10-21-manual-us-dashboard-design.md](docs/superpowers/specs/2026-10-21-manual-us-dashboard-design.md).
+
+**Any change to user-visible behaviour of the dashboard or the PWA** (new/changed screen, tab, button, flow or button label) must, in the same PR:
+- update the manual page that covers the route — find it with `grep -rl "rutes:.*<route>" docs/manual` (each page starts with a `<!-- rutes: ... -->` comment);
+- regenerate the affected screenshots with `pnpm run docs:manual-shots`;
+- add the page to `MANUAL_PAGES` when you create one.
+
+Manual pages are exempt from the `docs/` frontmatter/«Veïns» rule (they render in-app).

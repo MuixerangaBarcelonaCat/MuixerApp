@@ -114,6 +114,11 @@ graph TD
 | Document | Què hi trobaràs |
 |----------|-----------------|
 | [[ad-hoc-nodes-user-guide]] | Nodes extra: què són i com fer-los servir (`internal/`) |
+| [[00-benvinguda]] | Manual d'ús del Dashboard per als tècnics: una pàgina per pantalla, també a Configuració → Manual (`manual/`) |
+| [[demo-dashboard-guio]] | Guió de la demo del Dashboard basat en el manual: preparació, agenda d'1 h 30 min per perfils i seguiment (`internal/`) |
+| [[DEMO_GUIO]] | Guió de la demo del Dashboard per als tècnics: preparació, agenda d'1 h 30 min i exercicis (`demo/`) |
+| [[GUIA_PINYES]] | Guia ràpida per a tècnics de pinyes: tasques «Vull… → Feu…», dreceres i avisos (`demo/`) |
+| [[GUIA_TRONCS_XICALLA]] | Guia ràpida per a tècnics de troncs i xicalla: alçades, estructura del tronc, filtres de xicalla (`demo/`) |
 
 ---
 

@@ -2,6 +2,7 @@ import {
   ArrowRightToLine,
   Baby,
   Bell,
+  BookOpen,
   Calendar,
   CalendarRange,
   ChessRook,
@@ -72,6 +73,7 @@ export const DOMAIN_ICONS = {
   CALENDAR_RANGE: CalendarRange,
   SHIELD_CHECK: ShieldCheck,
   DESIGN_SYSTEM: Sparkles,
+  MANUAL: BookOpen,
   /** La configuració de la colla (`/config/colla`). */
   COLLA_SETTINGS: SlidersHorizontal,
 } as const;

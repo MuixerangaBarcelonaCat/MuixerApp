@@ -41,6 +41,10 @@ import { AuthService } from '../../core/auth/services/auth.service';
           </lib-card>
         }
 
+        <lib-card sash="title" title="Manual" [icon]="ICON_MANUAL" routerLink="manual">
+          <p class="text-md text-base-content/60">Com funciona cada pantalla del Dashboard</p>
+        </lib-card>
+
         @if (auth.isAdmin()) {
           <lib-card sash="title" title="Design System" [icon]="ICON_DESIGN_SYSTEM" routerLink="/design-system">
             <p class="text-md text-base-content/60">Tokens i llibreria de components libs/ui</p>
@@ -54,6 +58,7 @@ import { AuthService } from '../../core/auth/services/auth.service';
 export class ConfigComponent {
   protected readonly auth = inject(AuthService);
 
+  protected readonly ICON_MANUAL = DOMAIN_ICONS.MANUAL;
   protected readonly ICON_USERS = DOMAIN_ICONS.USER_COG;
   protected readonly ICON_TAG = DOMAIN_ICONS.TAG;
   protected readonly ICON_SEASONS = DOMAIN_ICONS.CALENDAR_RANGE;
