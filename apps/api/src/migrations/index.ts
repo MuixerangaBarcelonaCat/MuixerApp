@@ -65,6 +65,7 @@ import { CreateCollaSettings1786500000000 } from './1786500000000-CreateCollaSet
 import { AddRehearsalDefaults1786600000000 } from './1786600000000-AddRehearsalDefaults';
 import { RenameIsXicallaToManual1786700000000 } from './1786700000000-RenameIsXicallaToManual';
 import { AddRefreshTokenUserAgent1786800000000 } from './1786800000000-AddRefreshTokenUserAgent';
+import { AddPushSubscriptionTestedAudit1787000000000 } from './1787000000000-AddPushSubscriptionTestedAudit';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -133,4 +134,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddRehearsalDefaults1786600000000,
   RenameIsXicallaToManual1786700000000,
   AddRefreshTokenUserAgent1786800000000,
+  AddPushSubscriptionTestedAudit1787000000000,
 ];

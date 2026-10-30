@@ -198,9 +198,17 @@ export class UserController {
   async testPushDevice(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('subId', ParseUUIDPipe) subId: string,
+    @CurrentUser() actor: JwtPayload,
   ): Promise<{ success: boolean; gone: boolean }> {
     const result = await this.pushSubscriptionService.sendTest(id, subId);
     if (!result) throw new NotFoundException('Subscripció no trobada');
+    await this.auditService.record({
+      actorUserId: actor.sub,
+      action: AuditAction.PUSH_SUBSCRIPTION_TESTED,
+      targetType: 'User',
+      targetId: id,
+      metadata: { subscriptionId: subId, success: result.success },
+    });
     return result;
   }
 }

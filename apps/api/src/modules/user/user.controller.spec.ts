@@ -196,9 +196,27 @@ describe('UserController', () => {
 
     it('sends a test and returns the result; 404 when not the user\'s', async () => {
       push.sendTest.mockResolvedValueOnce({ success: false, gone: true });
-      await expect(controller.testPushDevice('u1', 's1')).resolves.toEqual({ success: false, gone: true });
+      await expect(controller.testPushDevice('u1', 's1', actor)).resolves.toEqual({ success: false, gone: true });
       push.sendTest.mockResolvedValueOnce(null);
-      await expect(controller.testPushDevice('u1', 'foreign')).rejects.toThrow(NotFoundException);
+      await expect(controller.testPushDevice('u1', 'foreign', actor)).rejects.toThrow(NotFoundException);
+    });
+
+    it('audits a test push without personal data, and not when the subscription is not found', async () => {
+      push.sendTest.mockResolvedValueOnce(null);
+      await expect(controller.testPushDevice('u1', 'foreign', actor)).rejects.toThrow(NotFoundException);
+      expect(audit.record).not.toHaveBeenCalled();
+
+      push.sendTest.mockResolvedValueOnce({ success: true, gone: false });
+      await controller.testPushDevice('u1', 's1', actor);
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: 'admin-1',
+          action: AuditAction.PUSH_SUBSCRIPTION_TESTED,
+          targetType: 'User',
+          targetId: 'u1',
+          metadata: { subscriptionId: 's1', success: true },
+        }),
+      );
     });
 
     it('restricts the routes to ADMIN', () => {
