@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PATH_METADATA } from '@nestjs/common/constants';
-import { UserRole } from '@muixer/shared';
+import { NotFoundException } from '@nestjs/common';
+import { AuditAction, UserRole } from '@muixer/shared';
+import { TokenService } from '../auth/token.service';
+import { AuditService } from '../audit/audit.service';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 
@@ -16,15 +19,26 @@ const mockUserService = () => ({
 describe('UserController', () => {
   let controller: UserController;
   let service: ReturnType<typeof mockUserService>;
+  let tokenService: { listActiveSessions: jest.Mock; revokeFamily: jest.Mock; revokeAllUserTokens: jest.Mock };
+  let audit: { record: jest.Mock };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useFactory: mockUserService }],
+      providers: [
+        { provide: UserService, useFactory: mockUserService },
+        {
+          provide: TokenService,
+          useValue: { listActiveSessions: jest.fn(), revokeFamily: jest.fn(), revokeAllUserTokens: jest.fn() },
+        },
+        { provide: AuditService, useValue: { record: jest.fn() } },
+      ],
     }).compile();
 
     controller = module.get(UserController);
     service = module.get(UserService);
+    tokenService = module.get(TokenService);
+    audit = module.get(AuditService);
   });
 
   it('createUser delegates to UserService with the actor role', async () => {
@@ -96,5 +110,50 @@ describe('UserController', () => {
 
     expect(service.updateUser).toHaveBeenCalledWith('user-1', dto, UserRole.ADMIN, 'actor-1');
     expect(result).toEqual({ id: 'user-1', email: 'new@b.cat' });
+  });
+
+  describe('sessions', () => {
+    const actor = { sub: 'admin-1', role: UserRole.ADMIN } as never;
+
+    it('lists the active sessions of the user', async () => {
+      tokenService.listActiveSessions.mockResolvedValue([{ family: 'f1' }]);
+      await expect(controller.listSessions('u1')).resolves.toEqual([{ family: 'f1' }]);
+      expect(tokenService.listActiveSessions).toHaveBeenCalledWith('u1');
+    });
+
+    it('revokes one session scoped to the user and audits it', async () => {
+      tokenService.revokeFamily.mockResolvedValue(1);
+      await controller.revokeSession('u1', 'f1', actor);
+      expect(tokenService.revokeFamily).toHaveBeenCalledWith('u1', 'f1');
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: 'admin-1',
+          action: AuditAction.USER_SESSIONS_REVOKED,
+          targetType: 'User',
+          targetId: 'u1',
+          metadata: { family: 'f1' },
+        }),
+      );
+    });
+
+    it('404s and audits nothing when the family is not the user\'s', async () => {
+      tokenService.revokeFamily.mockResolvedValue(0);
+      await expect(controller.revokeSession('u1', 'other', actor)).rejects.toThrow(NotFoundException);
+      expect(audit.record).not.toHaveBeenCalled();
+    });
+
+    it('revokes all sessions and audits it', async () => {
+      await controller.revokeAllSessions('u1', actor);
+      expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith('u1');
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_SESSIONS_REVOKED, targetId: 'u1', metadata: { family: 'all' } }),
+      );
+    });
+
+    it('restricts the three routes to ADMIN', () => {
+      for (const m of ['listSessions', 'revokeSession', 'revokeAllSessions'] as const) {
+        expect(Reflect.getMetadata('roles', UserController.prototype[m])).toEqual([UserRole.ADMIN]);
+      }
+    });
   });
 });

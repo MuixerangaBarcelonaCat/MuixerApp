@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { And, LessThan, Not, IsNull, Repository } from 'typeorm';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import { ClientType } from '@muixer/shared';
+import { ClientType, UserSession } from '@muixer/shared';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from '../user/user.entity';
 import {
@@ -119,6 +119,41 @@ export class TokenService {
   /** Revoca tots els tokens actius d'un usuari. Usat en logout-all (tots els dispositius). */
   async revokeAllUserTokens(userId: string): Promise<void> {
     await this.refreshTokenRepo.update({ userId }, { revokedAt: new Date() });
+  }
+
+  /** Revoca una sessió (família) d'un usuari. Retorna les files afectades (0 si la família no és seua). */
+  async revokeFamily(userId: string, family: string): Promise<number> {
+    const result = await this.refreshTokenRepo.update(
+      { userId, family, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+    return result.affected ?? 0;
+  }
+
+  /**
+   * Sessions obertes d'un usuari: famílies amb alguna fila activa (no revocada, no usada, no
+   * caducada). `startedAt`/`lastRefreshAt` = primera/última fila, `userAgent` el de la més nova.
+   */
+  async listActiveSessions(userId: string): Promise<UserSession[]> {
+    const rows = await this.refreshTokenRepo.find({
+      where: { userId, revokedAt: IsNull() },
+      order: { createdAt: 'DESC' },
+    });
+    const now = new Date();
+    const byFamily = new Map<string, RefreshToken[]>();
+    for (const row of rows) byFamily.set(row.family, [...(byFamily.get(row.family) ?? []), row]);
+
+    return [...byFamily.entries()]
+      .filter(([, fam]) => fam.some((r) => r.usedAt === null && r.expiresAt > now))
+      .map(([family, fam]) => ({
+        family,
+        clientType: fam[0].clientType,
+        userAgent: fam[0].userAgent,
+        startedAt: fam[fam.length - 1].createdAt.toISOString(),
+        lastRefreshAt: fam[0].createdAt.toISOString(),
+        expiresAt: new Date(Math.max(...fam.map((r) => r.expiresAt.getTime()))).toISOString(),
+      }))
+      .sort((a, b) => b.lastRefreshAt.localeCompare(a.lastRefreshAt));
   }
 
   /**

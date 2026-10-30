@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Delete,
+  NotFoundException,
   Patch,
   Post,
   Body,
@@ -11,7 +13,9 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { UserRole, JwtPayload } from '@muixer/shared';
+import { AuditAction, UserRole, JwtPayload, UserSession } from '@muixer/shared';
+import { TokenService } from '../auth/token.service';
+import { AuditService } from '../audit/audit.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserService } from './user.service';
@@ -27,7 +31,11 @@ import { GrantUserRoleDto } from './dto/grant-user-role.dto';
 @Controller('users')
 @Roles(UserRole.ADMIN, UserRole.TECHNICAL)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly tokenService: TokenService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Crea un usuari TECHNICAL/ADMIN amb contrasenya' })
@@ -97,5 +105,55 @@ export class UserController {
     @CurrentUser() actor: JwtPayload,
   ): Promise<UserResponseDto> {
     return this.userService.updateUser(id, dto, actor.role, actor.sub);
+  }
+
+  @Get(':id/sessions')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Llista les sessions obertes d'un usuari" })
+  @ApiResponse({ status: 200, description: 'Sessions obertes (una per família de refresh token)' })
+  listSessions(@Param('id', ParseUUIDPipe) id: string): Promise<UserSession[]> {
+    return this.tokenService.listActiveSessions(id);
+  }
+
+  @Delete(':id/sessions/:family')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Fa expirar una sessió d'un usuari" })
+  @ApiResponse({ status: 204, description: 'Sessió revocada' })
+  @ApiResponse({ status: 404, description: 'La sessió no existeix o no és de l\'usuari' })
+  async revokeSession(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('family', ParseUUIDPipe) family: string,
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<void> {
+    if ((await this.tokenService.revokeFamily(id, family)) === 0) {
+      throw new NotFoundException('Sessió no trobada');
+    }
+    await this.auditService.record({
+      actorUserId: actor.sub,
+      action: AuditAction.USER_SESSIONS_REVOKED,
+      targetType: 'User',
+      targetId: id,
+      metadata: { family },
+    });
+  }
+
+  @Delete(':id/sessions')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Fa expirar totes les sessions d'un usuari" })
+  @ApiResponse({ status: 204, description: 'Sessions revocades' })
+  async revokeAllSessions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<void> {
+    await this.tokenService.revokeAllUserTokens(id);
+    await this.auditService.record({
+      actorUserId: actor.sub,
+      action: AuditAction.USER_SESSIONS_REVOKED,
+      targetType: 'User',
+      targetId: id,
+      metadata: { family: 'all' },
+    });
   }
 }

@@ -12,6 +12,7 @@ const mockRepo = () => ({
   findOne: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
+  find: jest.fn(),
 });
 
 const hash = (t: string) => createHash('sha256').update(t).digest('hex');
@@ -240,6 +241,52 @@ describe('TokenService', () => {
       await service.cleanupExpiredTokens();
 
       expect(logSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('sessions', () => {
+    const d = (iso: string) => new Date(iso);
+
+    it('revokeFamily filters by user AND family and returns affected rows', async () => {
+      repo.update.mockResolvedValue({ affected: 2 });
+
+      const n = await service.revokeFamily('u1', 'f1');
+
+      expect(n).toBe(2);
+      expect(repo.update).toHaveBeenCalledWith(
+        { userId: 'u1', family: 'f1', revokedAt: IsNull() },
+        { revokedAt: expect.any(Date) },
+      );
+    });
+
+    it('listActiveSessions groups rows by family and skips inactive families', async () => {
+      const future = d('2999-01-01T00:00:00Z');
+      repo.find.mockResolvedValue([
+        // newest first
+        { family: 'a', clientType: ClientType.PWA, userAgent: 'UA-new', createdAt: d('2026-03-02T00:00:00Z'), expiresAt: future, usedAt: null },
+        { family: 'b', clientType: ClientType.DASHBOARD, userAgent: 'B', createdAt: d('2026-03-01T12:00:00Z'), expiresAt: future, usedAt: null },
+        { family: 'a', clientType: ClientType.PWA, userAgent: 'UA-old', createdAt: d('2026-03-01T00:00:00Z'), expiresAt: d('2998-01-01T00:00:00Z'), usedAt: d('2026-03-02T00:00:00Z') },
+        // family c: only a used row and an expired row -> not active
+        { family: 'c', clientType: ClientType.PWA, userAgent: null, createdAt: d('2026-02-01T00:00:00Z'), expiresAt: future, usedAt: d('2026-02-02T00:00:00Z') },
+        { family: 'd', clientType: ClientType.PWA, userAgent: null, createdAt: d('2020-01-01T00:00:00Z'), expiresAt: d('2020-01-08T00:00:00Z'), usedAt: null },
+      ]);
+
+      const sessions = await service.listActiveSessions('u1');
+
+      expect(repo.find).toHaveBeenCalledWith({
+        where: { userId: 'u1', revokedAt: IsNull() },
+        order: { createdAt: 'DESC' },
+      });
+      expect(sessions).toEqual([
+        {
+          family: 'a', clientType: ClientType.PWA, userAgent: 'UA-new',
+          startedAt: '2026-03-01T00:00:00.000Z', lastRefreshAt: '2026-03-02T00:00:00.000Z', expiresAt: future.toISOString(),
+        },
+        {
+          family: 'b', clientType: ClientType.DASHBOARD, userAgent: 'B',
+          startedAt: '2026-03-01T12:00:00.000Z', lastRefreshAt: '2026-03-01T12:00:00.000Z', expiresAt: future.toISOString(),
+        },
+      ]);
     });
   });
 });
