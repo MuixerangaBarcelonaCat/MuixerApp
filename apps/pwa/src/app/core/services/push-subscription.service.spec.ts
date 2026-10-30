@@ -165,12 +165,32 @@ describe('PushSubscriptionService', () => {
       mockPushManager.getSubscription.mockResolvedValueOnce(null);
 
       const promise = service.syncOnStartup();
-      localStorage.setItem('muixer_push_opted_out', 'true');
+      localStorage.setItem('muixer_push_host_moved', 'true');
       http.expectOne('/api/me/push-subscriptions/status').flush({ isSubscribed: true, deviceCount: 1 });
       await promise;
 
       http.expectNone('/api/notifications/vapid-public-key');
       http.expectNone('/api/me/push-subscriptions');
+    });
+
+    it('drops a subscription that finished after the host-moved block landed', async () => {
+      Object.defineProperty(globalThis, 'Notification', {
+        value: { permission: 'granted', requestPermission: vi.fn() },
+        configurable: true,
+      });
+      mockPushManager.getSubscription.mockResolvedValueOnce(null);
+      mockSubscription.unsubscribe.mockClear();
+
+      const promise = service.syncOnStartup();
+      http.expectOne('/api/me/push-subscriptions/status').flush({ isSubscribed: false, deviceCount: 0 });
+      await new Promise((r) => setTimeout(r, 0));
+      localStorage.setItem('muixer_push_host_moved', 'true');
+      http.expectOne('/api/notifications/vapid-public-key').flush({ publicKey: 'test-key' });
+      await promise;
+
+      http.expectNone('/api/me/push-subscriptions');
+      expect(mockSubscription.unsubscribe).toHaveBeenCalled();
+      expect(service.isSubscribed()).toBe(false);
     });
 
     it('does nothing when the device is already subscribed', async () => {

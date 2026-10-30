@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, DestroyRef, inject, computed, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { HostMovedComponent, dropPushSubscription, movedHostUrl } from './shared/components/host-moved/host-moved.component';
+import { HostMovedComponent, dropPushSubscription, liftPushHostMoved, movedHostUrl } from './shared/components/host-moved/host-moved.component';
 import { ToastContainerComponent } from '@muixer/ui';
 import { SplashScreenComponent } from './shared/components/splash-screen/splash-screen.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
@@ -50,9 +50,11 @@ export class AppComponent {
     fetch('/app-host.txt', { cache: 'no-store' })
       .then((res) => (res.ok ? res.text() : null))
       .then((body) => {
+        if (body === null) return; // Unknown (server error): change nothing.
         const moved = movedHostUrl(body, here);
         this.movedTo.set(moved);
         if (moved) void dropPushSubscription();
+        else liftPushHostMoved();
       })
       .catch(() => undefined);
   }

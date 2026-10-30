@@ -6,7 +6,12 @@ import { PushSubscriptionStatus } from '@muixer/shared';
 const PUSH_DISMISSED_KEY = 'muixer_push_dismissed_at';
 const PUSH_DISMISS_DAYS = 7;
 /** Set when the user explicitly turns notifications off in settings — blocks silent startup re-subscribe. */
-export const PUSH_OPTED_OUT_KEY = 'muixer_push_opted_out';
+const PUSH_OPTED_OUT_KEY = 'muixer_push_opted_out';
+/**
+ * Set by the old host once the PWA has moved (HostMovedComponent): blocks silent re-subscribe on this
+ * origin. Separate from the user's opt-out so the host check can lift it if PWA_PUBLIC_URL is rolled back.
+ */
+export const PUSH_HOST_MOVED_KEY = 'muixer_push_host_moved';
 
 @Injectable({ providedIn: 'root' })
 export class PushSubscriptionService {
@@ -53,14 +58,14 @@ export class PushSubscriptionService {
    */
   async syncOnStartup(): Promise<void> {
     if (!this.isPushSupported()) return;
-    if (this.getItem(PUSH_OPTED_OUT_KEY) === 'true') return;
+    if (this.isSyncBlocked()) return;
     await this.checkStatus();
     if (this.readPermission() !== 'granted') return;
 
     const registration = await navigator.serviceWorker.ready;
     const existing = await registration.pushManager.getSubscription();
-    // Re-check: the opt-out may have landed during the awaits (the old host dropping push on a move).
-    if (this.getItem(PUSH_OPTED_OUT_KEY) === 'true') return;
+    // Re-check: the block may have landed during the awaits (the old host dropping push on a move).
+    if (this.isSyncBlocked()) return;
     if (!existing || !this._isSubscribed()) {
       await this.subscribeAndRegister();
     }
@@ -101,6 +106,10 @@ export class PushSubscriptionService {
     this._deviceCount.set(0);
   }
 
+  private isSyncBlocked(): boolean {
+    return this.getItem(PUSH_OPTED_OUT_KEY) === 'true' || this.getItem(PUSH_HOST_MOVED_KEY) === 'true';
+  }
+
   dismissBanner(): void {
     const now = Date.now();
     this.setItem(PUSH_DISMISSED_KEY, String(now));
@@ -117,6 +126,11 @@ export class PushSubscriptionService {
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(vapidKey) as BufferSource,
       });
+      // The app moved host while this was in flight: don't register the old origin.
+      if (this.getItem(PUSH_HOST_MOVED_KEY) === 'true') {
+        await subscription.unsubscribe();
+        return false;
+      }
 
       const { endpoint, keys } = subscription.toJSON() as {
         endpoint: string;

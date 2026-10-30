@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, input, signal } from '@angu
 import { Check, Copy, ExternalLink, LucideAngularModule } from 'lucide-angular';
 import { ButtonComponent, CardComponent } from '@muixer/ui';
 import { InstallPromptService } from '../../services/install-prompt.service';
-import { PUSH_OPTED_OUT_KEY } from '../../../core/services/push-subscription.service';
+import { PUSH_HOST_MOVED_KEY } from '../../../core/services/push-subscription.service';
 
 // An installed PWA is bound to its origin, so when the PWA changes host, members still on the
 // old one get a blocking screen pointing at the new address. The public URL comes from Caddy
@@ -30,13 +30,22 @@ export function movedHostUrl(
 // authenticated DELETE; the API deactivates the endpoint on the next send (410, web-push.provider).
 export async function dropPushSubscription(): Promise<void> {
   try {
-    // Origin-scoped opt-out: stops PushSubscriptionService.syncOnStartup from subscribing again.
-    localStorage.setItem(PUSH_OPTED_OUT_KEY, 'true');
+    // Origin-scoped block: stops PushSubscriptionService.syncOnStartup from subscribing again.
+    localStorage.setItem(PUSH_HOST_MOVED_KEY, 'true');
     const registration = await navigator.serviceWorker?.ready;
     const subscription = await registration?.pushManager.getSubscription();
     await subscription?.unsubscribe();
   } catch {
     // Push unsupported or already gone: nothing to drop.
+  }
+}
+
+// The host check says this is the public host again (e.g. PWA_PUBLIC_URL fixed or rolled back).
+export function liftPushHostMoved(): void {
+  try {
+    localStorage.removeItem(PUSH_HOST_MOVED_KEY);
+  } catch {
+    // localStorage unavailable: nothing was stored either.
   }
 }
 
