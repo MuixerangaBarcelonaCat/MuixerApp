@@ -102,6 +102,34 @@ describe('InstallPromptService', () => {
     expect(service.shouldShow()).toBe(true);
   });
 
+  it('treats an iPad (desktop-class Safari UA, touch screen) as iOS', () => {
+    setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15');
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 5, configurable: true });
+    const service = create();
+    service.registerLogin();
+    expect(service.isIos).toBe(true);
+    expect(service.shouldShow()).toBe(true);
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
+  });
+
+  it('keeps a real Mac (no touch) as desktop', () => {
+    setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15');
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
+    const service = create();
+    service.registerLogin();
+    expect(service.isIos).toBe(false);
+    expect(service.shouldShow()).toBe(false);
+  });
+
+  it('hides the banner after the native dialog, whatever the answer', () => {
+    setUserAgent('Mozilla/5.0 (Linux; Android 14) Chrome');
+    const service = create();
+    window.dispatchEvent(Object.assign(new Event('beforeinstallprompt'), { prompt: () => Promise.reject(new Error('no gesture')) }));
+    service.registerLogin();
+    service.promptInstall();
+    expect(service.shouldShow()).toBe(false);
+  });
+
   it('can only prompt once per event', () => {
     setUserAgent('Mozilla/5.0 (Linux; Android 14) Chrome');
     const service = create();

@@ -18,8 +18,11 @@ export class InstallPromptService {
 
   /** The browser handed us `beforeinstallprompt`: the banner can show a real «Instal·la» button. */
   readonly canPromptInstall = this._canPromptInstall.asReadonly();
-  readonly isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  readonly isMobile = /Android|iPad|iPhone|iPod/.test(navigator.userAgent);
+  // iPadOS Safari reports a Mac UA; the touch screen tells it apart from a real Mac.
+  readonly isIos =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  readonly isMobile = this.isIos || /Android/.test(navigator.userAgent);
 
   readonly shouldShow = signal(false);
 
@@ -48,10 +51,13 @@ export class InstallPromptService {
   }
 
   promptInstall(): void {
-    this.deferredPrompt?.prompt();
-    // A prompt event can only be used once.
+    // Rejects when the user gesture was lost: nothing to do, the banner hides either way.
+    this.deferredPrompt?.prompt().catch(() => undefined);
+    // A prompt event can only be used once. Accepting fires `appinstalled`; cancelling counts as a
+    // dismissal, so the banner comes back after REMIND_AFTER_LOGINS like the close button.
     this.deferredPrompt = null;
     this._canPromptInstall.set(false);
+    this.dismiss();
   }
 
   private adoptPrompt(event: Event): void {
