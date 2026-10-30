@@ -47,6 +47,7 @@ export class TokenService {
     user: User,
     clientType: ClientType,
     family?: string,
+    userAgent?: string | null,
   ): Promise<string> {
     const ttl = this.ttlForClient(clientType);
     const tokenFamily = family ?? randomUUID();
@@ -60,6 +61,7 @@ export class TokenService {
       tokenHash: this.hash(rawToken),
       family: tokenFamily,
       clientType,
+      userAgent: userAgent ? userAgent.slice(0, 255) : null,
       expiresAt,
       usedAt: null,
       revokedAt: null,
@@ -79,6 +81,7 @@ export class TokenService {
    */
   async rotateRefreshToken(
     rawToken: string,
+    userAgent?: string | null,
   ): Promise<{ newRawToken: string; userId: string; clientType: ClientType }> {
     const tokenHash = this.hash(rawToken);
     const stored = await this.refreshTokenRepo.findOne({ where: { tokenHash } });
@@ -102,7 +105,7 @@ export class TokenService {
     }
 
     const userRef = { id: stored.userId } as User;
-    const newRawToken = await this.createRefreshToken(userRef, stored.clientType, stored.family);
+    const newRawToken = await this.createRefreshToken(userRef, stored.clientType, stored.family, userAgent ?? stored.userAgent);
 
     return { newRawToken, userId: stored.userId, clientType: stored.clientType };
   }

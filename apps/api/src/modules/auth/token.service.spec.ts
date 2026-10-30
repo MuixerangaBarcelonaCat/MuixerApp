@@ -50,6 +50,20 @@ describe('TokenService', () => {
       expect(savedEntity.tokenHash).toBe(hash(result));
     });
 
+    it('stores the user agent, truncated to 255 characters', async () => {
+      repo.create.mockImplementation((entity) => entity);
+      repo.save.mockResolvedValue({});
+      const user = { id: 'user-uuid' } as Parameters<typeof service.createRefreshToken>[0];
+
+      await service.createRefreshToken(user, ClientType.PWA, undefined, 'Mozilla/5.0 X');
+      await service.createRefreshToken(user, ClientType.PWA, undefined, 'x'.repeat(300));
+      await service.createRefreshToken(user, ClientType.PWA);
+
+      expect((repo.create.mock.calls[0][0] as { userAgent: string }).userAgent).toBe('Mozilla/5.0 X');
+      expect((repo.create.mock.calls[1][0] as { userAgent: string }).userAgent).toBe('x'.repeat(255));
+      expect((repo.create.mock.calls[2][0] as { userAgent: string | null }).userAgent).toBeNull();
+    });
+
     it('generates a different token on every call', async () => {
       repo.create.mockImplementation((entity) => entity);
       repo.save.mockResolvedValue({});
@@ -97,6 +111,22 @@ describe('TokenService', () => {
       // BUG-5: the caller must use this stored clientType for the cookie TTL,
       // not re-derive it from the user's role.
       expect(result.clientType).toBe(ClientType.DASHBOARD);
+    });
+
+    it('keeps the stored user agent unless the refresh request carries one', async () => {
+      const stored = {
+        id: 'rt-id', userId: 'u1', tokenHash: hash('t'), family: 'fam', clientType: ClientType.PWA,
+        expiresAt: new Date(Date.now() + 3600_000), usedAt: null, revokedAt: null, userAgent: 'Old UA',
+      };
+      repo.findOne.mockResolvedValue(stored);
+      repo.update.mockResolvedValue({ affected: 1 });
+      const spy = jest.spyOn(service, 'createRefreshToken').mockResolvedValue('n');
+
+      await service.rotateRefreshToken('t');
+      await service.rotateRefreshToken('t', 'New UA');
+
+      expect(spy).toHaveBeenNthCalledWith(1, { id: 'u1' }, ClientType.PWA, 'fam', 'Old UA');
+      expect(spy).toHaveBeenNthCalledWith(2, { id: 'u1' }, ClientType.PWA, 'fam', 'New UA');
     });
 
     it('revokes entire family when the atomic usedAt claim affects zero rows (reuse or lost race)', async () => {

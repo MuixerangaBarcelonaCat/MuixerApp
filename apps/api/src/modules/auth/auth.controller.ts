@@ -92,7 +92,11 @@ export class AuthController {
     @Req() req: RequestWithUser,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const { response, refreshToken } = await this.authService.login(req.user, dto.clientType);
+    const { response, refreshToken } = await this.authService.login(
+      req.user,
+      dto.clientType,
+      req.headers['user-agent'],
+    );
     this.setRefreshCookie(res, refreshToken, dto.clientType);
     return response;
   }
@@ -111,7 +115,10 @@ export class AuthController {
     const rawToken = (req.cookies as Record<string, string>)[this.tokenService.cookieName];
     if (!rawToken) throw new UnauthorizedException('No refresh token');
 
-    const { response, newRefreshToken, clientType } = await this.authService.refresh(rawToken);
+    const { response, newRefreshToken, clientType } = await this.authService.refresh(
+      rawToken,
+      req.headers['user-agent'],
+    );
 
     this.setRefreshCookie(res, newRefreshToken, clientType);
     return response;

@@ -191,7 +191,7 @@ describe('AuthService', () => {
       const { response, refreshToken } = await service.login(user, ClientType.DASHBOARD);
       expect(response.accessToken).toBe('access-token');
       expect(refreshToken).toBe('refresh-token');
-      expect(tokenService.createRefreshToken).toHaveBeenCalledWith(user, ClientType.DASHBOARD);
+      expect(tokenService.createRefreshToken).toHaveBeenCalledWith(user, ClientType.DASHBOARD, undefined, undefined);
     });
 
     it('throws UnauthorizedException when a MEMBER tries to log in via the dashboard client', async () => {

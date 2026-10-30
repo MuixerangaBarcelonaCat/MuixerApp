@@ -62,7 +62,7 @@ describe('AuthController', () => {
         refreshToken: 'refresh-token',
       });
       const res = mockResponse();
-      const req = { user: { id: 'u1', email: 'a@b.cat', role: UserRole.TECHNICAL, isActive: true, person: null } };
+      const req = { headers: { 'user-agent': 'UA-1' }, user: { id: 'u1', email: 'a@b.cat', role: UserRole.TECHNICAL, isActive: true, person: null } };
 
       const result = await controller.login(
         { email: 'a@b.cat', password: 'pw', clientType: ClientType.DASHBOARD },
@@ -70,6 +70,7 @@ describe('AuthController', () => {
         res,
       );
 
+      expect(authService.login).toHaveBeenCalledWith(req.user, ClientType.DASHBOARD, 'UA-1');
       expect(result.accessToken).toBe('access');
       expect(res.cookie).toHaveBeenCalledWith(
         'muixer_rt',
@@ -94,12 +95,12 @@ describe('AuthController', () => {
         newRefreshToken: 'new-refresh-token',
         clientType: ClientType.DASHBOARD,
       });
-      const req = { cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
+      const req = { headers: { 'user-agent': 'UA-2' }, cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
       const res = mockResponse();
 
       const result = await controller.refresh(req, res);
 
-      expect(authService.refresh).toHaveBeenCalledWith('old-refresh-token');
+      expect(authService.refresh).toHaveBeenCalledWith('old-refresh-token', 'UA-2');
       expect(result.accessToken).toBe('new-access');
       expect(res.cookie).toHaveBeenCalledWith('muixer_rt', 'new-refresh-token', expect.anything());
     });
@@ -113,7 +114,7 @@ describe('AuthController', () => {
         newRefreshToken: 'new-refresh-token',
         clientType: ClientType.PWA,
       });
-      const req = { cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
+      const req = { headers: { 'user-agent': 'UA-2' }, cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
       const res = mockResponse();
 
       await controller.refresh(req, res);
