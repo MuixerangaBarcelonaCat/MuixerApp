@@ -46,12 +46,12 @@
 
     # Access log (JSON to stdout, `request.host` tells the hosts apart): during a PWA host move it
     # shows who still uses the old one. See docs/DEPLOY_PRE.md «Canvi de host de la PWA».
-    # `token` is dropped from the logged URI: invite links (`/activate?token=…`) are bearer secrets.
+    # Invite tokens are bearer secrets: redacted from the URI (`/activate?token=…` and
+    # `/api/auth/invite/<token>`) and the Referer header (requests made from /activate carry it).
     log {
         format filter {
-            request>uri query {
-                delete token
-            }
+            request>uri regexp "(token=|/auth/invite/)[^&/?]+" "${1}REDACTED"
+            request>headers>Referer delete
         }
     }
 

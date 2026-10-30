@@ -361,7 +361,7 @@ docker compose -f docker-compose.pre.yml logs --since 168h dashboard \
   | grep '"host":"<host vell>"' | grep -c '"uri":"/api/'
 ```
 
-El log no guarda el `token` dels enllaços d'invitació (filtre al `Caddyfile`) i Docker en conserva com a màxim 3 × 10 MB (`logging:` al compose): si en una setmana hi ha més trànsit, la consulta cobrix menys dies; repetiu-la més sovint.
+El log no guarda els tokens d'invitació (filtre al `Caddyfile`: query, ruta `/api/auth/invite/…` i capçalera `Referer`) i Docker en conserva com a màxim 3 × 10 MB (`logging:` al compose): si en una setmana hi ha més trànsit, la consulta cobrix menys dies; repetiu-la més sovint.
 
 **Criteri de tall:** 7 dies seguits amb 0, o com a màxim 4 setmanes després de l'avís als membres.
 
