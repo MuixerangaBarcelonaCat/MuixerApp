@@ -4,21 +4,21 @@
 
 **Goal:** L'assistent d'etiquetatge (`app-tagging-wizard-modal`) passa a ser l'eina de revisió ràpida de persones: a més de les etiquetes, permet posar el gènere, mostra l'assistència i la participació en pinyes, permet a un ADMIN eliminar la persona, i s'obri també des de `/persons`.
 
-**Architecture:** Backend: filtre nou `missing` a `GET /persons` (el reutilitza el pla 4). Frontend: el component existent creix (sense moure'l de `features/config/components/tagging-wizard-modal/`); la util de cua generalitza el criteri de «fet» per mode; reutilitza `GET /persons/:id/participation` i `app-person-delete-modal` del pla 2.
+**Architecture:** Backend: filtre nou `missing` a `GET /persons` (el reutilitza el pla 4). Frontend: el component existent creix (sense moure'l de `features/config/components/tagging-wizard-modal/`); la util de cua generalitza el criteri de «fet» per mode; reutilitza `GET /persons/:id/participation` i `app-person-remove-modal` del pla 2.
 
 **Tech Stack:** NestJS 11 + Jest/testcontainers; Angular 21 (standalone, OnPush, Signals, `rxResource`), `@muixer/ui`, Vitest.
 
 **Spec:** `docs/superpowers/specs/2026-10-05-person-tagging-wizard-design.md` (original) + §Decisions d'aquest pla, que el modifiquen.
 
-**Depén de:** pla 2 (`2026-10-29-2-person-hard-delete.md`) Task 1 i Task 3 (`PersonParticipation`, `PersonService.getParticipation`, `app-person-delete-modal`).
+**Depén de:** pla 2 (`2026-10-29-2-person-remove.md`) Tasks 1–3 i 5 (`PersonParticipation`, `PersonService.getParticipation`, `app-person-remove-modal`).
 
 ## Decisions
 
-- Canvi respecte a l'spec original: el gènere **sí** es mostra i s'edita (petició de l'usuari). Edat, telèfon i data d'ingrés continuen ocults.
+- Canvi respecte a l'spec original: el gènere **sí** es mostra i s'edita: hi ha vistes que el necessiten (p. ex. el mode Gènere del workspace de pinyes) i ha de ser fàcil d'emplenar (petició de l'usuari, 2026-10-30). Edat, telèfon i data d'ingrés continuen ocults.
 - Modes: `pending` (Falten etiquetes, el d'ara), `noGender` (Sense gènere), `all` (Tothom). En `noGender` una persona surt de la cua quan té gènere; en `pending`, quan complix la regla d'etiquetes (com ara).
 - Gènere: xips `lib-badge clickable` amb les etiquetes de `GENDER_LABELS` (avui a `person-detail.component.ts:60`; es mouen a `persons/models/person.model.ts` i la fitxa les importa d'allí). Clicar el seleccionat el deixa a `null`. Desat optimista amb `PersonService.update(id, { gender })`, revertit si falla (mateix patró que les etiquetes).
 - Participació: bloc compacte sota la fitxa, carregat per persona amb `rxResource` (la resposta d'una persona anterior no sobreescriu l'actual).
-- Eliminar: botó «Elimina» només ADMIN; obri `app-person-delete-modal`; en `deleted` la persona surt de la cua i l'índex es queda dins de rang.
+- Eliminar: botó «Elimina…» només ADMIN; obri `app-person-remove-modal`, que ja decideix entre eliminar definitivament (sense assistències ni pinyes) i esborrar les dades personals (amb historial). En `removed` (qualsevol mode) la persona surt de la cua i l'índex es queda dins de rang.
 - Entrades: `/config/tags` (botó «Etiqueta persones», mode inicial `pending`, com ara) i `/persons` (botó de capçalera «Revisa persones», mode inicial `all`). El modal accepta `initialMode`. Títol del modal: «Assistent de persones».
 
 ## Global Constraints
@@ -31,10 +31,10 @@
 ## Review Focus
 
 - Posar gènere a l'última persona en mode `noGender` i prémer «Següent»: l'índex no es trenca (mateix comportament que l'spec original amb etiquetes).
-- Eliminar l'última persona de la cua: estat buit, sense persona actual.
+- Eliminar o anonimitzar l'última persona de la cua: estat buit, sense persona actual.
 - Canviar ràpid de persona mentre carrega la participació: es mostra la de la persona actual, no l'anterior.
 - Error en desar el gènere: el xip torna al valor anterior i apareix un toast d'error.
-- TECHNICAL obri l'assistent: no veu «Elimina»; tota la resta funciona.
+- TECHNICAL obri l'assistent: no veu «Elimina…»; tota la resta funciona.
 
 ---
 
@@ -75,16 +75,16 @@
 - Modify: `apps/dashboard/src/app/features/config/components/tagging-wizard-modal/tagging-wizard-modal.component.{ts,html,spec.ts}`, `apps/dashboard/src/app/features/persons/models/person.model.ts` (`GENDER_LABELS`), `apps/dashboard/src/app/features/persons/components/person-detail/person-detail.component.ts` (importa `GENDER_LABELS`)
 
 **Interfaces:**
-- Consumes: `missing` (Task 1), `isDone` (Task 2), `PersonService.getParticipation`, `app-person-delete-modal` (pla 2).
+- Consumes: `missing` (Task 1), `isDone` (Task 2), `PersonService.getParticipation`, `app-person-remove-modal` (pla 2).
 - Produces: `initialMode = input<TaggingMode>('pending')`.
 
 Detalls:
 - Pestanyes de mode: «Falten etiquetes» · «Sense gènere» · «Tothom». `reload()` en `noGender` afig `missing: ['gender']`.
 - Fila de gènere sota el nom, abans de les etiquetes: etiqueta «Gènere» + xips.
 - Bloc «Participació»: «Assistència: X assajos · Y actuacions (N respostes)» i «Pinyes: N posicions en M esdeveniments · darrera dd/MM/yyyy» (o «Encara no ha participat en cap pinya.»). Mentre carrega, `loading-dots` del sistema de disseny o skeleton existent.
-- Peu: botó «Elimina» (`lib-button variant="error" outlineMode size="sm"`) si `authService.isAdmin()`.
+- Peu: botó «Elimina…» (`lib-button variant="error" outlineMode size="sm"`) si `authService.isAdmin()`.
 
-- [ ] **Step 1: Tests que fallen:** clic al xip «Dona» fa `PATCH /api/persons/p1 {gender:'FEMALE'}` i el xip queda seleccionat; si la petició falla torna a `null`; la participació es demana per a la persona actual i es pinta; canviar de persona abans que responga la primera no pinta la resposta antiga; «Elimina» no existeix per a TECHNICAL; `deleted` treu la persona de `people()`.
+- [ ] **Step 1: Tests que fallen:** clic al xip «Dona» fa `PATCH /api/persons/p1 {gender:'FEMALE'}` i el xip queda seleccionat; si la petició falla torna a `null`; la participació es demana per a la persona actual i es pinta; canviar de persona abans que responga la primera no pinta la resposta antiga; «Elimina…» no existeix per a TECHNICAL; `removed` (tant `deleted` com `anonymized`) treu la persona de `people()`.
 - [ ] **Step 2:** → FAIL. **Step 3:** implementa. **Step 4:** → PASS; `nx test dashboard` verd (la fitxa usa `GENDER_LABELS` mogut).
 - [ ] **Step 5: Commit** `feat(dashboard): wizard edits gender, shows participation, admin delete`
 
