@@ -2,21 +2,25 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DeviceSummary } from '@muixer/shared';
+import { signal } from '@angular/core';
+import { DeviceSummary, UserRole } from '@muixer/shared';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { DeviceListComponent } from './device-list.component';
 import { NotificationService } from '../../services/notification.service';
 
 const mockSummary = (): DeviceSummary[] => [
-  { person: { id: 'p1', firstName: 'Anna', lastName: 'Ferrer' }, activeDevices: 2, lastPushAt: '2026-08-18T10:00:00.000Z' },
-  { person: { id: 'p2', firstName: 'Joan', lastName: 'Puig' }, activeDevices: 1, lastPushAt: null },
-  { person: { id: 'p3', firstName: 'Maria', lastName: 'Vila' }, activeDevices: 0, lastPushAt: null },
+  { userId: 'u1', person: { id: 'p1', firstName: 'Anna', lastName: 'Ferrer' }, activeDevices: 2, lastPushAt: '2026-08-18T10:00:00.000Z' },
+  { userId: 'u2', person: { id: 'p2', firstName: 'Joan', lastName: 'Puig' }, activeDevices: 1, lastPushAt: null },
+  { userId: 'u3', person: { id: 'p3', firstName: 'Maria', lastName: 'Vila' }, activeDevices: 0, lastPushAt: null },
 ];
 
 describe('DeviceListComponent', () => {
   let component: DeviceListComponent;
   let fixture: ComponentFixture<DeviceListComponent>;
   let notificationService: { getDeviceSummary: ReturnType<typeof vi.fn> };
+
+  const role = signal<UserRole | null>(UserRole.ADMIN);
 
   const setup = async (summary: DeviceSummary[] = mockSummary(), fail = false) => {
     notificationService = {
@@ -29,6 +33,7 @@ describe('DeviceListComponent', () => {
       imports: [DeviceListComponent],
       providers: [
         { provide: NotificationService, useValue: notificationService },
+        { provide: AuthService, useValue: { userRole: role } },
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
         allLucideIconsProvider,
@@ -78,7 +83,7 @@ describe('DeviceListComponent', () => {
 
   it('matches the search term regardless of accents and case', async () => {
     await setup([
-      { person: { id: 'p1', firstName: 'Àngela', lastName: 'Roig' }, activeDevices: 1, lastPushAt: null },
+      { userId: 'u1', person: { id: 'p1', firstName: 'Àngela', lastName: 'Roig' }, activeDevices: 1, lastPushAt: null },
     ]);
     component.search.set('angela');
     expect(component.filtered().length).toBe(1);
@@ -88,5 +93,15 @@ describe('DeviceListComponent', () => {
     await setup();
     component.search.set('xyznotfound');
     expect(component.filtered().length).toBe(0);
+  });
+
+  it('only ADMIN gets a clickable row that selects the user for the devices modal', async () => {
+    await setup();
+    expect(component.isAdmin()).toBe(true);
+    component.selected.set(component.summary()[0]);
+    expect(component.selected()?.userId).toBe('u1');
+    role.set(UserRole.TECHNICAL);
+    expect(component.isAdmin()).toBe(false);
+    role.set(UserRole.ADMIN);
   });
 });

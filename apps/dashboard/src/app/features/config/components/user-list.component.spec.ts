@@ -620,4 +620,18 @@ describe('UserListComponent', () => {
       expect(search.className).toContain('h-6');
     });
   });
+
+  describe('Dispositius row action', () => {
+    it('is offered to ADMIN only', () => {
+      expect(component.tableRowActions().map((a) => a.label)).toContain('Dispositius');
+      userRoleSignal.set(UserRole.TECHNICAL);
+      expect(component.tableRowActions().map((a) => a.label)).not.toContain('Dispositius');
+    });
+
+    it('opens the devices modal for the row user', () => {
+      const action = component.tableRowActions().find((a) => a.label === 'Dispositius');
+      action?.action(mockUser());
+      expect(component.devicesUser()?.id).toBe('u1');
+    });
+  });
 });

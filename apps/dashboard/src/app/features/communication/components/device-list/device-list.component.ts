@@ -9,9 +9,11 @@ import {
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { LucideAngularModule, Search } from 'lucide-angular';
-import { DeviceSummary, normalizeForSearch } from '@muixer/shared';
+import { DeviceSummary, UserRole, normalizeForSearch } from '@muixer/shared';
 import { AlertComponent, BadgeComponent, ButtonComponent, ButtonGroupComponent, EmptyStateComponent, InputComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { NotificationService } from '../../services/notification.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
+import { UserDevicesModalComponent } from '../../../config/components/user-devices-modal/user-devices-modal.component';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 
 @Component({
@@ -29,6 +31,7 @@ import { PageHeaderComponent } from '../../../../shared/components/data/page-hea
     ButtonGroupComponent,
     EmptyStateComponent,
     InputComponent,
+    UserDevicesModalComponent,
   ],
   templateUrl: './device-list.component.html',
 })
@@ -37,6 +40,11 @@ export class DeviceListComponent implements OnInit {
   readonly ICON_SMARTPHONE = DOMAIN_ICONS.SMARTPHONE;
 
   private readonly notificationService = inject(NotificationService);
+  private readonly authService = inject(AuthService);
+
+  readonly isAdmin = computed(() => this.authService.userRole() === UserRole.ADMIN);
+  /** Row whose devices modal is open (ADMIN only). */
+  readonly selected = signal<DeviceSummary | null>(null);
 
   summary = signal<DeviceSummary[]>([]);
   loading = signal(true);

@@ -70,7 +70,13 @@
       </thead>
       <tbody>
         @for (row of filtered(); track row.person.id) {
-          <tr>
+          <tr
+            [class.cursor-pointer]="isAdmin()"
+            [class.hover]="isAdmin()"
+            [attr.tabindex]="isAdmin() ? 0 : null"
+            (click)="isAdmin() && selected.set(row)"
+            (keydown.enter)="isAdmin() && selected.set(row)"
+          >
             <td class="font-medium">{{ row.person.firstName }} {{ row.person.lastName }}</td>
             <td class="text-center">
               <lib-badge [variant]="row.activeDevices > 0 ? 'primary' : 'ghost'">
@@ -89,4 +95,12 @@
       </tbody>
     </table>
   </div>
+}
+
+@if (selected(); as row) {
+  <app-user-devices-modal
+    [userId]="row.userId"
+    [userLabel]="row.person.firstName + ' ' + row.person.lastName"
+    (closed)="selected.set(null)"
+  />
 }

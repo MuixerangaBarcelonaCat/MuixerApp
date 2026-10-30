@@ -123,6 +123,15 @@
   />
 }
 
+<!-- Modal: Dispositius (sessions + notificacions) -->
+@if (devicesUser(); as user) {
+  <app-user-devices-modal
+    [userId]="user.id"
+    [userLabel]="user.email ?? ''"
+    (closed)="devicesUser.set(null)"
+  />
+}
+
 <!-- Modal: Assignar rol -->
 <lib-modal [open]="!!grantRoleUser()" title="Assignar rol" size="sm" (closed)="closeGrantRole()">
   @if (grantRoleUser(); as user) {

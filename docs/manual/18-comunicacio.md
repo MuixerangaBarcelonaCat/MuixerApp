@@ -145,6 +145,8 @@ Si ningú no les ha activades, diu «Cap dispositiu subscrit. Quan els membres a
 
 ![Llista de dispositius subscrits, amb els noms tapats](img/18-comunicacio-dispositius.png)
 
+Si sou administrador, feu clic en una fila per a veure els dispositius d'eixe compte, enviar-los una notificació de prova, eliminar-los i fer expirar les sessions. Més detalls a [Usuaris i accés](06-usuaris-i-acces.md).
+
 ## Què rep el membre al mòbil
 
 Un membre només rep notificacions si compleix les tres condicions següents:
