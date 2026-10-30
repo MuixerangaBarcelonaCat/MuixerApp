@@ -13,7 +13,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { AuditAction, UserRole, JwtPayload, UserSession } from '@muixer/shared';
+import { AuditAction, UserRole, JwtPayload, UserSession, UserPushDevice } from '@muixer/shared';
+import { PushSubscriptionService } from '../push-notification/push-subscription.service';
 import { TokenService } from '../auth/token.service';
 import { AuditService } from '../audit/audit.service';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -35,6 +36,7 @@ export class UserController {
     private readonly userService: UserService,
     private readonly tokenService: TokenService,
     private readonly auditService: AuditService,
+    private readonly pushSubscriptionService: PushSubscriptionService,
   ) {}
 
   @Post()
@@ -155,5 +157,50 @@ export class UserController {
       targetId: id,
       metadata: { family: 'all' },
     });
+  }
+
+  @Get(':id/push-subscriptions')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: "Llista els dispositius subscrits a push d'un usuari" })
+  listPushDevices(@Param('id', ParseUUIDPipe) id: string): Promise<UserPushDevice[]> {
+    return this.pushSubscriptionService.listActiveForUser(id);
+  }
+
+  @Delete(':id/push-subscriptions/:subId')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Elimina una subscripció push d'un usuari" })
+  @ApiResponse({ status: 204, description: 'Subscripció eliminada' })
+  @ApiResponse({ status: 404, description: 'La subscripció no existeix o no és de l\'usuari' })
+  async removePushDevice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('subId', ParseUUIDPipe) subId: string,
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<void> {
+    if (!(await this.pushSubscriptionService.deactivateForUser(id, subId))) {
+      throw new NotFoundException('Subscripció no trobada');
+    }
+    await this.auditService.record({
+      actorUserId: actor.sub,
+      action: AuditAction.PUSH_SUBSCRIPTION_REMOVED,
+      targetType: 'User',
+      targetId: id,
+      metadata: { subscriptionId: subId },
+    });
+  }
+
+  @Post(':id/push-subscriptions/:subId/test')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Envia una notificació de prova a un dispositiu' })
+  @ApiResponse({ status: 200, description: 'Resultat de l\'enviament (gone: la subscripció ja no existeix)' })
+  @ApiResponse({ status: 404, description: 'La subscripció no existeix o no és de l\'usuari' })
+  async testPushDevice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('subId', ParseUUIDPipe) subId: string,
+  ): Promise<{ success: boolean; gone: boolean }> {
+    const result = await this.pushSubscriptionService.sendTest(id, subId);
+    if (!result) throw new NotFoundException('Subscripció no trobada');
+    return result;
   }
 }
