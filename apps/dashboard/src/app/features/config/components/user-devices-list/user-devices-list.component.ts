@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { formatDate } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Search } from 'lucide-angular';
 import { UserDevicesSummary } from '@muixer/shared';
@@ -9,7 +10,7 @@ import { PaginationComponent } from '../../../../shared/components/data/paginati
 import { DataTableComponent } from '../../../../shared/components/data/data-table/data-table.component';
 import { ColumnDef } from '../../../../shared/models/column-def.model';
 import { UserDevicesService } from '../../services/user-devices.service';
-import { UserDevicesModalComponent } from '../user-devices-modal/user-devices-modal.component';
+import { DEVICE_DATE_FORMAT, UserDevicesModalComponent } from '../user-devices-modal/user-devices-modal.component';
 
 /** «Pendent fins al dd/MM», «Caducada» or empty when the account has no invite. */
 export function inviteLabel(invite: UserDevicesSummary['invite']): string {
@@ -20,9 +21,9 @@ export function inviteLabel(invite: UserDevicesSummary['invite']): string {
   return `Pendent fins al ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
 }
 
+/** Same format as the devices modal, so a timestamp reads the same in the list and the modal. */
 function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Date(value).toLocaleString('ca-ES', { dateStyle: 'short', timeStyle: 'short' });
+  return value ? formatDate(value, DEVICE_DATE_FORMAT, 'en-US') : '—';
 }
 
 const COLUMNS: ColumnDef<UserDevicesSummary>[] = [

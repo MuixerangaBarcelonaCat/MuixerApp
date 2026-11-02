@@ -151,26 +151,31 @@ export class TokenService {
    * caducada). `startedAt`/`lastRefreshAt` = primera/última fila, `userAgent` el de la més nova.
    */
   async listActiveSessions(userId: string): Promise<UserSession[]> {
-    const rows = await this.refreshTokenRepo.find({
-      where: { userId, revokedAt: IsNull() },
-      order: { createdAt: 'DESC' },
-    });
-    const now = new Date();
-    const byFamily = new Map<string, RefreshToken[]>();
-    for (const row of rows) byFamily.set(row.family, [...(byFamily.get(row.family) ?? []), row]);
+    // Grouped in SQL: an active family piles up one used row per refresh until they expire.
+    const rows = await this.refreshTokenRepo
+      .createQueryBuilder('t')
+      .select('t.family', 'family')
+      .addSelect('(array_agg(t.client_type ORDER BY t.created_at DESC))[1]', 'clientType')
+      .addSelect('(array_agg(t."userAgent" ORDER BY t.created_at DESC))[1]', 'userAgent')
+      .addSelect('min(t.created_at)', 'startedAt')
+      .addSelect('max(t.created_at)', 'lastRefreshAt')
+      .addSelect('max(t.expires_at)', 'expiresAt')
+      .where('t.user_id = :userId AND t.revoked_at IS NULL', { userId })
+      .groupBy('t.family')
+      .having('bool_or(t.used_at IS NULL AND t.expires_at > now())')
+      .orderBy('max(t.created_at)', 'DESC')
+      .getRawMany<{ family: string; clientType: ClientType; userAgent: string | null; startedAt: Date; lastRefreshAt: Date; expiresAt: Date }>();
 
-    return [...byFamily.entries()]
-      .filter(([, fam]) => fam.some((r) => r.usedAt === null && r.expiresAt > now))
-      .map(([family, fam]) => ({
-        family,
-        clientType: fam[0].clientType,
-        userAgent: fam[0].userAgent,
-        startedAt: fam[fam.length - 1].createdAt.toISOString(),
-        lastRefreshAt: fam[0].createdAt.toISOString(),
-        expiresAt: new Date(Math.max(...fam.map((r) => r.expiresAt.getTime()))).toISOString(),
-      }))
-      .sort((a, b) => b.lastRefreshAt.localeCompare(a.lastRefreshAt));
+    return rows.map((r) => ({
+      family: r.family,
+      clientType: r.clientType,
+      userAgent: r.userAgent,
+      startedAt: new Date(r.startedAt).toISOString(),
+      lastRefreshAt: new Date(r.lastRefreshAt).toISOString(),
+      expiresAt: new Date(r.expiresAt).toISOString(),
+    }));
   }
+
 
   /**
    * Elimina refresh tokens obsolets de la DB cada dia a les 03:00.

@@ -21,6 +21,9 @@ const SYSTEMS: [string, string][] = [
   ['Linux', 'Linux'],
 ];
 
+/** Timestamps of the devices list and modal. */
+export const DEVICE_DATE_FORMAT = 'dd/MM/yyyy HH:mm';
+
 /** Short «navegador · sistema» label from a user agent; simple substring rules, not a full parser. */
 export function describeUserAgent(ua: string | null): string {
   if (!ua) return 'Dispositiu desconegut';
@@ -47,6 +50,7 @@ export class UserDevicesModalComponent implements OnInit {
 
   readonly ClientType = ClientType;
   readonly describe = describeUserAgent;
+  readonly dateFormat = DEVICE_DATE_FORMAT;
 
   readonly sessions = signal<UserSession[]>([]);
   readonly devices = signal<UserPushDevice[]>([]);

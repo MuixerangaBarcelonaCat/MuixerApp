@@ -27,7 +27,7 @@
               <span class="font-medium">{{ describe(s.userAgent) }}</span>
             </div>
             <p class="text-xs text-base-content/60">
-              Inici: {{ s.startedAt | date: 'dd/MM/yyyy HH:mm' }} · Darrer ús: {{ s.lastRefreshAt | date: 'dd/MM/yyyy HH:mm' }}
+              Inici: {{ s.startedAt | date: dateFormat }} · Darrer ús: {{ s.lastRefreshAt | date: dateFormat }}
             </p>
           </div>
           <lib-button variant="error" outline size="xs" [loading]="pending().has(s.family)" (clicked)="revokeSession(s)">Fes expirar</lib-button>
@@ -45,9 +45,9 @@
           <div class="min-w-0">
             <span class="font-medium">{{ describe(d.userAgent) }}</span>
             <p class="text-xs text-base-content/60">
-              Alta: {{ d.createdAt | date: 'dd/MM/yyyy HH:mm' }} · Darrera notificació:
+              Alta: {{ d.createdAt | date: dateFormat }} · Darrera notificació:
               @if (d.lastUsedAt) {
-                {{ d.lastUsedAt | date: 'dd/MM/yyyy HH:mm' }}
+                {{ d.lastUsedAt | date: dateFormat }}
               } @else {
                 Mai
               }

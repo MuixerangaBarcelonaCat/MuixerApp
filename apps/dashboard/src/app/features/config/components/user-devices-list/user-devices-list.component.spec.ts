@@ -66,6 +66,11 @@ describe('UserDevicesListComponent', () => {
     }
   });
 
+  it('shows timestamps in the same dd/MM/yyyy HH:mm format as the modal', () => {
+    const text = (setup().nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toMatch(/30\/10\/2026 \d{2}:00/);
+  });
+
   it('loads the summary and shows alias, counts and the person', () => {
     const f = setup();
     const text = (f.nativeElement as HTMLElement).textContent ?? '';
