@@ -119,7 +119,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-10-13 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-11-02 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **24 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -146,7 +146,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `persons` | `Person` | 26 |
 | `positions` | `Tag` | 10 |
 | `push_subscriptions` | `PushSubscription` | 10 |
-| `refresh_tokens` | `RefreshToken` | 10 |
+| `refresh_tokens` | `RefreshToken` | 11 |
 | `rengles` | `Rengla` | 5 |
 | `seasons` | `Season` | 8 |
 | `users` | `User` | 14 |
@@ -611,6 +611,7 @@ Definició: [`apps/api/src/modules/auth/entities/refresh-token.entity.ts`](../ap
 | `tokenHash` | `varchar` | `string` | no | unique |
 | `family` | `uuid` | `string` | no | — |
 | `clientType` | `enum` | `ClientType` | no | enum `ClientType` |
+| `userAgent` | `varchar` | `string` | sí | — |
 | `expiresAt` | `timestamptz` | `Date` | no | — |
 | `usedAt` | `timestamptz` | `Date` | sí | — |
 | `revokedAt` | `timestamptz` | `Date` | sí | — |

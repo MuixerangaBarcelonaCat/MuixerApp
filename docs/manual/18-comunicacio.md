@@ -1,4 +1,4 @@
-<!-- rutes: /communication /communication/news /communication/news/new /communication/news/:id/edit /communication/notifications /communication/notifications/schedules /communication/notifications/schedules/new /communication/notifications/schedules/:id/edit /communication/notifications/history /communication/notifications/devices -->
+<!-- rutes: /communication /communication/news /communication/news/new /communication/news/:id/edit /communication/notifications /communication/notifications/schedules /communication/notifications/schedules/new /communication/notifications/schedules/:id/edit /communication/notifications/history -->
 
 # Comunicació
 
@@ -130,22 +130,9 @@ Per a fer-ne una altra, feu clic a «Nova notificació». Si voleu buidar el for
 
 ![Historial de notificacions](img/18-comunicacio-historial.png)
 
-### Veure qui té les notificacions activades
+### Veure qui té les notificacions activades (només administradors)
 
-Esta pantalla no té cap enllaç al menú. Per a obrir-la, escriviu l'adreça del Dashboard acabada en `/communication/notifications/devices`.
-
-La pantalla «Dispositius subscrits» mostra:
-
-- quants mòbils tenen les notificacions activades («Total: N dispositius actius»);
-- un cercador, «Cerca per nom...»;
-- dos botons per a ordenar la llista: «Dispositius» o «Darrer ús»;
-- les columnes «Membre», «Dispositius actius» i «Darrera notificació». Si encara no n'ha rebut cap, diu «Mai».
-
-Si ningú no les ha activades, diu «Cap dispositiu subscrit. Quan els membres activen les notificacions apareixeran ací.».
-
-![Llista de dispositius subscrits, amb els noms tapats](img/18-comunicacio-dispositius.png)
-
-Si sou administrador, feu clic en una fila per a veure els dispositius d'eixe compte, enviar-los una notificació de prova, eliminar-los i fer expirar les sessions. Més detalls a [Usuaris i accés](06-usuaris-i-acces.md).
+A la targeta «Notificacions», feu clic a «Dispositius i sessions». La pantalla mostra, per a cada compte, quants dispositius reben notificacions, quan en va rebre l'última i les sessions obertes. Des d'allí podeu enviar una notificació de prova, donar de baixa un dispositiu i fer expirar sessions. Més detalls a [Usuaris i accés](06-usuaris-i-acces.md).
 
 ## Què rep el membre al mòbil
 

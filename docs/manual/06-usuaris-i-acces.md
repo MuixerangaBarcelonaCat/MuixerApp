@@ -1,4 +1,4 @@
-<!-- rutes: /config/users /config/legal -->
+<!-- rutes: /config/users /config/users/devices /config/legal -->
 
 # Usuaris i accés
 
@@ -77,9 +77,22 @@ Feu clic al botó «…» de la dreta de la fila («Accions»):
 
 ![Assignar rol](img/06-assignar-rol.png)
 
-### Veure i tancar els dispositius d'un compte (només administradors)
+### Dispositius i sessions (només administradors)
 
-A la fila d'un usuari, trieu «Dispositius». S'obri una finestra amb dos apartats:
+A la capçalera d'«Usuaris», feu clic a «Dispositius i sessions». També hi podeu arribar des de «Comunicació», a la targeta «Notificacions». La pantalla mostra tots els comptes amb estes columnes:
+
+- «Àlies» i «Usuari» (nom i correu).
+- «Sessions»: quantes sessions obertes té el compte.
+- «Dispositius»: quants dispositius reben notificacions.
+- «Darrer accés»: l'última vegada que va entrar o que la sessió es va renovar. Si fa més d'un mes que no entra, apareix «—».
+- «Darrera notificació»: l'última notificació que va rebre algun dels seus dispositius.
+- «Invitació»: «Pendent fins al dd/MM» si té un enllaç d'invitació que encara funciona, «Caducada» si l'enllaç ja no funciona, o buit si no en té cap.
+
+Podeu cercar per àlies, nom o correu i ordenar per qualsevol columna, excepte «Invitació».
+
+![Dispositius i sessions, amb els noms tapats](img/06-usuaris-dispositius.png)
+
+Feu clic en una fila per a obrir una finestra amb dos apartats:
 
 - **Sessions obertes.** Cada fila és un navegador o una app on el compte ha iniciat sessió: mostra si és «Dashboard» o «App», el navegador i el sistema, l'«Inici» i el «Darrer ús». «Fes expirar» tanca eixa sessió; «Fes expirar totes» les tanca totes. La persona haurà de tornar a entrar amb la contrasenya. La sessió es tanca del tot en un màxim de 15 minuts.
 - **Notificacions.** Cada fila és un dispositiu que rep notificacions. «Envia una prova» li envia una notificació de prova i «Elimina» el dona de baixa; el membre el pot tornar a activar des de la seua app.
