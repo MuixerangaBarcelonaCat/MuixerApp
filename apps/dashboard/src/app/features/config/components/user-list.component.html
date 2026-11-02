@@ -2,6 +2,12 @@
 
   <!-- Capçalera -->
   <app-page-header title="Usuaris" [count]="totalUsers()">
+    @if (isAdmin()) {
+      <lib-button variant="ghost" size="sm" routerLink="/config/users/devices">
+        <lucide-icon name="Smartphone" [size]="16" />
+        Dispositius i sessions
+      </lib-button>
+    }
     <lib-button variant="primary" size="sm" (clicked)="openCreateModal()">
       <lucide-icon name="UserPlus" [size]="16" />
       Crea usuari
@@ -120,15 +126,6 @@
     [user]="editingUser()"
     (saved)="onUserSaved($event)"
     (cancelled)="closeFormModal()"
-  />
-}
-
-<!-- Modal: Dispositius (sessions + notificacions) -->
-@if (devicesUser(); as user) {
-  <app-user-devices-modal
-    [userId]="user.id"
-    [userLabel]="user.email ?? ''"
-    (closed)="devicesUser.set(null)"
   />
 }
 

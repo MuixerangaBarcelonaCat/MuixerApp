@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
@@ -82,6 +83,7 @@ describe('UserListComponent', () => {
         { provide: PersonService, useValue: mockPersonService },
         { provide: AuthService, useValue: mockAuthService },
         allLucideIconsProvider,
+        provideRouter([]),
       ],
     }).compileComponents();
 
@@ -621,17 +623,20 @@ describe('UserListComponent', () => {
     });
   });
 
-  describe('Dispositius row action', () => {
-    it('is offered to ADMIN only', () => {
-      expect(component.tableRowActions().map((a) => a.label)).toContain('Dispositius');
+  describe('Dispositius i sessions', () => {
+    const link = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/config/users/devices"]');
+
+    it('links to the devices screen for ADMIN only', () => {
+      fixture.detectChanges();
+      expect(link()?.textContent).toContain('Dispositius i sessions');
       userRoleSignal.set(UserRole.TECHNICAL);
-      expect(component.tableRowActions().map((a) => a.label)).not.toContain('Dispositius');
+      fixture.detectChanges();
+      expect(link()).toBeNull();
     });
 
-    it('opens the devices modal for the row user', () => {
-      const action = component.tableRowActions().find((a) => a.label === 'Dispositius');
-      action?.action(mockUser());
-      expect(component.devicesUser()?.id).toBe('u1');
+    it('is no longer a row action', () => {
+      expect(component.tableRowActions().map((a) => a.label)).not.toContain('Dispositius');
     });
   });
 });

@@ -1,10 +1,23 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { UserPushDevice, UserSession } from '@muixer/shared';
+import { PaginatedResponse, UserDevicesSummary, UserPushDevice, UserSession } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
+import { buildHttpParams } from '../../../core/utils/http-params.util';
+
+export interface UserDevicesSummaryParams {
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  page: number;
+  limit: number;
+}
 
 @Injectable({ providedIn: 'root' })
 export class UserDevicesService extends ApiService {
+  summary(params: UserDevicesSummaryParams): Observable<PaginatedResponse<UserDevicesSummary>> {
+    return this.get<PaginatedResponse<UserDevicesSummary>>('/users/devices-summary', { params: buildHttpParams(params) });
+  }
+
   sessions(userId: string): Observable<UserSession[]> {
     return this.get<UserSession[]>(`/users/${userId}/sessions`);
   }

@@ -23,7 +23,6 @@ import {
   RowAction,
 } from '../../../shared/components/data/data-table/data-table.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
-import { UserDevicesModalComponent } from './user-devices-modal/user-devices-modal.component';
 import { UserFormModalComponent } from './user-form-modal/user-form-modal.component';
 import {
   ButtonComponent,
@@ -89,7 +88,6 @@ function formatDate(value: string | null): string {
     PaginationComponent,
     DataTableComponent,
     UserFormModalComponent,
-    UserDevicesModalComponent,
     ButtonComponent,
     BadgeComponent,
     CheckboxComponent,
@@ -145,9 +143,6 @@ export class UserListComponent {
   grantRoleUser = signal<UserDto | null>(null);
   grantRoleSelected = signal<UserRole | null>(null);
   grantRoleLoading = signal(false);
-
-  // Devices modal state (ADMIN only)
-  devicesUser = signal<UserDto | null>(null);
 
   // Create/Edit modal state
   showFormModal = signal(false);
@@ -465,11 +460,6 @@ export class UserListComponent {
         label: 'Assignar rol',
         icon: 'Shield',
         action: (u: UserDto) => this.openGrantRole(u),
-      });
-      actions.push({
-        label: 'Dispositius',
-        icon: 'Smartphone',
-        action: (u: UserDto) => this.devicesUser.set(u),
       });
     }
 

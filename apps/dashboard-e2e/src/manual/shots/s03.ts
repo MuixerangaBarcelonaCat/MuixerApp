@@ -146,6 +146,14 @@ export const s03: ManualShot[] = [
     blur: USERS_PERSONAL,
   },
   {
+    file: '06-usuaris-dispositius.png',
+    app: 'dashboard',
+    path: '/config/users/devices',
+    ready: 'table tbody td:first-child',
+    blur: ['app-user-devices-list tbody td:nth-child(2)'], // «Usuari»: name + surname · email (alias is not personal)
+    settle: 500,
+  },
+  {
     file: '06-usuari-accions.png',
     app: 'dashboard',
     path: '/config/users',
