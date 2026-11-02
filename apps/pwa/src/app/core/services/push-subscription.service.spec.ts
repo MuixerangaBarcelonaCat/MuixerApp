@@ -93,7 +93,9 @@ describe('PushSubscriptionService', () => {
       await Promise.resolve();
       http.expectOne('/api/notifications/vapid-public-key').flush({ publicKey: 'test-key' });
       await new Promise((r) => setTimeout(r, 0));
-      http.expectOne('/api/me/push-subscriptions').flush({ id: 'sub-1' });
+      const req = http.expectOne('/api/me/push-subscriptions');
+      expect(req.request.body.silent).toBeFalsy(); // explicit opt-in re-enables a removed device
+      req.flush({ id: 'sub-1', isActive: true });
       const result = await promise;
       expect(result).toBe(true);
       expect(service.isSubscribed()).toBe(true);
@@ -128,6 +130,27 @@ describe('PushSubscriptionService', () => {
 
       expect(Notification.requestPermission).not.toHaveBeenCalled();
       expect(service.isSubscribed()).toBe(true);
+    });
+
+    it('a device an admin removed stays off: the silent sync says so and the server keeps it inactive', async () => {
+      Object.defineProperty(globalThis, 'Notification', {
+        value: { permission: 'granted', requestPermission: vi.fn() },
+        configurable: true,
+      });
+      mockPushManager.getSubscription.mockResolvedValueOnce(mockSubscription);
+
+      const promise = service.syncOnStartup();
+      http.expectOne('/api/me/push-subscriptions/status').flush({ isSubscribed: false, deviceCount: 0 });
+      await new Promise((r) => setTimeout(r, 0));
+      http.expectOne('/api/notifications/vapid-public-key').flush({ publicKey: 'test-key' });
+      await new Promise((r) => setTimeout(r, 0));
+      const req = http.expectOne('/api/me/push-subscriptions');
+      expect(req.request.body.silent).toBe(true);
+      req.flush({ id: 'sub-1', isActive: false });
+      await promise;
+
+      expect(service.isSubscribed()).toBe(false);
+      expect(service.deviceCount()).toBe(0);
     });
 
     it('does not prompt or subscribe when permission is still default', async () => {

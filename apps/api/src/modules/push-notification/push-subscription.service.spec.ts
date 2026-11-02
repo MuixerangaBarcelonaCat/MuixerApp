@@ -87,6 +87,28 @@ describe('PushSubscriptionService', () => {
       expect(result).toEqual(existingSub);
     });
 
+    it('a silent re-register (PWA startup sync) leaves an inactive endpoint off', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser('person-1'));
+      const existingSub = { id: 'sub-1', userId: 'user-1', endpoint: 'https://fcm.googleapis.com/push/1', keys: {}, isActive: false } as PushSubscription;
+      repo.findOne.mockResolvedValueOnce(existingSub);
+
+      const dto = makeDto({ endpoint: 'https://fcm.googleapis.com/push/1', silent: true });
+      const result = await service.register('user-1', dto);
+      expect(repo.update).not.toHaveBeenCalled();
+      expect(result.isActive).toBe(false);
+    });
+
+    it('a silent register still creates an endpoint the server does not know', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser('person-1'));
+      repo.findOne.mockResolvedValueOnce(null);
+      repo.count.mockResolvedValue(0);
+      repo.create.mockImplementation((e) => e as PushSubscription);
+      repo.save.mockImplementation(async (e) => ({ id: 'new', ...e }) as PushSubscription);
+
+      const result = await service.register('user-1', makeDto({ silent: true }));
+      expect(result.isActive).toBe(true);
+    });
+
     it('enforces the device cap when re-enabling an inactive endpoint', async () => {
       userRepo.findOne.mockResolvedValue(makeUser('person-1'));
       const existingSub = { id: 'sub-1', userId: 'user-1', endpoint: 'https://fcm.googleapis.com/push/1', keys: {}, isActive: false } as PushSubscription;

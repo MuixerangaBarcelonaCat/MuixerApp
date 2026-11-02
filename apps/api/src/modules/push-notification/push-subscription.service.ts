@@ -40,6 +40,11 @@ export class PushSubscriptionService {
         // Different user owns this endpoint — shouldn't happen in practice, but protect it.
         throw new BadRequestException('Endpoint ja registrat per un altre usuari');
       }
+      // Inactive = the member unsubscribed, an admin removed it, or the push service said 410.
+      // None of those should come back on their own: only an explicit opt-in re-enables it.
+      if (!existing.isActive && dto.silent) {
+        return existing;
+      }
       // Re-enabling a previously deactivated endpoint still counts against the device cap.
       if (!existing.isActive) {
         await this.assertUnderDeviceCap(userId);
