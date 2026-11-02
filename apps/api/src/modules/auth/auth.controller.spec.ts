@@ -178,9 +178,10 @@ describe('AuthController', () => {
       const res = mockResponse();
       const dto = { token: 'invite-token', password: 'pw' };
 
-      const result = await controller.registerViaInvite(dto as never, res);
+      const req = { headers: { 'user-agent': 'Safari/604.1' } };
+      const result = await controller.registerViaInvite(dto as never, req as never, res);
 
-      expect(authService.registerViaInvite).toHaveBeenCalledWith(dto);
+      expect(authService.registerViaInvite).toHaveBeenCalledWith(dto, 'Safari/604.1');
       expect(result.accessToken).toBe('access');
       expect(res.cookie).toHaveBeenCalledWith('muixer_rt', 'refresh-token', expect.anything());
     });

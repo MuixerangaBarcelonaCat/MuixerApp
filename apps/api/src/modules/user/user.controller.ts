@@ -124,7 +124,9 @@ export class UserController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Llista les sessions obertes d'un usuari" })
   @ApiResponse({ status: 200, description: 'Sessions obertes (una per família de refresh token)' })
-  listSessions(@Param('id', ParseUUIDPipe) id: string): Promise<UserSession[]> {
+  @ApiResponse({ status: 404, description: 'Usuari no trobat' })
+  async listSessions(@Param('id', ParseUUIDPipe) id: string): Promise<UserSession[]> {
+    await this.assertUserExists(id);
     return this.tokenService.listActiveSessions(id);
   }
 
@@ -156,10 +158,12 @@ export class UserController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Fa expirar totes les sessions d'un usuari" })
   @ApiResponse({ status: 204, description: 'Sessions revocades' })
+  @ApiResponse({ status: 404, description: 'Usuari no trobat' })
   async revokeAllSessions(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() actor: JwtPayload,
   ): Promise<void> {
+    await this.assertUserExists(id);
     await this.tokenService.revokeAllUserTokens(id);
     await this.auditService.record({
       actorUserId: actor.sub,
@@ -173,7 +177,9 @@ export class UserController {
   @Get(':id/push-subscriptions')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: "Llista els dispositius subscrits a push d'un usuari" })
-  listPushDevices(@Param('id', ParseUUIDPipe) id: string): Promise<UserPushDevice[]> {
+  @ApiResponse({ status: 404, description: 'Usuari no trobat' })
+  async listPushDevices(@Param('id', ParseUUIDPipe) id: string): Promise<UserPushDevice[]> {
+    await this.assertUserExists(id);
     return this.pushSubscriptionService.listActiveForUser(id);
   }
 
@@ -221,5 +227,10 @@ export class UserController {
       metadata: { subscriptionId: subId, success: result.success },
     });
     return result;
+  }
+
+  /** The list and revoke-all routes would otherwise answer [] / 204 (and audit) for any uuid. */
+  private async assertUserExists(id: string): Promise<void> {
+    if (!(await this.userService.findOne(id))) throw new NotFoundException('Usuari no trobat');
   }
 }

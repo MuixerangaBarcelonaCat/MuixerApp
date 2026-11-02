@@ -16,6 +16,7 @@ const mockUserService = () => ({
   grantRole: jest.fn(),
   deactivateUser: jest.fn(),
   updateUser: jest.fn(),
+  findOne: jest.fn().mockResolvedValue({ id: 'u1' }),
 });
 
 describe('UserController', () => {
@@ -167,6 +168,15 @@ describe('UserController', () => {
       expect(audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: AuditAction.USER_SESSIONS_REVOKED, targetId: 'u1', metadata: { family: 'all' } }),
       );
+    });
+
+    it('404s for an unknown user instead of an empty list or a no-op revoke, and audits nothing', async () => {
+      service.findOne.mockResolvedValue(null);
+      await expect(controller.listSessions('ghost')).rejects.toThrow(NotFoundException);
+      await expect(controller.revokeAllSessions('ghost', actor)).rejects.toThrow(NotFoundException);
+      await expect(controller.listPushDevices('ghost')).rejects.toThrow(NotFoundException);
+      expect(tokenService.revokeAllUserTokens).not.toHaveBeenCalled();
+      expect(audit.record).not.toHaveBeenCalled();
     });
 
     it('restricts the three routes to ADMIN', () => {

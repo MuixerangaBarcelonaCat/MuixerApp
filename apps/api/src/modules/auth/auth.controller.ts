@@ -187,9 +187,10 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Ja existeix un compte amb aquest email.' })
   async registerViaInvite(
     @Body() dto: RegisterViaInviteDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const { response, refreshToken } = await this.authService.registerViaInvite(dto);
+    const { response, refreshToken } = await this.authService.registerViaInvite(dto, req.headers['user-agent']);
     this.setRefreshCookie(res, refreshToken, ClientType.PWA);
     return response;
   }

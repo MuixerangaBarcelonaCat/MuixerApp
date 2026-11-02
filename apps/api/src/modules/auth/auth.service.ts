@@ -246,6 +246,7 @@ export class AuthService {
    */
   async registerViaInvite(
     dto: RegisterViaInviteDto,
+    userAgent?: string | null,
   ): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: hashToken(dto.token) },
@@ -324,7 +325,7 @@ export class AuthService {
     user.privacyPolicyVersion = consentVersion;
 
     const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.tokenService.createRefreshToken(user, ClientType.PWA);
+    const refreshToken = await this.tokenService.createRefreshToken(user, ClientType.PWA, undefined, userAgent);
 
     return {
       response: { accessToken, user: await this.toUserProfile(user) },
