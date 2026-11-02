@@ -97,6 +97,8 @@ Feu clic en una fila per a obrir una finestra amb dos apartats:
 - **Sessions obertes.** Cada fila és un navegador o una app on el compte ha iniciat sessió: mostra si és «Dashboard» o «App», el navegador i el sistema, l'«Inici» i el «Darrer ús». «Fes expirar» tanca eixa sessió; «Fes expirar totes» les tanca totes. La persona haurà de tornar a entrar amb la contrasenya. La sessió es tanca del tot en un màxim de 15 minuts.
 - **Notificacions.** Cada fila és un dispositiu que rep notificacions. «Envia una prova» li envia una notificació de prova i «Elimina» el dona de baixa; el membre el pot tornar a activar des de la seua app.
 
+![Finestra de dispositius d'un compte amb les sessions obertes](img/06-usuari-dispositius-detall.png)
+
 Si no hi ha res, la finestra diu «Cap sessió oberta.» i «Cap dispositiu rep notificacions.».
 
 Si feu expirar les vostres pròpies sessions, el Dashboard continua funcionant uns minuts i després us porta a la pantalla d'inici de sessió.

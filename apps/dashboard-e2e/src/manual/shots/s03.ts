@@ -154,6 +154,24 @@ export const s03: ManualShot[] = [
     settle: 500,
   },
   {
+    // The modal of the first account with an open session, so «Sessions obertes» is not empty.
+    file: '06-usuari-dispositius-detall.png',
+    app: 'dashboard',
+    path: '/config/users/devices',
+    ready: 'table tbody td:first-child',
+    prepare: async (page) => {
+      await page
+        .locator('app-data-table tbody tr')
+        .filter({ has: page.locator('td[data-col="activeSessions"]', { hasNotText: /^\s*0\s*$/ }) })
+        .first()
+        .click();
+      await page.locator('dialog[open] [data-testid="session-row"]').first().waitFor();
+    },
+    blur: ['dialog[open] h2.text-lg'], // the title falls back to the email when the account has no person
+    clip: 'dialog[open] .modal-box',
+    settle: 500,
+  },
+  {
     file: '06-usuari-accions.png',
     app: 'dashboard',
     path: '/config/users',
