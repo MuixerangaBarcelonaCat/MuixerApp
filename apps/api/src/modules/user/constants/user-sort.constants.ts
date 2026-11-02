@@ -20,3 +20,25 @@ export const USER_SORT_COLUMN_MAP: Record<UserSortByField, string> = {
 
 export const USER_SORT_ORDER_VALUES = ['ASC', 'DESC'] as const;
 export type UserSortOrder = (typeof USER_SORT_ORDER_VALUES)[number];
+
+/** Sort whitelist of the «Dispositius i sessions» list (`GET /users/devices-summary`). */
+export const USER_DEVICES_SORT_BY_FIELDS = [
+  'alias',
+  'email',
+  'activeSessions',
+  'activeDevices',
+  'lastAccessAt',
+  'lastPushAt',
+] as const;
+
+export type UserDevicesSortByField = (typeof USER_DEVICES_SORT_BY_FIELDS)[number];
+
+/** Raw-select aliases (or columns) of `UserService.findDevicesSummary`. */
+export const USER_DEVICES_SORT_COLUMN_MAP: Record<UserDevicesSortByField, string> = {
+  alias: 'unaccent(lower(person.alias))',
+  email: 'unaccent(lower(user.email))',
+  activeSessions: '"activeSessions"',
+  activeDevices: '"activeDevices"',
+  lastAccessAt: '"lastAccessAt"',
+  lastPushAt: '"lastPushAt"',
+};

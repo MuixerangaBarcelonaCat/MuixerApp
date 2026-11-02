@@ -12,6 +12,7 @@ const mockUserService = () => ({
   createUser: jest.fn(),
   createOrRefreshInviteLink: jest.fn(),
   findAll: jest.fn(),
+  findDevicesSummary: jest.fn(),
   grantRole: jest.fn(),
   deactivateUser: jest.fn(),
   updateUser: jest.fn(),
@@ -67,6 +68,17 @@ describe('UserController', () => {
 
     expect(service.createOrRefreshInviteLink).toHaveBeenCalledWith('person-1');
     expect(result).toEqual(inviteResponse);
+  });
+
+  it('devicesSummary is ADMIN-only and delegates to UserService with the filters', async () => {
+    const response = { data: [], meta: { total: 0, page: 1, limit: 25 } };
+    service.findDevicesSummary.mockResolvedValue(response);
+    const filters = { search: 'anna' };
+
+    await expect(controller.devicesSummary(filters as never)).resolves.toBe(response);
+    expect(service.findDevicesSummary).toHaveBeenCalledWith(filters);
+    expect(Reflect.getMetadata('roles', UserController.prototype.devicesSummary)).toEqual([UserRole.ADMIN]);
+    expect(Reflect.getMetadata(PATH_METADATA, UserController.prototype.devicesSummary)).toBe('devices-summary');
   });
 
   it('findAll delegates to UserService with the filters', async () => {

@@ -13,7 +13,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { AuditAction, UserRole, JwtPayload, UserSession, UserPushDevice } from '@muixer/shared';
+import { AuditAction, UserRole, JwtPayload, UserSession, UserPushDevice, UserDevicesSummary } from '@muixer/shared';
 import { PushSubscriptionService } from '../push-notification/push-subscription.service';
 import { TokenService } from '../auth/token.service';
 import { AuditService } from '../audit/audit.service';
@@ -25,6 +25,7 @@ import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
+import { UserDevicesFilterDto } from './dto/user-devices-filter.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { GrantUserRoleDto } from './dto/grant-user-role.dto';
 
@@ -68,6 +69,16 @@ export class UserController {
     @Query() filters: UserFilterDto,
   ): Promise<{ data: UserResponseDto[]; total: number }> {
     return this.userService.findAll(filters);
+  }
+
+  @Get('devices-summary')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Llista els usuaris amb sessions, dispositius, darrer accés i invitació' })
+  @ApiResponse({ status: 200, description: 'Resum paginat per usuari' })
+  devicesSummary(
+    @Query() filters: UserDevicesFilterDto,
+  ): Promise<{ data: UserDevicesSummary[]; meta: { total: number; page: number; limit: number } }> {
+    return this.userService.findDevicesSummary(filters);
   }
 
   @Patch(':id/grant-role')

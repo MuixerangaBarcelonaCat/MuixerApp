@@ -1,4 +1,5 @@
 import { ClientType } from '../enums/client-type.enum';
+import { UserRole } from '../enums/user-role.enum';
 
 /** An open session of a user account: one refresh-token family. */
 export interface UserSession {
@@ -16,4 +17,25 @@ export interface UserPushDevice {
   userAgent: string | null;
   createdAt: string;
   lastUsedAt: string | null;
+}
+
+/** Invite state of an account: a link that still works, one that ran out, or none. */
+export type UserInviteStatus = 'PENDING' | 'EXPIRED';
+
+/** One row of the admin «Dispositius i sessions» list. */
+export interface UserDevicesSummary {
+  userId: string;
+  email: string | null;
+  role: UserRole;
+  isActive: boolean;
+  person: { id: string; alias: string; name: string; firstSurname: string } | null;
+  /** Refresh-token families with at least one usable token. */
+  activeSessions: number;
+  /** Active push subscriptions. */
+  activeDevices: number;
+  /** Last login or token refresh (the 15-min access token leaves no trace). */
+  lastAccessAt: string | null;
+  /** Last push delivered to any of the account's devices. */
+  lastPushAt: string | null;
+  invite: { status: UserInviteStatus; expiresAt: string } | null;
 }

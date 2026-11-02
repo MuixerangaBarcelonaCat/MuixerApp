@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { PushSubscriptionStatus, DeviceSummary, UserPushDevice } from '@muixer/shared';
+import { PushSubscriptionStatus, UserPushDevice } from '@muixer/shared';
 import { User } from '../user/user.entity';
 import { PushSubscription } from './entities/push-subscription.entity';
 import { RegisterSubscriptionDto } from './dto/register-subscription.dto';
@@ -149,31 +149,6 @@ export class PushSubscriptionService {
   async markUsedMany(subscriptionIds: string[]): Promise<void> {
     if (subscriptionIds.length === 0) return;
     await this.repo.update({ id: In(subscriptionIds) }, { lastUsedAt: new Date() });
-  }
-
-  async getSummary(): Promise<DeviceSummary[]> {
-    const rows = await this.repo
-      .createQueryBuilder('sub')
-      .innerJoin('sub.user', 'user')
-      .innerJoin('user.person', 'person')
-      .select('user.id', 'userId')
-      .addSelect('person.id', 'personId')
-      .addSelect('person.name', 'name')
-      .addSelect('person.firstSurname', 'firstSurname')
-      .addSelect('COUNT(sub.id)', 'activeDevices')
-      .addSelect('MAX(sub.lastUsedAt)', 'lastPushAt')
-      .where('sub.isActive = true')
-      .groupBy('user.id, person.id, person.name, person.firstSurname')
-      .orderBy('unaccent(lower(person.firstSurname))', 'ASC')
-      .addOrderBy('unaccent(lower(person.name))', 'ASC')
-      .getRawMany<{ userId: string; personId: string; name: string; firstSurname: string; activeDevices: string; lastPushAt: string | null }>();
-
-    return rows.map((r) => ({
-      userId: r.userId,
-      person: { id: r.personId, firstName: r.name, lastName: r.firstSurname },
-      activeDevices: parseInt(r.activeDevices, 10),
-      lastPushAt: r.lastPushAt,
-    }));
   }
 
   /** Called by cron: remove stale inactive/never-used subscriptions. */
