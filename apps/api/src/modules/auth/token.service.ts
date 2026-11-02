@@ -48,6 +48,7 @@ export class TokenService {
     clientType: ClientType,
     family?: string,
     userAgent?: string | null,
+    repo: Repository<RefreshToken> = this.refreshTokenRepo,
   ): Promise<string> {
     const ttl = this.ttlForClient(clientType);
     const tokenFamily = family ?? randomUUID();
@@ -56,7 +57,7 @@ export class TokenService {
 
     const expiresAt = new Date(Date.now() + ttl * 1000);
 
-    const entity = this.refreshTokenRepo.create({
+    const entity = repo.create({
       userId: user.id,
       tokenHash: this.hash(rawToken),
       family: tokenFamily,
@@ -66,9 +67,22 @@ export class TokenService {
       usedAt: null,
       revokedAt: null,
     });
-    await this.refreshTokenRepo.save(entity);
+    await repo.save(entity);
 
     return rawToken;
+  }
+
+  /**
+   * Runs `fn` in a transaction holding a per-user advisory lock, so a rotation and a revoke of the
+   * same user never interleave: without it, a refresh that read its token before an admin revoke
+   * could insert a fresh, non-revoked token into the revoked family after it.
+   * ponytail: serializes every refresh/revoke of one user; per-family keys if that ever contends.
+   */
+  private withUserLock<T>(userId: string, fn: (repo: Repository<RefreshToken>) => Promise<T>): Promise<T> {
+    return this.refreshTokenRepo.manager.transaction(async (manager) => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [userId]);
+      return fn(manager.getRepository(RefreshToken));
+    });
   }
 
   /**
@@ -90,22 +104,25 @@ export class TokenService {
     if (stored.revokedAt !== null) throw new UnauthorizedException('Token revocat');
     if (stored.expiresAt < new Date()) throw new UnauthorizedException('Token caducat');
 
-    const claim = await this.refreshTokenRepo.update(
-      { id: stored.id, usedAt: IsNull() },
-      { usedAt: new Date() },
-    );
+    // Under the lock, `revokedAt IS NULL` also catches a revoke that landed after the read above.
+    const newRawToken = await this.withUserLock(stored.userId, async (repo) => {
+      const claim = await repo.update(
+        { id: stored.id, usedAt: IsNull(), revokedAt: IsNull() },
+        { usedAt: new Date() },
+      );
+      if (claim.affected === 0) return null;
+      const userRef = { id: stored.userId } as User;
+      return this.createRefreshToken(userRef, stored.clientType, stored.family, userAgent ?? stored.userAgent, repo);
+    });
 
-    if (claim.affected === 0) {
-      // Reuse detected (or lost the race) — revoke entire family
+    if (newRawToken === null) {
+      // Reuse detected (or lost the race, or revoked meanwhile) — revoke entire family
       await this.refreshTokenRepo.update(
         { family: stored.family },
         { revokedAt: new Date() },
       );
       throw new UnauthorizedException('Token reutilitzat detectat');
     }
-
-    const userRef = { id: stored.userId } as User;
-    const newRawToken = await this.createRefreshToken(userRef, stored.clientType, stored.family, userAgent ?? stored.userAgent);
 
     return { newRawToken, userId: stored.userId, clientType: stored.clientType };
   }
@@ -118,14 +135,13 @@ export class TokenService {
 
   /** Revoca tots els tokens actius d'un usuari. Usat en logout-all (tots els dispositius). */
   async revokeAllUserTokens(userId: string): Promise<void> {
-    await this.refreshTokenRepo.update({ userId }, { revokedAt: new Date() });
+    await this.withUserLock(userId, (repo) => repo.update({ userId }, { revokedAt: new Date() }));
   }
 
   /** Revoca una sessió (família) d'un usuari. Retorna les files afectades (0 si la família no és seua). */
   async revokeFamily(userId: string, family: string): Promise<number> {
-    const result = await this.refreshTokenRepo.update(
-      { userId, family, revokedAt: IsNull() },
-      { revokedAt: new Date() },
+    const result = await this.withUserLock(userId, (repo) =>
+      repo.update({ userId, family, revokedAt: IsNull() }, { revokedAt: new Date() }),
     );
     return result.affected ?? 0;
   }

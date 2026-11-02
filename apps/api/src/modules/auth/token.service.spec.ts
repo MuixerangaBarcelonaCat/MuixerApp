@@ -6,14 +6,24 @@ import { ClientType } from '@muixer/shared';
 import { TokenService } from './token.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 
-const mockRepo = () => ({
-  create: jest.fn(),
-  save: jest.fn(),
-  findOne: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-  find: jest.fn(),
-});
+const mockRepo = () => {
+  const repo = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    find: jest.fn(),
+    // withUserLock: the transaction runs its callback against this same mock.
+    manager: {
+      transaction: jest.fn(),
+    },
+  };
+  repo.manager.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+    cb({ query: jest.fn(), getRepository: () => repo }),
+  );
+  return repo;
+};
 
 const hash = (t: string) => createHash('sha256').update(t).digest('hex');
 
@@ -104,7 +114,7 @@ describe('TokenService', () => {
       // never a plain findOne-then-update — so a concurrent request racing
       // for the same row can't both succeed (SEC-5).
       expect(repo.update).toHaveBeenCalledWith(
-        { id: 'rt-id', usedAt: IsNull() },
+        { id: 'rt-id', usedAt: IsNull(), revokedAt: IsNull() },
         { usedAt: expect.any(Date) },
       );
       expect(result.newRawToken).toBe(newToken);
@@ -126,8 +136,8 @@ describe('TokenService', () => {
       await service.rotateRefreshToken('t');
       await service.rotateRefreshToken('t', 'New UA');
 
-      expect(spy).toHaveBeenNthCalledWith(1, { id: 'u1' }, ClientType.PWA, 'fam', 'Old UA');
-      expect(spy).toHaveBeenNthCalledWith(2, { id: 'u1' }, ClientType.PWA, 'fam', 'New UA');
+      expect(spy).toHaveBeenNthCalledWith(1, { id: 'u1' }, ClientType.PWA, 'fam', 'Old UA', repo);
+      expect(spy).toHaveBeenNthCalledWith(2, { id: 'u1' }, ClientType.PWA, 'fam', 'New UA', repo);
     });
 
     it('revokes entire family when the atomic usedAt claim affects zero rows (reuse or lost race)', async () => {
