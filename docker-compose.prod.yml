@@ -46,6 +46,12 @@ services:
     pull_policy: always
     container_name: muixer-dashboard
     restart: unless-stopped
+    # Caddy access log (PWA block) grows with traffic: cap it at 3 × 10 MB.
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     env_file: .env.prod
     ports:
       - '80:80'
