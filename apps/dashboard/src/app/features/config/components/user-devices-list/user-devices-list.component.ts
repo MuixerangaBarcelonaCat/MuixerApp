@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { Search } from 'lucide-angular';
 import { UserDevicesSummary } from '@muixer/shared';
@@ -79,8 +80,14 @@ export class UserDevicesListComponent {
   readonly selected = signal<UserDevicesSummary | null>(null);
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
+  /** The in-flight summary request: a newer load cancels it, so an older answer never lands last. */
+  private loadSub?: Subscription;
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.searchTimeout);
+      this.loadSub?.unsubscribe();
+    });
     this.load();
   }
 
@@ -126,7 +133,8 @@ export class UserDevicesListComponent {
     this.error.set(false);
     const sortBy = this.sortBy();
     const sortOrder = this.sortOrder();
-    this.api
+    this.loadSub?.unsubscribe();
+    this.loadSub = this.api
       .summary({
         search: this.search() || undefined,
         page: this.page(),

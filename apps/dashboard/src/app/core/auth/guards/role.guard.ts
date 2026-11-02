@@ -19,5 +19,8 @@ export const rolesGuard = (...allowedRoles: UserRole[]): CanActivateFn =>
 
     const role = auth.userRole();
     if (role && allowedRoles.includes(role)) return true;
-    return router.createUrlTree(['/login']);
+    // Staff on a route above their role (e.g. TECHNICAL on an ADMIN-only screen) stay logged in: the
+    // shell lets every staff role into /home. Members and anonymous users go to the login screen.
+    const isStaff = role === UserRole.TECHNICAL || role === UserRole.ADMIN;
+    return router.createUrlTree([isStaff ? '/home' : '/login']);
   };

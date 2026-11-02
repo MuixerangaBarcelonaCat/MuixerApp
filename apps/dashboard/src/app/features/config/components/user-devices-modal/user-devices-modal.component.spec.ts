@@ -34,6 +34,16 @@ describe('UserDevicesModalComponent', () => {
 
   afterEach(() => http.verify());
 
+  it('ignores a second click on «Fes expirar» or «Elimina» while the first is in flight', () => {
+    const f = setup();
+    f.componentInstance.revokeSession(session);
+    f.componentInstance.revokeSession(session);
+    expect(http.match({ method: 'DELETE', url: `${base}/sessions/f1` })).toHaveLength(1);
+    f.componentInstance.removeDevice(device);
+    f.componentInstance.removeDevice(device);
+    expect(http.match({ method: 'DELETE', url: `${base}/push-subscriptions/s1` })).toHaveLength(1);
+  });
+
   it('loads sessions and devices on open', () => {
     const f = setup();
     expect(f.componentInstance.sessions()).toHaveLength(1);

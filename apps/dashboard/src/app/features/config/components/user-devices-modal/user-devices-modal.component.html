@@ -30,7 +30,7 @@
               Inici: {{ s.startedAt | date: 'dd/MM/yyyy HH:mm' }} · Darrer ús: {{ s.lastRefreshAt | date: 'dd/MM/yyyy HH:mm' }}
             </p>
           </div>
-          <lib-button variant="error" outline size="xs" (clicked)="revokeSession(s)">Fes expirar</lib-button>
+          <lib-button variant="error" outline size="xs" [loading]="pending().has(s.family)" (clicked)="revokeSession(s)">Fes expirar</lib-button>
         </div>
       } @empty {
         <lib-empty-state message="Cap sessió oberta." />
@@ -55,7 +55,7 @@
           </div>
           <div class="flex gap-2">
             <lib-button variant="ghost" size="xs" (clicked)="testDevice(d)">Envia una prova</lib-button>
-            <lib-button variant="error" outline size="xs" (clicked)="removeDevice(d)">Elimina</lib-button>
+            <lib-button variant="error" outline size="xs" [loading]="pending().has(d.id)" (clicked)="removeDevice(d)">Elimina</lib-button>
           </div>
         </div>
       } @empty {

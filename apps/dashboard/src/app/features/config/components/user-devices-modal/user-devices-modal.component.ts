@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { finalize } from 'rxjs';
 import { ClientType, UserPushDevice, UserSession } from '@muixer/shared';
 import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { UserDevicesService } from '../../services/user-devices.service';
@@ -71,8 +72,27 @@ export class UserDevicesModalComponent implements OnInit {
     this.api.devices(id).subscribe({ next: (d) => { this.devices.set(d); done(); }, error: fail });
   }
 
+  /** Session families / device ids with a request in flight: a double click must not fire twice. */
+  readonly pending = signal<ReadonlySet<string>>(new Set());
+
+  /** Marks `key` as in flight; false when it already was. Released by `finalize` on the request. */
+  private claim(key: string): boolean {
+    if (this.pending().has(key)) return false;
+    this.pending.update((s) => new Set(s).add(key));
+    return true;
+  }
+
+  private release(key: string): void {
+    this.pending.update((s) => {
+      const next = new Set(s);
+      next.delete(key);
+      return next;
+    });
+  }
+
   revokeSession(session: UserSession): void {
-    this.api.revokeSession(this.userId(), session.family).subscribe({
+    if (!this.claim(session.family)) return;
+    this.api.revokeSession(this.userId(), session.family).pipe(finalize(() => this.release(session.family))).subscribe({
       next: () => {
         this.sessions.update((l) => l.filter((s) => s.family !== session.family));
         this.toast.success('S\'ha fet expirar la sessió.');
@@ -113,7 +133,8 @@ export class UserDevicesModalComponent implements OnInit {
   }
 
   removeDevice(device: UserPushDevice): void {
-    this.api.removeDevice(this.userId(), device.id).subscribe({
+    if (!this.claim(device.id)) return;
+    this.api.removeDevice(this.userId(), device.id).pipe(finalize(() => this.release(device.id))).subscribe({
       next: () => this.devices.update((l) => l.filter((d) => d.id !== device.id)),
       error: () => this.toast.error('No s\'ha pogut eliminar el dispositiu.'),
     });

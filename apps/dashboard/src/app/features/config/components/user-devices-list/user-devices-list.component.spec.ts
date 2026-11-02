@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -42,6 +43,28 @@ describe('UserDevicesListComponent', () => {
   };
 
   afterEach(() => http.verify());
+
+  it('cancels the previous request so a slow, older answer cannot overwrite a newer one', () => {
+    const f = setup();
+    f.componentInstance.goToPage(2);
+    const older = http.expectOne((r) => r.url === url && r.params.get('page') === '2');
+    f.componentInstance.goToPage(3);
+    expect(older.cancelled).toBe(true);
+    http.expectOne((r) => r.url === url && r.params.get('page') === '3').flush({ data: [], meta: { total: 0, page: 3, limit: 25 } });
+  });
+
+  it('drops a pending search when the page is left before the debounce fires', () => {
+    vi.useFakeTimers();
+    try {
+      const f = setup();
+      f.componentInstance.onSearchChange('anna');
+      f.destroy();
+      vi.advanceTimersByTime(1000);
+      http.expectNone((r) => r.url === url);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it('loads the summary and shows alias, counts and the person', () => {
     const f = setup();
