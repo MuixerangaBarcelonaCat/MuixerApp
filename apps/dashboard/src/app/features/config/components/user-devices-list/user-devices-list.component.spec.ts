@@ -79,6 +79,18 @@ describe('UserDevicesListComponent', () => {
     expect(f.componentInstance.total()).toBe(1);
   });
 
+  it('says per account whether push notifications are on (any active device) or off', () => {
+    const f = setup([row({ userId: 'on', activeDevices: 2 }), row({ userId: 'off', activeDevices: 0 })]);
+    const push = f.componentInstance.columns.find((c) => c.key === 'push')!;
+    expect(push.value!(row({ activeDevices: 2 }))).toBe('Activades');
+    expect(push.value!(row({ activeDevices: 0 }))).toBe('Desactivades');
+    expect(push.badgeClass!(row({ activeDevices: 2 }))).toBe('badge-success');
+    expect(push.badgeClass!(row({ activeDevices: 0 }))).toBe('badge-ghost');
+    const text = (f.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Activades');
+    expect(text).toContain('Desactivades');
+  });
+
   it('opens the devices modal on row click and reloads the list when it closes', () => {
     const f = setup();
     f.componentInstance.selected.set(row());

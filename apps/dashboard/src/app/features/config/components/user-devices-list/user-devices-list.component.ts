@@ -35,6 +35,16 @@ const COLUMNS: ColumnDef<UserDevicesSummary>[] = [
     sortField: 'email',
     value: (r) => [r.person ? `${r.person.name} ${r.person.firstSurname}` : null, r.email].filter(Boolean).join(' · ') || '—',
   },
+  {
+    key: 'push',
+    label: 'Notificacions',
+    type: 'badge',
+    defaultVisible: true,
+    // On = at least one active push subscription; sorting by device count groups on/off.
+    sortField: 'activeDevices',
+    value: (r) => (r.activeDevices > 0 ? 'Activades' : 'Desactivades'),
+    badgeClass: (r) => (r.activeDevices > 0 ? 'badge-success' : 'badge-ghost'),
+  },
   { key: 'activeSessions', label: 'Sessions', defaultVisible: true, sortField: 'activeSessions', value: (r) => r.activeSessions },
   { key: 'activeDevices', label: 'Dispositius', defaultVisible: true, sortField: 'activeDevices', value: (r) => r.activeDevices },
   { key: 'lastAccessAt', label: 'Darrer accés', defaultVisible: true, sortField: 'lastAccessAt', value: (r) => formatDateTime(r.lastAccessAt) },

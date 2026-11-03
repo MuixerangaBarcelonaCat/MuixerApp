@@ -82,6 +82,7 @@ Feu clic al botó «…» de la dreta de la fila («Accions»):
 A la capçalera d'«Usuaris», feu clic a «Dispositius i sessions». També hi podeu arribar des de «Comunicació», a la targeta «Notificacions». La pantalla mostra tots els comptes amb estes columnes:
 
 - «Àlies» i «Usuari» (nom i correu).
+- «Notificacions»: «Activades» si almenys un dispositiu del compte rep notificacions, «Desactivades» si no en rep cap.
 - «Sessions»: quantes sessions obertes té el compte.
 - «Dispositius»: quants dispositius reben notificacions.
 - «Darrer accés»: l'última vegada que va entrar o que la sessió es va renovar. Si fa més d'un mes que no entra, apareix «—».
