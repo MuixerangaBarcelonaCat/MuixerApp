@@ -45,6 +45,13 @@ import { CreateMemberDelegateDto } from './dto/create-member-delegate.dto';
 export class MeController {
   constructor(private readonly meService: MeService) {}
 
+  @Post('pwa-installed')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'PWA reports it is running installed (standalone display mode)' })
+  markPwaInstalled(@CurrentUser() user: JwtPayload): Promise<void> {
+    return this.meService.markPwaInstalled(user.sub);
+  }
+
   @Get('events')
   @ApiOperation({ summary: 'List events for authenticated member' })
   findEvents(

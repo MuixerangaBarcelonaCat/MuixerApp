@@ -29,6 +29,7 @@ export const USER_DEVICES_SORT_BY_FIELDS = [
   'activeDevices',
   'lastAccessAt',
   'lastPushAt',
+  'pwaInstalledAt',
 ] as const;
 
 export type UserDevicesSortByField = (typeof USER_DEVICES_SORT_BY_FIELDS)[number];
@@ -41,4 +42,5 @@ export const USER_DEVICES_SORT_COLUMN_MAP: Record<UserDevicesSortByField, string
   activeDevices: '"activeDevices"',
   lastAccessAt: '"lastAccessAt"',
   lastPushAt: '"lastPushAt"',
+  pwaInstalledAt: '"pwaInstalledAt"',
 };

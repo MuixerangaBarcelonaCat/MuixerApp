@@ -37,5 +37,7 @@ export interface UserDevicesSummary {
   lastAccessAt: string | null;
   /** Last push delivered to any of the account's devices. */
   lastPushAt: string | null;
+  /** Last time the PWA reported running installed (standalone); null = never seen installed. */
+  pwaInstalledAt: string | null;
   invite: { status: UserInviteStatus; expiresAt: string } | null;
 }

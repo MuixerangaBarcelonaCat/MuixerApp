@@ -48,6 +48,10 @@ export class User {
   @Column({ type: 'int', nullable: true })
   privacyPolicyVersion: number | null;
 
+  /** Last time the PWA reported running installed (standalone display mode); null = never seen installed. */
+  @Column({ type: 'timestamptz', nullable: true })
+  pwaInstalledAt: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

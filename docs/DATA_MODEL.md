@@ -119,7 +119,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-11-02 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-11-03 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **24 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -149,7 +149,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `refresh_tokens` | `RefreshToken` | 11 |
 | `rengles` | `Rengla` | 5 |
 | `seasons` | `Season` | 8 |
-| `users` | `User` | 14 |
+| `users` | `User` | 15 |
 
 ### Enums (`libs/shared/src/enums`)
 
@@ -661,6 +661,7 @@ Definició: [`apps/api/src/modules/user/user.entity.ts`](../apps/api/src/modules
 | `resetExpiresAt` | `timestamptz` | `Date` | sí | — |
 | `privacyPolicyAcceptedAt` | `timestamptz` | `Date` | sí | — |
 | `privacyPolicyVersion` | `int` | `number` | sí | — |
+| `pwaInstalledAt` | `timestamptz` | `Date` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 | `person` | `relation` | `Relation<Person>` | sí | OneToOne → `undefined` |

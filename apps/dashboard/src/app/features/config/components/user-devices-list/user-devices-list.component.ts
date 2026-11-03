@@ -26,6 +26,14 @@ function formatDateTime(value: string | null): string {
   return value ? formatDate(value, DEVICE_DATE_FORMAT, 'en-US') : '—';
 }
 
+const PWA_RECENT_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** The install timestamp refreshes daily while the app is opened installed, so an old date likely means uninstalled. */
+function pwaState(r: UserDevicesSummary): 'recent' | 'stale' | 'never' {
+  if (!r.pwaInstalledAt) return 'never';
+  return Date.now() - Date.parse(r.pwaInstalledAt) <= PWA_RECENT_MS ? 'recent' : 'stale';
+}
+
 const COLUMNS: ColumnDef<UserDevicesSummary>[] = [
   { key: 'alias', label: 'Àlies', defaultVisible: true, sortField: 'alias', primary: true, value: (r) => r.person?.alias ?? '—' },
   {
@@ -44,6 +52,23 @@ const COLUMNS: ColumnDef<UserDevicesSummary>[] = [
     sortField: 'activeDevices',
     value: (r) => (r.activeDevices > 0 ? 'Activades' : 'Desactivades'),
     badgeClass: (r) => (r.activeDevices > 0 ? 'badge-success' : 'badge-ghost'),
+  },
+  {
+    key: 'pwa',
+    label: 'App instal·lada',
+    type: 'badge',
+    defaultVisible: true,
+    sortField: 'pwaInstalledAt',
+    value: (r) => {
+      const state = pwaState(r);
+      if (state === 'never') return 'No';
+      return state === 'recent' ? 'Sí' : `Fa temps (${formatDateTime(r.pwaInstalledAt)})`;
+    },
+    badgeClass: (r) => {
+      const state = pwaState(r);
+      if (state === 'never') return 'badge-ghost';
+      return state === 'recent' ? 'badge-success' : 'badge-warning';
+    },
   },
   { key: 'activeSessions', label: 'Sessions', defaultVisible: true, sortField: 'activeSessions', value: (r) => r.activeSessions },
   { key: 'activeDevices', label: 'Dispositius', defaultVisible: true, sortField: 'activeDevices', value: (r) => r.activeDevices },

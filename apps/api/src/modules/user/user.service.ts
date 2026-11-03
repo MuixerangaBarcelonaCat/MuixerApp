@@ -156,6 +156,7 @@ export class UserService {
         'user.isActive AS "isActive"',
         'user.inviteToken IS NOT NULL AS "hasInvite"',
         'user.inviteExpiresAt AS "inviteExpiresAt"',
+        'user.pwaInstalledAt AS "pwaInstalledAt"',
         'person.id AS "personId"',
         'person.alias AS alias',
         'person.name AS name',
@@ -207,6 +208,7 @@ export class UserService {
         activeDevices: number;
         lastAccessAt: Date | null;
         lastPushAt: Date | null;
+        pwaInstalledAt: Date | null;
       }>();
 
     const now = Date.now();
@@ -222,6 +224,7 @@ export class UserService {
       activeDevices: r.activeDevices,
       lastAccessAt: r.lastAccessAt ? new Date(r.lastAccessAt).toISOString() : null,
       lastPushAt: r.lastPushAt ? new Date(r.lastPushAt).toISOString() : null,
+      pwaInstalledAt: r.pwaInstalledAt ? new Date(r.pwaInstalledAt).toISOString() : null,
       invite:
         r.hasInvite && r.inviteExpiresAt
           ? {

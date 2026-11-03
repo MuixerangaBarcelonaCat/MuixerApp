@@ -20,6 +20,7 @@ const row = (over: Partial<UserDevicesSummary> = {}): UserDevicesSummary => ({
   activeDevices: 1,
   lastAccessAt: '2026-10-30T10:00:00.000Z',
   lastPushAt: null,
+  pwaInstalledAt: null,
   invite: null,
   ...over,
 });
@@ -89,6 +90,21 @@ describe('UserDevicesListComponent', () => {
     const text = (f.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Activades');
     expect(text).toContain('Desactivades');
+  });
+
+  it('says per account whether the app was seen installed, and flags stale installs', () => {
+    const f = setup();
+    const pwa = f.componentInstance.columns.find((c) => c.key === 'pwa')!;
+    const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
+
+    expect(pwa.value!(row({ pwaInstalledAt: null }))).toBe('No');
+    expect(pwa.badgeClass!(row({ pwaInstalledAt: null }))).toBe('badge-ghost');
+
+    expect(pwa.value!(row({ pwaInstalledAt: new Date().toISOString() }))).toBe('Sí');
+    expect(pwa.badgeClass!(row({ pwaInstalledAt: new Date().toISOString() }))).toBe('badge-success');
+
+    expect(pwa.value!(row({ pwaInstalledAt: daysAgo(60) }))).toMatch(/^Fa temps/);
+    expect(pwa.badgeClass!(row({ pwaInstalledAt: daysAgo(60) }))).toBe('badge-warning');
   });
 
   it('opens the devices modal on row click and reloads the list when it closes', () => {

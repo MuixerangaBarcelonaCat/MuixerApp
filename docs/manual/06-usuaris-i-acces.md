@@ -82,6 +82,7 @@ Feu clic al botó «…» de la dreta de la fila («Accions»):
 A la capçalera d'«Usuaris», feu clic a «Dispositius i sessions». També hi podeu arribar des de «Comunicació», a la targeta «Notificacions». La pantalla mostra tots els comptes amb estes columnes:
 
 - «Àlies» i «Usuari» (nom i correu).
+- «App instal·lada»: «Sí» si el compte ha obert l'app instal·lada (icona a la pantalla d'inici) en els últims 30 dies; «Fa temps» (amb la data de l'última vegada) si fa més de 30 dies que no l'obri, probablement perquè l'ha desinstal·lada o ja no l'usa; «No» si només l'ha usada des del navegador o encara no l'ha oberta des de l'última actualització.
 - «Notificacions»: «Activades» si almenys un dispositiu del compte rep notificacions, «Desactivades» si no en rep cap.
 - «Sessions»: quantes sessions obertes té el compte.
 - «Dispositius»: quants dispositius reben notificacions.
