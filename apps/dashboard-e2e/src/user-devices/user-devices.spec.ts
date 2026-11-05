@@ -259,7 +259,7 @@ test.describe('Dispositius i sessions — pla de proves', () => {
 
   // ── Dashboard UI ──────────────────────────────────────────────────────
   async function loginUi(page: Page, email: string, password: string) {
-    await page.goto('/login', { waitUntil: 'networkidle' });
+    await page.goto('/login');
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', password);
     await page.click('button[type="submit"]');
@@ -268,7 +268,6 @@ test.describe('Dispositius i sessions — pla de proves', () => {
   /** Client-side navigation: a reload would drop the in-memory access token. */
   async function nav(page: Page, path: string) {
     await page.evaluate((p) => { history.pushState({}, '', p); dispatchEvent(new PopStateEvent('popstate')); }, path);
-    await page.waitForLoadState('networkidle');
   }
   const toasts = (page: Page) => page.getByTestId('lib-toast-item');
   /** Rows whose alias is exactly MEMBER_ALIAS (A01 also creates MEMBER_ALIAS + 'X'). */
@@ -309,7 +308,7 @@ test.describe('Dispositius i sessions — pla de proves', () => {
     await memberRows(page).first().click();
     const btn = page.locator('dialog[open]').getByRole('button', { name: 'Fes expirar', exact: true }).first();
     await btn.dblclick();
-    await page.waitForTimeout(1500);
+    await expect(toasts(page).filter({ hasText: "S'ha fet expirar la sessió." })).toBeVisible();
     await expect(toasts(page).filter({ hasText: "No s'ha pogut" }), 'error toast after double click').toHaveCount(0);
   });
 
@@ -352,10 +351,12 @@ test.describe('Dispositius i sessions — pla de proves', () => {
       await route.continue();
     });
     const input = page.locator('app-user-devices-list input[placeholder^="Àlies"]');
+    const slow = page.waitForResponse((r) => r.url().includes('search=QADISP'));
+    const sent = page.waitForRequest((r) => r.url().includes('search=QADISP'));
     await input.fill('QADISP');
-    await page.waitForTimeout(450);
+    await sent; // first (slow) request is in flight
     await input.fill(MEMBER_ALIAS);
-    await page.waitForTimeout(3500);
+    await slow; // stale response has landed; table must still show the current search
     const rows = page.locator('app-data-table tbody tr');
     const texts = await rows.locator('td[data-col="alias"]').allInnerTexts();
     console.log('U05 rows shown for search', MEMBER_ALIAS, '→', JSON.stringify(texts.map((t) => t.trim())));
@@ -367,7 +368,6 @@ test.describe('Dispositius i sessions — pla de proves', () => {
     await loginUi(page, ADMIN.email, ADMIN.password);
     await nav(page, '/config/users/devices');
     await expect(page.getByRole('heading', { name: 'Dispositius i sessions' })).toBeVisible();
-    await page.waitForTimeout(800);
     const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(scrollW, 'no horizontal scroll').toBeLessThanOrEqual(390);
       });
