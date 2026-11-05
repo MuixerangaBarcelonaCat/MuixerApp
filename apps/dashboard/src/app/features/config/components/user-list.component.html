@@ -2,6 +2,12 @@
 
   <!-- Capçalera -->
   <app-page-header title="Usuaris" [count]="totalUsers()">
+    @if (isAdmin()) {
+      <lib-button variant="ghost" size="sm" routerLink="/config/users/devices">
+        <lucide-icon name="Smartphone" [size]="16" />
+        Dispositius i sessions
+      </lib-button>
+    }
     <lib-button variant="primary" size="sm" (clicked)="openCreateModal()">
       <lucide-icon name="UserPlus" [size]="16" />
       Crea usuari

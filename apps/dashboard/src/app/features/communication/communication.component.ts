@@ -1,8 +1,9 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { News, NewsStatus, NotificationScheduleEntry } from '@muixer/shared';
+import { News, NewsStatus, NotificationScheduleEntry, UserRole } from '@muixer/shared';
 import { ButtonComponent, CardComponent, ToastService, DOMAIN_ICONS } from '@muixer/ui';
+import { AuthService } from '../../core/auth/services/auth.service';
 import { NewsService } from './services/news.service';
 import { NotificationService } from './services/notification.service';
 import { getNewsStatus, formatDate } from '../../shared/utils';
@@ -28,6 +29,10 @@ export class CommunicationComponent {
   private readonly newsService = inject(NewsService);
   private readonly notificationService = inject(NotificationService);
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthService);
+
+  /** «Dispositius i sessions» is ADMIN-only (security data). */
+  readonly isAdmin = computed(() => this.auth.userRole() === UserRole.ADMIN);
 
   readonly newsLoading = signal(false);
   private readonly newsItems = signal<News[]>([]);

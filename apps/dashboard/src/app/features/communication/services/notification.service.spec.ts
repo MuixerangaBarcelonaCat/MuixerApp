@@ -32,13 +32,6 @@ describe('NotificationService', () => {
     req.flush({ accepted: true });
   });
 
-  it('getDeviceSummary requests the device summary', () => {
-    service.getDeviceSummary().subscribe();
-    const req = http.expectOne((r) => r.url.endsWith('/push-subscriptions/summary'));
-    expect(req.request.method).toBe('GET');
-    req.flush([]);
-  });
-
   it('getHistory requests the notification history with query params', () => {
     service.getHistory({ source: NotificationSource.MANUAL, page: 2, limit: 25 }).subscribe();
     const req = http.expectOne(

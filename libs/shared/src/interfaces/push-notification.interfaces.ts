@@ -31,12 +31,6 @@ export interface PushSubscriptionStatus {
   deviceCount: number;
 }
 
-export interface DeviceSummary {
-  person: { id: string; firstName: string; lastName: string };
-  activeDevices: number;
-  lastPushAt: string | null;
-}
-
 export interface NotificationLogEntry {
   id: string;
   title: string;

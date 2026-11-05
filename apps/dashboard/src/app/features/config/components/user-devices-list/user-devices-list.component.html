@@ -1,0 +1,47 @@
+<div class="flex flex-col gap-4">
+  <app-page-header title="Dispositius i sessions" [count]="total()" />
+
+  <div class="w-full sm:w-64">
+    <lib-input
+      label="Cerca"
+      placeholder="Àlies, nom o correu..."
+      [icon]="SearchIcon"
+      [(ngModel)]="searchInput"
+      (ngModelChange)="onSearchChange($event)"
+    />
+  </div>
+
+  @if (error()) {
+    <lib-empty-state [icon]="ICON_EMPTY" message="No s'han pogut carregar els usuaris. Torneu a provar-ho." />
+  } @else {
+    <app-data-table
+      [items]="rows()"
+      [columns]="columns"
+      [visibleColumns]="visibleColumns"
+      [sortBy]="sortBy()"
+      [sortOrder]="sortOrder()"
+      [loading]="loading()"
+      (rowClick)="selected.set($event)"
+      (sortChange)="onSortChange($event)"
+    />
+
+    @if (!loading() && rows().length === 0) {
+      <lib-empty-state [icon]="ICON_EMPTY" message="No s'ha trobat cap usuari." />
+    }
+
+    @if (total() > 0) {
+      <app-pagination
+        [page]="page()"
+        [totalPages]="totalPages()"
+        [limit]="limit()"
+        [totalItems]="total()"
+        (pageChange)="goToPage($event)"
+        (limitChange)="onLimitChange($event)"
+      />
+    }
+  }
+</div>
+
+@if (selected(); as row) {
+  <app-user-devices-modal [userId]="row.userId" [userLabel]="modalLabel(row)" (closed)="closeModal()" />
+}

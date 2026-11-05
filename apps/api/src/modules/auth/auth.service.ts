@@ -141,13 +141,13 @@ export class AuthService {
    * com a hash SHA-256 a la DB. Només ADMIN/TECHNICAL poden iniciar sessió des del dashboard;
    * qualsevol rol pot fer-ho des de la PWA.
    */
-  async login(user: User, clientType: ClientType): Promise<{ response: AuthResponseDto; refreshToken: string }> {
+  async login(user: User, clientType: ClientType, userAgent?: string | null): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     if (clientType === ClientType.DASHBOARD && ![UserRole.ADMIN, UserRole.TECHNICAL].includes(user.role)) {
       throw new UnauthorizedException('Només els usuaris tècnics o administradors poden accedir al panell de gestió');
     }
 
     const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.tokenService.createRefreshToken(user, clientType);
+    const refreshToken = await this.tokenService.createRefreshToken(user, clientType, undefined, userAgent);
     return {
       response: { accessToken, user: await this.toUserProfile(user) },
       refreshToken,
@@ -163,8 +163,9 @@ export class AuthService {
    */
   async refresh(
     rawRefreshToken: string,
+    userAgent?: string | null,
   ): Promise<{ response: AuthResponseDto; newRefreshToken: string; clientType: ClientType }> {
-    const { newRawToken, userId, clientType } = await this.tokenService.rotateRefreshToken(rawRefreshToken);
+    const { newRawToken, userId, clientType } = await this.tokenService.rotateRefreshToken(rawRefreshToken, userAgent);
 
     const user = await this.userRepo.findOne({
       where: { id: userId },
@@ -245,6 +246,7 @@ export class AuthService {
    */
   async registerViaInvite(
     dto: RegisterViaInviteDto,
+    userAgent?: string | null,
   ): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: hashToken(dto.token) },
@@ -323,7 +325,7 @@ export class AuthService {
     user.privacyPolicyVersion = consentVersion;
 
     const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.tokenService.createRefreshToken(user, ClientType.PWA);
+    const refreshToken = await this.tokenService.createRefreshToken(user, ClientType.PWA, undefined, userAgent);
 
     return {
       response: { accessToken, user: await this.toUserProfile(user) },

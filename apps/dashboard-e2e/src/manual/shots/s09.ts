@@ -114,14 +114,6 @@ export const s09: ManualShot[] = [
     path: '/communication/notifications/history',
     ready: 'app-page-header h1',
   },
-  {
-    file: '18-comunicacio-dispositius.png',
-    app: 'dashboard',
-    path: '/communication/notifications/devices',
-    ready: 'table tbody td:first-child',
-    blur: ['app-device-list tbody td:first-child'], // «Membre» shows name + surname only
-    settle: 500,
-  },
 
   // ── 19 · PWA, compte tècnic ───────────────────────────────────────────────
   {
