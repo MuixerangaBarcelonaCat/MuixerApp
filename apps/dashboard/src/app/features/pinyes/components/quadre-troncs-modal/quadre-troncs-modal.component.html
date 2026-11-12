@@ -1,0 +1,114 @@
+<lib-modal size="full" [open]="true" [title]="title()" (closed)="closed.emit()">
+  @if (error()) {
+    <lib-alert variant="error">No s'ha pogut carregar el quadre. Torneu a provar-ho.</lib-alert>
+  } @else if (quadre(); as q) {
+    <div class="flex h-full min-h-0 flex-col gap-3">
+      <!-- Toolbar: total, filter, columns -->
+      <div class="flex flex-wrap items-center gap-3 shrink-0">
+        <span class="text-sm font-semibold" data-testid="quadre-total">{{ q.uniqueComing }} {{ q.uniqueComing === 1 ? 'persona ve' : 'persones vénen' }}</span>
+        <lib-checkbox size="xs" [ngModel]="onlyUnplaced()" (ngModelChange)="onlyUnplaced.set($event)">
+          <span class="text-sm">Només qui no ha fet cap tronc</span>
+        </lib-checkbox>
+        <app-quadre-legend class="ml-auto" [hasNextPerformance]="hasNextPerformance()" />
+        <lib-button
+          variant="ghost"
+          size="sm"
+          [ariaExpanded]="columnsPanelOpen()"
+          (clicked)="columnsPanelOpen.set(!columnsPanelOpen())"
+        >
+          <lucide-icon [img]="Columns3" [size]="16" aria-hidden="true" />
+          Columnes
+        </lib-button>
+      </div>
+
+      @if (columnsPanelOpen()) {
+        <div class="flex flex-wrap gap-6 shrink-0 rounded-lg border border-base-300 p-3" data-testid="quadre-columns-panel">
+          <div>
+            <p class="text-xs font-semibold mb-1">Ordre</p>
+            <ol class="flex flex-col gap-1">
+              @for (id of columnIds(); track id; let i = $index, last = $last, first = $first) {
+                <li class="flex items-center gap-1 text-sm">
+                  <lib-button variant="ghost" size="xs" shape="square" [disabled]="first" [ariaLabel]="'Puja ' + tagName(id)" (clicked)="moveColumn(i, -1)">
+                    <lucide-icon [img]="ArrowUp" [size]="12" aria-hidden="true" />
+                  </lib-button>
+                  <lib-button variant="ghost" size="xs" shape="square" [disabled]="last" [ariaLabel]="'Baixa ' + tagName(id)" (clicked)="moveColumn(i, 1)">
+                    <lucide-icon [img]="ArrowDown" [size]="12" aria-hidden="true" />
+                  </lib-button>
+                  {{ tagName(id) }}
+                </li>
+              }
+            </ol>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-semibold mb-1">Etiquetes</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-1">
+              @for (tag of tags(); track tag.id) {
+                <lib-checkbox
+                  size="xs"
+                  [ngModel]="isShown(tag.id)"
+                  [disabled]="isShown(tag.id) && columnIds().length === 1"
+                  (ngModelChange)="toggleColumn(tag.id)"
+                >
+                  <span class="text-sm">{{ tag.name }}</span>
+                </lib-checkbox>
+              }
+            </div>
+          </div>
+          <lib-button class="self-start" variant="ghost" size="xs" (clicked)="resetColumns()">Restableix</lib-button>
+        </div>
+      }
+
+      <!-- Columns: scroll sideways inside the modal, never the page -->
+      <div class="flex flex-1 min-h-0 gap-3 overflow-x-auto">
+        @for (column of q.columns; track column.id ?? 'altres') {
+          <section class="flex w-44 shrink-0 flex-col min-h-0 rounded-lg border border-base-300">
+            <header class="flex items-baseline gap-1 border-b border-base-300 px-2 py-1">
+              <span class="text-sm font-semibold truncate" data-testid="quadre-column-name">{{ column.name }}</span>
+              <span class="text-sm">{{ column.comingCount }}</span>
+              @if (column.performanceOnlyCount > 0) {
+                <span class="ml-auto text-xs text-base-content/60">+{{ column.performanceOnlyCount }} actuació</span>
+              }
+            </header>
+            <ul class="flex flex-col overflow-y-auto">
+              @for (entry of visibleEntries(column.entries); track entry.person.id) {
+                <li
+                  class="flex items-center gap-1 px-2 py-0.5 text-sm"
+                  [class]="rowClass(entry)"
+                  [attr.data-person-alias]="entry.person.alias"
+                  [attr.data-state]="entry.state"
+                  [attr.data-highlighted]="hoveredPersonId() === entry.person.id"
+                  (mouseenter)="hoveredPersonId.set(entry.person.id)"
+                  (mouseleave)="hoveredPersonId.set(null)"
+                >
+                  <span class="truncate">{{ entry.person.alias }}</span>
+                  @if (entry.state === 'assignedAbsent') {
+                    <span class="shrink-0" title="Assignada però no ve a l'assaig" data-testid="quadre-assigned-absent">
+                      <lucide-icon [img]="TriangleAlert" [size]="12" class="text-warning" aria-label="Assignada però no ve a l'assaig" />
+                    </span>
+                  }
+                  @if (entry.person.nextPerformanceStatus === 'ANIRE') {
+                    <span class="shrink-0" title="Vindrà a la propera actuació" data-testid="quadre-next-performance">
+                      <lucide-icon [img]="ICON_ACTUACIO" class="size-2.5 fill-current text-base-content/80" aria-label="Vindrà a la propera actuació" />
+                    </span>
+                  }
+                  <span class="ml-auto flex shrink-0 items-center gap-1">
+                    @if (dots(entry); as d) {
+                      <span class="text-xs tracking-tighter" [title]="entry.figureCount + ' figures'">{{ d }}</span>
+                    }
+                    @if (height(entry) !== '-') {
+                      <span class="text-xs text-base-content/50">{{ height(entry) }}</span>
+                    }
+                  </span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="flex justify-center py-16">
+      <span class="loading loading-spinner loading-sm text-primary" aria-label="S'està carregant el quadre..."></span>
+    </div>
+  }
+</lib-modal>

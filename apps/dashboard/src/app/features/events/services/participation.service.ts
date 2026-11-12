@@ -14,7 +14,11 @@ import { EventParticipation } from '../models/participation.model';
   providedIn: 'root',
 })
 export class ParticipationService extends ApiService {
-  getByEvent(eventId: string): Observable<EventParticipation> {
-    return this.get<EventParticipation>(`/events/${eventId}/participation`);
+  /** `includeNextPerformance` also brings in whoever is coming only to the next performance (quadre de troncs). */
+  getByEvent(eventId: string, options: { includeNextPerformance?: boolean } = {}): Observable<EventParticipation> {
+    return this.get<EventParticipation>(
+      `/events/${eventId}/participation`,
+      options.includeNextPerformance ? { params: { includeNextPerformance: true } } : undefined,
+    );
   }
 }

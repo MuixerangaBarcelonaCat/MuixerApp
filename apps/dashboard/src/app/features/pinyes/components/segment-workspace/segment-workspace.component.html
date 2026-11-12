@@ -74,6 +74,19 @@
     <!-- Import pinya|tronc / reset snapshot — Pinyes & Troncs tabs, pushed to the far right; hidden on phones -->
     @if (activeTab() === 'pinyes' || activeTab() === 'troncs') {
       <div class="hidden sm:flex items-center gap-1 ml-auto shrink-0">
+        <!-- Read-only, so never locked; shown even before any tronc exists (it's what you look at first) -->
+        @if (activeTab() === 'troncs') {
+          <lib-button
+            variant="ghost"
+            size="xs"
+            ariaLabel="Obri el quadre de persones de l'event"
+            (clicked)="quadreOpen.set(true)"
+          >
+            <lucide-icon [img]="Table2" [size]="12" aria-hidden="true" />
+            Quadre
+          </lib-button>
+        }
+
         @if (activeTab() === 'pinyes' && resetCandidates().length > 0) {
           <lib-button
             variant="error"
@@ -160,6 +173,11 @@
 </div>
 
 <app-template-editor-help-modal [autoShow]="false" />
+
+<!-- Quadre de persones: mounted on open so each open fetches fresh data -->
+@if (quadreOpen()) {
+  <app-quadre-troncs-modal [eventId]="ws.eventId()" (closed)="quadreOpen.set(false)" />
+}
 
 <!-- Import modal -->
 @if (importTarget(); as target) {

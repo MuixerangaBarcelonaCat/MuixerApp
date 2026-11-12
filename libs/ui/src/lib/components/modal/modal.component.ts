@@ -2,15 +2,17 @@ import { ChangeDetectionStrategy, Component, ElementRef, booleanAttribute, compu
 import { LucideAngularModule, X } from 'lucide-angular';
 import { ButtonComponent } from '../button/button.component';
 
-export type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | '2xl' | '4xl';
+export type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | '2xl' | '4xl' | 'full';
 
 const SIZE_CLASSES: Record<ModalSize, string> = {
-  xs: 'max-w-xs',
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  '2xl': 'max-w-2xl',
-  '4xl': 'max-w-4xl',
+  xs: 'max-w-xs max-h-[85vh]',
+  sm: 'max-w-sm max-h-[85vh]',
+  md: 'max-w-md max-h-[85vh]',
+  lg: 'max-w-lg max-h-[85vh]',
+  '2xl': 'max-w-2xl max-h-[85vh]',
+  '4xl': 'max-w-4xl max-h-[85vh]',
+  /** Near-fullscreen, for dense read-only views (e.g. the quadre de troncs). */
+  full: 'w-11/12 max-w-none h-[90vh] max-h-[90vh]',
 };
 
 let nextId = 0;
@@ -41,7 +43,7 @@ export class ModalComponent {
   protected readonly titleId = computed(() => (this.title() ? `${this.generatedId}-title` : null));
   protected readonly effectiveShowCloseButton = computed(() => this.showCloseButton() ?? this.dismissible());
   protected readonly boxClasses = computed(() =>
-    ['modal-box', 'flex', 'flex-col', 'max-h-[85vh]', SIZE_CLASSES[this.size()]].join(' '),
+    ['modal-box', 'flex', 'flex-col', SIZE_CLASSES[this.size()]].join(' '),
   );
 
   constructor() {

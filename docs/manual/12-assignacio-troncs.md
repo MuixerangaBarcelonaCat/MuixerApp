@@ -31,7 +31,7 @@ D'esquerra a dreta:
 3. **Pestanyes** «Pinyes», «Troncs», «Distribució», «Nodes extra» i «Previsualitza». L'app recorda si l'última vegada vau treballar a «Pinyes» o a «Troncs» i la torna a obrir.
 4. **Fletxes de segment anterior i següent**, amb la posició del segment («3/7»). En canviar de segment, continueu a la mateixa pestanya.
 5. **«Ajuda»** (icona d'interrogant).
-6. A la dreta, **«Importa tronc»** (a la pestanya «Troncs») o **«Importa pinya»** i **«Reinicialitza»** (a la pestanya «Pinyes»).
+6. A la dreta, **«Quadre»** i **«Importa tronc»** (a la pestanya «Troncs») o **«Importa pinya»** i **«Reinicialitza»** (a la pestanya «Pinyes»). «Quadre» obri el [quadre de persones](#el-quadre-de-persones).
 
 ### La pestanya Troncs
 
@@ -56,6 +56,37 @@ Els llocs buits mostren el nom del lloc.
 Si al segment li falta una figura, el botó «Figura» (amb un «+») obri el mateix selector de figures que «+ Figura» de la llista de segments.
 
 El botó redó de baix a la dreta («Mostra o amaga el mapa de figures») obri o tanca el **minimapa**: un plànol xicotet de com estan col·locades les figures, amb els mateixos colors que les targetes. Ajuda a orientar-se quan hi ha moltes figures.
+
+### El quadre de persones
+
+El botó «Quadre» de la capçalera obri una vista de tota la gent de l'event, agrupada per etiquetes. És el que convé mirar abans de muntar cap tronc: qui ve, de quina alçada és i qui encara no ha fet cap figura. Només és de consulta; per a posar algú en un lloc, tanqueu el quadre.
+
+![Quadre de persones, amb una columna per etiqueta](img/12-quadre-persones.png)
+
+- **Cada columna és una etiqueta** («1es Mans», «Baixes», «Segones», «Alçadores», «Terces», «Persones Noves», «Xicalla») i, al final, **«Altres»**, amb qui no té cap de les etiquetes de les columnes. Una persona amb diverses etiquetes apareix a cada columna; en passar-hi el ratolí, s'il·luminen totes les seues aparicions.
+- **Dins de cada columna**, la gent va de més alta a més baixa. Qui no té alçada va al final. L'alçada es mostra relativa o en centímetres, com a la resta de l'espai de treball.
+- **El número del costat del nom de la columna** compta qui ve a l'assaig. «+3 actuació» vol dir que hi ha tres persones més que no vénen a l'assaig però sí a la propera actuació.
+- **A dalt**, «N persones vénen» compta cada persona una sola vegada, encara que aparega en diverses columnes.
+
+Els colors de cada línia:
+
+| Color | Vol dir |
+|---|---|
+| Verd | ve a l'assaig i a la propera actuació |
+| Roig | ve a l'assaig, però no a la propera actuació |
+| Sense color | ve a l'assaig i no ha contestat per a l'actuació (o no hi ha cap actuació a la temporada) |
+| Atenuat, al final de la columna | no ve a l'assaig, però sí a la propera actuació |
+| Groc, amb una icona d'advertència | té un lloc assignat a l'event, però no ve a l'assaig: convé traure-la de la figura |
+
+L'estrela (★) vol dir que la persona ve a la propera actuació. Els **punts** diuen en quantes figures diferents de l'event fa tronc o base (de tots els segments): ● una, ●● dues, ●●● tres, ●●●+ quatre o més. La pinya i les direccions no compten.
+
+La icona **ⓘ** («Llegenda del quadre») desplega tot això en una llista, amb una mostra de cada color i cada marca.
+
+**En una actuació**, o en un assaig sense cap actuació més a la temporada, no hi ha «propera actuació»: cap línia té color verd, roig ni atenuat, no hi ha estrelles ni «+N actuació», i el quadre mostra qui ve a l'event. Només es manté l'avís groc de qui té un lloc assignat però no ve. La llegenda ho diu i només mostra les marques que s'apliquen.
+
+- **«Només qui no ha fet cap tronc»** amaga qui ja fa tronc o base en alguna figura, per a repassar qui queda. Els totals no canvien.
+- **«Columnes»** permet triar quines etiquetes es veuen i en quin ordre (amb les fletxes). «Restableix» torna a les columnes de sempre. La tria es guarda en este navegador, per a cada persona tècnica.
+- Les dades es carreguen cada vegada que obriu el quadre.
 
 ### Canviar els colors: els modes de visualització
 
