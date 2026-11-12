@@ -28,7 +28,7 @@ const ROW_CLASSES: Record<QuadreRowState, string> = {
   performanceOnly: 'opacity-50',
   assignedAbsent: 'bg-warning/20',
 };
-const HIGHLIGHT_CLASS = 'ring-2 ring-primary';
+const HIGHLIGHT_CLASS = 'ring-2 ring-inset ring-primary';
 
 /**
  * «Quadre de persones»: read-only, near-fullscreen view of who is coming to the event,
