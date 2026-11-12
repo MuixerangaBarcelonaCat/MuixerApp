@@ -1,11 +1,10 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { DeviceSummary, JwtPayload, PaginatedResponse, UserRole } from '@muixer/shared';
+import { JwtPayload, PaginatedResponse, UserRole } from '@muixer/shared';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { PushSubscriptionService } from './push-subscription.service';
 import { NotificationLogService } from './notification-log.service';
 import { NotificationScheduleService } from './notification-schedule.service';
 import { NotificationLog } from './entities/notification-log.entity';
@@ -18,7 +17,6 @@ import { NotificationLogFilterDto } from './dto/notification-log-filter.dto';
 export class PushNotificationController {
   constructor(
     private readonly scheduleService: NotificationScheduleService,
-    private readonly subscriptionService: PushSubscriptionService,
     private readonly logService: NotificationLogService,
     private readonly config: ConfigService,
   ) {}
@@ -48,10 +46,4 @@ export class PushNotificationController {
     return this.logService.findAll(filter);
   }
 
-  @Get('push-subscriptions/summary')
-  @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
-  @ApiOperation({ summary: 'List persons with their active device count and last push date' })
-  getSummary(): Promise<DeviceSummary[]> {
-    return this.subscriptionService.getSummary();
-  }
 }

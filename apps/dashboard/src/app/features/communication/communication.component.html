@@ -99,6 +99,10 @@
               <a routerLink="notifications/schedules" class="link link-primary">Totes les notificacions programades</a>
               <span class="text-base-content/30 mx-2">·</span>
               <a routerLink="notifications/history" class="link link-primary">Historial</a>
+              @if (isAdmin()) {
+                <span class="text-base-content/30 mx-2">·</span>
+                <a routerLink="/config/users/devices" class="link link-primary">Dispositius i sessions</a>
+              }
             </p>
             <p class="text-xs text-base-content/50">
               {{ activeScheduleCount() }} {{ activeScheduleCount() === 1 ? 'programació activa' : 'programacions actives' }}

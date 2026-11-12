@@ -1195,6 +1195,8 @@ export class NodeAssignmentService {
       .innerJoin('seg.event', 'ev')
       .leftJoin('fi.figureTemplate', 'tpl')
       .where('na.personId = :personId', { personId })
+      // A cancelled event (unticked from statistics) never happened: its plan isn't the person's history.
+      .andWhere('ev.countsForStatistics = true')
       .select([
         'ev.id AS "eventId"',
         'ev.title AS "eventTitle"',

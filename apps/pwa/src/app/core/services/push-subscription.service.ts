@@ -67,7 +67,7 @@ export class PushSubscriptionService {
     // Re-check: the block may have landed during the awaits (the old host dropping push on a move).
     if (this.isSyncBlocked()) return;
     if (!existing || !this._isSubscribed()) {
-      await this.subscribeAndRegister();
+      await this.subscribeAndRegister(true);
     }
   }
 
@@ -116,7 +116,8 @@ export class PushSubscriptionService {
     this._dismissedAt.set(now);
   }
 
-  private async subscribeAndRegister(): Promise<boolean> {
+  /** `silent`: startup sync, not asked by the member — the API won't re-enable a device that was removed. */
+  private async subscribeAndRegister(silent = false): Promise<boolean> {
     try {
       const vapidKey = await this.getVapidPublicKey();
       if (!vapidKey) return false;
@@ -137,13 +138,15 @@ export class PushSubscriptionService {
         keys: { p256dh: string; auth: string };
       };
 
-      await firstValueFrom(
-        this.http.post('/api/me/push-subscriptions', {
+      const res = await firstValueFrom(
+        this.http.post<{ id: string; isActive?: boolean }>('/api/me/push-subscriptions', {
           endpoint,
           keys,
           userAgent: navigator.userAgent.slice(0, 255),
+          ...(silent ? { silent: true } : {}),
         }),
       );
+      if (res?.isActive === false) return false;
 
       this.removeItem(PUSH_OPTED_OUT_KEY);
       this._isSubscribed.set(true);

@@ -37,6 +37,11 @@ E2E_EMAIL=<admin> E2E_PASSWORD=<pass> pnpm audit:gestures
 # (:4200). Sense credencials, sense BD i sense tocar dades de dev.
 pnpm e2e:assign-touch
 
+# «Dispositius i sessions» (API + dashboard): permisos, revocar sessions (inclosa la cursa amb un
+# refresc), dispositius push, cerca i rol TECHNICAL. ESCRIU a la BD de dev: crea un MEMBER i un
+# TECHNICAL de prova i els esborra en acabar. Cal DATABASE_URL (carregueu el .env).
+set -a; . ./.env; set +a; E2E_EMAIL=<admin> E2E_PASSWORD=<pass> pnpm e2e:user-devices
+
 # Comportament PWA: manifest / service worker / offline (build de prod al :4310)
 pnpm audit:pwa-behavior
 ```
@@ -70,6 +75,7 @@ Les credencials es passen sempre per variable d'entorn, mai hardcodejades. Els r
 | `playwright.gestures.config.ts` | `src/audit-gestures/pinyes-gestures.spec.ts`, `canvas-projection-gestures.spec.ts` |
 | `playwright.assign-touch.config.ts` | `src/assign-touch/assign-touch.spec.ts` (+ `mock-api.ts`) |
 | `playwright.pwa-behavior.config.ts` | `src/audit-pwa-behavior/pwa-behavior.spec.ts` |
+| `playwright.user-devices.config.ts` | `src/user-devices/user-devices.spec.ts` |
 
 Lògica compartida: `src/audit/audit-core.ts` (recollida de mètriques) i `src/audit/login-helper.ts`.
 

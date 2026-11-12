@@ -53,6 +53,7 @@ export * from './interfaces/person-delegate.interface';
 export * from './interfaces/legal-document.interface';
 export * from './interfaces/news.interface';
 export * from './interfaces/push-notification.interfaces';
+export * from './interfaces/user-device.interfaces';
 export * from './interfaces/shirt-candidate.interface';
 export * from './interfaces/colla-settings.interface';
 export * from './utils/event-phase.util';

@@ -1,11 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { PushSubscriptionStatus, DeviceSummary } from '@muixer/shared';
+import { PushSubscriptionStatus, UserPushDevice } from '@muixer/shared';
 import { User } from '../user/user.entity';
 import { PushSubscription } from './entities/push-subscription.entity';
 import { RegisterSubscriptionDto } from './dto/register-subscription.dto';
 import { PushSubscriptionData } from './push-provider.interface';
+import { PushSenderService } from './push-sender.service';
 
 const MAX_ACTIVE_SUBSCRIPTIONS_PER_USER = 10;
 
@@ -18,6 +19,7 @@ export class PushSubscriptionService {
     private readonly repo: Repository<PushSubscription>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly sender: PushSenderService,
   ) {}
 
   async register(userId: string, dto: RegisterSubscriptionDto): Promise<PushSubscription> {
@@ -37,6 +39,11 @@ export class PushSubscriptionService {
       if (existing.userId !== userId) {
         // Different user owns this endpoint — shouldn't happen in practice, but protect it.
         throw new BadRequestException('Endpoint ja registrat per un altre usuari');
+      }
+      // Inactive = the member unsubscribed, an admin removed it, or the push service said 410.
+      // None of those should come back on their own: only an explicit opt-in re-enables it.
+      if (!existing.isActive && dto.silent) {
+        return existing;
       }
       // Re-enabling a previously deactivated endpoint still counts against the device cap.
       if (!existing.isActive) {
@@ -78,6 +85,38 @@ export class PushSubscriptionService {
     await this.repo.update(subscription.id, { isActive: false });
   }
 
+  /** Active devices of a user for the admin devices modal. Never exposes endpoint or keys. */
+  async listActiveForUser(userId: string): Promise<UserPushDevice[]> {
+    const rows = await this.repo.find({ where: { userId, isActive: true }, order: { createdAt: 'DESC' } });
+    return rows.map((r) => ({
+      id: r.id,
+      userAgent: r.userAgent,
+      createdAt: r.createdAt.toISOString(),
+      lastUsedAt: r.lastUsedAt ? r.lastUsedAt.toISOString() : null,
+    }));
+  }
+
+  /** Deactivates one subscription, scoped to its owner. False when it is not the user's (or already off). */
+  async deactivateForUser(userId: string, id: string): Promise<boolean> {
+    const result = await this.repo.update({ id, userId, isActive: true }, { isActive: false });
+    return (result.affected ?? 0) > 0;
+  }
+
+  /** Sends a test push to one of the user's subscriptions. Null when it is not the user's (or inactive). */
+  async sendTest(userId: string, id: string): Promise<{ success: boolean; gone: boolean } | null> {
+    const sub = await this.repo.findOne({ where: { id, userId, isActive: true } });
+    if (!sub) return null;
+    const result = await this.sender.send(sub as unknown as PushSubscriptionData, {
+      title: 'Notificació de prova',
+      body: 'Este dispositiu rep les notificacions de MuixerApp.',
+      icon: '/icons/icon-192.png',
+    });
+    const gone = result.gone === true;
+    if (result.success) await this.markUsedMany([id]);
+    else if (gone) await this.deactivateMany([id]);
+    return { success: result.success, gone };
+  }
+
   async getStatus(userId: string): Promise<PushSubscriptionStatus> {
     const deviceCount = await this.repo.count({ where: { userId, isActive: true } });
     return { isSubscribed: deviceCount > 0, deviceCount };
@@ -115,29 +154,6 @@ export class PushSubscriptionService {
   async markUsedMany(subscriptionIds: string[]): Promise<void> {
     if (subscriptionIds.length === 0) return;
     await this.repo.update({ id: In(subscriptionIds) }, { lastUsedAt: new Date() });
-  }
-
-  async getSummary(): Promise<DeviceSummary[]> {
-    const rows = await this.repo
-      .createQueryBuilder('sub')
-      .innerJoin('sub.user', 'user')
-      .innerJoin('user.person', 'person')
-      .select('person.id', 'personId')
-      .addSelect('person.name', 'name')
-      .addSelect('person.firstSurname', 'firstSurname')
-      .addSelect('COUNT(sub.id)', 'activeDevices')
-      .addSelect('MAX(sub.lastUsedAt)', 'lastPushAt')
-      .where('sub.isActive = true')
-      .groupBy('person.id, person.name, person.firstSurname')
-      .orderBy('unaccent(lower(person.firstSurname))', 'ASC')
-      .addOrderBy('unaccent(lower(person.name))', 'ASC')
-      .getRawMany<{ personId: string; name: string; firstSurname: string; activeDevices: string; lastPushAt: string | null }>();
-
-    return rows.map((r) => ({
-      person: { id: r.personId, firstName: r.name, lastName: r.firstSurname },
-      activeDevices: parseInt(r.activeDevices, 10),
-      lastPushAt: r.lastPushAt,
-    }));
   }
 
   /** Called by cron: remove stale inactive/never-used subscriptions. */

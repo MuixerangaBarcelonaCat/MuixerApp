@@ -150,6 +150,16 @@ describe('AuthService.registerViaInvite (integration)', () => {
     expect(auditEntries[0].action).toBe(AuditAction.CONSENT_ACCEPTED);
   });
 
+  it('labels the first session with the browser that accepted the invite', async () => {
+    const { user } = await seedInvitedUser('raw-token-ua');
+
+    await service.registerViaInvite(registrationPayload('raw-token-ua'), 'Mozilla/5.0 (iPhone) Safari/604.1');
+
+    const tokens = await db.dataSource.getRepository(RefreshToken).find({ where: { userId: user.id } });
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].userAgent).toBe('Mozilla/5.0 (iPhone) Safari/604.1');
+  });
+
   it('makes an underage member xicalla from the birth date they register with', async () => {
     const { person } = await seedInvitedUser('raw-token-xic');
 

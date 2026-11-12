@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
@@ -82,6 +83,7 @@ describe('UserListComponent', () => {
         { provide: PersonService, useValue: mockPersonService },
         { provide: AuthService, useValue: mockAuthService },
         allLucideIconsProvider,
+        provideRouter([]),
       ],
     }).compileComponents();
 
@@ -618,6 +620,23 @@ describe('UserListComponent', () => {
       const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
       expect(search).toBeTruthy();
       expect(search.className).toContain('h-6');
+    });
+  });
+
+  describe('Dispositius i sessions', () => {
+    const link = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('a[href="/config/users/devices"]');
+
+    it('links to the devices screen for ADMIN only', () => {
+      fixture.detectChanges();
+      expect(link()?.textContent).toContain('Dispositius i sessions');
+      userRoleSignal.set(UserRole.TECHNICAL);
+      fixture.detectChanges();
+      expect(link()).toBeNull();
+    });
+
+    it('is no longer a row action', () => {
+      expect(component.tableRowActions().map((a) => a.label)).not.toContain('Dispositius');
     });
   });
 });

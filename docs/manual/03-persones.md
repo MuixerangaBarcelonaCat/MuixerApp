@@ -176,7 +176,7 @@ Per a llevar una delegació, en mode «Edita» feu clic a la «✕» del costat 
 
 ### Historial de pinyes
 
-«Historial de pinyes» mostra tots els llocs on ha estat col·locada la persona, amb les columnes «Data», «Event», «Segment», «Figura» i «Posició».
+«Historial de pinyes» mostra tots els llocs on ha estat col·locada la persona, amb les columnes «Data», «Event», «Segment», «Figura» i «Posició». No hi apareixen els events que no compten per a estadístiques (per exemple, un assaig cancel·lat): eixes figures no s'han fet.
 
 - Trieu una temporada al desplegable «Totes les temporades» per a veure només eixa temporada.
 - Feu clic a una fila per a obrir l'event.

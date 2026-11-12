@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PATH_METADATA } from '@nestjs/common/constants';
-import { UserRole } from '@muixer/shared';
+import { NotFoundException } from '@nestjs/common';
+import { AuditAction, UserRole } from '@muixer/shared';
+import { PushSubscriptionService } from '../push-notification/push-subscription.service';
+import { TokenService } from '../auth/token.service';
+import { AuditService } from '../audit/audit.service';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 
@@ -8,23 +12,42 @@ const mockUserService = () => ({
   createUser: jest.fn(),
   createOrRefreshInviteLink: jest.fn(),
   findAll: jest.fn(),
+  findDevicesSummary: jest.fn(),
   grantRole: jest.fn(),
   deactivateUser: jest.fn(),
   updateUser: jest.fn(),
+  findOne: jest.fn().mockResolvedValue({ id: 'u1' }),
 });
 
 describe('UserController', () => {
   let controller: UserController;
   let service: ReturnType<typeof mockUserService>;
+  let tokenService: { listActiveSessions: jest.Mock; revokeFamily: jest.Mock; revokeAllUserTokens: jest.Mock };
+  let audit: { record: jest.Mock };
+  let push: { listActiveForUser: jest.Mock; deactivateForUser: jest.Mock; sendTest: jest.Mock };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useFactory: mockUserService }],
+      providers: [
+        { provide: UserService, useFactory: mockUserService },
+        {
+          provide: TokenService,
+          useValue: { listActiveSessions: jest.fn(), revokeFamily: jest.fn(), revokeAllUserTokens: jest.fn() },
+        },
+        { provide: AuditService, useValue: { record: jest.fn() } },
+        {
+          provide: PushSubscriptionService,
+          useValue: { listActiveForUser: jest.fn(), deactivateForUser: jest.fn(), sendTest: jest.fn() },
+        },
+      ],
     }).compile();
 
     controller = module.get(UserController);
     service = module.get(UserService);
+    tokenService = module.get(TokenService);
+    audit = module.get(AuditService);
+    push = module.get(PushSubscriptionService);
   });
 
   it('createUser delegates to UserService with the actor role', async () => {
@@ -46,6 +69,17 @@ describe('UserController', () => {
 
     expect(service.createOrRefreshInviteLink).toHaveBeenCalledWith('person-1');
     expect(result).toEqual(inviteResponse);
+  });
+
+  it('devicesSummary is ADMIN-only and delegates to UserService with the filters', async () => {
+    const response = { data: [], meta: { total: 0, page: 1, limit: 25 } };
+    service.findDevicesSummary.mockResolvedValue(response);
+    const filters = { search: 'anna' };
+
+    await expect(controller.devicesSummary(filters as never)).resolves.toBe(response);
+    expect(service.findDevicesSummary).toHaveBeenCalledWith(filters);
+    expect(Reflect.getMetadata('roles', UserController.prototype.devicesSummary)).toEqual([UserRole.ADMIN]);
+    expect(Reflect.getMetadata(PATH_METADATA, UserController.prototype.devicesSummary)).toBe('devices-summary');
   });
 
   it('findAll delegates to UserService with the filters', async () => {
@@ -96,5 +130,121 @@ describe('UserController', () => {
 
     expect(service.updateUser).toHaveBeenCalledWith('user-1', dto, UserRole.ADMIN, 'actor-1');
     expect(result).toEqual({ id: 'user-1', email: 'new@b.cat' });
+  });
+
+  describe('sessions', () => {
+    const actor = { sub: 'admin-1', role: UserRole.ADMIN } as never;
+
+    it('lists the active sessions of the user', async () => {
+      tokenService.listActiveSessions.mockResolvedValue([{ family: 'f1' }]);
+      await expect(controller.listSessions('u1')).resolves.toEqual([{ family: 'f1' }]);
+      expect(tokenService.listActiveSessions).toHaveBeenCalledWith('u1');
+    });
+
+    it('revokes one session scoped to the user and audits it', async () => {
+      tokenService.revokeFamily.mockResolvedValue(1);
+      await controller.revokeSession('u1', 'f1', actor);
+      expect(tokenService.revokeFamily).toHaveBeenCalledWith('u1', 'f1');
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: 'admin-1',
+          action: AuditAction.USER_SESSIONS_REVOKED,
+          targetType: 'User',
+          targetId: 'u1',
+          metadata: { family: 'f1' },
+        }),
+      );
+    });
+
+    it('404s and audits nothing when the family is not the user\'s', async () => {
+      tokenService.revokeFamily.mockResolvedValue(0);
+      await expect(controller.revokeSession('u1', 'other', actor)).rejects.toThrow(NotFoundException);
+      expect(audit.record).not.toHaveBeenCalled();
+    });
+
+    it('revokes all sessions and audits it', async () => {
+      await controller.revokeAllSessions('u1', actor);
+      expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith('u1');
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_SESSIONS_REVOKED, targetId: 'u1', metadata: { family: 'all' } }),
+      );
+    });
+
+    it('404s for an unknown user instead of an empty list or a no-op revoke, and audits nothing', async () => {
+      service.findOne.mockResolvedValue(null);
+      await expect(controller.listSessions('ghost')).rejects.toThrow(NotFoundException);
+      await expect(controller.revokeAllSessions('ghost', actor)).rejects.toThrow(NotFoundException);
+      await expect(controller.listPushDevices('ghost')).rejects.toThrow(NotFoundException);
+      expect(tokenService.revokeAllUserTokens).not.toHaveBeenCalled();
+      expect(audit.record).not.toHaveBeenCalled();
+    });
+
+    it('restricts the three routes to ADMIN', () => {
+      for (const m of ['listSessions', 'revokeSession', 'revokeAllSessions'] as const) {
+        expect(Reflect.getMetadata('roles', UserController.prototype[m])).toEqual([UserRole.ADMIN]);
+      }
+    });
+  });
+
+  describe('push subscriptions', () => {
+    const actor = { sub: 'admin-1', role: UserRole.ADMIN } as never;
+
+    it('lists the devices of the user', async () => {
+      push.listActiveForUser.mockResolvedValue([{ id: 's1' }]);
+      await expect(controller.listPushDevices('u1')).resolves.toEqual([{ id: 's1' }]);
+      expect(push.listActiveForUser).toHaveBeenCalledWith('u1');
+    });
+
+    it('removes a subscription of the user and audits it', async () => {
+      push.deactivateForUser.mockResolvedValue(true);
+      await controller.removePushDevice('u1', 's1', actor);
+      expect(push.deactivateForUser).toHaveBeenCalledWith('u1', 's1');
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: 'admin-1',
+          action: AuditAction.PUSH_SUBSCRIPTION_REMOVED,
+          targetType: 'User',
+          targetId: 'u1',
+          metadata: { subscriptionId: 's1' },
+        }),
+      );
+    });
+
+    it('404s when removing a subscription that is not the user\'s', async () => {
+      push.deactivateForUser.mockResolvedValue(false);
+      await expect(controller.removePushDevice('u1', 'foreign', actor)).rejects.toThrow(NotFoundException);
+      expect(audit.record).not.toHaveBeenCalled();
+    });
+
+    it('sends a test and returns the result; 404 when not the user\'s', async () => {
+      push.sendTest.mockResolvedValueOnce({ success: false, gone: true });
+      await expect(controller.testPushDevice('u1', 's1', actor)).resolves.toEqual({ success: false, gone: true });
+      push.sendTest.mockResolvedValueOnce(null);
+      await expect(controller.testPushDevice('u1', 'foreign', actor)).rejects.toThrow(NotFoundException);
+    });
+
+    it('audits a test push without personal data, and not when the subscription is not found', async () => {
+      push.sendTest.mockResolvedValueOnce(null);
+      await expect(controller.testPushDevice('u1', 'foreign', actor)).rejects.toThrow(NotFoundException);
+      expect(audit.record).not.toHaveBeenCalled();
+
+      push.sendTest.mockResolvedValueOnce({ success: true, gone: false });
+      await controller.testPushDevice('u1', 's1', actor);
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: 'admin-1',
+          action: AuditAction.PUSH_SUBSCRIPTION_TESTED,
+          targetType: 'User',
+          targetId: 'u1',
+          metadata: { subscriptionId: 's1', success: true },
+        }),
+      );
+    });
+
+    it('restricts the routes to ADMIN', () => {
+      for (const m of ['listPushDevices', 'removePushDevice', 'testPushDevice'] as const) {
+        expect(Reflect.getMetadata('roles', UserController.prototype[m])).toEqual([UserRole.ADMIN]);
+      }
+    });
   });
 });

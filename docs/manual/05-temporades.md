@@ -26,6 +26,7 @@ Un assaig o una actuació **no es posa** dins d'una temporada a mà: cau dins de
 - Les columnes són «Nom», «Data inici», «Data fi», «Esdeveniments» i «Accions».
 - La temporada d'avui porta la insígnia «Actual».
 - A «Esdeveniments», «N assajos» i «N actuacions» són enllaços: obrin la llista d'[Assajos i actuacions](07-assajos-i-actuacions.md) filtrada per eixa temporada.
+- Els números només compten els events que compten per a estadístiques. La llista filtrada també mostra els que no hi compten (per exemple, un assaig cancel·lat), així que pot tindre més files que el número.
 
 ### Crear la temporada següent
 

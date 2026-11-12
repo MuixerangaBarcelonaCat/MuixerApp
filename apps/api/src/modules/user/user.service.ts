@@ -12,13 +12,14 @@ import crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { Person } from '../person/person.entity';
 import { User } from './user.entity';
-import { UserRole } from '@muixer/shared';
+import { UserDevicesSummary, UserRole } from '@muixer/shared';
 import { UserResponseDto } from './dto/user-response.dto';
 import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { plainToInstance } from 'class-transformer';
-import { USER_SORT_COLUMN_MAP } from './constants/user-sort.constants';
+import { USER_DEVICES_SORT_COLUMN_MAP, USER_SORT_COLUMN_MAP } from './constants/user-sort.constants';
+import { UserDevicesFilterDto } from './dto/user-devices-filter.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { hashToken } from '../../common/utils/hash-token.util';
 import { TokenService } from '../auth/token.service';
@@ -133,6 +134,107 @@ export class UserService {
       }),
       total,
     };
+  }
+
+  /**
+   * Rows of the admin «Dispositius i sessions» list: every account with its open sessions
+   * (usable refresh-token families), active push devices, last access and invite state.
+   * `lastAccessAt` only reaches as far back as the token cleanup cron keeps rows (expiry + 30 d).
+   */
+  async findDevicesSummary(
+    filters: UserDevicesFilterDto,
+  ): Promise<{ data: UserDevicesSummary[]; meta: { total: number; page: number; limit: number } }> {
+    const { search, sortBy, sortOrder = 'ASC', page = 1, limit = 25 } = filters;
+
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoin('user.person', 'person')
+      .select([
+        'user.id AS "userId"',
+        'user.email AS email',
+        'user.role AS role',
+        'user.isActive AS "isActive"',
+        'user.inviteToken IS NOT NULL AS "hasInvite"',
+        'user.inviteExpiresAt AS "inviteExpiresAt"',
+        'user.pwaInstalledAt AS "pwaInstalledAt"',
+        'person.id AS "personId"',
+        'person.alias AS alias',
+        'person.name AS name',
+        'person.firstSurname AS "firstSurname"',
+        `(SELECT COUNT(DISTINCT rt.family) FROM refresh_tokens rt
+          WHERE rt.user_id = user.id AND rt.revoked_at IS NULL AND rt.used_at IS NULL
+            AND rt.expires_at > now())::int AS "activeSessions"`,
+        '(SELECT MAX(rt.created_at) FROM refresh_tokens rt WHERE rt.user_id = user.id) AS "lastAccessAt"',
+        `(SELECT COUNT(*) FROM push_subscriptions ps
+          WHERE ps.user_id = user.id AND ps."isActive")::int AS "activeDevices"`,
+        `(SELECT MAX(ps."lastUsedAt") FROM push_subscriptions ps
+          WHERE ps.user_id = user.id AND ps."isActive") AS "lastPushAt"`,
+      ]);
+
+    if (search) {
+      qb.where(
+        `(unaccent(user.email) ILIKE unaccent(:search)
+          OR unaccent(person.name) ILIKE unaccent(:search)
+          OR unaccent(person.firstSurname) ILIKE unaccent(:search)
+          OR unaccent(person.alias) ILIKE unaccent(:search))`,
+        { search: `%${search}%` },
+      );
+    }
+
+    const total = await qb.getCount();
+
+    if (sortBy) {
+      qb.orderBy(USER_DEVICES_SORT_COLUMN_MAP[sortBy], sortOrder, sortOrder === 'ASC' ? 'NULLS FIRST' : 'NULLS LAST');
+    } else {
+      qb.orderBy('"lastAccessAt"', 'DESC', 'NULLS LAST');
+    }
+    qb.addOrderBy('user.id');
+
+    const rows = await qb
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .getRawMany<{
+        userId: string;
+        email: string | null;
+        role: UserRole;
+        isActive: boolean;
+        hasInvite: boolean;
+        inviteExpiresAt: Date | null;
+        personId: string | null;
+        alias: string;
+        name: string;
+        firstSurname: string;
+        activeSessions: number;
+        activeDevices: number;
+        lastAccessAt: Date | null;
+        lastPushAt: Date | null;
+        pwaInstalledAt: Date | null;
+      }>();
+
+    const now = Date.now();
+    const data = rows.map<UserDevicesSummary>((r) => ({
+      userId: r.userId,
+      email: r.email,
+      role: r.role,
+      isActive: r.isActive,
+      person: r.personId
+        ? { id: r.personId, alias: r.alias, name: r.name, firstSurname: r.firstSurname }
+        : null,
+      activeSessions: r.activeSessions,
+      activeDevices: r.activeDevices,
+      lastAccessAt: r.lastAccessAt ? new Date(r.lastAccessAt).toISOString() : null,
+      lastPushAt: r.lastPushAt ? new Date(r.lastPushAt).toISOString() : null,
+      pwaInstalledAt: r.pwaInstalledAt ? new Date(r.pwaInstalledAt).toISOString() : null,
+      invite:
+        r.hasInvite && r.inviteExpiresAt
+          ? {
+              status: new Date(r.inviteExpiresAt).getTime() > now ? 'PENDING' : 'EXPIRED',
+              expiresAt: new Date(r.inviteExpiresAt).toISOString(),
+            }
+          : null,
+    }));
+
+    return { data, meta: { total, page, limit } };
   }
 
   /**

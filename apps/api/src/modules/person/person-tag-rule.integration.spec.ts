@@ -131,6 +131,12 @@ describe('Person tag rule filter (integration)', () => {
     const past = await insertEvent(-300, 'C');
     // Fora de qualsevol temporada: tampoc no compta.
     const uncovered = await insertEvent(-100, 'D');
+    // De la temporada en curs però exclòs de les estadístiques (p. ex. un assaig cancel·lat).
+    const excluded = await insertEvent(-5, 'E');
+    await db.dataSource.query(
+      `UPDATE "events" SET "countsForStatistics" = false WHERE id = $1`,
+      [excluded],
+    );
 
     const [{ id: senseId }] = await db.dataSource.query(
       `SELECT id FROM "persons" WHERE alias = 'sense'`,
@@ -149,6 +155,7 @@ describe('Person tag rule filter (integration)', () => {
     await attend(senseId, currentB, 'ASSISTIT');
     await attend(senseId, past, 'ASSISTIT');
     await attend(senseId, uncovered, 'ASSISTIT');
+    await attend(senseId, excluded, 'ASSISTIT');
     await attend(pinyaId, currentA, 'NO_VAIG');
 
     const { data } = await service.findAll({

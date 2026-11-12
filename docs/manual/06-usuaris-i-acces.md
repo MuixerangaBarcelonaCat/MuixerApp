@@ -1,4 +1,4 @@
-<!-- rutes: /config/users /config/legal -->
+<!-- rutes: /config/users /config/users/devices /config/legal -->
 
 # Usuaris i accés
 
@@ -76,6 +76,34 @@ Feu clic al botó «…» de la dreta de la fila («Accions»):
 - «Desactivar»: després de confirmar amb «Desactiva», la persona perd l'accés **al moment**, també en les sessions que tenia obertes. «Activar» i «Activa» li'l tornen.
 
 ![Assignar rol](img/06-assignar-rol.png)
+
+### Dispositius i sessions (només administradors)
+
+A la capçalera d'«Usuaris», feu clic a «Dispositius i sessions». També hi podeu arribar des de «Comunicació», a la targeta «Notificacions». La pantalla mostra tots els comptes amb estes columnes:
+
+- «Àlies» i «Usuari» (nom i correu).
+- «App instal·lada»: «Sí» si el compte ha obert l'app instal·lada (icona a la pantalla d'inici) en els últims 30 dies; «Fa temps» (amb la data de l'última vegada) si fa més de 30 dies que no l'obri, probablement perquè l'ha desinstal·lada o ja no l'usa; «No» si només l'ha usada des del navegador o encara no l'ha oberta des de l'última actualització.
+- «Notificacions»: «Activades» si almenys un dispositiu del compte rep notificacions, «Desactivades» si no en rep cap.
+- «Sessions»: quantes sessions obertes té el compte.
+- «Dispositius»: quants dispositius reben notificacions.
+- «Darrer accés»: l'última vegada que va entrar o que la sessió es va renovar. Si fa més d'un mes que no entra, apareix «—».
+- «Darrera notificació»: l'última notificació que va rebre algun dels seus dispositius.
+- «Invitació»: «Pendent fins al dd/MM» si té un enllaç d'invitació que encara funciona, «Caducada» si l'enllaç ja no funciona, o buit si no en té cap.
+
+Podeu cercar per àlies, nom o correu i ordenar per qualsevol columna, excepte «Invitació».
+
+![Dispositius i sessions, amb els noms tapats](img/06-usuaris-dispositius.png)
+
+Feu clic en una fila per a obrir una finestra amb dos apartats:
+
+- **Sessions obertes.** Cada fila és un navegador o una app on el compte ha iniciat sessió: mostra si és «Dashboard» o «App», el navegador i el sistema, l'«Inici» i el «Darrer ús». «Fes expirar» tanca eixa sessió; «Fes expirar totes» les tanca totes. La persona haurà de tornar a entrar amb la contrasenya. La sessió es tanca del tot en un màxim de 15 minuts.
+- **Notificacions.** Cada fila és un dispositiu que rep notificacions. «Envia una prova» li envia una notificació de prova i «Elimina» el dona de baixa i ja no es torna a activar sol; el membre el pot tornar a activar des de la seua app.
+
+![Finestra de dispositius d'un compte amb les sessions obertes](img/06-usuari-dispositius-detall.png)
+
+Si no hi ha res, la finestra diu «Cap sessió oberta.» i «Cap dispositiu rep notificacions.».
+
+Si feu expirar les vostres pròpies sessions, el Dashboard continua funcionant uns minuts i després us porta a la pantalla d'inici de sessió.
 
 ## Privacitat i legal (només administradors)
 

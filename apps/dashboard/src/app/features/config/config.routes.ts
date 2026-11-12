@@ -3,6 +3,7 @@ import { UserRole } from '@muixer/shared';
 import { rolesGuard } from '../../core/auth/guards/role.guard';
 import { ConfigComponent } from './config.component';
 import { UserListComponent } from './components/user-list.component';
+import { UserDevicesListComponent } from './components/user-devices-list/user-devices-list.component';
 import { TagsListComponent } from './components/tags-list/tags-list.component';
 import { TagDetailComponent } from './components/tag-detail/tag-detail.component';
 import { SeasonListComponent } from './components/season-list/season-list.component';
@@ -13,6 +14,13 @@ import { CollaSettingsComponent } from './components/colla-settings/colla-settin
 export const configRoutes: Routes = [
   { path: '', component: ConfigComponent, data: { title: 'Configuració' } },
   { path: 'users', component: UserListComponent, data: { title: 'Usuaris' } },
+  {
+    path: 'users/devices',
+    component: UserDevicesListComponent,
+    data: { title: 'Dispositius i sessions' },
+    // Sessions and push devices are security data: ADMIN only for now.
+    canActivate: [rolesGuard(UserRole.ADMIN)],
+  },
   { path: 'tags', component: TagsListComponent, data: { title: 'Etiquetes' } },
   { path: 'tags/:id', component: TagDetailComponent, data: { title: "Detall d'etiqueta" } },
   { path: 'seasons', component: SeasonListComponent, data: { title: 'Temporades' } },

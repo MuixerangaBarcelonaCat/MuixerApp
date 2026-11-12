@@ -64,6 +64,9 @@ import { NullPresetNodeColors1786400000000 } from './1786400000000-NullPresetNod
 import { CreateCollaSettings1786500000000 } from './1786500000000-CreateCollaSettings';
 import { AddRehearsalDefaults1786600000000 } from './1786600000000-AddRehearsalDefaults';
 import { RenameIsXicallaToManual1786700000000 } from './1786700000000-RenameIsXicallaToManual';
+import { AddRefreshTokenUserAgent1786800000000 } from './1786800000000-AddRefreshTokenUserAgent';
+import { AddPushSubscriptionTestedAudit1787000000000 } from './1787000000000-AddPushSubscriptionTestedAudit';
+import { AddUserPwaInstalledAt1787100000000 } from './1787100000000-AddUserPwaInstalledAt';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -131,4 +134,7 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreateCollaSettings1786500000000,
   AddRehearsalDefaults1786600000000,
   RenameIsXicallaToManual1786700000000,
+  AddRefreshTokenUserAgent1786800000000,
+  AddPushSubscriptionTestedAudit1787000000000,
+  AddUserPwaInstalledAt1787100000000,
 ];

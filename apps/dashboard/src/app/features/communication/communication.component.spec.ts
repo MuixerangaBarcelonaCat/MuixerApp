@@ -2,12 +2,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
+import { AuthService } from '../../core/auth/services/auth.service';
 import {
   News,
   NotificationLinkType,
   NotificationScheduleEntry,
   NotificationScheduleType,
   NotificationTargetType,
+  UserRole,
 } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { CommunicationComponent } from './communication.component';
@@ -53,6 +56,8 @@ describe('CommunicationComponent', () => {
   let notificationService: { getSchedules: ReturnType<typeof vi.fn> };
   let toast: { error: ReturnType<typeof vi.fn> };
 
+  const role = signal<UserRole | null>(UserRole.ADMIN);
+
   const setup = async (items: News[], schedules: NotificationScheduleEntry[] = [], total = schedules.length) => {
     newsService = { getAll: vi.fn().mockReturnValue(of(items)) };
     notificationService = {
@@ -66,6 +71,7 @@ describe('CommunicationComponent', () => {
         { provide: NewsService, useValue: newsService },
         { provide: NotificationService, useValue: notificationService },
         { provide: ToastService, useValue: toast },
+        { provide: AuthService, useValue: { userRole: role } },
         allLucideIconsProvider,
         provideRouter([]),
       ],
@@ -143,6 +149,7 @@ describe('CommunicationComponent', () => {
         { provide: NewsService, useValue: newsService },
         { provide: NotificationService, useValue: notificationService },
         { provide: ToastService, useValue: toast },
+        { provide: AuthService, useValue: { userRole: role } },
         allLucideIconsProvider,
         provideRouter([]),
       ],
@@ -208,6 +215,7 @@ describe('CommunicationComponent', () => {
           { provide: NewsService, useValue: newsService },
           { provide: NotificationService, useValue: notificationService },
           { provide: ToastService, useValue: toast },
+        { provide: AuthService, useValue: { userRole: role } },
           allLucideIconsProvider,
           provideRouter([]),
         ],
@@ -224,5 +232,15 @@ describe('CommunicationComponent', () => {
   it('no longer links to the subscribed devices page', async () => {
     await setup([]);
     expect(fixture.nativeElement.innerHTML as string).not.toContain('Dispositius subscrits');
+  });
+
+  it('links ADMIN to «Dispositius i sessions», and hides it from TECHNICAL', async () => {
+    role.set(UserRole.ADMIN);
+    await setup([]);
+    const link = () => (fixture.nativeElement as HTMLElement).querySelector('a[href="/config/users/devices"]');
+    expect(link()?.textContent).toContain('Dispositius i sessions');
+    role.set(UserRole.TECHNICAL);
+    fixture.detectChanges();
+    expect(link()).toBeNull();
   });
 });
