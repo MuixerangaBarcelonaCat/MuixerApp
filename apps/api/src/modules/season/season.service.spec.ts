@@ -279,9 +279,8 @@ describe('SeasonService', () => {
       const qb = makeQb(season);
       qb.getOne = jest.fn().mockResolvedValue(season);
       service = await buildModule(() => qb);
-      eventQb.getRawMany.mockResolvedValue(
-        season ? [{ seasonId: season.id, eventType: EventType.ASSAIG, count: String(eventsInRange) }] : [],
-      );
+      // The delete guard counts every event in range, statistics or not.
+      eventQb.getCount.mockResolvedValue(eventsInRange);
     };
 
     it('removes a season with 0 events', async () => {

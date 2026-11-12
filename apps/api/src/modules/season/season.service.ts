@@ -162,8 +162,11 @@ export class SeasonService {
       throw new NotFoundException(`Season with ID ${id} not found`);
     }
 
-    const counts = await this.countEventsBySeason([season.id]);
-    const eventCount = counts.get(season.id)?.eventCount ?? 0;
+    // Every event, statistics or not: a cancelled one left without a season is still orphaned.
+    const eventCount = await this.eventRepository
+      .createQueryBuilder('event')
+      .where('event.date BETWEEN :start AND :end', { start: season.startDate, end: season.endDate })
+      .getCount();
     if (eventCount > 0 && !options.allowUncovered) {
       throw uncoveredConflict(eventCount);
     }
@@ -183,7 +186,10 @@ export class SeasonService {
     }
   }
 
-  /** Events whose date falls in each season's range, by type, keyed by season id (seasons with none are absent). */
+  /**
+   * Events that took place in each season (date in range and `countsForStatistics`: a cancelled
+   * rehearsal didn't happen), by type, keyed by season id (seasons with none are absent).
+   */
   private async countEventsBySeason(seasonIds: string[]): Promise<Map<string, SeasonEventCounts>> {
     if (seasonIds.length === 0) return new Map();
     const rows = await this.eventRepository
@@ -193,6 +199,7 @@ export class SeasonService {
       .addSelect('event.eventType', 'eventType')
       .addSelect('COUNT(event.id)', 'count')
       .where('season.id IN (:...seasonIds)', { seasonIds })
+      .andWhere('event.countsForStatistics = true')
       .groupBy('season.id')
       .addGroupBy('event.eventType')
       .getRawMany<{ seasonId: string; eventType: EventType; count: string }>();

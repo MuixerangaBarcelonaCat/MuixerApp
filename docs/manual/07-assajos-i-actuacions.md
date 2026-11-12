@@ -66,8 +66,13 @@ El botó «…» de la dreta («Accions») té «Veure detall» i «Gestionar pi
 ### «Compta per a estadístiques»
 
 - Ve marcat.
-- Desmarqueu-lo en un assaig cancel·lat o especial que no ha de comptar.
-- Només afecta el percentatge d'assistència que cada membre veu al seu perfil de l'app del mòbil.
+- Desmarqueu-lo en un assaig cancel·lat o especial que no ha de comptar. Un event desmarcat es tracta com si no s'haguera fet.
+- Si està desmarcat, l'event no compta en:
+  - el percentatge d'assistència que cada membre veu al seu perfil de l'app del mòbil;
+  - les assistències de la columna «Assistències (temp. actual)» de [Persones](03-persones.md) ni el recompte de camises;
+  - l'«Historial de pinyes» de la fitxa de cada persona;
+  - el nombre d'assajos i actuacions de cada temporada a [Temporades](05-temporades.md).
+- Els segments, les figures i les assignacions es conserven. Les figures continuen disponibles per a importar-les en un assaig futur.
 - Si està desmarcat, el detall de l'event porta la insígnia «Sense estadística».
 
 ### Editar o esborrar un event

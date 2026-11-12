@@ -33,10 +33,11 @@ const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
 
 /**
- * L'event `e` és de la temporada en curs: la temporada que conté la seua data (derivada, no guardada)
- * també conté el dia d'avui. Les temporades no se solapen, així que n'hi ha com a molt una.
+ * L'event `e` compta per a estadístiques i és de la temporada en curs: la temporada que conté la
+ * seua data (derivada, no guardada) també conté el dia d'avui. Les temporades no se solapen, així
+ * que n'hi ha com a molt una.
  */
-const EVENT_IN_CURRENT_SEASON = `EXISTS (
+const EVENT_IN_CURRENT_SEASON = `e."countsForStatistics" = true AND EXISTS (
   SELECT 1 FROM seasons cs
   WHERE e.date BETWEEN cs."startDate" AND cs."endDate"
     AND CURRENT_DATE BETWEEN cs."startDate" AND cs."endDate"
