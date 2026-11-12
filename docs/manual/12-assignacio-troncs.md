@@ -66,7 +66,7 @@ El botó «Quadre» de la capçalera obri una vista de tota la gent de l'event, 
 - **Cada columna és una etiqueta** («1es Mans», «Baixes», «Segones», «Alçadores», «Terces», «Persones Noves», «Xicalla») i, al final, **«Altres»**, amb qui no té cap de les etiquetes de les columnes. Una persona amb diverses etiquetes apareix a cada columna; en passar-hi el ratolí, s'il·luminen totes les seues aparicions.
 - **Dins de cada columna**, la gent va de més alta a més baixa. Qui no té alçada va al final. L'alçada es mostra relativa o en centímetres, com a la resta de l'espai de treball.
 - **El número del costat del nom de la columna** compta qui ve a l'assaig. «+3 actuació» vol dir que hi ha tres persones més que no vénen a l'assaig però sí a la propera actuació.
-- **A dalt**, «N persones a l'assaig» compta cada persona una sola vegada, encara que aparega en diverses columnes.
+- **A dalt**, «N persones vénen» compta cada persona una sola vegada, encara que aparega en diverses columnes.
 
 Els colors de cada línia:
 

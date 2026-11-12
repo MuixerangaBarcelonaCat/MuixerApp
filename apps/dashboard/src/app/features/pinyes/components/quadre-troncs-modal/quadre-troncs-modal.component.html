@@ -5,7 +5,7 @@
     <div class="flex h-full min-h-0 flex-col gap-3">
       <!-- Toolbar: total, filter, columns -->
       <div class="flex flex-wrap items-center gap-3 shrink-0">
-        <span class="text-sm font-semibold" data-testid="quadre-total">{{ q.uniqueComing }} persones a l'assaig</span>
+        <span class="text-sm font-semibold" data-testid="quadre-total">{{ q.uniqueComing }} {{ q.uniqueComing === 1 ? 'persona ve' : 'persones vénen' }}</span>
         <lib-checkbox size="xs" [ngModel]="onlyUnplaced()" (ngModelChange)="onlyUnplaced.set($event)">
           <span class="text-sm">Només qui no ha participat</span>
         </lib-checkbox>
@@ -13,7 +13,7 @@
           class="ml-auto"
           variant="ghost"
           size="sm"
-          [ariaLabel]="columnsPanelOpen() ? 'Amaga la tria de columnes' : 'Tria les columnes'"
+          [ariaExpanded]="columnsPanelOpen()"
           (clicked)="columnsPanelOpen.set(!columnsPanelOpen())"
         >
           <lucide-icon [img]="Columns3" [size]="16" aria-hidden="true" />

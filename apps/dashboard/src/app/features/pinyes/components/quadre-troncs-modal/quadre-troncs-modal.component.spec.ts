@@ -152,6 +152,26 @@ describe('QuadreTroncsModalComponent', () => {
     expect(el().querySelector('[data-testid="quadre-total"]')?.textContent).toContain('2');
   });
 
+  it('words the total for any event type, singular included', async () => {
+    await setup(of({ ...OVERVIEW, persons: [PERSONS[0]] }));
+    const total = el().querySelector('[data-testid="quadre-total"]')?.textContent?.trim();
+    expect(total).toBe('1 persona ve');
+  });
+
+  it('words the plural total without naming the event type', async () => {
+    await setup();
+    expect(el().querySelector('[data-testid="quadre-total"]')?.textContent?.trim()).toBe('2 persones vénen');
+  });
+
+  it('tells assistive tech whether the columns panel is open', async () => {
+    await setup();
+    const button = () => el().querySelector('button[aria-expanded]') as HTMLButtonElement;
+    expect(button().getAttribute('aria-expanded')).toBe('false');
+    button().click();
+    fixture.detectChanges();
+    expect(button().getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('shows an alert when loading fails', async () => {
     await setup(throwError(() => new Error('boom')));
     expect(el().querySelector('lib-alert')).not.toBeNull();
