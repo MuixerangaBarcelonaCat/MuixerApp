@@ -215,7 +215,17 @@ describe('NodeAssignmentController', () => {
 
       // Single composite resource: no { data } envelope, no pagination meta.
       expect(result).toEqual(mockParticipationOverview);
-      expect(mockParticipationService.getEventParticipation).toHaveBeenCalledWith(EVENT_ID);
+      expect(mockParticipationService.getEventParticipation).toHaveBeenCalledWith(EVENT_ID, {
+        includeNextPerformance: undefined,
+      });
+    });
+
+    it('passes includeNextPerformance through', async () => {
+      await controller.getEventParticipation(EVENT_ID, true);
+
+      expect(mockParticipationService.getEventParticipation).toHaveBeenCalledWith(EVENT_ID, {
+        includeNextPerformance: true,
+      });
     });
   });
 

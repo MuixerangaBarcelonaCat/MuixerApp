@@ -12,8 +12,9 @@ import {
   ParseUUIDPipe,
   ParseIntPipe,
   ParseEnumPipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole, FigureMode } from '@muixer/shared';
 import { JwtPayload } from '@muixer/shared';
@@ -249,9 +250,18 @@ export class NodeAssignmentController {
       'do in each segment. Deliberately unpaginated and unfiltered: the caller renders a ' +
       'person x segment matrix and needs the whole population at once.',
   })
+  @ApiQuery({
+    name: 'includeNextPerformance',
+    required: false,
+    type: Boolean,
+    description: 'Also include whoever is coming to the next performance, even if not to this rehearsal',
+  })
   @Get('events/:eventId/participation')
-  getEventParticipation(@Param('eventId', ParseUUIDPipe) eventId: string) {
-    return this.participationService.getEventParticipation(eventId);
+  getEventParticipation(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Query('includeNextPerformance', new ParseBoolPipe({ optional: true })) includeNextPerformance?: boolean,
+  ) {
+    return this.participationService.getEventParticipation(eventId, { includeNextPerformance });
   }
 
 }
