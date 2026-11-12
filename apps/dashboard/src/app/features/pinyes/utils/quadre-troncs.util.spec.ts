@@ -17,15 +17,21 @@ function tag(t: { id: string; name: string }): AvailablePersonPosition {
   return { ...t, slug: t.id, color: null, positionTypes: [], category: TagCategory.TRONC };
 }
 
-function placement(instanceId: string, positionType: string | null = 'segona'): ParticipationPlacement {
+const AREA_BY_ZONE = { TRONC: 'TRONC', BASE: 'TRONC', PINYA: 'PINYA', DIRECTION: 'DIRECTION' } as const;
+
+function placement(
+  instanceId: string,
+  positionType: string | null = 'segona',
+  zone: keyof typeof AREA_BY_ZONE = 'TRONC',
+): ParticipationPlacement {
   return {
     assignmentId: `as-${instanceId}-${positionType}`,
     instanceId,
     figureName: 'F',
     nodeId: `n-${instanceId}-${positionType}`,
     nodeLabel: 'N',
-    zone: 'TRONC',
-    area: 'TRONC',
+    zone,
+    area: AREA_BY_ZONE[zone],
     positionType,
     z: 1,
     renglaPosition: null,
@@ -73,13 +79,27 @@ describe('figureCount', () => {
     expect(figureCount(person({ placements: { s1: [placement('i1')], s2: [placement('i2')] } }))).toBe(2);
   });
 
-  it('ignores direcció de pinya', () => {
-    expect(figureCount(person({ placements: { s1: [placement('i1', 'direccio-pinya')] } }))).toBe(0);
+  it('counts a base as tronc', () => {
+    expect(figureCount(person({ placements: { s1: [placement('i1', 'base', 'BASE')] } }))).toBe(1);
   });
 
-  it('counts direcció de tronc and de xicalla', () => {
-    const p = person({ placements: { s1: [placement('i1', 'direccio-tronc')], s2: [placement('i2', 'direccio-xicalla')] } });
-    expect(figureCount(p)).toBe(2);
+  it('ignores pinya places', () => {
+    expect(figureCount(person({ placements: { s1: [placement('i1', 'mans', 'PINYA')] } }))).toBe(0);
+  });
+
+  it('ignores every direcció', () => {
+    const p = person({
+      placements: {
+        s1: [placement('i1', 'direccio-tronc', 'DIRECTION')],
+        s2: [placement('i2', 'direccio-xicalla', 'DIRECTION'), placement('i3', 'direccio-pinya', 'DIRECTION')],
+      },
+    });
+    expect(figureCount(p)).toBe(0);
+  });
+
+  it('counts a figure once when the person is in its pinya and its tronc', () => {
+    const p = person({ placements: { s1: [placement('i1', 'mans', 'PINYA'), placement('i1', 'segona')] } });
+    expect(figureCount(p)).toBe(1);
   });
 });
 

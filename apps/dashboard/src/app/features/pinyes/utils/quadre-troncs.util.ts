@@ -1,5 +1,4 @@
 import type { HeightMode } from '@muixer/pinyes-render';
-import { DIRECCIO_PINYA_POSITION_TYPE } from '@muixer/shared';
 import type { ParticipationPerson } from '../../events/models/participation.model';
 
 /**
@@ -66,11 +65,11 @@ const allPlacements = (p: ParticipationPerson) => Object.values(p.placements).fl
 
 const isCountedComing = (state: QuadreRowState) => state !== 'performanceOnly' && state !== 'assignedAbsent';
 
-/** Distinct figures the person is placed in across the whole event; direcció de pinya doesn't count. */
+/** Distinct figures whose tronc (tronc or base) the person stands in, across the whole event. Pinya and direccions don't count. */
 export function figureCount(person: ParticipationPerson): number {
   const instances = new Set(
     allPlacements(person)
-      .filter((pl) => pl.positionType !== DIRECCIO_PINYA_POSITION_TYPE)
+      .filter((pl) => pl.area === 'TRONC')
       .map((pl) => pl.instanceId),
   );
   return instances.size;

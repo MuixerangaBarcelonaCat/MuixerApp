@@ -90,9 +90,10 @@ Empats: per àlies.
 - **Àlies.**
 - **Alçada d'espatlles**, en text discret (el mateix format que el panell de persones de l'assignació).
 - **Punts de participació**: nombre de **figures diferents** (instàncies de figura) en què està
-  assignada a **tot l'event** (tots els segments). Fer pinya i tronc de la mateixa figura compta una
-  vegada. Compten tots els nodes **excepte la direcció de pinya** (`direccio-pinya`); la direcció de
-  tronc i la de xicalla sí que compten. No es pot reutilitzar `placementCount` (compta nodes).
+  fa tronc o base a **tot l'event** (tots els segments). Només compten els llocs de **tronc o base**
+  (àrea `TRONC`); la pinya i les direccions no compten (canvi demanat després de la primera versió, que
+  comptava també la pinya i les direccions de tronc i xicalla). Dos llocs de la mateixa figura compten una
+  vegada. No es pot reutilitzar `placementCount` (compta nodes).
   0 = res · 1 = ● · 2 = ●● · 3 = ●●● · 4 o més = ●●●+.
 - **Icona d'actuació** (`ICON_ACTUACIO`, la mateixa que el panell de persones) si va a la pròxima
   actuació.
@@ -112,12 +113,12 @@ Empats: per àlies.
 - **Global, a la capçalera del modal:** persones **úniques** que venen a l'assaig. És el número de
   veritat, perquè la mateixa persona pot sumar en diverses columnes.
 - Les persones assignades que no vénen no compten a cap total.
-- L'interruptor «Només qui no ha participat» no canvia cap total: només amaga línies.
+- L'interruptor «Només qui no ha fet cap tronc» no canvia cap total: només amaga línies.
 
 ### Capçalera del modal
 
-Títol de l'event, total global, el control de columnes i un interruptor **«Només qui no ha
-participat»** que amaga les persones amb 1 o més figures.
+Títol de l'event, total global, el control de columnes i un interruptor **«Només qui no ha fet cap
+tronc»** que amaga les persones amb 1 o més figures.
 
 ### Frescor de les dades
 
@@ -152,7 +153,7 @@ Actualitzar `docs/manual/12-assignacio-troncs.md` amb el botó i el modal, i reg
 - Les persones atenuades no compten al total de la columna i es mostren a part.
 - Les dades es carreguen en obrir el modal, sense refresc automàtic.
 - Columnes per defecte buscades per `slug`, perquè els noms de les etiquetes es poden canviar.
-- Els totals no canvien amb l'interruptor «Només qui no ha participat».
+- Els totals no canvien amb l'interruptor «Només qui no ha fet cap tronc».
 - Les persones assignades que no vénen es marquen amb el to d'avís, s'ordenen per alçada amb la resta
   i no compten als totals.
 - Només persones actives.

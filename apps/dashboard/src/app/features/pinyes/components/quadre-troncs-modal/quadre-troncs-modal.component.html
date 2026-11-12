@@ -7,7 +7,7 @@
       <div class="flex flex-wrap items-center gap-3 shrink-0">
         <span class="text-sm font-semibold" data-testid="quadre-total">{{ q.uniqueComing }} {{ q.uniqueComing === 1 ? 'persona ve' : 'persones vénen' }}</span>
         <lib-checkbox size="xs" [ngModel]="onlyUnplaced()" (ngModelChange)="onlyUnplaced.set($event)">
-          <span class="text-sm">Només qui no ha participat</span>
+          <span class="text-sm">Només qui no ha fet cap tronc</span>
         </lib-checkbox>
         <app-quadre-legend class="ml-auto" [hasNextPerformance]="hasNextPerformance()" />
         <lib-button

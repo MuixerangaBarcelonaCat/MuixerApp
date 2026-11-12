@@ -351,7 +351,7 @@ un `lib-modal size="full"` de només lectura que es munta en obrir-lo (cada ober
 `GET /events/:eventId/participation?includeNextPerformance=true`: el paràmetre afegeix a la població qui ve
 (`ANIRE`) a la propera actuació encara que no vinga a l'assaig; sense el paràmetre, la pestanya Participació
 rep el mateix d'abans. Tota la lògica (columnes per etiqueta + «Altres», ordre per alçada, estats de color,
-punts = figures diferents sense `direccio-pinya`, totals de persones úniques) és pura a
+punts = figures diferents on fa tronc o base (àrea `TRONC`; pinya i direccions no compten), totals de persones úniques) és pura a
 `utils/quadre-troncs.util.ts`; les columnes triades per cada tècnic es guarden al `localStorage` amb
 `QuadreColumnsService` (per defecte, els slugs `mans`, `baix`, `segona`, `alcadora`, `terca`, `persona-nova`,
 `xicalla`). Disseny: [`docs/superpowers/specs/2026-11-12-quadre-troncs-design.md`](superpowers/specs/2026-11-12-quadre-troncs-design.md).

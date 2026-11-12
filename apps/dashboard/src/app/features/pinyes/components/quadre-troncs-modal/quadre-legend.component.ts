@@ -34,7 +34,7 @@ const ROWS: LegendRow[] = [
 ];
 
 const SHARED_ROWS: LegendRow[] = [
-  { state: null, mark: 'dots', label: "Figures diferents de l'event en què està posada: ● una, ●● dues, ●●● tres, ●●●+ quatre o més. La direcció de pinya no compta", needsNextPerformance: false },
+  { state: null, mark: 'dots', label: "Figures diferents de l'event en què fa tronc o base: ● una, ●● dues, ●●● tres, ●●●+ quatre o més. La pinya i les direccions no compten", needsNextPerformance: false },
   { state: null, mark: 'height', label: "Alçada d'espatles, relativa o en centímetres com a la resta de l'espai de treball", needsNextPerformance: false },
   { state: null, mark: 'ring', label: 'En passar el ratolí per damunt d\'una persona, es marquen totes les seues aparicions', needsNextPerformance: false },
 ];
