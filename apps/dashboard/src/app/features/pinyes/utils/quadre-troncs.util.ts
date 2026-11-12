@@ -47,6 +47,19 @@ export interface Quadre {
 
 const OTHERS_LABEL = 'Altres';
 
+/** Row background per state — static map, shared by the rows and the legend samples. */
+export const QUADRE_ROW_CLASSES: Record<QuadreRowState, string> = {
+  both: 'bg-success/15',
+  notPerformance: 'bg-error/15',
+  unanswered: '',
+  neutral: '',
+  performanceOnly: 'opacity-50',
+  assignedAbsent: 'bg-warning/20',
+};
+
+/** Hover mark on every appearance of the same person. Inset so a scrolling column can't clip it. */
+export const QUADRE_HIGHLIGHT_CLASS = 'ring-2 ring-inset ring-primary';
+
 const isComing = (p: ParticipationPerson) => p.attendanceStatus === 'ANIRE' || p.attendanceStatus === 'ASSISTIT';
 
 const allPlacements = (p: ParticipationPerson) => Object.values(p.placements).flat();

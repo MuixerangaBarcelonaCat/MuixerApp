@@ -11,24 +11,15 @@ import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { QuadreColumnsService } from '../../services/quadre-columns.service';
+import { QuadreLegendComponent } from './quadre-legend.component';
 import {
+  QUADRE_HIGHLIGHT_CLASS,
+  QUADRE_ROW_CLASSES,
   QuadreEntry,
-  QuadreRowState,
   buildQuadre,
   formatShoulderHeight,
   participationDots,
 } from '../../utils/quadre-troncs.util';
-
-/** Static map — never build Tailwind classes from template literals. */
-const ROW_CLASSES: Record<QuadreRowState, string> = {
-  both: 'bg-success/15',
-  notPerformance: 'bg-error/15',
-  unanswered: '',
-  neutral: '',
-  performanceOnly: 'opacity-50',
-  assignedAbsent: 'bg-warning/20',
-};
-const HIGHLIGHT_CLASS = 'ring-2 ring-inset ring-primary';
 
 /**
  * «Quadre de persones»: read-only, near-fullscreen view of who is coming to the event,
@@ -38,7 +29,7 @@ const HIGHLIGHT_CLASS = 'ring-2 ring-inset ring-primary';
 @Component({
   selector: 'app-quadre-troncs-modal',
   standalone: true,
-  imports: [FormsModule, LucideAngularModule, ModalComponent, AlertComponent, ButtonComponent, CheckboxComponent],
+  imports: [FormsModule, LucideAngularModule, ModalComponent, AlertComponent, ButtonComponent, CheckboxComponent, QuadreLegendComponent],
   templateUrl: './quadre-troncs-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -73,6 +64,9 @@ export class QuadreTroncsModalComponent implements OnInit {
     return event ? `Quadre de persones: ${event.title}` : 'Quadre de persones';
   });
 
+  /** False for an actuació, or a rehearsal with no actuació left in its season: nothing about the next performance applies. */
+  protected readonly hasNextPerformance = computed(() => !!this.data()?.nextPerformance);
+
   protected readonly quadre = computed(() => {
     const data = this.data();
     if (!data) return null;
@@ -105,8 +99,8 @@ export class QuadreTroncsModalComponent implements OnInit {
   }
 
   protected rowClass(entry: QuadreEntry): string {
-    const base = ROW_CLASSES[entry.state];
-    return this.hoveredPersonId() === entry.person.id ? `${base} ${HIGHLIGHT_CLASS}` : base;
+    const base = QUADRE_ROW_CLASSES[entry.state];
+    return this.hoveredPersonId() === entry.person.id ? `${base} ${QUADRE_HIGHLIGHT_CLASS}` : base;
   }
 
   protected height(entry: QuadreEntry): string {

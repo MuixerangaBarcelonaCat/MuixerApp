@@ -9,8 +9,8 @@
         <lib-checkbox size="xs" [ngModel]="onlyUnplaced()" (ngModelChange)="onlyUnplaced.set($event)">
           <span class="text-sm">Només qui no ha participat</span>
         </lib-checkbox>
+        <app-quadre-legend class="ml-auto" [hasNextPerformance]="hasNextPerformance()" />
         <lib-button
-          class="ml-auto"
           variant="ghost"
           size="sm"
           [ariaExpanded]="columnsPanelOpen()"

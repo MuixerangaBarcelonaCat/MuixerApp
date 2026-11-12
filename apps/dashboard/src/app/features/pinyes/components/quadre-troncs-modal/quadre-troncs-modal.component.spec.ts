@@ -172,6 +172,42 @@ describe('QuadreTroncsModalComponent', () => {
     expect(button().getAttribute('aria-expanded')).toBe('true');
   });
 
+  describe('legend', () => {
+    const legendButton = () => el().querySelector('button[aria-label="Llegenda del quadre"]') as HTMLButtonElement | null;
+    const legendRows = () =>
+      Array.from(el().querySelectorAll('[data-testid="quadre-legend"] li')).map((li) => li.textContent?.trim());
+
+    it('is closed until its help button is pressed', async () => {
+      await setup();
+      expect(legendButton()).not.toBeNull();
+      expect(el().querySelector('[data-testid="quadre-legend"]')).toBeNull();
+    });
+
+    it('opens one row per mark, each sample styled like the real rows', async () => {
+      await setup();
+      legendButton()!.click();
+      fixture.detectChanges();
+
+      const rows = legendRows();
+      expect(rows).toHaveLength(10);
+      expect(rows.some((r) => r?.includes('Ve a l\'assaig i a la propera actuació'))).toBe(true);
+      expect(rows.some((r) => r?.includes('Figures diferents'))).toBe(true);
+      expect(el().querySelector('[data-testid="quadre-legend"] [data-state="both"]')?.className).toContain('bg-success/15');
+      expect(legendButton()!.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('drops the next-performance rows when there is no next performance (e.g. an actuació)', async () => {
+      await setup(of({ ...OVERVIEW, nextPerformance: null }));
+      legendButton()!.click();
+      fixture.detectChanges();
+
+      const rows = legendRows();
+      expect(rows.some((r) => r?.includes('actuació'))).toBe(false);
+      expect(rows.some((r) => r?.includes('Ve a l\'assaig'))).toBe(false);
+      expect(el().querySelector('[data-testid="quadre-legend-note"]')?.textContent).toContain('No hi ha cap actuació propera');
+    });
+  });
+
   it('shows an alert when loading fails', async () => {
     await setup(throwError(() => new Error('boom')));
     expect(el().querySelector('lib-alert')).not.toBeNull();

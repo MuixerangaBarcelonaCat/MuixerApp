@@ -80,6 +80,10 @@ Els colors de cada línia:
 
 L'estrela (★) vol dir que la persona ve a la propera actuació. Els **punts** diuen en quantes figures diferents de l'event està posada (de tots els segments): ● una, ●● dues, ●●● tres, ●●●+ quatre o més. Ser direcció de pinya no compta; la direcció de tronc i la de xicalla, sí.
 
+La icona **ⓘ** («Llegenda del quadre») desplega tot això en una llista, amb una mostra de cada color i cada marca.
+
+**En una actuació**, o en un assaig sense cap actuació més a la temporada, no hi ha «propera actuació»: cap línia té color verd, roig ni atenuat, no hi ha estrelles ni «+N actuació», i el quadre mostra qui ve a l'event. Només es manté l'avís groc de qui té un lloc assignat però no ve. La llegenda ho diu i només mostra les marques que s'apliquen.
+
 - **«Només qui no ha participat»** amaga qui ja té alguna figura, per a repassar qui queda. Els totals no canvien.
 - **«Columnes»** permet triar quines etiquetes es veuen i en quin ordre (amb les fletxes). «Restableix» torna a les columnes de sempre. La tria es guarda en este navegador, per a cada persona tècnica.
 - Les dades es carreguen cada vegada que obriu el quadre.
