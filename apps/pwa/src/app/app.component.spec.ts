@@ -9,8 +9,18 @@ function stubAppHost(body: string): void {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
 }
 
+function stubServiceWorker(subscription: { unsubscribe: () => Promise<boolean> } | null): void {
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    serviceWorker: { ready: Promise.resolve({ pushManager: { getSubscription: async () => subscription } }) },
+  });
+}
+
 describe('AppComponent', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
 
   beforeEach(async () => {
     stubAppHost('');
@@ -84,5 +94,85 @@ describe('AppComponent', () => {
       'https://app-beta.muixerangabarcelona.cat/',
     );
     expect(compiled.querySelector('router-outlet')).toBeNull();
+  });
+
+  it('unsubscribes this origin from push when the host moved', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    stubServiceWorker({ unsubscribe });
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(unsubscribe).toHaveBeenCalled());
+    // Blocks PushSubscriptionService.syncOnStartup from subscribing this origin again…
+    expect(localStorage.getItem('muixer_push_host_moved')).toBe('true');
+    // …without the user's own opt-out, so a rolled-back PWA_PUBLIC_URL can undo it.
+    expect(localStorage.getItem('muixer_push_opted_out')).toBeNull();
+  });
+
+  it('lifts the host-moved push block once the host check says the app has not moved', async () => {
+    localStorage.setItem('muixer_push_host_moved', 'true');
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(localStorage.getItem('muixer_push_host_moved')).toBeNull());
+  });
+
+  it('keeps the host-moved push block when the host check fails', async () => {
+    localStorage.setItem('muixer_push_host_moved', 'true');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 502 })));
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(localStorage.getItem('muixer_push_host_moved')).toBe('true');
+    localStorage.removeItem('muixer_push_host_moved');
+  });
+
+  it('keeps push when the host did not move', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    stubServiceWorker({ unsubscribe });
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('survives a browser without service worker', async () => {
+    vi.stubGlobal('navigator', { ...navigator, serviceWorker: undefined });
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-host-moved')).toBeTruthy();
+  });
+
+  function setVisibility(state: DocumentVisibilityState): void {
+    Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  it('shows the host-moved screen when the app comes back to the foreground', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    setVisibility('visible');
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-host-moved')).toBeTruthy();
+    });
+  });
+
+  it('does not refetch once the screen is shown', async () => {
+    stubAppHost('https://app-beta.muixerangabarcelona.cat');
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(fixture.componentInstance['movedTo']()).not.toBeNull());
+    setVisibility('visible');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores the app going to the background', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    setVisibility('hidden');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

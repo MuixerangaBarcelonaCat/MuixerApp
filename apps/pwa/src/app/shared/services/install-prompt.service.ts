@@ -13,20 +13,26 @@ const INSTALL_DONE_KEY = 'muixer_install_done';
 export class InstallPromptService {
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
 
-  private readonly _canInstallAndroid = signal(false);
+  private readonly _canPromptInstall = signal(false);
   private readonly _installed = signal(this.isInstalled());
 
-  readonly canInstallAndroid = this._canInstallAndroid.asReadonly();
-  readonly isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  /** The browser handed us `beforeinstallprompt`: the banner can show a real «Instal·la» button. */
+  readonly canPromptInstall = this._canPromptInstall.asReadonly();
+  // iPadOS Safari reports a Mac UA; the touch screen tells it apart from a real Mac.
+  readonly isIos =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  readonly isMobile = this.isIos || /Android/.test(navigator.userAgent);
 
   readonly shouldShow = signal(false);
 
   constructor() {
+    // The event fires once per page load and can beat Angular's boot: index.html keeps it for us.
+    const early = (window as { __muixerInstallPrompt?: Event }).__muixerInstallPrompt;
+    if (early) this.adoptPrompt(early);
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
-      this.deferredPrompt = event as BeforeInstallPromptEvent;
-      this._canInstallAndroid.set(true);
-      this.recomputeShouldShow();
+      this.adoptPrompt(event);
     });
 
     window.addEventListener('appinstalled', () => {
@@ -45,7 +51,19 @@ export class InstallPromptService {
   }
 
   promptInstall(): void {
-    this.deferredPrompt?.prompt();
+    // Rejects when the user gesture was lost: nothing to do, the banner hides either way.
+    this.deferredPrompt?.prompt().catch(() => undefined);
+    // A prompt event can only be used once. Accepting fires `appinstalled`; cancelling counts as a
+    // dismissal, so the banner comes back after REMIND_AFTER_LOGINS like the close button.
+    this.deferredPrompt = null;
+    this._canPromptInstall.set(false);
+    this.dismiss();
+  }
+
+  private adoptPrompt(event: Event): void {
+    this.deferredPrompt = event as BeforeInstallPromptEvent;
+    this._canPromptInstall.set(true);
+    this.recomputeShouldShow();
   }
 
   dismiss(): void {
@@ -58,7 +76,9 @@ export class InstallPromptService {
       this.shouldShow.set(false);
       return;
     }
-    if (!this.isIos && !this._canInstallAndroid()) {
+    // Phones always get the banner (with menu instructions when there is no prompt event: Chrome
+    // custom tabs, Firefox, Samsung Internet); desktop only when the browser can actually prompt.
+    if (!this.isMobile && !this._canPromptInstall()) {
       this.shouldShow.set(false);
       return;
     }
