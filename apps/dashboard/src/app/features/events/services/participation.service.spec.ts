@@ -33,6 +33,16 @@ describe('ParticipationService', () => {
     req.flush({ event: { id: EVENT_ID, title: '', date: '' }, segments: [], persons: [], meta: {} });
   });
 
+  it('asks for next-performance attendees when includeNextPerformance is set', () => {
+    service.getByEvent(EVENT_ID, { includeNextPerformance: true }).subscribe();
+
+    const req = httpMock.expectOne(
+      (r) => r.url === `${environment.apiUrl}/events/${EVENT_ID}/participation`,
+    );
+    expect(req.request.params.get('includeNextPerformance')).toBe('true');
+    req.flush({ event: { id: EVENT_ID, title: '', date: '' }, segments: [], persons: [], meta: {} });
+  });
+
   it('passes the overview through unmodified, including plural placements', () => {
     const response: EventParticipation = {
       event: { id: EVENT_ID, title: 'Assaig', date: '2026-05-01' },
