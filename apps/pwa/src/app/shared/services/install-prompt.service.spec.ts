@@ -10,6 +10,7 @@ describe('InstallPromptService', () => {
   });
 
   afterEach(() => {
+    delete (window as { __muixerInstallPrompt?: Event }).__muixerInstallPrompt;
     Object.defineProperty(navigator, 'userAgent', {
       value: originalUserAgent,
       configurable: true,
@@ -67,5 +68,73 @@ describe('InstallPromptService', () => {
     const service = create();
     service.registerLogin();
     expect(service.shouldShow()).toBe(false);
+  });
+
+  const fakePromptEvent = () => Object.assign(new Event('beforeinstallprompt'), { prompt: () => Promise.resolve() });
+
+  it('adopts a beforeinstallprompt captured before Angular booted', () => {
+    setUserAgent('Mozilla/5.0 (Linux; Android 14) Chrome');
+    (window as { __muixerInstallPrompt?: Event }).__muixerInstallPrompt = fakePromptEvent();
+    const service = create();
+    expect(service.canPromptInstall()).toBe(true);
+  });
+
+  it('shows the banner on Android after login even without beforeinstallprompt', () => {
+    setUserAgent('Mozilla/5.0 (Linux; Android 14) Chrome');
+    const service = create();
+    service.registerLogin();
+    expect(service.shouldShow()).toBe(true);
+    expect(service.canPromptInstall()).toBe(false);
+  });
+
+  it('keeps the banner hidden on desktop without beforeinstallprompt', () => {
+    setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome');
+    const service = create();
+    service.registerLogin();
+    expect(service.shouldShow()).toBe(false);
+  });
+
+  it('shows on desktop once beforeinstallprompt fired', () => {
+    setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome');
+    const service = create();
+    window.dispatchEvent(fakePromptEvent());
+    service.registerLogin();
+    expect(service.shouldShow()).toBe(true);
+  });
+
+  it('treats an iPad (desktop-class Safari UA, touch screen) as iOS', () => {
+    setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15');
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 5, configurable: true });
+    const service = create();
+    service.registerLogin();
+    expect(service.isIos).toBe(true);
+    expect(service.shouldShow()).toBe(true);
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
+  });
+
+  it('keeps a real Mac (no touch) as desktop', () => {
+    setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15');
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
+    const service = create();
+    service.registerLogin();
+    expect(service.isIos).toBe(false);
+    expect(service.shouldShow()).toBe(false);
+  });
+
+  it('hides the banner after the native dialog, whatever the answer', () => {
+    setUserAgent('Mozilla/5.0 (Linux; Android 14) Chrome');
+    const service = create();
+    window.dispatchEvent(Object.assign(new Event('beforeinstallprompt'), { prompt: () => Promise.reject(new Error('no gesture')) }));
+    service.registerLogin();
+    service.promptInstall();
+    expect(service.shouldShow()).toBe(false);
+  });
+
+  it('can only prompt once per event', () => {
+    setUserAgent('Mozilla/5.0 (Linux; Android 14) Chrome');
+    const service = create();
+    window.dispatchEvent(fakePromptEvent());
+    service.promptInstall();
+    expect(service.canPromptInstall()).toBe(false);
   });
 });

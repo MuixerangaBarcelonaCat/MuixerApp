@@ -1,7 +1,7 @@
-import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, inject, computed, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { HostMovedComponent, movedHostUrl } from './shared/components/host-moved/host-moved.component';
+import { HostMovedComponent, dropPushSubscription, liftPushHostMoved, movedHostUrl } from './shared/components/host-moved/host-moved.component';
 import { ToastContainerComponent } from '@muixer/ui';
 import { SplashScreenComponent } from './shared/components/splash-screen/splash-screen.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
@@ -33,15 +33,29 @@ export class AppComponent {
 
   constructor() {
     inject(PinchZoomGuardService).install();
-    this.checkPublicHost(inject(DOCUMENT).location.host);
+    const doc = inject(DOCUMENT);
+    this.checkPublicHost(doc.location);
+
+    // An installed app resumed from the background does not reboot: check again on every return.
+    const onVisible = () => {
+      if (doc.visibilityState === 'visible' && !this.movedTo()) this.checkPublicHost(doc.location);
+    };
+    doc.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => doc.removeEventListener('visibilitychange', onVisible));
   }
 
   // Background check, never blocks boot. Plain fetch (not HttpClient) keeps it out of the
   // auth interceptor; any failure (dev server, offline, unset var) leaves the app as is.
-  private checkPublicHost(host: string): void {
+  private checkPublicHost(here: Location): void {
     fetch('/app-host.txt', { cache: 'no-store' })
       .then((res) => (res.ok ? res.text() : null))
-      .then((body) => this.movedTo.set(movedHostUrl(body, host)))
+      .then((body) => {
+        if (body === null) return; // Unknown (server error): change nothing.
+        const moved = movedHostUrl(body, here);
+        this.movedTo.set(moved);
+        if (moved) void dropPushSubscription();
+        else liftPushHostMoved();
+      })
       .catch(() => undefined);
   }
 }
