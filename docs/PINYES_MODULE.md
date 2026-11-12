@@ -346,6 +346,16 @@ L'estat viu a `SegmentWorkspaceStateService` (per workspace), que composa l'`Ass
 
 **Optimistic UI + rollback**: l'`AssignmentStateService` actualitza els signals immediatament; si l'HTTP falla, reverteix l'estat.
 
+**Quadre de persones** (botó «Quadre» de la capçalera, només a la pestanya Troncs): `QuadreTroncsModalComponent`,
+un `lib-modal size="full"` de només lectura que es munta en obrir-lo (cada obertura torna a carregar). Llegeix
+`GET /events/:eventId/participation?includeNextPerformance=true`: el paràmetre afegeix a la població qui ve
+(`ANIRE`) a la propera actuació encara que no vinga a l'assaig; sense el paràmetre, la pestanya Participació
+rep el mateix d'abans. Tota la lògica (columnes per etiqueta + «Altres», ordre per alçada, estats de color,
+punts = figures diferents sense `direccio-pinya`, totals de persones úniques) és pura a
+`utils/quadre-troncs.util.ts`; les columnes triades per cada tècnic es guarden al `localStorage` amb
+`QuadreColumnsService` (per defecte, els slugs `mans`, `baix`, `segona`, `alcadora`, `terca`, `persona-nova`,
+`xicalla`). Disseny: [`docs/superpowers/specs/2026-11-12-quadre-troncs-design.md`](superpowers/specs/2026-11-12-quadre-troncs-design.md).
+
 ### AssignmentStateService
 
 Servei singleton de signals per al canvas d'assignació:

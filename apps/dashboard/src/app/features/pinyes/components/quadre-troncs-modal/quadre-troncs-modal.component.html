@@ -1,6 +1,6 @@
 <lib-modal size="full" [open]="true" [title]="title()" (closed)="closed.emit()">
   @if (error()) {
-    <lib-alert variant="error">No s'ha pogut carregar el quadre. Torneu-ho a provar.</lib-alert>
+    <lib-alert variant="error">No s'ha pogut carregar el quadre. Torneu a provar-ho.</lib-alert>
   } @else if (quadre(); as q) {
     <div class="flex h-full min-h-0 flex-col gap-3">
       <!-- Toolbar: total, filter, columns -->
@@ -108,7 +108,7 @@
     </div>
   } @else {
     <div class="flex justify-center py-16">
-      <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant el quadre..."></span>
+      <span class="loading loading-spinner loading-sm text-primary" aria-label="S'està carregant el quadre..."></span>
     </div>
   }
 </lib-modal>

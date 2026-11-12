@@ -70,7 +70,7 @@ export class QuadreTroncsModalComponent implements OnInit {
 
   protected readonly title = computed(() => {
     const event = this.data()?.event;
-    return event ? `Quadre de persones — ${event.title}` : 'Quadre de persones';
+    return event ? `Quadre de persones: ${event.title}` : 'Quadre de persones';
   });
 
   protected readonly quadre = computed(() => {
