@@ -16,6 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { BadgeComponent, ButtonComponent, ButtonGroupComponent, CheckboxComponent, InputComponent, DOMAIN_ICONS } from '@muixer/ui';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { Subscription } from 'rxjs';
+import { formatShoulderHeight } from '../../utils/quadre-troncs.util';
 import { DIRECTION_ZONES, FigureZone, normalizeForSearch, attendanceGroupLabel, EventPhase, isArrivalPhase, isStartedPhase } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -676,13 +677,7 @@ export class PersonPanelComponent {
   }
 
   formatHeight(person: AvailablePerson): string {
-    if (person.shoulderHeight === null || person.shoulderHeight === 0) return '-';
-    const h = person.shoulderHeight;
-    if (this.heightMode() === 'relative') {
-      const diff = h - this.renderSettings().shoulderHeightBaselineCm;
-      return diff >= 0 ? `+${diff}` : `${diff}`;
-    }
-    return `${h} cm`;
+    return formatShoulderHeight(person.shoulderHeight, this.heightMode(), this.renderSettings().shoulderHeightBaselineCm);
   }
 
   toggleAltres(): void {
