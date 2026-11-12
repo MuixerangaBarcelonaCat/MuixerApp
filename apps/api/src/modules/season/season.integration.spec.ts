@@ -96,6 +96,24 @@ describe('SeasonService (integration)', () => {
       });
     });
 
+    it('leaves events excluded from statistics out of the season counts', async () => {
+      await insertEvent('2025-10-01');
+      const cancelled = await insertEvent('2025-10-08');
+      await db.dataSource.getRepository(Event).update(cancelled.id, { countsForStatistics: false });
+
+      const { data } = await service.findAll();
+      const season = data.find((s) => s.name === '2025-2026');
+      expect(season).toMatchObject({
+        eventCount: 1,
+        rehearsalCount: 1,
+        performanceCount: 0,
+      });
+      // Still an event in the season: deleting it would leave both without one.
+      await expect(service.remove(season!.id)).rejects.toMatchObject({
+        response: expect.objectContaining({ uncoveredCount: 2 }),
+      });
+    });
+
     it('finds the season containing a date, at both edges', async () => {
       await expect(service.findByDate('2026-09-05')).resolves.toMatchObject({ name: '2025-2026' });
       await expect(service.findByDate('2026-09-06')).resolves.toMatchObject({ name: '2026-2027' });

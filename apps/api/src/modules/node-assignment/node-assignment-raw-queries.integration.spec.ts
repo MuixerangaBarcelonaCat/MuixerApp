@@ -238,4 +238,19 @@ describe('NodeAssignmentService raw multi-join queries (integration)', () => {
     expect((await service.getPersonHistory(personId, { seasonId: covering })).meta.total).toBe(1);
     expect((await service.getPersonHistory(personId, { seasonId: other })).meta.total).toBe(0);
   });
+
+  it('getPersonHistory leaves out events excluded from statistics (e.g. a cancelled rehearsal)', async () => {
+    const { event, template, instance } = await makeFigureWithNodesAndAssignments(2, 1);
+    const [{ personId }] = await db.dataSource.query(
+      `SELECT "personId" FROM "node_assignments" WHERE "figureInstanceId" = $1`,
+      [instance.id],
+    );
+    await db.dataSource.getRepository(Event).update(event.id, { countsForStatistics: false });
+
+    const history = await service.getPersonHistory(personId);
+    expect(history.meta.total).toBe(0);
+    expect(history.data).toHaveLength(0);
+    // The template history still offers it for import: the figures stay reusable.
+    expect((await service.getHistory(template.id)).meta.total).toBe(1);
+  });
 });
