@@ -1,0 +1,70 @@
+<lib-modal [open]="true" [title]="'Dispositius' + (userLabel() ? ' · ' + userLabel() : '')" size="2xl" (closed)="closed.emit()">
+  @if (loading()) {
+    <div class="flex justify-center py-8">
+      <span class="loading loading-spinner loading-lg"></span>
+    </div>
+  } @else if (error()) {
+    <lib-alert variant="error">No s'han pogut carregar els dispositius. Torneu-ho a provar.</lib-alert>
+  } @else {
+    <section class="mb-6" aria-labelledby="devices-sessions">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <h3 id="devices-sessions" class="font-semibold">Sessions obertes</h3>
+        @if (sessions().length > 0) {
+          <lib-button variant="error" outline size="xs" [loading]="busy()" (clicked)="revokeAll()">
+            Fes expirar totes
+          </lib-button>
+        }
+      </div>
+      <p class="text-sm text-base-content/60 mb-3">La sessió es tanca del tot en un màxim de 15 minuts.</p>
+
+      @for (s of sessions(); track s.family) {
+        <div class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-base-200" data-testid="session-row">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <lib-badge size="sm" [variant]="s.clientType === ClientType.DASHBOARD ? 'primary' : 'neutral'">
+                {{ s.clientType === ClientType.DASHBOARD ? 'Dashboard' : 'App' }}
+              </lib-badge>
+              <span class="font-medium">{{ describe(s.userAgent) }}</span>
+            </div>
+            <p class="text-xs text-base-content/60">
+              Inici: {{ s.startedAt | date: dateFormat }} · Darrer ús: {{ s.lastRefreshAt | date: dateFormat }}
+            </p>
+          </div>
+          <lib-button variant="error" outline size="xs" [loading]="pending().has(s.family)" (clicked)="revokeSession(s)">Fes expirar</lib-button>
+        </div>
+      } @empty {
+        <lib-empty-state message="Cap sessió oberta." />
+      }
+    </section>
+
+    <section aria-labelledby="devices-push">
+      <h3 id="devices-push" class="font-semibold mb-3">Notificacions</h3>
+
+      @for (d of devices(); track d.id) {
+        <div class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-base-200" data-testid="device-row">
+          <div class="min-w-0">
+            <span class="font-medium">{{ describe(d.userAgent) }}</span>
+            <p class="text-xs text-base-content/60">
+              Alta: {{ d.createdAt | date: dateFormat }} · Darrera notificació:
+              @if (d.lastUsedAt) {
+                {{ d.lastUsedAt | date: dateFormat }}
+              } @else {
+                Mai
+              }
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <lib-button variant="ghost" size="xs" (clicked)="testDevice(d)">Envia una prova</lib-button>
+            <lib-button variant="error" outline size="xs" [loading]="pending().has(d.id)" (clicked)="removeDevice(d)">Elimina</lib-button>
+          </div>
+        </div>
+      } @empty {
+        <lib-empty-state message="Cap dispositiu rep notificacions." />
+      }
+    </section>
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="closed.emit()">Tanca</lib-button>
+  </div>
+</lib-modal>

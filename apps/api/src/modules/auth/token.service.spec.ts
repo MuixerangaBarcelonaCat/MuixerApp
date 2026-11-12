@@ -6,13 +6,24 @@ import { ClientType } from '@muixer/shared';
 import { TokenService } from './token.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 
-const mockRepo = () => ({
-  create: jest.fn(),
-  save: jest.fn(),
-  findOne: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-});
+const mockRepo = () => {
+  const repo = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    find: jest.fn(),
+    // withUserLock: the transaction runs its callback against this same mock.
+    manager: {
+      transaction: jest.fn(),
+    },
+  };
+  repo.manager.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+    cb({ query: jest.fn(), getRepository: () => repo }),
+  );
+  return repo;
+};
 
 const hash = (t: string) => createHash('sha256').update(t).digest('hex');
 
@@ -48,6 +59,20 @@ describe('TokenService', () => {
       expect(repo.save).toHaveBeenCalled();
       const savedEntity = repo.create.mock.calls[0][0] as { tokenHash: string };
       expect(savedEntity.tokenHash).toBe(hash(result));
+    });
+
+    it('stores the user agent, truncated to 255 characters', async () => {
+      repo.create.mockImplementation((entity) => entity);
+      repo.save.mockResolvedValue({});
+      const user = { id: 'user-uuid' } as Parameters<typeof service.createRefreshToken>[0];
+
+      await service.createRefreshToken(user, ClientType.PWA, undefined, 'Mozilla/5.0 X');
+      await service.createRefreshToken(user, ClientType.PWA, undefined, 'x'.repeat(300));
+      await service.createRefreshToken(user, ClientType.PWA);
+
+      expect((repo.create.mock.calls[0][0] as { userAgent: string }).userAgent).toBe('Mozilla/5.0 X');
+      expect((repo.create.mock.calls[1][0] as { userAgent: string }).userAgent).toBe('x'.repeat(255));
+      expect((repo.create.mock.calls[2][0] as { userAgent: string | null }).userAgent).toBeNull();
     });
 
     it('generates a different token on every call', async () => {
@@ -89,7 +114,7 @@ describe('TokenService', () => {
       // never a plain findOne-then-update — so a concurrent request racing
       // for the same row can't both succeed (SEC-5).
       expect(repo.update).toHaveBeenCalledWith(
-        { id: 'rt-id', usedAt: IsNull() },
+        { id: 'rt-id', usedAt: IsNull(), revokedAt: IsNull() },
         { usedAt: expect.any(Date) },
       );
       expect(result.newRawToken).toBe(newToken);
@@ -97,6 +122,22 @@ describe('TokenService', () => {
       // BUG-5: the caller must use this stored clientType for the cookie TTL,
       // not re-derive it from the user's role.
       expect(result.clientType).toBe(ClientType.DASHBOARD);
+    });
+
+    it('keeps the stored user agent unless the refresh request carries one', async () => {
+      const stored = {
+        id: 'rt-id', userId: 'u1', tokenHash: hash('t'), family: 'fam', clientType: ClientType.PWA,
+        expiresAt: new Date(Date.now() + 3600_000), usedAt: null, revokedAt: null, userAgent: 'Old UA',
+      };
+      repo.findOne.mockResolvedValue(stored);
+      repo.update.mockResolvedValue({ affected: 1 });
+      const spy = jest.spyOn(service, 'createRefreshToken').mockResolvedValue('n');
+
+      await service.rotateRefreshToken('t');
+      await service.rotateRefreshToken('t', 'New UA');
+
+      expect(spy).toHaveBeenNthCalledWith(1, { id: 'u1' }, ClientType.PWA, 'fam', 'Old UA', repo);
+      expect(spy).toHaveBeenNthCalledWith(2, { id: 'u1' }, ClientType.PWA, 'fam', 'New UA', repo);
     });
 
     it('revokes entire family when the atomic usedAt claim affects zero rows (reuse or lost race)', async () => {
@@ -211,5 +252,22 @@ describe('TokenService', () => {
 
       expect(logSpy).not.toHaveBeenCalled();
     });
+  });
+
+  describe('sessions', () => {
+    const d = (iso: string) => new Date(iso);
+
+    it('revokeFamily filters by user AND family and returns affected rows', async () => {
+      repo.update.mockResolvedValue({ affected: 2 });
+
+      const n = await service.revokeFamily('u1', 'f1');
+
+      expect(n).toBe(2);
+      expect(repo.update).toHaveBeenCalledWith(
+        { userId: 'u1', family: 'f1', revokedAt: IsNull() },
+        { revokedAt: expect.any(Date) },
+      );
+    });
+
   });
 });

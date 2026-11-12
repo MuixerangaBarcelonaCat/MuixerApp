@@ -33,6 +33,9 @@ export class RefreshToken {
   @Column({ name: 'client_type', type: 'enum', enum: ClientType })
   clientType: ClientType;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  userAgent: string | null;
+
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
 

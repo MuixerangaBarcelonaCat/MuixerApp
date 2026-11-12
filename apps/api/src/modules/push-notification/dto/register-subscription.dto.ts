@@ -7,6 +7,7 @@ import {
   IsUrl,
   ValidateNested,
   IsDefined,
+  IsBoolean,
 } from 'class-validator';
 
 const ALLOWED_PUSH_DOMAINS = [
@@ -39,6 +40,11 @@ export class RegisterSubscriptionDto {
   @IsOptional()
   @MaxLength(255)
   userAgent?: string;
+
+  /** Automatic re-register on PWA startup (not asked by the member): never re-enables a removed device. */
+  @IsBoolean()
+  @IsOptional()
+  silent?: boolean;
 
   get endpointDomain(): string {
     try {

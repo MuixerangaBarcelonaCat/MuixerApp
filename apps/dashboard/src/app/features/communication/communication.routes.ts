@@ -3,7 +3,6 @@ import { CommunicationComponent } from './communication.component';
 import { NewsListComponent } from './components/news-list/news-list.component';
 import { NewsEditorComponent } from './components/news-editor/news-editor.component';
 import { NotificationSendComponent } from './components/notification-send/notification-send.component';
-import { DeviceListComponent } from './components/device-list/device-list.component';
 import { NotificationHistoryComponent } from './components/notification-history/notification-history.component';
 import { NotificationScheduleListComponent } from './components/notification-schedule-list/notification-schedule-list.component';
 
@@ -13,7 +12,8 @@ export const communicationRoutes: Routes = [
   { path: 'news/new', component: NewsEditorComponent, data: { title: 'Notícia nova' } },
   { path: 'news/:id/edit', component: NewsEditorComponent, data: { title: 'Edita la notícia' } },
   { path: 'notifications', component: NotificationSendComponent, data: { title: 'Envia notificació', mode: 'send' } },
-  { path: 'notifications/devices', component: DeviceListComponent, data: { title: 'Dispositius subscrits' } },
+  // The old read-only «Dispositius subscrits» screen was replaced by the ADMIN «Dispositius i sessions» list.
+  { path: 'notifications/devices', redirectTo: '/config/users/devices' },
   { path: 'notifications/history', component: NotificationHistoryComponent, data: { title: 'Historial de notificacions' } },
   { path: 'notifications/schedules', component: NotificationScheduleListComponent, data: { title: 'Notificacions programades' } },
   {

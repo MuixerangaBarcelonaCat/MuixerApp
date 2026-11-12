@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, OnInit, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { RouterOutlet } from '@angular/router';
 import { AlertComponent } from '@muixer/ui';
 import { BottomTabBarComponent } from '../../../shared/components/bottom-tab-bar/bottom-tab-bar.component';
@@ -71,8 +72,11 @@ export class AppShellComponent implements OnInit {
   protected readonly layout = inject(LayoutService);
   protected readonly installPrompt = inject(InstallPromptService);
   private readonly push = inject(PushSubscriptionService);
+  private readonly http = inject(HttpClient);
 
   ngOnInit(): void {
+    // Lets the admin «Dispositius» list tell installed apps from browser tabs.
+    if (this.installPrompt.isStandalone()) this.http.post('/api/me/pwa-installed', {}).subscribe({ error: () => undefined });
     void this.push.syncOnStartup();
   }
 }

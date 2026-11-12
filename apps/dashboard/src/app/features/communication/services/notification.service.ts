@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   BeforeEventOffsetUnit,
-  DeviceSummary,
   EventReferenceKind,
   EventType,
   NotificationLinkType,
@@ -75,10 +74,6 @@ export interface NotificationScheduleFilter {
 export class NotificationService extends ApiService {
   send(payload: SendNotificationPayload): Observable<{ accepted: boolean; warning?: string }> {
     return this.post<{ accepted: boolean; warning?: string }>('/notifications/send', payload);
-  }
-
-  getDeviceSummary(): Observable<DeviceSummary[]> {
-    return this.get<DeviceSummary[]>('/push-subscriptions/summary');
   }
 
   getHistory(filter: NotificationHistoryFilter): Observable<PaginatedResponse<NotificationLogEntry>> {

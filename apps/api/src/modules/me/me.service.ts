@@ -58,6 +58,16 @@ const PROVISIONAL_ALIAS_PREFIX = '~';
 export class MeService {
   private readonly logger = new Logger(MeService.name);
 
+  /** The PWA runs installed (standalone). Writes at most once a day per account. */
+  async markPwaInstalled(userId: string): Promise<void> {
+    await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ pwaInstalledAt: () => 'now()' })
+      .where('id = :userId AND ("pwaInstalledAt" IS NULL OR "pwaInstalledAt" < now() - interval \'1 day\')', { userId })
+      .execute();
+  }
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,

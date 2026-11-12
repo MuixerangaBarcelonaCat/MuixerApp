@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload, NotificationSource, NotificationTargetType, UserRole } from '@muixer/shared';
 import { PushNotificationController } from './push-notification.controller';
-import { PushSubscriptionService } from './push-subscription.service';
 import { NotificationLogService } from './notification-log.service';
 import { NotificationScheduleService } from './notification-schedule.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
@@ -10,7 +9,6 @@ import { SendNotificationDto } from './dto/send-notification.dto';
 const CURRENT_USER: JwtPayload = { sub: 'user-1', email: 'admin@example.com', role: UserRole.ADMIN };
 
 const mockScheduleService = { sendNow: jest.fn() };
-const mockSubscriptionService = { getSummary: jest.fn() };
 const mockLogService = { findAll: jest.fn() };
 const mockConfig = { get: jest.fn() };
 
@@ -24,7 +22,6 @@ describe('PushNotificationController', () => {
       controllers: [PushNotificationController],
       providers: [
         { provide: NotificationScheduleService, useValue: mockScheduleService },
-        { provide: PushSubscriptionService, useValue: mockSubscriptionService },
         { provide: NotificationLogService, useValue: mockLogService },
         { provide: ConfigService, useValue: mockConfig },
       ],

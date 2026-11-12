@@ -41,7 +41,12 @@ describe('rolesGuard', () => {
 
   it('redirects when role is not in the allowed list even if higher (no implicit hierarchy)', async () => {
     const result = await runRolesGuard(UserRole.ADMIN, UserRole.TECHNICAL);
-    expect((result as ReturnType<Router['createUrlTree']>).toString()).toBe('/login');
+    expect((result as ReturnType<Router['createUrlTree']>).toString()).toBe('/home');
+  });
+
+  it('sends a logged-in TECHNICAL on an ADMIN-only route home, not to the login screen', async () => {
+    const result = await runRolesGuard(UserRole.TECHNICAL, UserRole.ADMIN);
+    expect((result as ReturnType<Router['createUrlTree']>).toString()).toBe('/home');
   });
 
   it('redirects when user is not authenticated (null role)', async () => {
