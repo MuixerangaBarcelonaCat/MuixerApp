@@ -100,6 +100,7 @@ graph TD
 | [[PWA_RENDER_PERF]] | Rendiment de la pantalla de projecció (pan/zoom, Konva, overlay de troncs) i pla prioritzat |
 | [[GDPR_COMPLIANCE]] | Informe tècnic i pla d'implementació del compliment LOPDGDD/RGPD |
 | [[REQUEST_AUDIT]] | Auditoria de peticions al backend: què s'ha optimitzat al workspace de segments, impacte a l'UX i què queda pendent |
+| [[DATA_FRESHNESS]] | Frescor de dades al Dashboard i a la PWA: per què no SSE, polling de revisió amb triggers, i enllaç al pla d'implementació |
 
 ### Infraestructura
 
