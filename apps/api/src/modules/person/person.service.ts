@@ -19,9 +19,11 @@ import {
   AttendanceStatus,
   CollaSettings,
   EventType,
+  PersonDeletionCheck,
   ShirtCandidate,
   TagCategory,
   deriveIsXicalla,
+  personDeletionBlockerReasons,
   shirtCandidateComparator,
   shirtProgress,
 } from '@muixer/shared';
@@ -30,6 +32,13 @@ import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import { xicallaSql } from './xicalla.sql';
 
 const PROVISIONAL_PREFIX = '~';
+
+/** Everything that keeps a person from being deleted for good (`$1` = person id). */
+const DELETION_BLOCKERS_QUERY = `SELECT
+  (SELECT COUNT(*)::int FROM node_assignments WHERE "personId" = $1) AS assignments,
+  (SELECT COUNT(*)::int FROM attendances WHERE "personId" = $1) AS attendances,
+  EXISTS (SELECT 1 FROM users WHERE person_id = $1) AS "hasUser",
+  (SELECT COUNT(*)::int FROM persons WHERE "mentorId" = $1) AS "menteeCount"`;
 const MAX_ALIAS_LENGTH = 20;
 
 /**
@@ -500,6 +509,46 @@ export class PersonService {
     }
     person.isActive = false;
     await this.personRepository.save(person);
+  }
+
+  /** Què impedeix esborrar definitivament la persona (404 si no existeix). */
+  async getDeletionCheck(id: string): Promise<PersonDeletionCheck> {
+    await this.findExisting(id);
+    return this.deletionCheck(id);
+  }
+
+  /**
+   * Esborrat definitiu: només si res no hi apunta (assignacions, assistència, compte d'usuari,
+   * mentoria); si no, 409 amb els motius. Etiquetes i delegacions cauen en cascada (FK).
+   * Retorna la persona esborrada perquè el controlador la puga auditar.
+   */
+  async hardDelete(id: string): Promise<Person> {
+    const person = await this.findExisting(id);
+    const { canDelete, blockers } = await this.deletionCheck(id);
+    if (!canDelete) {
+      throw new ConflictException(
+        ['No es pot eliminar la persona.', ...personDeletionBlockerReasons(blockers)].join(' '),
+      );
+    }
+    await this.personRepository.delete(id);
+    return person;
+  }
+
+  private async findExisting(id: string): Promise<Person> {
+    const person = await this.personRepository.findOne({ where: { id } });
+    if (!person) throw new NotFoundException(`Person with ID ${id} not found`);
+    return person;
+  }
+
+  private async deletionCheck(id: string): Promise<PersonDeletionCheck> {
+    const [row] = await this.personRepository.query(DELETION_BLOCKERS_QUERY, [id]);
+    const blockers = {
+      assignments: row.assignments,
+      attendances: row.attendances,
+      hasUser: row.hasUser,
+      menteeCount: row.menteeCount,
+    };
+    return { canDelete: personDeletionBlockerReasons(blockers).length === 0, blockers };
   }
 
   /** Reactiva una persona prèviament desactivada manualment. */

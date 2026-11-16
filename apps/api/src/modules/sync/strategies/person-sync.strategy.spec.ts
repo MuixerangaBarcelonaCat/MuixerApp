@@ -10,6 +10,7 @@ import { Tag } from '../../tag/tag.entity';
 import { AvailabilityStatus, OnboardingStatus, DelegateType } from '@muixer/shared';
 import { User } from '../../user/user.entity';
 import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
+import { SyncEvent } from '../interfaces/sync-event.interface';
 
 // Helper to build a fluent QueryBuilder mock where getOne returns a configurable value
 function makeQb(getOneResult: Person | null = null) {
@@ -351,7 +352,7 @@ describe('PersonSyncStrategy', () => {
       });
     });
 
-    it('creates a new person instead of reactivating one that was manually deactivated in MuixerApp', (done) => {
+    it('leaves a person deactivated in MuixerApp untouched: no update, no duplicate', (done) => {
       const deactivatedPerson = {
         id: 'uuid-1',
         legacyId: '123',
@@ -364,16 +365,34 @@ describe('PersonSyncStrategy', () => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
       personRepository.findOne.mockResolvedValue(deactivatedPerson);
+
+      const events: SyncEvent[] = [];
+      strategy.execute().subscribe({
+        next: (e) => events.push(e),
+        complete: () => {
+          expect(personRepository.create).not.toHaveBeenCalled();
+          expect(personRepository.save).not.toHaveBeenCalled();
+          expect(deactivatedPerson.name).toBe('OldName');
+          expect(deactivatedPerson.isActive).toBe(false);
+          const summary = events[events.length - 1];
+          expect(summary.detail).toEqual(expect.objectContaining({ new: 0, updated: 0, skipped: 1 }));
+          done();
+        },
+      });
+    });
+
+    it('prefers the active record when an old duplicate shares the legacyId', (done) => {
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
+      personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockImplementation((d) => d as Person);
-      personRepository.save.mockResolvedValue({} as Person);
+      personRepository.save.mockImplementation(async (d) => d as Person);
 
       strategy.execute().subscribe({
         complete: () => {
-          expect(personRepository.create).toHaveBeenCalledWith(
-            expect.objectContaining({ legacyId: '123', name: 'Joan', isActive: true }),
+          expect(personRepository.findOne).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { legacyId: '123' }, order: { isActive: 'DESC' } }),
           );
-          // the manually-deactivated record itself must never be touched
-          expect(personRepository.save).not.toHaveBeenCalledWith(deactivatedPerson);
           done();
         },
       });

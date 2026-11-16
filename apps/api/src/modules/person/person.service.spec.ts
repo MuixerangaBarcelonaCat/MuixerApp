@@ -35,6 +35,7 @@ describe('PersonService', () => {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
     query: jest.fn().mockResolvedValue([]),
     createQueryBuilder: jest.fn(() => mockQueryBuilder),
   };
@@ -507,6 +508,53 @@ describe('PersonService', () => {
       expect(sql).toContain('"isProvisional"');
       expect(sql).toContain('"countsForStatistics"');
       expect(params).toEqual(['ASSISTIT', 'ACTUACIO', 'ASSAIG']);
+    });
+  });
+
+  describe('getDeletionCheck / hardDelete', () => {
+    const blockersRow = (o: Partial<Record<string, unknown>> = {}) => [
+      { assignments: 0, attendances: 0, hasUser: false, menteeCount: 0, ...o },
+    ];
+
+    it('404s for an unknown person', async () => {
+      mockPersonRepository.findOne.mockResolvedValue(null);
+      await expect(service.getDeletionCheck('nope')).rejects.toThrow(NotFoundException);
+      await expect(service.hardDelete('nope')).rejects.toThrow(NotFoundException);
+    });
+
+    it('reports a person nothing references as deletable', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '1', alias: 'pep' });
+      mockPersonRepository.query.mockResolvedValueOnce(blockersRow());
+      await expect(service.getDeletionCheck('1')).resolves.toEqual({
+        canDelete: true,
+        blockers: { assignments: 0, attendances: 0, hasUser: false, menteeCount: 0 },
+      });
+    });
+
+    it.each([
+      [{ assignments: 1 }],
+      [{ attendances: 4 }],
+      [{ hasUser: true }],
+      [{ menteeCount: 2 }],
+    ])('refuses to delete when %o and deletes nothing', async (blocker) => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '1', alias: 'pep' });
+      mockPersonRepository.query.mockResolvedValueOnce(blockersRow(blocker));
+      await expect(service.hardDelete('1')).rejects.toThrow(ConflictException);
+      expect(mockPersonRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('explains the blockers in the 409 message', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '1', alias: 'pep' });
+      mockPersonRepository.query.mockResolvedValueOnce(blockersRow({ attendances: 3 }));
+      await expect(service.hardDelete('1')).rejects.toThrow("Té 3 registres d'assistència.");
+    });
+
+    it('deletes the row and returns what was deleted', async () => {
+      const person = { id: '1', alias: 'pep', name: 'Pep' };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonRepository.query.mockResolvedValueOnce(blockersRow());
+      await expect(service.hardDelete('1')).resolves.toBe(person);
+      expect(mockPersonRepository.delete).toHaveBeenCalledWith('1');
     });
   });
 

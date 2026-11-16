@@ -112,7 +112,8 @@ Les etiquetes no es perden mai en importar. Les podeu treballar tranquil·lament
 ## Compte amb
 
 - **Només administració.** Amb un compte de tècnica, les pantalles d'importació s'obrin igual, però en fer «Inicia» apareix «Error de connexió amb el servidor». No és cap avaria: el compte no té permís per a importar.
-- **Desactivar algú que encara és a l'app antiga.** Si desactiveu al Dashboard una persona que encara és a l'app antiga, la importació següent la torna a crear com a persona nova i activa, amb un àlies diferent. Doneu-la de baixa primer a l'app antiga.
+- **Persones donades de baixa al Dashboard.** Si desmarqueu «Actiu» a una persona que encara és a l'app antiga, la importació la deixa com està: no la torna a activar, no n'actualitza les dades i no la duplica. El resum de la importació les compta com a «inactives omeses». L'assistència sí que s'hi continua important.
+- **Persones eliminades al Dashboard.** Si elimineu una persona que encara és a l'app antiga, la importació següent la torna a crear.
 - **Persones provisionals duplicades.** Si una persona provisional del Dashboard després s'apunta a l'app antiga, acabarà duplicada: MuixerApp no les lliga soles. Aviseu qui administra l'app.
 - **Respostes des del mòbil.** Per als events que vénen de l'app antiga, mana la resposta de l'app antiga. Una resposta donada a l'app del mòbil es pot perdre en la importació següent. Si a l'app antiga una resposta torna a estar en blanc, ací torna a «Pendent». Mentre hi haja importacions, la gent s'ha d'apuntar a l'app antiga.
 - **«Potser vinc».** En un assaig que encara no s'ha fet, «Potser vinc» de l'app antiga compta com «Ve». És l'única resposta afirmativa que l'app antiga ofereix abans d'un assaig. En una actuació, «Potser» queda com a «Pendent».

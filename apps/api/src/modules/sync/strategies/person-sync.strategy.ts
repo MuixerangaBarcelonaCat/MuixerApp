@@ -16,11 +16,13 @@ import {
 import { CollaSettingsService } from '../../colla-settings/colla-settings.service';
 import { formatDateOnly, getLocalToday } from '../../../common/utils/date.util';
 
+type UpsertOutcome = 'created' | 'updated' | 'skipped';
+
 /**
  * Estratègia de sincronització de persones des del legacy APPsistència.
  * Carrega totes les persones de `/api/castellers` i aplica la merge strategy
- * (CREATE per a noves o per a legacyIds que coincideixen amb una persona
- * desactivada manualment, UPDATE parcial per a existents actives).
+ * (CREATE per a noves, UPDATE parcial per a existents actives; una persona
+ * desactivada manualment s'omet: ni s'actualitza ni es duplica).
  * El sync MAI desactiva ni reactiva persones: la desactivació és sempre una
  * acció manual (`PersonService.deactivate`/`softDelete`), i el sync la respecta.
  */
@@ -120,6 +122,7 @@ export class PersonSyncStrategy implements SyncStrategy {
 
       let newCount = 0;
       let updateCount = 0;
+      let skippedCount = 0;
       let errorCount = 0;
       let warnCount = 0;
       const personsByUserId = new Map<string, Person[]>();
@@ -131,13 +134,24 @@ export class PersonSyncStrategy implements SyncStrategy {
             ? (emailToUser.get(legacyPerson.email.toLowerCase()) ?? null)
             : null;
 
-          const { person, wasNew } = await this.upsertPerson(legacyPerson, subscriber, () => warnCount++);
+          const { person, outcome } = await this.upsertPerson(legacyPerson, subscriber, () => warnCount++);
+          if (outcome === 'skipped') {
+            skippedCount++;
+            subscriber.next({
+              type: 'progress',
+              entity: 'person',
+              current: i + 1,
+              total: legacyPersons.length,
+              message: `${legacyPerson.mote || legacyPerson.nom} (inactiva, omesa)`,
+            });
+            continue;
+          }
           if (matchedUser) {
             const group = personsByUserId.get(matchedUser.id) ?? [];
             group.push(person);
             personsByUserId.set(matchedUser.id, group);
           }
-          if (wasNew) {
+          if (outcome === 'created') {
             newCount++;
             subscriber.next({
               type: 'progress',
@@ -185,8 +199,8 @@ export class PersonSyncStrategy implements SyncStrategy {
       subscriber.next({
         type: 'complete',
         entity: 'sync',
-        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${errorCount} errors${warnSuffix}`,
-        detail: { new: newCount, updated: updateCount, errors: errorCount, aliasWarnings: warnCount },
+        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${skippedCount} inactives omeses, ${errorCount} errors${warnSuffix}`,
+        detail: { new: newCount, updated: updateCount, skipped: skippedCount, errors: errorCount, aliasWarnings: warnCount },
       });
 
       subscriber.complete();
@@ -362,27 +376,26 @@ export class PersonSyncStrategy implements SyncStrategy {
     legacyPerson: LegacyPerson,
     subscriber: Subscriber<SyncEvent>,
     onWarn: () => void,
-  ): Promise<{ person: Person; wasNew: boolean }> {
+  ): Promise<{ person: Person; outcome: UpsertOutcome }> {
+    // Older syncs could leave two persons with one legacyId (a deactivated one plus
+    // the duplicate created for it): the active one is the record to keep updating.
     const existing = await this.personRepository.findOne({
       where: { legacyId: legacyPerson.id },
       relations: ['positions'],
+      order: { isActive: 'DESC' },
     });
 
-    // A manually-deactivated person (BUG-9) must never be silently reactivated by
-    // sync. Treat this legacyId as if it were new: create a fresh, active person
-    // and leave the deactivated record untouched.
-    if (!existing || !existing.isActive) {
-      return this.createPerson(legacyPerson, subscriber, onWarn);
-    } else {
-      return this.updatePerson(existing, legacyPerson, subscriber, onWarn);
-    }
+    if (!existing) return this.createPerson(legacyPerson, subscriber, onWarn);
+    // Deactivated in MuixerApp: the sync never reactivates, edits or duplicates it.
+    if (!existing.isActive) return { person: existing, outcome: 'skipped' };
+    return this.updatePerson(existing, legacyPerson, subscriber, onWarn);
   }
 
   private async createPerson(
     legacyPerson: LegacyPerson,
     subscriber: Subscriber<SyncEvent>,
     onWarn: () => void,
-  ): Promise<{ person: Person; wasNew: boolean }> {
+  ): Promise<{ person: Person; outcome: UpsertOutcome }> {
     const alias = await this.deriveUniqueAlias(legacyPerson, undefined, subscriber, onWarn);
     const isXicallaManual = this.deriveIsXicalla(legacyPerson.posicio);
 
@@ -408,7 +421,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     });
 
     const saved = await this.personRepository.save(person);
-    return { person: saved, wasNew: true };
+    return { person: saved, outcome: 'created' };
   }
 
   private async updatePerson(
@@ -416,7 +429,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     legacyPerson: LegacyPerson,
     subscriber: Subscriber<SyncEvent>,
     onWarn: () => void,
-  ): Promise<{ person: Person; wasNew: boolean }> {
+  ): Promise<{ person: Person; outcome: UpsertOutcome }> {
     // Update identity fields (always sync from legacy)
     existing.name = legacyPerson.nom;
     existing.firstSurname = legacyPerson.cognom1;
@@ -435,14 +448,13 @@ export class PersonSyncStrategy implements SyncStrategy {
     const legacyShirtDate = this.parseDate(legacyPerson.instant_camisa);
     if (legacyShirtDate) existing.shirtDate = legacyShirtDate;
 
-    // existing.isActive is already true here — upsertPerson() routes inactive
-    // (manually-deactivated) persons to createPerson() instead.
+    // existing.isActive is already true here — upsertPerson() skips inactive persons.
     existing.lastSyncedAt = new Date();
 
     // NEVER update: positions, isXicallaManual, notes (MuixerApp owns these)
 
     const saved = await this.personRepository.save(existing);
-    return { person: saved, wasNew: false };
+    return { person: saved, outcome: 'updated' };
   }
 
   // ---------------------------------------------------------------------------

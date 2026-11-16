@@ -17,6 +17,8 @@ import { ToastService } from '@muixer/ui';
 import { signal } from '@angular/core';
 import { CollaSettings, DEFAULT_COLLA_SETTINGS } from '@muixer/shared';
 import { CollaSettingsService } from '../../../../core/services/colla-settings.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
+import { Router } from '@angular/router';
 
 const makePerson = (overrides: Partial<Person> = {}): Person => ({
   id: 'p1',
@@ -71,10 +73,13 @@ describe('PersonDetailComponent', () => {
     updateDelegate: ReturnType<typeof vi.fn>;
   };
   const collaSettings = signal<CollaSettings>(DEFAULT_COLLA_SETTINGS);
+  const isAdmin = signal(false);
   let mockPersonService: {
     getOne: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     createInviteLink: ReturnType<typeof vi.fn>;
+    getDeletionCheck: ReturnType<typeof vi.fn>;
+    deletePermanently: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -89,6 +94,8 @@ describe('PersonDetailComponent', () => {
       createInviteLink: vi.fn().mockReturnValue(
         of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
       ),
+      getDeletionCheck: vi.fn(),
+      deletePermanently: vi.fn().mockReturnValue(of(void 0)),
     };
 
     await TestBed.configureTestingModule({
@@ -101,6 +108,7 @@ describe('PersonDetailComponent', () => {
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
         { provide: PersonDelegateService, useValue: mockDelegateService },
         { provide: CollaSettingsService, useValue: { settings: collaSettings } },
+        { provide: AuthService, useValue: { isAdmin } },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -112,9 +120,66 @@ describe('PersonDetailComponent', () => {
     }).compileComponents();
 
     collaSettings.set(DEFAULT_COLLA_SETTINGS);
+    isAdmin.set(false);
     fixture = TestBed.createComponent(PersonDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  describe('permanent deletion', () => {
+    const noBlockers = { assignments: 0, attendances: 0, hasUser: false, menteeCount: 0 };
+    const editAs = (admin: boolean) => {
+      isAdmin.set(admin);
+      component.person.set(makePerson());
+      component.editing.set(true);
+      fixture.detectChanges();
+    };
+    const deleteButton = (): HTMLButtonElement | undefined =>
+      (Array.from(fixture.nativeElement.querySelectorAll('[data-delete-person] button')) as HTMLButtonElement[])[0];
+    const modalText = () => (fixture.nativeElement.querySelector('[data-delete-person-modal]') as HTMLElement).textContent ?? '';
+    const confirmButton = () =>
+      fixture.nativeElement.querySelector('[data-delete-person-confirm] button') as HTMLButtonElement | null;
+
+    it('is not offered to a technician', () => {
+      editAs(false);
+      expect(deleteButton()).toBeUndefined();
+    });
+
+    it('is offered to an admin only while editing', () => {
+      editAs(true);
+      expect(deleteButton()?.textContent?.trim()).toBe('Elimina');
+      component.editing.set(false);
+      fixture.detectChanges();
+      expect(deleteButton()).toBeUndefined();
+    });
+
+    it('explains why a person with history cannot be deleted, without a confirm button', () => {
+      mockPersonService.getDeletionCheck.mockReturnValue(
+        of({ canDelete: false, blockers: { ...noBlockers, attendances: 3, hasUser: true } }),
+      );
+      editAs(true);
+      deleteButton()!.click();
+      fixture.detectChanges();
+
+      expect(mockPersonService.getDeletionCheck).toHaveBeenCalledWith('p1');
+      expect(modalText()).toContain("Té 3 registres d'assistència.");
+      expect(modalText()).toContain("Té un compte d'usuari vinculat.");
+      expect(confirmButton()).toBeNull();
+    });
+
+    it('deletes after confirmation and goes back to the list', () => {
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      mockPersonService.getDeletionCheck.mockReturnValue(of({ canDelete: true, blockers: noBlockers }));
+      editAs(true);
+      deleteButton()!.click();
+      fixture.detectChanges();
+
+      expect(modalText()).toContain('no es pot desfer');
+      confirmButton()!.click();
+
+      expect(mockPersonService.deletePermanently).toHaveBeenCalledWith('p1');
+      expect(navigate).toHaveBeenCalledWith(['/persons']);
+    });
   });
 
   describe('xicalla', () => {

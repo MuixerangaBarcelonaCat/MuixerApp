@@ -67,6 +67,7 @@ import { RenameIsXicallaToManual1786700000000 } from './1786700000000-RenameIsXi
 import { AddRefreshTokenUserAgent1786800000000 } from './1786800000000-AddRefreshTokenUserAgent';
 import { AddPushSubscriptionTestedAudit1787000000000 } from './1787000000000-AddPushSubscriptionTestedAudit';
 import { AddUserPwaInstalledAt1787100000000 } from './1787100000000-AddUserPwaInstalledAt';
+import { AddPersonDeletedAudit1787200000000 } from './1787200000000-AddPersonDeletedAudit';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -137,4 +138,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddRefreshTokenUserAgent1786800000000,
   AddPushSubscriptionTestedAudit1787000000000,
   AddUserPwaInstalledAt1787100000000,
+  AddPersonDeletedAudit1787200000000,
 ];
