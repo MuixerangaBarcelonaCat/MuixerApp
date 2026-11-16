@@ -8,6 +8,7 @@ import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
 import { PersonResponseDto } from './dto/person-response.dto';
 import { Tag } from '../tag/tag.entity';
+import { AuditLog } from '../audit/audit-log.entity';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import {
   PERSON_SORT_COLUMN_MAP,
@@ -17,6 +18,7 @@ import {
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
 import {
   AttendanceStatus,
+  AuditAction,
   CollaSettings,
   EventType,
   PersonDeletionCheck,
@@ -520,18 +522,31 @@ export class PersonService {
   /**
    * Esborrat definitiu: només si res no hi apunta (assignacions, assistència, compte d'usuari,
    * mentoria); si no, 409 amb els motius. Etiquetes i delegacions cauen en cascada (FK).
-   * Retorna la persona esborrada perquè el controlador la puga auditar.
+   * Una sola transacció: `FOR UPDATE` sobre la fila de la persona fa esperar qualsevol inserció
+   * concurrent que hi apunte (la FK pren `FOR KEY SHARE`), així que la comprovació no pot quedar
+   * obsoleta abans del DELETE; i l'auditoria es grava o es desfà amb l'esborrat. L'auditoria
+   * guarda només l'àlies (no és dada personal), mai el nom.
    */
-  async hardDelete(id: string): Promise<Person> {
-    const person = await this.findExisting(id);
-    const { canDelete, blockers } = await this.deletionCheck(id);
-    if (!canDelete) {
-      throw new ConflictException(
-        ['No es pot eliminar la persona.', ...personDeletionBlockerReasons(blockers)].join(' '),
-      );
-    }
-    await this.personRepository.delete(id);
-    return person;
+  async hardDelete(id: string, actor: { actorUserId: string | null; ipAddress: string | null }): Promise<void> {
+    await this.personRepository.manager.transaction(async (manager) => {
+      const [person] = await manager.query(`SELECT alias FROM persons WHERE id = $1 FOR UPDATE`, [id]);
+      if (!person) throw new NotFoundException(`Person with ID ${id} not found`);
+      const { canDelete, blockers } = await this.deletionCheck(id, manager);
+      if (!canDelete) {
+        throw new ConflictException(
+          ['No es pot eliminar la persona.', ...personDeletionBlockerReasons(blockers)].join(' '),
+        );
+      }
+      await manager.delete(Person, id);
+      await manager.insert(AuditLog, {
+        actorUserId: actor.actorUserId,
+        action: AuditAction.PERSON_DELETED,
+        targetType: 'Person',
+        targetId: id,
+        metadata: { alias: person.alias },
+        ipAddress: actor.ipAddress,
+      });
+    });
   }
 
   private async findExisting(id: string): Promise<Person> {
@@ -540,14 +555,11 @@ export class PersonService {
     return person;
   }
 
-  private async deletionCheck(id: string): Promise<PersonDeletionCheck> {
-    const [row] = await this.personRepository.query(DELETION_BLOCKERS_QUERY, [id]);
-    const blockers = {
-      assignments: row.assignments,
-      attendances: row.attendances,
-      hasUser: row.hasUser,
-      menteeCount: row.menteeCount,
-    };
+  private async deletionCheck(
+    id: string,
+    runner: Pick<EntityManager, 'query'> = this.personRepository,
+  ): Promise<PersonDeletionCheck> {
+    const [blockers] = await runner.query(DELETION_BLOCKERS_QUERY, [id]);
     return { canDelete: personDeletionBlockerReasons(blockers).length === 0, blockers };
   }
 

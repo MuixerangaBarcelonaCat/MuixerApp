@@ -2,7 +2,7 @@ import { PersonAssignmentEntry } from '@muixer/pinyes-render';
 import { TagCategory } from '@muixer/shared';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { DelegateType } from '@muixer/shared';
 import { PersonDetailComponent } from './person-detail.component';
@@ -165,6 +165,20 @@ describe('PersonDetailComponent', () => {
       expect(modalText()).toContain("Té 3 registres d'assistència.");
       expect(modalText()).toContain("Té un compte d'usuari vinculat.");
       expect(confirmButton()).toBeNull();
+    });
+
+    it('asks for the deletion check only once while one is in flight', () => {
+      const pending = new Subject<{ canDelete: boolean; blockers: typeof noBlockers }>();
+      mockPersonService.getDeletionCheck.mockReturnValue(pending);
+      editAs(true);
+
+      component.openDeletePerson();
+      component.openDeletePerson();
+      expect(mockPersonService.getDeletionCheck).toHaveBeenCalledTimes(1);
+
+      pending.next({ canDelete: true, blockers: noBlockers });
+      component.openDeletePerson();
+      expect(mockPersonService.getDeletionCheck).toHaveBeenCalledTimes(2);
     });
 
     it('deletes after confirmation and goes back to the list', () => {

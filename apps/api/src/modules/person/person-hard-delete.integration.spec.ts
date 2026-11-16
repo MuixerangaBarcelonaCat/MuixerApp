@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AttendanceStatus, DelegateType, EventType, TagCategory, UserRole } from '@muixer/shared';
+import { AttendanceStatus, AuditAction, DelegateType, EventType, TagCategory, UserRole } from '@muixer/shared';
 import {
   IntegrationDb,
   realRepositoryProviders,
@@ -11,6 +11,7 @@ import {
 import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
+import { AuditLog } from '../audit/audit-log.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
@@ -71,9 +72,11 @@ describe('PersonService hardDelete (integration)', () => {
       canDelete: true,
       blockers: { assignments: 0, attendances: 0, hasUser: false, menteeCount: 0 },
     });
-    await service.hardDelete(person.id);
+    await service.hardDelete(person.id, { actorUserId: guardian.id, ipAddress: '10.0.0.5' });
 
     expect(await exists(person.id)).toBe(false);
+    const audit = await db.dataSource.getRepository(AuditLog).findOneByOrFail({ targetId: person.id });
+    expect(audit).toMatchObject({ action: AuditAction.PERSON_DELETED, metadata: { alias: 'pep' } });
     expect(await db.dataSource.getRepository(PersonDelegate).count()).toBe(0);
     expect(await db.dataSource.getRepository(Tag).count({ where: { id: tag.id } })).toBe(1);
   });
@@ -95,7 +98,10 @@ describe('PersonService hardDelete (integration)', () => {
       canDelete: false,
       blockers: { assignments: 0, attendances: 1, hasUser: true, menteeCount: 1 },
     });
-    await expect(service.hardDelete(person.id)).rejects.toThrow(ConflictException);
+    await expect(
+      service.hardDelete(person.id, { actorUserId: null, ipAddress: null }),
+    ).rejects.toThrow(ConflictException);
     expect(await exists(person.id)).toBe(true);
+    expect(await db.dataSource.getRepository(AuditLog).count()).toBe(0);
   });
 });

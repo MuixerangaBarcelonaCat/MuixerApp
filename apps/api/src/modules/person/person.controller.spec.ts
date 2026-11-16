@@ -82,30 +82,16 @@ describe('PersonController', () => {
       expect(Reflect.getMetadata(PATH_METADATA, PersonController.prototype.deletionCheck)).toBe(':id/deletion-check');
     });
 
-    it('audits the deletion with who was deleted', async () => {
-      personService.hardDelete.mockResolvedValue({ id: 'person-1', alias: 'pep', name: 'Pep' });
+    it('passes who deleted and from where to the service, which audits it', async () => {
+      personService.hardDelete.mockResolvedValue(undefined);
       const currentUser = { sub: 'user-1', role: UserRole.ADMIN } as JwtPayload;
 
       await controller.removePermanently('person-1', currentUser, { ip: '10.0.0.5' } as Request);
 
-      expect(personService.hardDelete).toHaveBeenCalledWith('person-1');
-      expect(auditService.record).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: AuditAction.PERSON_DELETED,
-          actorUserId: 'user-1',
-          targetType: 'Person',
-          targetId: 'person-1',
-          metadata: { alias: 'pep', name: 'Pep' },
-        }),
-      );
-    });
-
-    it('does not audit when the service refuses', async () => {
-      personService.hardDelete.mockRejectedValue(new Error('409'));
-      await expect(
-        controller.removePermanently('person-1', { sub: 'u' } as JwtPayload, {} as Request),
-      ).rejects.toThrow('409');
-      expect(auditService.record).not.toHaveBeenCalled();
+      expect(personService.hardDelete).toHaveBeenCalledWith('person-1', {
+        actorUserId: 'user-1',
+        ipAddress: '10.0.0.5',
+      });
     });
   });
 

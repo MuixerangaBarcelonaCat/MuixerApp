@@ -150,15 +150,7 @@ export class PersonController {
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
   ): Promise<void> {
-    const deleted = await this.personService.hardDelete(id);
-    await this.auditService.record({
-      actorUserId: user.sub,
-      action: AuditAction.PERSON_DELETED,
-      targetType: 'Person',
-      targetId: id,
-      metadata: { alias: deleted.alias, name: deleted.name },
-      ipAddress: req.ip ?? null,
-    });
+    await this.personService.hardDelete(id, { actorUserId: user.sub, ipAddress: req.ip ?? null });
   }
 
   @Patch(':id/activate')

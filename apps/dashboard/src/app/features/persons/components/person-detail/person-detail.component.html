@@ -35,7 +35,7 @@
 
       @if (editing() && isAdmin()) {
         <span data-delete-person>
-          <lib-button variant="error" outline size="sm" (clicked)="openDeletePerson()">Elimina</lib-button>
+          <lib-button variant="error" outline size="sm" [loading]="checkingDeletion()" (clicked)="openDeletePerson()">Elimina</lib-button>
         </span>
       }
       @if (editing()) {

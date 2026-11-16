@@ -133,6 +133,7 @@ export class PersonDetailComponent implements OnInit {
   saveError = signal<string | null>(null);
   saveSuccess = signal(false);
   deletingPerson = signal(false);
+  checkingDeletion = signal(false);
   /** Resultat de `deletion-check` mentre el modal d'eliminació és obert; `null` = tancat. */
   deletionCheck = signal<PersonDeletionCheck | null>(null);
   readonly deletionBlockers = computed(() => {
@@ -549,10 +550,17 @@ export class PersonDetailComponent implements OnInit {
 
   openDeletePerson(): void {
     const person = this.person();
-    if (!person) return;
+    if (!person || this.checkingDeletion()) return;
+    this.checkingDeletion.set(true);
     this.personService.getDeletionCheck(person.id).subscribe({
-      next: (check) => this.deletionCheck.set(check),
-      error: () => this.toast.error('No s\'ha pogut comprovar si es pot eliminar la persona.'),
+      next: (check) => {
+        this.checkingDeletion.set(false);
+        this.deletionCheck.set(check);
+      },
+      error: () => {
+        this.checkingDeletion.set(false);
+        this.toast.error('No s\'ha pogut comprovar si es pot eliminar la persona.');
+      },
     });
   }
 
