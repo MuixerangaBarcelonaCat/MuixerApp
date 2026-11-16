@@ -489,4 +489,116 @@ describe('EventParticipationService (integration)', () => {
       expect(result.nextPerformance).toBeNull();
     });
   });
+
+  describe('includeNextPerformance (quadre de troncs)', () => {
+    async function seedRehearsalAndPerformance() {
+      await db.dataSource.getRepository(Season).save({
+        name: `Temporada-${shortId()}`,
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-12-31'),
+      } as unknown as Season);
+      const assaig = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ASSAIG,
+        title: 'Assaig',
+        date: new Date('2026-05-01'),
+      } as unknown as Event);
+      const actuacio = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ACTUACIO,
+        title: 'Actuació',
+        date: new Date('2026-06-15'),
+      } as unknown as Event);
+
+      const coming = await makePerson('VINC');
+      await setAttendance(assaig, coming, AttendanceStatus.ANIRE);
+
+      // Declined the rehearsal, coming to the performance.
+      const declined = await makePerson('NOVINC');
+      await setAttendance(assaig, declined, AttendanceStatus.NO_VAIG);
+      await setAttendance(actuacio, declined, AttendanceStatus.ANIRE);
+
+      // Never answered the rehearsal, coming to the performance.
+      const silent = await makePerson('CALLAT');
+      await setAttendance(actuacio, silent, AttendanceStatus.ANIRE);
+
+      // Declined the performance too: never shown.
+      const neither = await makePerson('CAP');
+      await setAttendance(actuacio, neither, AttendanceStatus.NO_VAIG);
+
+      return { assaig, actuacio };
+    }
+
+    it('adds performance-only attendees when includeNextPerformance is set', async () => {
+      const { assaig } = await seedRehearsalAndPerformance();
+
+      const result = await service.getEventParticipation(assaig.id, { includeNextPerformance: true });
+      const byAlias = new Map(result.persons.map((p) => [p.alias, p]));
+
+      expect([...byAlias.keys()].sort()).toEqual(['CALLAT', 'NOVINC', 'VINC']);
+      expect(byAlias.get('NOVINC')!.attendanceStatus).toBe(AttendanceStatus.NO_VAIG);
+      expect(byAlias.get('NOVINC')!.nextPerformanceStatus).toBe(AttendanceStatus.ANIRE);
+      expect(byAlias.get('CALLAT')!.attendanceStatus).toBe(AttendanceStatus.PENDENT);
+      expect(byAlias.get('CALLAT')!.nextPerformanceStatus).toBe(AttendanceStatus.ANIRE);
+    });
+
+    it('leaves the population unchanged without the flag', async () => {
+      const { assaig } = await seedRehearsalAndPerformance();
+
+      const result = await service.getEventParticipation(assaig.id);
+
+      expect(result.persons.map((p) => p.alias)).toEqual(['VINC']);
+    });
+
+    it('ignores the flag for a performance', async () => {
+      const { actuacio } = await seedRehearsalAndPerformance();
+
+      const result = await service.getEventParticipation(actuacio.id, { includeNextPerformance: true });
+
+      expect(result.persons.map((p) => p.alias).sort()).toEqual(['CALLAT', 'NOVINC']);
+      expect(result.nextPerformance).toBeNull();
+    });
+
+    it('ignores the flag for a rehearsal with no next performance', async () => {
+      const assaig = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ASSAIG,
+        title: 'Assaig orfe',
+        date: '2031-03-01',
+      } as unknown as Event);
+      await setAttendance(assaig, await makePerson('VINC'), AttendanceStatus.ANIRE);
+
+      const result = await service.getEventParticipation(assaig.id, { includeNextPerformance: true });
+
+      expect(result.persons.map((p) => p.alias)).toEqual(['VINC']);
+      expect(result.nextPerformance).toBeNull();
+    });
+
+    it('runs the same number of queries with and without the flag (N+1 guard)', async () => {
+      const { assaig } = await seedRehearsalAndPerformance();
+      const spy = jest.spyOn(db.dataSource, 'query');
+
+      await service.getEventParticipation(assaig.id);
+      const withoutFlag = spy.mock.calls.length;
+      spy.mockClear();
+      await service.getEventParticipation(assaig.id, { includeNextPerformance: true });
+
+      // Segments + next performance + matrix + tags + next-performance attendance.
+      expect(withoutFlag).toBe(5);
+      expect(spy).toHaveBeenCalledTimes(5);
+      spy.mockRestore();
+    });
+
+    it('runs 3 queries for an empty rehearsal with the flag', async () => {
+      const event = await db.dataSource.getRepository(Event).save({
+        eventType: EventType.ASSAIG,
+        title: 'Buit',
+        date: new Date('2026-06-02'),
+      } as unknown as Event);
+      const spy = jest.spyOn(db.dataSource, 'query');
+
+      const result = await service.getEventParticipation(event.id, { includeNextPerformance: true });
+
+      expect(result.persons).toEqual([]);
+      expect(spy).toHaveBeenCalledTimes(3);
+      spy.mockRestore();
+    });
+  });
 });

@@ -91,7 +91,16 @@ export class EventParticipationService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async getEventParticipation(eventId: string): Promise<EventParticipationOverview> {
+  /**
+   * @param options.includeNextPerformance also brings in whoever is coming (`ANIRE`) to the
+   *   next performance, whatever their status at this rehearsal — the quadre de troncs needs
+   *   them. Off by default so the Participació tab keeps its population. No-op for an
+   *   actuació or a rehearsal with no next performance.
+   */
+  async getEventParticipation(
+    eventId: string,
+    options: { includeNextPerformance?: boolean } = {},
+  ): Promise<EventParticipationOverview> {
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event no trobat.');
@@ -100,7 +109,21 @@ export class EventParticipationService {
     const segments = await this.loadSegments(eventId);
     const segmentIds = segments.map((s) => s.id);
 
-    const matrixRows = await this.loadMatrix(eventId, segmentIds);
+    const isRehearsal = event.eventType === EventType.ASSAIG;
+    // With the flag the next performance is needed to build the population, so it is resolved
+    // up front; without it the original order stands (resolved below, only with participants).
+    let nextPerformance: { id: string; title: string; date: string } | null = null;
+    let nextPerformanceResolved = false;
+    if (options.includeNextPerformance && isRehearsal) {
+      nextPerformance = await this.resolveNextPerformance(this.toDateString(event.date));
+      nextPerformanceResolved = true;
+    }
+
+    const matrixRows = await this.loadMatrix(
+      eventId,
+      segmentIds,
+      options.includeNextPerformance ? (nextPerformance?.id ?? null) : null,
+    );
     const personIds = [...new Set(matrixRows.map((r) => r.personId))];
 
     // Skipped entirely when there is nobody to describe — keeps an empty event at 2 queries.
@@ -109,10 +132,11 @@ export class EventParticipationService {
 
     // Q4 — only meaningful for a rehearsal with somebody to describe: an actuació never gets one.
     // A rehearsal whose date is in no season gets none either (Q4a finds no season to scope by).
-    let nextPerformance: { id: string; title: string; date: string } | null = null;
     let nextPerformanceAttendance = new Map<string, AttendanceStatus>();
-    if (event.eventType === EventType.ASSAIG && personIds.length > 0) {
-      nextPerformance = await this.resolveNextPerformance(this.toDateString(event.date));
+    if (isRehearsal && personIds.length > 0) {
+      if (!nextPerformanceResolved) {
+        nextPerformance = await this.resolveNextPerformance(this.toDateString(event.date));
+      }
       if (nextPerformance) {
         nextPerformanceAttendance = await this.loadNextPerformanceAttendance(
           nextPerformance.id,
@@ -211,7 +235,11 @@ export class EventParticipationService {
    * than joining `figure_instances`, which saves two joins and hits the
    * `(segmentId, personId)` index directly.
    */
-  private async loadMatrix(eventId: string, segmentIds: string[]): Promise<MatrixRow[]> {
+  private async loadMatrix(
+    eventId: string,
+    segmentIds: string[],
+    nextPerformanceId: string | null,
+  ): Promise<MatrixRow[]> {
     return this.dataSource.query(
       // The `::uuid[]` casts are required, not cosmetic: with an empty segment list
       // Postgres cannot infer the array element type and the query fails.
@@ -226,6 +254,11 @@ export class EventParticipationService {
          SELECT na."personId" AS id
          FROM node_assignments na
          WHERE na."segmentId" = ANY($2::uuid[])
+         UNION -- opt-in: coming to the next performance (matches nothing when $4 is null)
+         SELECT np."personId" AS id
+         FROM attendances np
+         WHERE np."eventId" = $4::uuid
+           AND np.status::text = 'ANIRE'
        )
        SELECT p.id                 AS "personId",
               p.alias              AS "alias",
@@ -257,7 +290,7 @@ export class EventParticipationService {
        LEFT JOIN instance_nodes inode ON inode.id = na."instanceNodeId"
        LEFT JOIN figure_templates tpl ON tpl.id   = fi."figureTemplateId"
        ORDER BY p.id, na."segmentId", inode.zone, inode.z, inode.label`,
-      [eventId, segmentIds, CONFIRMED_STATUSES as unknown as string[]],
+      [eventId, segmentIds, CONFIRMED_STATUSES as unknown as string[], nextPerformanceId],
     );
   }
 

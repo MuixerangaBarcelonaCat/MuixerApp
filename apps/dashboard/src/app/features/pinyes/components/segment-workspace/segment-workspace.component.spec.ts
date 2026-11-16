@@ -27,6 +27,12 @@ class StubImportModal {
   readonly closed = output<void>();
 }
 
+@Component({ selector: 'app-quadre-troncs-modal', standalone: true, template: '' })
+class StubQuadreModal {
+  readonly eventId = input.required<string>();
+  readonly closed = output<void>();
+}
+
 @Component({ selector: 'app-pinyes-tab', standalone: true, template: '' })
 class StubPinyesTab {
   readonly phase = input('before');
@@ -183,6 +189,7 @@ describe('SegmentWorkspaceComponent', () => {
           StubSegmentConflictPanel,
           TemplateEditorHelpModalComponent,
           StubImportModal,
+          StubQuadreModal,
         ],
         },
       })
@@ -245,6 +252,39 @@ describe('SegmentWorkspaceComponent', () => {
   it('activates the tab from the tab query param', async () => {
     const fixture = await setup({ queryParams: { tab: 'troncs' } });
     expect(fixture.componentInstance.activeTab()).toBe('troncs');
+  });
+
+  describe('quadre de persones', () => {
+    const quadreButton = (f: ComponentFixture<SegmentWorkspaceComponent>) =>
+      f.nativeElement.querySelector(`header button[aria-label="Obri el quadre de persones de l'event"]`) as HTMLButtonElement | null;
+
+    it('offers the «Quadre» button on the Troncs tab, even with no troncs to import', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      ws.instances.set([]);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.importCandidates()).toEqual([]);
+      expect(quadreButton(fixture)).not.toBeNull();
+    });
+
+    it('stays enabled on a locked event: the quadre is read-only', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      ws.isLocked.set(true);
+      fixture.detectChanges();
+      expect(quadreButton(fixture)!.disabled).toBe(false);
+    });
+
+    it('does not offer it on the Pinyes tab', async () => {
+      const fixture = await setup();
+      expect(quadreButton(fixture)).toBeNull();
+    });
+
+    it('opens the quadre for the workspace event', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      quadreButton(fixture)!.click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.quadreOpen()).toBe(true);
+      expect(fixture.nativeElement.querySelector('app-quadre-troncs-modal')).not.toBeNull();
+    });
   });
 
   it('falls back to pinyes for an unknown tab query param', async () => {
