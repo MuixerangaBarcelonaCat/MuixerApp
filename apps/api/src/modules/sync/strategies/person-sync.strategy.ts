@@ -527,7 +527,8 @@ export class PersonSyncStrategy implements SyncStrategy {
     const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!match) return null;
     const [, day, month, year] = match;
-    return new Date(`${year}-${month}-${day}`);
+    // Local components: TypeORM writes a `date` column with local components, so UTC midnight can shift the day.
+    return new Date(+year, +month - 1, +day);
   }
 
   private parseInteger(str: string): number | null {

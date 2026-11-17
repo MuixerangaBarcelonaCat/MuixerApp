@@ -1,3 +1,4 @@
+import { DateUtils } from 'typeorm/util/DateUtils';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -718,6 +719,19 @@ describe('PersonSyncStrategy', () => {
   });
 
   // ─── parseTimestamp / mappers (pure functions) ───────────────────────────────
+
+  describe('legacy date parsing', () => {
+    // Meaningful when run with TZ=Europe/Madrid (jest.config defaults to UTC, where this can't fail).
+    // TypeORM writes a Date to a `date` column with LOCAL components, so the stored day
+    // must match the legacy day whatever the process timezone (01/01/1111 once became 1110-12-31).
+    it.each([
+      ['01/01/1111', '1111-01-01'],
+      ['17/04/1991', '1991-04-17'],
+    ])('stores %s as the same calendar day', (legacy, expected) => {
+      const parsed = (strategy as any).parseDate(legacy) as Date;
+      expect(DateUtils.mixedDateToDateString(parsed)).toBe(expected);
+    });
+  });
 
   describe('mappers', () => {
     it('maps injured person to LONG_TERM_UNAVAILABLE', (done) => {
