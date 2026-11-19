@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { InviteLinkResponse, ShirtCandidate } from '@muixer/shared';
+import { InviteLinkResponse, PersonDeletionCheck, ShirtCandidate } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -47,6 +47,16 @@ export class PersonService extends ApiService {
   /** Actualitza parcialment una persona. Usat per edicions de detall i per a les transicions provisional↔regular. */
   update(id: string, payload: Partial<UpdatePersonDto>): Observable<Person> {
     return this.patch<Person>(`/persons/${id}`, payload);
+  }
+
+  /** Què impedeix esborrar definitivament una persona (només ADMIN). */
+  getDeletionCheck(id: string): Observable<PersonDeletionCheck> {
+    return this.get<PersonDeletionCheck>(`/persons/${id}/deletion-check`);
+  }
+
+  /** Esborra definitivament una persona sense historial (només ADMIN; 409 si encara en té). */
+  deletePermanently(id: string): Observable<void> {
+    return this.delete<void>(`/persons/${id}/permanent`);
   }
 
   /** Crea (o regenera) l'enllaç d'invitació d'una persona sense compte actiu. */

@@ -107,6 +107,19 @@ La persona queda com a **provisional**:
 
 Recordeu que alguns camps els torna a escriure l'app antiga en cada importació (vegeu «Compte amb»).
 
+### Donar de baixa o eliminar una persona
+
+Per a donar algú de baixa, feu clic a «Edita», desmarqueu «Actiu» i feu clic a «Alça». La persona deixa d'eixir a les cerques i a l'assignació, però en conserva l'historial. La importació de l'app antiga no la torna a activar ni la duplica.
+
+Els administradors també poden eliminar-la definitivament:
+
+1. Feu clic a «Edita» i després a «Elimina».
+2. Si la persona no té res vinculat, apareix «Esteu segur que voleu eliminar…? Esta acció no es pot desfer.». Feu clic a «Elimina».
+
+Només es pot eliminar una persona sense registres d'assistència ni assignacions a figures, sense compte d'usuari vinculat i que no siga mentora de ningú. Si no és així, el diàleg diu què ho impedeix. En eixe cas, doneu-la de baixa. En eliminar-la, també s'esborren les etiquetes i les delegacions.
+
+![El diàleg d'eliminació quan la persona té historial](img/03-persona-eliminacio.png)
+
 ### Lliurar camises
 
 Per a rebre la camisa, cal haver anat a un nombre d'actuacions i d'assajos. Per defecte, 2 actuacions i 6 assajos, comptant totes les temporades. Els administradors ho canvien a [Configuració de la colla](21-configuracio-colla.md).
@@ -199,7 +212,7 @@ Per a llevar una delegació, en mode «Edita» feu clic a la «✕» del costat 
 
 - **Camps que torna a escriure l'app antiga.** En cada importació, l'app antiga torna a escriure nom, cognoms, àlies, telèfon, naixement, «Alçada espatlles», «Membre», «Acollida» i «Data camisa». En canvi, les etiquetes, el «Gènere», «Xicalla», les «Observacions tècniques» i les delegacions es mantenen. Vegeu [Dades de l'app antiga](02-dades-app-antiga.md).
 - **«Data camisa» i l'app antiga.** Si l'app antiga té una data de camisa, la importació la torna a escriure. Si no en té cap, la importació no esborra la que heu posat al Dashboard.
-- **No hi ha botó per a esborrar persones.** Per a donar algú de baixa, feu clic a «Edita», desmarqueu «Actiu» i feu clic a «Alça». Si la persona encara és a l'app antiga, la importació següent la tornarà a crear ([Dades de l'app antiga](02-dades-app-antiga.md)).
+- **Eliminar algú que encara és a l'app antiga.** Si elimineu una persona que encara és a l'app antiga, la importació següent la torna a crear. Per a això, millor doneu-la de baixa ([Dades de l'app antiga](02-dades-app-antiga.md)).
 - **Àlies repetits.** Dues persones no poden tindre el mateix àlies. Si ho proveu, apareix «Ja existeix una persona amb l'àlies…» (o «Ja existeix una persona provisional amb l'àlies…»). Recordeu que l'àlies d'una persona provisional comença per «~».
 - **La invitació.** Envieu-la el mateix dia: caduca als 3 dies. Cada clic en crea una de nova i l'anterior deixa de funcionar. Si la persona ja té el compte actiu, apareix «Aquesta persona ja té un compte actiu».
 - **L'adult responsable.** «Defineix adult responsable» només apareix si la persona no té compte ni responsable. L'adult ha de tindre compte, encara que estiga «Pendent d'activar». Per a la xicalla, la relació ha de ser «Pare/Mare» o «Tutor/a». Si no, apareix «El gestor principal d'un membre de la xicalla ha de ser pare/mare o tutor/a».

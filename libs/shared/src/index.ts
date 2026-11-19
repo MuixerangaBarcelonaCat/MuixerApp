@@ -55,5 +55,6 @@ export * from './interfaces/news.interface';
 export * from './interfaces/push-notification.interfaces';
 export * from './interfaces/user-device.interfaces';
 export * from './interfaces/shirt-candidate.interface';
+export * from './utils/person-deletion.util';
 export * from './interfaces/colla-settings.interface';
 export * from './utils/event-phase.util';

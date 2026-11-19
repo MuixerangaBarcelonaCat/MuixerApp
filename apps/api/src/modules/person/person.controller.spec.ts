@@ -6,6 +6,7 @@ import { PersonController } from './person.controller';
 import { PersonService } from './person.service';
 import { AuditService } from '../audit/audit.service';
 import { PersonFilterDto } from './dto/person-filter.dto';
+import { ROLES_KEY } from '../auth/constants/auth.constants';
 
 describe('PersonController', () => {
   let controller: PersonController;
@@ -13,6 +14,8 @@ describe('PersonController', () => {
     findAll: jest.fn(),
     findOne: jest.fn(),
     findShirtCandidates: jest.fn(),
+    getDeletionCheck: jest.fn(),
+    hardDelete: jest.fn(),
   };
   const auditService = {
     record: jest.fn().mockResolvedValue(undefined),
@@ -67,6 +70,28 @@ describe('PersonController', () => {
         }),
       );
       expect(result).toEqual({ id: 'person-1', alias: 'x' });
+    });
+  });
+
+  describe('permanent deletion', () => {
+    it('is ADMIN-only for both the check and the delete', () => {
+      for (const handler of [PersonController.prototype.deletionCheck, PersonController.prototype.removePermanently]) {
+        expect(Reflect.getMetadata(ROLES_KEY, handler)).toEqual([UserRole.ADMIN]);
+      }
+      expect(Reflect.getMetadata(PATH_METADATA, PersonController.prototype.removePermanently)).toBe(':id/permanent');
+      expect(Reflect.getMetadata(PATH_METADATA, PersonController.prototype.deletionCheck)).toBe(':id/deletion-check');
+    });
+
+    it('passes who deleted and from where to the service, which audits it', async () => {
+      personService.hardDelete.mockResolvedValue(undefined);
+      const currentUser = { sub: 'user-1', role: UserRole.ADMIN } as JwtPayload;
+
+      await controller.removePermanently('person-1', currentUser, { ip: '10.0.0.5' } as Request);
+
+      expect(personService.hardDelete).toHaveBeenCalledWith('person-1', {
+        actorUserId: 'user-1',
+        ipAddress: '10.0.0.5',
+      });
     });
   });
 

@@ -217,6 +217,19 @@ describe('AttendanceSyncStrategy', () => {
       expect(upserted).not.toHaveProperty('isLateCancel');
     });
 
+    it('matches the active person when an old inactive duplicate shares the legacyId', async () => {
+      const active = makePerson('100', { id: 'active', isActive: true } as Partial<Person>);
+      const inactive = makePerson('100', { id: 'inactive', isActive: false } as Partial<Person>);
+      personRepository.find.mockResolvedValue([active, inactive]);
+      (legacyApiClient.getAssistenciesXlsx as jest.Mock).mockResolvedValue([makeRow({ legacyPersonId: '100' })]);
+
+      const sub = { next: jest.fn() } as unknown as import('rxjs').Subscriber<SyncEvent>;
+      await strategy.syncAll(sub, [makeEvent()]);
+
+      const upserted = attendanceRepository.upsert.mock.calls[0][0][0];
+      expect(upserted.person).toEqual(expect.objectContaining({ id: 'active' }));
+    });
+
     it('counts lateCancel in summary for No vinc within 6h of past event', async () => {
       const person = makePerson('200');
       const event = makeEvent({

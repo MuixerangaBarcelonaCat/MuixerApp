@@ -8,6 +8,7 @@ import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
 import { PersonResponseDto } from './dto/person-response.dto';
 import { Tag } from '../tag/tag.entity';
+import { AuditLog } from '../audit/audit-log.entity';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import {
   PERSON_SORT_COLUMN_MAP,
@@ -17,11 +18,14 @@ import {
 import { applyTagRuleFilter } from './utils/tag-rule-filter.util';
 import {
   AttendanceStatus,
+  AuditAction,
   CollaSettings,
   EventType,
+  PersonDeletionCheck,
   ShirtCandidate,
   TagCategory,
   deriveIsXicalla,
+  personDeletionBlockerReasons,
   shirtCandidateComparator,
   shirtProgress,
 } from '@muixer/shared';
@@ -30,6 +34,13 @@ import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import { xicallaSql } from './xicalla.sql';
 
 const PROVISIONAL_PREFIX = '~';
+
+/** Everything that keeps a person from being deleted for good (`$1` = person id). */
+const DELETION_BLOCKERS_QUERY = `SELECT
+  (SELECT COUNT(*)::int FROM node_assignments WHERE "personId" = $1) AS assignments,
+  (SELECT COUNT(*)::int FROM attendances WHERE "personId" = $1) AS attendances,
+  EXISTS (SELECT 1 FROM users WHERE person_id = $1) AS "hasUser",
+  (SELECT COUNT(*)::int FROM persons WHERE "mentorId" = $1) AS "menteeCount"`;
 const MAX_ALIAS_LENGTH = 20;
 
 /**
@@ -500,6 +511,56 @@ export class PersonService {
     }
     person.isActive = false;
     await this.personRepository.save(person);
+  }
+
+  /** Què impedeix esborrar definitivament la persona (404 si no existeix). */
+  async getDeletionCheck(id: string): Promise<PersonDeletionCheck> {
+    await this.findExisting(id);
+    return this.deletionCheck(id);
+  }
+
+  /**
+   * Esborrat definitiu: només si res no hi apunta (assignacions, assistència, compte d'usuari,
+   * mentoria); si no, 409 amb els motius. Etiquetes i delegacions cauen en cascada (FK).
+   * Una sola transacció: `FOR UPDATE` sobre la fila de la persona fa esperar qualsevol inserció
+   * concurrent que hi apunte (la FK pren `FOR KEY SHARE`), així que la comprovació no pot quedar
+   * obsoleta abans del DELETE; i l'auditoria es grava o es desfà amb l'esborrat. L'auditoria
+   * guarda només l'àlies (no és dada personal), mai el nom.
+   */
+  async hardDelete(id: string, actor: { actorUserId: string | null; ipAddress: string | null }): Promise<void> {
+    await this.personRepository.manager.transaction(async (manager) => {
+      const [person] = await manager.query(`SELECT alias FROM persons WHERE id = $1 FOR UPDATE`, [id]);
+      if (!person) throw new NotFoundException(`Person with ID ${id} not found`);
+      const { canDelete, blockers } = await this.deletionCheck(id, manager);
+      if (!canDelete) {
+        throw new ConflictException(
+          ['No es pot eliminar la persona.', ...personDeletionBlockerReasons(blockers)].join(' '),
+        );
+      }
+      await manager.delete(Person, id);
+      await manager.insert(AuditLog, {
+        actorUserId: actor.actorUserId,
+        action: AuditAction.PERSON_DELETED,
+        targetType: 'Person',
+        targetId: id,
+        metadata: { alias: person.alias },
+        ipAddress: actor.ipAddress,
+      });
+    });
+  }
+
+  private async findExisting(id: string): Promise<Person> {
+    const person = await this.personRepository.findOne({ where: { id } });
+    if (!person) throw new NotFoundException(`Person with ID ${id} not found`);
+    return person;
+  }
+
+  private async deletionCheck(
+    id: string,
+    runner: Pick<EntityManager, 'query'> = this.personRepository,
+  ): Promise<PersonDeletionCheck> {
+    const [blockers] = await runner.query(DELETION_BLOCKERS_QUERY, [id]);
+    return { canDelete: personDeletionBlockerReasons(blockers).length === 0, blockers };
   }
 
   /** Reactiva una persona prèviament desactivada manualment. */

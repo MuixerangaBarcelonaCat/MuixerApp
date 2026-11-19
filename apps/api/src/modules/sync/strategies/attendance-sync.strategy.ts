@@ -343,7 +343,8 @@ export class AttendanceSyncStrategy {
     const map = new Map<string, Person>();
 
     for (const person of allPersons) {
-      if (person.legacyId) {
+      // Old syncs could leave an inactive duplicate on the same legacyId: the active one wins.
+      if (person.legacyId && (person.isActive || !map.has(person.legacyId))) {
         map.set(person.legacyId, person);
       }
     }

@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
-import { AuditAction, JwtPayload, ShirtCandidate, UserRole } from '@muixer/shared';
+import { AuditAction, JwtPayload, PersonDeletionCheck, ShirtCandidate, UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
@@ -121,6 +121,36 @@ export class PersonController {
   @ApiResponse({ status: 404, description: 'Membre no trobat' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.personService.softDelete(id);
+  }
+
+  @Get(':id/deletion-check')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Comprovar si un membre es pot eliminar definitivament (ADMIN)' })
+  @ApiParam({ name: 'id', description: 'UUID del membre' })
+  @ApiResponse({ status: 200, description: 'Motius que ho impedeixen, si n\'hi ha' })
+  @ApiResponse({ status: 404, description: 'Membre no trobat' })
+  deletionCheck(@Param('id', ParseUUIDPipe) id: string): Promise<PersonDeletionCheck> {
+    return this.personService.getDeletionCheck(id);
+  }
+
+  @Delete(':id/permanent')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Eliminar definitivament un membre (ADMIN)',
+    description:
+      'Només si no té assignacions a figures, registres d\'assistència, compte d\'usuari vinculat ni és mentor de ningú.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID del membre' })
+  @ApiResponse({ status: 204, description: 'Membre eliminat' })
+  @ApiResponse({ status: 404, description: 'Membre no trobat' })
+  @ApiResponse({ status: 409, description: 'El membre encara té dades vinculades' })
+  async removePermanently(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ): Promise<void> {
+    await this.personService.hardDelete(id, { actorUserId: user.sub, ipAddress: req.ip ?? null });
   }
 
   @Patch(':id/activate')
