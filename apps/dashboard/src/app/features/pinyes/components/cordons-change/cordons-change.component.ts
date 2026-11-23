@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, output, signal } from '@ang
 import { CordonsResponse, UpdateInstanceCordonsPayload } from '@muixer/pinyes-render';
 import { ButtonComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 
 type PendingCordonsChange =
   | { kind: 'count'; instanceId: string; numberOfCordons: number | null; affectedCount: number }
@@ -33,6 +34,7 @@ export class CordonsChangeComponent {
   readonly changed = output<CordonsResponse>();
 
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
+  private readonly state = inject(AssignmentStateService);
   private readonly toast = inject(ToastService);
 
   readonly pending = signal<PendingCordonsChange | null>(null);
@@ -92,7 +94,7 @@ export class CordonsChangeComponent {
 
   private apply(instanceId: string, payload: UpdateInstanceCordonsPayload, onDone?: () => void): void {
     const oberts = payload.cordonsObertsEnabled !== undefined;
-    this.nodeAssignmentService.updateCordons(instanceId, payload).subscribe({
+    this.state.trackMutation(this.nodeAssignmentService.updateCordons(instanceId, payload)).subscribe({
       next: (result) => {
         if (result.removedAssignments > 0) {
           this.toast.warning(oberts ? obertsRemovedMessage(result.removedAssignments) : countRemovedMessage(result.removedAssignments));

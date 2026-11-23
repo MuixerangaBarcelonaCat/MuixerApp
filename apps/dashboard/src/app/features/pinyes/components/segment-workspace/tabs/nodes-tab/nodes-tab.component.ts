@@ -350,7 +350,7 @@ export class NodesTabComponent implements OnInit {
       shape: preset.shape,
     };
 
-    this.assignmentService.createAdHocNode(instanceId, payload).subscribe({
+    this.state.trackMutation(this.assignmentService.createAdHocNode(instanceId, payload)).subscribe({
       next: () => {
         this.state.exitPlacementMode();
         this.ws.refreshInstance(instanceId);
@@ -397,7 +397,7 @@ export class NodesTabComponent implements OnInit {
       ),
     );
 
-    this.assignmentService.updateAdHocNode(instanceId, nodeId, patch).subscribe({
+    this.state.trackMutation(this.assignmentService.updateAdHocNode(instanceId, nodeId, patch)).subscribe({
       error: () => {
         this.toast.error('Error en actualitzar el node.');
         this.ws.refreshInstance(instanceId);
@@ -515,7 +515,7 @@ export class NodesTabComponent implements OnInit {
       rotation: snapshot.rotation,
     };
 
-    this.assignmentService.createAdHocNode(instanceId, payload).subscribe({
+    this.state.trackMutation(this.assignmentService.createAdHocNode(instanceId, payload)).subscribe({
       next: () => {
         this.ws.refreshInstance(instanceId);
         this.toast.success(successMessage);
@@ -529,7 +529,7 @@ export class NodesTabComponent implements OnInit {
     if (!instanceId) return;
 
     this.clearSelection();
-    this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
+    this.state.trackMutation(this.assignmentService.deleteAdHocNode(instanceId, nodeId)).subscribe({
       next: () => {
         this.ws.refreshInstance(instanceId);
         this.state.refreshPersonList();

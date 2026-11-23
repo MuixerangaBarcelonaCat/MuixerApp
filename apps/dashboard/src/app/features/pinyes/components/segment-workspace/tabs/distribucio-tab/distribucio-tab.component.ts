@@ -32,6 +32,7 @@ import {
 } from '../../../../utils/distribution-slot-mapping.util';
 import { computeMaxCordons } from '../../../../utils/figure-mode-filter.util';
 import { DistributionItem, InstanceDistributionPayload } from '../../../../models/distribution.model';
+import { AssignmentStateService } from '../../../../services/assignment-state.service';
 
 /** One tronc-view overlay rendered on top of the (visually hidden) Konva tronc panel. */
 export interface TroncViewPanel {
@@ -90,6 +91,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
   private readonly canvasState = inject(CanvasStateService);
   private readonly distributionService = inject(SegmentDistributionService);
   private readonly instanceService = inject(FigureInstanceService);
+  private readonly state = inject(AssignmentStateService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
 
@@ -380,7 +382,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
     clearTimeout(this.pendingLabelSaves.get(instanceId)?.timer);
     this.pendingLabelSaves.delete(instanceId);
     const label = this.slots().find((s) => s.slotId === instanceId)?.label ?? null;
-    this.instanceService.update(target.eventId, target.segmentId, instanceId, { label }).subscribe({
+    this.state.trackMutation(this.instanceService.update(target.eventId, target.segmentId, instanceId, { label })).subscribe({
       error: () => this.toast.error("No s'ha pogut actualitzar el nom de la figura."),
     });
   }
@@ -512,7 +514,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
       troncPanelHeight: null,
     }));
 
-    this.distributionService.saveDistribution(target.eventId, target.segmentId, items).subscribe({
+    this.state.trackMutation(this.distributionService.saveDistribution(target.eventId, target.segmentId, items)).subscribe({
       error: () => this.toast.error("No s'ha pogut alçar la distribució."),
     });
   }

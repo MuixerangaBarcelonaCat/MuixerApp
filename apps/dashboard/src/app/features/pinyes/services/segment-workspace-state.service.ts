@@ -1,6 +1,6 @@
 import { DisplayMode, SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, rematMarkerNode, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of } from 'rxjs';
 import {
   FigureZone,
   isNodeVisibleByModeAndCordons,
@@ -312,7 +312,6 @@ export class SegmentWorkspaceStateService {
           this.instancesHydrated.set(true);
           return;
         }
-        const stateById = new Map(instanceState.data.map((i) => [i.instanceId, i]));
         this.segment.set(seg);
         const displayNames = this.computeInstanceLabels(seg.instances);
         this.instances.set(
@@ -333,12 +332,8 @@ export class SegmentWorkspaceStateService {
               assignedCount: instance.assignedCount ?? 0,
               totalCount: 0,
             }))
-            .map((instance) => {
-              const fresh = stateById.get(instance.instanceId);
-              return fresh ? this.withState(instance, fresh) : instance;
-            }),
         );
-        this.state.assignments.set(instanceState.data.flatMap((i) => i.assignments));
+        this.applyInstanceState(instanceState.data);
         this.loadedDataFresh = true;
         this.loading.set(false);
         this.instancesHydrated.set(true);
@@ -357,6 +352,47 @@ export class SegmentWorkspaceStateService {
     });
 
     this.reloadConflicts();
+  }
+
+  /** Merges the segment-wide nodes + assignments into `instances` and the shared assignment state. */
+  private applyInstanceState(data: SegmentInstanceState[]): void {
+    const stateById = new Map(data.map((i) => [i.instanceId, i]));
+    this.instances.update((list) =>
+      list.map((instance) => {
+        const fresh = stateById.get(instance.instanceId);
+        return fresh ? this.withState(instance, fresh) : instance;
+      }),
+    );
+    this.state.assignments.set(data.flatMap((i) => i.assignments));
+  }
+
+  /**
+   * Silently re-reads nodes + assignments of the whole segment (1 request). Emits `true` if applied,
+   * `false` if discarded: a mutation is in flight or started since the request (it would overwrite
+   * fresher local state / the optimistic rollback), the segment changed, or the request failed.
+   * Never toasts.
+   */
+  reloadAssignmentState(): Observable<boolean> {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return of(false);
+    const seq = this.state.mutationSeq();
+    return this.assignmentService.getSegmentAssignmentState(eventId, segmentId).pipe(
+      map((resp) => {
+        if (
+          this.state.inFlightMutations() > 0 ||
+          this.state.mutationSeq() !== seq ||
+          this.eventId() !== eventId ||
+          this.segmentId() !== segmentId
+        ) {
+          return false;
+        }
+        this.applyInstanceState(resp.data);
+        this.reloadConflicts();
+        return true;
+      }),
+      catchError(() => of(false)),
+    );
   }
 
   /**

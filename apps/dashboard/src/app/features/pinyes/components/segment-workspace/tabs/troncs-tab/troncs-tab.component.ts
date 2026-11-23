@@ -517,7 +517,7 @@ export class TroncsTabComponent implements OnInit {
     const preset = DIRECTION_NODE_PRESETS.find((p) => p.positionType === event.positionType);
     if (!preset) return;
 
-    this.assignmentService
+    this.state.trackMutation(this.assignmentService
       .createAdHocNode(instanceId, {
         zone: preset.zone,
         positionType: preset.positionType ?? undefined,
@@ -527,7 +527,7 @@ export class TroncsTabComponent implements OnInit {
         width: preset.width,
         height: preset.height,
         shape: preset.shape,
-      })
+      }))
       .subscribe({
         next: (created) => {
           this.ws.refreshInstance(instanceId);
@@ -550,7 +550,7 @@ export class TroncsTabComponent implements OnInit {
       return;
     }
 
-    this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
+    this.state.trackMutation(this.assignmentService.deleteAdHocNode(instanceId, nodeId)).subscribe({
       next: () => this.ws.refreshInstance(instanceId),
       error: () => this.toast.error("No s'ha pogut eliminar la direcció."),
     });

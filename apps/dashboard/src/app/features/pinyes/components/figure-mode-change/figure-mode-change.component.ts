@@ -3,6 +3,7 @@ import { FigureMode, InstanceDetail } from '@muixer/pinyes-render';
 import { ButtonComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { FigureInstanceService } from '../../services/figure-instance.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 
 interface PendingFigureModeChange {
   eventId: string;
@@ -39,6 +40,7 @@ export class FigureModeChangeComponent {
 
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly instanceService = inject(FigureInstanceService);
+  private readonly state = inject(AssignmentStateService);
   private readonly toast = inject(ToastService);
 
   readonly pending = signal<PendingFigureModeChange | null>(null);
@@ -79,7 +81,7 @@ export class FigureModeChangeComponent {
   }
 
   private apply(eventId: string, segmentId: string, instanceId: string, mode: FigureMode, onDone?: () => void): void {
-    this.instanceService.update(eventId, segmentId, instanceId, { figureMode: mode }).subscribe({
+    this.state.trackMutation(this.instanceService.update(eventId, segmentId, instanceId, { figureMode: mode })).subscribe({
       next: (updated) => {
         this.changed.emit(updated);
         onDone?.();

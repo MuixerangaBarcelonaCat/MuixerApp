@@ -206,6 +206,71 @@ describe('SegmentWorkspaceStateService', () => {
     state = TestBed.inject(AssignmentStateService);
   };
 
+  describe('reloadAssignmentState', () => {
+    const respond = (instanceId: string, nodes: InstanceNodeItem[], assignments: AssignmentDetail[]) =>
+      assignmentService.getSegmentAssignmentState.mockReturnValue(of({ data: [{ instanceId, nodes, assignments }] }));
+
+    it('replaces nodes and assignments of every instance and reloads conflicts', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      assignmentService.getSegmentConflicts.mockClear();
+      const nodes = [makeNode('n1', 'PINYA')];
+      const assignments = [makeAssignment('as-9', 'inst-a', 'n1')];
+      respond('inst-a', nodes, assignments);
+      let result: boolean | undefined;
+
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      expect(result).toBe(true);
+      expect(state.assignments()).toEqual(assignments);
+      expect(service.instances()[0].nodes).toEqual(nodes);
+      expect(assignmentService.getSegmentConflicts).toHaveBeenCalledTimes(1);
+    });
+
+    it('discards the response while a mutation is in flight', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const before = state.assignments();
+      respond('inst-a', [], [makeAssignment('as-9', 'inst-a', 'n1')]);
+      state.trackMutation(new Subject<void>()).subscribe();
+      let result: boolean | undefined;
+
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      expect(result).toBe(false);
+      expect(state.assignments()).toBe(before);
+    });
+
+    it('discards a response requested before a mutation that already finished', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const before = state.assignments();
+      const response = new Subject<{ data: unknown[] }>();
+      assignmentService.getSegmentAssignmentState.mockReturnValue(response);
+      let result: boolean | undefined;
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      state.trackMutation(of(null)).subscribe();
+      response.next({ data: [{ instanceId: 'inst-a', nodes: [], assignments: [makeAssignment('as-9', 'inst-a', 'n1')] }] });
+      response.complete();
+
+      expect(result).toBe(false);
+      expect(state.assignments()).toBe(before);
+    });
+
+    it('emits false and shows no toast on error', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      assignmentService.getSegmentAssignmentState.mockReturnValue(throwError(() => new Error('offline')));
+      let result: boolean | undefined;
+
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      expect(result).toBe(false);
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+  });
+
   describe('display mode', () => {
     it('starts in Posició', () => {
       configure();

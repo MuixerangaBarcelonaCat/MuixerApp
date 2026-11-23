@@ -343,7 +343,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
 
     this.undoRedo.clear();
     this.resetting.set(true);
-    this.assignmentService.resetSnapshot(instanceId).subscribe({
+    this.state.trackMutation(this.assignmentService.resetSnapshot(instanceId)).subscribe({
       next: (result) => {
         this.resetting.set(false);
         this.resetTarget.set(null);

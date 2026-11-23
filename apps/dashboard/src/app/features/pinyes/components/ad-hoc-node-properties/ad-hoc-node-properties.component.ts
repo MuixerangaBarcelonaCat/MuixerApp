@@ -16,6 +16,7 @@ import { ColorPickerComponent } from '../../../../shared/components/forms/color-
 import { FigureZone, NodeShape, DIRECTION_ZONES, attendanceStatusLabel, AttendanceStatusValue, EventPhase, isStartedPhase } from '@muixer/shared';
 import { nodeColorPresets, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 
 @Component({
   selector: 'app-ad-hoc-node-properties',
@@ -36,6 +37,7 @@ import { injectPinyesRenderSettings } from '@muixer/pinyes-render/settings';
 export class AdHocNodePropertiesComponent {
   private readonly renderSettings = injectPinyesRenderSettings();
   private readonly assignmentService = inject(NodeAssignmentService);
+  private readonly state = inject(AssignmentStateService);
   private readonly toast = inject(ToastService);
   private readonly themeMode = inject(ThemeService).mode;
 
@@ -187,8 +189,8 @@ export class AdHocNodePropertiesComponent {
   }
 
   private sendUpdate(payload: UpdateAdHocNodePayload): void {
-    this.assignmentService
-      .updateAdHocNode(this.instanceId(), this.node().id, payload)
+    this.state.trackMutation(this.assignmentService
+      .updateAdHocNode(this.instanceId(), this.node().id, payload))
       .subscribe({
         next: () => this.nodeUpdated.emit(),
         error: () => this.toast.error('Error en actualitzar el node.'),

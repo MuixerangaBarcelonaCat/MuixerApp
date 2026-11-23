@@ -1,5 +1,6 @@
 import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
+import { Subject, of } from 'rxjs';
 import { AssignmentStateService } from './assignment-state.service';
 import { PINYA_NODE_PRESETS } from '@muixer/shared';
 
@@ -251,6 +252,35 @@ describe('AssignmentStateService', () => {
       expect(service.adHocNodes()).toHaveLength(2);
       expect(service.adHocNodes().map((n) => n.id)).toEqual(['n2', 'n4']);
       expect(service.hasAdHocNodes()).toBe(true);
+    });
+  });
+
+  describe('mutation tracking', () => {
+    it('trackMutation counts a mutation in flight until it completes, errors or is unsubscribed', () => {
+      const done = new Subject<void>();
+      const failing = new Subject<void>();
+      const cancelled = new Subject<void>();
+      service.trackMutation(done).subscribe();
+      service.trackMutation(failing).subscribe({ error: () => undefined });
+      const sub = service.trackMutation(cancelled).subscribe();
+      expect(service.inFlightMutations()).toBe(3);
+
+      done.complete();
+      expect(service.inFlightMutations()).toBe(2);
+      failing.error(new Error('x'));
+      expect(service.inFlightMutations()).toBe(1);
+      sub.unsubscribe();
+      expect(service.inFlightMutations()).toBe(0);
+    });
+
+    it('mutationSeq only grows, and reset() clears inFlightMutations', () => {
+      service.trackMutation(of(1)).subscribe();
+      service.trackMutation(of(2)).subscribe();
+      expect(service.mutationSeq()).toBe(2);
+      service.trackMutation(new Subject<void>()).subscribe();
+      service.reset();
+      expect(service.inFlightMutations()).toBe(0);
+      expect(service.mutationSeq()).toBe(3);
     });
   });
 });

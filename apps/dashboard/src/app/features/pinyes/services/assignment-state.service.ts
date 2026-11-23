@@ -1,5 +1,6 @@
 import { AssignmentArea, AssignmentDetail, AvailablePerson, HeightMode, InstanceNodeItem, PendingOp, isConfirmedAttendance } from '@muixer/pinyes-render';
 import { Injectable, computed, signal } from '@angular/core';
+import { Observable, defer, finalize } from 'rxjs';
 import { NodePreset } from '@muixer/shared';
 
 @Injectable({
@@ -24,6 +25,10 @@ export class AssignmentStateService {
   readonly heightMode = signal<HeightMode>('relative');
   readonly panelCollapsed = signal<boolean>(false);
   readonly pendingOperations = signal<PendingOp[]>([]);
+  /** Segment mutations currently in flight (see `trackMutation`). */
+  readonly inFlightMutations = signal(0);
+  /** Grows every time a mutation starts; lets a reload detect that one began (and maybe ended) after it was requested. */
+  readonly mutationSeq = signal(0);
   /** Increment to request person-panel reload */
   readonly personListRefreshTrigger = signal(0);
 
@@ -117,7 +122,17 @@ export class AssignmentStateService {
     this.placementCustomLabel.set(null);
   }
 
+  /** Counts `source` as an in-flight mutation from subscription until complete, error or unsubscribe. */
+  trackMutation<T>(source: Observable<T>): Observable<T> {
+    return defer(() => {
+      this.inFlightMutations.update((n) => n + 1);
+      this.mutationSeq.update((n) => n + 1);
+      return source.pipe(finalize(() => this.inFlightMutations.update((n) => n - 1)));
+    });
+  }
+
   reset(): void {
+    this.inFlightMutations.set(0);
     this.selectedNodeId.set(null);
     this.selectedPersonId.set(null);
     this.activeInstanceId.set(null);

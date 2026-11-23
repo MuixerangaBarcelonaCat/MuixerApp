@@ -86,6 +86,7 @@ describe('SegmentAssignmentActionsService', () => {
     instances: ReturnType<typeof signal<WorkspaceInstance[]>>;
     refreshInstance: MockFn;
     reloadConflicts: MockFn;
+    reloadAssignmentState: MockFn;
   };
   let api: { assign: MockFn; unassign: MockFn; swap: MockFn };
   let toast: { success: MockFn; error: MockFn };
@@ -104,6 +105,7 @@ describe('SegmentAssignmentActionsService', () => {
       ]),
       refreshInstance: vi.fn(),
       reloadConflicts: vi.fn(),
+      reloadAssignmentState: vi.fn().mockReturnValue(of(true)),
     };
     api = {
       assign: vi.fn(),
@@ -223,6 +225,41 @@ describe('SegmentAssignmentActionsService', () => {
       expect(state.pendingOperations()).toHaveLength(0);
       expect(host.select).toHaveBeenCalledWith(ref(INST_A, 'n1'));
       expect(toast.error).toHaveBeenCalledWith('Este lloc ja està ocupat.');
+    });
+
+    it('reloads the segment state after a 409 on assign so the occupant becomes visible', () => {
+      ws.reloadAssignmentState.mockClear();
+      api.assign.mockReturnValue(throwError(() => ({ status: 409 })));
+
+      service.assign(ref(INST_A, 'n1'), 'p-1');
+
+      expect(ws.reloadAssignmentState).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not reload the segment state on a non-409 assign error', () => {
+      api.assign.mockReturnValue(throwError(() => ({ status: 500 })));
+
+      service.assign(ref(INST_A, 'n1'), 'p-1');
+
+      expect(ws.reloadAssignmentState).not.toHaveBeenCalled();
+    });
+
+    it('assign, unassign and swap go through trackMutation', () => {
+      api.assign.mockReturnValue(NEVER);
+      service.assign(ref(INST_A, 'n1'), 'p-1');
+      expect(state.inFlightMutations()).toBe(1);
+
+      api.unassign.mockReturnValue(NEVER);
+      service.unassign(makeAssignment(INST_A, 'n2', 'p-2'));
+      expect(state.inFlightMutations()).toBe(2);
+
+      api.swap.mockReturnValue(NEVER);
+      const a = makeAssignment(INST_A, 'n1', 'p-1');
+      const b = makeAssignment(INST_A, 'n2', 'p-2');
+      state.assignments.set([a, b]);
+      service.drop(ref(INST_A, 'n1'), ref(INST_A, 'n2'));
+      expect(state.inFlightMutations()).toBe(3);
+      expect(state.mutationSeq()).toBe(3);
     });
 
     it('toasts a generic error on any other failure', () => {
