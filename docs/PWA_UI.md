@@ -65,7 +65,7 @@ Cap equivalent a `libs/ui` (Tier 3 en el vocabulari del pla de disseny) — viue
 
 ### Refresc de dades
 
-`event-detail` recarrega event, segments i estadístiques amb el pull-to-refresh (`onRefresh`) i també en `visibilitychange` → `visible` (sense polling). `segment-projection` sondeja `GET /me/events/:eventId/segments/:segmentId/revision` cada ~30 s només el dia de l'event i recarrega en silenci (sense spinner ni reinici de càmera) quan canvia; es manté l'última projecció bona si una recàrrega falla.
+`event-detail` recarrega event, segments i estadístiques amb el pull-to-refresh (`onRefresh`) i també en `visibilitychange` → `visible` (sense polling). `segment-projection` sondeja `GET /me/events/:eventId/segments/:segmentId/revision` cada ~30 s només el dia de l'event i recarrega en silenci (sense spinner ni reinici de càmera) quan canvia; es manté l'última projecció bona si una recàrrega falla. Estes recàrregues van amb `ngsw-bypass` i no actualitzen la memòria cau `segment-projection` del service worker: sense connexió, el mòbil mostra la projecció de l'última càrrega normal (sense `ngsw-bypass`), no la de l'última recàrrega.
 
 ### Detall (Event detail, News detail)
 
