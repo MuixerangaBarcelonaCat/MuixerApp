@@ -70,7 +70,7 @@ docs/              → Topic documentation (see docs/MAP.md)
 
 ### Backend (`apps/api/src`)
 
-Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard`. Mark public endpoints with `@Public()`, role-restricted ones with `@Roles()`. Rate limiting is enforced at the Caddy reverse proxy (see `apps/dashboard/Caddyfile`): `/api/auth*` 60 req/min per IP, `/api/*` 600 req/min per IP.
+Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard`. Mark public endpoints with `@Public()`, role-restricted ones with `@Roles()`. Rate limiting is enforced at the Caddy reverse proxy (see `apps/dashboard/Caddyfile`), keyed by client IP (`Cf-Connecting-Ip`, trusted only from the pinned Cloudflare ranges): `/api/auth*` 60 req/min per IP, `/api/*` 600 req/min per IP; on the PWA host the segment revision poll (`/api/me/events/*/segments/*/revision`) has its own 3000 req/min zone and doesn't count toward the 600.
 
 Modules under `src/modules/`:
 
