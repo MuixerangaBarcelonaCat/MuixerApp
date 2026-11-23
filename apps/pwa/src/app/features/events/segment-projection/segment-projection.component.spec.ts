@@ -572,6 +572,17 @@ describe('SegmentProjectionComponent', () => {
       expect(projectionService.getProjection).toHaveBeenCalledTimes(2);
       expect(stub()).toBeTruthy();
       expect(host.nativeElement.textContent).not.toContain("No s'ha pogut carregar");
+      // the failed reload did not consume the change: the next tick retries it
+      await tick();
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(3);
+    });
+
+    it('sends the poll-triggered reload past the service worker cache, but not the first load', async () => {
+      await setupLive(() => of(dataOn(TODAY)), [of({ revision: 'a' }), of({ revision: 'b' })]);
+      await tick();
+      const calls = (projectionService.getProjection as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[0][2]).toBeUndefined();
+      expect(calls[1][2]).toBe(true);
     });
 
     it('keeps showing the last projection when the revision endpoint answers 404', async () => {

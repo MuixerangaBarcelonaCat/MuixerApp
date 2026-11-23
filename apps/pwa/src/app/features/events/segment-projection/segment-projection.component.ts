@@ -147,17 +147,28 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
       const eventId = this.eventId();
       const segmentId = this.segmentId();
       if (!this.isEventDay()) return;
+      let stopped = false;
       const poller = createRevisionPoller({
         fetch: () => firstValueFrom(this.projectionService.getRevision(eventId, segmentId)),
-        onChange: () => {
-          this.projectionResource.reload();
+        // Resolves false on failure: the poller keeps its baseline and retries on the next tick.
+        onChange: async () => {
+          try {
+            const fresh = await firstValueFrom(this.projectionService.getProjection(eventId, segmentId, true));
+            if (!stopped) this.data.set(fresh);
+          } catch {
+            return false;
+          }
+          return true;
         },
         intervalMs: PWA_REVISION_POLL_MS,
         jitterMs: PWA_REVISION_JITTER_MS,
         visibility: this.document,
       });
       poller.start();
-      onCleanup(() => poller.stop());
+      onCleanup(() => {
+        stopped = true;
+        poller.stop();
+      });
     });
   }
 

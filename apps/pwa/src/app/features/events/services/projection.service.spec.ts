@@ -33,6 +33,14 @@ describe('ProjectionService', () => {
     });
   });
 
+  it('sends ngsw-bypass only when asked to bypass the cache', () => {
+    service.getProjection('ev-1', 'seg-1', true).subscribe();
+    const req = httpMock.expectOne('/api/me/events/ev-1/segments/seg-1/projection');
+    expect(req.request.headers.get('ngsw-bypass')).toBe('true');
+    service.getProjection('ev-1', 'seg-1').subscribe();
+    expect(httpMock.expectOne('/api/me/events/ev-1/segments/seg-1/projection').request.headers.has('ngsw-bypass')).toBe(false);
+  });
+
   it('getRevision GETs /me/events/:eventId/segments/:segmentId/revision', () => {
     let revision: unknown;
     service.getRevision('ev-1', 'seg-1').subscribe((r) => (revision = r));
