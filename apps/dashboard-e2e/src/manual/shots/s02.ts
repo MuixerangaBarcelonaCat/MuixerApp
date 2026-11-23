@@ -191,6 +191,19 @@ export const s02: ManualShot[] = [
     blur: [PERSONAL_INPUTS],
   },
   {
+    file: '03-persona-eliminacio.png',
+    app: 'dashboard',
+    path: `/persons/${PERSON.detail}`,
+    ready: DETAIL_READY,
+    prepare: async (page) => {
+      await startEditing(page);
+      await page.locator('[data-delete-person] button').click();
+      await page.locator('dialog[open] [data-delete-person-modal]').waitFor();
+    },
+    clip: 'dialog[open] .modal-box',
+    settle: 500,
+  },
+  {
     file: '03-persona-delegat.png',
     app: 'dashboard',
     path: `/persons/${PERSON.detail}`,

@@ -1,5 +1,5 @@
-// Run like the API container (UTC), so timezone bugs reproduce on any dev machine.
-process.env.TZ = 'UTC';
+// Run like the API container (UTC) by default; override with TZ=Europe/Madrid to reproduce dev-machine timezone bugs.
+process.env.TZ ??= 'UTC';
 
 export default {
   displayName: 'api',

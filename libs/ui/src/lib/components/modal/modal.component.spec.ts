@@ -41,6 +41,28 @@ describe('ModalComponent', () => {
     expect(dialogEl().open).toBe(false);
   });
 
+  it('renders the full size as a near-fullscreen box', () => {
+    fixture.componentRef.setInput('size', 'full');
+    fixture.componentRef.setInput('open', true);
+    fixture.detectChanges();
+    const classes = boxEl().classList;
+    expect(classes).toContain('w-11/12');
+    expect(classes).toContain('max-w-none');
+    expect(classes).toContain('h-[90vh]');
+    expect(classes).toContain('max-h-[90vh]');
+    expect(classes).not.toContain('max-h-[85vh]');
+  });
+
+  it('keeps the 85vh cap on the other sizes', () => {
+    fixture.componentRef.setInput('size', 'lg');
+    fixture.detectChanges();
+    expect(boxEl().classList).toContain('max-h-[85vh]');
+  });
+
+  it('lets wide content scroll inside the body instead of widening the box', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="lib-modal-body"]').classList).toContain('min-w-0');
+  });
+
   it('renders no title element when title is not set', () => {
     fixture.componentRef.setInput('open', true);
     fixture.detectChanges();

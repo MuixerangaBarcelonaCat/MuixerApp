@@ -1,3 +1,4 @@
+import { DateUtils } from 'typeorm/util/DateUtils';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +11,7 @@ import { Tag } from '../../tag/tag.entity';
 import { AvailabilityStatus, OnboardingStatus, DelegateType } from '@muixer/shared';
 import { User } from '../../user/user.entity';
 import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
+import { SyncEvent } from '../interfaces/sync-event.interface';
 
 // Helper to build a fluent QueryBuilder mock where getOne returns a configurable value
 function makeQb(getOneResult: Person | null = null) {
@@ -351,7 +353,7 @@ describe('PersonSyncStrategy', () => {
       });
     });
 
-    it('creates a new person instead of reactivating one that was manually deactivated in MuixerApp', (done) => {
+    it('leaves a person deactivated in MuixerApp untouched: no update, no duplicate', (done) => {
       const deactivatedPerson = {
         id: 'uuid-1',
         legacyId: '123',
@@ -364,16 +366,34 @@ describe('PersonSyncStrategy', () => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
       personRepository.findOne.mockResolvedValue(deactivatedPerson);
+
+      const events: SyncEvent[] = [];
+      strategy.execute().subscribe({
+        next: (e) => events.push(e),
+        complete: () => {
+          expect(personRepository.create).not.toHaveBeenCalled();
+          expect(personRepository.save).not.toHaveBeenCalled();
+          expect(deactivatedPerson.name).toBe('OldName');
+          expect(deactivatedPerson.isActive).toBe(false);
+          const summary = events[events.length - 1];
+          expect(summary.detail).toEqual(expect.objectContaining({ new: 0, updated: 0, skipped: 1 }));
+          done();
+        },
+      });
+    });
+
+    it('prefers the active record when an old duplicate shares the legacyId', (done) => {
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
+      personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockImplementation((d) => d as Person);
-      personRepository.save.mockResolvedValue({} as Person);
+      personRepository.save.mockImplementation(async (d) => d as Person);
 
       strategy.execute().subscribe({
         complete: () => {
-          expect(personRepository.create).toHaveBeenCalledWith(
-            expect.objectContaining({ legacyId: '123', name: 'Joan', isActive: true }),
+          expect(personRepository.findOne).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { legacyId: '123' }, order: { isActive: 'DESC' } }),
           );
-          // the manually-deactivated record itself must never be touched
-          expect(personRepository.save).not.toHaveBeenCalledWith(deactivatedPerson);
           done();
         },
       });
@@ -699,6 +719,19 @@ describe('PersonSyncStrategy', () => {
   });
 
   // ─── parseTimestamp / mappers (pure functions) ───────────────────────────────
+
+  describe('legacy date parsing', () => {
+    // Meaningful when run with TZ=Europe/Madrid (jest.config defaults to UTC, where this can't fail).
+    // TypeORM writes a Date to a `date` column with LOCAL components, so the stored day
+    // must match the legacy day whatever the process timezone (01/01/1111 once became 1110-12-31).
+    it.each([
+      ['01/01/1111', '1111-01-01'],
+      ['17/04/1991', '1991-04-17'],
+    ])('stores %s as the same calendar day', (legacy, expected) => {
+      const parsed = (strategy as any).parseDate(legacy) as Date;
+      expect(DateUtils.mixedDateToDateString(parsed)).toBe(expected);
+    });
+  });
 
   describe('mappers', () => {
     it('maps injured person to LONG_TERM_UNAVAILABLE', (done) => {

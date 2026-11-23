@@ -15,7 +15,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock, CircleQuestionMark, Trash2 } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock, CircleQuestionMark, Trash2, Table2 } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
 import { ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, ModalComponent, DOMAIN_ICONS } from '@muixer/ui';
@@ -32,6 +32,7 @@ import { PrevisualitzaTabComponent } from './tabs/previsualitza-tab/previsualitz
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { SegmentConflictPanelComponent } from '../segment-conflict-panel/segment-conflict-panel.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
+import { QuadreTroncsModalComponent } from '../quadre-troncs-modal/quadre-troncs-modal.component';
 
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
 
@@ -61,6 +62,7 @@ const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
     TemplateEditorHelpModalComponent,
     SegmentConflictPanelComponent,
     ImportPinyaModalComponent,
+    QuadreTroncsModalComponent,
   ],
   templateUrl: './segment-workspace.component.html',
   providers: [SegmentWorkspaceStateService, UndoRedoService, ConflictResolutionService],
@@ -84,10 +86,12 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   readonly Lock = Lock;
   readonly CircleQuestionMark = CircleQuestionMark;
   readonly Trash2 = Trash2;
+  readonly Table2 = Table2;
 
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
 
   readonly activeTab = signal<WorkspaceTab>('pinyes');
+  readonly quadreOpen = signal(false);
   /** Where the event is in time: drives the attendance labels and colours of the tabs. */
   readonly phase = this.ws.phase;
 

@@ -48,6 +48,19 @@ export const s07: ManualShot[] = [
     settle: 800,
   },
   {
+    // Only aliases and heights in the quadre: nothing to blur.
+    file: '12-quadre-persones.png',
+    app: 'dashboard',
+    path: `${WS}tab=troncs`,
+    ready: 'app-troncs-tab',
+    prepare: async (page) => {
+      await page.locator(`button[aria-label="Obri el quadre de persones de l'event"]`).click();
+      await page.locator('[data-testid="quadre-column-name"]').first().waitFor({ timeout: 10_000 });
+    },
+    clip: 'dialog[open] .modal-box',
+    settle: 800,
+  },
+  {
     file: '12-troncs-lloc-seleccionat.png',
     app: 'dashboard',
     path: `${WS}tab=troncs`,

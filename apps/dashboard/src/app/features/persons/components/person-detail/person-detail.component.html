@@ -33,6 +33,11 @@
         <lib-button variant="primary" size="sm" (clicked)="startEditing()">Edita</lib-button>
       }
 
+      @if (editing() && isAdmin()) {
+        <span data-delete-person>
+          <lib-button variant="error" outline size="sm" [loading]="checkingDeletion()" (clicked)="openDeletePerson()">Elimina</lib-button>
+        </span>
+      }
       @if (editing()) {
         <lib-button variant="ghost" size="sm" (clicked)="cancelEditing()">Cancel·la</lib-button>
         <lib-button variant="primary" size="sm" [disabled]="form.invalid" [loading]="saving()" (clicked)="save()">
@@ -581,6 +586,36 @@
       (saved)="onDelegateAdded()"
     />
   }
+
+  <lib-modal [open]="!!deletionCheck()" title="Eliminació de la persona" (closed)="closeDeletePerson()">
+    <div class="space-y-2 text-sm" data-delete-person-modal>
+      @if (deletionCheck()?.canDelete) {
+        <p>
+          Esteu segur que voleu eliminar <strong>{{ person()?.alias }}</strong>? Esta acció no es pot desfer.
+        </p>
+      } @else {
+        <p>No es pot eliminar <strong>{{ person()?.alias }}</strong>:</p>
+        <ul class="list-disc pl-5">
+          @for (reason of deletionBlockers(); track reason) {
+            <li>{{ reason }}</li>
+          }
+        </ul>
+        <p class="text-base-content/70">Per a donar-la de baixa, desmarqueu «Actiu» i feu clic a «Alça».</p>
+      }
+    </div>
+    <div modalFooter>
+      @if (deletionCheck()?.canDelete) {
+        <lib-button variant="ghost" size="sm" (clicked)="closeDeletePerson()">Cancel·la</lib-button>
+        <span data-delete-person-confirm>
+          <lib-button variant="error" size="sm" [loading]="deletingPerson()" (clicked)="confirmDeletePerson()">
+            Elimina
+          </lib-button>
+        </span>
+      } @else {
+        <lib-button variant="ghost" size="sm" (clicked)="closeDeletePerson()">Tanca</lib-button>
+      }
+    </div>
+  </lib-modal>
 
   <lib-modal [open]="!!confirmingDelegateRemoval()" title="Eliminar delegat" (closed)="cancelRemoveDelegate()">
     <p class="text-sm">

@@ -12,6 +12,8 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { PersonService } from '../../services/person.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
+import { PersonDeletionCheck, personDeletionBlockerReasons } from '@muixer/shared';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import {
   ToastService,
@@ -108,6 +110,7 @@ export class PersonDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
+  readonly isAdmin = inject(AuthService).isAdmin;
 
   readonly ICON_USER_X = DOMAIN_ICONS.USER_X;
 
@@ -130,6 +133,13 @@ export class PersonDetailComponent implements OnInit {
   saveError = signal<string | null>(null);
   saveSuccess = signal(false);
   deletingPerson = signal(false);
+  checkingDeletion = signal(false);
+  /** Resultat de `deletion-check` mentre el modal d'eliminació és obert; `null` = tancat. */
+  deletionCheck = signal<PersonDeletionCheck | null>(null);
+  readonly deletionBlockers = computed(() => {
+    const check = this.deletionCheck();
+    return check ? personDeletionBlockerReasons(check.blockers) : [];
+  });
   metadataExpanded = signal(false);
   editing = signal(false);
 
@@ -536,6 +546,45 @@ export class PersonDetailComponent implements OnInit {
 
   askRemoveDelegate(delegate: PersonDelegateItem): void {
     this.confirmingDelegateRemoval.set(delegate);
+  }
+
+  openDeletePerson(): void {
+    const person = this.person();
+    if (!person || this.checkingDeletion()) return;
+    this.checkingDeletion.set(true);
+    this.personService.getDeletionCheck(person.id).subscribe({
+      next: (check) => {
+        this.checkingDeletion.set(false);
+        this.deletionCheck.set(check);
+      },
+      error: () => {
+        this.checkingDeletion.set(false);
+        this.toast.error('No s\'ha pogut comprovar si es pot eliminar la persona.');
+      },
+    });
+  }
+
+  closeDeletePerson(): void {
+    this.deletionCheck.set(null);
+  }
+
+  confirmDeletePerson(): void {
+    const person = this.person();
+    if (!person || this.deletingPerson()) return;
+    this.deletingPerson.set(true);
+    this.personService.deletePermanently(person.id).subscribe({
+      next: () => {
+        this.deletingPerson.set(false);
+        this.deletionCheck.set(null);
+        this.toast.success(`S'ha eliminat ${person.alias}.`);
+        this.router.navigate(['/persons']);
+      },
+      error: (err) => {
+        this.deletingPerson.set(false);
+        this.deletionCheck.set(null);
+        this.toast.error(err?.error?.message ?? 'No s\'ha pogut eliminar la persona.');
+      },
+    });
   }
 
   cancelRemoveDelegate(): void {

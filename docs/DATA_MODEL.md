@@ -119,7 +119,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-11-03 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-11-16 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **24 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -157,7 +157,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 |------|--------|
 | `AssignmentArea` | `TRONC` · `PINYA` · `DIRECTION` |
 | `AttendanceStatus` | `PENDENT` · `ANIRE` · `NO_VAIG` · `ASSISTIT` |
-| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` · `ATTENDANCE_LOCK_OVERRIDE` · `COLLA_SETTINGS_UPDATED` · `USER_SESSIONS_REVOKED` · `PUSH_SUBSCRIPTION_REMOVED` · `PUSH_SUBSCRIPTION_TESTED` |
+| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` · `ATTENDANCE_LOCK_OVERRIDE` · `COLLA_SETTINGS_UPDATED` · `USER_SESSIONS_REVOKED` · `PUSH_SUBSCRIPTION_REMOVED` · `PUSH_SUBSCRIPTION_TESTED` · `PERSON_DELETED` |
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `BeforeEventOffsetUnit` | `DAYS` · `HOURS` |
 | `ClientType` | `dashboard` · `pwa` |
@@ -524,8 +524,8 @@ Definició: [`apps/api/src/modules/person-delegate/person-delegate.entity.ts`](.
 | Camp | Tipus DB | Tipus TS | Nullable | Notes |
 |------|----------|----------|----------|-------|
 | `id` | `—` | `string` | no | PK |
-| `user` | `relation` | `User` | no | ManyToOne → `User` |
-| `person` | `relation` | `Person` | no | ManyToOne → `Person` |
+| `user` | `relation` | `User` | no | ManyToOne → `User`, onDelete CASCADE |
+| `person` | `relation` | `Person` | no | ManyToOne → `Person`, onDelete CASCADE |
 | `delegateType` | `enum` | `DelegateType` | no | enum `DelegateType` |
 | `isActive` | `boolean` | `boolean` | no | default `true` |
 | `isPrimary` | `boolean` | `boolean` | no | default `false` |

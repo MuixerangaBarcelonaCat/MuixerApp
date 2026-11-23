@@ -7,7 +7,8 @@ import { Tag } from '../tag/tag.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
-import { TagCategory } from '@muixer/shared';
+import { AuditAction, TagCategory } from '@muixer/shared';
+import { AuditLog } from '../audit/audit-log.entity';
 import { CollaSettingsService } from '../colla-settings/colla-settings.service';
 import { CollaSettingsStub } from '../colla-settings/colla-settings.stub';
 
@@ -35,9 +36,14 @@ describe('PersonService', () => {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
     query: jest.fn().mockResolvedValue([]),
     createQueryBuilder: jest.fn(() => mockQueryBuilder),
+    manager: { transaction: jest.fn() },
   };
+
+  /** EntityManager seen inside `hardDelete`'s transaction. */
+  const mockTxManager = { query: jest.fn(), delete: jest.fn(), insert: jest.fn() };
 
   const mockPositionRepository = {
     findBy: jest.fn(),
@@ -507,6 +513,69 @@ describe('PersonService', () => {
       expect(sql).toContain('"isProvisional"');
       expect(sql).toContain('"countsForStatistics"');
       expect(params).toEqual(['ASSISTIT', 'ACTUACIO', 'ASSAIG']);
+    });
+  });
+
+  describe('getDeletionCheck / hardDelete', () => {
+    const blockersRow = (o: Partial<Record<string, unknown>> = {}) => [
+      { assignments: 0, attendances: 0, hasUser: false, menteeCount: 0, ...o },
+    ];
+    const actor = { actorUserId: 'user-1', ipAddress: '10.0.0.5' };
+    /** Locked person row, then the blocker row, both read through the transaction manager. */
+    const inTx = (personRows: unknown[], blockers = blockersRow()) => {
+      mockPersonRepository.manager.transaction.mockImplementation((cb) => cb(mockTxManager));
+      mockTxManager.query.mockReset().mockResolvedValueOnce(personRows).mockResolvedValueOnce(blockers);
+      mockTxManager.delete.mockReset();
+      mockTxManager.insert.mockReset();
+    };
+
+    it('404s for an unknown person', async () => {
+      mockPersonRepository.findOne.mockResolvedValue(null);
+      await expect(service.getDeletionCheck('nope')).rejects.toThrow(NotFoundException);
+      inTx([]);
+      await expect(service.hardDelete('nope', actor)).rejects.toThrow(NotFoundException);
+      expect(mockTxManager.delete).not.toHaveBeenCalled();
+    });
+
+    it('reports a person nothing references as deletable', async () => {
+      mockPersonRepository.findOne.mockResolvedValue({ id: '1', alias: 'pep' });
+      mockPersonRepository.query.mockResolvedValueOnce(blockersRow());
+      await expect(service.getDeletionCheck('1')).resolves.toEqual({
+        canDelete: true,
+        blockers: { assignments: 0, attendances: 0, hasUser: false, menteeCount: 0 },
+      });
+    });
+
+    it.each([
+      [{ assignments: 1 }],
+      [{ attendances: 4 }],
+      [{ hasUser: true }],
+      [{ menteeCount: 2 }],
+    ])('refuses to delete when %o and deletes nothing', async (blocker) => {
+      inTx([{ alias: 'pep' }], blockersRow(blocker));
+      await expect(service.hardDelete('1', actor)).rejects.toThrow(ConflictException);
+      expect(mockTxManager.delete).not.toHaveBeenCalled();
+      expect(mockTxManager.insert).not.toHaveBeenCalled();
+    });
+
+    it('explains the blockers in the 409 message', async () => {
+      inTx([{ alias: 'pep' }], blockersRow({ attendances: 3 }));
+      await expect(service.hardDelete('1', actor)).rejects.toThrow("Té 3 registres d'assistència.");
+    });
+
+    it('locks the row, deletes it and audits only the alias in the same transaction', async () => {
+      inTx([{ alias: 'pep' }]);
+      await service.hardDelete('1', actor);
+      expect(mockTxManager.query.mock.calls[0][0]).toMatch(/FOR UPDATE/);
+      expect(mockTxManager.delete).toHaveBeenCalledWith(Person, '1');
+      expect(mockTxManager.insert).toHaveBeenCalledWith(AuditLog, {
+        actorUserId: 'user-1',
+        action: AuditAction.PERSON_DELETED,
+        targetType: 'Person',
+        targetId: '1',
+        metadata: { alias: 'pep' },
+        ipAddress: '10.0.0.5',
+      });
     });
   });
 
