@@ -58,23 +58,24 @@ export function createRevisionPoller<T>(options: RevisionPollerOptions<T>): Revi
   async function poll(): Promise<void> {
     timer = undefined;
     if (!running || !isVisible() || inFlight) return;
-    if (options.isPaused?.()) return schedule();
 
     inFlight = true;
     try {
-      const next = await fetch();
-      if (running) {
-        if (!baseline) baseline = { value: next };
-        else if (!isEqual(baseline.value, next)) {
-          try {
-            if ((await onChange(next, baseline.value)) !== false && running) baseline = { value: next };
-          } catch {
-            // baseline stays: the next tick reports the change again
+      if (!options.isPaused?.()) {
+        const next = await fetch();
+        if (running) {
+          if (!baseline) baseline = { value: next };
+          else if (!isEqual(baseline.value, next)) {
+            try {
+              if ((await onChange(next, baseline.value)) !== false && running) baseline = { value: next };
+            } catch {
+              // baseline stays: the next tick reports the change again
+            }
           }
         }
       }
     } catch {
-      // ignored: retried on the next tick
+      // ignored (a failed fetch or a throwing isPaused): retried on the next tick
     } finally {
       inFlight = false;
     }

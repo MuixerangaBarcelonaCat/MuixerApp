@@ -112,6 +112,17 @@ describe('createRevisionPoller', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps polling when isPaused throws: that tick is skipped and the next one fetches', async () => {
+    const isPaused = jest.fn().mockImplementationOnce(() => {
+      throw new Error('boom');
+    }).mockReturnValue(false);
+    make({ isPaused }).start();
+    await flush();
+    expect(fetch).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('does not fetch while hidden and has no pending timer', async () => {
     make().start();
     await flush();
