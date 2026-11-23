@@ -4,7 +4,7 @@ tags: [infra]
 
 # Frescor de dades: Dashboard (tècnics) i PWA (membres)
 
-**Data:** 05-10-2026 · **Branca base:** `develop` (`bf21368e`) · **Estat:** estudi, sense codi · **Pla d'implementació (16-11-2026):** [superpowers/plans/2026-11-16-data-freshness.md](superpowers/plans/2026-11-16-data-freshness.md) — inclou els canvis respecte d'este estudi
+**Data:** 05-10-2026 · **Branca base:** `develop` (`bf21368e`) · **Estat:** implementat (branca `feat/data-freshness`) · **Pla d'implementació:** [superpowers/plans/2026-11-16-data-freshness.md](superpowers/plans/2026-11-16-data-freshness.md) — inclou els canvis respecte d'este estudi. Les seccions 5 i 7 descriuen el que s'ha fet; la resta és l'estudi original
 
 Com mantenir actualitzades les assignacions de pinyes i l'assistència sense repetir el problema de
 `fix/bugs-diversos-2` (SSE que carregava massa el servidor).
@@ -151,11 +151,14 @@ futura (§6).
 
 ### 5.1 Senyal de canvi: revisions a la BD, mantingudes per triggers
 
-- `event_segments.revision INT NOT NULL DEFAULT 0` i `figure_instances.revision INT NOT NULL DEFAULT 0`.
-- `events.attendance_revision INT NOT NULL DEFAULT 0`.
-- **Triggers de Postgres** `AFTER INSERT/UPDATE/DELETE` a `node_assignments`, `instance_nodes` i
-  `figure_instances` que fan `revision = revision + 1` a la instància i al segment afectats; i a `attendances`,
-  que incrementa `events.attendance_revision`.
+**Implementat (migració `1787300000000-AddRevisionCounters`):** no hi ha revisió per figura. Hi ha tres
+comptadors:
+
+- `event_segments.revision`: nodes i assignacions de les figures del segment.
+- `event_segments.structureRevision`: figures afegides, esborrades, mogudes o editades, i el segment mateix.
+- `events.attendanceRevision`: qualsevol escriptura d'assistència de l'event.
+- **Triggers de Postgres** a `node_assignments`, `instance_nodes`, `figure_instances` i `attendances` que
+  incrementen el comptador que toca.
 
 Per què triggers i no cridar un emissor des de cada servei (com feia `SegmentChangeEmitter`): la branca antiga
 va haver de tocar ~15 punts de mutació a mà i afegir *joins* només per trobar l'`eventId`. Un trigger no es
@@ -170,9 +173,11 @@ però és més fràgil (ignora canvis a `instance_nodes`, depèn dels índexs) i
 ### 5.2 Endpoints de revisió (molt barats)
 
 - **Tècnics:** `GET /events/:eventId/segments/:segmentId/revision` →
-  `{ segment: n, instances: { [id]: n }, attendance: n }`. Una consulta indexada; sense joins pesats.
-- **Membres:** `GET /me/events/:eventId/segments/:segmentId/revision` → `{ segment: n }` (només si està
-  publicat; 404 si no, igual que la projecció). **No inclou l'assistència**: als membres no els cal.
+  `{ state, structure, attendance, editors }` (`StaffSegmentRevision`). Amb `?editing=1` marca qui consulta
+  com a editor del segment (`SegmentPresenceService`, en memòria, finestra de 30 s) i `editors` mostra els
+  altres tècnics («X està editant este segment»).
+- **Membres:** `GET /me/events/:eventId/segments/:segmentId/revision` → `{ revision }` (només si està
+  publicat; 404 si no, igual que la projecció). **No inclou l'assistència** com a senyal separat.
 
 Poden retornar `ETag` = revisió i respondre `304` amb `If-None-Match`, però amb una resposta de pocs bytes no
 és imprescindible.
@@ -182,9 +187,10 @@ Poden retornar `ETag` = revisió i respondre `304` amb `If-None-Match`, però am
 - Interval de **3 s** (configurable) només amb el workspace obert **i** `document.visibilityState === 'visible'`;
   en tornar a ser visible, consulta immediatament.
 - No consulta mentre hi ha una mutació pròpia en curs ni durant un arrossegament (es reprèn en acabar).
-- Si canvia `instances[id]` → `refreshInstance(id)` **només d'aquella figura** (nodes + assignacions).
-  Si canvia `segment` sense cap instància (crear/esborrar/moure figura) → `refresh()`.
-  Si canvia `attendance` → recarrega el roster (substitueix la regla dels 10 s en clicar un node, o la complementa).
+- Si canvia `structure` → recàrrega silenciosa de figures, nodes i assignacions; si només canvia `state` →
+  recàrrega de nodes i assignacions (1 petició). Si canvia `attendance` → recarrega el roster. Detall a
+  [[PINYES_MODULE]] «Sincronització en viu».
+- Es continua consultant però no s'aplica res a les pestanyes Distribució i Nodes extra.
 - **Ignorar el propi eco:** després d'una mutació pròpia, el client ja coneix la nova revisió; es pot
   retornar a la resposta de la mutació, o acceptar un `refreshInstance` redundant (barat, una sola figura).
 - **409 `NODE_OCCUPIED` → `refreshInstance` immediat**, perquè el tècnic vegi qui ocupa el lloc. Aquest canvi
@@ -211,8 +217,8 @@ consumeixen ~1/6.
 
 **Cache de projecció per `(segmentId, revision)` — recomanada amb aquest interval.** La projecció no depèn de
 qui la demana (el `highlightPersonId` es resol al client), així que tots els membres d'un segment poden rebre
-el mateix resultat. Un `Map` en memòria al `ProjectionService` (una entrada per segment; es descarta quan la
-revisió canvia) deixa el cost en **1 projecció per canvi i per segment**, sense importar quants membres hi
+el mateix resultat. Un `Map` en memòria al `ProjectionService` (una entrada per segment, segell
+`revision:structureRevision:attendanceRevision`, TTL de 60 s, màxim 200 entrades) deixa el cost en **1 projecció per canvi i per segment**, sense importar quants membres hi
 hagi. Funciona perquè l'API és un sol procés; si algun dia n'hi ha més, cada procés té la seva cache i continua
 sent correcte.
 
@@ -228,8 +234,8 @@ Sense cache ja és assumible per al servidor (càrrega repartida, mai en pics). 
 Per tant, **35 s és un valor segur**; es podria baixar a ~15 s sense problema si la cache hi és.
 
 **Risc a vigilar:** el límit per IP de Caddy. Amb 100+ mòbils a la Wi-Fi del local, ~220 req/min de revisió més
-la navegació normal ocupen més d'un terç dels 600/min. **Cal pujar el límit de `/api/me/*`** o fer-lo per
-usuari en lloc de per IP (ja era una recomanació de [[REQUEST_AUDIT]] §0).
+la navegació normal ocupen més d'un terç dels 600/min. **Resolt:** la ruta de revisió de la PWA té zona pròpia al Caddy (3000 req/min per IP) i totes les zones es claven per
+`{client_ip}` (`Cf-Connecting-Ip`, de confiança només des dels rangs de Cloudflare fixats).
 
 ### 5.5 Opcional: avís per push quan et canvien la posició (opció F)
 
@@ -260,6 +266,6 @@ La PWA continua amb polling: allà el temps real no aporta res i és on hi ha el
 7. Ajustar el límit de Caddy per a `/api/me/*`.
 8. (Opcional) push «Avisa dels canvis»; SSE per a tècnics.
 
-En acabar el pas 5, es pot esborrar l'element **A1** de [[DEBT]].
+Passos 1–7 fets; l'element A1 de [[DEBT]] s'ha esborrat. Pendent opcional: la prova de càrrega curta (120 clients simulats, 2 min, 20 assignacions) abans d'un assaig real.
 
 *Veïns: [[REQUEST_AUDIT]] · [[PINYES_MODULE]] · [[SSE_AUTH]] · [[DEBT]]*
