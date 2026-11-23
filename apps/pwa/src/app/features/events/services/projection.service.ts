@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, timeout } from 'rxjs';
+import { MeSegmentRevision } from '@muixer/shared';
 import { ProjectionSegmentData } from '@muixer/pinyes-render';
 import { environment } from '../../../../environments/environment';
 
@@ -15,6 +16,12 @@ export class ProjectionService {
   getProjection(eventId: string, segmentId: string): Observable<ProjectionSegmentData> {
     return this.http
       .get<ProjectionSegmentData>(`${this.baseUrl}/${eventId}/segments/${segmentId}/projection`)
+      .pipe(timeout(PROJECTION_TIMEOUT_MS));
+  }
+
+  getRevision(eventId: string, segmentId: string): Observable<MeSegmentRevision> {
+    return this.http
+      .get<MeSegmentRevision>(`${this.baseUrl}/${eventId}/segments/${segmentId}/revision`)
       .pipe(timeout(PROJECTION_TIMEOUT_MS));
   }
 }

@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   inject,
   computed,
   input,
@@ -165,6 +166,13 @@ export class EventDetailComponent {
   private readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
 
   constructor() {
+    // Coming back to the app after a while: refresh like the pull-to-refresh, without the gesture.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') this.onRefresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('visibilitychange', onVisible));
+
     effect(() => {
       const ev = this.event();
       if (ev) {

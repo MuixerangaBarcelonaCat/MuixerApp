@@ -1,4 +1,4 @@
-@if (isLoading()) {
+@if (isLoading() && !data()) {
   <div
     class="flex items-center justify-center h-dvh w-screen bg-base-200"
     role="status"
@@ -7,7 +7,7 @@
     <span class="loading loading-spinner loading-lg text-primary"></span>
     <span class="sr-only">S'està carregant la projecció...</span>
   </div>
-} @else if (hasError() || !data()) {
+} @else if (!data()) {
   <div class="flex items-center justify-center h-dvh w-screen bg-base-200 p-4">
     <lib-empty-state
       message="No s'ha pogut carregar la projecció."

@@ -450,4 +450,41 @@ describe('EventDetailComponent', () => {
       expect(row.textContent).toContain("Sou en més d'un lloc alhora");
     });
   });
+
+  describe('refresh on returning to the tab', () => {
+    const setVisibility = (state: 'visible' | 'hidden') => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    afterEach(() => setVisibility('visible'));
+
+    it('reloads event, segments and stats when the tab becomes visible again', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of<MeSegment[]>([]), UserRole.TECHNICAL);
+      eventService.findOne.mockClear();
+      eventService.findSegments.mockClear();
+      eventService.getAttendanceStats.mockClear();
+
+      setVisibility('visible');
+      fixture.detectChanges();
+      await TestBed.inject(ApplicationRef).whenStable();
+
+      expect(eventService.findOne).toHaveBeenCalledTimes(1);
+      expect(eventService.findSegments).toHaveBeenCalledTimes(1);
+      expect(eventService.getAttendanceStats).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not reload while hidden and removes the listener on destroy', async () => {
+      fixture = await setup();
+      eventService.findOne.mockClear();
+
+      setVisibility('hidden');
+      fixture.detectChanges();
+      await TestBed.inject(ApplicationRef).whenStable();
+      expect(eventService.findOne).not.toHaveBeenCalled();
+
+      fixture.destroy();
+      setVisibility('visible');
+      expect(eventService.findOne).not.toHaveBeenCalled();
+    });
+  });
 });

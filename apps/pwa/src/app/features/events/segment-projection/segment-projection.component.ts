@@ -7,16 +7,27 @@ import {
   OnDestroy,
   afterNextRender,
   computed,
+  effect,
   inject,
   input,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { firstValueFrom } from 'rxjs';
 import { Router } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-angular';
-import { computeSegmentDisplayName, matchesSearch } from '@muixer/shared';
+import {
+  computeSegmentDisplayName,
+  createRevisionPoller,
+  getEventPhase,
+  matchesSearch,
+  PWA_REVISION_JITTER_MS,
+  PWA_REVISION_POLL_MS,
+} from '@muixer/shared';
 import { AssignmentPersonDetail, ProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-render';
 import { EmptyStateComponent, InputComponent, ModalComponent, ThemeScopeDirective } from '@muixer/ui';
 import { ProjectionService } from '../services/projection.service';
@@ -44,6 +55,7 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService);
   private readonly authService = inject(AuthService);
   private readonly injector = inject(Injector);
+  private readonly document = inject(DOCUMENT);
 
   /** The rendered `lib-pinya-projection` — used to re-trigger its flight animation whenever the
    *  looked-up person changes (see `flyToHighlighted`), same way its own Troba'm button does. */
@@ -100,17 +112,54 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
     stream: ({ params }) => this.projectionService.getProjection(params.eventId, params.segmentId),
   });
 
-  protected readonly data = computed((): ProjectionSegmentData | undefined =>
-    this.projectionResource.error() ? undefined : this.projectionResource.value(),
-  );
+  /** The last good projection of the current segment: a failed background reload keeps showing it,
+   *  and it only empties when eventId/segmentId change (the spinner then shows again). */
+  protected readonly data = linkedSignal<
+    { key: string; value: ProjectionSegmentData | undefined },
+    ProjectionSegmentData | undefined
+  >({
+    source: () => ({
+      key: `${this.eventId()}|${this.segmentId()}`,
+      value: this.projectionResource.error() ? undefined : this.projectionResource.value(),
+    }),
+    computation: (src, prev) => src.value ?? (prev && prev.source.key === src.key ? prev.value : undefined),
+  });
   protected readonly isLoading = this.projectionResource.isLoading;
-  protected readonly hasError = computed(() => !!this.projectionResource.error());
 
   protected readonly segmentLabel = computed(() => {
     const data = this.data();
     if (!data) return '';
     return computeSegmentDisplayName(data.segment.name, data.instances);
   });
+
+  /** Live refresh only on the event day; absent `event` (an old offline payload) means no polling. */
+  private readonly isEventDay = computed(() => {
+    const event = this.data()?.event;
+    if (!event) return false;
+    const phase = getEventPhase(event.date, event.startTime);
+    return phase === 'day' || phase === 'started';
+  });
+
+  constructor() {
+    // A new poller per segment (prev/next keeps this component alive), so each starts from a
+    // fresh baseline. Revision errors (network, 401, 404 for an unpublished segment) are ignored.
+    effect((onCleanup) => {
+      const eventId = this.eventId();
+      const segmentId = this.segmentId();
+      if (!this.isEventDay()) return;
+      const poller = createRevisionPoller({
+        fetch: () => firstValueFrom(this.projectionService.getRevision(eventId, segmentId)),
+        onChange: () => {
+          this.projectionResource.reload();
+        },
+        intervalMs: PWA_REVISION_POLL_MS,
+        jitterMs: PWA_REVISION_JITTER_MS,
+        visibility: this.document,
+      });
+      poller.start();
+      onCleanup(() => poller.stop());
+    });
+  }
 
   goBack(): void {
     this.router.navigate(['/events', this.eventId()]);

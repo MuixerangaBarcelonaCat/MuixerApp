@@ -33,6 +33,17 @@ describe('ProjectionService', () => {
     });
   });
 
+  it('getRevision GETs /me/events/:eventId/segments/:segmentId/revision', () => {
+    let revision: unknown;
+    service.getRevision('ev-1', 'seg-1').subscribe((r) => (revision = r));
+
+    const req = httpMock.expectOne('/api/me/events/ev-1/segments/seg-1/revision');
+    expect(req.request.method).toBe('GET');
+    req.flush({ revision: 'r1' });
+
+    expect(revision).toEqual({ revision: 'r1' });
+  });
+
   it('should error out instead of spinning forever when the server never answers', () => {
     vi.useFakeTimers();
     try {

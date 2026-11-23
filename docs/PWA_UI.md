@@ -63,6 +63,10 @@ Cap equivalent a `libs/ui` (Tier 3 en el vocabulari del pla de disseny) — viue
 
 `event-list`: alterna entre `app-event-feed` (llista infinita amb pull-to-refresh, paginació pròpia) i `app-calendar-view` (graella mensual; cercle per assaig / estrela per actuació, ple i en verd/roig o buit segons si s'ha contestat), mateix `EventService` per darrere de totes dues.
 
+### Refresc de dades
+
+`event-detail` recarrega event, segments i estadístiques amb el pull-to-refresh (`onRefresh`) i també en `visibilitychange` → `visible` (sense polling). `segment-projection` sondeja `GET /me/events/:eventId/segments/:segmentId/revision` cada ~30 s només el dia de l'event i recarrega en silenci (sense spinner ni reinici de càmera) quan canvia; es manté l'última projecció bona si una recàrrega falla.
+
 ### Detall (Event detail, News detail)
 
 `app-mobile-header` → `lib-card`(s) → seccions condicionals (`@if`) → accions al peu. `event-detail` reutilitza el mateix `app-event-card` que la llista (amb `[showAttendance]="false"` i `[clickable]="false"`) per a la capçalera, en lloc de duplicar el disseny de targeta.

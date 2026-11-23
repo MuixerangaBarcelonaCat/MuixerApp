@@ -119,6 +119,8 @@ Davall de cada prova apareix on li toca, per exemple «VENT (C1) a Roscana».
 
 Si li toca estar en dos llocs alhora, apareix en roig: «Sou en més d'un lloc alhora. La comi sanitària no recomana partir-se pel mig. Parleu amb la tècnica.».
 
+El detall s'actualitza sol quan torneu a l'app després d'haver-la deixada en segon pla.
+
 **Només hi apareixen les proves publicades.** Al Dashboard, una prova es publica amb la icona de l'ull. Vegeu [Segments i figures](11-segments-i-figures.md).
 
 ![Detall d'un esdeveniment amb la llista de proves ressaltada](img/19-pwa-detall-segments.png)
@@ -137,6 +139,8 @@ Per a buscar algú altre:
 2. Escriviu el nom o l'àlies a «Nom o àlies» i toqueu la persona.
 3. Ara la frase parla d'eixa persona i el botó es diu «On està».
 4. Amb la ✕ de la frase, torneu a la posició pròpia.
+
+El dia de l'esdeveniment, la projecció s'actualitza sola: si un tècnic canvia algú de lloc, el canvi apareix en mig minut com a màxim, sense moure el zoom ni tancar la cerca. Un altre dia no s'actualitza sola.
 
 A baix hi ha una barra. Les fletxes passen a la prova anterior o a la següent, i la fletxa de l'esquerra de tot torna al detall de l'esdeveniment.
 
