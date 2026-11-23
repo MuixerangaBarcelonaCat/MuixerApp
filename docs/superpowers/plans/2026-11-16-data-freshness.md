@@ -24,8 +24,10 @@ El projecte ha evolucionat des de l'estudi (`bf21368e` → `4d83a501`). Decision
 | Projecció fullscreen del Dashboard: no s'esmentava | També fa polling (Task 6) | És la pantalla que es projecta a l'assaig i ningú la refresca a mà |
 | Assistència: «no row ≡ PENDENT» no existia | El trigger d'`attendances` cobrix `INSERT/UPDATE/DELETE` | Tornar a PENDENT pot esborrar la fila |
 | Pas 8 opcional (push «Avisa dels canvis», SSE tècnics) | **Fora d'abast** | YAGNI; es valora després de provar el polling en un assaig real |
+| Les plantilles no movien cap revisió | Trigger a `figure_nodes`: puja `structureRevision` dels segments amb instàncies **sense snapshot** d'eixa plantilla | Abans del snapshot el canvas llig els `FigureNode` en directe; sense el trigger, editar la plantilla no arribava a ningú i la cache servia el cos antic fins a 60 s. Les instàncies ja amb snapshot no es toquen (invariant 2) |
+| Pausa del polling = `pendingOperations().length > 0` | Pausa = `state.inFlightMutations() > 0`; descart de recàrrega també si `state.mutationSeq()` ha canviat des que es va demanar | `pendingOperations` només el registra `assign`: `unassign`, `swap`, desfer/refer, buidar i el trasllat entre figures no hi passen. A més, una operació que comença **i acaba** mentre la recàrrega és en vol deixava aplicar una resposta més vella que l'estat local |
 
-**Fora d'abast** (afegir quan es demostre que cal): revisió per a «Passa llista» de la PWA i per a la confirmació d'assistència del Dashboard (caldria `GET /events/:id/attendance/revision`; el comptador `events.attendanceRevision` ja queda fet); SSE per a tècnics (estudi §6); push «Avisa dels canvis» (estudi §5.5). Si `feat/quadre-troncs` es fusiona abans, el quadre llig de `SegmentWorkspaceStateService`/`AssignmentStateService` i queda cobert per la Task 6 sense res més; comproveu-ho a mà.
+**Fora d'abast** (afegir quan es demostre que cal): revisió per a «Passa llista» de la PWA i per a la confirmació d'assistència del Dashboard (caldria `GET /events/:id/attendance/revision`; el comptador `events.attendanceRevision` ja queda fet); SSE per a tècnics (estudi §6); push «Avisa dels canvis» (estudi §5.5); avís d'edició a la llista de segments de l'event (la Task 6b només el mostra dins del workspace); qui ha fet l'últim canvi de cada node (caldria `node_assignments.assignedById` i una migració). Si `feat/quadre-troncs` es fusiona abans, el quadre llig de `SegmentWorkspaceStateService`/`AssignmentStateService` i queda cobert per la Task 6 sense res més; comproveu-ho a mà.
 
 ## Global Constraints
 
@@ -41,7 +43,7 @@ El projecte ha evolucionat des de l'estudi (`bf21368e` → `4d83a501`). Decision
 
 ## Review Focus
 
-1. **Operació optimista en vol quan arriba una recàrrega remota** → la recàrrega no pot esborrar l'assignació temporal ni el `previousAssignments` del rollback. S'espera: es descarta la resposta i es reintenta al següent tic (test a la Task 6).
+1. **Operació optimista en vol quan arriba una recàrrega remota** (qualsevol mutació, no només `assign`) → la recàrrega no pot esborrar l'assignació temporal ni el `previousAssignments` del rollback. Tampoc pot aplicar-se una resposta demanada **abans** d'una operació que ja ha acabat. S'espera: es descarta la resposta i es reintenta al següent tic (tests a les Tasks 1 i 6).
 2. **Pestanya oculta molta estona i torna** → una sola consulta immediata, cap ràfega de temporitzadors acumulats, cap petició mentre està oculta (test a la Task 5).
 3. **Errors durant el polling (xarxa caiguda, 401 mentre es refresca el JWT, 404 perquè el segment s'ha despublicat)** → silenci, es conserva l'última dada bona en pantalla i la revisió de referència, i es reprén sol (tests a les Tasks 5 i 7).
 4. **Recàrrega silenciosa de la projecció** → no ha de reiniciar la càmera/zoom, ni tancar el cercador de persones, ni perdre `selectedParticipant`, ni fer el vol «Troba'm» de nou (tests a les Tasks 6 i 7).
@@ -53,12 +55,13 @@ El projecte ha evolucionat des de l'estudi (`bf21368e` → `4d83a501`). Decision
 
 | Fitxer | Responsabilitat |
 |---|---|
-| `apps/api/src/migrations/1787200000000-AddRevisionCounters.ts` (nou) | Columnes + funcions + triggers |
-| `apps/api/src/migrations/1787200000000-AddRevisionCounters.integration.spec.ts` (nou) | Prova de la migració i dels triggers amb Postgres real |
+| `apps/api/src/migrations/1787300000000-AddRevisionCounters.ts` (nou) | Columnes + funcions + triggers |
+| `apps/api/src/migrations/1787300000000-AddRevisionCounters.integration.spec.ts` (nou) | Prova de la migració i dels triggers amb Postgres real |
 | `apps/api/src/modules/event-segment/entities/event-segment.entity.ts`, `apps/api/src/modules/event/event.entity.ts` | Camps de només lectura |
 | `apps/api/src/modules/event-segment/segment-revision.service.ts` (+ spec, nou) | Llegir les revisions amb 1 consulta |
 | `apps/api/src/modules/event-segment/event-segment.controller.ts`, `apps/api/src/modules/me/me.controller.ts`, `me.service.ts` | Endpoints `…/revision` |
 | `apps/api/src/modules/event-segment/projection.service.ts` | Cache per segell de revisió |
+| `apps/api/src/modules/event-segment/segment-presence.service.ts` (+ spec, nou) | Qui està editant cada segment (memòria, finestra de 30 s) |
 | `libs/shared/src/interfaces/segment-revision.interface.ts` (nou) | `SegmentRevision`, `MeSegmentRevision` |
 | `libs/shared/src/utils/revision-poller.util.ts` (+ spec, nou) | Bucle de polling sense framework + constants d'interval |
 | `apps/dashboard/src/app/features/pinyes/services/segment-workspace-state.service.ts` | `reloadAssignmentState()`, sincronització en viu |
@@ -68,7 +71,7 @@ El projecte ha evolucionat des de l'estudi (`bf21368e` → `4d83a501`). Decision
 | `apps/dashboard/Caddyfile` | Zona de límit pròpia per a `…/revision` |
 | `docs/…`, `CLAUDE.md`, `docs/manual/…` | Documentació |
 
-Si quan s'implemente `develop` ja té una migració amb un número ≥ `1787200000000`, useu el següent centenar de milions lliure i canvieu el nom de la classe en conseqüència.
+Si quan s'implemente `develop` ja té una migració amb un número ≥ `1787300000000`, useu el següent centenar de milions lliure i canvieu el nom de la classe en conseqüència.
 
 ---
 
@@ -77,12 +80,21 @@ Si quan s'implemente `develop` ja té una migració amb un número ≥ `17872000
 Canvi independent i útil encara que no es faça res més: hui el tècnic veu «Este lloc ja està ocupat» però no qui l'ocupa.
 
 **Files:**
+- Modify: `apps/dashboard/src/app/features/pinyes/services/assignment-state.service.ts` (comptadors de mutació)
 - Modify: `apps/dashboard/src/app/features/pinyes/services/segment-workspace-state.service.ts` (`fetchSegmentData`, ~l. 301-352)
-- Modify: `apps/dashboard/src/app/features/pinyes/services/segment-assignment-actions.service.ts` (handler d'error d'`assign`, ~l. 228-239)
-- Test: els `.spec.ts` germans dels dos fitxers
+- Modify: `apps/dashboard/src/app/features/pinyes/services/segment-assignment-actions.service.ts` (handler d'error d'`assign`, ~l. 228-239; i totes les crides de mutació, vegeu baix)
+- Modify: les crides de mutació de fora del servei (llista a «Interfaces»)
+- Test: els `.spec.ts` germans dels tres primers fitxers
 
 **Interfaces:**
-- Produces: `SegmentWorkspaceStateService.reloadAssignmentState(): Observable<boolean>` — demana `getSegmentAssignmentState(eventId, segmentId)` i fusiona nodes + assignacions a `instances` (amb `withState`) i `state.assignments`; després crida `reloadConflicts()`. Emet `true` si ha aplicat la resposta i `false` si l'ha descartada. **Descarta** la resposta (no toca cap signal) si, quan arriba, `state.pendingOperations().length > 0` o si `eventId()`/`segmentId()` ja no són els de la petició. Un error de xarxa emet `false` (no llança, no fa *toast*).
+- Produces: `AssignmentStateService.inFlightMutations: Signal<number>`, `AssignmentStateService.mutationSeq: Signal<number>` i `AssignmentStateService.trackMutation<T>(source: Observable<T>): Observable<T>` — en subscriure's incrementa els dos comptadors; en acabar (`finalize`: èxit, error o cancel·lació) decrementa `inFlightMutations`. `mutationSeq` només puja. `reset()` posa `inFlightMutations` a 0.
+- Totes les crides de mutació de `segment-assignment-actions.service.ts` passen per `trackMutation` (hui: `assign`, `unassign`, `swap`, i les de desfer/refer, buidar i trasllat, ~l. 205-609).
+- **També** hi passen les mutacions del segment que es fan fora d'eixe servei: la Task 6b les necessita per a marcar «editant» (`mutationSeq` puja), i així no deixen aplicar una recàrrega més vella que elles. Llista actual (comproveu-la amb `grep` en implementar):
+  - `segment-workspace.component.ts:346` (`resetSnapshot`)
+  - `cordons-change.component.ts:95` (`updateCordons`), `figure-mode-change.component.ts:82`
+  - `nodes-tab.component.ts:353, 400, 518, 532`, `troncs-tab.component.ts:521, 553`, `ad-hoc-node-properties.component.ts:191` (nodes extra)
+  - `distribucio-tab.component.ts:383` (etiqueta), `:515` (`saveDistribution`), `segment-figure-add.service.ts:28` (afegir figura)
+- Produces: `SegmentWorkspaceStateService.reloadAssignmentState(): Observable<boolean>` — anota `seq = state.mutationSeq()`, demana `getSegmentAssignmentState(eventId, segmentId)` i fusiona nodes + assignacions a `instances` (amb `withState`) i `state.assignments`; després crida `reloadConflicts()`. Emet `true` si ha aplicat la resposta i `false` si l'ha descartada. **Descarta** la resposta (no toca cap signal) si, quan arriba, `state.inFlightMutations() > 0`, `state.mutationSeq() !== seq` (una operació ha començat després de demanar-la, encara que ja haja acabat) o `eventId()`/`segmentId()` ja no són els de la petició. Un error de xarxa emet `false` (no llança, no fa *toast*).
 
 - [ ] **Step 1: Tests que fallen** (`segment-workspace-state.service.spec.ts`)
 
@@ -90,22 +102,34 @@ Canvi independent i útil encara que no es faça res més: hui el tècnic veu «
 it('reloadAssignmentState replaces nodes and assignments of every instance and reloads conflicts', …);
 // després: ws.state.assignments() === resposta aplanada; instances()[0].nodes === resposta; getSegmentConflicts cridat
 
-it('reloadAssignmentState discards the response while an optimistic operation is pending', …);
-// state.pendingOperations.set([op]) abans que arribe la resposta → state.assignments() intacte, emet false
+it('reloadAssignmentState discards the response while a mutation is in flight', …);
+// una mutació trackMutation sense completar quan arriba la resposta → state.assignments() intacte, emet false
+
+it('reloadAssignmentState discards a response requested before a mutation that already finished', …);
+// demana → comença i acaba una mutació → arriba la resposta → state.assignments() intacte, emet false
 
 it('reloadAssignmentState emits false and shows no toast on error', …);
+```
+
+A `assignment-state.service.spec.ts`:
+
+```ts
+it('trackMutation counts a mutation in flight until it completes, errors or is unsubscribed', …);
+it('mutationSeq only grows', …);
 ```
 
 I a `segment-assignment-actions.service.spec.ts`:
 
 ```ts
+it('assign, unassign and swap go through trackMutation', …);   // inFlightMutations() === 1 mentre la petició no respon
+// i, a l'spec de cada component de la llista, un test que la seua mutació incrementa mutationSeq
 it('reloads the segment state after a 409 on assign so the occupant becomes visible', …);
 // assign() → error { status: 409 } → expect(ws.reloadAssignmentState).toHaveBeenCalledTimes(1)
 it('does not reload the segment state on a non-409 assign error', …);
 ```
 
 - [ ] **Step 2:** `nx test dashboard --testFile=<cada spec>` → FALLEN (`reloadAssignmentState is not a function`).
-- [ ] **Step 3: Implementa.** Extrau de `fetchSegmentData` la part que aplica `instanceState` a `instances`/`state.assignments` a un mètode privat i reusa-la des de `reloadAssignmentState()`. Al handler d'error d'`assign`, després del rollback (l'operació pendent ja s'ha tret de `pendingOperations`), si `err?.status === 409` → `this.ws.reloadAssignmentState().subscribe()`. El *toast* es queda igual.
+- [ ] **Step 3: Implementa.** Primer `trackMutation` a `AssignmentStateService` i embolica-hi les crides de mutació d'`segment-assignment-actions.service.ts` (`.pipe(…)` sobre l'observable del servei HTTP; per a les que van dins d'un `forkJoin`/`concat`, embolica el combinat, no cada peça). Després extrau de `fetchSegmentData` la part que aplica `instanceState` a `instances`/`state.assignments` a un mètode privat i reusa-la des de `reloadAssignmentState()`. Al handler d'error d'`assign`, després del rollback (l'operació pendent ja s'ha tret de `pendingOperations`), si `err?.status === 409` → `this.ws.reloadAssignmentState().subscribe()`. El *toast* es queda igual.
 - [ ] **Step 4:** els dos specs PASSEN; `nx lint dashboard`.
 - [ ] **Step 5: Commit** — `fix(dashboard): reload segment state when a node is already occupied`
 
@@ -114,8 +138,8 @@ it('does not reload the segment state on a non-409 assign error', …);
 ### Task 2: Migració — comptadors de revisió i triggers
 
 **Files:**
-- Create: `apps/api/src/migrations/1787200000000-AddRevisionCounters.ts`
-- Create: `apps/api/src/migrations/1787200000000-AddRevisionCounters.integration.spec.ts` (mateix patró que `1786300000000-AddNodeStandsOn.integration.spec.ts`)
+- Create: `apps/api/src/migrations/1787300000000-AddRevisionCounters.ts`
+- Create: `apps/api/src/migrations/1787300000000-AddRevisionCounters.integration.spec.ts` (mateix patró que `1786300000000-AddNodeStandsOn.integration.spec.ts`)
 - Modify: `apps/api/src/migrations/index.ts` (import + última entrada de l'array)
 - Modify: `apps/api/src/modules/event-segment/entities/event-segment.entity.ts`, `apps/api/src/modules/event/event.entity.ts`
 - Regenerate: `docs/DATA_MODEL.md` (`pnpm run docs:model`)
@@ -132,6 +156,7 @@ Què mou cada comptador:
 | `instance_nodes` (I/U/D) | `event_segments.revision` | el de la seua `figure_instances` |
 | `figure_instances` (I/U/D) | `event_segments.structureRevision` | `"segmentId"` vell i nou |
 | `event_segments` (U directe: nom, notes, publicar, ordre) | `structureRevision` (ell mateix) | — |
+| `figure_nodes` (I/U/D) | `event_segments.structureRevision` | cada segment amb una `figure_instances` de la plantilla (`"templateId"` vell i nou) i `"snapshotted" = false` |
 | `attendances` (I/U/D) | `events.attendanceRevision` | `"eventId"` |
 
 - [ ] **Step 1: Test d'integració que falla.** Munta l'esquema fins a la migració anterior, sembra amb SQL cru (event, 2 segments, plantilla, 1 figura *snapshotted* per segment, 2 `instance_nodes`, 2 persones), aplica la migració i comprova (helper `rev(segmentId) → { revision, structureRevision }`, `att(eventId) → number`):
@@ -148,6 +173,9 @@ it('event_segments: a trigger-driven bump does not also bump structureRevision')
 it('deleting a figure with nodes and assignments (cascade) does not fail and bumps structureRevision');
 it('deleting a segment or an event (cascade) does not fail');
 it('attendances: INSERT, UPDATE and DELETE each bump events.attendanceRevision by 1');
+it('figure_nodes: INSERT/UPDATE/DELETE bump structureRevision of segments with an unsnapshotted instance of that template');
+it('figure_nodes: a segment whose instance of that template is snapshotted is not touched');
+it('figure_nodes: saving a template no instance uses touches no segment and does not fail');
 it('a segment in another event is never touched');
 it('10 concurrent INSERTs into node_assignments on separate connections leave revision at +10');   // Review Focus 5
 it('down() drops the triggers, the functions and the columns; writes keep working');
@@ -155,7 +183,7 @@ it('down() drops the triggers, the functions and the columns; writes keep workin
 
 Per al test concurrent: 10 `queryRunner` independents, `Promise.all`, 10 nodes diferents (la unicitat és per node).
 
-- [ ] **Step 2:** `nx run api:test-integration --testFile=apps/api/src/migrations/1787200000000-AddRevisionCounters.integration.spec.ts` → FALLA (la migració no existix).
+- [ ] **Step 2:** `nx run api:test-integration --testFile=apps/api/src/migrations/1787300000000-AddRevisionCounters.integration.spec.ts` → FALLA (la migració no existix).
 - [ ] **Step 3: Escriu la migració.** `up()` executa, en este ordre, els tres `ALTER TABLE … ADD COLUMN` i este SQL (un `queryRunner.query` per sentència):
 
 ```sql
@@ -208,6 +236,21 @@ BEGIN
   RETURN NULL;
 END $$ LANGUAGE plpgsql;
 
+-- Before its first assignment an instance reads its template's FigureNodes live, so a template
+-- edit changes what those segments show. Snapshotted instances are immune (invariant 2).
+CREATE FUNCTION muixer_bump_template_segments() RETURNS trigger AS $$
+DECLARE old_id uuid; new_id uuid;
+BEGIN
+  IF TG_OP <> 'INSERT' THEN old_id := OLD."templateId"; END IF;
+  IF TG_OP <> 'DELETE' THEN new_id := NEW."templateId"; END IF;
+  UPDATE "event_segments" SET "structureRevision" = "structureRevision" + 1
+   WHERE "id" IN (SELECT "segmentId" FROM "figure_instances"
+                   WHERE "snapshotted" = false AND "figureTemplateId" IN (old_id, new_id));
+  RETURN NULL;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "trg_figure_nodes_revision" AFTER INSERT OR UPDATE OR DELETE ON "figure_nodes"
+  FOR EACH ROW EXECUTE FUNCTION muixer_bump_template_segments();
 CREATE TRIGGER "trg_node_assignments_revision" AFTER INSERT OR UPDATE OR DELETE ON "node_assignments"
   FOR EACH ROW EXECUTE FUNCTION muixer_bump_assignment_segment();
 CREATE TRIGGER "trg_instance_nodes_revision" AFTER INSERT OR UPDATE OR DELETE ON "instance_nodes"
@@ -220,7 +263,7 @@ CREATE TRIGGER "trg_attendances_revision" AFTER INSERT OR UPDATE OR DELETE ON "a
   FOR EACH ROW EXECUTE FUNCTION muixer_bump_event_attendance();
 ```
 
-Afig al comentari de la classe: `// ponytail: row-level triggers — a 200-row bulk import bumps the segment 200 times inside one transaction (clients only see the last value). Switch to statement-level triggers with transition tables if imports get slow.` `down()` fa `DROP TRIGGER` ×5, `DROP FUNCTION` ×5, `DROP COLUMN` ×3.
+Afig al comentari de la classe: `// ponytail: row-level triggers — a 200-row bulk import bumps the segment 200 times inside one transaction (clients only see the last value). Switch to statement-level triggers with transition tables if imports get slow.` `down()` fa `DROP TRIGGER` ×6, `DROP FUNCTION` ×6, `DROP COLUMN` ×3.
 
 - [ ] **Step 4:** registra la migració a `index.ts`; afig els tres camps a les entitats; `pnpm run docs:model`.
 - [ ] **Step 5:** el spec PASSA. Després **tota** la suite: `nx run api:test-integration` i `nx test api` → verds (comprova sobretot `snapshot-race`, `attendance-summary-race`, `figure-instance-sort-order` i el *sync*: són els que escriuen en massa o amb bloquejos).
@@ -424,7 +467,8 @@ Regles d'`applyRemoteRevision`:
 | `attendance` (sol o amb els altres) | a més, `state.refreshPersonList()` (el `PersonPanelComponent` ja recarrega el *roster* amb eixe *trigger*) |
 
 Regles del bucle del workspace:
-- `isPaused` = `state.pendingOperations().length > 0 || liveSyncPaused()`. Mentre està pausat la referència no avança, així que el canvi s'aplica al primer tic lliure.
+- `isPaused` = `state.inFlightMutations() > 0` (Task 1). Mentre està pausat la referència no avança, així que el canvi s'aplica al primer tic lliure.
+- `liveSyncPaused()` **no** pausa la consulta: el bucle continua consultant, però `onChange` torna `false` sense recarregar res (la referència no avança i el canvi s'aplica en tornar a una altra pestanya). Cal que la consulta continue perquè porta el senyal «editant» de la Task 6b, i Distribució i Nodes són pestanyes on s'edita.
 - `SegmentWorkspaceComponent` posa `ws.liveSyncPaused` a `true` mentre la pestanya activa és `distribucio` o `nodes` (s'hi editen posicions i nodes a mà; en eixir, `refresh()` ja recarrega) i a `false` a la resta, amb un `effect`.
 - `load()` reinicia el bucle (canvi de segment amb prev/next = referència nova); `DestroyRef.onDestroy` → `stopLiveSync()`. `startLiveSync()` es crida al final de `load()`.
 - L'eco propi (el tècnic assigna → canvia `state`) costa 1 petició `assignment-state` per tic com a màxim. Acceptat: 5 tècnics actius ≈ 100 consultes + ≤ 100 recàrregues per minut, lluny dels 600/min/IP. Comentari: `// ponytail: own writes trigger one redundant state reload per tick; return the new revision from mutation responses if this ever shows up in the rate limit.`
@@ -444,8 +488,9 @@ it('applyRemoteRevision: a structure change calls reloadInstances once, even if 
 it('applyRemoteRevision: an attendance change refreshes the person list and reloads no figures');
 it('applyRemoteRevision resolves false when reloadAssignmentState discarded the response');   // Review Focus 1
 it('polls getRevision every DASHBOARD_REVISION_POLL_MS after load()');
-it('does not poll while an optimistic operation is pending');
-it('does not poll while liveSyncPaused is true and catches up when it turns false');
+it('does not poll while a mutation is in flight (assign, unassign, swap, undo)');
+it('a reload requested before a mutation that finished meanwhile is discarded and retried on the next tick'); // Review Focus 1
+it('keeps polling but applies no revision while liveSyncPaused is true, and catches up when it turns false');
 it('load() for another segment restarts the baseline: no reload for the first revision of the new segment');
 it('stops polling when the service is destroyed');
 it('a failing getRevision shows no toast and keeps polling');                                  // Review Focus 3
@@ -474,6 +519,91 @@ it('stops polling on destroy');
   - Pestanya de la xarxa: amb la pestanya en segon pla no ix cap `…/revision`.
 - [ ] **Step 6: Documentació.** Manual 12, 13 i 16: una frase a cada pàgina dient que els canvis d'altres tècnics i l'assistència apareixen sols en pocs segons (sense captures noves: no canvia res visualment). `PINYES_MODULE.md`: secció curta «Sincronització en viu» (què consulta, cada quant, què recarrega, quan es pausa). `REQUEST_AUDIT.md`: lleva la fila P5.
 - [ ] **Step 7: Commit** — `feat(dashboard): keep the segment workspace and projection in sync with other technicians`
+
+---
+
+### Task 6b: Dashboard — avís d'edició simultània al workspace
+
+Ho van demanar els tècnics: en preparar l'assaig en una reunió virtual, cadascú des de casa, editen sovint el mateix segment alhora. L'avís **no protegix res** (ja ho fan el 409 de la Task 1 i el polling de la Task 6): fa que els companys sàpien que algú hi fa canvis i no toquen les mateixes posicions alhora.
+
+Decisions de producte:
+- **Només avisa de qui edita, mai de qui té el segment obert.** No es vol que l'eina servisca per a vigilar qui està connectat: una consulta que no porta `editing=1` no deixa cap rastre al servidor.
+- «Editant» = ha fet alguna mutació al segment en els últims `PRESENCE_EDITING_WINDOW_MS` (30 s). L'avís s'apaga sol 30 s després de l'última edició (també si es tanca o s'amaga la pestanya).
+- Només TECHNICAL/ADMIN (hereta els `@Roles` del controlador) i només l'àlies; un compte sense persona vinculada apareix com a «Un altre tècnic».
+- Cap petició nova: el senyal va dins del `GET …/revision` de les Tasks 3 i 6.
+
+**Files:**
+- Create: `apps/api/src/modules/event-segment/segment-presence.service.ts` + `.spec.ts`
+- Modify: `apps/api/src/modules/event-segment/event-segment.module.ts`, `event-segment.controller.ts` (+ spec), `libs/shared/src/interfaces/segment-revision.interface.ts`
+- Modify: `EventSegmentService.getRevision` (Dashboard), `segment-workspace-state.service.ts`, `segment-workspace.component.{ts,html}` (+ specs)
+- Docs: `docs/manual/12-assignacio-troncs.md`, `13-assignacio-pinyes.md` (frase + captura amb `pnpm run docs:manual-shots`), `docs/PINYES_MODULE.md` («Sincronització en viu»)
+
+**Interfaces:**
+- Consumes: `mutationSeq` (Task 1, amb **totes** les mutacions del segment embolicades), `GET …/revision` (Task 3), el bucle del workspace i `liveSyncPaused` sense pausar la consulta (Task 6).
+- Produces:
+
+```ts
+// @muixer/shared
+export const PRESENCE_EDITING_WINDOW_MS = 30_000;
+export interface SegmentEditor { userId: string; alias: string; }
+/** Staff revision response: the revision plus who else is editing the segment right now. */
+export interface StaffSegmentRevision extends SegmentRevision { editors: SegmentEditor[]; }
+
+// apps/api
+SegmentPresenceService.markEditing(segmentId: string, userId: string): Promise<void>
+// guarda lastEditAt; l'àlies es resol 1 vegada per usuari (user → person.alias) i es guarda a l'entrada
+SegmentPresenceService.editorsIn(segmentId: string, exceptUserId: string): SegmentEditor[]
+// lastEditAt dins de la finestra; esborra les entrades caducades
+// ponytail: per-process Map; with N API processes each sees only its own clients.
+```
+
+- `GET /events/:eventId/segments/:segmentId/revision?editing=1` → `StaffSegmentRevision`. Amb `editing=1`, crida `markEditing` amb l'usuari del JWT abans de respondre. Sense el paràmetre, no escriu res. `editors` mai inclou qui fa la consulta, i dos dispositius del mateix usuari són una sola entrada (clau `userId`). Documenteu a `@ApiOperation` que el paràmetre té efecte. La ruta de membres (`/me/…/revision`) no canvia.
+- Dashboard: el workspace envia `editing=1` si `state.mutationSeq()` ha pujat des de la consulta anterior. El `fetch` del poller guarda `editors` en `ws.otherEditors: Signal<SegmentEditor[]>` i torna només `{ state, structure, attendance }`, perquè un canvi d'editors no dispare cap recàrrega. `ProjectionViewComponent` no envia mai `editing=1`.
+- Capçalera del workspace, al costat de «Bloquejat», només si `otherEditors().length > 0`:
+  - `lib-badge variant="info" size="sm"` amb la icona Lucide `Users`: «*Pere* està editant este segment» / «*Pere* i *Anna* estan editant este segment» (3 o més: «*Pere*, *Anna* i *Joan* estan editant este segment»).
+  - Al costat, icona d'informació amb el patró que ja s'usa a `person-detail.component.html:407` (`tooltip` de DaisyUI + `lib-button` `ghost`/`circle`/`xs`, icona Lucide `Info`). El text, idèntic al `data-tip` i a l'`ariaLabel`: «Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d'un poden desfer els de l'altre.»
+  - `info` i no `warning`: editar alhora és normal; el taronja queda per a «Bloquejat».
+
+- [ ] **Step 1: Tests que fallen.**
+
+```ts
+// segment-presence.service.spec.ts (jest.useFakeTimers)
+it('a request without editing=1 records nothing');
+it('editorsIn returns users who edited within PRESENCE_EDITING_WINDOW_MS, excluding the caller');
+it('an editor disappears PRESENCE_EDITING_WINDOW_MS after their last edit');
+it('two devices of the same user collapse into one editor');
+it('resolves the alias once per user');
+it('falls back to «Un altre tècnic» for a user with no linked person');
+
+// event-segment.controller.spec.ts
+it('GET revision with editing=1 marks the JWT user as editing and returns editors');
+it('GET revision without editing records nothing');
+
+// segment-workspace-state.service.spec.ts
+it('sends editing=1 only when mutationSeq advanced since the last poll');
+it('stores editors in otherEditors and triggers no reload when only editors change');
+
+// segment-workspace.component.spec.ts
+it('shows the editing badge only while otherEditors is not empty');
+it('joins one, two and three aliases in the badge text');
+it('the info icon carries the concurrent-editing explanation in ariaLabel and tooltip');
+
+// projection-view.component.spec.ts
+it('never sends editing=1');
+```
+
+- [ ] **Step 2:** `nx test api --testFile=<spec>` i `nx test dashboard --testFile=<spec>` → FALLEN.
+- [ ] **Step 3: Implementa** en este ordre: tipus a `@muixer/shared` → `SegmentPresenceService` → controlador → `getRevision(…, { editing })` → servei del workspace → capçalera.
+- [ ] **Step 4:** specs PASSEN; `nx lint api` i `nx lint dashboard`.
+- [ ] **Step 5: Verificació a mà amb dos navegadors** (dues sessions TECHNICAL al mateix segment):
+  - B només obri el segment i navega per les pestanyes → A no veu cap avís.
+  - B assigna una persona → A veu «*B* està editant este segment» en ≤ 3 s.
+  - B canvia un cordó o un node extra → també compta com a edició.
+  - B para d'editar → l'avís d'A desapareix en ≤ 33 s.
+  - B té el segment obert en dos dispositius i edita en un → A veu una sola entrada.
+  - A no es veu mai a si mateix.
+- [ ] **Step 6: Documentació.** Manual 12 i 13: una frase sobre l'avís amb el mateix text de la icona d'informació, i que obrir un segment no avisa ningú; captura del badge amb `pnpm run docs:manual-shots`. `PINYES_MODULE.md`: un paràgraf a «Sincronització en viu».
+- [ ] **Step 7: Commit** — `feat(dashboard): warn when another technician is editing the segment`
 
 ---
 
@@ -537,6 +667,7 @@ it('does not reload while hidden and removes the listener on destroy');
 
 **Files:**
 - Modify: `apps/dashboard/Caddyfile` (bloc `{$PWA_SITE_ADDRESS}`; comentari de capçalera)
+- Modify (Step 2c): `apps/dashboard/Dockerfile` (versió fixa de `caddy-ratelimit`)
 - Docs: `CLAUDE.md` (frase del rate limiting al Backend), `docs/DEPLOY_PRE.md` si descriu els límits
 
 **Interfaces:** cap de codi. Valor fixat: `/api/me/events/*/segments/*/revision` → **3 000 req/min per IP**, i eixes peticions **no** compten a la zona `api`.
@@ -564,7 +695,18 @@ zone api {
 
 El bloc del Dashboard no canvia (≤ 5 tècnics).
 
-- [ ] **Step 2: Verifica.** `caddy validate --config apps/dashboard/Caddyfile` dins la imatge (o `pnpm run docker:pre:up` en local) → vàlid. Amb l'stack alçat: 700 GET seguits a la ruta de revisió → cap 429; 700 GET a `/api/me/events` → 429 a partir del 601.
+- [ ] **Step 2: Verifica abans de desplegar** (un Caddyfile invàlid no deixa arrancar el contenidor `dashboard`: cau el Dashboard, la PWA i l'API alhora). El Caddyfile va dins de la imatge (`COPY` al Dockerfile), així que es valida la imatge nova abans de substituir l'actual:
+  1. `docker build -f apps/dashboard/Dockerfile -t muixer-dashboard-check .`
+  2. `docker run --rm -e SITE_ADDRESS=:80 -e PWA_SITE_ADDRESS=:8080 muixer-dashboard-check caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile` → `Valid configuration`. Les variables cal donar-les: sense `PWA_SITE_ADDRESS` el bloc de la PWA queda sense adreça i la validació no diu res útil.
+  3. Mateixa ordre amb `caddy adapt --pretty` → al JSON, el `rate_limit` del bloc de la PWA té tres zones; `revision` porta el `path_regexp` i `api` el porta dins d'un `not`. Si `api` no té `match`, el `not` s'ha perdut i les revisions continuen comptant a `api`.
+  4. A pre (`pnpm run docker:pre:up`), amb un JWT de membre: 700 GET seguits a la ruta de revisió → cap 429; 700 GET a `/api/me/events` → 429 a partir del 601. **Feu-ho des d'una IP que no siga la vostra de treball**, o espereu 1 minut: el límit vos bloqueja l'API sencera.
+- [ ] **Step 2b: La clau del límit ha de ser la IP del client, no la de Cloudflare.** Comprovat a pre (23-11-2026): el host de la PWA passa per **Cloudflare**. Caddy rep les peticions des d'IPs de Cloudflare (`104.23.x`, `172.71.x`), i la IP real del client arriba a `Cf-Connecting-Ip`. Amb `key {remote_host}`, tots els usuaris que entren pel mateix node de Cloudflare compartixen el comptador de 600/min (i el de 60/min d'`auth`). El problema ja existix hui; amb el polling seria segur. Docker no hi té cap culpa: les peticions directes mostren IPs reals.
+  1. Bloc global del Caddyfile: `servers { trusted_proxies static <rangs IPv4 i IPv6 de Cloudflare> ; client_ip_headers Cf-Connecting-Ip }`. Els rangs són a `https://www.cloudflare.com/ips-v4` i `/ips-v6`. Fixeu-los a mà (canvien molt poc) o useu el mòdul `trusted_proxies cloudflare` (plugin `github.com/WeidiDeng/caddy-cloudflare-ip`, s'afig al `xcaddy build`).
+  2. A totes les zones dels dos blocs: `key {client_ip}` en lloc de `key {remote_host}`. Només es creu la capçalera si la petició ve d'un rang de Cloudflare: algú que ataque l'origen directament no pot falsificar-la.
+  3. Comprovació: `docker logs <contenidor> --since 24h 2>&1 | grep -o '"client_ip":"[^"]*"' | sort | uniq -c | sort -rn | head` → hi han d'aparéixer les IPs dels usuaris, no les de Cloudflare. **Cal el `2>&1`**: Caddy escriu el log a stderr i sense ell el `grep` no filtra res.
+  4. Repetiu-ho a producció i al host del Dashboard: comproveu si també passen per Cloudflare.
+  Este pas es pot desplegar sol, abans de la resta del pla.
+- [ ] **Step 2c (recomanat):** fixa la versió del plugin al Dockerfile (`xcaddy build --with github.com/mholt/caddy-ratelimit@<commit>`), amb el commit que hagueu validat al pas 2. Hui cada build agafa l'últim commit, i un canvi de sintaxi al plugin trencaria el desplegament sense tocar el Caddyfile.
 - [ ] **Step 3:** actualitza el comentari de capçalera del Caddyfile i la frase de `CLAUDE.md`.
 - [ ] **Step 4: Commit** — `chore(infra): give the PWA revision poll its own rate-limit zone`
 
