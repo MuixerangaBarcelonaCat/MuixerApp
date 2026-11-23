@@ -119,7 +119,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-11-16 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-11-23 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **24 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -131,8 +131,8 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `colla_settings` | `CollaSettingsEntity` | 20 |
 | `composition_entries` | `CompositionEntry` | 13 |
 | `compositions` | `Composition` | 6 |
-| `event_segments` | `EventSegment` | 11 |
-| `events` | `Event` | 20 |
+| `event_segments` | `EventSegment` | 13 |
+| `events` | `Event` | 21 |
 | `figure_instances` | `FigureInstance` | 21 |
 | `figure_nodes` | `FigureNode` | 23 |
 | `figure_templates` | `FigureTemplate` | 11 |
@@ -290,6 +290,8 @@ Definició: [`apps/api/src/modules/event-segment/entities/event-segment.entity.t
 | `notes` | `text` | `string` | sí | — |
 | `isPublished` | `boolean` | `boolean` | no | default `false` |
 | `instances` | `relation` | `FigureInstance[]` | no | OneToMany → `FigureInstance` |
+| `revision` | `int` | `number` | no | default `0` |
+| `structureRevision` | `int` | `number` | no | default `0` |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 
@@ -312,6 +314,7 @@ Definició: [`apps/api/src/modules/event/event.entity.ts`](../apps/api/src/modul
 | `countsForStatistics` | `—` | `boolean` | no | default `true` |
 | `metadata` | `jsonb` | `RehearsalMetadata \| PerformanceMetadata` | no | — |
 | `attendanceSummary` | `jsonb` | `AttendanceSummary` | no | default `DEFAULT_ATTENDANCE_SUMMARY` |
+| `attendanceRevision` | `int` | `number` | no | default `0` |
 | `attendances` | `relation` | `Attendance[]` | no | OneToMany → `Attendance` |
 | `segments` | `relation` | `EventSegment[]` | no | OneToMany → `EventSegment` |
 | `legacyId` | `varchar` | `string` | sí | unique |

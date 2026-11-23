@@ -127,7 +127,7 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-11-16 amb `pnpm run docs:map`.
+> Generat el 2026-11-23 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
@@ -138,8 +138,8 @@ graph TD
 | [`colla-settings`](../apps/api/src/modules/colla-settings) | 7 | 476 | — |
 | [`composition`](../apps/api/src/modules/composition) | 8 | 658 | [[PINYES_MODULE]] |
 | [`database`](../apps/api/src/modules/database) | 5 | 223 | [[DATA_MODEL]] |
-| [`event`](../apps/api/src/modules/event) | 13 | 1333 | [[DATA_MODEL]] |
-| [`event-segment`](../apps/api/src/modules/event-segment) | 20 | 2054 | [[PINYES_MODULE]] |
+| [`event`](../apps/api/src/modules/event) | 13 | 1337 | [[DATA_MODEL]] |
+| [`event-segment`](../apps/api/src/modules/event-segment) | 20 | 2062 | [[PINYES_MODULE]] |
 | [`event-summary`](../apps/api/src/modules/event-summary) | 6 | 367 | [[EVENT_SUMMARY_PDF]] |
 | [`figure`](../apps/api/src/modules/figure) | 13 | 1515 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
 | [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
@@ -151,11 +151,11 @@ graph TD
 | [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 528 | [[DATA_MODEL]] |
 | [`push-notification`](../apps/api/src/modules/push-notification) | 28 | 2067 | — |
 | [`season`](../apps/api/src/modules/season) | 7 | 530 | [[DATA_MODEL]] |
-| [`sync`](../apps/api/src/modules/sync) | 10 | 1865 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
+| [`sync`](../apps/api/src/modules/sync) | 10 | 1866 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 8 | 330 | [[TAGS]] · [[DATA_MODEL]] |
 | [`user`](../apps/api/src/modules/user) | 13 | 1167 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **82** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **84** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
@@ -168,7 +168,7 @@ Migracions TypeORM: **82** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`events`](../apps/dashboard/src/app/features/events) | 21 | 4275 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 114 | [[DASHBOARD_UI]] |
 | [`persons`](../apps/dashboard/src/app/features/persons) | 10 | 1880 | [[DASHBOARD_UI]] |
-| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 59 | 11673 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
+| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 59 | 11740 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
 | [`sync`](../apps/dashboard/src/app/features/sync) | 2 | 68 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 
 ### Features de la PWA (`apps/pwa/src/app/features`)

@@ -66,6 +66,10 @@ export class Event {
   @Column({ type: 'jsonb', default: DEFAULT_ATTENDANCE_SUMMARY })
   attendanceSummary: AttendanceSummary;
 
+  /** Bumped by a DB trigger on attendance writes. Never written by TypeORM. */
+  @Column({ type: 'int', default: 0, insert: false, update: false })
+  attendanceRevision: number;
+
   @OneToMany(() => Attendance, (attendance) => attendance.event)
   attendances: Attendance[];
 
