@@ -132,7 +132,6 @@ export class AssignmentStateService {
   }
 
   reset(): void {
-    this.inFlightMutations.set(0);
     this.selectedNodeId.set(null);
     this.selectedPersonId.set(null);
     this.activeInstanceId.set(null);

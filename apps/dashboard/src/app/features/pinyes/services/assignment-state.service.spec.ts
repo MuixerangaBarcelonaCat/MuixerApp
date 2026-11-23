@@ -273,14 +273,22 @@ describe('AssignmentStateService', () => {
       expect(service.inFlightMutations()).toBe(0);
     });
 
-    it('mutationSeq only grows, and reset() clears inFlightMutations', () => {
+    it('mutationSeq only grows, and reset() leaves inFlightMutations alone', () => {
       service.trackMutation(of(1)).subscribe();
       service.trackMutation(of(2)).subscribe();
       expect(service.mutationSeq()).toBe(2);
       service.trackMutation(new Subject<void>()).subscribe();
       service.reset();
-      expect(service.inFlightMutations()).toBe(0);
+      expect(service.inFlightMutations()).toBe(1);
       expect(service.mutationSeq()).toBe(3);
+    });
+
+    it('a mutation in flight across reset() brings the count back to 0, never below', () => {
+      const pending = new Subject<void>();
+      service.trackMutation(pending).subscribe();
+      service.reset();
+      pending.complete();
+      expect(service.inFlightMutations()).toBe(0);
     });
   });
 });
