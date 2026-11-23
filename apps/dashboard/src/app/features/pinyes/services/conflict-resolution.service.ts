@@ -68,7 +68,9 @@ export class ConflictResolutionService {
     this.state.assignments.update((list) => list.filter((a) => !removeIds.has(a.id)));
 
     const unassignAll = (): Observable<void> =>
-      forkJoin(current.map((c) => this.assignmentService.unassign(c.instanceId, c.assignmentId))).pipe(
+      this.state.trackMutation(
+        forkJoin(current.map((c) => this.assignmentService.unassign(c.instanceId, c.assignmentId))),
+      ).pipe(
         map(() => {
           const ids = new Set(current.map((c) => c.assignmentId));
           this.state.assignments.update((list) => list.filter((a) => !ids.has(a.id)));
@@ -76,8 +78,8 @@ export class ConflictResolutionService {
       );
 
     const assignAll = (): Observable<void> =>
-      forkJoin(
-        current.map((c) => this.assignmentService.assign(c.instanceId, { nodeId: c.nodeId, personId })),
+      this.state.trackMutation(
+        forkJoin(current.map((c) => this.assignmentService.assign(c.instanceId, { nodeId: c.nodeId, personId }))),
       ).pipe(
         map((created: AssignmentDetail[]) => {
           current = created.map((a, i) => ({

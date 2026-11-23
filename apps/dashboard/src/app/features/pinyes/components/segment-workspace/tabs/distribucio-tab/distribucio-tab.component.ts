@@ -434,7 +434,7 @@ export class DistribucioTabComponent implements OnInit, OnDestroy {
 
   onResetDistribution(): void {
     this.cancelPendingSave();
-    this.distributionService.clearDistribution(this.ws.eventId(), this.ws.segmentId()).subscribe({
+    this.state.trackMutation(this.distributionService.clearDistribution(this.ws.eventId(), this.ws.segmentId())).subscribe({
       next: () => {
         this.loadDistribution();
         this.toast.success("S'ha restablert la distribució.");

@@ -991,6 +991,7 @@ describe('DistribucioTabComponent', () => {
       component.onResetDistribution();
 
       expect(distributionService.clearDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(TestBed.inject(AssignmentStateService).mutationSeq()).toBe(1);
       expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
       expect(toast.success).toHaveBeenCalled();
     });

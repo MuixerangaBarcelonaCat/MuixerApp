@@ -215,8 +215,8 @@ export class ImportPinyaModalComponent implements OnChanges {
     this.importing.set(true);
     this.error.set(null);
 
-    this.assignmentService
-      .bulkImport(this.currentInstanceId(), { sourceInstanceId: entry.instanceId, scope })
+    this.assignmentState
+      .trackMutation(this.assignmentService.bulkImport(this.currentInstanceId(), { sourceInstanceId: entry.instanceId, scope }))
       .subscribe({
         next: (result) => {
           this.importing.set(false);
