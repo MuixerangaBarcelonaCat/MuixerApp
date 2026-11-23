@@ -325,18 +325,17 @@ export class SegmentWorkspaceStateService {
 
   /**
    * Reloads what a remote revision change touched: `structure` → the whole segment
-   * (`reloadInstances`, which covers nodes and assignments too); only `state` → nodes and
-   * assignments; `attendance` → the person roster as well. Resolves `false` when the state
-   * reload was discarded, so the poller keeps its baseline and retries on the next tick.
+   * (`reloadInstancesSilently`, which covers nodes and assignments too); only `state` → nodes and
+   * assignments; `attendance` → the person roster as well, once the rest applied. Resolves `false`
+   * when a reload was discarded, so the poller keeps its baseline and retries on the next tick.
    */
   async applyRemoteRevision(next: SegmentRevision, previous: SegmentRevision): Promise<boolean> {
-    if (next.attendance !== previous.attendance) this.state.refreshPersonList();
-    if (next.structure !== previous.structure) {
-      this.reloadInstances();
-      return true;
-    }
-    if (next.state !== previous.state) return firstValueFrom(this.reloadAssignmentState());
-    return true;
+    let applied = true;
+    if (next.structure !== previous.structure) applied = await firstValueFrom(this.reloadInstancesSilently());
+    else if (next.state !== previous.state) applied = await firstValueFrom(this.reloadAssignmentState());
+    // Only once the rest applied: a discarded reload is retried every tick, the roster need not be.
+    if (applied && next.attendance !== previous.attendance) this.state.refreshPersonList();
+    return applied;
   }
 
   private loadPhase(eventId: string): void {
@@ -362,46 +361,87 @@ export class SegmentWorkspaceStateService {
     this.fetchSegmentData(eventId, segmentId);
   }
 
-  private fetchSegmentData(eventId: string, segmentId: string): void {
-    forkJoin({
+  /**
+   * `reloadInstances` for live sync: emits `true` if applied, `false` if discarded under the same
+   * rules as `reloadAssignmentState` (a mutation in flight or started since, another segment, or
+   * an error). Never toasts.
+   */
+  reloadInstancesSilently(): Observable<boolean> {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return of(false);
+    const isStale = this.staleCheck(eventId, segmentId);
+    return forkJoin({
+      ...this.segmentDataRequests(eventId, segmentId),
+      distribution: this.distributionService.getDistribution(eventId, segmentId),
+    }).pipe(
+      map(({ resp, instanceState, distribution }) => {
+        if (isStale()) return false;
+        this.applySegmentData(resp.data, instanceState.data, segmentId);
+        this.distributionByInstance.set(new Map(distribution.items.map((i) => [i.instanceId, i])));
+        this.reloadConflicts();
+        return true;
+      }),
+      catchError(() => of(false)),
+    );
+  }
+
+  /** Captured when a silent reload starts; true once its response would overwrite fresher local state. */
+  private staleCheck(eventId: string, segmentId: string): () => boolean {
+    const seq = this.state.mutationSeq();
+    return () =>
+      this.state.inFlightMutations() > 0 ||
+      this.state.mutationSeq() !== seq ||
+      this.eventId() !== eventId ||
+      this.segmentId() !== segmentId;
+  }
+
+  private segmentDataRequests(eventId: string, segmentId: string) {
+    return {
       resp: this.segmentService.getByEvent(eventId),
       instanceState: this.assignmentService.getSegmentAssignmentState(eventId, segmentId),
-    }).subscribe({
-      next: ({ resp, instanceState }) => {
-        this.segments.set(resp.data);
-        const seg = resp.data.find((s) => s.id === segmentId);
-        if (!seg) {
-          this.notFound.set(true);
-          this.loading.set(false);
-          this.instancesHydrated.set(true);
-          return;
-        }
-        this.segment.set(seg);
-        const displayNames = this.computeInstanceLabels(seg.instances);
-        this.instances.set(
-          seg.instances
-            .filter((i) => !!i.figureTemplate)
-            .map((instance) => ({
-              instanceId: instance.id,
-              sortOrder: instance.sortOrder,
-              label: displayNames.get(instance.id) ?? instance.figureTemplate?.name ?? '?',
-              figureTemplateId: instance.figureTemplate?.id ?? null,
-              figureTemplateName: instance.figureTemplate?.name ?? '?',
-              hasPinya: instance.figureTemplate?.hasPinya ?? true,
-              figureMode: instance.figureMode ?? 'COMPLETA',
-              snapshotted: instance.snapshotted,
-              numberOfCordons: instance.numberOfCordons ?? null,
-              cordonsObertsEnabled: instance.cordonsObertsEnabled,
-              nodes: [],
-              assignedCount: instance.assignedCount ?? 0,
-              totalCount: 0,
-            }))
-        );
-        this.applyInstanceState(instanceState.data);
-        this.loadedDataFresh = true;
-        this.loading.set(false);
-        this.instancesHydrated.set(true);
-      },
+    };
+  }
+
+  private applySegmentData(segments: SegmentDetail[], instanceState: SegmentInstanceState[], segmentId: string): void {
+    this.segments.set(segments);
+    const seg = segments.find((s) => s.id === segmentId);
+    if (!seg) {
+      this.notFound.set(true);
+      this.loading.set(false);
+      this.instancesHydrated.set(true);
+      return;
+    }
+    this.segment.set(seg);
+    const displayNames = this.computeInstanceLabels(seg.instances);
+    this.instances.set(
+      seg.instances
+        .filter((i) => !!i.figureTemplate)
+        .map((instance) => ({
+          instanceId: instance.id,
+          sortOrder: instance.sortOrder,
+          label: displayNames.get(instance.id) ?? instance.figureTemplate?.name ?? '?',
+          figureTemplateId: instance.figureTemplate?.id ?? null,
+          figureTemplateName: instance.figureTemplate?.name ?? '?',
+          hasPinya: instance.figureTemplate?.hasPinya ?? true,
+          figureMode: instance.figureMode ?? 'COMPLETA',
+          snapshotted: instance.snapshotted,
+          numberOfCordons: instance.numberOfCordons ?? null,
+          cordonsObertsEnabled: instance.cordonsObertsEnabled,
+          nodes: [],
+          assignedCount: instance.assignedCount ?? 0,
+          totalCount: 0,
+        }))
+    );
+    this.applyInstanceState(instanceState);
+    this.loadedDataFresh = true;
+    this.loading.set(false);
+    this.instancesHydrated.set(true);
+  }
+
+  private fetchSegmentData(eventId: string, segmentId: string): void {
+    forkJoin(this.segmentDataRequests(eventId, segmentId)).subscribe({
+      next: ({ resp, instanceState }) => this.applySegmentData(resp.data, instanceState.data, segmentId),
       error: () => {
         this.loading.set(false);
         this.instancesHydrated.set(true);
@@ -440,17 +480,10 @@ export class SegmentWorkspaceStateService {
     const eventId = this.eventId();
     const segmentId = this.segmentId();
     if (!eventId || !segmentId) return of(false);
-    const seq = this.state.mutationSeq();
+    const isStale = this.staleCheck(eventId, segmentId);
     return this.assignmentService.getSegmentAssignmentState(eventId, segmentId).pipe(
       map((resp) => {
-        if (
-          this.state.inFlightMutations() > 0 ||
-          this.state.mutationSeq() !== seq ||
-          this.eventId() !== eventId ||
-          this.segmentId() !== segmentId
-        ) {
-          return false;
-        }
+        if (isStale()) return false;
         this.applyInstanceState(resp.data);
         this.reloadConflicts();
         return true;

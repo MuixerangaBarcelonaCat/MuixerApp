@@ -366,12 +366,12 @@ segons el que ha canviat:
 
 | Ha canviat | Recàrrega |
 |---|---|
-| `structure` | `reloadInstances()`: figures, nodes, assignacions, distribució i conflictes |
+| `structure` | `reloadInstancesSilently()`: figures, nodes, assignacions, distribució i conflictes |
 | només `state` | `reloadAssignmentState()`: nodes i assignacions del segment (1 petició) |
-| `attendance` | a més, `state.refreshPersonList()`: el panell de persones torna a carregar el *roster* |
+| `attendance` | a més, una vegada aplicat la resta, `state.refreshPersonList()`: el panell de persones torna a carregar el *roster* |
 
-- **Mutació pròpia en curs** (`inFlightMutations > 0`): no es consulta. Una recàrrega demanada abans d'una
-  mutació es descarta (`mutationSeq`) i torna `false`: la referència del poller només avança quan el canvi
+- **Mutació pròpia en curs** (`inFlightMutations > 0`): no es consulta. Una recàrrega (d'estat o d'estructura)
+  demanada abans d'una mutació, o que falla, es descarta sense *toast* (`mutationSeq`) i torna `false`: la referència del poller només avança quan el canvi
   s'ha aplicat, així que es reintenta al tic següent.
 - **Distribució i Nodes extra** (`liveSyncPaused`, posat pel `SegmentWorkspaceComponent`): es continua
   consultant però no s'aplica res; en eixir de la pestanya, `refresh()` i el primer tic ho posen al dia.

@@ -1214,13 +1214,30 @@ describe('SegmentWorkspaceStateService', () => {
       configure();
       service.load(EVENT_ID, SEGMENT_ID);
       const reloadState = vi.spyOn(service, 'reloadAssignmentState');
-      const reloadInstances = vi.spyOn(service, 'reloadInstances');
+      // The guarded variant of reloadInstances (no toast, discarded under a mutation).
+      const reloadInstances = vi.spyOn(service, 'reloadInstancesSilently');
 
       const applied = await service.applyRemoteRevision(revision(1, 1), revision(0, 0));
 
       expect(applied).toBe(true);
       expect(reloadInstances).toHaveBeenCalledTimes(1);
       expect(reloadState).not.toHaveBeenCalled();
+    });
+
+    it('a structure reload that lands after a mutation started leaves state.assignments unchanged and resolves false', async () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const before = state.assignments();
+      const pending = new Subject<{ data: unknown[] }>();
+      assignmentService.getSegmentAssignmentState.mockReturnValueOnce(pending);
+
+      const applied = service.applyRemoteRevision(revision(0, 1), revision(0, 0));
+      state.trackMutation(of(null)).subscribe();
+      pending.next({ data: [{ instanceId: 'inst-a', nodes: [], assignments: [makeAssignment('as-9', 'inst-a', 'n1')] }] });
+      pending.complete();
+
+      expect(await applied).toBe(false);
+      expect(state.assignments()).toBe(before);
     });
 
     it('applyRemoteRevision: an attendance change refreshes the person list and reloads no figures', async () => {
@@ -1358,6 +1375,24 @@ describe('SegmentWorkspaceStateService', () => {
       await tick();
 
       expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
+    });
+
+    it('a failed structure reload shows no toast, resolves false, and is retried on the next tick', async () => {
+      configure();
+      await loadAndSettle();
+      segmentService.getByEvent.mockReturnValueOnce(throwError(() => new Error('offline')));
+      segmentService.getRevision.mockReturnValue(of(revision(0, 1)));
+      const applied = vi.spyOn(service, 'applyRemoteRevision');
+
+      await tick();
+      expect(await applied.mock.results[0].value).toBe(false);
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(segmentService.getByEvent).toHaveBeenCalledTimes(2);
+
+      await tick();
+      expect(segmentService.getByEvent).toHaveBeenCalledTimes(3);
+      await tick();
+      expect(segmentService.getByEvent).toHaveBeenCalledTimes(3);
     });
 
     it('a failing getRevision shows no toast and keeps polling', async () => {
