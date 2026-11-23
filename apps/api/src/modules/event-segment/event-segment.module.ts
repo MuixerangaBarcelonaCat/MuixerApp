@@ -11,6 +11,7 @@ import { EventSegmentController } from './event-segment.controller';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService } from './projection.service';
+import { SegmentRevisionService } from './segment-revision.service';
 import { NodeAssignmentModule } from '../node-assignment/node-assignment.module';
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { NodeAssignmentModule } from '../node-assignment/node-assignment.module'
     NodeAssignmentModule,
   ],
   controllers: [EventSegmentController],
-  providers: [EventSegmentService, FigureInstanceService, ProjectionService],
-  exports: [EventSegmentService, FigureInstanceService, ProjectionService],
+  providers: [EventSegmentService, FigureInstanceService, ProjectionService, SegmentRevisionService],
+  exports: [EventSegmentService, FigureInstanceService, ProjectionService, SegmentRevisionService],
 })
 export class EventSegmentModule {}

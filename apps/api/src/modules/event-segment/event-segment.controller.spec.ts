@@ -4,6 +4,7 @@ import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
 import { SegmentWithInstances } from './event-segment.service';
+import { SegmentRevisionService } from './segment-revision.service';
 import { SegmentMoveConflictResolution } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
@@ -68,6 +69,10 @@ const mockProjectionService: Partial<ProjectionService> = {
   getProjection: jest.fn().mockResolvedValue(mockProjectionData),
 };
 
+const mockRevisionService = {
+  get: jest.fn().mockResolvedValue({ state: 1, structure: 2, attendance: 3 }),
+};
+
 describe('EventSegmentController', () => {
   let controller: EventSegmentController;
 
@@ -78,11 +83,20 @@ describe('EventSegmentController', () => {
         { provide: EventSegmentService, useValue: mockSegmentService },
         { provide: FigureInstanceService, useValue: mockInstanceService },
         { provide: ProjectionService, useValue: mockProjectionService },
+        { provide: SegmentRevisionService, useValue: mockRevisionService },
       ],
     }).compile();
 
     controller = module.get<EventSegmentController>(EventSegmentController);
     jest.clearAllMocks();
+  });
+
+  describe('getRevision', () => {
+    it('GET :segmentId/revision delegates to SegmentRevisionService.get(eventId, segmentId)', async () => {
+      const result = await controller.getRevision(EVENT_ID, SEGMENT_ID);
+      expect(result).toEqual({ state: 1, structure: 2, attendance: 3 });
+      expect(mockRevisionService.get).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+    });
   });
 
   describe('findAll', () => {

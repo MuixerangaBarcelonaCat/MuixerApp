@@ -16,6 +16,7 @@ import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
 import { ProjectionService } from '../event-segment/projection.service';
+import { SegmentRevisionService } from '../event-segment/segment-revision.service';
 import { EventSegmentService } from '../event-segment/event-segment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { NewsService } from '../news/news.service';
@@ -67,6 +68,7 @@ describe('MeService', () => {
   let personDelegateService: jest.Mocked<PersonDelegateService>;
   let personService: jest.Mocked<PersonService>;
   let projectionService: jest.Mocked<ProjectionService>;
+  let revisionService: jest.Mocked<SegmentRevisionService>;
   let eventSegmentService: jest.Mocked<EventSegmentService>;
   let nodeAssignmentRepo: jest.Mocked<Repository<NodeAssignment>>;
   let personRepo: jest.Mocked<Repository<Person>>;
@@ -141,6 +143,10 @@ describe('MeService', () => {
           useValue: { getProjection: jest.fn() },
         },
         {
+          provide: SegmentRevisionService,
+          useValue: { get: jest.fn() },
+        },
+        {
           provide: EventSegmentService,
           useValue: { findAllByEvent: jest.fn() },
         },
@@ -168,6 +174,7 @@ describe('MeService', () => {
     personDelegateService = module.get(PersonDelegateService);
     personService = module.get(PersonService);
     projectionService = module.get(ProjectionService);
+    revisionService = module.get(SegmentRevisionService);
     eventSegmentService = module.get(EventSegmentService);
     nodeAssignmentRepo = module.get(getRepositoryToken(NodeAssignment));
     newsService = module.get(NewsService);
@@ -955,6 +962,22 @@ describe('MeService', () => {
         onlyPublished: true,
       });
       expect(result).toBe(expected);
+    });
+  });
+
+  describe('findSegmentRevision', () => {
+    beforeEach(() => {
+      revisionService.get.mockResolvedValue({ state: 3, structure: 4, attendance: 99 });
+    });
+
+    it('returns { revision: state + structure } and asks for onlyPublished', async () => {
+      await expect(service.findSegmentRevision('event-1', 'seg-1')).resolves.toEqual({ revision: 7 });
+      expect(revisionService.get).toHaveBeenCalledWith('event-1', 'seg-1', { onlyPublished: true });
+    });
+
+    it('never exposes attendance', async () => {
+      const result = await service.findSegmentRevision('event-1', 'seg-1');
+      expect(Object.keys(result)).toEqual(['revision']);
     });
   });
 

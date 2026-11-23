@@ -27,6 +27,7 @@ describe('MeController', () => {
             completePendingDependent: jest.fn(),
             findEventSegments: jest.fn(),
             findSegmentProjection: jest.fn(),
+            findSegmentRevision: jest.fn(),
             getEventAttendanceStats: jest.fn(),
             resolveManagedPersons: jest.fn(),
             getPersonSummary: jest.fn(),
@@ -129,6 +130,17 @@ describe('MeController', () => {
 
       expect(meService.findSegmentProjection).toHaveBeenCalledWith('event-1', 'seg-1');
       expect(result).toEqual(expected);
+    });
+  });
+
+  describe('findSegmentRevision', () => {
+    it('delegates to MeService with the event id and segment id', async () => {
+      meService.findSegmentRevision.mockResolvedValue({ revision: 7 });
+
+      const result = await controller.findSegmentRevision('event-1', 'seg-1');
+
+      expect(meService.findSegmentRevision).toHaveBeenCalledWith('event-1', 'seg-1');
+      expect(result).toEqual({ revision: 7 });
     });
   });
 

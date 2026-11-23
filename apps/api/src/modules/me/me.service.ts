@@ -13,6 +13,7 @@ import {
   MeEvent,
   MeEventDetail,
   MeSegment,
+  MeSegmentRevision,
   MeSegmentPlacement,
   AttendanceResponse,
   ManagedPerson,
@@ -32,6 +33,7 @@ import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { SegmentRevisionService } from '../event-segment/segment-revision.service';
 import { ProjectionService, ProjectionData } from '../event-segment/projection.service';
 import { EventSegmentService, SegmentWithInstances } from '../event-segment/event-segment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
@@ -83,6 +85,7 @@ export class MeService {
     private readonly personDelegateService: PersonDelegateService,
     private readonly personService: PersonService,
     private readonly projectionService: ProjectionService,
+    private readonly segmentRevisionService: SegmentRevisionService,
     private readonly eventSegmentService: EventSegmentService,
     private readonly newsService: NewsService,
     private readonly seasonService: SeasonService,
@@ -291,6 +294,14 @@ export class MeService {
 
   findSegmentProjection(eventId: string, segmentId: string): Promise<ProjectionData> {
     return this.projectionService.getProjection(eventId, segmentId, { onlyPublished: true });
+  }
+
+  /** One opaque counter: moves with nodes, assignments and structure; attendance is deliberately left out. */
+  async findSegmentRevision(eventId: string, segmentId: string): Promise<MeSegmentRevision> {
+    const { state, structure } = await this.segmentRevisionService.get(eventId, segmentId, {
+      onlyPublished: true,
+    });
+    return { revision: state + structure };
   }
 
   /** Desglossament d'assistència per estat, adults vs xicalla (TECHNICAL/ADMIN, "Passa llista" i detall de l'event). */

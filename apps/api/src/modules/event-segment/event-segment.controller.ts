@@ -14,10 +14,11 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@muixer/shared';
+import { UserRole, SegmentRevision } from '@muixer/shared';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
+import { SegmentRevisionService } from './segment-revision.service';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
@@ -39,6 +40,7 @@ export class EventSegmentController {
     private readonly segmentService: EventSegmentService,
     private readonly instanceService: FigureInstanceService,
     private readonly projectionService: ProjectionService,
+    private readonly revisionService: SegmentRevisionService,
   ) {}
 
   @ApiOperation({ summary: 'List segments for an event, ordered by sortOrder, with instances' })
@@ -46,6 +48,15 @@ export class EventSegmentController {
   async findAll(@Param('eventId', ParseUUIDPipe) eventId: string) {
     const data = await this.segmentService.findAllByEvent(eventId);
     return { data };
+  }
+
+  @ApiOperation({ summary: 'Cheap change counters of a segment (state, structure, attendance) for polling' })
+  @Get(':segmentId/revision')
+  getRevision(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ): Promise<SegmentRevision> {
+    return this.revisionService.get(eventId, segmentId);
   }
 
   @ApiOperation({ summary: 'Create a new segment for an event' })
