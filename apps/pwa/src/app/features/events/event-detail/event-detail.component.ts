@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { DOCUMENT } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { of } from 'rxjs';
@@ -167,11 +168,12 @@ export class EventDetailComponent {
 
   constructor() {
     // Coming back to the app after a while: refresh like the pull-to-refresh, without the gesture.
+    const doc = inject(DOCUMENT);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') this.onRefresh();
+      if (doc.visibilityState === 'visible') this.onRefresh();
     };
-    document.addEventListener('visibilitychange', onVisible);
-    inject(DestroyRef).onDestroy(() => document.removeEventListener('visibilitychange', onVisible));
+    doc.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => doc.removeEventListener('visibilitychange', onVisible));
 
     effect(() => {
       const ev = this.event();
