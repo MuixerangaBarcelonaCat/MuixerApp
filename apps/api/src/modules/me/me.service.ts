@@ -301,6 +301,7 @@ export class MeService {
     const { state, structure } = await this.segmentRevisionService.get(eventId, segmentId, {
       onlyPublished: true,
     });
+    // A sum is a valid revision only because both counters are monotonic (only ever incremented by triggers).
     return { revision: state + structure };
   }
 

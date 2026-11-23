@@ -124,7 +124,7 @@ export class PinyaProjectionComponent {
   /** The tronc panels, moved as one by a pan/pinch in progress — see `onGestureMoved`. */
   private readonly panelsLayer = viewChild<ElementRef<HTMLDivElement>>('panelsLayer');
 
-  /** For imperatively calling flyToBounds()/cancelFlight() — see `maybeFlyOnArrival`/`onTroba`. */
+  /** For imperatively calling flyToBounds()/resetAutoFit() — see `flyTo` and the framing effect in the constructor. */
   private readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvas');
 
   /**
