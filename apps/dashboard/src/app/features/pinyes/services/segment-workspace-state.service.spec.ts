@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { DASHBOARD_REVISION_POLL_MS, SegmentRevision } from '@muixer/shared';
+import { DASHBOARD_REVISION_POLL_MS, SegmentEditor, StaffSegmentRevision } from '@muixer/shared';
 import { SegmentWorkspaceStateService } from './segment-workspace-state.service';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
@@ -97,7 +97,12 @@ const makeDistributionItem = (
   ...overrides,
 });
 
-const revision = (state = 0, structure = 0, attendance = 0): SegmentRevision => ({ state, structure, attendance });
+const revision = (state = 0, structure = 0, attendance = 0, editors: SegmentEditor[] = []): StaffSegmentRevision => ({
+  state,
+  structure,
+  attendance,
+  editors,
+});
 
 const makeAssignment = (id: string, instanceId: string, nodeId: string, personId = `p-${id}`): AssignmentDetail => ({
   id,
@@ -1280,7 +1285,7 @@ describe('SegmentWorkspaceStateService', () => {
       configure();
       await loadAndSettle();
       expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
-      expect(segmentService.getRevision).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(segmentService.getRevision).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { editing: false });
 
       await tick(DASHBOARD_REVISION_POLL_MS - 1);
       expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
@@ -1359,7 +1364,7 @@ describe('SegmentWorkspaceStateService', () => {
       await loadAndSettle('seg-2');
       await tick();
 
-      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, 'seg-2');
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, 'seg-2', { editing: false });
       expect(reloadState).not.toHaveBeenCalled();
       expect(reloadInstances).not.toHaveBeenCalled();
       expect(state.personListRefreshTrigger()).toBe(trigger);
@@ -1393,6 +1398,34 @@ describe('SegmentWorkspaceStateService', () => {
       expect(segmentService.getByEvent).toHaveBeenCalledTimes(3);
       await tick();
       expect(segmentService.getByEvent).toHaveBeenCalledTimes(3);
+    });
+
+    it('sends editing=1 only when mutationSeq advanced since the last poll', async () => {
+      configure();
+      await loadAndSettle();
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, SEGMENT_ID, { editing: false });
+
+      state.trackMutation(of(null)).subscribe();
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, SEGMENT_ID, { editing: true });
+
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, SEGMENT_ID, { editing: false });
+    });
+
+    it('stores editors in otherEditors and triggers no reload when only editors change', async () => {
+      configure();
+      await loadAndSettle();
+      const applied = vi.spyOn(service, 'applyRemoteRevision');
+      const pere = { userId: 'u2', alias: 'Pere' };
+      segmentService.getRevision.mockReturnValue(of(revision(0, 0, 0, [pere])));
+
+      await tick();
+      expect(service.otherEditors()).toEqual([pere]);
+      segmentService.getRevision.mockReturnValue(of(revision()));
+      await tick();
+      expect(service.otherEditors()).toEqual([]);
+      expect(applied).not.toHaveBeenCalled();
     });
 
     it('a failing getRevision shows no toast and keeps polling', async () => {

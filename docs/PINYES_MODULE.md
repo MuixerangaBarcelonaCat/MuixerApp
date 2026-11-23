@@ -380,6 +380,15 @@ segons el que ha canviat:
 - Els canvis propis també mouen la revisió: costen com a màxim una recàrrega redundant per tic.
 - `ROSTER_MAX_AGE_MS` (10 s en clicar un node) es manté com a xarxa de seguretat si el polling falla.
 
+**Avís d'edició simultània.** La mateixa consulta diu qui més edita el segment (`StaffSegmentRevision.editors`).
+El workspace hi afig `?editing=1` només si `state.mutationSeq()` ha pujat des de la consulta anterior; l'API
+(`SegmentPresenceService`, un `Map` en memòria per procés) apunta l'usuari del JWT amb l'àlies de la seua persona
+(«Un altre tècnic» si no en té) i el considera editor durant `PRESENCE_EDITING_WINDOW_MS` (30 s) des de l'última
+edició. Sense `editing=1` no es guarda res: tindre el segment obert no deixa rastre. `editors` no inclou mai qui
+consulta i és una entrada per usuari (diversos dispositius compten com un). El `fetch` del poller guarda la llista a
+`ws.otherEditors` i torna només els comptadors, perquè un canvi d'editors no recarregue res; la capçalera mostra
+un `lib-badge` `info` al costat de «Bloquejat». La projecció descarta `editors` i no envia mai `editing=1`.
+
 La projecció (`ProjectionViewComponent`, incrustada a Previsualitza o a pantalla completa) té el seu propi
 poller: qualsevol canvi torna a demanar la projecció sense *spinner* ni *toast* (`loadSegment({ silent: true })`);
 si falla, es manté la que es veu i es reintenta al tic següent. `PinyaProjectionComponent` només torna a

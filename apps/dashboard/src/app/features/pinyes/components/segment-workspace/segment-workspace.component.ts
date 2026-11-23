@@ -15,7 +15,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock, CircleQuestionMark, Trash2, Table2 } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock, CircleQuestionMark, Trash2, Table2, Users, Info } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
 import { ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, ModalComponent, DOMAIN_ICONS } from '@muixer/ui';
@@ -87,6 +87,16 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   readonly ChevronLeft = ChevronLeft;
   readonly ChevronRight = ChevronRight;
   readonly Lock = Lock;
+  readonly Users = Users;
+  readonly Info = Info;
+  readonly concurrentEditingHelp =
+    "Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d'un poden desfer els de l'altre.";
+  /** «Pere està editant…» / «Pere i Anna estan editant…» / «Pere, Anna i Joan estan editant…» */
+  readonly otherEditorsText = computed(() => {
+    const aliases = this.ws.otherEditors().map((e) => e.alias);
+    const verb = aliases.length === 1 ? 'està' : 'estan';
+    return `${new Intl.ListFormat('ca', { type: 'conjunction' }).format(aliases)} ${verb} editant este segment`;
+  });
   readonly CircleQuestionMark = CircleQuestionMark;
   readonly Trash2 = Trash2;
   readonly Table2 = Table2;

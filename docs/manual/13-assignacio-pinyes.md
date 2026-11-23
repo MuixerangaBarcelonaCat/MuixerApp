@@ -8,6 +8,8 @@ La pestanya «Pinyes» de l'espai de treball mostra tota la pinya del segment en
 
 Les persones que posen altres tècnics alhora i l'assistència que es marca apareixen automàticament en pocs segons, sense tornar a carregar la pàgina.
 
+Quan un altre tècnic hi fa canvis, al costat del nom del segment ix «Pere està editant este segment» (o els noms de tots els que en fan), fins 30 segons després del seu últim canvi. Només avisa qui fa canvis: obrir el segment o mirar-lo no avisa ningú. La icona d'informació del costat diu: «Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d'un poden desfer els de l'altre.»
+
 ## On és
 
 Obriu l'espai de treball del segment (vegeu [Assignació de troncs](12-assignacio-troncs.md)) i aneu a la pestanya «Pinyes». Si la llista de segments està en mode «Pinyes», el botó «Assigna» ja l'obri.

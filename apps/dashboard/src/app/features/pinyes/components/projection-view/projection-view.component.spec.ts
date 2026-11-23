@@ -354,6 +354,21 @@ describe('ProjectionViewComponent', () => {
       expect(getProjection).toHaveBeenCalledTimes(2);
     });
 
+    it('never sends editing=1', async () => {
+      await createPolling();
+      await tick();
+      await tick();
+      expect(getRevision.mock.calls.length).toBeGreaterThan(1);
+      for (const args of getRevision.mock.calls) expect(args).toEqual(['e1', 's1']);
+    });
+
+    it('does not reload when only the editors of the revision change', async () => {
+      await createPolling();
+      getRevision.mockReturnValue(of({ ...revision(), editors: [{ userId: 'u2', alias: 'Pere' }] }));
+      await tick();
+      expect(getProjection).toHaveBeenCalledTimes(1);
+    });
+
     it('stops polling on destroy', async () => {
       const f = await createPolling();
       expect(getRevision).toHaveBeenCalledTimes(1);

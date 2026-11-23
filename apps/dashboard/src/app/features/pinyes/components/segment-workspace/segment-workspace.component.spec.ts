@@ -6,7 +6,7 @@ import { BehaviorSubject, of } from 'rxjs';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { LucideAngularModule } from 'lucide-angular';
 import type { BulkImportResult } from '@muixer/pinyes-render';
-import type { EventPhase } from '@muixer/shared';
+import type { EventPhase, SegmentEditor } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentWorkspaceComponent } from './segment-workspace.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../services/segment-workspace-state.service';
@@ -102,6 +102,7 @@ const makeWsMock = () => {
     pinyaSlots: signal([]),
     pendingSelection: signal<{ slotId: string; nodeId: string } | null>(null),
     liveSyncPaused: signal(false),
+    otherEditors: signal<SegmentEditor[]>([]),
     load: vi.fn((id: string, segId: string) => {
       eventId.set(id);
       segmentId.set(segId);
@@ -602,6 +603,51 @@ describe('SegmentWorkspaceComponent', () => {
       expect(backSpy).toHaveBeenCalled();
       backSpy.mockRestore();
       fixture.destroy();
+    });
+  });
+
+  describe('concurrent-editing notice', () => {
+    const EXPLANATION =
+      'Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d\'un poden desfer els de l\'altre.';
+    const badge = (f: ComponentFixture<SegmentWorkspaceComponent>) =>
+      f.nativeElement.querySelector('[data-testid="editing-badge"]') as HTMLElement | null;
+    const editors = (...aliases: string[]) => aliases.map((alias, i) => ({ userId: `u${i}`, alias }));
+
+    it('shows the editing badge only while otherEditors is not empty', async () => {
+      const fixture = await setup();
+      expect(badge(fixture)).toBeNull();
+
+      ws.otherEditors.set(editors('Pere'));
+      fixture.detectChanges();
+      expect(badge(fixture)).not.toBeNull();
+
+      ws.otherEditors.set([]);
+      fixture.detectChanges();
+      expect(badge(fixture)).toBeNull();
+    });
+
+    it('joins one, two and three aliases in the badge text', async () => {
+      const fixture = await setup();
+      const text = (...aliases: string[]) => {
+        ws.otherEditors.set(editors(...aliases));
+        fixture.detectChanges();
+        return (badge(fixture)?.textContent ?? '').replace(/\s+/g, ' ').trim();
+      };
+
+      expect(text('Pere')).toBe('Pere està editant este segment');
+      expect(text('Pere', 'Anna')).toBe('Pere i Anna estan editant este segment');
+      expect(text('Pere', 'Anna', 'Joan')).toBe('Pere, Anna i Joan estan editant este segment');
+    });
+
+    it('the info icon carries the concurrent-editing explanation in ariaLabel and tooltip', async () => {
+      const fixture = await setup();
+      ws.otherEditors.set(editors('Pere'));
+      fixture.detectChanges();
+
+      const tooltip = fixture.nativeElement.querySelector('[data-testid="editing-info"]') as HTMLElement;
+      expect(tooltip.classList).toContain('tooltip');
+      expect(tooltip.getAttribute('data-tip')).toBe(EXPLANATION);
+      expect(tooltip.querySelector('button')?.getAttribute('aria-label')).toBe(EXPLANATION);
     });
   });
 

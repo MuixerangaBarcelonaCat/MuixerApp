@@ -203,7 +203,11 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.liveSync?.stop();
     const { eventId, segmentId } = this;
     this.liveSync = createRevisionPoller<SegmentRevision>({
-      fetch: () => firstValueFrom(this.segmentService.getRevision(eventId, segmentId)),
+      // Drop `editors`: who else is editing must not reload the projection. Never sends `editing`.
+      fetch: async () => {
+        const { state, structure, attendance } = await firstValueFrom(this.segmentService.getRevision(eventId, segmentId));
+        return { state, structure, attendance };
+      },
       onChange: () => this.loadSegment({ silent: true }),
       intervalMs: DASHBOARD_REVISION_POLL_MS,
       visibility: this.document,

@@ -9,6 +9,7 @@ import {
   createRevisionPoller,
   DASHBOARD_REVISION_POLL_MS,
   RevisionPoller,
+  SegmentEditor,
   SegmentRevision,
 } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
@@ -61,6 +62,10 @@ export class SegmentWorkspaceStateService {
    * where positions and nodes are edited by hand (Distribució, Nodes extra).
    */
   readonly liveSyncPaused = signal(false);
+  /** Other technicians who edited this segment in the last `PRESENCE_EDITING_WINDOW_MS` (from the revision poll). */
+  readonly otherEditors = signal<SegmentEditor[]>([]);
+  /** `state.mutationSeq()` at the last successful revision poll: a higher value means we edited since. */
+  private polledMutationSeq = 0;
   private liveSync: RevisionPoller | null = null;
 
   constructor() {
@@ -303,6 +308,8 @@ export class SegmentWorkspaceStateService {
     this.stopLiveSync();
     const eventId = this.eventId();
     const segmentId = this.segmentId();
+    this.otherEditors.set([]);
+    this.polledMutationSeq = this.state.mutationSeq();
     // ponytail: own writes trigger one redundant state reload per tick; return the new revision from mutation responses if this ever shows up in the rate limit.
     this.liveSync = createRevisionPoller<SegmentRevision>({
       fetch: () => this.fetchRevision(eventId, segmentId),
@@ -319,8 +326,20 @@ export class SegmentWorkspaceStateService {
     this.liveSync = null;
   }
 
-  private fetchRevision(eventId: string, segmentId: string): Promise<SegmentRevision> {
-    return firstValueFrom(this.segmentService.getRevision(eventId, segmentId));
+  /**
+   * Sends `editing` when we mutated since the last poll, stores who else is editing in
+   * `otherEditors`, and returns the counters only: an editors change alone must reload nothing.
+   */
+  private async fetchRevision(eventId: string, segmentId: string): Promise<SegmentRevision> {
+    const seq = this.state.mutationSeq();
+    const { editors, state, structure, attendance } = await firstValueFrom(
+      this.segmentService.getRevision(eventId, segmentId, { editing: seq !== this.polledMutationSeq }),
+    );
+    if (this.segmentId() === segmentId) {
+      this.polledMutationSeq = seq;
+      this.otherEditors.set(editors);
+    }
+    return { state, structure, attendance };
   }
 
   /**

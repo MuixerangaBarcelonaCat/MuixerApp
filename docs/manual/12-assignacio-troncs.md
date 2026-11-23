@@ -8,6 +8,8 @@ L'espai de treball del segment és la pantalla on es posa cada persona al seu ll
 
 Els canvis que fan altres tècnics en el mateix segment i l'assistència que es marca apareixen automàticament en pocs segons; a les pestanyes «Distribució» i «Nodes extra» s'apliquen quan n'eixiu.
 
+Quan un altre tècnic hi fa canvis, al costat del nom del segment ix «Pere està editant este segment» (o els noms de tots els que en fan), fins 30 segons després del seu últim canvi. Només avisa qui fa canvis: obrir el segment o mirar-lo no avisa ningú. La icona d'informació del costat diu: «Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d'un poden desfer els de l'altre.»
+
 Unes quantes paraules que es repeteixen:
 
 - **Figura:** la construcció (una muixeranga, una figura de pinya…).
@@ -29,7 +31,7 @@ Unes quantes paraules que es repeteixen:
 D'esquerra a dreta:
 
 1. **Fletxa de tornar** («Torna arrere»): torna a l'event, a la pestanya d'on veníeu.
-2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat els dies de bloqueig de l'event (2, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)) i no es pot canviar res.
+2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat els dies de bloqueig de l'event (2, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)) i no es pot canviar res. Si ix «… està editant este segment», un altre tècnic hi està fent canvis.
 3. **Pestanyes** «Pinyes», «Troncs», «Distribució», «Nodes extra» i «Previsualitza». L'app recorda si l'última vegada vau treballar a «Pinyes» o a «Troncs» i la torna a obrir.
 4. **Fletxes de segment anterior i següent**, amb la posició del segment («3/7»). En canviar de segment, continueu a la mateixa pestanya.
 5. **«Ajuda»** (icona d'interrogant).
@@ -219,7 +221,7 @@ De moment, els límits (5 i 10 cm per pis, 3 i 5 cm entre suports) són fixos.
 - **La importació també porta els nodes extra** de la figura d'origen, encara que només importeu el tronc (vegeu [Distribució i nodes extra](15-distribucio-i-nodes-extra.md)).
 - **El camp d'alçada no filtra, només ordena.** Si no trobeu algú, és més avall.
 - **Intro amb el cercador buit** posa la primera persona lliure de la llista en el lloc seleccionat.
-- **Dos tècnics en el mateix segment no veuen els canvis de l'altre** fins que no canvien de pestanya o recarreguen la pàgina. Si tots dos ocupeu el mateix lloc, al segon li ix «Este lloc ja està ocupat.». Repartiu-vos els segments.
+- **Dos tècnics en el mateix segment** veuen els canvis de l'altre en pocs segons i l'avís «… està editant este segment». Si tots dos ocupeu el mateix lloc alhora, al segon li ix «Este lloc ja està ocupat.».
 - **«Bloquejat»:** passats els dies de bloqueig de la colla, ja no es pot canviar res.
 - **L'«Ajuda» de dalt és la del creador de figures.** Hi ha algunes dreceres de teclat que no funcionen en esta pantalla; feu cas d'esta pàgina.
 

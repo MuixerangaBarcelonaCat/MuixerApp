@@ -70,4 +70,11 @@ describe('EventSegmentService', () => {
     req.flush({ state: 1, structure: 2, attendance: 3 });
     expect(result).toEqual({ state: 1, structure: 2, attendance: 3 });
   });
+
+  it('getRevision adds editing=1 only when the caller edited since the last poll', () => {
+    service.getRevision(EVENT_ID, SEGMENT_ID, { editing: true }).subscribe();
+    httpMock.expectOne(`${BASE}/events/${EVENT_ID}/segments/${SEGMENT_ID}/revision?editing=1`).flush({});
+    service.getRevision(EVENT_ID, SEGMENT_ID, { editing: false }).subscribe();
+    httpMock.expectOne(`${BASE}/events/${EVENT_ID}/segments/${SEGMENT_ID}/revision`).flush({});
+  });
 });
