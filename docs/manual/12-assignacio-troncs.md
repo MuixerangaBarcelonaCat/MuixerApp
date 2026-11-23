@@ -6,6 +6,8 @@
 
 L'espai de treball del segment és la pantalla on es posa cada persona al seu lloc de la figura. Té cinc pestanyes. Esta pàgina explica la part comuna a totes i la pestanya «Troncs», que és la primera que es fa servir: troncs i xicalla trien primer, i després pinyes ompli la pinya amb la gent que queda.
 
+Els canvis que fan altres tècnics en el mateix segment i l'assistència que es marca apareixen automàticament en pocs segons; a les pestanyes «Distribució» i «Nodes extra» s'apliquen quan n'eixiu.
+
 Unes quantes paraules que es repeteixen:
 
 - **Figura:** la construcció (una muixeranga, una figura de pinya…).

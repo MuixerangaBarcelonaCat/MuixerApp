@@ -19,6 +19,8 @@ Per a comprovar com es veurà el segment a la pantalla gran de l'assaig. La proj
 
 Obriu «Previsualitza». És la mateixa imatge que es projectarà, sense eixir de l'espai de treball. Hi ixen els ompliments d'assistència (ple, ratlles o buit) i els llaços roigs dels conflictes. Al «Previsualitza» no hi ha selector de mode: es veu sempre com es projectarà.
 
+La previsualització i la projecció es posen al dia automàticament en pocs segons quan altres tècnics canvien el segment o es marca l'assistència, sense perdre el zoom ni la posició que hàgeu triat.
+
 ### Projectar a l'assaig
 
 1. A la llista de segments, feu clic a «Projecta». El segment ocupa tota la finestra.

@@ -101,6 +101,7 @@ const makeWsMock = () => {
     personsLoaded: signal(true),
     pinyaSlots: signal([]),
     pendingSelection: signal<{ slotId: string; nodeId: string } | null>(null),
+    liveSyncPaused: signal(false),
     load: vi.fn((id: string, segId: string) => {
       eventId.set(id);
       segmentId.set(segId);
@@ -394,6 +395,22 @@ describe('SegmentWorkspaceComponent', () => {
       fixture.componentInstance.setTab('distribucio');
       expect(localStorage.getItem('muixer.pinyes.viewMode')).toBe('pinyes');
     });
+  });
+
+  it('pauses live sync on the distribucio and nodes tabs and resumes it on pinyes, troncs and previsualitza', async () => {
+    const fixture = await setup();
+    const pausedOn = (tab: string) => {
+      fixture.componentInstance.setTab(tab);
+      fixture.detectChanges();
+      return ws.liveSyncPaused();
+    };
+
+    expect(pausedOn('distribucio')).toBe(true);
+    expect(pausedOn('pinyes')).toBe(false);
+    expect(pausedOn('nodes')).toBe(true);
+    expect(pausedOn('troncs')).toBe(false);
+    expect(pausedOn('distribucio')).toBe(true);
+    expect(pausedOn('previsualitza')).toBe(false);
   });
 
   it('setTab updates the active tab and syncs the query param', async () => {

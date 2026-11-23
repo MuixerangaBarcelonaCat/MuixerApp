@@ -53,6 +53,7 @@ class FigureCanvasStub {
   readonly gestureMoved = output<CssDelta>();
   readonly flyToBounds = jest.fn();
   readonly cancelFlight = jest.fn();
+  readonly resetAutoFit = jest.fn();
 }
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })
@@ -171,6 +172,44 @@ describe('PinyaProjectionComponent', () => {
   });
 
   // ── instanceId reactivity (design decision 6) ───────────────────────────────
+
+  describe('camera framing on new data', () => {
+    const canvasStub = () =>
+      fixture.debugElement.query(By.directive(FigureCanvasStub)).componentInstance as FigureCanvasStub;
+    const data = (segmentId: string, assigned: string[], instanceIds = ['inst-1']) =>
+      makeSegmentData(
+        instanceIds.map((id) => makeInstance([makeNode({ id: 'n1' }), makeNode({ id: 'n2' })], assigned, { id })),
+        { segment: { id: segmentId, name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null } },
+      );
+
+    it('keeps the stage transform when data is replaced for the same segment', () => {
+      setData(data('s1', []));
+      setData(data('s1', ['n1']));
+      canvasStub().resetAutoFit.mockClear();
+
+      setData(data('s1', ['n1', 'n2']));
+
+      expect(canvasStub().resetAutoFit).not.toHaveBeenCalled();
+    });
+
+    it('frames the view again when the segment changes', () => {
+      setData(data('s1', ['n1']));
+      canvasStub().resetAutoFit.mockClear();
+
+      setData(data('s2', ['n1']));
+
+      expect(canvasStub().resetAutoFit).toHaveBeenCalledTimes(1);
+    });
+
+    it('frames the view again when the set of figures changes', () => {
+      setData(data('s1', ['n1']));
+      canvasStub().resetAutoFit.mockClear();
+
+      setData(data('s1', ['n1'], ['inst-1', 'inst-2']));
+
+      expect(canvasStub().resetAutoFit).toHaveBeenCalledTimes(1);
+    });
+  });
 
   it('follows the app theme instead of pinning the light one', () => {
     expect(fixture.nativeElement.hasAttribute('data-theme')).toBe(false);

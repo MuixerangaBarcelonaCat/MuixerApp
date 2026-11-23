@@ -381,6 +381,8 @@ describe('PinyesTabComponent', () => {
 
       ws = TestBed.inject(SegmentWorkspaceStateService);
       ws.load(EVENT_ID, SEGMENT_ID);
+      // The live-sync poller always schedules its next tick: runAllTimers would never end.
+      ws.stopLiveSync();
       fixture = TestBed.createComponent(PinyesTabComponent);
       component = fixture.componentInstance;
       fixture.detectChanges();

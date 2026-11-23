@@ -1,11 +1,15 @@
 import { DisplayMode, SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, rematMarkerNode, SegmentNodeRef } from '@muixer/pinyes-render';
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, forkJoin, map, of } from 'rxjs';
+import { DOCUMENT, DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { Observable, catchError, firstValueFrom, forkJoin, map, of } from 'rxjs';
 import {
   FigureZone,
   isNodeVisibleByModeAndCordons,
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
+  createRevisionPoller,
+  DASHBOARD_REVISION_POLL_MS,
+  RevisionPoller,
+  SegmentRevision,
 } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
@@ -48,7 +52,20 @@ export class SegmentWorkspaceStateService {
   private readonly toast = inject(ToastService);
   private readonly eventService = inject(EventService);
   private readonly layout = inject(LayoutService);
+  private readonly document = inject(DOCUMENT);
   readonly state = inject(AssignmentStateService);
+
+  /**
+   * While true the live-sync loop keeps polling but applies nothing: the baseline stays, so the
+   * change is applied on the first tick after it turns false. Set by the workspace on the tabs
+   * where positions and nodes are edited by hand (Distribució, Nodes extra).
+   */
+  readonly liveSyncPaused = signal(false);
+  private liveSync: RevisionPoller | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.stopLiveSync());
+  }
 
   /**
    * What the node colors stand for in the Pinyes and Troncs tabs, shared by both. Lives as long as
@@ -273,6 +290,53 @@ export class SegmentWorkspaceStateService {
     this.assignmentService.getLockStatus(eventId).subscribe({
       next: (status) => this.lockStatus.set(status),
     });
+
+    this.startLiveSync();
+  }
+
+  /**
+   * Polls the segment revision and applies what other technicians changed (see
+   * `applyRemoteRevision`). A new poller per call: its first revision is the baseline of the
+   * segment loaded now, never compared with the previous segment's.
+   */
+  startLiveSync(): void {
+    this.stopLiveSync();
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    // ponytail: own writes trigger one redundant state reload per tick; return the new revision from mutation responses if this ever shows up in the rate limit.
+    this.liveSync = createRevisionPoller<SegmentRevision>({
+      fetch: () => this.fetchRevision(eventId, segmentId),
+      onChange: (next, previous) => (this.liveSyncPaused() ? false : this.applyRemoteRevision(next, previous)),
+      intervalMs: DASHBOARD_REVISION_POLL_MS,
+      isPaused: () => this.state.inFlightMutations() > 0,
+      visibility: this.document,
+    });
+    this.liveSync.start();
+  }
+
+  stopLiveSync(): void {
+    this.liveSync?.stop();
+    this.liveSync = null;
+  }
+
+  private fetchRevision(eventId: string, segmentId: string): Promise<SegmentRevision> {
+    return firstValueFrom(this.segmentService.getRevision(eventId, segmentId));
+  }
+
+  /**
+   * Reloads what a remote revision change touched: `structure` → the whole segment
+   * (`reloadInstances`, which covers nodes and assignments too); only `state` → nodes and
+   * assignments; `attendance` → the person roster as well. Resolves `false` when the state
+   * reload was discarded, so the poller keeps its baseline and retries on the next tick.
+   */
+  async applyRemoteRevision(next: SegmentRevision, previous: SegmentRevision): Promise<boolean> {
+    if (next.attendance !== previous.attendance) this.state.refreshPersonList();
+    if (next.structure !== previous.structure) {
+      this.reloadInstances();
+      return true;
+    }
+    if (next.state !== previous.state) return firstValueFrom(this.reloadAssignmentState());
+    return true;
   }
 
   private loadPhase(eventId: string): void {

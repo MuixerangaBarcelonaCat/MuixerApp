@@ -164,7 +164,6 @@ Ordenat per impacte estimat. Els recomptes surten de llegir el codi; els marcats
 | P2 | Canvi de pestanya del workspace | 5 peticions* (segments, distribució, conflictes, `/tags`, persones) | Mantenir les pestanyes muntades, o refrescar només si una altra pestanya ha modificat alguna cosa | Mitjà | Baix |
 | P3 | Assignar / desassignar / desfer | 3–5 peticions per acció | Que el POST/DELETE retorni els conflictes i els comptadors | Mitjà | Baix |
 | P4 | Pestanya Distribució | Fa el seu propi `GET /distribution` en muntar-se i després de cada canvi de mode o cordons, tot i que el workspace ja el té | Llegir-lo de `ws.distributionByInstance` | Mitjà | Baix |
-| P5 | Previsualitza | `GET /projection` sencer a cada activació | Cache fins que hi hagi una mutació | Baix | Baix |
 | P6 | Imprimir esdeveniment (`event-print`) | 2 + S peticions (una projecció per segment) | Endpoint de projecció a nivell d'esdeveniment | Mitjà | Cap |
 | P7 | Gestor de segments | «Publica-ho tot» = K `PUT`; afegir figures = M `POST` | Endpoints bulk | Mitjà | Cap |
 | P8 | Detall d'esdeveniment (Dashboard) | `lock-status` espera que arribi `/events/:id` (cascada) | Llançar-los en paral·lel | Molt baix | Cap |

@@ -2,6 +2,7 @@ import { ProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-
 import {
   ChangeDetectionStrategy,
   Component,
+  DOCUMENT,
   HostListener,
   OnDestroy,
   OnInit,
@@ -11,12 +12,20 @@ import {
   signal,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ThemeScopeDirective, ToastService } from '@muixer/ui';
-import { computeSegmentDisplayName } from '@muixer/shared';
+import {
+  computeSegmentDisplayName,
+  createRevisionPoller,
+  DASHBOARD_REVISION_POLL_MS,
+  RevisionPoller,
+  SegmentRevision,
+} from '@muixer/shared';
 import { ProjectionService } from '../../services/projection.service';
+import { EventSegmentService } from '../../services/event-segment.service';
 
 @Component({
   selector: 'app-projection-view',
@@ -40,6 +49,8 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService);
   private readonly projectionService = inject(ProjectionService);
   private readonly toast = inject(ToastService);
+  private readonly segmentService = inject(EventSegmentService);
+  private readonly document = inject(DOCUMENT);
 
   // ── State signals ───────────────────────────────────────────────────────────
 
@@ -66,6 +77,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   segmentId = '';
 
   private cursorTimer: ReturnType<typeof setTimeout> | null = null;
+  private liveSync: RevisionPoller | null = null;
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -78,6 +90,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.segmentId = params['segmentId'];
     this.instanceIdSignal.set(this.embedded() ? null : (params['instanceId'] ?? null));
     this.loadSegment();
+    this.startLiveSync();
   }
 
   ngOnDestroy(): void {
@@ -85,6 +98,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
       this.layoutService.exitFullscreen();
     }
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
+    this.liveSync?.stop();
   }
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
@@ -123,6 +137,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     // filter must not leak into the next one (design decision 6).
     this.instanceIdSignal.set(null);
     this.loadSegment();
+    this.startLiveSync();
   }
 
   /** The browser back button leaves the projection the same way the HUD arrow does.
@@ -155,17 +170,44 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  private loadSegment(): void {
-    this.loading.set(true);
-    this.projectionService.getProjection(this.eventId, this.segmentId).subscribe({
-      next: (data) => {
-        this.segmentData.set(data);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.toast.error('Error carregant les dades de projecció');
-        this.loading.set(false);
-      },
+  /**
+   * `silent`: a live-sync refresh — no spinner, no toast, and a failure keeps what is shown.
+   * Resolves whether the data was applied (a response for a segment left meanwhile is dropped).
+   */
+  private loadSegment(options?: { silent?: boolean }): Promise<boolean> {
+    const silent = options?.silent ?? false;
+    const segmentId = this.segmentId;
+    if (!silent) this.loading.set(true);
+    return new Promise((resolve) => {
+      this.projectionService.getProjection(this.eventId, segmentId).subscribe({
+        next: (data) => {
+          if (segmentId !== this.segmentId) return resolve(false);
+          this.segmentData.set(data);
+          this.loading.set(false);
+          resolve(true);
+        },
+        error: () => {
+          if (!silent) this.toast.error('Error carregant les dades de projecció');
+          this.loading.set(false);
+          resolve(false);
+        },
+      });
     });
+  }
+
+  /**
+   * Reloads the projection whenever the segment's revision moves (assignments, figures or
+   * attendance). A new poller per segment, so its first revision is that segment's baseline.
+   */
+  private startLiveSync(): void {
+    this.liveSync?.stop();
+    const { eventId, segmentId } = this;
+    this.liveSync = createRevisionPoller<SegmentRevision>({
+      fetch: () => firstValueFrom(this.segmentService.getRevision(eventId, segmentId)),
+      onChange: () => this.loadSegment({ silent: true }),
+      intervalMs: DASHBOARD_REVISION_POLL_MS,
+      visibility: this.document,
+    });
+    this.liveSync.start();
   }
 }

@@ -61,4 +61,13 @@ describe('EventSegmentService', () => {
     expect(req.request.body).toEqual({ segmentIds: [SEGMENT_ID] });
     req.flush(null);
   });
+
+  it('getRevision sends GET to /events/:eventId/segments/:segmentId/revision', () => {
+    let result: unknown;
+    service.getRevision(EVENT_ID, SEGMENT_ID).subscribe((r) => (result = r));
+    const req = httpMock.expectOne(`${BASE}/events/${EVENT_ID}/segments/${SEGMENT_ID}/revision`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ state: 1, structure: 2, attendance: 3 });
+    expect(result).toEqual({ state: 1, structure: 2, attendance: 3 });
+  });
 });

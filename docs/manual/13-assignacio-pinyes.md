@@ -6,6 +6,8 @@
 
 La pestanya «Pinyes» de l'espai de treball mostra tota la pinya del segment en un sol dibuix, amb les figures col·locades com a la distribució. Ací és on pinyes ompli els llocs de pinya amb la gent que queda després que troncs i xicalla hagen fet el tronc.
 
+Les persones que posen altres tècnics alhora i l'assistència que es marca apareixen automàticament en pocs segons, sense tornar a carregar la pàgina.
+
 ## On és
 
 Obriu l'espai de treball del segment (vegeu [Assignació de troncs](12-assignacio-troncs.md)) i aneu a la pestanya «Pinyes». Si la llista de segments està en mode «Pinyes», el botó «Assigna» ja l'obri.

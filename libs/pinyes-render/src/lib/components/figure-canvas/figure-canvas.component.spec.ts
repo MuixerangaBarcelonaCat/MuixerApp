@@ -57,6 +57,77 @@ describe('FigureCanvasComponent', () => {
     });
   });
 
+  describe('readonly auto-fit', () => {
+    type FitInternals = {
+      stage: unknown;
+      containerRef: { nativeElement: HTMLDivElement };
+      renderGrid(): void;
+      placeUnderlay(): void;
+      applyReadonlyFit(): void;
+      resizeStage(): void;
+    };
+
+    function setupFit() {
+      const fixture = render();
+      fixture.componentRef.setInput('mode', 'readonly');
+      const internals = fixture.componentInstance as unknown as FitInternals;
+      const container = document.createElement('div');
+      Object.defineProperty(container, 'clientWidth', { value: 800 });
+      Object.defineProperty(container, 'clientHeight', { value: 600 });
+      let t = { x: 0, y: 0, scale: 1 };
+      internals.stage = {
+        width: jest.fn(() => 800),
+        height: jest.fn(() => 600),
+        x: () => t.x,
+        y: () => t.y,
+        scaleX: () => t.scale,
+        scaleY: () => t.scale,
+        position: jest.fn((p?: { x: number; y: number }) => {
+          if (p) t = { ...t, ...p };
+          return { x: t.x, y: t.y };
+        }),
+        scale: jest.fn((sc: { x: number; y: number }) => (t = { ...t, scale: sc.x })),
+        batchDraw: jest.fn(),
+        container: () => container,
+      };
+      internals.containerRef = { nativeElement: container };
+      internals.renderGrid = jest.fn();
+      internals.placeUnderlay = jest.fn();
+      const fit = jest.fn();
+      internals.applyReadonlyFit = fit;
+      return { canvas: fixture.componentInstance, internals, fit };
+    }
+
+    it('fits the view to the content while the user has not moved it', () => {
+      const { internals, fit } = setupFit();
+      internals.resizeStage();
+      internals.resizeStage();
+      expect(fit).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a view zoomed with the buttons when the canvas is laid out again', () => {
+      const { canvas, internals, fit } = setupFit();
+      canvas.zoomIn();
+      internals.resizeStage();
+      expect(fit).not.toHaveBeenCalled();
+    });
+
+    it('fits again after resetAutoFit', () => {
+      jest.useFakeTimers();
+      try {
+        const { canvas, internals, fit } = setupFit();
+        canvas.zoomIn();
+        canvas.resetAutoFit();
+        jest.runOnlyPendingTimers();
+        expect(fit).toHaveBeenCalledTimes(1);
+        internals.resizeStage();
+        expect(fit).toHaveBeenCalledTimes(2);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  });
+
   describe('deferred gesture redraw (projection pan/pinch)', () => {
     type ViewInternals = {
       stage: unknown;

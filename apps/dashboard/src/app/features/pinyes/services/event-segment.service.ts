@@ -1,6 +1,7 @@
 import { CreateSegmentPayload, InstanceTroncSummary, SegmentDetail, UpdateSegmentPayload } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { SegmentRevision } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 
 @Injectable({
@@ -25,6 +26,10 @@ export class EventSegmentService extends ApiService {
 
   reorder(eventId: string, segmentIds: string[]): Observable<void> {
     return this.patch<void>(`/events/${eventId}/segments/reorder`, { segmentIds });
+  }
+
+  getRevision(eventId: string, segmentId: string): Observable<SegmentRevision> {
+    return this.get<SegmentRevision>(`/events/${eventId}/segments/${segmentId}/revision`);
   }
 
   getTroncView(eventId: string): Observable<InstanceTroncSummary[]> {
