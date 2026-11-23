@@ -1,7 +1,7 @@
 import { AssignmentDetail, SegmentNodeRef } from '@muixer/pinyes-render';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { NEVER, of, throwError } from 'rxjs';
+import { NEVER, Subject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '@muixer/ui';
 import { DIRECCIO_PINYA_POSITION_TYPE } from '@muixer/shared';
@@ -316,6 +316,26 @@ describe('SegmentAssignmentActionsService', () => {
   });
 
   describe('unassignThenAssign', () => {
+    it('keeps a mutation in flight across the gap between the unassign and the assign', () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      state.assignments.set([existing]);
+      const unassigned = new Subject<unknown>();
+      api.unassign.mockReturnValue(unassigned);
+      let inFlightAtAssign = -1;
+      api.assign.mockImplementation(() => {
+        inFlightAtAssign = state.inFlightMutations();
+        return NEVER;
+      });
+
+      service.unassignThenAssign(existing, ref(INST_A, 'n2'), 'p-1');
+      unassigned.next({});
+      expect(inFlightAtAssign).toBeGreaterThanOrEqual(1);
+      unassigned.complete();
+
+      expect(state.inFlightMutations()).toBeGreaterThanOrEqual(1);
+    });
+
+
     it('unassigns the existing person then assigns the new one as a MOVE', () => {
       const existing = makeAssignment(INST_A, 'n1', 'p-1');
       state.assignments.set([existing]);

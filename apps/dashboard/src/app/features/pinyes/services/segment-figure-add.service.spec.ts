@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
 import { ToastService } from '@muixer/ui';
-import { of, Subject, throwError } from 'rxjs';
+import { NEVER, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CompositionService } from './composition.service';
 import { FigureInstanceService } from './figure-instance.service';
+import { AssignmentStateService } from './assignment-state.service';
 import { SegmentFigureAddService } from './segment-figure-add.service';
 
 const instance = (id: string) => ({ id }) as InstanceDetail;
@@ -45,6 +46,20 @@ describe('SegmentFigureAddService', () => {
 
       expect(instanceService.create).toHaveBeenNthCalledWith(2, 'ev', 'seg', { figureTemplateId: 'f2' });
       expect(emitted).toEqual([[instance('i1'), instance('i2')]]);
+    });
+
+    it('is one tracked mutation for the whole pick, with no gap between figures', () => {
+      const state = TestBed.inject(AssignmentStateService);
+      const first = new Subject<InstanceDetail>();
+      instanceService.create.mockReturnValueOnce(first).mockReturnValueOnce(NEVER);
+
+      service.addFigures('ev', 'seg', [{ figureTemplateId: 'f1' }, { figureTemplateId: 'f2' }]).subscribe();
+      expect(state.inFlightMutations()).toBe(1);
+      first.next(instance('i1'));
+      first.complete();
+
+      expect(state.inFlightMutations()).toBe(1);
+      expect(state.mutationSeq()).toBe(1);
     });
 
     it('confirms how many figures were added', () => {

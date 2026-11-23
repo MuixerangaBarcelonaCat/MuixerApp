@@ -740,6 +740,17 @@ describe('DistribucioTabComponent', () => {
       }
     });
 
+    it('counts a saved layout and a label change as tracked mutations', async () => {
+      await setup();
+      const state = TestBed.inject(AssignmentStateService);
+      component.onOffsetXChanged({ id: INST_A, value: 500 });
+      component.onLabelChanged({ id: INST_A, value: 'Pilar central' });
+
+      fixture.destroy();
+
+      expect(state.mutationSeq()).toBe(2);
+    });
+
     it('flushes a pending panel edit when the tab is destroyed', async () => {
       await setup();
       component.onOffsetXChanged({ id: INST_A, value: 500 });

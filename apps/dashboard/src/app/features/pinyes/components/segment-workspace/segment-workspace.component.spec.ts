@@ -815,6 +815,18 @@ describe('SegmentWorkspaceComponent', () => {
       expect(fixture.componentInstance.resetTarget()).toBe('inst-b');
     });
 
+    it('counts the snapshot reset as a tracked mutation', async () => {
+      const fixture = await setup();
+      ws.instances.set([{ ...makeWorkspaceInstance('inst-a'), snapshotted: true }]);
+      fixture.detectChanges();
+      assignmentService.resetSnapshot.mockReturnValue(of({ removedAssignments: 0, deletedAdHocCount: 0 }));
+
+      fixture.componentInstance.openReset();
+      fixture.componentInstance.confirmReset();
+
+      expect(TestBed.inject(AssignmentStateService).mutationSeq()).toBe(1);
+    });
+
     it('resets the figure and clears its assignments on confirm', async () => {
       const fixture = await setup();
       ws.instances.set([{ ...makeWorkspaceInstance('inst-a'), snapshotted: true }]);

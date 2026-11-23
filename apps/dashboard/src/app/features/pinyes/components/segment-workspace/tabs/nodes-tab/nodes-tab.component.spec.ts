@@ -548,6 +548,20 @@ describe('NodesTabComponent', () => {
     });
   });
 
+  describe('tracked mutations', () => {
+    it('create, update and delete of ad-hoc nodes each count as a mutation', async () => {
+      await setup();
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'adhoc-1' });
+
+      component.duplicateSelected();
+      expect(state.mutationSeq()).toBe(1);
+      component.onAdHocPropertyChanged({ nodeId: 'adhoc-1', patch: { x: 200 } });
+      expect(state.mutationSeq()).toBe(2);
+      component.onDeleteRequested('adhoc-1');
+      expect(state.mutationSeq()).toBe(3);
+    });
+  });
+
   describe('editing ad-hoc nodes', () => {
     it('updates the node optimistically and calls the service', async () => {
       await setup();

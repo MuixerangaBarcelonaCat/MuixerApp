@@ -24,10 +24,10 @@ export class SegmentFigureAddService {
    * Never errors.
    */
   addFigures(eventId: string, segmentId: string, selections: CreateInstancePayload[]): Observable<InstanceDetail[]> {
-    return defer(() => {
+    return this.state.trackMutation(defer(() => {
       const created: InstanceDetail[] = [];
       return from(selections).pipe(
-        concatMap((sel) => this.state.trackMutation(this.instanceService.create(eventId, segmentId, sel))),
+        concatMap((sel) => this.instanceService.create(eventId, segmentId, sel)),
         tap((instance) => created.push(instance)),
         toArray(),
         tap((instances) =>
@@ -42,7 +42,7 @@ export class SegmentFigureAddService {
           return of(created);
         }),
       );
-    });
+    }));
   }
 
   /** Emits the updated segment; on failure reports it and completes without emitting. */
