@@ -7,10 +7,12 @@
 #   PWA_SITE_ADDRESS=app-beta.muixerangabarcelona.cat
 #
 # Rate limiting (caddy-ratelimit plugin): mirrors former NestJS throttler. Key = client IP.
-#   /api/auth*                                          → 60 req / 1m per IP
-#   PWA host only: /api/me/events/*/segments/*/revision → 3000 req / 1m per IP (own zone, so the
-#     live-sync poll of members behind one Wi-Fi/CGNAT IP doesn't eat the api budget)
-#   /api/* (rest)                                       → 600 req / 1m per IP
+#   /api/auth*                                          → 60 req / 1m per IP (dash_auth, pwa_auth)
+#   PWA host only: /api/me/events/*/segments/*/revision → 3000 req / 1m per IP (pwa_revision: own
+#     zone, so the live-sync poll of members behind one Wi-Fi/CGNAT IP doesn't eat the api budget)
+#   /api/* (rest)                                       → 600 req / 1m per IP (dash_api, pwa_api)
+# Zone names must be unique across the whole file: the plugin keys zones globally by name, so a
+# name reused in both site blocks would make dashboard and PWA traffic from one IP share a bucket.
 #
 # Client IP: the hosts sit behind Cloudflare, so the TCP peer is a Cloudflare node. The real IP is
 # read from Cf-Connecting-Ip only when the peer is in the Cloudflare ranges below (pinned
@@ -28,7 +30,7 @@
     # L'API ha de tenir prioritat absoluta — handle evita que file_server intercepti POST/PUT/etc.
     handle /api/* {
         rate_limit {
-            zone auth {
+            zone dash_auth {
                 match {
                     path /api/auth*
                 }
@@ -36,7 +38,7 @@
                 events 60
                 window 1m
             }
-            zone api {
+            zone dash_api {
                 key {client_ip}
                 events 600
                 window 1m
@@ -69,7 +71,7 @@
 
     handle /api/* {
         rate_limit {
-            zone auth {
+            zone pwa_auth {
                 match {
                     path /api/auth*
                 }
@@ -77,7 +79,7 @@
                 events 60
                 window 1m
             }
-            zone revision {
+            zone pwa_revision {
                 match {
                     path_regexp ^/api/me/events/[^/]+/segments/[^/]+/revision$
                 }
@@ -85,7 +87,7 @@
                 events 3000
                 window 1m
             }
-            zone api {
+            zone pwa_api {
                 match {
                     not path_regexp ^/api/me/events/[^/]+/segments/[^/]+/revision$
                 }
