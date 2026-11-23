@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException } from '@nestjs/common';
-import { ProjectionService } from './projection.service';
+import { ProjectionService, PROJECTION_CACHE_TTL_MS } from './projection.service';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -387,6 +387,76 @@ describe('ProjectionService', () => {
       await expect(
         service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true }),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── body cache keyed by revision stamp ───────────────────────────────────
+
+  describe('body cache', () => {
+    const withStamp = (rev: number, structure: number, att: number, id = SEGMENT_ID) => {
+      const seg = makeSegment(id, 0) as EventSegment;
+      Object.assign(seg, { revision: rev, structureRevision: structure });
+      Object.assign(seg.event, { attendanceRevision: att });
+      mockSegmentRepo.findOne.mockResolvedValue(seg);
+    };
+    const bodyCalls = () => mockNodeAssignmentService.getSegmentConflicts.mock.calls.length;
+
+    beforeEach(() => withStamp(1, 1, 1));
+
+    it('computes the body once for two calls with the same stamp', async () => {
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      expect(bodyCalls()).toBe(1);
+    });
+
+    it.each([
+      ['revision', [2, 1, 1]],
+      ['structureRevision', [1, 2, 1]],
+      ['attendanceRevision', [1, 1, 2]],
+    ] as const)('recomputes when %s changes', async (_n, [r, s, a]) => {
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      withStamp(r, s, a);
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      expect(bodyCalls()).toBe(2);
+    });
+
+    it('recomputes after PROJECTION_CACHE_TTL_MS even with the same stamp', async () => {
+      jest.useFakeTimers();
+      try {
+        await service.getProjection(EVENT_ID, SEGMENT_ID);
+        jest.advanceTimersByTime(PROJECTION_CACHE_TTL_MS + 1);
+        await service.getProjection(EVENT_ID, SEGMENT_ID);
+        expect(bodyCalls()).toBe(2);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('shares one in-flight computation between concurrent callers', async () => {
+      await Promise.all(Array.from({ length: 5 }, () => service.getProjection(EVENT_ID, SEGMENT_ID)));
+      expect(bodyCalls()).toBe(1);
+    });
+
+    it('does not cache a failed computation', async () => {
+      mockNodeAssignmentService.getSegmentConflicts.mockRejectedValueOnce(new Error('boom'));
+      await expect(service.getProjection(EVENT_ID, SEGMENT_ID)).rejects.toThrow('boom');
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      expect(bodyCalls()).toBe(2);
+    });
+
+    it('still returns 404 for an unpublished segment with onlyPublished, even when the body is cached', async () => {
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+      await expect(service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true })).rejects.toThrow(NotFoundException);
+    });
+
+    it('computes prevSegmentId/nextSegmentId on every call (staff and member views differ)', async () => {
+      const staff = await service.getProjection(EVENT_ID, SEGMENT_ID);
+      mockSegmentRepo.find.mockResolvedValue([makeSegment(SEGMENT_ID, 0)]);
+      const member = await service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true });
+      expect(staff.segment.nextSegmentId).toBe(SEGMENT_2_ID);
+      expect(member.segment.nextSegmentId).toBeNull();
+      expect(bodyCalls()).toBe(1);
     });
   });
 });
