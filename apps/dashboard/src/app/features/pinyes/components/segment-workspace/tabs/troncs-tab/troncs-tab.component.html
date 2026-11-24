@@ -2,7 +2,8 @@
   <div class="flex flex-1 min-w-0 flex-col">
   <!-- Display mode, legend, undo/redo: a strip above the panels rather than floating over them —
        the panels flow from the top-left and can't be panned aside, as the pinya canvas can. -->
-  <div class="shrink-0 flex items-start justify-end gap-2 px-2 pt-2" data-testid="troncs-toolbar">
+  <div class="shrink-0 flex flex-col items-end gap-1 px-2 pt-2" data-testid="troncs-toolbar">
+  <div class="relative z-20 flex w-full items-start justify-end gap-2">
     <!-- The mode's key, in line: it holds the «Altres marques». The panels are paper in Posició, so
          that key lists no types. On a phone there's no mode, and the «Altres marques» sits in the toolbar. -->
     @if (!isPhone()) {
@@ -46,6 +47,8 @@
         <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
       </lib-button>
     </div>
+  </div>
+  <app-editing-notice [aliases]="otherEditorAliases()" />
   </div>
 
   <!-- Troncs, wrapping into new rows -->

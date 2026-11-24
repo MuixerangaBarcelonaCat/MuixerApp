@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { LucideAngularModule, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
+import { EditingNoticeComponent } from '../../../editing-notice/editing-notice.component';
 import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
 import { DisplayModeSwitcherComponent, displayModeForKey } from '../../../display-mode-switcher/display-mode-switcher.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
@@ -44,7 +45,7 @@ import {
     LucideAngularModule,
     ButtonComponent,
     ModalComponent,
-    MoveBannerComponent,
+    MoveBannerComponent, EditingNoticeComponent,
     DisplayModeSwitcherComponent,
     NgTemplateOutlet,
     FigureCanvasComponent,
@@ -56,6 +57,7 @@ import {
 })
 export class PinyesTabComponent implements OnInit {
   readonly ws = inject(SegmentWorkspaceStateService);
+  readonly otherEditorAliases = computed(() => this.ws.otherEditors().map((e) => e.alias));
   readonly state = inject(AssignmentStateService);
   private readonly actions = inject(SegmentAssignmentActionsService);
   private readonly toast = inject(ToastService);

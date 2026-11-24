@@ -11,6 +11,7 @@
     <!-- Display mode and undo/redo; under them, the mode's key (holding the «Altres marques»). On a phone
          there's no mode to explain, so the «Altres marques» sits in the toolbar. -->
     <div class="absolute top-2 right-2 z-10 flex flex-col items-end gap-2">
+      <div class="flex items-center justify-end gap-2">
       <div class="flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow-raised border border-base-300 p-1">
         @if (isPhone()) {
           <app-node-legend [phase]="phase()" />
@@ -40,6 +41,8 @@
           <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
         </lib-button>
       </div>
+      </div>
+      <app-editing-notice [aliases]="otherEditorAliases()" />
       @if (!isPhone()) {
         <app-display-mode-key
           [mode]="ws.displayMode()"

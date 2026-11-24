@@ -606,51 +606,6 @@ describe('SegmentWorkspaceComponent', () => {
     });
   });
 
-  describe('concurrent-editing notice', () => {
-    const EXPLANATION =
-      'Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d\'un poden desfer els de l\'altre.';
-    const badge = (f: ComponentFixture<SegmentWorkspaceComponent>) =>
-      f.nativeElement.querySelector('[data-testid="editing-badge"]') as HTMLElement | null;
-    const editors = (...aliases: string[]) => aliases.map((alias, i) => ({ userId: `u${i}`, alias }));
-
-    it('shows the editing badge only while otherEditors is not empty', async () => {
-      const fixture = await setup();
-      expect(badge(fixture)).toBeNull();
-
-      ws.otherEditors.set(editors('Pere'));
-      fixture.detectChanges();
-      expect(badge(fixture)).not.toBeNull();
-
-      ws.otherEditors.set([]);
-      fixture.detectChanges();
-      expect(badge(fixture)).toBeNull();
-    });
-
-    it('joins one, two and three aliases in the badge text', async () => {
-      const fixture = await setup();
-      const text = (...aliases: string[]) => {
-        ws.otherEditors.set(editors(...aliases));
-        fixture.detectChanges();
-        return (badge(fixture)?.textContent ?? '').replace(/\s+/g, ' ').trim();
-      };
-
-      expect(text('Pere')).toBe('Pere està editant este segment');
-      expect(text('Pere', 'Anna')).toBe('Pere i Anna estan editant este segment');
-      expect(text('Pere', 'Anna', 'Joan')).toBe('Pere, Anna i Joan estan editant este segment');
-    });
-
-    it('the info icon carries the concurrent-editing explanation in ariaLabel and tooltip', async () => {
-      const fixture = await setup();
-      ws.otherEditors.set(editors('Pere'));
-      fixture.detectChanges();
-
-      const tooltip = fixture.nativeElement.querySelector('[data-testid="editing-info"]') as HTMLElement;
-      expect(tooltip.classList).toContain('tooltip');
-      expect(tooltip.getAttribute('data-tip')).toBe(EXPLANATION);
-      expect(tooltip.querySelector('button')?.getAttribute('aria-label')).toBe(EXPLANATION);
-    });
-  });
-
   describe('segment title width', () => {
     const titleClasses = async (name: string | null = 'Bloc 1'): Promise<string[]> => {
       const fixture = await setup();

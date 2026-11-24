@@ -404,6 +404,15 @@ describe('TroncsTabComponent', () => {
       expect(troncStubs().map((t) => t.displayMode())).toEqual(['attendance', 'attendance']);
     });
 
+    it('shows who else is editing inside the toolbar strip', async () => {
+      await setup();
+      ws.otherEditors.set([{ userId: 'u1', alias: 'Pere' }]);
+      fixture.detectChanges();
+      const notice = fixture.nativeElement.querySelector('[data-testid="editing-badge"]') as HTMLElement;
+      expect(notice.textContent).toContain('Pere està editant este segment');
+      expect(notice.closest('[data-testid="troncs-toolbar"]')).not.toBeNull();
+    });
+
     it('keeps the toolbar out of the scrolling panels, so it never covers a tronc panel', async () => {
       await setup();
       const toolbar = switcher()!.closest('[data-testid="troncs-toolbar"]') as HTMLElement;

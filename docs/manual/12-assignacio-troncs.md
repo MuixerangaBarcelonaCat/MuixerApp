@@ -8,7 +8,7 @@ L'espai de treball del segment és la pantalla on es posa cada persona al seu ll
 
 Els canvis que fan altres tècnics en el mateix segment i l'assistència que es marca apareixen automàticament en pocs segons; a les pestanyes «Distribució» i «Nodes extra» s'apliquen quan n'eixiu.
 
-Quan un altre tècnic hi fa canvis, al costat del nom del segment ix «Pere està editant este segment» (o els noms de tots els que en fan), fins 30 segons després del seu últim canvi. Només avisa qui fa canvis: obrir el segment o mirar-lo no avisa ningú. La icona d'informació del costat diu: «Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d'un poden desfer els de l'altre.»
+Quan un altre tècnic hi fa canvis, a la barra de dalt dels troncs, davall dels botons de desfer i refer, ix en taronja «Pere està editant este segment» (o els noms de tots els que en fan), fins 30 segons després del seu últim canvi. Només avisa qui fa canvis: obrir el segment o mirar-lo no avisa ningú. La icona d'informació del costat diu: «Podeu editar el segment alhora sense problemes. Si canvieu les mateixes posicions, els canvis d'un poden desfer els de l'altre.»
 
 Unes quantes paraules que es repeteixen:
 
@@ -31,7 +31,7 @@ Unes quantes paraules que es repeteixen:
 D'esquerra a dreta:
 
 1. **Fletxa de tornar** («Torna arrere»): torna a l'event, a la pestanya d'on veníeu.
-2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat els dies de bloqueig de l'event (2, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)) i no es pot canviar res. Si ix «… està editant este segment», un altre tècnic hi està fent canvis.
+2. **Nom del segment.** Si al costat ix «Bloquejat», ja han passat els dies de bloqueig de l'event (2, si no s'ha canviat a [Configuració de la colla](21-configuracio-colla.md)) i no es pot canviar res.
 3. **Pestanyes** «Pinyes», «Troncs», «Distribució», «Nodes extra» i «Previsualitza». L'app recorda si l'última vegada vau treballar a «Pinyes» o a «Troncs» i la torna a obrir.
 4. **Fletxes de segment anterior i següent**, amb la posició del segment («3/7»). En canviar de segment, continueu a la mateixa pestanya.
 5. **«Ajuda»** (icona d'interrogant).

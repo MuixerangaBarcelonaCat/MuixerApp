@@ -17,19 +17,6 @@
       </lib-badge>
     }
 
-    @if (ws.otherEditors().length > 0) {
-      <div class="flex items-center gap-1 min-w-0">
-        <lib-badge variant="info" size="sm" data-testid="editing-badge">
-          <lucide-icon [img]="Users" [size]="12" aria-hidden="true" />
-          {{ otherEditorsText() }}
-        </lib-badge>
-        <div class="tooltip tooltip-bottom" data-testid="editing-info" [attr.data-tip]="concurrentEditingHelp">
-          <lib-button variant="ghost" shape="circle" size="xs" [ariaLabel]="concurrentEditingHelp">
-            <lucide-icon [img]="Info" [size]="14" aria-hidden="true" />
-          </lib-button>
-        </div>
-      </div>
-    }
 
     <!-- Workspace tabs -->
     <div class="sm:ml-4 min-w-0">
