@@ -5,14 +5,25 @@ import { ButtonComponent } from '../button/button.component';
 export type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | '2xl' | '4xl' | 'full';
 
 const SIZE_CLASSES: Record<ModalSize, string> = {
-  xs: 'max-w-xs max-h-[85vh]',
-  sm: 'max-w-sm max-h-[85vh]',
-  md: 'max-w-md max-h-[85vh]',
-  lg: 'max-w-lg max-h-[85vh]',
-  '2xl': 'max-w-2xl max-h-[85vh]',
-  '4xl': 'max-w-4xl max-h-[85vh]',
+  // dvh, not vh: on phones 100vh is taller than the visible area, so the box overflowed it.
+  xs: 'max-w-xs max-h-[85dvh]',
+  sm: 'max-w-sm max-h-[85dvh]',
+  md: 'max-w-md max-h-[85dvh]',
+  lg: 'max-w-lg max-h-[85dvh]',
+  '2xl': 'max-w-2xl max-h-[85dvh]',
+  '4xl': 'max-w-4xl max-h-[85dvh]',
   /** Near-fullscreen, for dense read-only views (e.g. the quadre de troncs). */
-  full: 'w-11/12 max-w-none h-[90vh] max-h-[90vh]',
+  full: 'w-11/12 max-w-none h-[90dvh] max-h-[90dvh]',
+};
+
+/** `top` is for modals that open the on-screen keyboard: a centred box ends up behind it (the
+ *  keyboard doesn't shrink the layout viewport on iOS, nor on Android by default), so the content
+ *  under the input — e.g. search results — was hidden. Anchored at the top it stays visible. */
+export type ModalPlacement = 'middle' | 'top';
+
+const PLACEMENT_CLASSES: Record<ModalPlacement, string> = {
+  middle: 'modal',
+  top: 'modal items-start pt-[calc(env(safe-area-inset-top,0px)+1rem)]',
 };
 
 let nextId = 0;
@@ -30,6 +41,8 @@ export class ModalComponent {
   open = input(false);
   title = input<string>();
   size = input<ModalSize>('md');
+  placement = input<ModalPlacement>('middle');
+  protected readonly dialogClasses = computed(() => PLACEMENT_CLASSES[this.placement()]);
   dismissible = input(true, { transform: booleanAttribute });
   // Undefined means "inherit from dismissible" — a dismissible modal gets a close button unless
   // explicitly opted out, a non-dismissible one never gets one (see the constructor invariant).

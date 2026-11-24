@@ -1,6 +1,6 @@
 @if (isLoading()) {
   <div
-    class="flex items-center justify-center h-dvh w-screen bg-base-200"
+    class="flex items-center justify-center h-dvh w-full bg-base-200"
     role="status"
     aria-live="polite"
   >
@@ -8,7 +8,7 @@
     <span class="sr-only">S'està carregant la projecció...</span>
   </div>
 } @else if (hasError() || !data()) {
-  <div class="flex items-center justify-center h-dvh w-screen bg-base-200 p-4">
+  <div class="flex items-center justify-center h-dvh w-full bg-base-200 p-4">
     <lib-empty-state
       message="No s'ha pogut carregar la projecció."
       actionLabel="Torna-ho a provar"
@@ -17,7 +17,7 @@
   </div>
 } @else {
   <!-- The figure follows the page theme; the HUD on top is always dark. -->
-  <div class="relative flex flex-col h-dvh w-screen overflow-hidden bg-base-100">
+  <div class="relative flex flex-col h-dvh w-full overflow-hidden bg-base-100">
     <lib-pinya-projection
       #projection
       [data]="data()!"
@@ -32,7 +32,7 @@
       <button
         type="button"
         libThemeScope="dark"
-        class="fixed right-4 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-base-200/60 backdrop-blur-sm text-base-content shadow-lg [top:calc(env(safe-area-inset-top,0px)+0.75rem)]"
+        class="fixed right-4 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-base-200/90 backdrop-blur-sm text-base-content shadow-lg [top:calc(env(safe-area-inset-top,0px)+0.75rem)]"
         aria-label="Cerca una persona"
         (click)="openPicker()"
       >
@@ -43,7 +43,7 @@
 
     <nav
       libThemeScope="dark"
-      class="fixed bottom-safe-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-base-200/60 text-base-content/80 text-sm backdrop-blur-sm z-50"
+      class="fixed bottom-safe-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-base-200/90 text-base-content/80 text-sm backdrop-blur-sm z-50"
       aria-label="Navegació de la projecció"
     >
       <button
@@ -83,7 +83,7 @@
   </div>
 
   <!-- Outside the light-pinned figure, so the picker follows the page theme. -->
-  <lib-modal [open]="pickerOpen()" title="Cerca una persona" (closed)="closePicker()">
+  <lib-modal [open]="pickerOpen()" placement="top" title="Cerca una persona" (closed)="closePicker()">
     @if (pickerOpen()) {
       <lib-input
         placeholder="Nom o àlies"
