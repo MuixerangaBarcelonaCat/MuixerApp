@@ -84,6 +84,8 @@ export class PinyaProjectionComponent {
 
   /** Forwarded to FigureCanvasComponent — see its own doc comment. */
   readonly showZoomControls = input<boolean>(true);
+  /** Forwarded to FigureCanvasComponent. */
+  readonly showFitButton = input<boolean>(true);
 
   /**
    * Before / on / after the event day, for the attendance fills and hover labels, from the event
