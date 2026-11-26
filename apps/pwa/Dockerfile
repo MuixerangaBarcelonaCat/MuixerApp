@@ -12,6 +12,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NX_DAEMON=false
 ENV NX_SKIP_NX_CACHE=true
+# Release tag (e.g. v0.0.41) shown in «Sobre l'app»; set by the release workflow
+ARG APP_VERSION=dev
+RUN echo "export const APP_VERSION = '${APP_VERSION}';" > libs/shared/src/constants/app-version.constants.ts
 RUN ./node_modules/.bin/nx build shared --configuration=production && \
     ./node_modules/.bin/nx build pwa --configuration=pre
 

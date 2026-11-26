@@ -14,6 +14,9 @@ COPY . .
 # Disable Nx daemon and remote cache (not suitable for Docker builds)
 ENV NX_DAEMON=false
 ENV NX_SKIP_NX_CACHE=true
+# Release tag (e.g. v0.0.41) shown in «Sobre l'app»; set by the release workflow
+ARG APP_VERSION=dev
+RUN echo "export const APP_VERSION = '${APP_VERSION}';" > libs/shared/src/constants/app-version.constants.ts
 # Build shared lib first (dashboard depends on it), then the dashboard with PRE config
 RUN ./node_modules/.bin/nx build shared --configuration=production && \
     ./node_modules/.bin/nx build dashboard --configuration=pre
