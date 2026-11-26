@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked } from '@angular/core';
-import { COPYRIGHT_HOLDER, LegalDocumentType, SOURCE_CODE_URL, formatCopyrightYears } from '@muixer/shared';
+import { APP_VERSION, COPYRIGHT_HOLDER, LegalDocumentType, SOURCE_CODE_URL, formatCopyrightYears } from '@muixer/shared';
 import { AlertComponent, ModalComponent } from '@muixer/ui';
 import { MarkdownViewComponent } from '@muixer/ui/markdown';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
@@ -46,6 +46,7 @@ import { LegalDocumentService } from '../../../core/services/legal-document.serv
             <a [href]="sourceCodeUrl" target="_blank" rel="noopener noreferrer" class="link link-primary">GitHub</a>.
           </p>
           <p class="text-base-content/50">© {{ copyrightYears }} {{ copyrightHolder }}</p>
+          <p class="text-base-content/50" data-testid="about-version">Versió {{ appVersion }}</p>
         </section>
       </div>
     </lib-modal>
@@ -60,6 +61,7 @@ export class AboutAppModalComponent {
   protected readonly copyrightYears = formatCopyrightYears(new Date().getFullYear());
   protected readonly copyrightHolder = COPYRIGHT_HOLDER;
   protected readonly sourceCodeUrl = SOURCE_CODE_URL;
+  protected readonly appVersion = APP_VERSION;
 
   protected readonly policyContent = signal<string | null>(null);
   protected readonly policyLoading = signal(false);

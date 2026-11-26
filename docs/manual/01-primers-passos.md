@@ -76,7 +76,7 @@ Dalt a la dreta hi ha un cercle amb la vostra inicial, el vostre àlies i el rol
 
   ![L'opció «Aparença» del menú d'usuari](img/01-aparenca.png)
 
-- **«Sobre l'app»** obri una finestra amb el contacte, la política de privacitat i l'enllaç al codi de l'app a «GitHub».
+- **«Sobre l'app»** obri una finestra amb el contacte, la política de privacitat i l'enllaç al codi de l'app a «GitHub» i la versió de l'app (per exemple, «Versió v0.0.41»). Si no veieu la versió que s'acaba de publicar, recarregueu la pàgina.
 
   ![La finestra «Sobre l'app»](img/01-sobre-app.png)
 

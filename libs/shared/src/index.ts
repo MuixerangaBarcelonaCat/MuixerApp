@@ -27,6 +27,7 @@ export * from './constants/node-preset.constants';
 export * from './constants/assignment-area.constants';
 export * from './constants/domain-icons.constants';
 export * from './constants/about-app.constants';
+export * from './constants/app-version.constants';
 export * from './constants/season.constants';
 export * from './constants/colla-settings.constants';
 export * from './utils/color.util';

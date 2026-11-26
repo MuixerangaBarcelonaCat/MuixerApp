@@ -181,7 +181,7 @@ A la pantalla «Configuració» hi ha:
   - «Notificacions push», amb una casella per a activar-les o desactivar-les en eixe mòbil. Davall diu «Actives en N dispositius» o «Rebràs avisos d'assaigs i actuacions».
   - «Notificacions bloquejades»: les ha bloquejades al navegador. Ha de tornar a permetre-les a la configuració del navegador.
   - «No disponibles en aquest dispositiu»: el navegador no admet notificacions. A l'iPhone, normalment cal afegir abans l'app a la pantalla d'inici.
-- **«Sobre l'app»:** amb «Contacte» i «Política de privacitat».
+- **«Sobre l'app»:** amb «Contacte», «Política de privacitat» i, al final, la versió de l'app (per exemple, «Versió v0.0.41»).
 - **«Tancar sessió».**
 
 ![Configuració amb la fila de notificacions ressaltada](img/19-pwa-configuracio.png)
