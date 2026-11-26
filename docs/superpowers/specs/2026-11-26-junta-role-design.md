@@ -134,6 +134,13 @@ La Junta veu tota la fitxa, però només edita els camps personals (decisió de 
   s'hi pot editar, amb l'avís «Este correu és el que fa servir per entrar a l'app». Per dins passa per
   `PATCH /users/:id`, amb les regles de rol (JUNTA no toca un ADMIN). Una persona sense compte no té
   correu, i no s'afegeix cap correu de contacte a `Person`.
+- **Data d'entrada (`joinDate`):** per defecte és el dia que es crea la persona a l'app (decisió de la
+  Junta/producte). El servidor la posa a avui en qualsevol alta (`POST /persons` i
+  `POST /persons/provisional`, qualsevol rol) quan no arriba al cos, i es pot editar després. Al
+  Dashboard, el camp mostra una ajuda (tooltip o text d'ajuda) que ho explica, per exemple: «Per
+  defecte, el dia que es va donar d'alta la persona a l'app». Ara el camp existeix a l'API però no surt
+  al formulari del Dashboard. Decisió meua: les persones existents amb `joinDate` buida es queden buides.
+  No s'omplin amb `createdAt`, perquè en les importades pel sync seria la data del sync, no la d'entrada.
 - **Esborrat permanent:** continua sent només ADMIN.
 - **Prerequisit:** abans d'activar el rol JUNTA es deixa d'usar el sync amb el sistema antic (decisió de
   la Junta/producte). El sync sobreescriu nom, cognoms, telèfon i data de naixement a cada execució
