@@ -80,7 +80,9 @@ cada document, sense que el procés siga complicat per a ella.
 | PWA (membre: assistència pròpia, segments publicats) | ✔ | ✔ | ✔ | ✔ |
 | PWA «Passa llista» | — | ✔ | — | ✔ |
 | Dashboard: Inici | — | ✔ | ✔ | ✔ |
-| Persones (llistat, alta, edició, fitxa) | — | ✔ | ✔ | ✔ |
+| Persones: llistat i fitxa (tots els camps) | — | ✔ | lectura | ✔ |
+| Persones: alta i edició de camps personals | — | ✔ | ✔ | ✔ |
+| Persones: edició de camps tècnics | — | ✔ | — | ✔ |
 | Esborrat permanent de persones | — | — | — | ✔ |
 | Temporades | — | ✔ | ✔ | ✔ |
 | Assajos i actuacions: consulta (llistat, detall, assistència) | — | ✔ | lectura | ✔ |
@@ -112,6 +114,30 @@ Decisions meues (a revisar):
 - Assajos i actuacions per a JUNTA: els `GET` d'`event.controller` (llistat, detall, assistència) obrin a
   JUNTA; les escriptures es queden TECHNICAL/ADMIN (`@Roles` per mètode, no per classe). Al detall de
   l'esdeveniment, JUNTA no veu els segments, el PDF de resum ni cap botó d'edició o d'assistència.
+
+### Persones: camps personals i tècnics
+
+La Junta veu tota la fitxa, però només edita els camps personals (decisió de la Junta/producte).
+
+| Personals (JUNTA edita) | Tècnics (JUNTA només veu) |
+|---|---|
+| `name`, `firstSurname`, `secondSurname`, `birthDate`, `phone`, `gender`, `joinDate`, alta/baixa (`isActive`), correu del compte | `alias`, `shoulderHeight`, etiquetes, `isXicallaManual`, `availability`, `onboardingStatus`, `notes`/`notesEmoji`, `shirtDate`, `mentor`, `isProvisional`, `isMember`, i tot el de Pinyes |
+
+- **Validació al servidor:** amb rol JUNTA, `POST/PATCH /persons` accepten només els camps personals. Un
+  camp tècnic al cos retorna 403, i no s'ignora en silenci. La llista de camps personals viu a
+  `@muixer/shared` i la usen l'API i el formulari del Dashboard (els camps tècnics es mostren
+  desactivats per a JUNTA).
+- **Alta feta per la Junta:** el formulari no demana l'àlies. El servidor en deriva un d'únic a partir del
+  nom (la mateixa lògica que ara fa el sync amb `deriveUniqueAlias`, extreta a un lloc compartit). La
+  tècnica el pot canviar després. Decisió meua.
+- **Correu:** és `users.email`, l'identificador d'accés, no un camp de `Person`. Es mostra a la fitxa i
+  s'hi pot editar, amb l'avís «Este correu és el que fa servir per entrar a l'app». Per dins passa per
+  `PATCH /users/:id`, amb les regles de rol (JUNTA no toca un ADMIN). Una persona sense compte no té
+  correu, i no s'afegeix cap correu de contacte a `Person`.
+- **Esborrat permanent:** continua sent només ADMIN.
+- **Prerequisit:** abans d'activar el rol JUNTA es deixa d'usar el sync amb el sistema antic (decisió de
+  la Junta/producte). El sync sobreescriu nom, cognoms, telèfon i data de naixement a cada execució
+  (`person-sync.strategy.ts`) i perdria les edicions de la Junta. El sync no es toca en este projecte.
 
 ### Què canvia
 
