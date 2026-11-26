@@ -33,6 +33,18 @@ describe('installed PWA viewport', () => {
     expect(read('src/index.html')).toMatch(/name="viewport"[^>]*viewport-fit=cover/);
   });
 
+  it('stops iOS zooming in on a focused input, a zoom the app could not undo', () => {
+    expect(read('src/index.html')).toMatch(/name="viewport"[^>]*maximum-scale=1/);
+  });
+
+  it('keeps the page out from under the iOS status bar (iOS 26 blurred it and misplaced the tab bar)', () => {
+    expect(read('src/index.html')).toMatch(/name="apple-mobile-web-app-status-bar-style" content="default"/);
+  });
+
+  it('locks the installed app to portrait', () => {
+    expect(JSON.parse(read('public/manifest.webmanifest')).orientation).toBe('portrait');
+  });
+
   it('keeps the manifest installable and in sync with index.html', () => {
     const manifest = JSON.parse(read('public/manifest.webmanifest'));
     const themeMeta = read('src/index.html').match(/name="theme-color" content="([^"]+)"/)?.[1];

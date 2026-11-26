@@ -42,7 +42,7 @@ import { PushSubscriptionService } from '../../services/push-subscription.servic
           </lib-alert>
         </div>
       }
-      @if (installPrompt.shouldShow()) {
+      @if (installPrompt.shouldShow() && !layout.isFullscreen()) {
         <app-install-prompt-banner />
       }
       <router-outlet />

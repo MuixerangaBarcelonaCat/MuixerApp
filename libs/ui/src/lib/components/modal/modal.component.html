@@ -1,7 +1,7 @@
 <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus, @angular-eslint/template/click-events-have-key-events -->
 <dialog
   #dialogEl
-  class="modal"
+  [class]="dialogClasses()"
   [attr.aria-labelledby]="titleId()"
   (click)="onDialogClick($event)"
   (cancel)="onCancel($event)"

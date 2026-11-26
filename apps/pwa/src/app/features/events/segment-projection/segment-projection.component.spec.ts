@@ -21,6 +21,7 @@ class PinyaProjectionStub {
   readonly data = input.required<unknown>();
   readonly instanceId = input<string | null>(null);
   readonly showZoomControls = input<boolean>(true);
+  readonly showFitButton = input<boolean>(true);
   readonly highlightPersonId = input<string | null>(null);
   readonly highlightPersonName = input<string | null>(null);
   readonly backToSelf = output<void>();
@@ -146,6 +147,12 @@ describe('SegmentProjectionComponent', () => {
     fixture = await setup(of(makeData()));
     const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
     expect(stub.componentInstance.showZoomControls()).toBe(false);
+  });
+
+  it('hides the fit-to-screen button — the camera flies to the person instead', async () => {
+    fixture = await setup(of(makeData()));
+    const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+    expect(stub.componentInstance.showFitButton()).toBe(false);
   });
 
   it("forwards the caller's own linked person id as highlightPersonId", async () => {
