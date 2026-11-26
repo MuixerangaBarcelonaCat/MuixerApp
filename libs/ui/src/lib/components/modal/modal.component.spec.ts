@@ -48,15 +48,27 @@ describe('ModalComponent', () => {
     const classes = boxEl().classList;
     expect(classes).toContain('w-11/12');
     expect(classes).toContain('max-w-none');
-    expect(classes).toContain('h-[90vh]');
-    expect(classes).toContain('max-h-[90vh]');
-    expect(classes).not.toContain('max-h-[85vh]');
+    expect(classes).toContain('h-[90dvh]');
+    expect(classes).toContain('max-h-[90dvh]');
+    expect(classes).not.toContain('max-h-[85dvh]');
   });
 
-  it('keeps the 85vh cap on the other sizes', () => {
+  it('keeps the 85dvh cap on the other sizes', () => {
     fixture.componentRef.setInput('size', 'lg');
     fixture.detectChanges();
-    expect(boxEl().classList).toContain('max-h-[85vh]');
+    expect(boxEl().classList).toContain('max-h-[85dvh]');
+  });
+
+  it('centres the dialog by default', () => {
+    expect(dialogEl().classList).toContain('modal');
+    expect(dialogEl().classList).not.toContain('items-start');
+  });
+
+  it('anchors the dialog to the top with placement="top", so the on-screen keyboard cannot cover it', () => {
+    fixture.componentRef.setInput('placement', 'top');
+    fixture.detectChanges();
+    expect(dialogEl().classList).toContain('modal');
+    expect(dialogEl().classList).toContain('items-start');
   });
 
   it('lets wide content scroll inside the body instead of widening the box', () => {

@@ -167,6 +167,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    *  Off by default on mobile (PWA), where the numeric selector is a precision control the
    *  touch UI doesn't need and just clutters a small viewport. */
   readonly showZoomControls = input<boolean>(true);
+  /** The fit-to-screen button. Off in the PWA projection, which flies to the person instead. */
+  readonly showFitButton = input<boolean>(true);
   readonly gridEnabled = input<boolean>(true);
   readonly gridSpacing = input<number>(20);
   readonly selectedNodeId = input<string | null>(null);

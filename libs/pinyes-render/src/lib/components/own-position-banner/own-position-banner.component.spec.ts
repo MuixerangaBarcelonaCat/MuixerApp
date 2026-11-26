@@ -44,7 +44,7 @@ describe('OwnPositionBannerComponent', () => {
     setState({ kind: 'NONE' });
     const host = fixture.nativeElement as HTMLElement;
     expect(host.dataset['theme']).toBe(THEME_NAMES.dark);
-    expect(host.className).toContain('bg-base-200/60');
+    expect(host.className).toContain('bg-base-200/90');
     expect(host.className).not.toMatch(/\b(bg|text)-(black|white)\b/);
   });
 

@@ -23,7 +23,7 @@ export type OwnPositionBannerState = OwnPlacementDescription | { kind: 'MULTIPLE
   host: {
     // A HUD over the figure: always dark, so it reads the same over the light canvas in either mode.
     '[attr.data-theme]': 'hudTheme',
-    class: 'block rounded-2xl bg-base-200/60 backdrop-blur-sm shadow-lg px-4 py-2.5 text-sm text-base-content',
+    class: 'block rounded-2xl bg-base-200/90 backdrop-blur-sm shadow-lg px-4 py-2.5 text-sm text-base-content',
     '[class.text-error]': "state().kind === 'MULTIPLE'",
     'aria-live': 'polite',
   },

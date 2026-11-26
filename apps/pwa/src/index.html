@@ -4,7 +4,10 @@
     <meta charset="utf-8" />
     <title>MuixerApp</title>
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- maximum-scale=1 stops iOS zooming in on a focused input (it does for any font-size under
+         16px), a zoom the app couldn't undo since pinch-zoom is disabled. iOS still lets the user
+         pinch-zoom despite it; Android honours it, which matches the app's no-zoom policy. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <!-- Matches the placeholder colla's generated `primary` token (see the shirt color passed to
          generateCollaTheme(...) in tailwind.config.ts) — expressed as the same oklch() this whole
          token system already uses, not a hex snapshot, so it isn't raw-hex drift for lint:tokens
@@ -16,7 +19,10 @@
     <link rel="icon" type="image/png" href="icons/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- `default`, not `black-translucent`: drawing the page under the status bar made iOS 26 blur
+         the top of the screen and leave a status-bar-high blank strip under the bottom tab bar.
+         iOS reads this only when the app is added to the home screen: reinstall to see a change. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="MuixerApp" />
     <!-- Applies a per-device theme choice before first paint (no light flash). With nothing
          stored, no data-theme is set and DaisyUI follows prefers-color-scheme in pure CSS.
