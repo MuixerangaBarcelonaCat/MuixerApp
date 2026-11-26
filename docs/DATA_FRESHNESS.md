@@ -29,7 +29,7 @@ Restriccions:
 
 - **Un sol procés d'API** (`scripts/docker-entrypoint.sh`), pool de Postgres per defecte (**10** connexions),
   VPS Hetzner de 4 GB.
-- **Límit per IP a Caddy**: `/api/*` 600 req/min. Tota la colla sovint comparteix IP (Wi-Fi del local, CGNAT
+- **Límit per IP a Caddy**: `/api/*` 600 req/min al Dashboard, 1800 a la PWA (el poll de revisió té zona pròpia de 3000). Tota la colla sovint comparteix IP (Wi-Fi del local, CGNAT
   del mòbil) — vegeu [[REQUEST_AUDIT]] §0.
 - **Una projecció costa ~9 consultes** (`ProjectionService.getProjection`, `projection.service.ts:58-170`):
   inclou totes les assistències de l'event i llegeix les assignacions dues vegades. No hi ha cache.

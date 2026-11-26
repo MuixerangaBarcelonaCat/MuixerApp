@@ -7,10 +7,14 @@
 #   PWA_SITE_ADDRESS=app-beta.muixerangabarcelona.cat
 #
 # Rate limiting (caddy-ratelimit plugin): mirrors former NestJS throttler. Key = client IP.
-#   /api/auth*                                          → 60 req / 1m per IP (dash_auth, pwa_auth)
+#   /api/auth* except refresh/me/logout*                → 60 req / 1m per IP (dash_auth, pwa_auth).
+#     Only the credential/token-guessing endpoints (login, invite, setup, forgot/reset/change-*):
+#     refresh + me run on every app boot, so counting them would block a login wave behind one IP.
 #   PWA host only: /api/me/events/*/segments/*/revision → 3000 req / 1m per IP (pwa_revision: own
 #     zone, so the live-sync poll of members behind one Wi-Fi/CGNAT IP doesn't eat the api budget)
-#   /api/* (rest)                                       → 600 req / 1m per IP (dash_api, pwa_api)
+#   /api/* (rest), dashboard host                       → 600 req / 1m per IP (dash_api)
+#   /api/* (rest), PWA host                             → 1800 req / 1m per IP (pwa_api: a whole colla
+#     opening the app at once from the rehearsal Wi-Fi or a carrier CGNAT shares one IP)
 # Zone names must be unique across the whole file: the plugin keys zones globally by name, so a
 # name reused in both site blocks would make dashboard and PWA traffic from one IP share a bucket.
 #
@@ -33,6 +37,7 @@
             zone dash_auth {
                 match {
                     path /api/auth*
+                    not path /api/auth/refresh /api/auth/me /api/auth/logout*
                 }
                 key {client_ip}
                 events 60
@@ -74,6 +79,7 @@
             zone pwa_auth {
                 match {
                     path /api/auth*
+                    not path /api/auth/refresh /api/auth/me /api/auth/logout*
                 }
                 key {client_ip}
                 events 60
@@ -92,7 +98,7 @@
                     not path_regexp ^/api/me/events/[^/]+/segments/[^/]+/revision$
                 }
                 key {client_ip}
-                events 600
+                events 1800
                 window 1m
             }
         }
