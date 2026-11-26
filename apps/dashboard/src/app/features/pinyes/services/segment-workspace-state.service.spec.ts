@@ -2,7 +2,8 @@ import { SegmentDetail, InstanceDetail, AssignmentDetail, InstanceNodeItem, Segm
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { DASHBOARD_REVISION_POLL_MS, SegmentEditor, StaffSegmentRevision } from '@muixer/shared';
 import { SegmentWorkspaceStateService } from './segment-workspace-state.service';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
@@ -96,6 +97,13 @@ const makeDistributionItem = (
   ...overrides,
 });
 
+const revision = (state = 0, structure = 0, attendance = 0, editors: SegmentEditor[] = []): StaffSegmentRevision => ({
+  state,
+  structure,
+  attendance,
+  editors,
+});
+
 const makeAssignment = (id: string, instanceId: string, nodeId: string, personId = `p-${id}`): AssignmentDetail => ({
   id,
   figureInstanceId: instanceId,
@@ -125,7 +133,7 @@ const makeAssignment = (id: string, instanceId: string, nodeId: string, personId
 describe('SegmentWorkspaceStateService', () => {
   let service: SegmentWorkspaceStateService;
   let state: AssignmentStateService;
-  let segmentService: { getByEvent: ReturnType<typeof vi.fn> };
+  let segmentService: { getByEvent: ReturnType<typeof vi.fn>; getRevision: ReturnType<typeof vi.fn> };
   let distributionService: { getDistribution: ReturnType<typeof vi.fn> };
   let assignmentService: {
     getInstanceNodes: ReturnType<typeof vi.fn>;
@@ -152,7 +160,10 @@ describe('SegmentWorkspaceStateService', () => {
       items: segment.instances.map((i) => makeDistributionItem(i.id)),
     };
 
-    segmentService = { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) };
+    segmentService = {
+      getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })),
+      getRevision: vi.fn().mockReturnValue(of(revision())),
+    };
     distributionService = { getDistribution: vi.fn().mockReturnValue(of(distribution)) };
     assignmentService = {
       getInstanceNodes: vi.fn((instanceId: string) =>
@@ -205,6 +216,71 @@ describe('SegmentWorkspaceStateService', () => {
     service = TestBed.inject(SegmentWorkspaceStateService);
     state = TestBed.inject(AssignmentStateService);
   };
+
+  describe('reloadAssignmentState', () => {
+    const respond = (instanceId: string, nodes: InstanceNodeItem[], assignments: AssignmentDetail[]) =>
+      assignmentService.getSegmentAssignmentState.mockReturnValue(of({ data: [{ instanceId, nodes, assignments }] }));
+
+    it('replaces nodes and assignments of every instance and reloads conflicts', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      assignmentService.getSegmentConflicts.mockClear();
+      const nodes = [makeNode('n1', 'PINYA')];
+      const assignments = [makeAssignment('as-9', 'inst-a', 'n1')];
+      respond('inst-a', nodes, assignments);
+      let result: boolean | undefined;
+
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      expect(result).toBe(true);
+      expect(state.assignments()).toEqual(assignments);
+      expect(service.instances()[0].nodes).toEqual(nodes);
+      expect(assignmentService.getSegmentConflicts).toHaveBeenCalledTimes(1);
+    });
+
+    it('discards the response while a mutation is in flight', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const before = state.assignments();
+      respond('inst-a', [], [makeAssignment('as-9', 'inst-a', 'n1')]);
+      state.trackMutation(new Subject<void>()).subscribe();
+      let result: boolean | undefined;
+
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      expect(result).toBe(false);
+      expect(state.assignments()).toBe(before);
+    });
+
+    it('discards a response requested before a mutation that already finished', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const before = state.assignments();
+      const response = new Subject<{ data: unknown[] }>();
+      assignmentService.getSegmentAssignmentState.mockReturnValue(response);
+      let result: boolean | undefined;
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      state.trackMutation(of(null)).subscribe();
+      response.next({ data: [{ instanceId: 'inst-a', nodes: [], assignments: [makeAssignment('as-9', 'inst-a', 'n1')] }] });
+      response.complete();
+
+      expect(result).toBe(false);
+      expect(state.assignments()).toBe(before);
+    });
+
+    it('emits false and shows no toast on error', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      assignmentService.getSegmentAssignmentState.mockReturnValue(throwError(() => new Error('offline')));
+      let result: boolean | undefined;
+
+      service.reloadAssignmentState().subscribe((r) => (result = r));
+
+      expect(result).toBe(false);
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+  });
 
   describe('display mode', () => {
     it('starts in Posició', () => {
@@ -1123,6 +1199,245 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.previousSegmentId()).toBeNull();
       expect(service.nextSegmentId()).toBeNull();
       expect(service.segmentPosition()).toEqual({ current: 1, total: 1 });
+    });
+  });
+  describe('applyRemoteRevision', () => {
+    it('applyRemoteRevision: a state-only change calls reloadAssignmentState and not reloadInstances', async () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const reloadState = vi.spyOn(service, 'reloadAssignmentState').mockReturnValue(of(true));
+      const reloadInstances = vi.spyOn(service, 'reloadInstances');
+
+      const applied = await service.applyRemoteRevision(revision(1), revision(0));
+
+      expect(applied).toBe(true);
+      expect(reloadState).toHaveBeenCalledTimes(1);
+      expect(reloadInstances).not.toHaveBeenCalled();
+    });
+
+    it('applyRemoteRevision: a structure change calls reloadInstances once, even if state changed too', async () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const reloadState = vi.spyOn(service, 'reloadAssignmentState');
+      // The guarded variant of reloadInstances (no toast, discarded under a mutation).
+      const reloadInstances = vi.spyOn(service, 'reloadInstancesSilently');
+
+      const applied = await service.applyRemoteRevision(revision(1, 1), revision(0, 0));
+
+      expect(applied).toBe(true);
+      expect(reloadInstances).toHaveBeenCalledTimes(1);
+      expect(reloadState).not.toHaveBeenCalled();
+    });
+
+    it('a structure reload that lands after a mutation started leaves state.assignments unchanged and resolves false', async () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const before = state.assignments();
+      const pending = new Subject<{ data: unknown[] }>();
+      assignmentService.getSegmentAssignmentState.mockReturnValueOnce(pending);
+
+      const applied = service.applyRemoteRevision(revision(0, 1), revision(0, 0));
+      state.trackMutation(of(null)).subscribe();
+      pending.next({ data: [{ instanceId: 'inst-a', nodes: [], assignments: [makeAssignment('as-9', 'inst-a', 'n1')] }] });
+      pending.complete();
+
+      expect(await applied).toBe(false);
+      expect(state.assignments()).toBe(before);
+    });
+
+    it('applyRemoteRevision: an attendance change refreshes the person list and reloads no figures', async () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      const reloadState = vi.spyOn(service, 'reloadAssignmentState');
+      const reloadInstances = vi.spyOn(service, 'reloadInstances');
+      const trigger = state.personListRefreshTrigger();
+
+      const applied = await service.applyRemoteRevision(revision(0, 0, 1), revision(0, 0, 0));
+
+      expect(applied).toBe(true);
+      expect(state.personListRefreshTrigger()).toBe(trigger + 1);
+      expect(reloadState).not.toHaveBeenCalled();
+      expect(reloadInstances).not.toHaveBeenCalled();
+    });
+
+    it('applyRemoteRevision resolves false when reloadAssignmentState discarded the response', async () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+      state.trackMutation(new Subject<void>()).subscribe();
+
+      const applied = await service.applyRemoteRevision(revision(1), revision(0));
+
+      expect(applied).toBe(false);
+    });
+  });
+
+  describe('live sync', () => {
+    const tick = (ms = DASHBOARD_REVISION_POLL_MS) => vi.advanceTimersByTimeAsync(ms);
+    const loadAndSettle = async (segmentId = SEGMENT_ID) => {
+      service.load(EVENT_ID, segmentId);
+      await vi.advanceTimersByTimeAsync(0);
+    };
+
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('polls getRevision every DASHBOARD_REVISION_POLL_MS after load()', async () => {
+      configure();
+      await loadAndSettle();
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
+      expect(segmentService.getRevision).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, { editing: false });
+
+      await tick(DASHBOARD_REVISION_POLL_MS - 1);
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
+      await tick(1);
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(2);
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not poll while a mutation is in flight (assign, unassign, swap, undo)', async () => {
+      // Every assignment action (assign, unassign, swap, undo/redo) runs through trackMutation.
+      configure();
+      await loadAndSettle();
+      const mutation = new Subject<void>();
+      state.trackMutation(mutation).subscribe();
+
+      await tick();
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
+
+      mutation.complete();
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(2);
+    });
+
+    it('a reload requested before a mutation that finished meanwhile is discarded and retried on the next tick', async () => {
+      configure();
+      await loadAndSettle();
+      const before = state.assignments();
+      const remote = [makeAssignment('as-9', 'inst-a', 'n1')];
+      const pending = new Subject<{ data: unknown[] }>();
+      assignmentService.getSegmentAssignmentState.mockReturnValueOnce(pending);
+      segmentService.getRevision.mockReturnValue(of(revision(1)));
+
+      await tick();
+      state.trackMutation(of(null)).subscribe();
+      pending.next({ data: [{ instanceId: 'inst-a', nodes: [], assignments: remote }] });
+      pending.complete();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(state.assignments()).toBe(before);
+
+      assignmentService.getSegmentAssignmentState.mockReturnValue(
+        of({ data: [{ instanceId: 'inst-a', nodes: [], assignments: remote }] }),
+      );
+      await tick();
+      expect(state.assignments()).toEqual(remote);
+    });
+
+    it('keeps polling but applies no revision while liveSyncPaused is true, and catches up when it turns false', async () => {
+      configure();
+      await loadAndSettle();
+      const reloadState = vi.spyOn(service, 'reloadAssignmentState').mockReturnValue(of(true));
+      service.liveSyncPaused.set(true);
+      segmentService.getRevision.mockReturnValue(of(revision(1)));
+
+      await tick();
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(3);
+      expect(reloadState).not.toHaveBeenCalled();
+
+      service.liveSyncPaused.set(false);
+      await tick();
+      expect(reloadState).toHaveBeenCalledTimes(1);
+      await tick();
+      expect(reloadState).toHaveBeenCalledTimes(1);
+    });
+
+    it('load() for another segment restarts the baseline: no reload for the first revision of the new segment', async () => {
+      configure();
+      await loadAndSettle();
+      segmentService.getRevision.mockReturnValue(of(revision(5, 5, 5)));
+      const reloadState = vi.spyOn(service, 'reloadAssignmentState');
+      const reloadInstances = vi.spyOn(service, 'reloadInstances');
+      const trigger = state.personListRefreshTrigger();
+
+      await loadAndSettle('seg-2');
+      await tick();
+
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, 'seg-2', { editing: false });
+      expect(reloadState).not.toHaveBeenCalled();
+      expect(reloadInstances).not.toHaveBeenCalled();
+      expect(state.personListRefreshTrigger()).toBe(trigger);
+    });
+
+    it('stops polling when the service is destroyed', async () => {
+      configure();
+      await loadAndSettle();
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
+
+      TestBed.resetTestingModule();
+      await tick();
+      await tick();
+
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(1);
+    });
+
+    it('a failed structure reload shows no toast, resolves false, and is retried on the next tick', async () => {
+      configure();
+      await loadAndSettle();
+      segmentService.getByEvent.mockReturnValueOnce(throwError(() => new Error('offline')));
+      segmentService.getRevision.mockReturnValue(of(revision(0, 1)));
+      const applied = vi.spyOn(service, 'applyRemoteRevision');
+
+      await tick();
+      expect(await applied.mock.results[0].value).toBe(false);
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(segmentService.getByEvent).toHaveBeenCalledTimes(2);
+
+      await tick();
+      expect(segmentService.getByEvent).toHaveBeenCalledTimes(3);
+      await tick();
+      expect(segmentService.getByEvent).toHaveBeenCalledTimes(3);
+    });
+
+    it('sends editing=1 only when mutationSeq advanced since the last poll', async () => {
+      configure();
+      await loadAndSettle();
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, SEGMENT_ID, { editing: false });
+
+      state.trackMutation(of(null)).subscribe();
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, SEGMENT_ID, { editing: true });
+
+      await tick();
+      expect(segmentService.getRevision).toHaveBeenLastCalledWith(EVENT_ID, SEGMENT_ID, { editing: false });
+    });
+
+    it('stores editors in otherEditors and triggers no reload when only editors change', async () => {
+      configure();
+      await loadAndSettle();
+      const applied = vi.spyOn(service, 'applyRemoteRevision');
+      const pere = { userId: 'u2', alias: 'Pere' };
+      segmentService.getRevision.mockReturnValue(of(revision(0, 0, 0, [pere])));
+
+      await tick();
+      expect(service.otherEditors()).toEqual([pere]);
+      segmentService.getRevision.mockReturnValue(of(revision()));
+      await tick();
+      expect(service.otherEditors()).toEqual([]);
+      expect(applied).not.toHaveBeenCalled();
+    });
+
+    it('a failing getRevision shows no toast and keeps polling', async () => {
+      configure();
+      segmentService.getRevision.mockReturnValue(throwError(() => new Error('offline')));
+      await loadAndSettle();
+
+      await tick();
+      await tick();
+
+      expect(segmentService.getRevision).toHaveBeenCalledTimes(3);
+      expect(toast.error).not.toHaveBeenCalled();
     });
   });
 });

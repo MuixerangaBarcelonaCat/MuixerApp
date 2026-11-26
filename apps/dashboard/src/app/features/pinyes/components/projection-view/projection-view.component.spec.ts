@@ -1,12 +1,14 @@
 import { PinyaProjectionComponent, ProjectionInstance } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Component, input } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
+import { DASHBOARD_REVISION_POLL_MS } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ProjectionViewComponent } from './projection-view.component';
 import { ProjectionService } from '../../services/projection.service';
+import { EventSegmentService } from '../../services/event-segment.service';
 import { THEME_NAMES, ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../core/services/layout.service';
 
@@ -24,6 +26,8 @@ const emptySegment = () => ({
   conflicts: [],
 });
 
+const revision = (state = 0, structure = 0, attendance = 0) => ({ state, structure, attendance });
+
 // ── Suite ─────────────────────────────────────────────────────────────────────
 
 describe('ProjectionViewComponent', () => {
@@ -35,6 +39,7 @@ describe('ProjectionViewComponent', () => {
       imports: [ProjectionViewComponent],
       providers: [
         { provide: ProjectionService, useValue: { getProjection: vi.fn().mockReturnValue(of(emptySegment())) } },
+        { provide: EventSegmentService, useValue: { getRevision: vi.fn().mockReturnValue(of(revision())) } },
         { provide: ToastService, useValue: { error: vi.fn() } },
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1' } } } },
@@ -169,6 +174,7 @@ describe('ProjectionViewComponent', () => {
         imports: [ProjectionViewComponent],
         providers: [
           { provide: ProjectionService, useValue: { getProjection: vi.fn().mockReturnValue(of(emptySegment())) } },
+          { provide: EventSegmentService, useValue: { getRevision: vi.fn().mockReturnValue(of(revision())) } },
           { provide: ToastService, useValue: { error: vi.fn() } },
           { provide: Router, useValue: { navigate: vi.fn() } },
           { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1', instanceId: instanceIdParam } } } },
@@ -255,6 +261,123 @@ describe('ProjectionViewComponent', () => {
       window.dispatchEvent(new PopStateEvent('popstate'));
 
       expect(navigateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── live sync ─────────────────────────────────────────────────────────────────
+
+  describe('live sync', () => {
+    let getProjection: ReturnType<typeof vi.fn>;
+    let getRevision: ReturnType<typeof vi.fn>;
+    let toastError: ReturnType<typeof vi.fn>;
+    const tick = (ms = DASHBOARD_REVISION_POLL_MS) => vi.advanceTimersByTimeAsync(ms);
+    const withNext = () => ({ ...emptySegment(), segment: { ...emptySegment().segment, nextSegmentId: 's2' } });
+
+    async function createPolling() {
+      vi.useFakeTimers();
+      getProjection = vi.fn().mockReturnValue(of(withNext()));
+      getRevision = vi.fn().mockReturnValue(of(revision()));
+      toastError = vi.fn();
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [ProjectionViewComponent],
+        providers: [
+          { provide: ProjectionService, useValue: { getProjection } },
+          { provide: EventSegmentService, useValue: { getRevision } },
+          { provide: ToastService, useValue: { error: toastError } },
+          { provide: Router, useValue: { navigate: vi.fn() } },
+          { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1' } } } },
+          allLucideIconsProvider,
+        ],
+      })
+        .overrideComponent(ProjectionViewComponent, {
+          remove: { imports: [PinyaProjectionComponent] },
+          add: { imports: [PinyaProjectionStub] },
+        })
+        .compileComponents();
+      const f = TestBed.createComponent(ProjectionViewComponent);
+      f.detectChanges();
+      await vi.advanceTimersByTimeAsync(0);
+      return f;
+    }
+
+    afterEach(() => vi.useRealTimers());
+
+    it('reloads the projection silently when the revision changes: no spinner, segmentData replaced', async () => {
+      const f = await createPolling();
+      const c = f.componentInstance;
+      const fresh = new Subject<ReturnType<typeof withNext>>();
+      getProjection.mockReturnValue(fresh);
+      getRevision.mockReturnValue(of(revision(1)));
+
+      await tick();
+      expect(getProjection).toHaveBeenCalledTimes(2);
+      expect(c.loading()).toBe(false);
+
+      const replaced = withNext();
+      fresh.next(replaced);
+      expect(c.segmentData()).toBe(replaced);
+      expect(c.loading()).toBe(false);
+    });
+
+    it('keeps the current projection and shows no toast when a silent reload fails', async () => {
+      const f = await createPolling();
+      const c = f.componentInstance;
+      const current = c.segmentData();
+      getProjection.mockReturnValue(throwError(() => new Error('offline')));
+      getRevision.mockReturnValue(of(revision(0, 1)));
+
+      await tick();
+
+      expect(getProjection).toHaveBeenCalledTimes(2);
+      expect(c.segmentData()).toBe(current);
+      expect(c.loading()).toBe(false);
+      expect(toastError).not.toHaveBeenCalled();
+
+      // The change was not applied: the next tick tries again.
+      const replaced = withNext();
+      getProjection.mockReturnValue(of(replaced));
+      await tick();
+      expect(c.segmentData()).toBe(replaced);
+    });
+
+    it('restarts the poller for the new segment on navigateSegment', async () => {
+      const f = await createPolling();
+      getRevision.mockReturnValue(of(revision(7, 7, 7)));
+
+      f.componentInstance.navigateSegment('next');
+      await vi.advanceTimersByTimeAsync(0);
+      await tick();
+
+      expect(getRevision).toHaveBeenLastCalledWith('e1', 's2');
+      // Only navigateSegment's own load: the new segment's first revision is its baseline.
+      expect(getProjection).toHaveBeenCalledTimes(2);
+    });
+
+    it('never sends editing=1', async () => {
+      await createPolling();
+      await tick();
+      await tick();
+      expect(getRevision.mock.calls.length).toBeGreaterThan(1);
+      for (const args of getRevision.mock.calls) expect(args).toEqual(['e1', 's1']);
+    });
+
+    it('does not reload when only the editors of the revision change', async () => {
+      await createPolling();
+      getRevision.mockReturnValue(of({ ...revision(), editors: [{ userId: 'u2', alias: 'Pere' }] }));
+      await tick();
+      expect(getProjection).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops polling on destroy', async () => {
+      const f = await createPolling();
+      expect(getRevision).toHaveBeenCalledTimes(1);
+
+      f.destroy();
+      await tick();
+      await tick();
+
+      expect(getRevision).toHaveBeenCalledTimes(1);
     });
   });
 });

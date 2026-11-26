@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, HostListener, OnInit, ViewChild, co
 import { LucideAngularModule, Map as MapIcon, Plus, Undo2, Redo2 } from 'lucide-angular';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
+import { EditingNoticeComponent } from '../../../editing-notice/editing-notice.component';
 import { MoveBannerComponent } from '../../../move-banner/move-banner.component';
 import { DisplayModeSwitcherComponent, displayModeForKey } from '../../../display-mode-switcher/display-mode-switcher.component';
 import { FigurePickerModalComponent, InstanceSelection } from '../../../figure-picker-modal/figure-picker-modal.component';
@@ -43,12 +44,13 @@ const NO_NODES = new Set<string>();
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NodeLegendComponent, DisplayModeKeyComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, DisplayModeSwitcherComponent, FigurePickerModalComponent, NgTemplateOutlet],
+  imports: [NodeLegendComponent, DisplayModeKeyComponent, PinnedCardComponent, LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent, ButtonComponent, ModalComponent, MoveBannerComponent, EditingNoticeComponent, DisplayModeSwitcherComponent, FigurePickerModalComponent, NgTemplateOutlet],
   templateUrl: './troncs-tab.component.html',
   providers: [SegmentAssignmentActionsService],
 })
 export class TroncsTabComponent implements OnInit {
   readonly ws = inject(SegmentWorkspaceStateService);
+  readonly otherEditorAliases = computed(() => this.ws.otherEditors().map((e) => e.alias));
   readonly state = inject(AssignmentStateService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly actions = inject(SegmentAssignmentActionsService);
@@ -517,7 +519,7 @@ export class TroncsTabComponent implements OnInit {
     const preset = DIRECTION_NODE_PRESETS.find((p) => p.positionType === event.positionType);
     if (!preset) return;
 
-    this.assignmentService
+    this.state.trackMutation(this.assignmentService
       .createAdHocNode(instanceId, {
         zone: preset.zone,
         positionType: preset.positionType ?? undefined,
@@ -527,7 +529,7 @@ export class TroncsTabComponent implements OnInit {
         width: preset.width,
         height: preset.height,
         shape: preset.shape,
-      })
+      }))
       .subscribe({
         next: (created) => {
           this.ws.refreshInstance(instanceId);
@@ -550,7 +552,7 @@ export class TroncsTabComponent implements OnInit {
       return;
     }
 
-    this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
+    this.state.trackMutation(this.assignmentService.deleteAdHocNode(instanceId, nodeId)).subscribe({
       next: () => this.ws.refreshInstance(instanceId),
       error: () => this.toast.error("No s'ha pogut eliminar la direcció."),
     });

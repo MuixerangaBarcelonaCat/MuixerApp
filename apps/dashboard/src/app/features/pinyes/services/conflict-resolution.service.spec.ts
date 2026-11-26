@@ -1,6 +1,6 @@
 import { AssignmentDetail, ConflictPlacement, SegmentConflict } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { ConflictResolutionService } from './conflict-resolution.service';
 import { SegmentWorkspaceStateService } from './segment-workspace-state.service';
@@ -108,6 +108,33 @@ describe('ConflictResolutionService', () => {
       undoRedo.undo().subscribe();
       expect(assignmentService.assign).toHaveBeenCalledWith('inst-1', { nodeId: 'node-1', personId: 'person-1' });
       expect(state.assignments().map((a) => a.id)).toEqual(['as-1']);
+    });
+  });
+
+  describe('mutation tracking', () => {
+    it('counts the unassigns and the undo re-assigns as tracked mutations', () => {
+      setup();
+      const placement = makePlacement();
+      state.assignments.set([makeAssignment(placement, 'person-1')]);
+      assignmentService.assign.mockReturnValue(of(makeAssignment(placement, 'person-1')));
+
+      service.removePlacement('person-1', placement);
+      expect(state.mutationSeq()).toBe(1);
+      undoRedo.undo().subscribe();
+
+      expect(state.mutationSeq()).toBe(2);
+      expect(state.inFlightMutations()).toBe(0);
+    });
+
+    it('keeps one mutation in flight while the batch of unassigns is pending', () => {
+      setup();
+      const placement = makePlacement();
+      state.assignments.set([makeAssignment(placement, 'person-1')]);
+      assignmentService.unassign.mockReturnValue(NEVER);
+
+      service.removePlacement('person-1', placement);
+
+      expect(state.inFlightMutations()).toBe(1);
     });
   });
 

@@ -1,6 +1,7 @@
 import { CreateSegmentPayload, InstanceTroncSummary, SegmentDetail, UpdateSegmentPayload } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { StaffSegmentRevision } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 
 @Injectable({
@@ -25,6 +26,14 @@ export class EventSegmentService extends ApiService {
 
   reorder(eventId: string, segmentIds: string[]): Observable<void> {
     return this.patch<void>(`/events/${eventId}/segments/reorder`, { segmentIds });
+  }
+
+  /** `editing: true` tells the API the caller edited the segment since the last poll (it shows up in others' `editors`). */
+  getRevision(eventId: string, segmentId: string, options: { editing?: boolean } = {}): Observable<StaffSegmentRevision> {
+    return this.get<StaffSegmentRevision>(
+      `/events/${eventId}/segments/${segmentId}/revision`,
+      options.editing ? { params: { editing: '1' } } : undefined,
+    );
   }
 
   getTroncView(eventId: string): Observable<InstanceTroncSummary[]> {

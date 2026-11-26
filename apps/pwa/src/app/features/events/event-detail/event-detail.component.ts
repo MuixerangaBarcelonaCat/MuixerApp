@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   inject,
   computed,
   input,
@@ -8,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { DOCUMENT } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { of } from 'rxjs';
@@ -165,6 +167,14 @@ export class EventDetailComponent {
   private readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
 
   constructor() {
+    // Coming back to the app after a while: refresh like the pull-to-refresh, without the gesture.
+    const doc = inject(DOCUMENT);
+    const onVisible = () => {
+      if (doc.visibilityState === 'visible') this.onRefresh();
+    };
+    doc.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => doc.removeEventListener('visibilitychange', onVisible));
+
     effect(() => {
       const ev = this.event();
       if (ev) {

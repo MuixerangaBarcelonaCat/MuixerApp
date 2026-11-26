@@ -4,6 +4,7 @@ import { ToastService } from '@muixer/ui';
 import { catchError, concatMap, defer, EMPTY, from, Observable, of, tap, toArray } from 'rxjs';
 import { CompositionService } from './composition.service';
 import { FigureInstanceService } from './figure-instance.service';
+import { AssignmentStateService } from './assignment-state.service';
 
 /**
  * «+ Figura» picker flow shared by the segment list and the Troncs tab: creates the picked
@@ -14,6 +15,7 @@ export class SegmentFigureAddService {
   private readonly instanceService = inject(FigureInstanceService);
   private readonly compositionService = inject(CompositionService);
   private readonly toast = inject(ToastService);
+  private readonly state = inject(AssignmentStateService);
 
   /**
    * Creates the figures one at a time, so the server appends them in pick order (and with it
@@ -22,7 +24,7 @@ export class SegmentFigureAddService {
    * Never errors.
    */
   addFigures(eventId: string, segmentId: string, selections: CreateInstancePayload[]): Observable<InstanceDetail[]> {
-    return defer(() => {
+    return this.state.trackMutation(defer(() => {
       const created: InstanceDetail[] = [];
       return from(selections).pipe(
         concatMap((sel) => this.instanceService.create(eventId, segmentId, sel)),
@@ -40,7 +42,7 @@ export class SegmentFigureAddService {
           return of(created);
         }),
       );
-    });
+    }));
   }
 
   /** Emits the updated segment; on failure reports it and completes without emitting. */
@@ -49,7 +51,7 @@ export class SegmentFigureAddService {
     segmentId: string,
     composition: { compositionId: string; compositionName: string },
   ): Observable<SegmentDetail> {
-    return this.compositionService.applyToSegment(eventId, segmentId, composition.compositionId).pipe(
+    return this.state.trackMutation(this.compositionService.applyToSegment(eventId, segmentId, composition.compositionId)).pipe(
       tap(() => this.toast.success(`S'ha aplicat la composició «${composition.compositionName}».`)),
       catchError(() => {
         this.toast.error("No s'ha pogut aplicar la composició.");

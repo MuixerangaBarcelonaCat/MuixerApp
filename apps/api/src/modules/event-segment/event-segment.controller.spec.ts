@@ -4,7 +4,9 @@ import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
 import { SegmentWithInstances } from './event-segment.service';
-import { SegmentMoveConflictResolution } from '@muixer/shared';
+import { SegmentRevisionService } from './segment-revision.service';
+import { SegmentPresenceService } from './segment-presence.service';
+import { JwtPayload, SegmentMoveConflictResolution, UserRole } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -68,6 +70,17 @@ const mockProjectionService: Partial<ProjectionService> = {
   getProjection: jest.fn().mockResolvedValue(mockProjectionData),
 };
 
+const mockRevisionService = {
+  get: jest.fn().mockResolvedValue({ state: 1, structure: 2, attendance: 3 }),
+};
+
+const mockPresenceService = {
+  markEditing: jest.fn().mockResolvedValue(undefined),
+  editorsIn: jest.fn().mockReturnValue([{ userId: 'u2', alias: 'Pere' }]),
+};
+
+const USER = { sub: 'u1', email: 'a@b.c', role: UserRole.TECHNICAL } as JwtPayload;
+
 describe('EventSegmentController', () => {
   let controller: EventSegmentController;
 
@@ -78,11 +91,34 @@ describe('EventSegmentController', () => {
         { provide: EventSegmentService, useValue: mockSegmentService },
         { provide: FigureInstanceService, useValue: mockInstanceService },
         { provide: ProjectionService, useValue: mockProjectionService },
+        { provide: SegmentRevisionService, useValue: mockRevisionService },
+        { provide: SegmentPresenceService, useValue: mockPresenceService },
       ],
     }).compile();
 
     controller = module.get<EventSegmentController>(EventSegmentController);
     jest.clearAllMocks();
+  });
+
+  describe('getRevision', () => {
+    it('GET :segmentId/revision delegates to SegmentRevisionService.get(eventId, segmentId)', async () => {
+      const result = await controller.getRevision(EVENT_ID, SEGMENT_ID, USER);
+      expect(result).toEqual({ state: 1, structure: 2, attendance: 3, editors: [{ userId: 'u2', alias: 'Pere' }] });
+      expect(mockRevisionService.get).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+    });
+
+    it('GET revision with editing=1 marks the JWT user as editing and returns editors', async () => {
+      const result = await controller.getRevision(EVENT_ID, SEGMENT_ID, USER, '1');
+      expect(mockPresenceService.markEditing).toHaveBeenCalledWith(SEGMENT_ID, 'u1');
+      expect(mockPresenceService.editorsIn).toHaveBeenCalledWith(SEGMENT_ID, 'u1');
+      expect(result.editors).toEqual([{ userId: 'u2', alias: 'Pere' }]);
+    });
+
+    it('GET revision without editing records nothing', async () => {
+      await controller.getRevision(EVENT_ID, SEGMENT_ID, USER);
+      await controller.getRevision(EVENT_ID, SEGMENT_ID, USER, '0');
+      expect(mockPresenceService.markEditing).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {

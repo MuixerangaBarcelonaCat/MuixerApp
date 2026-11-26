@@ -6,6 +6,7 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { FigureModeChangeComponent } from './figure-mode-change.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { FigureInstanceService } from '../../services/figure-instance.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
@@ -47,6 +48,14 @@ describe('FigureModeChangeComponent', () => {
 
     expect(nodeAssignmentService.previewFigureModeImpact).not.toHaveBeenCalled();
     expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: 'PEU' });
+  });
+
+  it('counts the mode change as a tracked mutation', async () => {
+    await setup();
+
+    component.request(EVENT_ID, SEGMENT_ID, INSTANCE_ID, 'Pilar 1', 'PEU');
+
+    expect(TestBed.inject(AssignmentStateService).mutationSeq()).toBe(1);
   });
 
   it('applies immediately for REMAT/NETA when the backend preview reports no affected assignments', async () => {

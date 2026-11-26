@@ -41,6 +41,9 @@ const WORKSPACE_TABS: WorkspaceTab[] = ['pinyes', 'troncs', 'distribucio', 'node
 /** Tabs usable on touch devices; the rest are not adapted for touch yet. */
 const TOUCH_TABS: WorkspaceTab[] = ['pinyes', 'troncs'];
 
+/** Tabs where other technicians' changes wait until the user leaves (see `liveSyncPaused`). */
+const LIVE_SYNC_PAUSED_TABS: WorkspaceTab[] = ['distribucio', 'nodes'];
+
 const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
   value === 'pinyes' || value === 'troncs';
 
@@ -122,6 +125,10 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
         this.activeTab.set(this.viewModeService.mode());
       }
     });
+
+    // Positions and nodes are edited by hand on these tabs: a remote reload would move things
+    // under the cursor. Leaving them runs `refresh()`, and live sync catches up on its next tick.
+    effect(() => this.ws.liveSyncPaused.set(LIVE_SYNC_PAUSED_TABS.includes(this.activeTab())));
 
     effect(() => {
       if (this.ws.notFound() && !this.notFoundHandled) {
@@ -343,7 +350,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
 
     this.undoRedo.clear();
     this.resetting.set(true);
-    this.assignmentService.resetSnapshot(instanceId).subscribe({
+    this.state.trackMutation(this.assignmentService.resetSnapshot(instanceId)).subscribe({
       next: (result) => {
         this.resetting.set(false);
         this.resetTarget.set(null);

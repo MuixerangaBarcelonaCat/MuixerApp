@@ -244,6 +244,7 @@ describe('ImportPinyaModalComponent', () => {
         INSTANCE_ID,
         { sourceInstanceId: SOURCE_INSTANCE_ID, scope: ImportScope.ALL },
       );
+      expect(state.mutationSeq()).toBe(1);
     });
   });
 

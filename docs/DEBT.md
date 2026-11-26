@@ -118,4 +118,3 @@ tags: [qa]
 
 | # | Ítem |
 |---|------|
-| A1 | **Actualització en viu dels segments (SSE) ajornada.** Es va implementar sencera a la branca `fix/bugs-diversos-2` (commit `295a51e8`, també a `origin`): `SegmentEventsService` + `SegmentChangeEmitter` a l'API, endpoints `GET /api/me/events/:eventId/changes` i `GET /api/events/:eventId/segments/changes` amb `@SseAuth()`, `RequestContextService` + `ClientIdService`/interceptor per ignorar els propis canvis, `SegmentChangesService` al dashboard i a la PWA, i `LiveUpdateBannerComponent`. Es va excloure d'aquesta branca (`fix/bugs-diversos-2-sense-sse`) per poder avançar amb la resta de correccions sense arrossegar-ne el risc. Per recuperar-ho: `git diff fix/bugs-diversos-2-sense-sse..fix/bugs-diversos-2`. Els canvis a [[SSE_AUTH]] que documenten aquests endpoints també viuen només en aquella branca |

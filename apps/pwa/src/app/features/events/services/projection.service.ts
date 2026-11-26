@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, timeout } from 'rxjs';
+import { MeSegmentRevision } from '@muixer/shared';
 import { ProjectionSegmentData } from '@muixer/pinyes-render';
 import { environment } from '../../../../environments/environment';
 
@@ -12,9 +13,19 @@ export class ProjectionService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/me/events`;
 
-  getProjection(eventId: string, segmentId: string): Observable<ProjectionSegmentData> {
+  /** `bypassCache` skips the service worker cache: a refresh prompted by a revision change must
+   *  not be answered with the older cached projection. */
+  getProjection(eventId: string, segmentId: string, bypassCache = false): Observable<ProjectionSegmentData> {
     return this.http
-      .get<ProjectionSegmentData>(`${this.baseUrl}/${eventId}/segments/${segmentId}/projection`)
+      .get<ProjectionSegmentData>(`${this.baseUrl}/${eventId}/segments/${segmentId}/projection`, {
+        headers: bypassCache ? { 'ngsw-bypass': 'true' } : undefined,
+      })
+      .pipe(timeout(PROJECTION_TIMEOUT_MS));
+  }
+
+  getRevision(eventId: string, segmentId: string): Observable<MeSegmentRevision> {
+    return this.http
+      .get<MeSegmentRevision>(`${this.baseUrl}/${eventId}/segments/${segmentId}/revision`)
       .pipe(timeout(PROJECTION_TIMEOUT_MS));
   }
 }

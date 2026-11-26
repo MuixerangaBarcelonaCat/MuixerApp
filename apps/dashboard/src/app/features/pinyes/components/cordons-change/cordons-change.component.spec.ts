@@ -5,6 +5,7 @@ import { ToastService } from '@muixer/ui';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { CordonsChangeComponent } from './cordons-change.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 
 const INSTANCE_ID = 'inst-a';
 
@@ -45,6 +46,14 @@ describe('CordonsChangeComponent', () => {
 
     expect(nodeAssignmentService.previewCordonsImpact).not.toHaveBeenCalled();
     expect(nodeAssignmentService.updateCordons).toHaveBeenCalledWith(INSTANCE_ID, { numberOfCordons: null });
+  });
+
+  it('counts the cordons change as a tracked mutation', async () => {
+    await setup();
+
+    component.request(INSTANCE_ID, null);
+
+    expect(TestBed.inject(AssignmentStateService).mutationSeq()).toBe(1);
   });
 
   it('applies immediately when the backend preview reports no affected assignments', async () => {

@@ -46,8 +46,16 @@ export interface ProjectionData {
   conflicts: SegmentConflict[];
 }
 
+export const PROJECTION_CACHE_TTL_MS = 60_000;
+export const PROJECTION_CACHE_MAX_ENTRIES = 200;
+
+type ProjectionBody = Pick<ProjectionData, 'instances' | 'hasDistribution' | 'personAttendance' | 'conflicts'>;
+
 @Injectable()
 export class ProjectionService {
+  // ponytail: per-process Map; correct with N processes (each has its own), just less effective.
+  private readonly bodyCache = new Map<string, { stamp: string; expiresAt: number; body: Promise<ProjectionBody> }>();
+
   constructor(
     @InjectRepository(EventSegment)
     private readonly segmentRepository: Repository<EventSegment>,
@@ -87,6 +95,38 @@ export class ProjectionService {
     const prevSegmentId = currentIndex > 0 ? allSegments[currentIndex - 1].id : null;
     const nextSegmentId = currentIndex < allSegments.length - 1 ? allSegments[currentIndex + 1].id : null;
 
+    // Stamp read before the body is computed: a cached body is never older than its stamp.
+    const stamp = `${segment.revision}:${segment.structureRevision}:${segment.event.attendanceRevision}`;
+    let entry = this.bodyCache.get(segmentId);
+    if (!entry || entry.stamp !== stamp || entry.expiresAt <= Date.now()) {
+      if (this.bodyCache.size >= PROJECTION_CACHE_MAX_ENTRIES) this.bodyCache.clear();
+      const body = this.buildBody(eventId, segmentId);
+      entry = { stamp, expiresAt: Date.now() + PROJECTION_CACHE_TTL_MS, body };
+      this.bodyCache.set(segmentId, entry);
+      const created = entry;
+      body.catch(() => {
+        if (this.bodyCache.get(segmentId) === created) this.bodyCache.delete(segmentId);
+      });
+    }
+    const { instances, hasDistribution, personAttendance, conflicts } = await entry.body;
+
+    return {
+      segment: {
+        id: segment.id,
+        name: segment.name,
+        sortOrder: segment.sortOrder,
+        prevSegmentId,
+        nextSegmentId,
+      },
+      instances,
+      event: { date: formatDateOnly(segment.event.date), startTime: segment.event.startTime },
+      hasDistribution,
+      personAttendance,
+      conflicts,
+    };
+  }
+
+  private async buildBody(eventId: string, segmentId: string): Promise<ProjectionBody> {
     const instances = await this.instanceRepository.find({
       where: { segment: { id: segmentId } },
       relations: ['figureTemplate'],
@@ -158,19 +198,6 @@ export class ProjectionService {
 
     const { data: conflicts } = await this.nodeAssignmentService.getSegmentConflicts(segmentId);
 
-    return {
-      segment: {
-        id: segment.id,
-        name: segment.name,
-        sortOrder: segment.sortOrder,
-        prevSegmentId,
-        nextSegmentId,
-      },
-      instances: projectionInstances,
-      event: { date: formatDateOnly(segment.event.date), startTime: segment.event.startTime },
-      hasDistribution,
-      personAttendance,
-      conflicts,
-    };
+    return { instances: projectionInstances, hasDistribution, personAttendance, conflicts };
   }
 }

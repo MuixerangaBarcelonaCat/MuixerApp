@@ -2,7 +2,7 @@ import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, I
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { of, Subject, throwError } from 'rxjs';
+import { NEVER, of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../../../testing/lucide-test-provider';
 import { TroncsTabComponent } from './troncs-tab.component';
@@ -21,7 +21,7 @@ import {
   InstanceSelection,
 } from '../../../figure-picker-modal/figure-picker-modal.component';
 import { ModalComponent, ThemeService, ToastService } from '@muixer/ui';
-import { Gender } from '@muixer/shared';
+import { DIRECTION_NODE_PRESETS, Gender } from '@muixer/shared';
 import { LayoutService } from '../../../../../../core/services/layout.service';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -404,6 +404,15 @@ describe('TroncsTabComponent', () => {
       expect(troncStubs().map((t) => t.displayMode())).toEqual(['attendance', 'attendance']);
     });
 
+    it('shows who else is editing inside the toolbar strip', async () => {
+      await setup();
+      ws.otherEditors.set([{ userId: 'u1', alias: 'Pere' }]);
+      fixture.detectChanges();
+      const notice = fixture.nativeElement.querySelector('[data-testid="editing-badge"]') as HTMLElement;
+      expect(notice.textContent).toContain('Pere està editant este segment');
+      expect(notice.closest('[data-testid="troncs-toolbar"]')).not.toBeNull();
+    });
+
     it('keeps the toolbar out of the scrolling panels, so it never covers a tronc panel', async () => {
       await setup();
       const toolbar = switcher()!.closest('[data-testid="troncs-toolbar"]') as HTMLElement;
@@ -495,6 +504,17 @@ describe('TroncsTabComponent', () => {
   });
 
   describe('node selection', () => {
+    it('adding and removing a direction each count as a tracked mutation', async () => {
+      await setup();
+      assignmentService.createAdHocNode.mockReturnValue(NEVER);
+      assignmentService.deleteAdHocNode.mockReturnValue(NEVER);
+
+      component.onDirectionAdded(INST_A, { positionType: DIRECTION_NODE_PRESETS[0].positionType as string });
+      expect(state.mutationSeq()).toBe(1);
+      component.onDirectionRemoved(INST_A, 'node-x');
+      expect(state.mutationSeq()).toBe(2);
+    });
+
     it('selecting a node sets the workspace instance and shared node selection', async () => {
       await setup();
 

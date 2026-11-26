@@ -41,6 +41,14 @@ export class EventSegment {
   @OneToMany(() => FigureInstance, (instance) => instance.segment, { cascade: true })
   instances: FigureInstance[];
 
+  /** Bumped by DB triggers on node/assignment writes. Never written by TypeORM. */
+  @Column({ type: 'int', default: 0, insert: false, update: false })
+  revision: number;
+
+  /** Bumped by DB triggers on figure/segment/unsnapshotted-template writes. Never written by TypeORM. */
+  @Column({ type: 'int', default: 0, insert: false, update: false })
+  structureRevision: number;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

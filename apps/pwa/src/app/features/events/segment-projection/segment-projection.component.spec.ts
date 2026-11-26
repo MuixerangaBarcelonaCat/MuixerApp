@@ -1,7 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { ApplicationRef, Component, input, output } from '@angular/core';
+import { ApplicationRef, Component, input, output, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { of, throwError, NEVER } from 'rxjs';
+import { of, throwError, NEVER, Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import {
   AssignmentDetail,
@@ -447,6 +447,184 @@ describe('SegmentProjectionComponent', () => {
       fixture.detectChanges();
 
       expect(stub.componentInstance.onTroba).toHaveBeenCalled();
+    });
+  });
+
+  describe('live refresh', () => {
+    const TODAY = '2026-07-15';
+    const POLL = 36_000; // PWA_REVISION_POLL_MS + PWA_REVISION_JITTER_MS
+    const marta = makePerson({ id: 'p-marta', alias: 'Marta' });
+    const dataOn = (date: string, segId = 'seg-1', nextSegmentId: string | null = null) =>
+      makeData({
+        segment: { id: segId, name: 'Bloc', sortOrder: 0, prevSegmentId: null, nextSegmentId },
+        event: { date, startTime: '19:00' },
+        instances: [makeInstance([makeAssignment(marta)])],
+      });
+
+    @Component({
+      standalone: true,
+      imports: [SegmentProjectionComponent],
+      template: `<app-segment-projection [eventId]="'ev-1'" [segmentId]="segmentId()" />`,
+    })
+    class NavHostComponent {
+      readonly segmentId = signal('seg-1');
+    }
+
+    let revisionCalls: Array<[string, string]>;
+    let revisions: Array<Observable<{ revision: string }>>;
+    let host: ComponentFixture<NavHostComponent>;
+
+    async function setupLive(
+      getProjection: (e: string, s: string) => Observable<ProjectionSegmentData>,
+      revisionSeq: Array<Observable<{ revision: string }>> = [],
+    ) {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
+      revisionCalls = [];
+      revisions = [...revisionSeq];
+      projectionService = { getProjection: vi.fn(getProjection) };
+      (projectionService as unknown as Record<string, unknown>)['getRevision'] = vi.fn((e: string, s: string) => {
+        revisionCalls.push([e, s]);
+        return revisions.length > 1 ? revisions.shift()! : (revisions[0] ?? of({ revision: 'r1' }));
+      });
+      layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
+      await TestBed.configureTestingModule({
+        imports: [NavHostComponent],
+        providers: [
+          { provide: ProjectionService, useValue: projectionService },
+          { provide: Router, useValue: { navigate: vi.fn() } },
+          { provide: LayoutService, useValue: layoutService },
+          { provide: AuthService, useValue: makeAuthService('p1') },
+        ],
+      })
+        .overrideComponent(SegmentProjectionComponent, {
+          remove: { imports: [PinyaProjectionComponent] },
+          add: { imports: [PinyaProjectionStub] },
+        })
+        .compileComponents();
+      host = TestBed.createComponent(NavHostComponent);
+      host.detectChanges();
+      await TestBed.inject(ApplicationRef).whenStable();
+      host.detectChanges();
+    }
+
+    // `settle: false` when a request is left pending on purpose: the app never becomes stable.
+    const tick = async (ms = POLL, settle = true) => {
+      await vi.advanceTimersByTimeAsync(ms);
+      host.detectChanges();
+      if (settle) await TestBed.inject(ApplicationRef).whenStable();
+      host.detectChanges();
+    };
+    const stub = () => host.debugElement.query(By.directive(PinyaProjectionStub));
+
+    afterEach(() => vi.useRealTimers());
+
+    it('polls the revision only on the day of the event', async () => {
+      await setupLive(() => of(dataOn('2026-07-16')));
+      await tick();
+      expect(revisionCalls).toHaveLength(0);
+      TestBed.resetTestingModule();
+      await setupLive(() => of(dataOn('2026-07-14')));
+      await tick();
+      expect(revisionCalls).toHaveLength(0);
+      TestBed.resetTestingModule();
+      await setupLive(() => of(dataOn(TODAY)));
+      expect(revisionCalls).toHaveLength(1);
+    });
+
+    it('reloads the projection when the revision changes', async () => {
+      await setupLive(() => of(dataOn(TODAY)), [of({ revision: 'a' }), of({ revision: 'b' })]);
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(1);
+      await tick();
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the projection mounted during a background reload (no spinner)', async () => {
+      let n = 0;
+      await setupLive(() => (n++ === 0 ? of(dataOn(TODAY)) : NEVER), [of({ revision: 'a' }), of({ revision: 'b' })]);
+      const before = stub().nativeElement;
+      await tick(POLL, false);
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(2);
+      expect(host.nativeElement.querySelector('[role="status"]')).toBeNull();
+      expect(stub().nativeElement).toBe(before);
+    });
+
+    it('keeps selectedParticipant and an open picker across a background reload', async () => {
+      await setupLive(() => of(dataOn(TODAY)), [of({ revision: 'a' }), of({ revision: 'b' })]);
+      host.nativeElement.querySelector('[aria-label="Cerca una persona"]').click();
+      host.detectChanges();
+      expect(host.nativeElement.querySelector('[data-testid="participant-filter"]')).toBeTruthy();
+      await tick();
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(2);
+      expect(host.nativeElement.querySelector('[data-testid="participant-filter"]')).toBeTruthy();
+      host.nativeElement.querySelector('[data-testid="participant-row"]').click();
+      host.detectChanges();
+      expect(stub().componentInstance.highlightPersonId()).toBe('p-marta');
+    });
+
+    it('does not re-trigger the flight on a background reload', async () => {
+      await setupLive(() => of(dataOn(TODAY)), [of({ revision: 'a' }), of({ revision: 'b' })]);
+      await tick();
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(2);
+      expect(stub().componentInstance.onTroba).not.toHaveBeenCalled();
+    });
+
+    it('keeps showing the last projection when a background reload fails', async () => {
+      let n = 0;
+      await setupLive(
+        () => (n++ === 0 ? of(dataOn(TODAY)) : throwError(() => new Error('down'))),
+        [of({ revision: 'a' }), of({ revision: 'b' })],
+      );
+      await tick();
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(2);
+      expect(stub()).toBeTruthy();
+      expect(host.nativeElement.textContent).not.toContain("No s'ha pogut carregar");
+      // the failed reload did not consume the change: the next tick retries it
+      await tick();
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(3);
+    });
+
+    it('sends the poll-triggered reload past the service worker cache, but not the first load', async () => {
+      await setupLive(() => of(dataOn(TODAY)), [of({ revision: 'a' }), of({ revision: 'b' })]);
+      await tick();
+      const calls = (projectionService.getProjection as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls[0][2]).toBeUndefined();
+      expect(calls[1][2]).toBe(true);
+    });
+
+    it('keeps showing the last projection when the revision endpoint answers 404', async () => {
+      await setupLive(() => of(dataOn(TODAY)), [throwError(() => new Error('404'))]);
+      await tick(POLL * 2);
+      expect(revisionCalls.length).toBeGreaterThan(1);
+      expect(stub()).toBeTruthy();
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(1);
+    });
+
+    it('restarts polling with a fresh baseline after prev/next', async () => {
+      await setupLive((_, s) => of(dataOn(TODAY, s, 'seg-2')), [of({ revision: 'a' })]);
+      host.componentInstance.segmentId.set('seg-2');
+      host.detectChanges();
+      await TestBed.inject(ApplicationRef).whenStable();
+      host.detectChanges();
+      expect(revisionCalls.map((c) => c[1])).toEqual(['seg-1', 'seg-2']);
+      // a different revision for the new segment is its baseline, not a change
+      expect(projectionService.getProjection).toHaveBeenCalledTimes(2);
+    });
+
+    it('still shows the spinner on first load and when navigating to another segment', async () => {
+      await setupLive((_, s) => (s === 'seg-1' ? of(dataOn(TODAY)) : NEVER));
+      expect(host.nativeElement.querySelector('[role="status"]')).toBeNull();
+      host.componentInstance.segmentId.set('seg-2');
+      await tick(0, false);
+      expect(host.nativeElement.querySelector('[role="status"]')).toBeTruthy();
+    });
+
+    it('stops polling on destroy', async () => {
+      await setupLive(() => of(dataOn(TODAY)));
+      host.destroy();
+      const calls = revisionCalls.length;
+      await vi.advanceTimersByTimeAsync(POLL * 3);
+      expect(revisionCalls).toHaveLength(calls);
     });
   });
 });

@@ -12,12 +12,15 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@muixer/shared';
+import { UserRole, JwtPayload, StaffSegmentRevision } from '@muixer/shared';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
+import { SegmentRevisionService } from './segment-revision.service';
+import { SegmentPresenceService } from './segment-presence.service';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
@@ -39,6 +42,8 @@ export class EventSegmentController {
     private readonly segmentService: EventSegmentService,
     private readonly instanceService: FigureInstanceService,
     private readonly projectionService: ProjectionService,
+    private readonly revisionService: SegmentRevisionService,
+    private readonly presenceService: SegmentPresenceService,
   ) {}
 
   @ApiOperation({ summary: 'List segments for an event, ordered by sortOrder, with instances' })
@@ -46,6 +51,26 @@ export class EventSegmentController {
   async findAll(@Param('eventId', ParseUUIDPipe) eventId: string) {
     const data = await this.segmentService.findAllByEvent(eventId);
     return { data };
+  }
+
+  @ApiOperation({
+    summary: 'Cheap change counters of a segment (state, structure, attendance) for polling, plus who else is editing it',
+    description:
+      'Side effect: with `editing=1` the caller is recorded as editing the segment for the next ' +
+      '30 s (PRESENCE_EDITING_WINDOW_MS) and shows up in other technicians\' `editors`. Without it ' +
+      'nothing is recorded. `editors` never includes the caller; one entry per user.',
+  })
+  @ApiQuery({ name: 'editing', required: false, enum: ['1'], description: 'Send `1` when the caller edited the segment since the last poll' })
+  @Get(':segmentId/revision')
+  async getRevision(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+    @CurrentUser() user: JwtPayload,
+    @Query('editing') editing?: string,
+  ): Promise<StaffSegmentRevision> {
+    const revision = await this.revisionService.get(eventId, segmentId);
+    if (editing === '1') await this.presenceService.markEditing(segmentId, user.sub);
+    return { ...revision, editors: this.presenceService.editorsIn(segmentId, user.sub) };
   }
 
   @ApiOperation({ summary: 'Create a new segment for an event' })

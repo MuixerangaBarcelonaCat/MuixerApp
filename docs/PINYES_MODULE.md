@@ -356,6 +356,45 @@ punts = figures diferents on fa tronc o base (àrea `TRONC`; pinya i direccions 
 `QuadreColumnsService` (per defecte, els slugs `mans`, `baix`, `segona`, `alcadora`, `terca`, `persona-nova`,
 `xicalla`). Disseny: [`docs/superpowers/specs/2026-11-12-quadre-troncs-design.md`](superpowers/specs/2026-11-12-quadre-troncs-design.md).
 
+### Sincronització en viu
+
+Diversos tècnics treballen alhora en el mateix segment. El workspace consulta
+`GET /events/:eventId/segments/:segmentId/revision` cada `DASHBOARD_REVISION_POLL_MS` (3 s) amb
+`createRevisionPoller` (`@muixer/shared`), només mentre la pestanya del navegador és visible. La resposta
+(`SegmentRevision`) porta tres comptadors, i `SegmentWorkspaceStateService.applyRemoteRevision` recarrega
+segons el que ha canviat:
+
+| Ha canviat | Recàrrega |
+|---|---|
+| `structure` | `reloadInstancesSilently()`: figures, nodes, assignacions, distribució i conflictes |
+| només `state` | `reloadAssignmentState()`: nodes i assignacions del segment (1 petició) |
+| `attendance` | a més, una vegada aplicat la resta, `state.refreshPersonList()`: el panell de persones torna a carregar el *roster* |
+
+- **Mutació pròpia en curs** (`inFlightMutations > 0`): no es consulta. Una recàrrega (d'estat o d'estructura)
+  demanada abans d'una mutació, o que falla, es descarta sense *toast* (`mutationSeq`) i torna `false`: la referència del poller només avança quan el canvi
+  s'ha aplicat, així que es reintenta al tic següent.
+- **Distribució i Nodes extra** (`liveSyncPaused`, posat pel `SegmentWorkspaceComponent`): es continua
+  consultant però no s'aplica res; en eixir de la pestanya, `refresh()` i el primer tic ho posen al dia.
+- **Canvi de segment** (`load()`, anterior/següent): poller nou, la primera revisió del segment és la referència.
+  `DestroyRef` el para en tancar el workspace.
+- Els canvis propis també mouen la revisió: costen com a màxim una recàrrega redundant per tic.
+- `ROSTER_MAX_AGE_MS` (10 s en clicar un node) es manté com a xarxa de seguretat si el polling falla.
+
+**Avís d'edició simultània.** La mateixa consulta diu qui més edita el segment (`StaffSegmentRevision.editors`).
+El workspace hi afig `?editing=1` només si `state.mutationSeq()` ha pujat des de la consulta anterior; l'API
+(`SegmentPresenceService`, un `Map` en memòria per procés) apunta l'usuari del JWT amb l'àlies de la seua persona
+(«Un altre tècnic» si no en té) i el considera editor durant `PRESENCE_EDITING_WINDOW_MS` (30 s) des de l'última
+edició. Sense `editing=1` no es guarda res: tindre el segment obert no deixa rastre. `editors` no inclou mai qui
+consulta i és una entrada per usuari (diversos dispositius compten com un). El `fetch` del poller guarda la llista a
+`ws.otherEditors` i torna només els comptadors, perquè un canvi d'editors no recarregue res; la capçalera mostra
+un `lib-badge` `info` al costat de «Bloquejat». La projecció descarta `editors` i no envia mai `editing=1`.
+
+La projecció (`ProjectionViewComponent`, incrustada a Previsualitza o a pantalla completa) té el seu propi
+poller: qualsevol canvi torna a demanar la projecció sense *spinner* ni *toast* (`loadSegment({ silent: true })`);
+si falla, es manté la que es veu i es reintenta al tic següent. `PinyaProjectionComponent` només torna a
+enquadrar quan canvia el segment o el conjunt de figures (`FigureCanvasComponent.resetAutoFit()`): amb dades
+noves del mateix segment es manté el zoom i la posició de l'usuari (ratolí, roda, botons de zoom o tacte).
+
 ### AssignmentStateService
 
 Servei singleton de signals per al canvas d'assignació:

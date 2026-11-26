@@ -126,8 +126,17 @@ export class PinyaProjectionComponent {
   /** The tronc panels, moved as one by a pan/pinch in progress — see `onGestureMoved`. */
   private readonly panelsLayer = viewChild<ElementRef<HTMLDivElement>>('panelsLayer');
 
-  /** For imperatively calling flyToBounds()/cancelFlight() — see `maybeFlyOnArrival`/`onTroba`. */
+  /** For imperatively calling flyToBounds()/resetAutoFit() — see `flyTo` and the framing effect in the constructor. */
   private readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvas');
+
+  /**
+   * What the camera frames: the segment and its set of figures. Fresh data for the same ones
+   * (a live-sync reload) keeps the user's pan/zoom; another segment or figure set fits again.
+   */
+  private readonly framingKey = computed(() => {
+    const data = this.data();
+    return [data.segment.id, ...data.instances.map((i) => i.id)].join('|');
+  });
 
   // ── State signals ───────────────────────────────────────────────────────────
 
@@ -656,6 +665,14 @@ export class PinyaProjectionComponent {
         this.containerWidth.set(rect.width);
         this.containerHeight.set(rect.height);
       }
+    });
+    let framedKey: string | null = null;
+    effect(() => {
+      const key = this.framingKey();
+      const canvas = this.figureCanvas();
+      if (!canvas) return;
+      if (framedKey !== null && framedKey !== key) canvas.resetAutoFit();
+      framedKey = key;
     });
     effect((onCleanup) => {
       const el = this.figuresContainer()?.nativeElement;

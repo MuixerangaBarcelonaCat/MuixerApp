@@ -9,6 +9,7 @@ import { PersonDelegateService } from '../person-delegate/person-delegate.servic
 import { PersonService } from '../person/person.service';
 import { ProjectionService } from '../event-segment/projection.service';
 import { EventSegmentService } from '../event-segment/event-segment.service';
+import { SegmentRevisionService } from '../event-segment/segment-revision.service';
 import { NewsService } from '../news/news.service';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
@@ -50,6 +51,7 @@ describe('MeService attendance (integration)', () => {
         PersonService,
         { provide: ProjectionService, useValue: { getProjection: jest.fn() } },
         { provide: EventSegmentService, useValue: { findAllByEvent: jest.fn() } },
+        { provide: SegmentRevisionService, useValue: { get: jest.fn() } },
         { provide: NewsService, useValue: { findPublished: jest.fn().mockResolvedValue([]) } },
         ...realRepositoryProviders(db.dataSource, [
           User,

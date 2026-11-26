@@ -20,3 +20,8 @@ export interface MeSegment {
    */
   myPlacements: MeSegmentPlacement[];
 }
+
+/** Member view: one opaque number; it moves whenever the published projection may have changed. */
+export interface MeSegmentRevision {
+  revision: number;
+}

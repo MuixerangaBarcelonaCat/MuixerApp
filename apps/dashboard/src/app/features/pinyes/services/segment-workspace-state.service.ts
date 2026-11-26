@@ -1,11 +1,16 @@
 import { DisplayMode, SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, rematMarkerNode, SegmentNodeRef } from '@muixer/pinyes-render';
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import { DOCUMENT, DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { Observable, catchError, firstValueFrom, forkJoin, map, of } from 'rxjs';
 import {
   FigureZone,
   isNodeVisibleByModeAndCordons,
   computeSegmentDisplayName,
   computeInstanceDisplayNames,
+  createRevisionPoller,
+  DASHBOARD_REVISION_POLL_MS,
+  RevisionPoller,
+  SegmentEditor,
+  SegmentRevision,
 } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
@@ -48,7 +53,24 @@ export class SegmentWorkspaceStateService {
   private readonly toast = inject(ToastService);
   private readonly eventService = inject(EventService);
   private readonly layout = inject(LayoutService);
+  private readonly document = inject(DOCUMENT);
   readonly state = inject(AssignmentStateService);
+
+  /**
+   * While true the live-sync loop keeps polling but applies nothing: the baseline stays, so the
+   * change is applied on the first tick after it turns false. Set by the workspace on the tabs
+   * where positions and nodes are edited by hand (Distribució, Nodes extra).
+   */
+  readonly liveSyncPaused = signal(false);
+  /** Other technicians who edited this segment in the last `PRESENCE_EDITING_WINDOW_MS` (from the revision poll). */
+  readonly otherEditors = signal<SegmentEditor[]>([]);
+  /** `state.mutationSeq()` at the last successful revision poll: a higher value means we edited since. */
+  private polledMutationSeq = 0;
+  private liveSync: RevisionPoller | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.stopLiveSync());
+  }
 
   /**
    * What the node colors stand for in the Pinyes and Troncs tabs, shared by both. Lives as long as
@@ -273,6 +295,66 @@ export class SegmentWorkspaceStateService {
     this.assignmentService.getLockStatus(eventId).subscribe({
       next: (status) => this.lockStatus.set(status),
     });
+
+    this.startLiveSync();
+  }
+
+  /**
+   * Polls the segment revision and applies what other technicians changed (see
+   * `applyRemoteRevision`). A new poller per call: its first revision is the baseline of the
+   * segment loaded now, never compared with the previous segment's.
+   */
+  startLiveSync(): void {
+    this.stopLiveSync();
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    this.otherEditors.set([]);
+    this.polledMutationSeq = this.state.mutationSeq();
+    // ponytail: own writes trigger one redundant state reload per tick; return the new revision from mutation responses if this ever shows up in the rate limit.
+    this.liveSync = createRevisionPoller<SegmentRevision>({
+      fetch: () => this.fetchRevision(eventId, segmentId),
+      onChange: (next, previous) => (this.liveSyncPaused() ? false : this.applyRemoteRevision(next, previous)),
+      intervalMs: DASHBOARD_REVISION_POLL_MS,
+      isPaused: () => this.state.inFlightMutations() > 0,
+      visibility: this.document,
+    });
+    this.liveSync.start();
+  }
+
+  stopLiveSync(): void {
+    this.liveSync?.stop();
+    this.liveSync = null;
+  }
+
+  /**
+   * Sends `editing` when we mutated since the last poll, stores who else is editing in
+   * `otherEditors`, and returns the counters only: an editors change alone must reload nothing.
+   */
+  private async fetchRevision(eventId: string, segmentId: string): Promise<SegmentRevision> {
+    const seq = this.state.mutationSeq();
+    const { editors, state, structure, attendance } = await firstValueFrom(
+      this.segmentService.getRevision(eventId, segmentId, { editing: seq !== this.polledMutationSeq }),
+    );
+    if (this.segmentId() === segmentId) {
+      this.polledMutationSeq = seq;
+      this.otherEditors.set(editors);
+    }
+    return { state, structure, attendance };
+  }
+
+  /**
+   * Reloads what a remote revision change touched: `structure` → the whole segment
+   * (`reloadInstancesSilently`, which covers nodes and assignments too); only `state` → nodes and
+   * assignments; `attendance` → the person roster as well, once the rest applied. Resolves `false`
+   * when a reload was discarded, so the poller keeps its baseline and retries on the next tick.
+   */
+  async applyRemoteRevision(next: SegmentRevision, previous: SegmentRevision): Promise<boolean> {
+    let applied = true;
+    if (next.structure !== previous.structure) applied = await firstValueFrom(this.reloadInstancesSilently());
+    else if (next.state !== previous.state) applied = await firstValueFrom(this.reloadAssignmentState());
+    // Only once the rest applied: a discarded reload is retried every tick, the roster need not be.
+    if (applied && next.attendance !== previous.attendance) this.state.refreshPersonList();
+    return applied;
   }
 
   private loadPhase(eventId: string): void {
@@ -298,51 +380,87 @@ export class SegmentWorkspaceStateService {
     this.fetchSegmentData(eventId, segmentId);
   }
 
-  private fetchSegmentData(eventId: string, segmentId: string): void {
-    forkJoin({
+  /**
+   * `reloadInstances` for live sync: emits `true` if applied, `false` if discarded under the same
+   * rules as `reloadAssignmentState` (a mutation in flight or started since, another segment, or
+   * an error). Never toasts.
+   */
+  reloadInstancesSilently(): Observable<boolean> {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return of(false);
+    const isStale = this.staleCheck(eventId, segmentId);
+    return forkJoin({
+      ...this.segmentDataRequests(eventId, segmentId),
+      distribution: this.distributionService.getDistribution(eventId, segmentId),
+    }).pipe(
+      map(({ resp, instanceState, distribution }) => {
+        if (isStale()) return false;
+        this.applySegmentData(resp.data, instanceState.data, segmentId);
+        this.distributionByInstance.set(new Map(distribution.items.map((i) => [i.instanceId, i])));
+        this.reloadConflicts();
+        return true;
+      }),
+      catchError(() => of(false)),
+    );
+  }
+
+  /** Captured when a silent reload starts; true once its response would overwrite fresher local state. */
+  private staleCheck(eventId: string, segmentId: string): () => boolean {
+    const seq = this.state.mutationSeq();
+    return () =>
+      this.state.inFlightMutations() > 0 ||
+      this.state.mutationSeq() !== seq ||
+      this.eventId() !== eventId ||
+      this.segmentId() !== segmentId;
+  }
+
+  private segmentDataRequests(eventId: string, segmentId: string) {
+    return {
       resp: this.segmentService.getByEvent(eventId),
       instanceState: this.assignmentService.getSegmentAssignmentState(eventId, segmentId),
-    }).subscribe({
-      next: ({ resp, instanceState }) => {
-        this.segments.set(resp.data);
-        const seg = resp.data.find((s) => s.id === segmentId);
-        if (!seg) {
-          this.notFound.set(true);
-          this.loading.set(false);
-          this.instancesHydrated.set(true);
-          return;
-        }
-        const stateById = new Map(instanceState.data.map((i) => [i.instanceId, i]));
-        this.segment.set(seg);
-        const displayNames = this.computeInstanceLabels(seg.instances);
-        this.instances.set(
-          seg.instances
-            .filter((i) => !!i.figureTemplate)
-            .map((instance) => ({
-              instanceId: instance.id,
-              sortOrder: instance.sortOrder,
-              label: displayNames.get(instance.id) ?? instance.figureTemplate?.name ?? '?',
-              figureTemplateId: instance.figureTemplate?.id ?? null,
-              figureTemplateName: instance.figureTemplate?.name ?? '?',
-              hasPinya: instance.figureTemplate?.hasPinya ?? true,
-              figureMode: instance.figureMode ?? 'COMPLETA',
-              snapshotted: instance.snapshotted,
-              numberOfCordons: instance.numberOfCordons ?? null,
-              cordonsObertsEnabled: instance.cordonsObertsEnabled,
-              nodes: [],
-              assignedCount: instance.assignedCount ?? 0,
-              totalCount: 0,
-            }))
-            .map((instance) => {
-              const fresh = stateById.get(instance.instanceId);
-              return fresh ? this.withState(instance, fresh) : instance;
-            }),
-        );
-        this.state.assignments.set(instanceState.data.flatMap((i) => i.assignments));
-        this.loadedDataFresh = true;
-        this.loading.set(false);
-        this.instancesHydrated.set(true);
-      },
+    };
+  }
+
+  private applySegmentData(segments: SegmentDetail[], instanceState: SegmentInstanceState[], segmentId: string): void {
+    this.segments.set(segments);
+    const seg = segments.find((s) => s.id === segmentId);
+    if (!seg) {
+      this.notFound.set(true);
+      this.loading.set(false);
+      this.instancesHydrated.set(true);
+      return;
+    }
+    this.segment.set(seg);
+    const displayNames = this.computeInstanceLabels(seg.instances);
+    this.instances.set(
+      seg.instances
+        .filter((i) => !!i.figureTemplate)
+        .map((instance) => ({
+          instanceId: instance.id,
+          sortOrder: instance.sortOrder,
+          label: displayNames.get(instance.id) ?? instance.figureTemplate?.name ?? '?',
+          figureTemplateId: instance.figureTemplate?.id ?? null,
+          figureTemplateName: instance.figureTemplate?.name ?? '?',
+          hasPinya: instance.figureTemplate?.hasPinya ?? true,
+          figureMode: instance.figureMode ?? 'COMPLETA',
+          snapshotted: instance.snapshotted,
+          numberOfCordons: instance.numberOfCordons ?? null,
+          cordonsObertsEnabled: instance.cordonsObertsEnabled,
+          nodes: [],
+          assignedCount: instance.assignedCount ?? 0,
+          totalCount: 0,
+        }))
+    );
+    this.applyInstanceState(instanceState);
+    this.loadedDataFresh = true;
+    this.loading.set(false);
+    this.instancesHydrated.set(true);
+  }
+
+  private fetchSegmentData(eventId: string, segmentId: string): void {
+    forkJoin(this.segmentDataRequests(eventId, segmentId)).subscribe({
+      next: ({ resp, instanceState }) => this.applySegmentData(resp.data, instanceState.data, segmentId),
       error: () => {
         this.loading.set(false);
         this.instancesHydrated.set(true);
@@ -357,6 +475,40 @@ export class SegmentWorkspaceStateService {
     });
 
     this.reloadConflicts();
+  }
+
+  /** Merges the segment-wide nodes + assignments into `instances` and the shared assignment state. */
+  private applyInstanceState(data: SegmentInstanceState[]): void {
+    const stateById = new Map(data.map((i) => [i.instanceId, i]));
+    this.instances.update((list) =>
+      list.map((instance) => {
+        const fresh = stateById.get(instance.instanceId);
+        return fresh ? this.withState(instance, fresh) : instance;
+      }),
+    );
+    this.state.assignments.set(data.flatMap((i) => i.assignments));
+  }
+
+  /**
+   * Silently re-reads nodes + assignments of the whole segment (1 request). Emits `true` if applied,
+   * `false` if discarded: a mutation is in flight or started since the request (it would overwrite
+   * fresher local state / the optimistic rollback), the segment changed, or the request failed.
+   * Never toasts.
+   */
+  reloadAssignmentState(): Observable<boolean> {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return of(false);
+    const isStale = this.staleCheck(eventId, segmentId);
+    return this.assignmentService.getSegmentAssignmentState(eventId, segmentId).pipe(
+      map((resp) => {
+        if (isStale()) return false;
+        this.applyInstanceState(resp.data);
+        this.reloadConflicts();
+        return true;
+      }),
+      catchError(() => of(false)),
+    );
   }
 
   /**

@@ -19,6 +19,7 @@ import {
   MeEvent,
   MeEventDetail,
   MeSegment,
+  MeSegmentRevision,
   AttendanceResponse,
   PendingDependent,
   ManagedPerson,
@@ -105,6 +106,15 @@ export class MeController {
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
   ): Promise<ProjectionData> {
     return this.meService.findSegmentProjection(eventId, segmentId);
+  }
+
+  @Get('events/:eventId/segments/:segmentId/revision')
+  @ApiOperation({ summary: 'Change counter of a published segment, for polling' })
+  findSegmentRevision(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ): Promise<MeSegmentRevision> {
+    return this.meService.findSegmentRevision(eventId, segmentId);
   }
 
   @Get('persons')

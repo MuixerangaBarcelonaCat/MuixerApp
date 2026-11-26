@@ -6,7 +6,7 @@ import { BehaviorSubject, of } from 'rxjs';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { LucideAngularModule } from 'lucide-angular';
 import type { BulkImportResult } from '@muixer/pinyes-render';
-import type { EventPhase } from '@muixer/shared';
+import type { EventPhase, SegmentEditor } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentWorkspaceComponent } from './segment-workspace.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../services/segment-workspace-state.service';
@@ -101,6 +101,8 @@ const makeWsMock = () => {
     personsLoaded: signal(true),
     pinyaSlots: signal([]),
     pendingSelection: signal<{ slotId: string; nodeId: string } | null>(null),
+    liveSyncPaused: signal(false),
+    otherEditors: signal<SegmentEditor[]>([]),
     load: vi.fn((id: string, segId: string) => {
       eventId.set(id);
       segmentId.set(segId);
@@ -394,6 +396,22 @@ describe('SegmentWorkspaceComponent', () => {
       fixture.componentInstance.setTab('distribucio');
       expect(localStorage.getItem('muixer.pinyes.viewMode')).toBe('pinyes');
     });
+  });
+
+  it('pauses live sync on the distribucio and nodes tabs and resumes it on pinyes, troncs and previsualitza', async () => {
+    const fixture = await setup();
+    const pausedOn = (tab: string) => {
+      fixture.componentInstance.setTab(tab);
+      fixture.detectChanges();
+      return ws.liveSyncPaused();
+    };
+
+    expect(pausedOn('distribucio')).toBe(true);
+    expect(pausedOn('pinyes')).toBe(false);
+    expect(pausedOn('nodes')).toBe(true);
+    expect(pausedOn('troncs')).toBe(false);
+    expect(pausedOn('distribucio')).toBe(true);
+    expect(pausedOn('previsualitza')).toBe(false);
   });
 
   it('setTab updates the active tab and syncs the query param', async () => {
@@ -813,6 +831,18 @@ describe('SegmentWorkspaceComponent', () => {
 
       fixture.componentInstance.chooseResetFigure('inst-b');
       expect(fixture.componentInstance.resetTarget()).toBe('inst-b');
+    });
+
+    it('counts the snapshot reset as a tracked mutation', async () => {
+      const fixture = await setup();
+      ws.instances.set([{ ...makeWorkspaceInstance('inst-a'), snapshotted: true }]);
+      fixture.detectChanges();
+      assignmentService.resetSnapshot.mockReturnValue(of({ removedAssignments: 0, deletedAdHocCount: 0 }));
+
+      fixture.componentInstance.openReset();
+      fixture.componentInstance.confirmReset();
+
+      expect(TestBed.inject(AssignmentStateService).mutationSeq()).toBe(1);
     });
 
     it('resets the figure and clears its assignments on confirm', async () => {

@@ -202,7 +202,7 @@ export class SegmentAssignmentActionsService {
     };
     this.state.pendingOperations.update((ops) => [...ops, op]);
 
-    this.assignmentService.assign(instanceId, { nodeId: ref.nodeId, personId }).subscribe({
+    this.state.trackMutation(this.assignmentService.assign(instanceId, { nodeId: ref.nodeId, personId })).subscribe({
       next: (created) => {
         this.state.assignments.update((list) =>
           list.map((a) => (a.id === tempAssignment.id ? created : a)),
@@ -236,6 +236,8 @@ export class SegmentAssignmentActionsService {
         // longer applies, since duplicates are legal now.
         const msg = err?.status === 409 ? 'Este lloc ja està ocupat.' : 'Error en assignar la persona.';
         this.toast.error(msg);
+        // Show who took the node: pull the segment's fresh state (silently discarded if busy).
+        if (err?.status === 409) this.ws.reloadAssignmentState().subscribe();
       },
     });
   }
@@ -250,7 +252,7 @@ export class SegmentAssignmentActionsService {
     this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
     this.host?.clearSelection();
 
-    this.assignmentService.unassign(instanceId, assignment.id).subscribe({
+    this.state.trackMutation(this.assignmentService.unassign(instanceId, assignment.id)).subscribe({
       next: () => {
         this.state.refreshPersonList();
         // Fase 5: removing one of several duplicate placements can resolve a conflict —
@@ -273,7 +275,7 @@ export class SegmentAssignmentActionsService {
     this.state.assignments.update((list) => list.filter((a) => a.id !== existing.id));
     this.host?.clearSelection();
 
-    this.assignmentService.unassign(existing.figureInstanceId, existing.id).subscribe({
+    this.state.trackMutation(this.assignmentService.unassign(existing.figureInstanceId, existing.id)).subscribe({
       next: () => {
         this.assign(targetRef, personId, moveFrom);
       },
@@ -323,8 +325,10 @@ export class SegmentAssignmentActionsService {
     const removeIds = new Set(toRemove.keys());
     this.state.assignments.update((list) => list.filter((a) => !removeIds.has(a.id)));
 
-    forkJoin(
-      Array.from(toRemove, ([assignmentId, instanceId]) => this.assignmentService.unassign(instanceId, assignmentId)),
+    this.state.trackMutation(
+      forkJoin(
+        Array.from(toRemove, ([assignmentId, instanceId]) => this.assignmentService.unassign(instanceId, assignmentId)),
+      ),
     ).subscribe({
       next: () => {
         this.assign(target, personId, moveFrom);
@@ -339,7 +343,7 @@ export class SegmentAssignmentActionsService {
   /** Ctrl+Z / undo button: reverses the most recent assign/unassign/move/swap. */
   undo(): void {
     if (this.ws.isLocked() || !this.undoRedo.canUndo() || this.undoRedo.isBusy()) return;
-    this.undoRedo.undo().subscribe({
+    this.state.trackMutation(this.undoRedo.undo()).subscribe({
       next: () => this.ws.reloadConflicts(),
       error: () => this.toast.error("Error en desfer l'acció."),
     });
@@ -348,7 +352,7 @@ export class SegmentAssignmentActionsService {
   /** Ctrl+Shift+Z / redo button: re-applies the most recently undone action. */
   redo(): void {
     if (this.ws.isLocked() || !this.undoRedo.canRedo() || this.undoRedo.isBusy()) return;
-    this.undoRedo.redo().subscribe({
+    this.state.trackMutation(this.undoRedo.redo()).subscribe({
       next: () => this.ws.reloadConflicts(),
       error: () => this.toast.error("Error en refer l'acció."),
     });
@@ -393,7 +397,7 @@ export class SegmentAssignmentActionsService {
     assignmentIdA: string,
     assignmentIdB: string,
   ): Observable<TroncChangeImpact | undefined> {
-    return this.assignmentService.swap(instanceId, { assignmentIdA, assignmentIdB }).pipe(
+    return this.state.trackMutation(this.assignmentService.swap(instanceId, { assignmentIdA, assignmentIdB })).pipe(
       map((result) => {
         this.state.assignments.update((list) =>
           list.map((a) => {
@@ -476,7 +480,7 @@ export class SegmentAssignmentActionsService {
     currentId2: string,
     personFor2: string,
   ): Observable<{ a: AssignmentDetail & { impact?: TroncChangeImpact }; b: AssignmentDetail & { impact?: TroncChangeImpact } }> {
-    return forkJoin([
+    return this.state.trackMutation(forkJoin([
       this.assignmentService.unassign(instance1, currentId1),
       this.assignmentService.unassign(instance2, currentId2),
     ]).pipe(
@@ -487,7 +491,7 @@ export class SegmentAssignmentActionsService {
         ]),
       ),
       map(([a, b]) => ({ a, b })),
-    );
+    ));
   }
 
   // ── Undo actions ─────────────────────────────────────────────────────────

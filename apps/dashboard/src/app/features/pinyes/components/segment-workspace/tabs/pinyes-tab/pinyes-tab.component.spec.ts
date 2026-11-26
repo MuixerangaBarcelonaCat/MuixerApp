@@ -287,6 +287,17 @@ describe('PinyesTabComponent', () => {
       ?.componentInstance as StubFigureCanvas;
 
   describe('rendering', () => {
+    it('shows who else is editing next to the floating toolbar, not over the canvas', async () => {
+      await setup();
+      const notice = () => fixture.nativeElement.querySelector('[data-testid="editing-badge"]') as HTMLElement | null;
+      expect(notice()).toBeNull();
+
+      ws.otherEditors.set([{ userId: 'u1', alias: 'Pere' }]);
+      fixture.detectChanges();
+      expect(notice()?.textContent).toContain('Pere està editant este segment');
+      expect(notice()!.closest('.absolute.top-2.right-2')).not.toBeNull();
+    });
+
     it('renders the canvas in segment-assignment mode with the workspace slots', async () => {
       await setup();
       const stub = canvasStub();
@@ -381,6 +392,8 @@ describe('PinyesTabComponent', () => {
 
       ws = TestBed.inject(SegmentWorkspaceStateService);
       ws.load(EVENT_ID, SEGMENT_ID);
+      // The live-sync poller always schedules its next tick: runAllTimers would never end.
+      ws.stopLiveSync();
       fixture = TestBed.createComponent(PinyesTabComponent);
       component = fixture.componentInstance;
       fixture.detectChanges();

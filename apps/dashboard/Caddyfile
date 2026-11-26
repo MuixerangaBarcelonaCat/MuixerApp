@@ -6,9 +6,27 @@
 #   SITE_ADDRESS=beta.muixerangadebarcelona.com
 #   PWA_SITE_ADDRESS=app-beta.muixerangabarcelona.cat
 #
-# Rate limiting (caddy-ratelimit plugin): mirrors former NestJS throttler
-#   /api/auth* → 60 req / 1m per IP
-#   /api/*     → 600 req / 1m per IP
+# Rate limiting (caddy-ratelimit plugin): mirrors former NestJS throttler. Key = client IP.
+#   /api/auth* except refresh/me/logout*                → 60 req / 1m per IP (dash_auth, pwa_auth).
+#     Only the credential/token-guessing endpoints (login, invite, setup, forgot/reset/change-*):
+#     refresh + me run on every app boot, so counting them would block a login wave behind one IP.
+#   PWA host only: /api/me/events/*/segments/*/revision → 3000 req / 1m per IP (pwa_revision: own
+#     zone, so the live-sync poll of members behind one Wi-Fi/CGNAT IP doesn't eat the api budget)
+#   /api/* (rest), dashboard host                       → 600 req / 1m per IP (dash_api)
+#   /api/* (rest), PWA host                             → 1800 req / 1m per IP (pwa_api: a whole colla
+#     opening the app at once from the rehearsal Wi-Fi or a carrier CGNAT shares one IP)
+# Zone names must be unique across the whole file: the plugin keys zones globally by name, so a
+# name reused in both site blocks would make dashboard and PWA traffic from one IP share a bucket.
+#
+# Client IP: the hosts sit behind Cloudflare, so the TCP peer is a Cloudflare node. The real IP is
+# read from Cf-Connecting-Ip only when the peer is in the Cloudflare ranges below (pinned
+# 2026-11-23 from https://www.cloudflare.com/ips-v4 and /ips-v6; refresh if Cloudflare changes them).
+{
+    servers {
+        trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+        client_ip_headers Cf-Connecting-Ip
+    }
+}
 
 {$SITE_ADDRESS::80} {
     encode gzip
@@ -16,16 +34,17 @@
     # L'API ha de tenir prioritat absoluta — handle evita que file_server intercepti POST/PUT/etc.
     handle /api/* {
         rate_limit {
-            zone auth {
+            zone dash_auth {
                 match {
                     path /api/auth*
+                    not path /api/auth/refresh /api/auth/me /api/auth/logout*
                 }
-                key {remote_host}
+                key {client_ip}
                 events 60
                 window 1m
             }
-            zone api {
-                key {remote_host}
+            zone dash_api {
+                key {client_ip}
                 events 600
                 window 1m
             }
@@ -57,17 +76,29 @@
 
     handle /api/* {
         rate_limit {
-            zone auth {
+            zone pwa_auth {
                 match {
                     path /api/auth*
+                    not path /api/auth/refresh /api/auth/me /api/auth/logout*
                 }
-                key {remote_host}
+                key {client_ip}
                 events 60
                 window 1m
             }
-            zone api {
-                key {remote_host}
-                events 600
+            zone pwa_revision {
+                match {
+                    path_regexp ^/api/me/events/[^/]+/segments/[^/]+/revision$
+                }
+                key {client_ip}
+                events 3000
+                window 1m
+            }
+            zone pwa_api {
+                match {
+                    not path_regexp ^/api/me/events/[^/]+/segments/[^/]+/revision$
+                }
+                key {client_ip}
+                events 1800
                 window 1m
             }
         }

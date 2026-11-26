@@ -68,6 +68,7 @@ import { AddRefreshTokenUserAgent1786800000000 } from './1786800000000-AddRefres
 import { AddPushSubscriptionTestedAudit1787000000000 } from './1787000000000-AddPushSubscriptionTestedAudit';
 import { AddUserPwaInstalledAt1787100000000 } from './1787100000000-AddUserPwaInstalledAt';
 import { AddPersonDeletedAudit1787200000000 } from './1787200000000-AddPersonDeletedAudit';
+import { AddRevisionCounters1787300000000 } from './1787300000000-AddRevisionCounters';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -139,4 +140,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddPushSubscriptionTestedAudit1787000000000,
   AddUserPwaInstalledAt1787100000000,
   AddPersonDeletedAudit1787200000000,
+  AddRevisionCounters1787300000000,
 ];

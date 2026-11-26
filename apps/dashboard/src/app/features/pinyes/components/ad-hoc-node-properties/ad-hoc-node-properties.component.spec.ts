@@ -9,6 +9,7 @@ import { By } from '@angular/platform-browser';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { NODE_TYPE_PALETTE, NODE_TYPE_PALETTE_DARK, ThemeService, ToastService } from '@muixer/ui';
 import { FigureZone, NodeShape } from '@muixer/shared';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 
 const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem => ({
   id: 'node-1',
@@ -67,6 +68,16 @@ describe('AdHocNodePropertiesComponent', () => {
         theme.setPreference('system');
         localStorage.clear();
       }
+    });
+
+    it('counts a node update as a tracked mutation', () => {
+      fixture.componentRef.setInput('node', makeNode({ positionType: 'comodin', color: '#123456' }));
+      fixture.detectChanges();
+      const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
+
+      picker.colorReset.emit();
+
+      expect(TestBed.inject(AssignmentStateService).mutationSeq()).toBe(1);
     });
 
     it('puts a customized node back on its type color when the color picker resets it', () => {

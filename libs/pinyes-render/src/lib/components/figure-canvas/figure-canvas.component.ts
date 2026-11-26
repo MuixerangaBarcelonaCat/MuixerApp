@@ -316,9 +316,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private resizeObserver: ResizeObserver | null = null;
   /**
-   * Once the user pans or pinch-zooms in readonly/projection mode, stop
-   * re-applying the auto-fit-to-screen transform on data or size changes —
-   * otherwise their view would keep snapping back.
+   * Once the user pans or zooms (mouse, touch, wheel or the zoom buttons) in readonly/projection
+   * mode, stop re-applying the auto-fit-to-screen transform on data or size changes — otherwise
+   * their view would keep snapping back. `resetAutoFit()` turns it back on.
    */
   private userAdjustedView = false;
   private wheelHandler: ((e: WheelEvent) => void) | null = null;
@@ -625,6 +625,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     if (flying) this.commitGesture();
   }
 
+  /**
+   * Readonly: forget the user's pan/zoom and fit the content again, now and on later redraws —
+   * for new content (another segment), not for fresh data of the same one.
+   */
+  resetAutoFit(): void {
+    this.userAdjustedView = false;
+    setTimeout(() => {
+      if (this.userAdjustedView || !this.stage) return;
+      this.applyReadonlyFit();
+      this.stage.batchDraw();
+    });
+  }
+
   fitToScreen(): void {
     this.stage.scale({ x: 1, y: 1 });
     this.stage.position({ x: 0, y: 0 });
@@ -731,6 +744,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   setZoom(level: number): void {
+    this.userAdjustedView = true;
     const center = {
       x: this.stage.width() / 2,
       y: this.stage.height() / 2,
@@ -844,6 +858,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.stage.on('mousemove', () => {
       if (!isPanning) return;
+      this.userAdjustedView = true;
       const pos = this.stage.getPointerPosition()!;
       this.stage.position({
         x: stageStart.x + (pos.x - panStart.x),

@@ -20,7 +20,8 @@ RUN ./node_modules/.bin/nx build shared --configuration=production && \
 
 # Stage 3: Caddy with rate_limit plugin (not in stock caddy:alpine)
 FROM caddy:builder-alpine AS caddy-builder
-RUN xcaddy build --with github.com/mholt/caddy-ratelimit
+# Pinned to v0.1.0 (commit 12435ec), the version validated 2026-11-23; bump deliberately.
+RUN xcaddy build --with github.com/mholt/caddy-ratelimit@v0.1.0
 
 # Stage 4: Serve static files with Caddy
 FROM caddy:alpine AS runner
