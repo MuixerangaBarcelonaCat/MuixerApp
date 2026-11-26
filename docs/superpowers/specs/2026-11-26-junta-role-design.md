@@ -142,94 +142,307 @@ Les fases 1–3 estan definides en aquest document. Les fases 4–7 encara no te
 
 # Part 2 — Annex tècnic
 
-**Enfocament triat (A):**
-- S'afegeix un rol pla `UserRole.JUNTA`.
-- Els endpoints nous porten `@Roles(JUNTA, ADMIN)`.
-- Les dades de Junta van en mòduls propis (`membership`, `documents`) i **mai** com a camps de `Person` ni dins les respostes de `/persons`.
+Aquesta part recull les decisions tècniques acordades. No és el pla d'implementació: cada fase tindrà el seu pla
+abans de començar.
 
-**Alternatives descartades:**
-- **B. Permisos per usuari:** reescriu tota l'autorització, i el cas tècnic + Junta ja es resol amb ADMIN.
-- **C. `roles[]`:** el mateix problema que B, i a més toca el JWT, els guards i els dos frontends.
+## 2.1 Arquitectura d'autorització
 
-**Restriccions:**
-- El `RolesGuard` és pla, sense jerarquia.
-- Les mutacions sensibles van a l'`AuditLog`.
-- La UI es fa en valencià amb `@muixer/ui`.
-- Cada fase visible actualitza el manual d'usuari.
+### Enfocament triat
 
-## Fase 1
+| | Enfocament | Pros | Contres | |
+|---|---|---|---|---|
+| **A** | Rol pla nou `UserRole.JUNTA`. Els endpoints de Junta porten `@Roles(JUNTA, ADMIN)` | Encaixa amb el `RolesGuard` actual (pla, sense jerarquia). Les dades queden aïllades per construcció | Cal revisar tots els llocs on ara diu `TECHNICAL, ADMIN` o «és staff» | ✅ |
+| B | Permisos per usuari (`canSeeMembership`, `canEditFigures`…) | Permet tècnic + Junta sense ser ADMIN | El cas dual ja es resol amb ADMIN. Reescriu tota l'autorització | |
+| C | Diversos rols per compte (`roles[]`) | Modela bé les persones amb doble funció | Mateix problema que B. Toca el JWT, els guards i els dos frontends | |
 
-- **Rol:** `UserRole.JUNTA` a `@muixer/shared` + migració `ALTER TYPE` de l'enum de Postgres.
-- **API:**
-  - Revisar cada `@Roles(TECHNICAL, ADMIN)` i `@Roles(ADMIN)` amb la matriu de la part 1.
-  - Pinyes no canvia: `figure`, `composition`, `event-segment`, `node-assignment` i `event-summary`.
-  - `event.controller`: `@Roles` per mètode. Els `GET` (llistat, detall, assistència) s'obrin a JUNTA; les escriptures es queden TECHNICAL/ADMIN.
-  - Afegir JUNTA allà on hi ha MEMBER, a `me` i `push-subscription`.
-- **`user.service`:**
-  - JUNTA crea i edita MEMBER, TECHNICAL i JUNTA.
-  - TECHNICAL no toca JUNTA.
-  - Ningú que no siga ADMIN toca ADMIN, tampoc les sessions ni els dispositius.
-- **Persones:**
-  - La llista de camps personals viu a `@muixer/shared`: `name`, `firstSurname`, `secondSurname`, `birthDate`, `phone`, `gender`, `joinDate`, `isActive`.
-  - Amb JUNTA, `POST/PATCH /persons` amb un camp tècnic retorna 403; no s'ignora en silenci.
-  - El formulari del Dashboard mostra els camps tècnics desactivats per a JUNTA.
-  - **Àlies:** si no arriba, el servidor el deriva amb `deriveUniqueAlias`, extret del sync a un lloc compartit.
-  - **Correu:** és `users.email` i s'edita via `PATCH /users/:id`. No s'afegeix cap correu de contacte a `Person`.
-  - **`joinDate`:** si no arriba, avui, tant a `POST /persons` com a `POST /persons/provisional`. Ara no surt al formulari: cal afegir-lo, amb una ajuda («Per defecte, el dia que es va donar d'alta la persona a l'app»). No s'omplin les existents.
-  - El sync (`person-sync.strategy.ts`) no es toca. Deixar-lo d'usar és el prerequisit.
-- **Dashboard:**
-  - Guard d'arrel, `isStaff` de `role.guard.ts`, `AuthService.isStaff/isAdmin`, rutes de `/config` i navegació.
-  - Etiqueta i color del rol a `user-chip`, al formulari d'usuari i al modal de delegació.
-  - Al detall d'esdeveniment, amagar segments, PDF, edició i assistència per a JUNTA.
-- **PWA:** JUNTA s'afegeix al guard de l'`AppShell`. El check «és staff» (`event-detail`, `event-card`) continua sent TECHNICAL/ADMIN.
-- **Tests:** una spec per regla de rol a `user.service`, el 403 de TECHNICAL a un endpoint de Junta i el 403 de JUNTA en editar un camp tècnic.
+### Principis
 
-## Fase 2 — `membership`
+1. **Un sol rol per compte** (`users.role`). Qui és tècnic i Junta alhora és `ADMIN`.
+2. **Aïllament per construcció.** Les dades de Junta (quotes, documents i, més endavant, pagaments i vots) viuen
+   en mòduls, taules i endpoints propis.
+   - Mai s'afegeixen com a camps de `Person`.
+   - Mai surten a cap resposta que puga rebre `TECHNICAL` o `MEMBER`: ni a `/persons`, ni a `/me`, ni a la
+     projecció.
+   - Així, un error en una vista tècnica no pot filtrar l'estat de soci de ningú.
+3. **Llistes explícites.** El guard no té jerarquia, per tant cada endpoint enumera els rols. `ADMIN` hi és
+   sempre que hi siga `JUNTA` o `TECHNICAL`.
+4. **Auditoria.** Tota mutació de dades de Junta escriu a l'`AuditLog` amb accions noves a
+   `libs/shared/src/enums/audit-action.enum.ts`. Avui no hi ha cap endpoint que llija l'auditoria, de manera
+   que no és una via de fuita.
 
-- **Taula `membership_fees`:**
-  - `id`, `person` (FK)
-  - `paidAt`, `validFrom`, `validUntil` (= `validFrom` + 12 mesos − 1 dia)
-  - `amount` (numeric(10,2), copiat de `colla_settings.membershipFeeAmount`)
-  - `paymentMethod` (enum, ara només `TRANSFER`, per defecte)
-  - `notes`, `registeredBy` (FK `users`), timestamps
-- **Vigència:**
-  - `validFrom = paidAt`, o `validUntil` de l'anterior + 1 dia si n'hi havia una de vigent.
-  - En crear, editar o esborrar, es recalcula la cadena sencera de la persona per ordre de `paidAt`, en una transacció.
-  - La regla és una funció pura a `@muixer/shared`.
-- **Estat derivat, mai guardat:**
-  - *Al corrent*: `validFrom ≤ avui ≤ validUntil`.
-  - *Caducat*: en té alguna, però no vigent.
-  - *No soci*: cap.
-  - La funció pura i el SQL del llistat porten un test d'equivalència.
-- **Endpoints:**
-  - `GET /membership/members`: paginat, filtres d'estat, venciment en N dies i cerca, `sortBy` amb whitelist.
-  - `GET` i `POST /persons/:id/membership-fees`: el POST rep `{ paidAt, paymentMethod?, notes? }`.
-  - `PATCH` i `DELETE /membership-fees/:id`: el DELETE és real.
-- **Auditoria:** `MEMBERSHIP_FEE_CREATED`, `UPDATED` i `DELETED`.
-- **Dashboard:**
-  - Secció «Socis» amb `app-data-table`.
-  - Modal «Registra una quota»: data d'avui i Transferència preseleccionades.
-  - Targeta «Soci» a la fitxa de persona.
+### Escalada de privilegis (`user.service`)
 
-## Fase 3 — `documents`
+Avui ja existeix la regla «només un ADMIN modifica un ADMIN» (`user.service.ts`, línies
+~400–510). S'amplia així:
 
-- **Taules:**
-  - `document_types`: `name`, `description`, `validity` (`PERMANENT | PER_SEASON`), `audience` (`ALL | MEMBERS | SELECTED`), `isActive`.
-  - `document_type_persons`: M:N, només per a `SELECTED`.
-  - `document_deliveries`: `documentType`, `person`, `season` (obligatori si `PER_SEASON`), `deliveredAt`, `registeredBy`. Única per `(documentType, person, season)`.
-- **Audiència:**
-  - Persones actives no menors, segons `deriveIsXicalla` (`majorityAge` o `isXicallaManual`).
-  - `MEMBERS` vol dir socis al corrent avui.
-- **Temporada per defecte:** la que conté avui; entre temporades, l'última que ha començat.
-- **Endpoints:**
-  - CRUD de `document-types` (soft delete) i de la seua llista de persones.
-  - `GET /documents/matrix?seasonId=`.
-  - `PUT` i `DELETE /documents/:typeId/deliveries/:personId`: toggle idempotent.
-  - Totes les marques i desmarques s'auditen.
+| Actor ↓ / compte objectiu → | MEMBER | TECHNICAL | JUNTA | ADMIN |
+|---|---|---|---|---|
+| TECHNICAL | crea, edita | crea, edita | — | — |
+| JUNTA | crea, edita | crea, edita | crea, edita | — |
+| ADMIN | tot | tot | tot | tot |
 
-**Es deixa a qui ho implemente:**
-- Noms de rutes, components i mòduls.
-- L'agrupació de la navegació de Junta.
-- Calcular l'estat de soci en SQL o en memòria (són centenars de persones).
+- «Edita» inclou el canvi de rol (`grant-role`), la desactivació, el correu, les sessions
+  (`DELETE users/:id/sessions*`) i els dispositius (`users/:id/push-subscriptions*`).
+- Ningú pot assignar un rol que no podria crear.
+
+## 2.2 Fase 1 — Rol JUNTA
+
+### Model i migració
+
+- `UserRole.JUNTA = 'JUNTA'` a `libs/shared/src/enums/user-role.enum.ts`, amb la descripció del rol a la
+  capçalera.
+- Migració `ALTER TYPE "users_role_enum" ADD VALUE 'JUNTA'`. El nom exacte del tipus es comprova a l'última
+  migració que el va tocar.
+  - En Postgres, `ADD VALUE` no es pot desfer amb un `DROP VALUE`.
+  - El `down` ha de recrear el tipus sense el valor, o bé es documenta com a no reversible.
+
+### Canvis d'autorització a l'API
+
+| Controlador | Ara | Després |
+|---|---|---|
+| `person` (classe) | TECHNICAL, ADMIN | + JUNTA (lectura i escriptura de camps personals; vegeu més avall) |
+| `person` `DELETE :id/permanent`, `deletion-check` | ADMIN | sense canvis |
+| `season` | TECHNICAL, ADMIN | + JUNTA |
+| `event` `GET /`, `GET :id`, `GET :id/attendance` | TECHNICAL, ADMIN (classe) | + JUNTA, amb `@Roles` per mètode |
+| `event` `POST`, `PUT :id`, `DELETE :id`, `PUT :id/attendance/:personId` | TECHNICAL, ADMIN | sense canvis |
+| `tag` `GET` | TECHNICAL, ADMIN | + JUNTA (les escriptures, sense canvis) |
+| `news`, `push-notification`, `notification-schedule` | TECHNICAL, ADMIN | + JUNTA |
+| `user` (classe) | ADMIN, TECHNICAL | + JUNTA, amb les regles d'escalada de 2.1 |
+| `user` `devices-summary`, `sessions*`, `push-subscriptions*` | ADMIN | + JUNTA (no sobre comptes ADMIN) |
+| `legal` (escriptures) | ADMIN | + JUNTA |
+| `me`, `push-subscription` (`me/…`) | MEMBER, TECHNICAL, ADMIN | + JUNTA |
+| `me` endpoints de staff (l. 74) | TECHNICAL, ADMIN | sense canvis |
+| `person-delegate` | TECHNICAL, ADMIN | + JUNTA |
+| `auth` endpoint de staff (l. 261) | TECHNICAL, ADMIN | revisar què exposa abans de decidir-ho |
+| `colla-settings` `PATCH`, `sync` | ADMIN | sense canvis |
+| `figure`, `composition`, `event-segment`, `node-assignment`, `event-summary` | TECHNICAL, ADMIN | **sense canvis** (Pinyes) |
+
+### Persones: camps personals i tècnics
+
+- **Llista de camps a `@muixer/shared`:** una constant `PERSON_PERSONAL_FIELDS` amb `name`, `firstSurname`,
+  `secondSurname`, `birthDate`, `phone`, `gender`, `joinDate` i `isActive`. La fan servir l'API i el formulari
+  del Dashboard.
+- **Validació:**
+  - Amb rol `JUNTA`, `POST /persons`, `POST /persons/provisional` i `PATCH /persons/:id` rebutgen amb **403**
+    qualsevol clau del cos que no siga a la llista. No s'ignora en silenci: una petició mal formada s'ha de
+    veure.
+  - L'activació/desactivació (`PATCH :id/activate`, soft delete) també s'obri a JUNTA, perquè correspon a
+    `isActive`.
+- **Àlies en una alta de Junta:**
+  - `alias` és obligatori i únic. Si no arriba, el servidor en deriva un.
+  - La lògica actual és a `PersonSyncStrategy.deriveUniqueAlias`, però rep un `legacyPerson`. S'ha d'extreure
+    a una funció que reba `{ name, firstSurname, secondSurname }`, i el sync la passa a usar.
+- **Correu:**
+  - És `users.email` (identificador d'accés) i no es copia a `Person`.
+  - La fitxa de persona el mostra quan hi ha un `User` vinculat i l'edita via `PATCH /users/:id`, amb les regles
+    d'escalada.
+  - Avís a la UI: «Este correu és el que fa servir per entrar a l'app».
+- **`joinDate`:**
+  - En qualsevol alta sense `joinDate`, el servidor posa la data d'avui (amb el mateix criteri de data que la
+    resta de dates `date`).
+  - S'afegeix al formulari del Dashboard amb el text d'ajuda «Per defecte, el dia que es va donar d'alta la
+    persona a l'app».
+  - Les persones existents amb `joinDate` nul no es modifiquen.
+- **Sync:** `person-sync.strategy.ts` sobreescriu `name`, `firstSurname`, `secondSurname`, `phone` i
+  `birthDate` a cada execució (línies ~434–440). No es modifica: el prerequisit operatiu és deixar d'executar
+  el sync abans de donar comptes JUNTA.
+
+### Dashboard
+
+- **Guard d'arrel** (`app.routes.ts`): `rolesGuard(TECHNICAL, JUNTA, ADMIN)`.
+- **Rutes de Pinyes** (`/pinyes/**`) i `/sync`: `rolesGuard(TECHNICAL, ADMIN)` i `rolesGuard(ADMIN)`.
+- **`AuthService`:**
+  - `isStaff` deixa de ser ambigu. Es proposen `canUsePinyes` (TECHNICAL, ADMIN) i `canUseJunta` (JUNTA,
+    ADMIN), i es revisa cada ús d'`isStaff`/`isAdmin`.
+  - `role.guard.ts` té el seu propi `isStaff`, que també cal revisar.
+- **Navegació:**
+  - Les entrades de Pinyes s'amaguen per a JUNTA.
+  - Apareix un grup «Junta» (Socis i Documents a les fases 2 i 3) per a JUNTA i ADMIN.
+- **`/config`:** `users`, `users/devices` i `legal` passen a `rolesGuard(JUNTA, ADMIN)` (`users` manté també
+  TECHNICAL). `colla` i `design-system` es queden ADMIN.
+- **Detall d'esdeveniment:** per a JUNTA, sense segments, sense botó de PDF, sense edició i amb l'assistència
+  només en lectura.
+- **Fitxa i formulari de persona:** els camps tècnics, desactivats per a JUNTA.
+- **Etiquetes del rol:** «Junta» a `user-chip`, `user-list`, `user-form-modal` i `person-delegate-modal`, amb
+  un color del sistema de disseny (cap hex).
+
+### PWA
+
+- `app.routes.ts`: JUNTA s'afegeix al `rolesGuard` de l'`AppShell`.
+- «Passa llista» i els checks «és staff» (`event-detail`, `event-card`) continuen sent TECHNICAL/ADMIN.
+
+### Tests mínims
+
+- `user.service`: una spec per cel·la de la taula d'escalada.
+- API (e2e o integració):
+  - TECHNICAL rep 403 en un endpoint de Junta.
+  - JUNTA rep 403 en un endpoint de Pinyes.
+  - JUNTA rep 403 en un `PATCH /persons/:id` amb `alias`.
+- `joinDate` per defecte en una alta.
+
+## 2.3 Fase 2 — Socis i quotes (mòdul `membership`)
+
+### Model
+
+**`membership_fees`**
+
+| Camp | Tipus | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `personId` | FK `persons`, `ON DELETE RESTRICT` | Una persona amb quotes no s'esborra per sempre (afegir-ho a `personDeletionBlockerReasons`) |
+| `paidAt` | `date` | Data de la transferència |
+| `validFrom` | `date` | Calculada pel servidor |
+| `validUntil` | `date` | `validFrom + 12 mesos − 1 dia` |
+| `amount` | `numeric(10,2)` | Còpia de `colla_settings.membershipFeeAmount` en el moment del registre |
+| `paymentMethod` | enum `PaymentMethod` (`@muixer/shared`) | Ara només `TRANSFER`. Per defecte, `TRANSFER` |
+| `notes` | `text`, nul·lable | |
+| `registeredById` | FK `users`, nul·lable (`ON DELETE SET NULL`) | |
+| `createdAt`, `updatedAt` | `timestamptz` | |
+
+- Índex per `(personId, paidAt)`.
+- **`colla_settings`:** camp nou `membershipFeeAmount numeric(10,2)`, amb un valor per defecte a
+  `DEFAULT_COLLA_SETTINGS`. L'edita ADMIN (decisió 2 de la part 1).
+
+### Regles
+
+- **Vigència** (funció pura `computeFeeValidity(fees)` a `@muixer/shared`):
+  - Es recorren les quotes de la persona ordenades per `paidAt`.
+  - Per a cada quota: si `paidAt` ≤ `validUntil` de l'anterior, `validFrom = validUntil anterior + 1 dia`; si
+    no, `validFrom = paidAt`.
+  - `validUntil = validFrom + 12 mesos − 1 dia`.
+- **Recàlcul:** cada `POST`/`PATCH`/`DELETE` recalcula i desa la cadena sencera de la persona dins la mateixa
+  transacció. Són poques files per persona, i així els venciments mai queden incoherents després d'una
+  correcció.
+- **Estat derivat** (`membershipStatus(fees, today)`): `UP_TO_DATE` si hi ha alguna quota amb
+  `validFrom ≤ today ≤ validUntil`; `EXPIRED` si n'hi ha però cap de vigent; `NONE` si no n'hi ha cap.
+  - No es guarda mai, és el mateix patró que `isXicalla` (invariant 14 de `DATA_MODEL.md`).
+  - El llistat el calcula en SQL. Un test comprova que el SQL i la funció pura donen el mateix resultat.
+
+### API (`@Roles(JUNTA, ADMIN)`)
+
+| Mètode i ruta | Descripció |
+|---|---|
+| `GET /membership/members` | Persones actives amb `status`, `validUntil` i `lastPaidAt`. Envelope `{ data, meta }`. Filtres: `status`, `expiringWithinDays`, `search` (nom, cognoms, àlies). `sortBy` amb `@IsIn` (`name`, `validUntil`, `lastPaidAt`) |
+| `GET /persons/:id/membership-fees` | Historial de la persona, de la més recent a la més antiga, amb l'estat actual |
+| `POST /persons/:id/membership-fees` | `{ paidAt, paymentMethod?, notes? }`. L'import i la vigència els posa el servidor |
+| `PATCH /membership-fees/:id` | `{ paidAt?, paymentMethod?, notes? }`. Recalcula la cadena |
+| `DELETE /membership-fees/:id` | Esborrat real (una quota mal registrada no ha existit). Recalcula la cadena |
+
+- **Auditoria:** `MEMBERSHIP_FEE_CREATED`, `MEMBERSHIP_FEE_UPDATED` i `MEMBERSHIP_FEE_DELETED`, amb la persona,
+  `paidAt`, l'import i el diff.
+- **Swagger:** DTOs amb `@ApiProperty`. Les rutes no s'enumeren a mà enlloc més.
+
+### Dashboard
+
+- **Ruta `/junta/socis`** (`rolesGuard(JUNTA, ADMIN)`): `app-page-header`, `app-filter-bar` i
+  `app-data-table` amb les columnes Persona (primary), Estat (`lib-badge`), Vàlida fins a i Última quota.
+- **Acció de fila «Registra una quota»:** `lib-modal` amb:
+  - data (avui per defecte);
+  - forma de pagament (un `select` amb només «Transferència», preseleccionada);
+  - notes.
+- **Fitxa de persona:** targeta «Soci» amb l'estat i l'historial, amb edició i esborrat. Es carrega només si
+  el rol és JUNTA/ADMIN; un TECHNICAL no fa ni la petició.
+- **Manual:** pàgina nova a `docs/manual/` i entrada a `MANUAL_PAGES`.
+
+## 2.4 Fase 3 — Lliurament de documents (mòdul `documents`)
+
+### Model
+
+**`document_types`**: `id`, `name` (únic), `description` (nul·lable), `validity` (`PERMANENT | PER_SEASON`),
+`audience` (`ALL | MEMBERS | SELECTED`), `isActive` (soft delete) i timestamps.
+
+**`document_type_persons`**: taula M:N (`documentTypeId`, `personId`). Només té sentit si
+`audience = SELECTED`. Si l'audiència canvia, la llista es conserva però s'ignora.
+
+**`document_deliveries`**
+
+| Camp | Tipus | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `documentTypeId` | FK | |
+| `personId` | FK, `ON DELETE CASCADE` | El lliurament no té valor sense la persona |
+| `seasonId` | FK `seasons`, nul·lable | Obligatori si `PER_SEASON` i nul si `PERMANENT` (es valida al servei) |
+| `deliveredAt` | `date` | |
+| `registeredById` | FK `users`, nul·lable | |
+| `createdAt`, `updatedAt` | `timestamptz` | |
+
+- Unicitat per `(documentTypeId, personId, seasonId)`.
+- Com que `seasonId` pot ser nul, cal un índex únic parcial addicional per als permanents:
+  `(documentTypeId, personId) WHERE seasonId IS NULL`.
+
+### Regles
+
+- **Audiència** (a qui es demana):
+  - Persones amb `isActive = true` i no menors. «Menor» = `deriveIsXicalla`, és a dir, `majorityAge` si hi ha
+    `birthDate` i `isXicallaManual` si no n'hi ha.
+  - A més: `ALL` totes; `MEMBERS` les que tenen `membershipStatus = UP_TO_DATE` avui; `SELECTED` les de la
+    llista.
+- **Estat de la cel·la:**
+  - `DELIVERED` si hi ha un lliurament (per a `PER_SEASON`, de la temporada triada), **encara que la persona ja
+    no siga dins l'audiència**.
+  - Si no n'hi ha: `PENDING` si és dins l'audiència i `NOT_REQUIRED` si no hi és.
+- **Temporada per defecte:** la que conté avui (`startDate ≤ avui ≤ endDate`). Entre temporades, la de
+  `startDate` més recent anterior a avui.
+- L'audiència sempre es calcula amb l'estat d'avui, també quan es consulta una temporada passada.
+
+### API (`@Roles(JUNTA, ADMIN)`)
+
+| Mètode i ruta | Descripció |
+|---|---|
+| `GET /document-types` | Llista (filtre `isActive`) |
+| `POST /document-types`, `PATCH /document-types/:id` | Alta i edició. `validity` no es pot canviar si ja hi ha lliuraments (409) |
+| `DELETE /document-types/:id` | Soft delete (`isActive = false`) |
+| `PUT /document-types/:id/persons` | Reemplaça la llista `SELECTED`: `{ personIds: uuid[] }` |
+| `GET /documents/matrix?seasonId=&onlyPending=` | Files de persones amb les cel·les per tipus actiu |
+| `PUT /documents/:typeId/deliveries/:personId` | `{ deliveredAt, seasonId? }`. Upsert idempotent |
+| `DELETE /documents/:typeId/deliveries/:personId?seasonId=` | Desmarca el lliurament |
+| `GET /persons/:id/documents` | Documents de la persona (per a la fitxa) |
+
+- **Auditoria:** `DOCUMENT_TYPE_CREATED`, `DOCUMENT_TYPE_UPDATED`, `DOCUMENT_TYPE_DELETED`,
+  `DOCUMENT_DELIVERY_SET` i `DOCUMENT_DELIVERY_CLEARED`.
+- Una persona amb lliuraments pot seguir esborrant-se per sempre (cascade): un lliurament no és un bloquejador.
+
+### Dashboard
+
+- **Ruta `/junta/documents`:** graella amb una fila per persona i una columna per tipus actiu.
+  - Selector de temporada i filtre «Només pendents».
+  - Clic a la cel·la: `PUT` amb la data d'avui; un altre clic, `DELETE`. Actualització optimista amb rollback
+    i toast si falla.
+  - Al mòbil, una vista de targetes per persona en lloc de la graella, seguint `app-data-table`.
+- **Gestió de tipus:** `lib-modal` amb nom, descripció, vigència, audiència i, si és `SELECTED`, un
+  `person-search-input` múltiple.
+- **Fitxa de persona:** targeta «Documents» (només JUNTA/ADMIN).
+- **Manual:** pàgina nova.
+
+## 2.5 Fases 4–7 — notes tècniques preliminars
+
+No són decisions tancades. Serveixen de punt de partida per a cada sessió de disseny.
+
+- **Activitats:**
+  - Taula `activities` separada d'`events`: títol, data, hora, lloc, enllaç del lloc, descripció i
+    `isActive`.
+  - Una taula pròpia d'inscripcions (`activity_registrations`: persona, estat, data).
+  - No hereta res d'`events`: ni temporada derivada, ni `attendanceRevision`, ni la `AttendanceSweepService`,
+    ni `countsForStatistics`.
+  - Si els membres s'hi han d'inscriure des de la PWA, caldrà un endpoint `me/activities`, que seria la primera
+    vista de Junta exposada als membres.
+- **Pagaments i bestretes:** reutilitzaran `PaymentMethod`. Probablement seran una taula `activity_payments`
+  vinculada a la inscripció; si cal saldo per persona, un llibre de moviments (càrrec/abonament) en lloc d'un
+  camp de saldo.
+- **Transport:** depèn de les activitats. Hi ha dos models possibles: vehicles amb places
+  (`transport_vehicles` + `transport_seats`) o una simple marca «necessita transport» a la inscripció. Es
+  decidirà amb els requisits.
+- **Votacions:**
+  - Elegibilitat = `membershipStatus = UP_TO_DATE` en el moment que es fixe (obrir o votar).
+  - Si el vot és secret, el registre de *qui ha votat* i el de *què s'ha votat* han d'anar en taules sense
+    relació entre elles.
+  - És la fase amb més requisits legals (GDPR, estatuts), per això va l'última.
+
+## 2.6 Es deixa a qui ho implemente
+
+- Noms exactes de rutes, components i mòduls, sempre que seguisquen les convencions del repo.
+- L'agrupació de la navegació de Junta al Dashboard.
+- Si el llistat de socis calcula l'estat en SQL o en memòria (són centenars de persones). Si es fa en memòria,
+  el test d'equivalència amb el SQL deixa de ser necessari.
 
 *Veïns: [[DATA_MODEL]] · [[AUTH_FLOW]] · [[GDPR_COMPLIANCE]] · [[ROADMAP]]*
